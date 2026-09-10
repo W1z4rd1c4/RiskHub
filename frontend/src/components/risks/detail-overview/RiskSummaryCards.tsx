@@ -21,9 +21,9 @@ const item = {
 
 interface RiskSummaryCardsProps {
     risk: Risk;
-    activeControlCount: number;
+    activeControlCount: number | null;
     linkedKriCount: number;
-    linkedVendorCount: number;
+    linkedVendorCount: number | null;
     getColor: (type: string) => string;
     getDisplayName: (type: string) => string;
     children?: ReactNode;
@@ -123,7 +123,7 @@ export function RiskSummaryCards({
                         <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
                             {t('overview.mitigating_controls', { ns: 'risks' })}
                         </span>
-                        <span className="text-lg text-foreground font-black">{activeControlCount}</span>
+                        <span className="text-lg text-foreground font-black">{activeControlCount ?? '—'}</span>
                     </div>
                     <div className="flex justify-between items-center gap-4">
                         <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
@@ -135,7 +135,7 @@ export function RiskSummaryCards({
                         <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
                             {t('overview.linked_vendors', { ns: 'risks' })}
                         </span>
-                        <span className="text-lg text-foreground font-black">{linkedVendorCount}</span>
+                        <span className="text-lg text-foreground font-black">{linkedVendorCount ?? '—'}</span>
                     </div>
                 </div>
             </motion.div>

@@ -72,7 +72,7 @@ describe('ICT-GOV #83 eight-register frontend contract', () => {
     ])('%s retains the pending-approval row projection', (_name, pagePath) => {
         const source = readFrontendSource(pagePath);
 
-        expect(source).toContain('usePendingApprovalIds');
-        expect(source).toContain('pendingApprovalIds');
+        expect(source).not.toContain('usePendingApprovalIds');
+        expect(source).not.toContain('pendingApprovalIds');
     });
 });

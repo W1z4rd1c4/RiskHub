@@ -12,11 +12,13 @@ interface RunArchiveOptions {
     archive: () => Promise<unknown>;
     approvalKey: string;
     closeDialog?: () => void;
+    isCurrent?: () => boolean;
     onImmediate: () => void | Promise<void>;
 }
 
 interface RunRestoreOptions {
     restore: () => Promise<unknown>;
+    isCurrent?: () => boolean;
     successKey: string;
     onRestored: () => void | Promise<void>;
 }
@@ -34,12 +36,14 @@ export function useArchiveRestoreAction({
         approvalKey,
         archive,
         closeDialog,
+        isCurrent,
         onImmediate,
     }: RunArchiveOptions) => {
         await runEntityMutation({
             approvalKey,
             closeDialog,
             execute: archive,
+            isCurrent,
             onDirectSuccess: onImmediate,
         });
     }, [runEntityMutation]);
@@ -47,10 +51,12 @@ export function useArchiveRestoreAction({
     const runRestore = useCallback(async ({
         onRestored,
         restore,
+        isCurrent,
         successKey,
     }: RunRestoreOptions) => {
         await runEntityMutation({
             execute: restore,
+            isCurrent,
             onDirectSuccess: onRestored,
             successKey,
         });

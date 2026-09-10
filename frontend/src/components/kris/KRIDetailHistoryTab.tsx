@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { History, TrendingUp } from 'lucide-react';
 import { HistoryTimeline, HistoryTrendChart, HistoryComparisonPanel } from '@/components/history';
+import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryTimelineItem, HistoryTrendPoint } from '@/types/history';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue, formatMetricNumberValue } from '@/i18n/formatters';
+import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure transformation helpers
@@ -58,6 +60,8 @@ interface KRIDetailHistoryTabProps {
     unit: string;
     onSelectEntry: (entry: KRIHistoryEntry) => void;
     canRequestCorrection: boolean;
+    outcome: CollectionOutcome;
+    onRetry: () => void;
 }
 
 export function KRIDetailHistoryTab({
@@ -69,8 +73,15 @@ export function KRIDetailHistoryTab({
     unit,
     onSelectEntry,
     canRequestCorrection,
+    outcome,
+    onRetry,
 }: KRIDetailHistoryTabProps) {
     const { t, i18n } = useTranslation(['kris', 'common']);
+    const hasError = outcome.kind === 'fatal-error' || outcome.kind === 'stale-with-error';
+    const isRetrying = hasError ? outcome.isRetrying : false;
+    const errorMessage = outcome.kind === 'stale-with-error'
+        ? t('common:detail_load.stale_description')
+        : t('common:errors.load_failed');
     const historyChartData = useMemo(() => buildHistoryChartData(history, i18n.language), [history, i18n.language]);
     const timelineItems = useMemo(
         () => buildTimelineItems(
@@ -83,8 +94,28 @@ export function KRIDetailHistoryTab({
         [history, i18n.language, t],
     );
 
+    if (outcome.kind === 'fatal-error' || outcome.kind === 'denied') {
+        return (
+            <TableErrorState
+                testId="kri-history-load-state"
+                message={errorMessage}
+                onRetry={outcome.kind === 'fatal-error' ? onRetry : undefined}
+                isRetrying={isRetrying}
+            />
+        );
+    }
+
     return (
         <div className="space-y-6">
+            {outcome.kind === 'stale-with-error' ? (
+                <TableErrorState
+                    variant="banner"
+                    testId="kri-history-load-state"
+                    message={errorMessage}
+                    onRetry={onRetry}
+                    isRetrying={isRetrying}
+                />
+            ) : null}
             {/* Trend Chart */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}

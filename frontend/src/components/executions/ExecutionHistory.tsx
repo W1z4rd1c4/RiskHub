@@ -18,6 +18,8 @@ import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 import { logError } from '@/services/logger';
+import { isAbortError } from '@/services/api/requestRuntime';
+import { ApiClientError } from '@/services/apiClient';
 import {
     resolveCollectionOutcome,
     useCollectionDataState,
@@ -33,6 +35,10 @@ interface ExecutionHistoryProps {
 }
 
 const EXECUTION_QUERY_PARAM = 'execution';
+
+function isProtectedUnavailableError(error: unknown): boolean {
+    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
+}
 
 function parseExecutionId(values: string[]): number | null {
     if (values.length !== 1) {
@@ -82,6 +88,7 @@ export function ExecutionHistory({
     const outcome = resolveCollectionOutcome(queryState, isLoading);
     const [issueExecution, setIssueExecution] = useState<ControlExecution | null>(null);
     const latestRequestRef = useRef(0);
+    const requestControllerRef = useRef<AbortController | null>(null);
     const pendingRetryRef = useRef<string | null>(null);
 
     const updateExpandedId = useCallback((nextId: number | null, replace = false) => {
@@ -118,11 +125,15 @@ export function ExecutionHistory({
             return;
         }
         const requestId = ++latestRequestRef.current;
+        requestControllerRef.current?.abort();
+        const controller = new AbortController();
+        requestControllerRef.current = controller;
         try {
             setIsLoading(true);
-            const data = await controlApi.getExecutions(requestControlId);
+            const data = await controlApi.getExecutions(requestControlId, { signal: controller.signal });
             if (
-                latestRequestRef.current !== requestId
+                controller.signal.aborted
+                || latestRequestRef.current !== requestId
                 || !isQueryCurrent(requestQueryIdentity)
             ) {
                 return;
@@ -135,15 +146,21 @@ export function ExecutionHistory({
             });
         } catch (err) {
             if (
-                latestRequestRef.current === requestId
+                !isAbortError(err)
+                && !controller.signal.aborted
+                && latestRequestRef.current === requestId
                 && isQueryCurrent(requestQueryIdentity)
             ) {
                 logError('Error fetching execution history:', err);
-                applyFailure(err, { fallbackErrorKey: 'errors.load_history_failed' });
+                applyFailure(err, {
+                    fallbackErrorKey: 'errors.load_history_failed',
+                    isAccessDenied: isProtectedUnavailableError,
+                });
             }
         } finally {
             if (
-                latestRequestRef.current === requestId
+                !controller.signal.aborted
+                && latestRequestRef.current === requestId
                 && isQueryCurrent(requestQueryIdentity)
             ) {
                 setIsLoading(false);
@@ -154,6 +171,7 @@ export function ExecutionHistory({
     useEffect(() => {
         beginQuery(queryIdentity);
         void fetchExecutions();
+        return () => requestControllerRef.current?.abort();
     }, [beginQuery, fetchExecutions, queryIdentity, refreshKey]);
 
     useEffect(() => {

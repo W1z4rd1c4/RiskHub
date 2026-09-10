@@ -38,6 +38,7 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
         onValueChange,
         options,
         placeholder,
+        triggerAriaLabel,
         allowEmpty,
         emptyLabel,
     }: {
@@ -45,10 +46,11 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
         onValueChange: (value: string) => void;
         options: Array<{ value: string; label: string }>;
         placeholder?: string;
+        triggerAriaLabel?: string;
         allowEmpty?: boolean;
         emptyLabel?: string;
     }) => (
-        <select aria-label={placeholder ?? 'select'} value={value} onChange={(event) => onValueChange(event.target.value)}>
+        <select aria-label={triggerAriaLabel ?? placeholder ?? 'select'} value={value} onChange={(event) => onValueChange(event.target.value)}>
             {allowEmpty && <option value="">{emptyLabel ?? placeholder ?? 'None'}</option>}
             {options.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -262,6 +264,12 @@ describe('AuditLogsPanel', () => {
     });
 
     it('renders audit logs, filters by event, opens details, and copies details', async () => {
+        getAuditLogsMock.mockImplementation((params?: { event_type?: string; lines?: number }) => {
+            const payload = auditLogsPayload();
+            return Promise.resolve(params?.event_type
+                ? { ...payload, entries: payload.entries.filter((entry) => entry.event === params.event_type) }
+                : payload);
+        });
         renderAuditLogsPanel();
 
         expect(await screen.findAllByText('user update')).not.toHaveLength(0);
@@ -270,6 +278,14 @@ describe('AuditLogsPanel', () => {
         await waitFor(() => {
             expect(getAuditLogsMock).toHaveBeenLastCalledWith({ lines: 100, event_type: 'user_update' });
         });
+        expect(screen.getByRole('option', { name: 'risk create' })).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText('audit.last_n: 100'), { target: { value: '50' } });
+        await waitFor(() => {
+            expect(getAuditLogsMock).toHaveBeenCalledWith({ lines: 50, event_type: undefined });
+            expect(getAuditLogsMock).toHaveBeenCalledWith({ lines: 50, event_type: 'user_update' });
+        });
+        expect(screen.getByRole('option', { name: 'risk create' })).toBeInTheDocument();
 
         await screen.findAllByText('user update');
         const firstRow = screen.getAllByText('user update').find((element) => element.closest('tr'))?.closest('tr');
@@ -283,6 +299,98 @@ describe('AuditLogsPanel', () => {
             expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('"changed": true'));
         });
         expect(await screen.findByRole('button', { name: 'audit.details_modal.copied' })).toBeInTheDocument();
+    });
+
+    it('retains the unfiltered event vocabulary when the selected filter has no rows', async () => {
+        getAuditLogsMock.mockImplementation((params?: { event_type?: string }) => Promise.resolve(
+            params?.event_type
+                ? { ...auditLogsPayload(), entries: [] }
+                : auditLogsPayload(),
+        ));
+        renderAuditLogsPanel();
+
+        await screen.findAllByText('user update');
+        fireEvent.change(screen.getByLabelText('audit.all_events'), { target: { value: 'user_update' } });
+
+        await waitFor(() => {
+            expect(getAuditLogsMock).toHaveBeenCalledWith({ lines: 100, event_type: 'user_update' });
+        });
+        expect(screen.getByRole('option', { name: 'risk create' })).toBeInTheDocument();
+    });
+
+    it('falls back to loaded rows when the event-vocabulary request fails', async () => {
+        getAuditLogsMock
+            .mockRejectedValueOnce(new Error('event vocabulary unavailable'))
+            .mockResolvedValue(auditLogsPayload());
+
+        renderAuditLogsPanel();
+
+        expect(await screen.findByRole('option', { name: 'risk create' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'user update' })).toBeInTheDocument();
+    });
+
+    it('keeps the unfiltered fallback vocabulary after the filtered response loads', async () => {
+        getAuditLogsMock
+            .mockRejectedValueOnce(new Error('event vocabulary unavailable'))
+            .mockResolvedValue(auditLogsPayload());
+        renderAuditLogsPanel();
+        expect(await screen.findByRole('option', { name: 'risk create' })).toBeInTheDocument();
+
+        getAuditLogsMock.mockImplementation((params?: { event_type?: string }) => Promise.resolve(
+            params?.event_type
+                ? {
+                    ...auditLogsPayload(),
+                    entries: [{
+                        ...auditLogsPayload().entries[0],
+                        timestamp: '2026-04-25T12:00:00Z',
+                    }],
+                }
+                : auditLogsPayload(),
+        ));
+        fireEvent.change(screen.getByLabelText('audit.all_events'), { target: { value: 'user_update' } });
+
+        expect(await screen.findByText('formatted:2026-04-25T12:00:00Z')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'risk create' })).toBeInTheDocument();
+    });
+
+    it('replaces the old vocabulary with same-window fallback rows when the lines window changes', async () => {
+        renderAuditLogsPanel();
+        expect(await screen.findByRole('option', { name: 'risk create' })).toBeInTheDocument();
+
+        getAuditLogsMock
+            .mockRejectedValueOnce(new Error('new vocabulary unavailable'))
+            .mockResolvedValueOnce({
+                ...auditLogsPayload(),
+                entries: [{ ...auditLogsPayload().entries[0], event: 'control_update' }],
+            });
+        fireEvent.change(screen.getByLabelText('audit.last_n: 100'), { target: { value: '50' } });
+
+        await waitFor(() => {
+            expect(getAuditLogsMock).toHaveBeenCalledWith({ lines: 50, event_type: undefined });
+        });
+        expect(await screen.findByRole('option', { name: 'control update' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'risk create' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'user update' })).not.toBeInTheDocument();
+    });
+
+    it('manual refresh updates both the loaded rows and their event vocabulary', async () => {
+        renderAuditLogsPanel();
+        await screen.findAllByText('user update');
+        fireEvent.change(screen.getByLabelText('audit.all_events'), { target: { value: 'user_update' } });
+        await waitFor(() => {
+            expect(getAuditLogsMock).toHaveBeenCalledWith({ lines: 100, event_type: 'user_update' });
+        });
+        const refreshButton = screen.getByRole('button', { name: 'console.manual_refresh' });
+        await waitFor(() => expect(refreshButton).not.toBeDisabled());
+        const callsBeforeRefresh = getAuditLogsMock.mock.calls.length;
+
+        fireEvent.click(refreshButton);
+
+        await waitFor(() => expect(getAuditLogsMock).toHaveBeenCalledTimes(callsBeforeRefresh + 2));
+        expect(getAuditLogsMock.mock.calls.slice(-2).map(([params]) => params)).toEqual([
+            { lines: 100, event_type: 'user_update' },
+            { lines: 100, event_type: undefined },
+        ]);
     });
 
     it('resolves audit actor names through the user lookup', async () => {
@@ -318,12 +426,12 @@ describe('AuditLogsPanel', () => {
         expect(URL.createObjectURL).toHaveBeenNthCalledWith(1, expect.any(Blob));
         expect(URL.createObjectURL).toHaveBeenNthCalledWith(2, expect.any(Blob));
         expect(clickMock).toHaveBeenCalledTimes(2);
-        expect(getAuditLogsMock).toHaveBeenCalledTimes(1);
+        expect(getAuditLogsMock).toHaveBeenCalledTimes(2);
         clickMock.mockRestore();
     });
 
     it('does not export empty loaded audit log payloads', async () => {
-        getAuditLogsMock.mockResolvedValueOnce({
+        getAuditLogsMock.mockResolvedValue({
             entries: [],
             total_lines: 0,
             file_path: '/tmp/audit.log',

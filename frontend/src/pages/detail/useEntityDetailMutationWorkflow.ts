@@ -7,6 +7,7 @@ import type { DetailActionMessage } from './DetailActionBanner';
 export type EntityDetailMutationOutcome =
     | { kind: 'approval_queued'; message: DetailActionMessage; response: unknown }
     | { kind: 'direct_success'; message: DetailActionMessage | null; response: unknown }
+    | { kind: 'superseded'; response?: unknown; error?: unknown }
     | { kind: 'failed'; error: unknown; message: DetailActionMessage };
 
 interface UseEntityDetailMutationWorkflowOptions {
@@ -18,6 +19,7 @@ interface RunEntityMutationOptions {
     approvalKey?: string;
     closeDialog?: () => void;
     execute: () => Promise<unknown>;
+    isCurrent?: () => boolean;
     onDirectSuccess?: () => void | Promise<void>;
     successKey?: string;
 }
@@ -32,12 +34,16 @@ export function useEntityDetailMutationWorkflow({
         approvalKey,
         closeDialog,
         execute,
+        isCurrent = () => true,
         onDirectSuccess,
         successKey,
     }: RunEntityMutationOptions): Promise<EntityDetailMutationOutcome> => {
         try {
             setIsMutating(true);
             const response = await execute();
+            if (!isCurrent()) {
+                return { kind: 'superseded', response };
+            }
 
             if (approvalKey && isApprovalCreatedResponse(response)) {
                 const message = { key: approvalKey, isError: false };
@@ -47,6 +53,9 @@ export function useEntityDetailMutationWorkflow({
             }
 
             await onDirectSuccess?.();
+            if (!isCurrent()) {
+                return { kind: 'superseded', response };
+            }
 
             const message = successKey ? { key: successKey, isError: false } : null;
             if (message) {
@@ -54,11 +63,16 @@ export function useEntityDetailMutationWorkflow({
             }
             return { kind: 'direct_success', message, response };
         } catch (error) {
+            if (!isCurrent()) {
+                return { kind: 'superseded', error };
+            }
             const message = { key: toErrorKey(error), isError: true };
             setMessage(message);
             return { kind: 'failed', error, message };
         } finally {
-            setIsMutating(false);
+            if (isCurrent()) {
+                setIsMutating(false);
+            }
         }
     }, [setMessage, toErrorKey]);
 

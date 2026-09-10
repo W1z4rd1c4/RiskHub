@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireDetail as RiskQuestionnaireDetailType } from '@/types/riskQuestionnaire';
 import { RiskQuestionnaireDetail } from '@/components/risks/RiskQuestionnaireDetail';
+import { ApiClientError } from '@/services/apiClient';
 
-const tMock = (_key: string, fallback?: string) => fallback ?? _key;
+const tMock = (_key: string, fallback?: string | Record<string, unknown>) => (
+    typeof fallback === 'string' ? fallback : _key
+);
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -95,6 +98,12 @@ const completeAnswers = {
     'risk_assessment.q9_mitigation_actions': 'Mitigate',
 };
 
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((accept) => { resolve = accept; });
+    return { promise, resolve };
+}
+
 describe('RiskQuestionnaireDetail open flow', () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -119,7 +128,11 @@ describe('RiskQuestionnaireDetail open flow', () => {
         );
 
         await waitFor(() => {
-            expect(riskQuestionnairesApi.open).toHaveBeenCalledWith(123, { includePrevious: false });
+            expect(riskQuestionnairesApi.open).toHaveBeenCalledWith(
+                123,
+                { includePrevious: false },
+                { signal: expect.any(AbortSignal) },
+            );
         });
     });
 
@@ -208,11 +221,164 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.actions.save' }));
 
         await waitFor(() => {
-            expect(riskQuestionnairesApi.saveDraft).toHaveBeenCalledWith(123, completeAnswers);
+            expect(riskQuestionnairesApi.saveDraft).toHaveBeenCalledWith(
+                123,
+                completeAnswers,
+                { signal: expect.any(AbortSignal) },
+            );
         });
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(123, { includePrevious: false });
+        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
+            123,
+            { includePrevious: false },
+            { signal: expect.any(AbortSignal) },
+        );
         expect(onChanged).toHaveBeenCalledTimes(1);
         expect(await screen.findByText('Updated draft')).toBeInTheDocument();
+    });
+
+    it('aborts an owned questionnaire action when the detail unmounts', async () => {
+        (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+            status: 'in_progress',
+            answers: completeAnswers,
+        }));
+        (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>)
+            .mockReturnValue(new Promise(() => undefined));
+        const view = render(
+            <RiskQuestionnaireDetail
+                isOpen={true}
+                onClose={() => {}}
+                questionnaireId={123}
+                risk={baseRisk}
+            />
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.actions.save' }));
+        const signal = (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>)
+            .mock.calls[0]?.[2]?.signal as AbortSignal;
+        expect(signal).toBeInstanceOf(AbortSignal);
+
+        view.unmount();
+
+        expect(signal.aborted).toBe(true);
+    });
+
+    it('clears Risk A detail and actions while Risk B is loading during an owned save', async () => {
+        const save = deferred<{ id: number }>();
+        const riskB = deferred<RiskQuestionnaireDetailType>();
+        const onChanged = vi.fn();
+        vi.mocked(riskQuestionnairesApi.get).mockImplementation((id) => (
+            id === 124 ? riskB.promise : Promise.resolve(sentQuestionnaire())
+        ));
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
+            status: 'in_progress',
+            answers: completeAnswers,
+        }));
+        vi.mocked(riskQuestionnairesApi.saveDraft).mockReturnValue(save.promise);
+
+        const view = render(
+            <RiskQuestionnaireDetail
+                isOpen
+                onClose={() => {}}
+                questionnaireId={123}
+                risk={baseRisk}
+                onChanged={onChanged}
+            />,
+        );
+        await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.actions.save' }));
+        const saveSignal = vi.mocked(riskQuestionnairesApi.saveDraft).mock.calls[0]?.[2]?.signal as AbortSignal;
+
+        await act(async () => view.rerender(
+            <RiskQuestionnaireDetail
+                isOpen
+                onClose={() => {}}
+                questionnaireId={124}
+                risk={baseRisk}
+                onChanged={onChanged}
+            />,
+        ));
+
+        expect(saveSignal.aborted).toBe(true);
+        expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+
+        await act(async () => save.resolve({ id: 123 }));
+        expect(onChanged).not.toHaveBeenCalled();
+    });
+
+    it('clears protected detail and actions when the next questionnaire is denied', async () => {
+        vi.mocked(riskQuestionnairesApi.get).mockImplementation((id) => (
+            id === 124
+                ? Promise.reject(new ApiClientError({ status: 403, messageKey: 'errorKeys.forbidden' }))
+                : Promise.resolve(sentQuestionnaire())
+        ));
+
+        const view = render(
+            <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />,
+        );
+        expect(await screen.findByTestId('risk-questionnaire-ready')).toBeInTheDocument();
+
+        view.rerender(
+            <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={124} risk={baseRisk} />,
+        );
+
+        await waitFor(() => expect(riskQuestionnairesApi.get).toHaveBeenCalledWith(
+            124,
+            { includePrevious: false },
+            { signal: expect.any(AbortSignal) },
+        ));
+        expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+    });
+
+    it('clears protected detail and actions when anti-enumeration open returns 404', async () => {
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire());
+        vi.mocked(riskQuestionnairesApi.open).mockRejectedValue(new ApiClientError({
+            status: 404,
+            messageKey: 'errorKeys.not_found',
+        }));
+
+        render(
+            <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />,
+        );
+
+        await waitFor(() => expect(riskQuestionnairesApi.open).toHaveBeenCalledWith(
+            123,
+            { includePrevious: false },
+            { signal: expect.any(AbortSignal) },
+        ));
+        expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ['save', 'risks:questionnaire.actions.save', 'saveDraft'],
+        ['submit', 'common:actions.submit', 'submit'],
+    ] as const)('does not leave %s pending after close and reopen', async (_label, buttonName, apiMethod) => {
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
+            status: 'in_progress',
+            answers: completeAnswers,
+        }));
+        vi.mocked(riskQuestionnairesApi[apiMethod]).mockReturnValue(new Promise(() => undefined));
+        const onClose = vi.fn();
+        const view = render(
+            <RiskQuestionnaireDetail isOpen onClose={onClose} questionnaireId={123} risk={baseRisk} />,
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: buttonName }));
+        const closeButtons = screen.getAllByRole('button', { name: 'common:actions.close' });
+        await userEvent.click(closeButtons[closeButtons.length - 1]);
+        expect(onClose).toHaveBeenCalledTimes(1);
+        view.rerender(
+            <RiskQuestionnaireDetail isOpen={false} onClose={onClose} questionnaireId={123} risk={baseRisk} />,
+        );
+        view.rerender(
+            <RiskQuestionnaireDetail isOpen onClose={onClose} questionnaireId={123} risk={baseRisk} />,
+        );
+
+        expect(await screen.findByRole('button', { name: buttonName })).not.toBeDisabled();
     });
 
     it('blocks submit when required answers are missing', async () => {
@@ -259,10 +425,139 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'common:actions.submit' }));
 
         await waitFor(() => {
-            expect(riskQuestionnairesApi.submit).toHaveBeenCalledWith(123, completeAnswers);
+            expect(riskQuestionnairesApi.submit).toHaveBeenCalledWith(
+                123,
+                completeAnswers,
+                { signal: expect.any(AbortSignal) },
+            );
         });
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(123, { includePrevious: false });
+        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
+            123,
+            { includePrevious: false },
+            { signal: expect.any(AbortSignal) },
+        );
         expect(onChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        { action: 'save', buttonName: 'risks:questionnaire.actions.save', apiMethod: 'saveDraft', status: 403 },
+        { action: 'save', buttonName: 'risks:questionnaire.actions.save', apiMethod: 'saveDraft', status: 404 },
+        { action: 'submit', buttonName: 'common:actions.submit', apiMethod: 'submit', status: 403 },
+        { action: 'submit', buttonName: 'common:actions.submit', apiMethod: 'submit', status: 404 },
+    ] as const)(
+        'clears protected detail and actions when the post-$action reload returns $status',
+        async ({ buttonName, apiMethod, status }) => {
+            const onChanged = vi.fn();
+            vi.mocked(riskQuestionnairesApi.get)
+                .mockResolvedValueOnce(sentQuestionnaire())
+                .mockRejectedValueOnce(new ApiClientError({
+                    status,
+                    messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
+                }));
+            vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
+                status: 'in_progress',
+                answers: completeAnswers,
+            }));
+            vi.mocked(riskQuestionnairesApi[apiMethod]).mockResolvedValue({ id: 123 } as never);
+
+            render(
+                <RiskQuestionnaireDetail
+                    isOpen
+                    onClose={() => {}}
+                    questionnaireId={123}
+                    risk={baseRisk}
+                    onChanged={onChanged}
+                />,
+            );
+
+            await userEvent.click(await screen.findByRole('button', { name: buttonName }));
+            await waitFor(() => expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(2));
+
+            expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+            expect(onChanged).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([403, 404])(
+        'clears protected detail and actions when a post-clarification reload returns %i',
+        async (status) => {
+            vi.mocked(riskQuestionnairesApi.get)
+                .mockResolvedValueOnce(sentQuestionnaire({
+                    status: 'submitted',
+                    answers: completeAnswers,
+                    capabilities: {
+                        can_open: false,
+                        can_save_draft: false,
+                        can_submit: false,
+                        can_request_clarification: true,
+                        can_respond_to_clarifications: false,
+                    },
+                }))
+                .mockRejectedValueOnce(new ApiClientError({
+                    status,
+                    messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
+                }));
+            vi.mocked(riskQuestionnairesApi.createClarification).mockResolvedValue({ id: 1 } as never);
+
+            render(
+                <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />,
+            );
+
+            await userEvent.click((await screen.findAllByRole('button', {
+                name: 'risks:questionnaire.request_clarification',
+            }))[0]);
+            await userEvent.type(
+                screen.getByPlaceholderText('risks:questionnaire.clarification_request_placeholder'),
+                'Please clarify',
+            );
+            await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
+            await waitFor(() => expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(2));
+
+            expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'risks:questionnaire.request_clarification' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+        },
+    );
+
+    it('clears a superseded save pending flag when clarification takes ownership', async () => {
+        const saveDraft = new Promise<{ id: number }>(() => undefined);
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
+            status: 'submitted',
+            answers: completeAnswers,
+            capabilities: {
+                can_open: false,
+                can_save_draft: true,
+                can_submit: false,
+                can_request_clarification: true,
+                can_respond_to_clarifications: false,
+            },
+        }));
+        vi.mocked(riskQuestionnairesApi.saveDraft).mockReturnValue(saveDraft);
+        vi.mocked(riskQuestionnairesApi.createClarification).mockResolvedValue({ id: 1 } as never);
+
+        render(
+            <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />,
+        );
+
+        const saveButton = await screen.findByRole('button', { name: 'risks:questionnaire.actions.save' });
+        await userEvent.click(saveButton);
+        expect(saveButton).toBeDisabled();
+        const saveSignal = vi.mocked(riskQuestionnairesApi.saveDraft).mock.calls[0]?.[2]?.signal as AbortSignal;
+
+        await userEvent.click((await screen.findAllByRole('button', {
+            name: 'risks:questionnaire.request_clarification',
+        }))[0]);
+        await userEvent.type(
+            screen.getByPlaceholderText('risks:questionnaire.clarification_request_placeholder'),
+            'Please clarify',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
+
+        await waitFor(() => expect(saveSignal.aborted).toBe(true));
+        await waitFor(() => expect(saveButton).not.toBeDisabled());
     });
 
     it('loads previous submission in compare mode and marks changed answers', async () => {
@@ -304,7 +599,11 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.compare_toggle' }));
 
         await waitFor(() => {
-            expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(123, { includePrevious: true });
+            expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
+                123,
+                { includePrevious: true },
+                { signal: expect.any(AbortSignal) },
+            );
         });
         expect(await screen.findByText('risks:questionnaire.changed')).toBeInTheDocument();
         expect(screen.getByText('risks:questionnaire.previous: Previous trigger')).toBeInTheDocument();
@@ -343,10 +642,17 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 section_key: 'questionnaire.sections.risk_changes',
                 request_message: 'Please clarify',
                 question_keys: ['risk_assessment.q1_description_changed'],
-            });
+            }, { signal: expect.any(AbortSignal) });
         });
-        expect(riskQuestionnairesApi.listClarifications).toHaveBeenLastCalledWith(123);
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(123, { includePrevious: false });
+        expect(riskQuestionnairesApi.listClarifications).toHaveBeenLastCalledWith(
+            123,
+            { signal: expect.any(AbortSignal) },
+        );
+        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
+            123,
+            { includePrevious: false },
+            { signal: expect.any(AbortSignal) },
+        );
         expect(screen.queryByPlaceholderText('risks:questionnaire.clarification_request_placeholder')).not.toBeInTheDocument();
     });
 
@@ -392,10 +698,17 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await waitFor(() => {
             expect(riskQuestionnairesApi.respondClarification).toHaveBeenCalledWith(123, 44, {
                 response_message: 'Response text',
-            });
+            }, { signal: expect.any(AbortSignal) });
         });
-        expect(riskQuestionnairesApi.listClarifications).toHaveBeenLastCalledWith(123);
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(123, { includePrevious: false });
+        expect(riskQuestionnairesApi.listClarifications).toHaveBeenLastCalledWith(
+            123,
+            { signal: expect.any(AbortSignal) },
+        );
+        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
+            123,
+            { includePrevious: false },
+            { signal: expect.any(AbortSignal) },
+        );
         expect(screen.queryByPlaceholderText('risks:questionnaire.clarification_response_placeholder')).not.toBeInTheDocument();
     });
 });

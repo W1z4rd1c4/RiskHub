@@ -759,6 +759,7 @@ const departmentLookupFixture = {
 const riskFiltersFixture = {
     processes: ['User Authentication'],
     categories: ['IT'],
+    subprocesses_by_process: { 'User Authentication': ['Access Review'] },
 };
 
 const departmentHubFixture = {

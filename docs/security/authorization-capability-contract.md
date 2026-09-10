@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-09-01
+> Last reviewed: 2026-09-02
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -21,6 +21,16 @@ gaps that must stay aligned.
 
 This is an audit and maintenance artifact. It does not introduce SQL RLS, route
 changes, schema changes, or auth/session wire changes.
+
+On 2026-09-02, issue #163 aligned Risk form suggestions with the existing
+`AUTHZ-RISKS-READ` contract: `/lookups/risk-filters` now derives its distinct
+process, subprocess, and category vocabulary only from live Risks admitted by
+the canonical `risk_visibility_clause`. Risk and Control register pending
+badges now consume their row-projected pending capabilities without a separate
+approval-queue read, and optional Risk/KRI detail collections clear retained
+data after a protected 403. These changes enforce existing row visibility and
+capability authority; permission requirements and capability field shapes are
+unchanged.
 
 On 2026-09-01, issue #162 made frontend session work principal-owned. Auth
 configuration and session bootstrap now start concurrently, while the protected

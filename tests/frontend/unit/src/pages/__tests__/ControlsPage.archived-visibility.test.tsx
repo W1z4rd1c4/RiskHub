@@ -68,6 +68,60 @@ describe('ControlsPage archived visibility', () => {
         clearBootstrapSession();
     });
 
+    it('projects pending state from each Control row without requesting the approval queue', async () => {
+        let approvalQueueRequests = 0;
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(makeUser())),
+            http.get('*/api/v1/controls', () => HttpResponse.json({
+                items: [{
+                    id: 81,
+                    name: 'Pending Control change',
+                    department_name: 'Operations',
+                    frequency: 'monthly',
+                    risk_level: 3,
+                    status: 'active',
+                    is_archived: false,
+                    control_form: 'manual',
+                    capabilities: {
+                        can_read: true,
+                        can_update: false,
+                        can_update_sensitive_fields: false,
+                        can_request_update_approval: false,
+                        can_archive_immediately: false,
+                        can_request_archive_approval: false,
+                        can_restore: false,
+                        can_log_execution: false,
+                        can_view_executions: true,
+                        can_link_risk: false,
+                        can_unlink_risk: false,
+                        can_view_linked_risks: true,
+                        can_view_linked_vendors: true,
+                        can_create_issue: false,
+                        has_pending_delete_approval: true,
+                        has_pending_update_approval: false,
+                        requires_privileged_update_approval: false,
+                        requires_privileged_delete_approval: false,
+                        is_archived: false,
+                        is_executable: true,
+                    },
+                }],
+                total: 1,
+                offset: 0,
+                limit: 20,
+            })),
+            http.get('*/api/v1/approvals', () => {
+                approvalQueueRequests += 1;
+                return HttpResponse.json({ items: [], total: 0, skip: 0, limit: 100 });
+            }),
+        );
+
+        await renderWithRoute('/controls');
+
+        expect(await screen.findByText('Pending Control change')).toBeInTheDocument();
+        expect(screen.getByText('Pending')).toBeInTheDocument();
+        expect(approvalQueueRequests).toBe(0);
+    });
+
     it('hides archived controls by default and shows them when lifecycle is set to Archived', async () => {
         const user = makeUser();
 

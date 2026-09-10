@@ -12,13 +12,11 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 interface BuildControlColumnsOptions {
     onRestore: (controlId: number, event: MouseEvent) => void | Promise<void>;
-    pendingApprovalIds: Set<number>;
     translate: TranslateFn;
 }
 
 export function buildControlColumns({
     onRestore,
-    pendingApprovalIds,
     translate,
 }: BuildControlColumnsOptions): Column<ControlSummary>[] {
     return [
@@ -29,7 +27,8 @@ export function buildControlColumns({
             render: (control) => (
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-foreground">{control.name}</span>
-                    {pendingApprovalIds.has(control.id) ? (
+                    {(resolveCapabilityFlag(control.capabilities, 'has_pending_delete_approval')
+                        || resolveCapabilityFlag(control.capabilities, 'has_pending_update_approval')) ? (
                         <div
                             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-warning/10 text-warning-text border border-warning/20"
                             title={translate('columns.pending_changes_title')}

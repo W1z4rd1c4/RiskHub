@@ -78,8 +78,8 @@ export const controlApi = {
 
     downloadExport: downloadControlExport,
 
-    async getControl(id: number): Promise<Control> {
-        return apiClient.get(`/controls/${id}`, { schema: controlSchema });
+    async getControl(id: number, options?: { signal?: AbortSignal }): Promise<Control> {
+        return apiClient.get(`/controls/${id}`, { ...options, schema: controlSchema });
     },
 
     async createControl(data: ControlCreate): Promise<Control> {
@@ -104,12 +104,12 @@ export const controlApi = {
         return apiClient.post(`/controls/${controlId}/executions`, data, { schema: controlExecutionSchema });
     },
 
-    async getExecutions(controlId: number): Promise<ControlExecution[]> {
-        return apiClient.get(`/controls/${controlId}/executions`, { schema: controlExecutionArraySchema });
+    async getExecutions(controlId: number, options?: { signal?: AbortSignal }): Promise<ControlExecution[]> {
+        return apiClient.get(`/controls/${controlId}/executions`, { ...options, schema: controlExecutionArraySchema });
     },
 
-    async getLinkedRisks(controlId: number): Promise<ControlRiskLink[]> {
-        return apiClient.get(`/controls/${controlId}/risks`, { schema: controlRiskLinkArraySchema });
+    async getLinkedRisks(controlId: number, options?: { signal?: AbortSignal }): Promise<ControlRiskLink[]> {
+        return apiClient.get(`/controls/${controlId}/risks`, { ...options, schema: controlRiskLinkArraySchema });
     },
 
     async linkRisk(

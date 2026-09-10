@@ -1,6 +1,7 @@
 import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
 
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
+import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
@@ -30,10 +31,13 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         items,
         latestSubmitted,
         latestSubmittedLoading,
+        latestSubmittedOutcome,
+        loadOutcome,
         loading,
         message,
         openItem,
         refresh,
+        refreshLatestSubmitted,
         selectedId,
         sending,
         setSelectedId,
@@ -43,6 +47,19 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         t,
     });
 
+    if (loadOutcome === 'fatal-error' || loadOutcome === 'denied') {
+        return (
+            <div className="glass-card !p-0 overflow-hidden">
+                <TableErrorState
+                    testId="risk-questionnaires-load-state"
+                    message={t('common:errors.load_failed')}
+                    onRetry={loadOutcome === 'fatal-error' ? () => void refresh() : undefined}
+                    isRetrying={loading}
+                />
+            </div>
+        );
+    }
+
     return (
         <div className="glass-card !p-0 overflow-hidden">
             {message && (
@@ -51,7 +68,17 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 </div>
             )}
 
-            {errorKey && (
+            {loadOutcome === 'stale-with-error' ? (
+                <TableErrorState
+                    variant="banner"
+                    testId="risk-questionnaires-load-state"
+                    message={t('common:detail_load.stale_description')}
+                    onRetry={() => void refresh()}
+                    isRetrying={loading}
+                />
+            ) : null}
+
+            {errorKey && loadOutcome === 'content' && (
                 <div className="p-4 border-b border-rose-500/20 text-sm text-rose-400 bg-rose-500/10 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
                     {errorKey.startsWith('errorKeys.')
@@ -113,7 +140,9 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
             <QuestionnaireAssessmentSummary
                 latestSubmitted={latestSubmitted}
                 latestSubmittedLoading={latestSubmittedLoading}
+                loadOutcome={latestSubmittedOutcome}
                 locale={i18n.language}
+                onRetry={() => void refreshLatestSubmitted()}
                 t={t}
                 totalAssets={totalAssets}
             />

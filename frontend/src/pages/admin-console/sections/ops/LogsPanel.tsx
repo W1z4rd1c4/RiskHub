@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -11,17 +11,31 @@ import { adminApi } from '@/services/adminApi';
 export function LogsPanel() {
     const { t, i18n } = useTranslation('admin');
     const [eventFilter, setEventFilter] = useState<string>('');
+    const [eventTypes, setEventTypes] = useState<string[]>([]);
 
+    const limit = 100;
+    const { data: eventVocabulary, isError: isEventVocabularyError } = useQuery({
+        queryKey: adminKeys.logEventTypes(limit),
+        queryFn: () => adminApi.getTechnicalLogs({ event_type: undefined, limit }),
+    });
     const { data: logs, isLoading } = useQuery({
         queryKey: adminKeys.logs(eventFilter),
-        queryFn: () => adminApi.getTechnicalLogs({ event_type: eventFilter || undefined, limit: 100 }),
+        queryFn: () => adminApi.getTechnicalLogs({ event_type: eventFilter || undefined, limit }),
     });
 
-    if (isLoading) {
+    useEffect(() => {
+        if (eventVocabulary) {
+            setEventTypes([...new Set(eventVocabulary.map((log) => log.event_type))]);
+            return;
+        }
+        if (isEventVocabularyError && !eventFilter && logs) {
+            setEventTypes([...new Set(logs.map((log) => log.event_type))]);
+        }
+    }, [eventFilter, eventVocabulary, isEventVocabularyError, logs]);
+
+    if (isLoading && !eventVocabulary && eventTypes.length === 0) {
         return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
     }
-
-    const eventTypes = [...new Set(logs?.map((log) => log.event_type) || [])];
 
     return (
         <div className="space-y-4">

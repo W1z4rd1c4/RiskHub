@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
-import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -26,13 +25,12 @@ export function RisksPage() {
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/risks');
     const { language } = useLanguage();
     const { t } = useTranslation('risks');
-    const pendingApprovalIds = usePendingApprovalIds('risk');
     const { getColor, getDisplayName, getInitials } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } = useIctRegisterSemanticPageState(parseRiskSemanticFilters);
     const state = useRisksPageState(semanticFilters, language);
     const columns = buildRiskColumns({
-        t, pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor,
+        t, getColor, getDisplayName, getInitials, getScoreColor,
         handleRestoreRisk: (riskId, event) => { event.stopPropagation(); void state.restoreRisk(riskId); },
     });
     const views = RISK_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));

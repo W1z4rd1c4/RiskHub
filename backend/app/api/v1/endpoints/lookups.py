@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import risk_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Risk, User
@@ -15,34 +15,23 @@ async def get_risk_filters(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
 ):
-    """Get unique values for risk filters (processes, categories).
+    """Get live, readable Risk form suggestions in one bounded query."""
+    query = select(Risk.process, Risk.subprocess, Risk.category).where(Risk.live()).distinct()
+    visibility = await risk_visibility_clause(db, current_user)
+    if visibility is not None:
+        query = query.where(visibility)
 
-    For privileged users, returns global values.
-    For department-scoped users, returns only values from their departments.
-    Excludes archived risks from lookups.
-    """
-    # Get user's department scope
-    dept_ids = get_user_department_ids(current_user)
+    rows = (await db.execute(query)).all()
+    processes = sorted({row.process for row in rows if row.process})
+    categories = sorted({row.category for row in rows if row.category})
+    subprocesses_by_process = {
+        process: sorted({row.subprocess for row in rows if row.process == process and row.subprocess})
+        for process in processes
+        if any(row.process == process and row.subprocess for row in rows)
+    }
 
-    # Build base query with archived filter
-    base_conditions = [Risk.live()]
-
-    # Add department scoping for non-privileged users
-    if dept_ids is not None:
-        base_conditions.append(Risk.department_id.in_(dept_ids))
-
-    # Unique processes
-    process_query = select(Risk.process).distinct()
-    for cond in base_conditions:
-        process_query = process_query.where(cond)
-    process_result = await db.execute(process_query)
-    processes = [r[0] for r in process_result.all() if r[0]]
-
-    # Unique categories
-    category_query = select(Risk.category).distinct()
-    for cond in base_conditions:
-        category_query = category_query.where(cond)
-    category_result = await db.execute(category_query)
-    categories = [r[0] for r in category_result.all() if r[0]]
-
-    return {"processes": sorted(processes), "categories": sorted(categories)}
+    return {
+        "processes": processes,
+        "categories": categories,
+        "subprocesses_by_process": subprocesses_by_process,
+    }

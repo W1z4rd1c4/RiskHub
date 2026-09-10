@@ -87,8 +87,8 @@ export const riskApi = {
 
     downloadExport: downloadRiskExport,
 
-    async getRisk(id: number): Promise<Risk> {
-        return apiClient.get(`/risks/${id}`, { schema: riskSchema });
+    async getRisk(id: number, options?: { signal?: AbortSignal }): Promise<Risk> {
+        return apiClient.get(`/risks/${id}`, { ...options, schema: riskSchema });
     },
 
     async createRisk(data: RiskCreate): Promise<Risk | ApprovalCreatedResponse> {
@@ -110,8 +110,9 @@ export const riskApi = {
         return apiClient.post(`/risks/${id}/restore`, {}, { schema: riskSchema });
     },
 
-    async getLinkedControls(riskId: number): Promise<RiskControlLink[]> {
+    async getLinkedControls(riskId: number, options?: { signal?: AbortSignal }): Promise<RiskControlLink[]> {
         return apiClient.get(`/risks/${riskId}/controls`, {
+            ...options,
             schema: riskControlLinkArraySchema,
         });
     },
@@ -129,7 +130,7 @@ export const riskApi = {
         return apiClient.delete(`/risks/${riskId}/controls/${controlId}`, { schema: voidSchema });
     },
 
-    async getLinkedVendors(riskId: number): Promise<Vendor[]> {
-        return apiClient.get(`/risks/${riskId}/vendors`, { schema: vendorArraySchema });
+    async getLinkedVendors(riskId: number, options?: { signal?: AbortSignal }): Promise<Vendor[]> {
+        return apiClient.get(`/risks/${riskId}/vendors`, { ...options, schema: vendorArraySchema });
     },
 };

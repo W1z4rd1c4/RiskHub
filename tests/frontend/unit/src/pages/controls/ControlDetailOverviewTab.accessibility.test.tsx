@@ -52,6 +52,7 @@ describe('ControlDetailOverviewTab linked-risk controls', () => {
                 canUnlinkRisk={false}
                 linkErrorKey={null}
                 linkedRisksErrorKey={null}
+                linkedRisksOutcome="content"
                 isLinkDialogOpen={false}
                 selectedRisk={null}
                 isRiskModalOpen={false}
@@ -61,6 +62,7 @@ describe('ControlDetailOverviewTab linked-risk controls', () => {
                 onUnlinkRisk={vi.fn()}
                 onRiskClick={onRiskClick}
                 onCloseRiskModal={vi.fn()}
+                onRetryLinkedRisks={vi.fn()}
             />
         );
 

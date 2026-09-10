@@ -173,7 +173,9 @@ describe('ExecutionHistory', () => {
             </MemoryRouter>,
             { container: host },
         );
-        await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledWith(1));
+        await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledWith(1, {
+            signal: expect.any(AbortSignal),
+        }));
 
         fireEvent.click(screen.getByRole('button', { name: 'Show control B' }));
         expect(screen.getByTestId('current-control')).toHaveTextContent('1');
@@ -197,7 +199,9 @@ describe('ExecutionHistory', () => {
             releaseControlBRender();
             await controlBRender;
         });
-        await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledWith(2));
+        await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledWith(2, {
+            signal: expect.any(AbortSignal),
+        }));
         expect(crossControlCommits).not.toContain(true);
         expect(screen.queryByText('Control A executor')).not.toBeInTheDocument();
 
@@ -565,7 +569,7 @@ describe('ExecutionHistory', () => {
         expect(screen.queryByText('empty_state.no_executions')).not.toBeInTheDocument();
     });
 
-    it('clears protected execution evidence when a refresh is forbidden', async () => {
+    it.each([403, 404])('clears protected execution evidence when a refresh returns %i', async (status) => {
         getExecutionsMock
             .mockResolvedValueOnce([{
                 id: 42,
@@ -577,8 +581,8 @@ describe('ExecutionHistory', () => {
                 created_at: '2026-03-07T10:00:00Z',
             }])
             .mockRejectedValueOnce(new ApiClientError({
-                status: 403,
-                messageKey: 'errorKeys.forbidden',
+                status,
+                messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
             }));
 
         const { rerenderHistory } = renderExecutionHistory(<ExecutionHistory controlId={1} refreshKey={0} />);

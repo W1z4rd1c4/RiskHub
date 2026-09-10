@@ -217,6 +217,7 @@ function ControlOverviewOwner() {
       canUnlinkRisk
       linkErrorKey={null}
       linkedRisksErrorKey={null}
+      linkedRisksOutcome="content"
       isLinkDialogOpen={isLinkOpen}
       selectedRisk={selectedRisk}
       isRiskModalOpen={selectedRisk !== null}
@@ -226,6 +227,7 @@ function ControlOverviewOwner() {
       onUnlinkRisk={async () => {}}
       onRiskClick={() => setSelectedRisk(riskFixture)}
       onCloseRiskModal={() => setSelectedRisk(null)}
+      onRetryLinkedRisks={() => {}}
     />
   );
 }

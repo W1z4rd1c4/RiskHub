@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
 import { useTranslation } from '@/i18n/hooks';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { ApiClientError } from '@/services/apiClient';
+import { ApiClientError, apiClient } from '@/services/apiClient';
 import { kriApi } from '@/services/kriApi';
 import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
@@ -14,6 +14,8 @@ import type { Risk } from '@/types/risk';
 
 import { useDetailQuery } from './useDetailQuery';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
+import { useCollectionDataState } from '@/pages/shared/collectionPageState';
+import { isAbortError } from '@/services/api/requestRuntime';
 
 export type KriDetailTabView = 'overview' | 'history';
 export const kriDetailTabs = ['overview', 'history'] as const;
@@ -21,6 +23,10 @@ export const kriDetailTabs = ['overview', 'history'] as const;
 interface UseKriDetailStateArgs {
     rawId: string | undefined;
     returnTo: string;
+}
+
+function isProtectedUnavailableError(error: unknown): boolean {
+    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
 }
 
 export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
@@ -31,18 +37,39 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         defaultTab: 'overview',
     });
     const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
-    const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
-    const [historyCapabilities, setHistoryCapabilities] = useState<KRIHistoryCapabilities | null>(null);
-    const [historyTotal, setHistoryTotal] = useState(0);
+    const {
+        applyFailure: applyHistoryFailure,
+        applySuccess: applyHistorySuccess,
+        beginQuery: beginHistoryQuery,
+        capabilities: historyCapabilities,
+        isLoading: isLoadingHistory,
+        items: history,
+        outcome: historyOutcome,
+        reset: resetHistory,
+        setIsLoading: setIsLoadingHistory,
+        totalCount: historyTotal,
+    } = useCollectionDataState<KRIHistoryEntry, KRIHistoryCapabilities>();
+    const {
+        applyFailure: applyLinkedRiskFailure,
+        applySuccess: applyLinkedRiskSuccess,
+        beginQuery: beginLinkedRiskQuery,
+        items: linkedRisks,
+        outcome: linkedRiskOutcome,
+        reset: resetLinkedRisk,
+        setIsLoading: setLinkedRiskLoading,
+    } = useCollectionDataState<Risk>();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isValueModalOpen, setIsValueModalOpen] = useState(false);
-    const [linkedRisk, setLinkedRisk] = useState<Risk | null>(null);
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
-    const loadKRI = useCallback((id: number) => kriApi.getKRI(id, { include_archived: true }), []);
+    const historyControllerRef = useRef<AbortController | null>(null);
+    const linkedRiskControllerRef = useRef<AbortController | null>(null);
+    const loadKRI = useCallback(
+        (id: number, signal?: AbortSignal) => kriApi.getKRI(id, { include_archived: true }, { signal }),
+        [],
+    );
 
     const {
         isRetrying,
@@ -55,8 +82,81 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         rawId,
         load: loadKRI,
     });
+    const detailOwnerRef = useRef<number | null>(kriId);
+    detailOwnerRef.current = kriId;
+    const linkedRisk = linkedRisks[0] ?? null;
+
+    useEffect(() => () => {
+        detailOwnerRef.current = null;
+        historyControllerRef.current?.abort();
+        linkedRiskControllerRef.current?.abort();
+    }, []);
+
+    const fetchLinkedRisk = useCallback(async (ownerId: number, riskId: number | null | undefined) => {
+        linkedRiskControllerRef.current?.abort();
+        const controller = new AbortController();
+        linkedRiskControllerRef.current = controller;
+        const queryIdentity = `${ownerId}:${riskId ?? 'none'}`;
+        beginLinkedRiskQuery(queryIdentity);
+        setLinkedRiskLoading(true);
+
+        if (!riskId) {
+            applyLinkedRiskSuccess(queryIdentity, {
+                items: [],
+                groups: [],
+                capabilities: null,
+                total: 0,
+            });
+            setLinkedRiskLoading(false);
+            linkedRiskControllerRef.current = null;
+            return;
+        }
+
+        try {
+            const risk = await riskApi.getRisk(riskId, { signal: controller.signal });
+            if (
+                controller.signal.aborted
+                || linkedRiskControllerRef.current !== controller
+                || detailOwnerRef.current !== ownerId
+            ) return;
+            applyLinkedRiskSuccess(queryIdentity, {
+                items: [risk],
+                groups: [],
+                capabilities: null,
+                total: 1,
+            });
+        } catch (error) {
+            if (
+                isAbortError(error)
+                || controller.signal.aborted
+                || linkedRiskControllerRef.current !== controller
+                || detailOwnerRef.current !== ownerId
+            ) return;
+            applyLinkedRiskFailure(error, {
+                fallbackErrorKey: 'errorKeys.unexpected',
+                isAccessDenied: isProtectedUnavailableError,
+                toErrorKey: (failure) => apiClient.toUiMessageKey(failure),
+            });
+        } finally {
+            if (linkedRiskControllerRef.current === controller && detailOwnerRef.current === ownerId) {
+                linkedRiskControllerRef.current = null;
+                setLinkedRiskLoading(false);
+            }
+        }
+    }, [
+        applyLinkedRiskFailure,
+        applyLinkedRiskSuccess,
+        beginLinkedRiskQuery,
+        setLinkedRiskLoading,
+    ]);
 
     const fetchHistory = useCallback(async (id: number) => {
+        if (detailOwnerRef.current !== id) return;
+        historyControllerRef.current?.abort();
+        const controller = new AbortController();
+        historyControllerRef.current = controller;
+        const queryIdentity = String(id);
+        beginHistoryQuery(queryIdentity);
         setIsLoadingHistory(true);
         try {
             const response = await kriApi.getHistory(id, {
@@ -64,38 +164,84 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
                 include_archived: true,
                 sort_by: 'period',
                 sort_direction: 'desc',
+            }, { signal: controller.signal });
+            if (
+                controller.signal.aborted
+                || historyControllerRef.current !== controller
+                || detailOwnerRef.current !== id
+            ) return;
+            applyHistorySuccess(queryIdentity, {
+                items: response.items,
+                groups: [],
+                capabilities: response.capabilities ?? null,
+                total: response.total,
             });
-            setHistory(response.items);
-            setHistoryTotal(response.total);
-            setHistoryCapabilities(response.capabilities ?? null);
         } catch (error) {
+            if (
+                isAbortError(error)
+                || controller.signal.aborted
+                || historyControllerRef.current !== controller
+                || detailOwnerRef.current !== id
+            ) return;
             logError('Failed to fetch history.', error);
+            applyHistoryFailure(error, {
+                fallbackErrorKey: 'errorKeys.unexpected',
+                isAccessDenied: isProtectedUnavailableError,
+                toErrorKey: (failure) => apiClient.toUiMessageKey(failure),
+            });
         } finally {
-            setIsLoadingHistory(false);
+            if (historyControllerRef.current === controller && detailOwnerRef.current === id) {
+                historyControllerRef.current = null;
+                setIsLoadingHistory(false);
+            }
         }
-    }, []);
+    }, [
+        applyHistoryFailure,
+        applyHistorySuccess,
+        beginHistoryQuery,
+        setIsLoadingHistory,
+    ]);
+
+    useEffect(() => {
+        setApprovalBanner(null);
+        resetHistory();
+        resetLinkedRisk();
+        setIsDeleteDialogOpen(false);
+        setIsDeleting(false);
+        setIsEditModalOpen(false);
+        setIsIssueModalOpen(false);
+        setIsValueModalOpen(false);
+        setSelectedHistoryEntry(null);
+    }, [kriId, resetHistory, resetLinkedRisk]);
 
     useEffect(() => {
         if (!kri) {
             return;
         }
-        if (kri.risk_id) {
-            riskApi.getRisk(kri.risk_id)
-                .then(setLinkedRisk)
-                .catch(() => {
-                    // The overview card already handles missing linked-risk details.
-                });
+        const ownerId = kri.id;
+        void fetchLinkedRisk(ownerId, kri.risk_id);
+        void fetchHistory(ownerId);
+        return () => {
+            historyControllerRef.current?.abort();
+            linkedRiskControllerRef.current?.abort();
+        };
+    }, [fetchHistory, fetchLinkedRisk, kri]);
+
+    useEffect(() => {
+        if (historyOutcome.kind === 'denied') {
+            setSelectedHistoryEntry(null);
         }
-        void fetchHistory(kri.id);
-    }, [fetchHistory, kri]);
+    }, [historyOutcome.kind]);
 
     const handleDelete = useCallback(async (reason?: string) => {
         if (!kri) return;
+        const ownerId = kri.id;
         const deleteReason = reason?.trim();
         if (!deleteReason) return;
         setIsDeleting(true);
         try {
-            const result = await kriApi.deleteKRI(kri.id, deleteReason);
+            const result = await kriApi.deleteKRI(ownerId, deleteReason);
+            if (detailOwnerRef.current !== ownerId) return;
             const parsed = parseUpdateResult(result);
             setIsDeleteDialogOpen(false);
             if (parsed.kind === 'approval') {
@@ -104,18 +250,25 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
             }
             void navigate(returnTo);
         } catch (error) {
+            if (detailOwnerRef.current !== ownerId) return;
             logError('Failed to delete KRI.', error);
         } finally {
-            setIsDeleting(false);
+            if (detailOwnerRef.current === ownerId) {
+                setIsDeleting(false);
+            }
         }
     }, [kri, navigate, returnTo]);
 
     const handleRestore = useCallback(async () => {
         if (!kri) return;
+        const ownerId = kri.id;
         try {
-            await kriApi.restoreKRI(kri.id);
-            await fetchKRI();
+            await kriApi.restoreKRI(ownerId);
+            if (detailOwnerRef.current === ownerId) {
+                await fetchKRI();
+            }
         } catch (error) {
+            if (detailOwnerRef.current !== ownerId) return;
             logError('Failed to restore KRI.', error);
         }
     }, [fetchKRI, kri]);
@@ -127,20 +280,29 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         if (!kri) {
             throw new Error(tErrors('save_kri_failed'));
         }
+        const ownerId = kri.id;
         try {
-            const result = await kriApi.updateKRI(kri.id, {
+            const result = await kriApi.updateKRI(ownerId, {
                 ...data,
                 linked_vendor_ids: vendorIds,
             });
+            if (detailOwnerRef.current !== ownerId) {
+                return { kind: 'updated' };
+            }
             const parsed = parseUpdateResult(result);
             if (parsed.kind === 'approval') {
                 setApprovalBanner({ message: parsed.message });
                 return parsed;
             }
 
-            await fetchKRI();
+            if (detailOwnerRef.current === ownerId) {
+                await fetchKRI();
+            }
             return { kind: 'updated' };
         } catch (error) {
+            if (detailOwnerRef.current !== ownerId) {
+                return { kind: 'updated' };
+            }
             if (error instanceof ApiClientError || error instanceof Error) {
                 throw error;
             }
@@ -149,7 +311,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     }, [fetchKRI, kri, tErrors]);
 
     const handleRecordSuccess = useCallback(() => {
-        if (kri) {
+        if (kri && detailOwnerRef.current === kri.id) {
             void fetchKRI();
         }
     }, [fetchKRI, kri]);
@@ -175,6 +337,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         handleRestore,
         handleSave,
         history,
+        historyOutcome,
         historyTotal,
         isDeleteDialogOpen,
         isDeleting,
@@ -187,9 +350,11 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         kri,
         kriId,
         linkedRisk,
+        linkedRiskOutcome,
         loadOutcome,
         refreshKri: fetchKRI,
         refreshHistory: fetchHistory,
+        retryLinkedRisk: () => kri && fetchLinkedRisk(kri.id, kri.risk_id),
         selectedHistoryEntry,
         setActiveTab,
         setApprovalBanner,
