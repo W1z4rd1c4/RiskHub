@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createOwnedAbortAccounting,
   describeLiveNetworkFailure,
   describeLiveNetworkResponse,
 } from '../../../e2e/helpers/renderSiteOwnerMonitoring';
@@ -12,6 +13,26 @@ describe('live dialog render-site owner monitoring', () => {
       url: 'http://127.0.0.1:5174/api/v1/risks',
       failureText: 'net::ERR_CONNECTION_RESET',
     })).toBe('requestfailed: GET /api/v1/risks (net::ERR_CONNECTION_RESET)');
+  });
+
+  it('accepts only requests already in flight when owner replacement begins', () => {
+    const accounting = createOwnedAbortAccounting<object>();
+    const previousOwnerRequest = {};
+    const finalOwnerRequest = {};
+    const nonAbortFailure = {};
+    const finishedRequest = {};
+
+    accounting.requestStarted(previousOwnerRequest);
+    accounting.requestStarted(nonAbortFailure);
+    accounting.requestStarted(finishedRequest);
+    accounting.markCurrentRequestsAsExpectedAborts();
+    accounting.requestFinished(finishedRequest);
+    accounting.requestStarted(finalOwnerRequest);
+
+    expect(accounting.consumeExpectedAbort(previousOwnerRequest, 'net::ERR_ABORTED')).toBe(true);
+    expect(accounting.consumeExpectedAbort(finalOwnerRequest, 'net::ERR_ABORTED')).toBe(false);
+    expect(accounting.consumeExpectedAbort(nonAbortFailure, 'net::ERR_CONNECTION_RESET')).toBe(false);
+    expect(accounting.consumeExpectedAbort(finishedRequest, 'net::ERR_ABORTED')).toBe(false);
   });
 
   it('allows only the exact aborted login-shell handoff request', () => {

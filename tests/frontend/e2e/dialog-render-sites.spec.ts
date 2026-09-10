@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request, type Route } from '@playwright/test';
 
 import {
   E2E_ASSETS,
@@ -15,6 +15,7 @@ import {
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { renderedContrast } from './helpers/renderedContrast';
 import {
+  createOwnedAbortAccounting,
   describeLiveNetworkFailure,
   describeLiveNetworkResponse,
 } from './helpers/renderSiteOwnerMonitoring';
@@ -728,7 +729,7 @@ test.describe('validated application dialog render sites', () => {
       expect(driver, `source-linked driver registered for ${site.id}`).toBeTruthy();
       const unexpectedNetwork: string[] = [];
       const unexpectedOutput: string[] = [];
-      let intentionalOwnerChange = false;
+      const ownedAborts = createOwnedAbortAccounting<Request>();
 
       if (driver.mode === 'live') {
         if (!driver.account) throw new Error(`Live render-site driver ${site.id} has no account`);
@@ -744,11 +745,15 @@ test.describe('validated application dialog render sites', () => {
       if (driver.mode === 'parent') {
         await installApiContract(page, unexpectedNetwork);
       } else {
+        page.on('request', (request) => {
+          ownedAborts.requestStarted(request);
+        });
+        page.on('requestfinished', (request) => {
+          ownedAborts.requestFinished(request);
+        });
         page.on('requestfailed', (request) => {
           const failureText = request.failure()?.errorText ?? 'unknown failure';
-          // Owner replacement and dialog teardown deliberately abort their own in-flight reads.
-          // Every non-abort failure, and every abort outside those two narrow windows, still fails.
-          if (intentionalOwnerChange && failureText === 'net::ERR_ABORTED') return;
+          if (ownedAborts.consumeExpectedAbort(request, failureText)) return;
           const failure = describeLiveNetworkFailure({
             method: request.method(),
             url: request.url(),
@@ -765,9 +770,9 @@ test.describe('validated application dialog render sites', () => {
           if (failure) unexpectedNetwork.push(failure);
         });
       }
-      intentionalOwnerChange = true;
+      // Snapshot only the old owner's requests; requests started by the final owner remain strict.
+      ownedAborts.markCurrentRequestsAsExpectedAborts();
       await driver.arrange(page, site);
-      intentionalOwnerChange = false;
       await expect(driver.ownerSentinel(page, site)).toBeVisible();
       if (driver.mode === 'live') {
         expect(new URL(page.url()).pathname).not.toBe('/dialog-contract.html');
@@ -830,11 +835,11 @@ test.describe('validated application dialog render sites', () => {
       await page.keyboard.press('Shift+Tab');
       await expect(lastFocusable).toBeFocused();
 
-      intentionalOwnerChange = true;
+      // Snapshot only requests already active before the intentional dialog teardown.
+      ownedAborts.markCurrentRequestsAsExpectedAborts();
       await page.keyboard.press('Escape');
       await expect(surface).toHaveCount(0);
       await expect(opener).toBeFocused();
-      intentionalOwnerChange = false;
       expect(unexpectedNetwork).toEqual([]);
       expect(unexpectedOutput).toEqual([]);
     });
