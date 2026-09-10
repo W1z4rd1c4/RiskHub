@@ -220,7 +220,7 @@ async function installApiContract(page: Page, unexpected: string[]) {
       case '/api/v1/departments':
         await json(route, [department]); return;
       case '/api/v1/lookups/risk-filters':
-        await json(route, { processes: [], categories: [] }); return;
+        await json(route, { processes: [], categories: [], subprocesses_by_process: {} }); return;
       case '/api/v1/vendors':
         await json(route, { items: [], total: 0, offset: 0, limit: 25 }); return;
       case '/api/v1/controls':
