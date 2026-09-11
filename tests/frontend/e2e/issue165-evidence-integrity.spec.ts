@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Browser, type Page, type Route } from '@playwright/test';
+import { expect, test, type Browser, type Download, type Page, type Route } from '@playwright/test';
 
 import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from './helpers/axeBaseline';
 
@@ -12,19 +12,31 @@ const JOURNEYS = [
         labels: {
             average: 'Avg Risk Score',
             critical: 'Critical',
+            criticalRisks: 'Critical Risks',
             committee: 'Risk Committee',
+            controlFormChip: 'Form: Manual',
+            controlStatusChip: 'Status: Active',
             departmentExposure: 'Sum of net Risk scores',
+            exportSummary: 'Export Summary CSV',
             generatedTime: 'Sep 1, 2026, 05:45 PM',
+            ictCommittee: 'ICT Committee',
+            ictControlled: ['High', 'Above tolerance', 'Accepted', 'Critical vendor'],
             issueEvaluation: 'Current register evaluated on a date',
             issueEvaluationDate: 'Evaluation date',
             newFromZero: 'New (from 0) +3',
+            noCriticalRisks: 'No critical risks at this time',
+            noVendors: 'No vendors in scope',
             questionnaires: 'Assessment questionnaires',
+            restricted: 'Restricted by access scope',
+            riskLevelChip: 'Risk Level: Critical',
             riskCount: '3 Risks',
             riskScores: 'Gross and net Risk scores',
             stockCompare: '2026-Q2 · Stored 2026-07-01T00:00:00+00:00',
             stockCurrent: '2026-Q3 · Live 2026-08-15T12:00:00+00:00',
             stockEvidence: 'Stock observations',
+            totalControls: 'Total Controls',
             updated: 'Updated',
+            vendors: 'Vendors',
         },
     },
     {
@@ -33,19 +45,31 @@ const JOURNEYS = [
         labels: {
             average: 'Průměrné skóre',
             critical: 'Kritické',
+            criticalRisks: 'Kritická rizika',
             committee: 'Výbor pro řízení rizik',
+            controlFormChip: 'Forma: Manuální',
+            controlStatusChip: 'Stav: Aktivní',
             departmentExposure: 'Součet čistých skóre rizik',
+            exportSummary: 'Exportovat souhrn do CSV',
             generatedTime: '1. 9. 2026 17:45',
+            ictCommittee: 'Výbor pro řízení rizik ICT',
+            ictControlled: ['Vysoké', 'NAD TOLERANCI', 'Akceptováno', 'Kritický dodavatel'],
             issueEvaluation: 'Aktuální registr vyhodnocený k datu',
             issueEvaluationDate: 'Datum vyhodnocení',
             newFromZero: 'Nové (z 0) +3',
+            noCriticalRisks: 'Momentálně nejsou žádná kritická rizika',
+            noVendors: 'Žádní dodavatelé v rozsahu',
             questionnaires: 'Hodnoticí dotazníky',
+            restricted: 'Omezeno rozsahem přístupu',
+            riskLevelChip: 'Úroveň rizika: Kritická',
             riskCount: '3 rizika',
             riskScores: 'Hrubé a čisté skóre rizika',
             stockCompare: '2026-Q2 · Uložená data 2026-07-01T00:00:00+00:00',
             stockCurrent: '2026-Q3 · Živá data 2026-08-15T12:00:00+00:00',
             stockEvidence: 'Stavová pozorování',
+            totalControls: 'Celkem kontrol',
             updated: 'Aktualizováno',
+            vendors: 'Dodavatelé',
         },
     },
 ] as const;
@@ -54,12 +78,26 @@ function json(route: Route, body: unknown, status = 200) {
     return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
+async function readMetricCsv(download: Download) {
+    const stream = await download.createReadStream();
+    let body = '';
+    for await (const chunk of stream) body += String(chunk);
+
+    const [header, ...rows] = body.trim().split(/\r?\n/);
+    expect(header).toBe('Metric,Value');
+    return Object.fromEntries(rows.map((row) => {
+        const separator = row.indexOf(',');
+        return [row.slice(0, separator), row.slice(separator + 1)];
+    }));
+}
+
 function user() {
     const permissions = [
         'controls:read',
         'dashboard:read',
         'departments:read',
         'issues:read',
+        'ict_committee:read',
         'reports:read',
         'risks:read',
         'vendors:read',
@@ -76,6 +114,95 @@ function user() {
         effective_permissions: permissions,
         access_scope: 'global',
         scope_label: 'Global',
+    };
+}
+
+function ictCommittee() {
+    return {
+        dashboard: {
+            register_state: {
+                process_count: 1,
+                asset_count: 1,
+                process_asset_link_count: 1,
+                vendor_count: 1,
+                assets_pending_review_count: 0,
+                direct_process_vendor_link_count: 0,
+                contracts_in_roi_scope_count: 0,
+                sub_outsourcing_link_count: 0,
+                assets_without_data_classification_count: 0,
+                top_tier_vendors_without_orderly_exit_count: 0,
+            },
+            key_metrics: {
+                cif_process_count: 1,
+                processes_without_impact_assessment_count: 0,
+                critical_asset_count: 1,
+                critical_vendor_count: 1,
+                risks_above_tolerance_count: 1,
+                open_dq_finding_count: 0,
+            },
+        },
+        cro: {
+            kpi: {
+                risk_count: 1,
+                material_risk_count: 0,
+                risks_above_tolerance_count: 1,
+                accepted_above_tolerance_count: 1,
+                cif_without_bcm_count: 0,
+                open_dq_finding_count: 0,
+                material_risk_count_production_inert: true,
+            },
+            heatmap: {
+                rows: [5, 4, 3, 2, 1].map((probability) => ({
+                    probability,
+                    cells: probability === 5 ? [0, 0, 0, 0, 1] : [0, 0, 0, 0, 0],
+                })),
+            },
+            migration_matrix: {
+                rows: ['Nízké', 'Střední', 'Vysoké', 'Kritické'].map((gross_band) => ({
+                    gross_band,
+                    cells: gross_band === 'Kritické' ? [0, 0, 1, 0] : [0, 0, 0, 0],
+                })),
+            },
+            top_risks: [{
+                rank: 1,
+                risk_id: 165,
+                code: 'R-ICT-165',
+                subject_label: 'Evidence review',
+                threat_label: 'Service interruption',
+                gross_score: 20,
+                net_score: 12,
+                net_band: 'Vysoké',
+                vs_tolerance: 'NAD TOLERANCI',
+                status_label: 'Akceptováno',
+            }],
+            top_vendors: [{
+                rank: 1,
+                vendor_id: 165,
+                name: 'Evidence Vendor',
+                cif_process_count: 1,
+                tier: 'Kritický dodavatel',
+            }],
+            narratives: {
+                cif_process_count: 1,
+                process_count: 1,
+                cif_with_bcm_count: 1,
+                critical_vendor_count: 1,
+                critical_vendors_with_functional_exit_count: 1,
+                critical_vendors_with_identifier_count: 1,
+                tolerance: 7,
+                risks_above_tolerance_count: 1,
+                accepted_above_tolerance_count: 1,
+                sub_outsourcing_link_count: 0,
+                vendors_in_sub_role_count: 0,
+            },
+            assets_by_criticality: [{ band: 'Kritická', count: 1 }],
+            risks_by_band: [{ band: 'Kritické', gross_count: 1, net_count: 0 }],
+        },
+        roi_readiness: {
+            templates: [],
+            overall_readiness_pct: null,
+            total_gap_row_count: 0,
+        },
     };
 }
 
@@ -262,7 +389,7 @@ async function installMockApi(page: Page, locale: Locale) {
             await json(route, {
                 access_token: 'issue165-browser-token',
                 token_type: 'bearer',
-                post_login_redirect_to: '/',
+                post_login_redirect_to: null,
                 user: user(),
             });
             return;
@@ -307,10 +434,45 @@ async function installMockApi(page: Page, locale: Locale) {
                 critical_risks: [],
                 critical_risks_total: 0,
                 critical_vendors: [],
-                critical_vendors_total: 0,
-                can_view_vendors: true,
+                critical_vendors_total: null,
+                can_view_vendors: false,
                 recent_activity: [],
                 department_exposure: [{ id: 7, name: 'Operations', total_exposure: 44, risk_count: 3 }],
+            });
+            return;
+        }
+        if (url.pathname === '/api/v1/ict-register/committee') {
+            await json(route, ictCommittee());
+            return;
+        }
+        if (url.pathname === '/api/v1/reports/summary/export') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'text/csv',
+                headers: { 'Content-Disposition': 'attachment; filename="dashboard-summary.csv"' },
+                body: [
+                    'Metric,Value',
+                    'Generated At,2026-09-01T15:46:00+00:00',
+                    'Scope,All actor-visible Dashboard records',
+                    'Filter: Department,All actor-visible Departments',
+                    'Filter: Risk Level,critical',
+                    'Applies to: Risk Level,Risk metrics only',
+                    'Filter: Control Status,active',
+                    'Applies to: Control Status,Control metrics only',
+                    'Filter: Control Form,manual',
+                    'Applies to: Control Form,Control metrics only',
+                    'Unaffected by Risk/Control Filters,Vendor metrics',
+                    'Filter: Archived Records,excluded',
+                    'Critical Risk Threshold,16',
+                    'High Risk Threshold,10',
+                    'Medium Risk Threshold,5',
+                    'Total Controls,8',
+                    'Total Risks,3',
+                    'Critical Risks,1',
+                    'Average Net Risk Score,17',
+                    'Total Vendors,2',
+                    'High-risk Vendors,0',
+                ].join('\r\n'),
             });
             return;
         }
@@ -411,15 +573,88 @@ test.describe('Issue #165 desktop evidence integrity', () => {
         test(`${journey.locale} dashboard is truthful and axe-clean at ${journey.viewport.width}x${journey.viewport.height}`, async ({ browser }) => {
             const { context, page } = await openJourney(browser, journey);
             try {
+                await page.goto('/?riskLevel=invalid&controlStatus=retired&controlForm=preventive');
+                await expect(page).toHaveURL(/\/login\?returnTo=/);
+                await page.getByRole('button', { name: /Issue 165 CRO/ }).click();
+                await expect.poll(() => new URL(page.url()).search).toBe('');
+
+                await page.goto('/?riskLevel=critical&controlStatus=active&controlForm=manual');
+                await expect(page).toHaveURL(/\/login\?returnTo=/);
+                const overviewRequestPromise = page.waitForRequest((request) => {
+                    const url = new URL(request.url());
+                    return url.pathname === '/api/v1/dashboard/overview'
+                        && url.searchParams.get('risk_level') === 'critical'
+                        && url.searchParams.get('control_status') === 'active'
+                        && url.searchParams.get('control_form') === 'manual';
+                });
+                await page.getByRole('button', { name: /Issue 165 CRO/ }).click();
+                const overviewRequest = await overviewRequestPromise;
+                const overviewUrl = new URL(overviewRequest.url());
+                expect(overviewUrl.searchParams.get('risk_level')).toBe('critical');
+                expect(overviewUrl.searchParams.get('control_status')).toBe('active');
+                expect(overviewUrl.searchParams.get('control_form')).toBe('manual');
+                expect(overviewUrl.searchParams.has('department_id')).toBe(false);
+
                 const status = page.getByRole('status').filter({ hasText: journey.labels.updated });
                 await expect(status).toContainText(journey.labels.generatedTime);
                 await expect(page.getByText(/^(Live|Stable|Urgent|Calculated|Živo|Stabilní|Naléhavé|Vypočteno)$/)).toHaveCount(0);
 
+                for (const chip of [
+                    journey.labels.riskLevelChip,
+                    journey.labels.controlStatusChip,
+                    journey.labels.controlFormChip,
+                ]) {
+                    await expect(page.getByRole('button', { name: new RegExp(chip) })).toBeVisible();
+                }
+                await expect(page.getByTestId('dashboard-filter-scope-note')).toContainText(/access scope|rozsahu přístupu/);
+
                 const averageCard = page.getByRole('button').filter({ hasText: journey.labels.average });
+                await expect(averageCard).toContainText('17');
                 await expect(averageCard).toHaveAccessibleName(new RegExp(journey.labels.critical));
+                for (const [label, value] of [
+                    [journey.labels.totalControls, '8'],
+                    [journey.labels.criticalRisks, '1'],
+                    [journey.labels.vendors, '2'],
+                ] as const) {
+                    await expect(page.getByRole('button').filter({ hasText: label })).toContainText(value);
+                }
+
+                const [summaryRequest, download] = await Promise.all([
+                    page.waitForRequest((request) => new URL(request.url()).pathname === '/api/v1/reports/summary/export'),
+                    page.waitForEvent('download'),
+                    page.getByTitle(journey.labels.exportSummary).click(),
+                ]);
+                const summaryUrl = new URL(summaryRequest.url());
+                expect(summaryRequest.method()).toBe('GET');
+                expect(summaryRequest.headers().authorization).toBe('Bearer issue165-browser-token');
+                expect(Object.fromEntries(summaryUrl.searchParams)).toEqual({
+                    format: 'csv',
+                    risk_level: 'critical',
+                    control_status: 'active',
+                    control_form: 'manual',
+                });
+                expect(download.suggestedFilename()).toBe('dashboard-summary.csv');
+                expect(await readMetricCsv(download)).toMatchObject({
+                    'Generated At': '2026-09-01T15:46:00+00:00',
+                    Scope: 'All actor-visible Dashboard records',
+                    'Filter: Department': 'All actor-visible Departments',
+                    'Filter: Risk Level': 'critical',
+                    'Filter: Control Status': 'active',
+                    'Filter: Control Form': 'manual',
+                    'Critical Risk Threshold': '16',
+                    'Total Controls': '8',
+                    'Total Risks': '3',
+                    'Critical Risks': '1',
+                    'Average Net Risk Score': '17',
+                    'Total Vendors': '2',
+                    'High-risk Vendors': '0',
+                });
 
                 await page.getByRole('button', { name: journey.labels.committee, exact: true }).click();
                 await expect(page.getByRole('status')).toHaveCount(0);
+                await expect(page.getByText(journey.labels.noCriticalRisks, { exact: true })).toBeVisible();
+                await expect(page.getByText(journey.labels.restricted, { exact: true })).toBeVisible();
+                await expect(page.getByText(journey.labels.noVendors, { exact: true })).toHaveCount(0);
                 await expect(page.getByRole('heading', { name: journey.labels.departmentExposure })).toBeVisible();
                 await expect(page.getByText(journey.labels.riskCount, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.newFromZero, { exact: true })).toBeVisible();
@@ -433,6 +668,22 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 await assertDesktopSurface(
                     page,
                     `Issue 165 ${journey.locale} ${journey.viewport.width}x${journey.viewport.height}`,
+                );
+
+                await page.getByRole('button', { name: journey.labels.ictCommittee, exact: true }).click();
+                await expect(page).toHaveURL(/view=ict-committee/);
+                const ictRisk = page.getByTestId('committee-top-risk-1');
+                for (const controlledLabel of journey.labels.ictControlled.slice(0, 3)) {
+                    await expect(ictRisk).toContainText(controlledLabel);
+                }
+                await expect(page.getByTestId('committee-top-vendor-1')).toContainText(journey.labels.ictControlled[3]);
+                await expect(page.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
+                    'href',
+                    '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+                );
+                await assertDesktopSurface(
+                    page,
+                    `Issue 160 ICT Committee ${journey.locale} ${journey.viewport.width}x${journey.viewport.height}`,
                 );
 
                 await page.locator('a[href="/issues"]').click();
