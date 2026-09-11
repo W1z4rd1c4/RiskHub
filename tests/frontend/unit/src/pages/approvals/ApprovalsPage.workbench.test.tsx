@@ -409,6 +409,143 @@ describe('ApprovalsPage workbench continuity', () => {
         },
     );
 
+    it.each([
+        {
+            language: 'en',
+            openLabel: 'Approve',
+            actionLabel: 'Update',
+            proposedChangesLabel: 'Proposed Changes',
+            closeLabel: 'Close',
+        },
+        {
+            language: 'cs',
+            openLabel: 'Schválit',
+            actionLabel: 'Aktualizace',
+            proposedChangesLabel: 'Navrhované změny',
+            closeLabel: 'Zavřít',
+        },
+    ])('repeats localized immutable and governed change context in $language', async ({
+        language,
+        openLabel,
+        actionLabel,
+        proposedChangesLabel,
+        closeLabel,
+    }) => {
+        await i18n.changeLanguage(language);
+        server.use(
+            http.get('*/api/v1/approvals', () => HttpResponse.json({
+                items: [actionableApproval],
+                total: 1,
+                skip: 0,
+                limit: 100,
+                skipped_corrupt_payloads: 0,
+            })),
+        );
+        const user = userEvent.setup();
+        renderPage('/approvals?tab=pending');
+        await screen.findByText('F-0007 · Payments');
+
+        await user.click(screen.getByRole('button', { name: openLabel }));
+        const dialog = await screen.findByRole('dialog');
+
+        expect(within(dialog).getByText('F-0007 · Payments')).toBeInTheDocument();
+        expect(within(dialog).getByText(actionLabel)).toBeInTheDocument();
+        expect(within(dialog).getByText('Alice')).toBeInTheDocument();
+        expect(within(dialog).getByText('Improve resilience')).toBeInTheDocument();
+        expect(within(dialog).getByText('Payments')).toBeInTheDocument();
+        expect(within(dialog).getByText('Payments v2')).toBeInTheDocument();
+        expect(within(dialog).getByText(proposedChangesLabel)).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: closeLabel })).toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: 'Cancel Request' })).not.toBeInTheDocument();
+    });
+
+    it('reuses the readable legacy change projection at the decision seam', async () => {
+        const legacyApproval: ApprovalRequest = {
+            ...actionableApproval,
+            resource_type: 'risk',
+            resource_name: 'R-0042 · Legacy risk',
+            governed_mutation: null,
+            pending_changes: {
+                name: { old: 'Legacy risk', new: 'Updated risk' },
+            },
+        };
+        server.use(
+            http.get('*/api/v1/approvals', () => HttpResponse.json({
+                items: [legacyApproval],
+                total: 1,
+                skip: 0,
+                limit: 100,
+                skipped_corrupt_payloads: 0,
+            })),
+        );
+        const user = userEvent.setup();
+        renderPage('/approvals?tab=pending');
+        await screen.findByText('R-0042 · Legacy risk');
+
+        await user.click(screen.getByRole('button', { name: 'Approve' }));
+        const dialog = await screen.findByRole('dialog');
+
+        expect(within(dialog).getByText('Legacy risk')).toBeInTheDocument();
+        expect(within(dialog).getByText('Updated risk')).toBeInTheDocument();
+    });
+
+    it('locks every decision exit and duplicate submit while retaining context after failure', async () => {
+        let releaseRequest!: () => void;
+        const requestGate = new Promise<void>((resolve) => {
+            releaseRequest = resolve;
+        });
+        let resolutionRequests = 0;
+        server.use(
+            http.get('*/api/v1/approvals', () => HttpResponse.json({
+                items: [actionableApproval],
+                total: 1,
+                skip: 0,
+                limit: 100,
+                skipped_corrupt_payloads: 0,
+            })),
+            http.post('*/api/v1/approvals/84/approve', async () => {
+                resolutionRequests += 1;
+                await requestGate;
+                return HttpResponse.json({ detail: 'resolution failed' }, { status: 500 });
+            }),
+        );
+        const user = userEvent.setup();
+        renderPage('/approvals?tab=pending');
+        await screen.findByText('F-0007 · Payments');
+
+        await user.click(screen.getByRole('button', { name: 'Approve' }));
+        const dialog = await screen.findByRole('dialog');
+        const notes = within(dialog).getByRole('textbox', { name: /provide a reason/i });
+        const close = within(dialog).getByRole('button', { name: 'Close' });
+        const submit = within(dialog).getByRole('button', { name: 'Approve' });
+        await user.type(notes, 'Retain this decision note');
+
+        act(() => {
+            submit.click();
+            submit.click();
+        });
+
+        await waitFor(() => expect(resolutionRequests).toBe(1));
+        expect(close).toBeDisabled();
+        expect(submit).toBeDisabled();
+        expect(within(dialog).getByRole('button', { name: 'Processing...' })).toBe(submit);
+        expect(notes).toBeDisabled();
+        fireEvent.click(document.querySelector('[data-dialog-backdrop="true"]')!);
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(screen.getByRole('dialog')).toBe(dialog);
+
+        releaseRequest();
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server error');
+        expect(within(dialog).getByText('F-0007 · Payments')).toBeInTheDocument();
+        expect(within(dialog).getByText('Improve resilience')).toBeInTheDocument();
+        expect(notes).toHaveValue('Retain this decision note');
+        expect(notes).toBeEnabled();
+        expect(close).toBeEnabled();
+        expect(submit).toBeEnabled();
+        expect(resolutionRequests).toBe(1);
+    });
+
     it('allows a blank decision submit, announces validation, and focuses the notes field', async () => {
         let resolutionRequests = 0;
         server.use(

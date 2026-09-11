@@ -100,8 +100,12 @@ const completeAnswers = {
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
-    const promise = new Promise<T>((accept) => { resolve = accept; });
-    return { promise, resolve };
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((accept, rejectPromise) => {
+        resolve = accept;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
 }
 
 describe('RiskQuestionnaireDetail open flow', () => {
@@ -194,19 +198,16 @@ describe('RiskQuestionnaireDetail open flow', () => {
         expect(screen.queryByText('common:actions.submit')).not.toBeInTheDocument();
     });
 
-    it('saves a draft, refreshes detail, and reports a change', async () => {
+    it('applies the authoritative saved draft without a correctness reload', async () => {
         const onChanged = vi.fn();
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>)
-            .mockResolvedValueOnce(sentQuestionnaire())
-            .mockResolvedValue(sentQuestionnaire({
-                status: 'in_progress',
-                answers: { ...completeAnswers, 'risk_assessment.q2_new_triggers': 'Updated draft' },
-            }));
         (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
             status: 'in_progress',
             answers: completeAnswers,
         }));
-        (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 123 });
+        (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+            status: 'in_progress',
+            answers: { ...completeAnswers, 'risk_assessment.q2_new_triggers': 'Updated draft' },
+        }));
 
         render(
             <RiskQuestionnaireDetail
@@ -227,11 +228,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 { signal: expect.any(AbortSignal) },
             );
         });
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
-            123,
-            { includePrevious: false },
-            { signal: expect.any(AbortSignal) },
-        );
+        expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
         expect(onChanged).toHaveBeenCalledTimes(1);
         expect(await screen.findByText('Updated draft')).toBeInTheDocument();
     });
@@ -381,7 +378,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         expect(await screen.findByRole('button', { name: buttonName })).not.toBeDisabled();
     });
 
-    it('blocks submit when required answers are missing', async () => {
+    it('retains answers and focuses the associated first required field after validation', async () => {
         render(
             <RiskQuestionnaireDetail
                 isOpen={true}
@@ -391,26 +388,60 @@ describe('RiskQuestionnaireDetail open flow', () => {
             />
         );
 
+        const optionalAnswer = await screen.findByRole('textbox', { name: 'risk_assessment.q2_new_triggers' });
+        await userEvent.type(optionalAnswer, 'Keep this answer');
         await userEvent.click(await screen.findByRole('button', { name: 'common:actions.submit' }));
 
         expect(riskQuestionnairesApi.submit).not.toHaveBeenCalled();
         expect(await screen.findByText('risks:questionnaire.validation_missing')).toBeInTheDocument();
-        expect(screen.getByText('risk_assessment.q1_description_changed')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Keep this answer')).toBeInTheDocument();
+        const firstMissing = screen.getByRole('combobox', { name: 'risk_assessment.q1_description_changed' });
+        await waitFor(() => expect(firstMissing).toHaveFocus());
+        expect(firstMissing).toHaveAttribute('aria-invalid', 'true');
+        expect(firstMissing).toHaveAccessibleDescription('risks:questionnaire.validation_required');
     });
 
-    it('submits complete answers, refreshes detail, and reports a change', async () => {
+    it('treats a cleared required boolean as unanswered and blocks submission', async () => {
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
+            status: 'in_progress',
+            answers: completeAnswers,
+        }));
+
+        render(
+            <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />,
+        );
+
+        const requiredBoolean = await screen.findByRole('combobox', {
+            name: 'risk_assessment.q1_description_changed',
+        });
+        await userEvent.click(requiredBoolean);
+        await userEvent.click(await screen.findByRole('option', { name: 'common:labels.none' }));
+        await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
+
+        expect(riskQuestionnairesApi.submit).not.toHaveBeenCalled();
+        await waitFor(() => expect(requiredBoolean).toHaveFocus());
+        expect(requiredBoolean).toHaveAttribute('aria-invalid', 'true');
+        expect(requiredBoolean).toHaveAccessibleDescription('risks:questionnaire.validation_required');
+    });
+
+    it('applies the authoritative submitted questionnaire without a correctness reload', async () => {
         const onChanged = vi.fn();
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>)
-            .mockResolvedValueOnce(sentQuestionnaire())
-            .mockResolvedValue(sentQuestionnaire({
-                status: 'submitted',
-                answers: completeAnswers,
-            }));
         (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
             status: 'in_progress',
             answers: completeAnswers,
         }));
-        (riskQuestionnairesApi.submit as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 123 });
+        (riskQuestionnairesApi.submit as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+            status: 'submitted',
+            answers: completeAnswers,
+            submitted_at: '2025-01-03T00:00:00Z',
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: false,
+                can_respond_to_clarifications: true,
+            },
+        }));
 
         render(
             <RiskQuestionnaireDetail
@@ -430,13 +461,10 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 completeAnswers,
                 { signal: expect.any(AbortSignal) },
             );
+            expect(onChanged).toHaveBeenCalledTimes(1);
         });
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
-            123,
-            { includePrevious: false },
-            { signal: expect.any(AbortSignal) },
-        );
-        expect(onChanged).toHaveBeenCalledTimes(1);
+        expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
     });
 
     it.each([
@@ -445,20 +473,17 @@ describe('RiskQuestionnaireDetail open flow', () => {
         { action: 'submit', buttonName: 'common:actions.submit', apiMethod: 'submit', status: 403 },
         { action: 'submit', buttonName: 'common:actions.submit', apiMethod: 'submit', status: 404 },
     ] as const)(
-        'clears protected detail and actions when the post-$action reload returns $status',
+        'retains editable detail and input when $action is rejected with $status',
         async ({ buttonName, apiMethod, status }) => {
             const onChanged = vi.fn();
-            vi.mocked(riskQuestionnairesApi.get)
-                .mockResolvedValueOnce(sentQuestionnaire())
-                .mockRejectedValueOnce(new ApiClientError({
-                    status,
-                    messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
-                }));
             vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
                 status: 'in_progress',
                 answers: completeAnswers,
             }));
-            vi.mocked(riskQuestionnairesApi[apiMethod]).mockResolvedValue({ id: 123 } as never);
+            vi.mocked(riskQuestionnairesApi[apiMethod]).mockRejectedValue(new ApiClientError({
+                status,
+                messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
+            }));
 
             render(
                 <RiskQuestionnaireDetail
@@ -470,36 +495,40 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 />,
             );
 
-            await userEvent.click(await screen.findByRole('button', { name: buttonName }));
-            await waitFor(() => expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(2));
+            const retainedAnswer = await screen.findByRole('textbox', {
+                name: 'risk_assessment.q2_new_triggers',
+            });
+            await userEvent.type(retainedAnswer, 'Keep this action input');
+            await userEvent.click(screen.getByRole('button', { name: buttonName }));
+            await waitFor(() => expect(riskQuestionnairesApi[apiMethod]).toHaveBeenCalledTimes(1));
 
-            expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+            expect(screen.getByTestId('risk-questionnaire-ready')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('Keep this action input')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'risks:questionnaire.actions.save' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'common:actions.submit' })).toBeInTheDocument();
+            expect(screen.getByRole('alert')).toHaveTextContent(status === 403 ? 'forbidden' : 'not_found');
             expect(onChanged).not.toHaveBeenCalled();
         },
     );
 
     it.each([403, 404])(
-        'clears protected detail and actions when a post-clarification reload returns %i',
+        'retains questionnaire and clarification input when creation is rejected with %i',
         async (status) => {
-            vi.mocked(riskQuestionnairesApi.get)
-                .mockResolvedValueOnce(sentQuestionnaire({
-                    status: 'submitted',
-                    answers: completeAnswers,
-                    capabilities: {
-                        can_open: false,
-                        can_save_draft: false,
-                        can_submit: false,
-                        can_request_clarification: true,
-                        can_respond_to_clarifications: false,
-                    },
-                }))
-                .mockRejectedValueOnce(new ApiClientError({
-                    status,
-                    messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
-                }));
-            vi.mocked(riskQuestionnairesApi.createClarification).mockResolvedValue({ id: 1 } as never);
+            vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
+                status: 'submitted',
+                answers: completeAnswers,
+                capabilities: {
+                    can_open: false,
+                    can_save_draft: false,
+                    can_submit: false,
+                    can_request_clarification: true,
+                    can_respond_to_clarifications: false,
+                },
+            }));
+            vi.mocked(riskQuestionnairesApi.createClarification).mockRejectedValue(new ApiClientError({
+                status,
+                messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
+            }));
 
             render(
                 <RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />,
@@ -513,12 +542,14 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 'Please clarify',
             );
             await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
-            await waitFor(() => expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(2));
+            await waitFor(() => expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1));
 
-            expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'risks:questionnaire.request_clarification' })).not.toBeInTheDocument();
+            expect(screen.getByTestId('risk-questionnaire-ready')).toBeInTheDocument();
+            expect(screen.getByPlaceholderText('risks:questionnaire.clarification_request_placeholder')).toHaveValue('Please clarify');
+            expect(screen.getAllByRole('button', { name: 'risks:questionnaire.request_clarification' })).not.toHaveLength(0);
             expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
-            expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'common:actions.submit' })).toBeEnabled();
+            expect(screen.getByRole('alert')).toHaveTextContent(status === 403 ? 'forbidden' : 'not_found');
         },
     );
 
@@ -609,7 +640,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         expect(screen.getByText('risks:questionnaire.previous: Previous trigger')).toBeInTheDocument();
     });
 
-    it('requests clarification, refreshes detail, and clears request state', async () => {
+    it('applies a created clarification without detail or list correctness reloads', async () => {
         (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
             status: 'submitted',
             answers: completeAnswers,
@@ -621,7 +652,17 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 can_respond_to_clarifications: false,
             },
         }));
-        (riskQuestionnairesApi.createClarification as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1 });
+        (riskQuestionnairesApi.createClarification as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: 1,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            question_keys: ['risk_assessment.q1_description_changed'],
+            request_message: 'Please clarify',
+            requested_by_user_id: 2,
+            requested_by_user_name: 'Reviewer',
+            requested_at: '2025-01-02T00:00:00Z',
+            response_message: null,
+        });
 
         render(
             <RiskQuestionnaireDetail
@@ -644,19 +685,133 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 question_keys: ['risk_assessment.q1_description_changed'],
             }, { signal: expect.any(AbortSignal) });
         });
-        expect(riskQuestionnairesApi.listClarifications).toHaveBeenLastCalledWith(
-            123,
-            { signal: expect.any(AbortSignal) },
-        );
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
-            123,
-            { includePrevious: false },
-            { signal: expect.any(AbortSignal) },
-        );
+        expect(riskQuestionnairesApi.listClarifications).toHaveBeenCalledTimes(1);
+        expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
+        expect(await screen.findByText('Please clarify')).toBeInTheDocument();
         expect(screen.queryByPlaceholderText('risks:questionnaire.clarification_request_placeholder')).not.toBeInTheDocument();
     });
 
-    it('responds to clarification, refreshes detail, and clears response state', async () => {
+    it('keeps a created clarification when the initial clarification list returns late', async () => {
+        const initialList = deferred<Awaited<ReturnType<typeof riskQuestionnairesApi.listClarifications>>>();
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
+            status: 'submitted',
+            answers: completeAnswers,
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: true,
+                can_respond_to_clarifications: false,
+            },
+        }));
+        vi.mocked(riskQuestionnairesApi.listClarifications).mockReturnValue(initialList.promise);
+        vi.mocked(riskQuestionnairesApi.createClarification).mockResolvedValue({
+            id: 2,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            request_message: 'Authoritative clarification',
+            requested_by_user_id: 2,
+            requested_at: '2025-01-02T00:00:00Z',
+        });
+
+        render(<RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />);
+
+        await userEvent.click((await screen.findAllByRole('button', {
+            name: 'risks:questionnaire.request_clarification',
+        }))[0]);
+        await userEvent.type(
+            screen.getByPlaceholderText('risks:questionnaire.clarification_request_placeholder'),
+            'Authoritative clarification',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
+        await waitFor(() => expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1));
+
+        await act(async () => initialList.resolve([]));
+
+        expect(await screen.findByText('Authoritative clarification')).toBeInTheDocument();
+    });
+
+    it('keeps a created clarification when the initial clarification list rejects late', async () => {
+        const initialList = deferred<Awaited<ReturnType<typeof riskQuestionnairesApi.listClarifications>>>();
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
+            status: 'submitted',
+            answers: completeAnswers,
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: true,
+                can_respond_to_clarifications: false,
+            },
+        }));
+        vi.mocked(riskQuestionnairesApi.listClarifications).mockReturnValue(initialList.promise);
+        vi.mocked(riskQuestionnairesApi.createClarification).mockResolvedValue({
+            id: 2,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            request_message: 'Authoritative clarification',
+            requested_by_user_id: 2,
+            requested_at: '2025-01-02T00:00:00Z',
+        });
+
+        render(<RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />);
+
+        await userEvent.click((await screen.findAllByRole('button', {
+            name: 'risks:questionnaire.request_clarification',
+        }))[0]);
+        await userEvent.type(
+            screen.getByPlaceholderText('risks:questionnaire.clarification_request_placeholder'),
+            'Authoritative clarification',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
+        await waitFor(() => expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1));
+
+        await act(async () => initialList.reject(new Error('late initial read failed')));
+
+        expect(await screen.findByText('Authoritative clarification')).toBeInTheDocument();
+    });
+
+    it('sends one clarification request while rapid activation is in flight', async () => {
+        const create = deferred<Awaited<ReturnType<typeof riskQuestionnairesApi.createClarification>>>();
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
+            status: 'submitted',
+            answers: completeAnswers,
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: true,
+                can_respond_to_clarifications: false,
+            },
+        }));
+        vi.mocked(riskQuestionnairesApi.createClarification).mockReturnValue(create.promise);
+
+        render(<RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />);
+
+        await userEvent.click((await screen.findAllByRole('button', {
+            name: 'risks:questionnaire.request_clarification',
+        }))[0]);
+        await userEvent.type(
+            screen.getByPlaceholderText('risks:questionnaire.clarification_request_placeholder'),
+            'Please clarify once',
+        );
+        const submit = screen.getByRole('button', { name: 'common:actions.submit' });
+        await userEvent.dblClick(submit);
+
+        expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1);
+        expect(submit).toBeDisabled();
+
+        await act(async () => create.resolve({
+            id: 2,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            request_message: 'Please clarify once',
+            requested_by_user_id: 2,
+            requested_at: '2025-01-02T00:00:00Z',
+        }));
+    });
+
+    it('applies a clarification response without detail or list correctness reloads', async () => {
         (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
             status: 'submitted',
             answers: completeAnswers,
@@ -680,7 +835,19 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 response_message: null,
             },
         ]);
-        (riskQuestionnairesApi.respondClarification as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 44 });
+        (riskQuestionnairesApi.respondClarification as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+            id: 44,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            request_message: 'Please clarify',
+            requested_by_user_id: 2,
+            requested_by_user_name: 'Reviewer',
+            requested_at: '2025-01-02T00:00:00Z',
+            response_message: 'Response text',
+            responded_by_user_id: 1,
+            responded_by_user_name: 'Risk Owner',
+            responded_at: '2025-01-03T00:00:00Z',
+        });
 
         render(
             <RiskQuestionnaireDetail
@@ -700,15 +867,59 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 response_message: 'Response text',
             }, { signal: expect.any(AbortSignal) });
         });
-        expect(riskQuestionnairesApi.listClarifications).toHaveBeenLastCalledWith(
-            123,
-            { signal: expect.any(AbortSignal) },
-        );
-        expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
-            123,
-            { includePrevious: false },
-            { signal: expect.any(AbortSignal) },
-        );
+        expect(riskQuestionnairesApi.listClarifications).toHaveBeenCalledTimes(1);
+        expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
+        expect(await screen.findByText('Response text')).toBeInTheDocument();
         expect(screen.queryByPlaceholderText('risks:questionnaire.clarification_response_placeholder')).not.toBeInTheDocument();
+    });
+
+    it('sends one clarification response while rapid activation is in flight', async () => {
+        const response = deferred<Awaited<ReturnType<typeof riskQuestionnairesApi.respondClarification>>>();
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
+            status: 'submitted',
+            answers: completeAnswers,
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: false,
+                can_respond_to_clarifications: true,
+            },
+        }));
+        vi.mocked(riskQuestionnairesApi.listClarifications).mockResolvedValue([{
+            id: 44,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            request_message: 'Please clarify',
+            requested_by_user_id: 2,
+            requested_at: '2025-01-02T00:00:00Z',
+            response_message: null,
+        }]);
+        vi.mocked(riskQuestionnairesApi.respondClarification).mockReturnValue(response.promise);
+
+        render(<RiskQuestionnaireDetail isOpen onClose={() => {}} questionnaireId={123} risk={baseRisk} />);
+
+        await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.respond' }));
+        await userEvent.type(
+            screen.getByPlaceholderText('risks:questionnaire.clarification_response_placeholder'),
+            'Respond once',
+        );
+        const submit = screen.getByRole('button', { name: 'common:actions.submit' });
+        await userEvent.dblClick(submit);
+
+        expect(riskQuestionnairesApi.respondClarification).toHaveBeenCalledTimes(1);
+        expect(submit).toBeDisabled();
+
+        await act(async () => response.resolve({
+            id: 44,
+            questionnaire_id: 123,
+            section_key: 'questionnaire.sections.risk_changes',
+            request_message: 'Please clarify',
+            requested_by_user_id: 2,
+            requested_at: '2025-01-02T00:00:00Z',
+            response_message: 'Respond once',
+            responded_by_user_id: 1,
+            responded_at: '2025-01-03T00:00:00Z',
+        }));
     });
 });

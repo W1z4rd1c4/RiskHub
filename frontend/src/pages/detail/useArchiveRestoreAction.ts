@@ -39,7 +39,7 @@ export function useArchiveRestoreAction({
         isCurrent,
         onImmediate,
     }: RunArchiveOptions) => {
-        await runEntityMutation({
+        return runEntityMutation({
             approvalKey,
             closeDialog,
             execute: archive,
@@ -54,7 +54,7 @@ export function useArchiveRestoreAction({
         isCurrent,
         successKey,
     }: RunRestoreOptions) => {
-        await runEntityMutation({
+        return runEntityMutation({
             execute: restore,
             isCurrent,
             onDirectSuccess: onRestored,

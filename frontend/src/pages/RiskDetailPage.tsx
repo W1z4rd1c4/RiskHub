@@ -226,7 +226,10 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                                 type="button"
                                 variant="destructive"
                                 size="icon"
-                                onClick={() => setIsDeleteDialogOpen(true)}
+                                onClick={() => {
+                                    setApprovalMessage(null);
+                                    setIsDeleteDialogOpen(true);
+                                }}
                                 title={t('actions.archive')}
                                 aria-label={t('actions.archive')}
                             >
@@ -332,6 +335,9 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                 showInput
                 inputLabel={t('common:labels.archive_reason')}
                 inputPlaceholder={t('common:labels.archive_reason_placeholder')}
+                errorText={approvalMessage?.isError
+                    ? t(approvalMessage.key, { ns: 'errorKeys' })
+                    : null}
             />
 
         </div>

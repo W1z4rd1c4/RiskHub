@@ -60,6 +60,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     } = useCollectionDataState<Risk>();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteErrorKey, setDeleteErrorKey] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
     const [isValueModalOpen, setIsValueModalOpen] = useState(false);
@@ -208,6 +209,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         resetLinkedRisk();
         setIsDeleteDialogOpen(false);
         setIsDeleting(false);
+        setDeleteErrorKey(null);
         setIsEditModalOpen(false);
         setIsIssueModalOpen(false);
         setIsValueModalOpen(false);
@@ -239,6 +241,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         const deleteReason = reason?.trim();
         if (!deleteReason) return;
         setIsDeleting(true);
+        setDeleteErrorKey(null);
         try {
             const result = await kriApi.deleteKRI(ownerId, deleteReason);
             if (detailOwnerRef.current !== ownerId) return;
@@ -252,6 +255,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         } catch (error) {
             if (detailOwnerRef.current !== ownerId) return;
             logError('Failed to delete KRI.', error);
+            setDeleteErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             if (detailOwnerRef.current === ownerId) {
                 setIsDeleting(false);
@@ -331,6 +335,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         approvalBanner,
         canRecordValue,
         canRequestHistoryCorrection,
+        deleteErrorKey,
         dueDate,
         handleDelete,
         handleRecordSuccess,
@@ -358,6 +363,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         selectedHistoryEntry,
         setActiveTab,
         setApprovalBanner,
+        setDeleteErrorKey,
         setIsDeleteDialogOpen,
         setIsEditModalOpen,
         setIsIssueModalOpen,

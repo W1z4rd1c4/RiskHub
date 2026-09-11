@@ -285,15 +285,30 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
 
     const setField = (field: keyof FormFields, value: string) => {
         setFields((current) => ({ ...current, [field]: value }));
+        setFieldErrors((current) => {
+            if (!current[field]) return current;
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
     };
 
     const setBusinessOwner = (value: string) => {
         const selected = (businessOwnerQuery.data ?? []).find((owner) => String(owner.id) === value);
+        const selectedDepartment = selected?.department_id?.toString() ?? '';
         setFields((current) => ({
             ...current,
             business_owner_user_id: value,
-            owning_department_id: current.owning_department_id || selected?.department_id?.toString() || '',
+            owning_department_id: current.owning_department_id || selectedDepartment,
         }));
+        setFieldErrors((current) => {
+            const next = { ...current };
+            delete next.business_owner_user_id;
+            if (!fields.owning_department_id && selectedDepartment) {
+                delete next.owning_department_id;
+            }
+            return next;
+        });
     };
 
     const validate = (): Partial<Record<keyof FormFields, string>> => {

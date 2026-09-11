@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { useAuthz } from '@/authz/useAuthz';
 import { AlertCircle, ArrowUpRight, TriangleAlert, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -93,8 +94,14 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const { t: tCommon } = useTranslation('common');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [archiveError, setArchiveError] = useState<string | null>(null);
     const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
-    const { actionMessage, dismissActionMessage, setActionMessage } = useVendorFlashMessage(location, navigate);
+    const [pendingCancellation, setPendingCancellation] = useState<{
+        approvalId: number;
+        targetName: string;
+    } | null>(null);
+    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
+    const { actionMessage, dismissActionMessage } = useVendorFlashMessage(location, navigate);
     useNormalizeLegacyVendorDetailSearch(location, navigate);
     useVendorDeepLinkScroll(location);
     const createGateState = useCreateCapabilityGate({
@@ -109,7 +116,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         }
         try {
             setIsDeleting(true);
+            setArchiveError(null);
             const result = await vendorApi.archiveVendor(vendor.id, requestReason?.trim() ?? '');
+            setIsDeleteDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
                 void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
                 return;
@@ -117,28 +126,32 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             void navigate(returnTo);
         } catch (error) {
             logError('Failed to archive vendor:', error);
-            setActionMessage({
-                tone: 'danger',
-                message: t('errors.load_failed'),
-            });
+            setArchiveError(t('errors.archive_failed'));
         } finally {
             setIsDeleting(false);
-            setIsDeleteDialogOpen(false);
         }
     };
 
-    const cancelPendingChange = async () => {
+    const openPendingChangeCancellation = () => {
         if (!vendor?.pending_change?.approval_id) return;
+        setPendingCancellationError(null);
+        setPendingCancellation({
+            approvalId: vendor.pending_change.approval_id,
+            targetName: vendor.name,
+        });
+    };
+
+    const cancelPendingChange = async () => {
+        if (!pendingCancellation || isCancellingPendingChange) return;
         try {
             setIsCancellingPendingChange(true);
-            await approvalsApi.cancel(vendor.pending_change.approval_id);
-            await fetchVendor();
+            setPendingCancellationError(null);
+            await approvalsApi.cancel(pendingCancellation.approvalId);
+            setPendingCancellation(null);
+            void fetchVendor();
         } catch (cancelError) {
             logError('Failed to cancel pending Vendor change:', cancelError);
-            setActionMessage({
-                tone: 'danger',
-                message: t('pending_change.cancel_failed'),
-            });
+            setPendingCancellationError(t('pending_change.cancel_failed'));
         } finally {
             setIsCancellingPendingChange(false);
         }
@@ -178,6 +191,19 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const staleWarning = loadOutcome === 'stale-with-error' ? (
         <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchVendor()} />
     ) : null;
+    const pendingCancellationDialog = (
+        <PendingChangeCancellationDialog
+            isOpen={pendingCancellation !== null}
+            targetName={pendingCancellation?.targetName ?? ''}
+            isLoading={isCancellingPendingChange}
+            errorText={pendingCancellationError}
+            onClose={() => {
+                setPendingCancellation(null);
+                setPendingCancellationError(null);
+            }}
+            onConfirm={() => void cancelPendingChange()}
+        />
+    );
 
     if (mode === 'edit') {
         if (resolveCapabilityFlag(vendor.capabilities, 'business_edit_blocked')) {
@@ -191,10 +217,11 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                                 locale={i18n.language}
                                 cancelling={isCancellingPendingChange}
                                 onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
-                                    ? () => void cancelPendingChange()
+                                    ? openPendingChangeCancellation
                                     : undefined}
                             />
                         ) : null}
+                        {pendingCancellationDialog}
                         <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent">
                             {t('actions.back_to_register')}
                         </button>
@@ -279,7 +306,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         locale={i18n.language}
                         cancelling={isCancellingPendingChange}
                         onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
-                            ? () => void cancelPendingChange()
+                            ? openPendingChangeCancellation
                             : undefined}
                     />
                 ) : null}
@@ -290,7 +317,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     canEdit={canEdit}
                     canCreateIssue={canCreateIssue}
                     canRestore={canRestore}
-                    onArchive={() => setIsDeleteDialogOpen(true)}
+                    onArchive={() => {
+                        setArchiveError(null);
+                        setIsDeleteDialogOpen(true);
+                    }}
                     onBack={() => navigate(returnTo)}
                     onOpenIssueModal={openIssueModal}
                     onEdit={() => navigate(appendRegisterReturnTo(`/vendors/${vendor.id}/edit`, returnTo))}
@@ -335,7 +365,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     inputRequired
                     inputLabel={t('form.request_reason')}
                     inputPlaceholder={t('form.request_reason_help')}
+                    errorText={archiveError}
                 />
+                {pendingCancellationDialog}
             </div>
         </div>
     );

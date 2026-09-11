@@ -142,13 +142,15 @@ export function useControlDetailWorkflow({
     async function handleArchive(reason: string): Promise<void> {
         if (!control) return;
         const ownerId = control.id;
-        await runArchive({
+        const outcome = await runArchive({
             archive: () => controlApi.deleteControl(ownerId, reason),
             approvalKey: 'controls:detail.archive_approval_submitted',
-            closeDialog: () => setIsArchiveDialogOpen(false),
             isCurrent: () => detailOwnerRef.current === ownerId,
             onImmediate: () => navigate(returnTo),
         });
+        if (outcome.kind === 'failed') {
+            throw outcome.error;
+        }
     }
 
     async function handleRestore(): Promise<void> {

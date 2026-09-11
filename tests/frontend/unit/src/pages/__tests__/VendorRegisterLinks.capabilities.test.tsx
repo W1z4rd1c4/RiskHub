@@ -153,6 +153,41 @@ describe('Vendor register-link backend capability gates', () => {
         });
     });
 
+    it('keeps a rejected Vendor-side link error and rationale inside its open dialog', async () => {
+        vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([{
+            id: 44,
+            asset_id: 7,
+            vendor_id: 4,
+            asset_name: 'Protected dependency',
+            ict_service_code: 'S01',
+            capabilities: { can_delete: true },
+            created_at: '2026-07-15T08:00:00Z',
+        }]);
+        vi.mocked(assetApi.removeVendorLink).mockRejectedValueOnce(new Error('rejected'));
+        renderSection({
+            can_view_asset_links: true,
+            can_manage_asset_links: false,
+            can_manage_process_links: false,
+        });
+
+        fireEvent.click(await screen.findByTestId('vendor-asset-link-remove-44'));
+        let dialog = screen.getByRole('alertdialog');
+        const reason = within(dialog).getByRole('textbox');
+        fireEvent.change(reason, { target: { value: 'Retain Vendor-side rationale' } });
+        fireEvent.click(within(dialog).getByText('assets:link_approval.continue'));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+            'register_links.errors.mutation_failed',
+        );
+        expect(reason).toHaveValue('Retain Vendor-side rationale');
+        expect(screen.getAllByText('register_links.errors.mutation_failed')).toHaveLength(1);
+
+        fireEvent.click(within(dialog).getByText('actions.cancel'));
+        fireEvent.click(screen.getByTestId('vendor-asset-link-remove-44'));
+        dialog = screen.getByRole('alertdialog');
+        expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('navigates to the queued approval returned by a governed Vendor-side Asset unlink', async () => {
         vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([{
             id: 43,

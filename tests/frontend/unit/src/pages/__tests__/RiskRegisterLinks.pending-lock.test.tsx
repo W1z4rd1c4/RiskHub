@@ -195,6 +195,46 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         });
     });
 
+    it('keeps a rejected Risk link error and rationale inside its open dialog', async () => {
+        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
+        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
+            id: 71,
+            risk_id: 4,
+            asset_id: 11,
+            asset_name: 'Protected asset',
+            capabilities: { can_delete: true },
+            created_at: '2026-07-17T08:00:00Z',
+        }]);
+        vi.mocked(riskRegisterLinksApi.removeAssetLink).mockRejectedValueOnce(new Error('rejected'));
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        });
+        render(
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter>
+                    <RiskRegisterLinksSection risk={{ id: 4 } as Risk} canManageLinks />
+                </MemoryRouter>
+            </QueryClientProvider>,
+        );
+
+        fireEvent.click(await screen.findByTestId('risk-asset-link-remove-71'));
+        let dialog = screen.getByRole('alertdialog');
+        const reason = within(dialog).getByRole('textbox', { name: /request reason/i });
+        fireEvent.change(reason, { target: { value: 'Retain Risk link rationale' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: /continue/i }));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+            'Updating the link failed. Please try again.',
+        );
+        expect(reason).toHaveValue('Retain Risk link rationale');
+        expect(screen.getAllByText('Updating the link failed. Please try again.')).toHaveLength(1);
+
+        fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+        fireEvent.click(screen.getByTestId('risk-asset-link-remove-71'));
+        dialog = screen.getByRole('alertdialog');
+        expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('renders initial lane failures locally without hiding successful siblings', async () => {
         vi.mocked(riskRegisterLinksApi.getThreatLinks).mockResolvedValue([{
             id: 51,

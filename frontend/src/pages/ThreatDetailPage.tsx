@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -92,6 +93,11 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const [isArchiving, setIsArchiving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
     const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
+    const [pendingCancellation, setPendingCancellation] = useState<{
+        approvalId: number;
+        targetName: string;
+    } | null>(null);
+    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
 
     const {
         canArchive,
@@ -129,16 +135,26 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         }
     };
 
-    const cancelPendingChange = async () => {
+    const openPendingChangeCancellation = () => {
         if (!threat?.pending_change?.approval_id) return;
+        setPendingCancellationError(null);
+        setPendingCancellation({
+            approvalId: threat.pending_change.approval_id,
+            targetName: threat.name,
+        });
+    };
+
+    const cancelPendingChange = async () => {
+        if (!pendingCancellation || isCancellingPendingChange) return;
         try {
             setIsCancellingPendingChange(true);
-            setActionError(null);
-            await approvalsApi.cancel(threat.pending_change.approval_id);
-            await fetchThreat();
+            setPendingCancellationError(null);
+            await approvalsApi.cancel(pendingCancellation.approvalId);
+            setPendingCancellation(null);
+            void fetchThreat();
         } catch (cancelError) {
             logError('Failed to cancel pending Threat change:', cancelError);
-            setActionError(t('pending_change.cancel_failed'));
+            setPendingCancellationError(t('pending_change.cancel_failed'));
         } finally {
             setIsCancellingPendingChange(false);
         }
@@ -192,6 +208,19 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const staleWarning = loadOutcome === 'stale-with-error' ? (
         <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchThreat()} />
     ) : null;
+    const pendingCancellationDialog = (
+        <PendingChangeCancellationDialog
+            isOpen={pendingCancellation !== null}
+            targetName={pendingCancellation?.targetName ?? ''}
+            isLoading={isCancellingPendingChange}
+            errorText={pendingCancellationError}
+            onClose={() => {
+                setPendingCancellation(null);
+                setPendingCancellationError(null);
+            }}
+            onConfirm={() => void cancelPendingChange()}
+        />
+    );
 
     if (mode === 'edit') {
         if (resolveCapabilityFlag(threat.capabilities, 'business_edit_blocked')) {
@@ -212,10 +241,11 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                             locale={i18n.language}
                             cancelling={isCancellingPendingChange}
                             onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
-                                ? () => void cancelPendingChange()
+                                ? openPendingChangeCancellation
                                 : undefined}
                         />
                     ) : null}
+                    {pendingCancellationDialog}
                 </div>
             );
         }
@@ -315,7 +345,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     locale={i18n.language}
                     cancelling={isCancellingPendingChange}
                     onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
-                        ? () => void cancelPendingChange()
+                        ? openPendingChangeCancellation
                         : undefined}
                 />
             ) : null}
@@ -443,6 +473,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 variant="danger"
                 isLoading={isArchiving}
             />
+            {pendingCancellationDialog}
         </div>
     );
 }

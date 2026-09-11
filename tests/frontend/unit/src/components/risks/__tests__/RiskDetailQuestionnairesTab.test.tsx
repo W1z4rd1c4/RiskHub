@@ -46,6 +46,8 @@ vi.mock('@/components/risks/RiskQuestionnaireDetail', () => ({
         <div>
             <span>questionnaire-detail:{questionnaireId}</span>
             <button type="button" onClick={onChanged}>refresh-questionnaires</button>
+            <button type="button" onClick={onChanged}>successful-save</button>
+            <button type="button" onClick={onChanged}>successful-submit</button>
         </div>
     ) : null,
 }));
@@ -236,7 +238,7 @@ describe('RiskDetailQuestionnairesTab', () => {
         expect(within(stale).getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
-    it('clears rows, selection, and detail when a refresh is denied', async () => {
+    it('keeps returned detail and existing rows when post-save reconciliation is denied', async () => {
         vi.mocked(riskQuestionnairesApi.listForRisk).mockResolvedValueOnce([questionnaire(31)]);
         render(<RiskDetailQuestionnairesTab risk={makeRisk()} />);
         await userEvent.click(await screen.findByText('Sender 31'));
@@ -246,15 +248,15 @@ describe('RiskDetailQuestionnairesTab', () => {
             status: 403,
             messageKey: 'errorKeys.forbidden',
         }));
-        await userEvent.click(screen.getByRole('button', { name: 'refresh-questionnaires' }));
+        await userEvent.click(screen.getByRole('button', { name: 'successful-save' }));
 
-        const denied = await screen.findByTestId('risk-questionnaires-load-state');
-        expect(screen.queryByText('Sender 31')).not.toBeInTheDocument();
-        expect(screen.queryByText('questionnaire-detail:31')).not.toBeInTheDocument();
-        expect(within(denied).queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+        const stale = await screen.findByTestId('risk-questionnaires-load-state');
+        expect(screen.getByText('Sender 31')).toBeInTheDocument();
+        expect(screen.getByText('questionnaire-detail:31')).toBeInTheDocument();
+        expect(within(stale).getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
-    it('treats an anti-enumeration 404 refresh like a denial', async () => {
+    it('keeps returned detail and existing rows when post-submit reconciliation returns anti-enumeration 404', async () => {
         vi.mocked(riskQuestionnairesApi.listForRisk).mockResolvedValueOnce([questionnaire(31)]);
         render(<RiskDetailQuestionnairesTab risk={makeRisk()} />);
         await userEvent.click(await screen.findByText('Sender 31'));
@@ -263,11 +265,44 @@ describe('RiskDetailQuestionnairesTab', () => {
             status: 404,
             messageKey: 'errorKeys.not_found',
         }));
-        await userEvent.click(screen.getByRole('button', { name: 'refresh-questionnaires' }));
+        await userEvent.click(screen.getByRole('button', { name: 'successful-submit' }));
+
+        const stale = await screen.findByTestId('risk-questionnaires-load-state');
+        expect(screen.getByText('Sender 31')).toBeInTheDocument();
+        expect(screen.getByText('questionnaire-detail:31')).toBeInTheDocument();
+        expect(within(stale).getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+
+    it('still clears content when an explicit retry is denied', async () => {
+        vi.mocked(riskQuestionnairesApi.listForRisk).mockResolvedValueOnce([questionnaire(31)]);
+        render(<RiskDetailQuestionnairesTab risk={makeRisk()} />);
+        await userEvent.click(await screen.findByText('Sender 31'));
+
+        vi.mocked(riskQuestionnairesApi.listForRisk).mockRejectedValueOnce(new Error('refresh unavailable'));
+        await userEvent.click(screen.getByRole('button', { name: 'successful-save' }));
+        const stale = await screen.findByTestId('risk-questionnaires-load-state');
+
+        vi.mocked(riskQuestionnairesApi.listForRisk).mockRejectedValueOnce(new ApiClientError({
+            status: 403,
+            messageKey: 'errorKeys.forbidden',
+        }));
+        await userEvent.click(within(stale).getByRole('button', { name: /retry/i }));
 
         const denied = await screen.findByTestId('risk-questionnaires-load-state');
         expect(screen.queryByText('Sender 31')).not.toBeInTheDocument();
         expect(screen.queryByText('questionnaire-detail:31')).not.toBeInTheDocument();
+        expect(within(denied).queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    });
+
+    it('still denies the initial questionnaire load on anti-enumeration 404', async () => {
+        vi.mocked(riskQuestionnairesApi.listForRisk).mockRejectedValueOnce(new ApiClientError({
+            status: 404,
+            messageKey: 'errorKeys.not_found',
+        }));
+        render(<RiskDetailQuestionnairesTab risk={makeRisk()} />);
+
+        const denied = await screen.findByTestId('risk-questionnaires-load-state');
+        expect(screen.queryByText('Sender 31')).not.toBeInTheDocument();
         expect(within(denied).queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
 

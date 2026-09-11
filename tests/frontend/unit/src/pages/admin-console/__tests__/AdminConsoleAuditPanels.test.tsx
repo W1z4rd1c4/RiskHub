@@ -192,6 +192,52 @@ describe('AuditLogsPanel', () => {
         inputs.forEach((input) => expect(input).toHaveAccessibleName());
     });
 
+    it('blocks invalid values for every log setting and clears only the corrected field error', async () => {
+        renderAuditLogsPanel();
+
+        const inputs = await screen.findAllByRole('spinbutton');
+        const saveButton = screen.getByRole('button', { name: 'audit.save_settings' });
+        const initialValues = ['25', '5', '50', '10'];
+
+        for (const [index, input] of inputs.entries()) {
+            for (const invalidValue of ['0', '501', '1.5', '']) {
+                fireEvent.change(input, { target: { value: invalidValue } });
+                expect(input).toHaveAttribute('aria-invalid', 'true');
+                expect(input.getAttribute('aria-describedby')).toBeTruthy();
+                expect(document.getElementById(input.getAttribute('aria-describedby')!.split(' ').at(-1)!))
+                    .toHaveTextContent('audit.value_between');
+                expect(saveButton).toBeDisabled();
+                fireEvent.click(saveButton);
+                expect(updateLogConfigMock).not.toHaveBeenCalled();
+
+                fireEvent.change(input, { target: { value: initialValues[index] } });
+                expect(input).not.toHaveAttribute('aria-invalid');
+                expect(saveButton).toBeEnabled();
+            }
+        }
+    });
+
+    it('accepts both inclusive bounds for all four log settings', async () => {
+        renderAuditLogsPanel();
+
+        const inputs = await screen.findAllByRole('spinbutton');
+        const saveButton = screen.getByRole('button', { name: 'audit.save_settings' });
+        inputs.forEach((input) => fireEvent.change(input, { target: { value: '1' } }));
+        expect(saveButton).toBeEnabled();
+        inputs.forEach((input) => fireEvent.change(input, { target: { value: '500' } }));
+        expect(saveButton).toBeEnabled();
+        fireEvent.click(saveButton);
+
+        await waitFor(() => {
+            expect(updateLogConfigMock).toHaveBeenCalledWith({
+                app_log_rotation_size_mb: 500,
+                app_log_retention_count: 500,
+                audit_log_rotation_size_mb: 500,
+                audit_log_retention_count: 500,
+            });
+        });
+    });
+
     it('announces a pending log settings save', async () => {
         updateLogConfigMock.mockReturnValueOnce(new Promise(() => {}));
         renderAuditLogsPanel();
@@ -473,7 +519,7 @@ describe('AuditLogsPanel', () => {
         renderAuditLogsPanel();
 
         const sizeInput = await screen.findByDisplayValue('25');
-        fireEvent.change(sizeInput, { target: { value: '0' } });
+        fireEvent.change(sizeInput, { target: { value: '30' } });
         fireEvent.click(screen.getByRole('button', { name: 'audit.save_settings' }));
 
         expect(await screen.findByText('Invalid log settings')).toBeInTheDocument();

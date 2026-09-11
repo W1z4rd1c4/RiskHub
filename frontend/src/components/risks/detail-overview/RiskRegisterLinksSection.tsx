@@ -476,7 +476,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 </h2>
             </div>
 
-            {linkError ? (
+            {linkError && pendingProcessAction === null && pendingAssetAction === null ? (
                 <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
                     {linkError}
                 </div>
@@ -552,8 +552,14 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 )}
                 searchValue={processSearch}
                 onSearchChange={setProcessSearch}
-                onAdd={(processId) => setPendingProcessAction({ kind: 'add', processId })}
-                onRemove={(linkId) => setPendingProcessAction({ kind: 'remove', linkId })}
+                onAdd={(processId) => {
+                    setLinkError(null);
+                    setPendingProcessAction({ kind: 'add', processId });
+                }}
+                onRemove={(linkId) => {
+                    setLinkError(null);
+                    setPendingProcessAction({ kind: 'remove', linkId });
+                }}
                 isAddPending={addProcessLink.isPending && addProcessLink.variables?.ownerId === risk.id}
                 processBlockedLabel={t('processes:pending_change.link_action_blocked')}
             />
@@ -589,8 +595,14 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 )}
                 searchValue={assetSearch}
                 onSearchChange={setAssetSearch}
-                onAdd={(assetId) => setPendingAssetAction({ kind: 'add', assetId })}
-                onRemove={(linkId) => setPendingAssetAction({ kind: 'remove', linkId })}
+                onAdd={(assetId) => {
+                    setLinkError(null);
+                    setPendingAssetAction({ kind: 'add', assetId });
+                }}
+                onRemove={(linkId) => {
+                    setLinkError(null);
+                    setPendingAssetAction({ kind: 'remove', linkId });
+                }}
                 isAddPending={addAssetLink.isPending && addAssetLink.variables?.ownerId === risk.id}
             />
             </LinkLane>
@@ -603,7 +615,11 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                     addProcessLink.isPending && addProcessLink.variables?.ownerId === risk.id
                     || removeProcessLink.isPending && removeProcessLink.variables?.ownerId === risk.id
                 }
-                onClose={() => setPendingProcessAction(null)}
+                errorText={linkError}
+                onClose={() => {
+                    setPendingProcessAction(null);
+                    setLinkError(null);
+                }}
                 onConfirm={(reason) => {
                     if (processLinksProtectedUnavailable) return;
                     if (pendingProcessAction?.kind === 'add') {
@@ -622,7 +638,11 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                     addAssetLink.isPending && addAssetLink.variables?.ownerId === risk.id
                     || removeAssetLink.isPending && removeAssetLink.variables?.ownerId === risk.id
                 }
-                onClose={() => setPendingAssetAction(null)}
+                errorText={linkError}
+                onClose={() => {
+                    setPendingAssetAction(null);
+                    setLinkError(null);
+                }}
                 onConfirm={(reason) => {
                     if (assetLinksProtectedUnavailable) return;
                     if (pendingAssetAction?.kind === 'add') {

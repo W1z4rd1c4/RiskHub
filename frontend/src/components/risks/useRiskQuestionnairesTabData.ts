@@ -28,6 +28,8 @@ export type LatestSubmittedLoadOutcome =
     | 'stale-with-error'
     | 'denied';
 
+type QuestionnaireListLoadMode = 'authoritative' | 'reconcile';
+
 function isProtectedUnavailableError(error: unknown): boolean {
     return isForbiddenApiError(error) || error instanceof ApiClientError && error.status === 404;
 }
@@ -147,7 +149,7 @@ export function useRiskQuestionnairesTabData({
         return () => latestSubmittedControllerRef.current?.abort();
     }, [latestSubmittedId, latestSubmittedRefreshKey, loadLatestSubmitted]);
 
-    const refresh = useCallback(async () => {
+    const loadQuestionnaires = useCallback(async (mode: QuestionnaireListLoadMode) => {
         refreshControllerRef.current?.abort();
         const controller = new AbortController();
         refreshControllerRef.current = controller;
@@ -169,6 +171,10 @@ export function useRiskQuestionnairesTabData({
             if (isAbortError(error) || controller.signal.aborted || ownerRef.current !== ownerId) return;
             setErrorKey(apiClient.toUiMessageKey(error));
             if (isProtectedUnavailableError(error)) {
+                if (mode === 'reconcile') {
+                    setLoadOutcome('stale-with-error');
+                    return;
+                }
                 setItems([]);
                 itemsOwnerRef.current = null;
                 setSelectedId(null);
@@ -187,6 +193,15 @@ export function useRiskQuestionnairesTabData({
             }
         }
     }, [riskId]);
+
+    const refresh = useCallback(
+        () => loadQuestionnaires('authoritative'),
+        [loadQuestionnaires],
+    );
+    const reconcile = useCallback(
+        () => loadQuestionnaires('reconcile'),
+        [loadQuestionnaires],
+    );
 
     useEffect(() => {
         refreshControllerRef.current?.abort();
@@ -253,6 +268,7 @@ export function useRiskQuestionnairesTabData({
         loading,
         message,
         openItem,
+        reconcile,
         refresh,
         selectedId: itemsOwnerRef.current === riskId ? selectedId : null,
         sending,

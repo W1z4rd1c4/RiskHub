@@ -299,14 +299,16 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
 
     const handleArchive = useCallback(async (reason?: string) => {
         if (!risk) return;
-        await runArchive({
+        const outcome = await runArchive({
             archive: () => riskApi.deleteRisk(risk.id, reason || 'Archived by user'),
             approvalKey: 'risks:messages.archive_submitted_for_approval',
-            closeDialog: () => setIsDeleteDialogOpen(false),
             isCurrent: () => detailOwnerRef.current === risk.id,
             onImmediate: () => navigate(returnTo),
         });
-        if (detailOwnerRef.current === risk.id) {
+        if (
+            detailOwnerRef.current === risk.id
+            && (outcome.kind === 'approval_queued' || outcome.kind === 'direct_success')
+        ) {
             setIsDeleteDialogOpen(false);
         }
     }, [navigate, returnTo, risk, runArchive]);

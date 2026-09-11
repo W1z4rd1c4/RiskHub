@@ -35,6 +35,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
         approvalBanner,
         canRecordValue,
         canRequestHistoryCorrection,
+        deleteErrorKey,
         dueDate,
         handleDelete,
         handleRecordSuccess,
@@ -62,6 +63,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
         selectedHistoryEntry,
         setActiveTab,
         setApprovalBanner,
+        setDeleteErrorKey,
         setIsDeleteDialogOpen,
         setIsEditModalOpen,
         setIsIssueModalOpen,
@@ -182,7 +184,14 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                             <RotateCcw className="h-4 w-4 mr-1" /> {t('common:actions.unarchive')}
                         </Button>
                     ) : (
-                        canArchiveKri && <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isDeleting}>
+                        canArchiveKri && <Button
+                            variant="destructive"
+                            onClick={() => {
+                                setDeleteErrorKey(null);
+                                setIsDeleteDialogOpen(true);
+                            }}
+                            disabled={isDeleting}
+                        >
                             <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
                         </Button>
                     )}
@@ -317,7 +326,10 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
 
                     <ConfirmDialog
                         isOpen={isDeleteDialogOpen}
-                        onClose={() => setIsDeleteDialogOpen(false)}
+                        onClose={() => {
+                            setDeleteErrorKey(null);
+                            setIsDeleteDialogOpen(false);
+                        }}
                         onConfirm={(inputValue) => handleDelete(inputValue)}
                         title={t('kris:delete_dialog.title')}
                         message={t('kris:delete_dialog.message')}
@@ -328,6 +340,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                         inputLabel={t('kris:delete_dialog.reason_label')}
                         inputPlaceholder={t('kris:delete_dialog.reason_placeholder')}
                         inputRequired
+                        errorText={deleteErrorKey ? t(deleteErrorKey, { ns: 'errorKeys' }) : null}
                     />
                 </>
             )}

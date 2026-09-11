@@ -36,6 +36,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         loading,
         message,
         openItem,
+        reconcile,
         refresh,
         refreshLatestSubmitted,
         selectedId,
@@ -160,7 +161,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 questionnaireId={selectedId}
                 risk={risk}
                 onClose={() => setSelectedId(null)}
-                onChanged={refresh}
+                onChanged={reconcile}
             />
         </div>
     );

@@ -51,13 +51,16 @@ export function useRiskQuestionnaireDetailWorkflow({
     const [clarifications, setClarifications] = useState<RiskQuestionnaireClarification[]>([]);
     const [clarificationsLoading, setClarificationsLoading] = useState(false);
     const [requestingSectionKey, setRequestingSectionKey] = useState<string | null>(null);
+    const [requestingClarification, setRequestingClarification] = useState(false);
     const [requestMessage, setRequestMessage] = useState('');
     const [requestQuestionKeys, setRequestQuestionKeys] = useState<string[]>([]);
     const [respondingClarificationId, setRespondingClarificationId] = useState<number | null>(null);
+    const [respondingClarification, setRespondingClarification] = useState(false);
     const [responseMessage, setResponseMessage] = useState('');
     const questionnaireOwnerRef = useRef<number | null>(questionnaireId);
     const actionControllerRef = useRef<AbortController | null>(null);
     const activeActionRef = useRef<QuestionnaireAction | null>(null);
+    const clarificationMutationVersionRef = useRef(0);
     questionnaireOwnerRef.current = isOpen ? questionnaireId : null;
 
     const resetOwnedState = useCallback(() => {
@@ -72,9 +75,11 @@ export function useRiskQuestionnaireDetailWorkflow({
         setClarifications([]);
         setClarificationsLoading(false);
         setRequestingSectionKey(null);
+        setRequestingClarification(false);
         setRequestMessage('');
         setRequestQuestionKeys([]);
         setRespondingClarificationId(null);
+        setRespondingClarification(false);
         setResponseMessage('');
         activeActionRef.current = null;
     }, []);
@@ -206,15 +211,24 @@ export function useRiskQuestionnaireDetailWorkflow({
 
     useEffect(() => {
         const controller = new AbortController();
+        const mutationVersion = clarificationMutationVersionRef.current;
         const loadClarifications = async () => {
             if (!isOpen || !questionnaireId) return;
             setClarificationsLoading(true);
             try {
                 const data = await riskQuestionnairesApi.listClarifications(questionnaireId, { signal: controller.signal });
-                if (controller.signal.aborted || questionnaireOwnerRef.current !== questionnaireId) return;
+                if (
+                    controller.signal.aborted
+                    || questionnaireOwnerRef.current !== questionnaireId
+                    || clarificationMutationVersionRef.current !== mutationVersion
+                ) return;
                 setClarifications(data);
             } catch {
-                if (controller.signal.aborted || questionnaireOwnerRef.current !== questionnaireId) return;
+                if (
+                    controller.signal.aborted
+                    || questionnaireOwnerRef.current !== questionnaireId
+                    || clarificationMutationVersionRef.current !== mutationVersion
+                ) return;
                 setClarifications([]);
             } finally {
                 if (!controller.signal.aborted && questionnaireOwnerRef.current === questionnaireId) setClarificationsLoading(false);
@@ -232,6 +246,13 @@ export function useRiskQuestionnaireDetailWorkflow({
         return missing.length === 0;
     };
 
+    useEffect(() => {
+        if (!ownedQuestionnaire || !missingKeys[0]) return;
+        const field = Array.from(document.querySelectorAll<HTMLElement>('[data-questionnaire-question]'))
+            .find((element) => element.dataset.questionnaireQuestion === missingKeys[0]);
+        field?.querySelector<HTMLElement>('button, input, textarea')?.focus();
+    }, [missingKeys, ownedQuestionnaire]);
+
     const isCurrentAction = (controller: AbortController, ownerId: number) => (
         !controller.signal.aborted
         && actionControllerRef.current === controller
@@ -243,6 +264,8 @@ export function useRiskQuestionnaireDetailWorkflow({
         if (activeActionRef.current === 'submit') setSubmitting(false);
         if (activeActionRef.current === 'request-clarification') setRequestingSectionKey(null);
         if (activeActionRef.current === 'respond-clarification') setRespondingClarificationId(null);
+        setRequestingClarification(false);
+        setRespondingClarification(false);
     };
 
     const beginAction = (action: QuestionnaireAction) => {
@@ -255,21 +278,7 @@ export function useRiskQuestionnaireDetailWorkflow({
     };
 
     const applyActionFailure = (error: unknown) => {
-        if (isProtectedUnavailableError(error)) {
-            resetOwnedState();
-        }
         setErrorKey(apiClient.toUiMessageKey(error));
-    };
-
-    const refreshQuestionnaire = async (id: number, signal: AbortSignal) => {
-        const refreshed = await riskQuestionnairesApi.get(
-            id,
-            { includePrevious: compareMode },
-            { signal },
-        );
-        if (signal.aborted || questionnaireOwnerRef.current !== id) return;
-        setQuestionnaire(refreshed);
-        setAnswers((refreshed.answers ?? {}) as Record<string, unknown>);
     };
 
     const handleSave = async () => {
@@ -285,8 +294,8 @@ export function useRiskQuestionnaireDetailWorkflow({
                 { signal: controller.signal },
             );
             if (!isCurrentAction(controller, ownerId)) return;
-            await refreshQuestionnaire(updated.id, controller.signal);
-            if (!isCurrentAction(controller, ownerId)) return;
+            setQuestionnaire(updated);
+            setAnswers((updated.answers ?? {}) as Record<string, unknown>);
             onChanged?.();
         } catch (error) {
             if (isAbortError(error) || !isCurrentAction(controller, ownerId)) return;
@@ -317,8 +326,8 @@ export function useRiskQuestionnaireDetailWorkflow({
                 { signal: controller.signal },
             );
             if (!isCurrentAction(controller, ownerId)) return;
-            await refreshQuestionnaire(updated.id, controller.signal);
-            if (!isCurrentAction(controller, ownerId)) return;
+            setQuestionnaire(updated);
+            setAnswers((updated.answers ?? {}) as Record<string, unknown>);
             onChanged?.();
         } catch (error) {
             if (isAbortError(error) || !isCurrentAction(controller, ownerId)) return;
@@ -334,21 +343,20 @@ export function useRiskQuestionnaireDetailWorkflow({
 
     const handleRequestClarification = async (sectionKey: string) => {
         if (!ownedQuestionnaire) return;
+        if (activeActionRef.current === 'request-clarification') return;
         const ownerId = ownedQuestionnaire.id;
         const controller = beginAction('request-clarification');
+        setRequestingClarification(true);
         setErrorKey(null);
         try {
-            await riskQuestionnairesApi.createClarification(ownerId, {
+            const created = await riskQuestionnairesApi.createClarification(ownerId, {
                 section_key: sectionKey,
                 request_message: requestMessage.trim(),
                 question_keys: requestQuestionKeys.length ? requestQuestionKeys : undefined,
             }, { signal: controller.signal });
             if (!isCurrentAction(controller, ownerId)) return;
-            const data = await riskQuestionnairesApi.listClarifications(ownerId, { signal: controller.signal });
-            if (!isCurrentAction(controller, ownerId)) return;
-            setClarifications(data);
-            await refreshQuestionnaire(ownerId, controller.signal);
-            if (!isCurrentAction(controller, ownerId)) return;
+            clarificationMutationVersionRef.current += 1;
+            setClarifications((current) => [...current, created]);
             setRequestingSectionKey(null);
             setRequestMessage('');
             setRequestQuestionKeys([]);
@@ -359,25 +367,27 @@ export function useRiskQuestionnaireDetailWorkflow({
             if (isCurrentAction(controller, ownerId)) {
                 actionControllerRef.current = null;
                 activeActionRef.current = null;
+                setRequestingClarification(false);
             }
         }
     };
 
     const handleRespondClarification = async (clarificationId: number) => {
         if (!ownedQuestionnaire) return;
+        if (activeActionRef.current === 'respond-clarification') return;
         const ownerId = ownedQuestionnaire.id;
         const controller = beginAction('respond-clarification');
+        setRespondingClarification(true);
         setErrorKey(null);
         try {
-            await riskQuestionnairesApi.respondClarification(ownerId, clarificationId, {
+            const updated = await riskQuestionnairesApi.respondClarification(ownerId, clarificationId, {
                 response_message: responseMessage.trim(),
             }, { signal: controller.signal });
             if (!isCurrentAction(controller, ownerId)) return;
-            const data = await riskQuestionnairesApi.listClarifications(ownerId, { signal: controller.signal });
-            if (!isCurrentAction(controller, ownerId)) return;
-            setClarifications(data);
-            await refreshQuestionnaire(ownerId, controller.signal);
-            if (!isCurrentAction(controller, ownerId)) return;
+            clarificationMutationVersionRef.current += 1;
+            setClarifications((current) => current.map((item) => (
+                item.id === clarificationId ? updated : item
+            )));
             setRespondingClarificationId(null);
             setResponseMessage('');
         } catch (error) {
@@ -387,6 +397,7 @@ export function useRiskQuestionnaireDetailWorkflow({
             if (isCurrentAction(controller, ownerId)) {
                 actionControllerRef.current = null;
                 activeActionRef.current = null;
+                setRespondingClarification(false);
             }
         }
     };
@@ -435,8 +446,10 @@ export function useRiskQuestionnaireDetailWorkflow({
             handleRespondClarification,
             requestMessage,
             requestQuestionKeys,
+            requestingClarification,
             requestingSectionKey,
             respondingClarificationId,
+            respondingClarification,
             responseMessage,
             sectionClarifications: groupClarificationsBySection(clarifications),
             setRequestMessage,

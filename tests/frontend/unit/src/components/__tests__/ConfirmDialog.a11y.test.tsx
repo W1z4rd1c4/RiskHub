@@ -60,6 +60,90 @@ function ControlledConfirmDialog({ onClose }: { onClose: () => void }) {
 }
 
 describe('ConfirmDialog accessibility', () => {
+    it('retains the exact rationale through pending and failure, then clears after the owner closes', async () => {
+        const user = userEvent.setup();
+        const onConfirm = vi.fn();
+        const { rerender } = render(
+            <ConfirmDialog
+                isOpen
+                onClose={vi.fn()}
+                onConfirm={onConfirm}
+                title="Archive Asset"
+                message="Archive Payments platform?"
+                confirmLabel="Archive"
+                isLoading={false}
+                showInput
+                inputLabel="Request reason"
+            />,
+        );
+
+        const reason = screen.getByRole('textbox', { name: /Request reason/ });
+        await user.type(reason, '  Exact governed rationale  ');
+        await user.click(screen.getByRole('button', { name: 'Archive' }));
+
+        expect(onConfirm).toHaveBeenCalledWith('  Exact governed rationale  ');
+        expect(reason).toHaveValue('  Exact governed rationale  ');
+
+        rerender(
+            <ConfirmDialog
+                isOpen
+                onClose={vi.fn()}
+                onConfirm={onConfirm}
+                title="Archive Asset"
+                message="Archive Payments platform?"
+                confirmLabel="Archive"
+                isLoading
+                showInput
+                inputLabel="Request reason"
+            />,
+        );
+        expect(reason).toBeDisabled();
+        expect(reason).toHaveValue('  Exact governed rationale  ');
+
+        rerender(
+            <ConfirmDialog
+                isOpen
+                onClose={vi.fn()}
+                onConfirm={onConfirm}
+                title="Archive Asset"
+                message="Archive Payments platform?"
+                confirmLabel="Archive"
+                isLoading={false}
+                errorText="Archive failed"
+                showInput
+                inputLabel="Request reason"
+            />,
+        );
+        expect(reason).toBeEnabled();
+        expect(reason).toHaveValue('  Exact governed rationale  ');
+
+        rerender(
+            <ConfirmDialog
+                isOpen={false}
+                onClose={vi.fn()}
+                onConfirm={onConfirm}
+                title="Archive Asset"
+                message="Archive Payments platform?"
+                confirmLabel="Archive"
+                showInput
+                inputLabel="Request reason"
+            />,
+        );
+        rerender(
+            <ConfirmDialog
+                isOpen
+                onClose={vi.fn()}
+                onConfirm={onConfirm}
+                title="Archive Asset"
+                message="Archive Payments platform?"
+                confirmLabel="Archive"
+                showInput
+                inputLabel="Request reason"
+            />,
+        );
+        expect(screen.getByRole('textbox', { name: /Request reason/ })).toHaveValue('');
+    });
+
     it('renders through a portal as a labelled modal dialog with a described body, accessible close button, and backdrop close', async () => {
         const user = userEvent.setup();
         const { container, props } = renderConfirmDialog();

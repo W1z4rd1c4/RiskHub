@@ -125,6 +125,31 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
+    it('clears only corrected field errors, including the Department filled from Process Owner', async () => {
+        const user = userEvent.setup();
+        renderForm();
+        await user.click(screen.getByTestId('process-form-submit'));
+
+        const l0 = screen.getByRole('textbox', { name: l0Label() });
+        const l1 = screen.getByRole('textbox', { name: l1Label() });
+        const owner = screen.getByTestId('process-form-owner');
+        const department = screen.getByTestId('process-form-owner-department');
+        expect(l0).toHaveAttribute('aria-invalid', 'true');
+        expect(l1).toHaveAttribute('aria-invalid', 'true');
+        expect(owner).toHaveAttribute('aria-invalid', 'true');
+        expect(department).toHaveAttribute('aria-invalid', 'true');
+
+        await user.type(l0, 'Payments');
+        expect(l0).not.toHaveAttribute('aria-invalid');
+        expect(l1).toHaveAttribute('aria-invalid', 'true');
+
+        await user.click(owner);
+        await user.click(await screen.findByRole('option', { name: /Clara Owner/ }));
+        expect(owner).not.toHaveAttribute('aria-invalid');
+        expect(department).not.toHaveAttribute('aria-invalid');
+        expect(l1).toHaveAttribute('aria-invalid', 'true');
+    });
+
     it('moves focus to l1 when only l0 is filled', async () => {
         const user = userEvent.setup();
         renderForm();

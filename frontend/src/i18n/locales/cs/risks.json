@@ -91,6 +91,7 @@
     "required": "Povinné",
     "readonly_hint": "Pouze pro čtení: nemáte oprávnění tento dotazník odevzdat.",
     "validation_missing": "Vyplňte prosím všechny povinné otázky.",
+    "validation_required": "Tato otázka je povinná.",
     "compare_toggle": "Porovnat s minulým cyklem",
     "no_previous_cycle": "Není k dispozici předchozí cyklus.",
     "changed": "Změněno",
