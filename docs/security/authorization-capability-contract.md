@@ -26,11 +26,14 @@ migration/rollback limits are specified in [ADR-018](../adr/ADR-018-identity-fou
 and [identity foundations](./identity-foundations.md). Native production remains
 unavailable until #208; this is not a second authentication or authorization system.
 
-## Native credentials — 2026-09-08
+## Native credentials — 2026-09-12
 
 Group 2 (#197–#200) implements native password/none identity as a component-tested,
-not-yet-released profile. Password success returns a restricted browser-bound challenge,
-not application authority. Current confirmed factor generation, installation identity,
+not-yet-released profile. `LOCAL_MFA_POLICY=required` (default) requires MFA enrollment;
+`optional` permits verified password-only users and platform admins. Confirmed factors
+remain required under either policy. Login returns restricted challenges until the
+account's policy is satisfied, then issues the existing session. Authentication method,
+confirmed factor generation when applicable, installation identity,
 full-authentication age, active role, and User version are validated by the common
 bearer/refresh boundary. Native sessions retain the original eight-hour authentication
 limit through rotation. Entra/hybrid development response semantics remain unchanged.
@@ -39,7 +42,7 @@ Native invitations, resend/cancel, delivery status, and admin reset-link request
 platform-Admin-only; CRO business-access authority does not include credential lifecycle.
 Generic user creation and password/recovery-email PATCH cannot bypass invitation or
 verified recovery. Self-service credential/email mutations require single-use recent
-password-plus-factor proof bound to the exact operation and target; password reset does
+password proof plus a factor when enabled or required, bound to the exact operation and target; password reset does
 not remove MFA. All completed changes invalidate old sessions and outstanding grants
 transactionally through the existing auth workflow. No new business role, permission,
 or frontend action gate is introduced. Group 3 capability publication and assisted

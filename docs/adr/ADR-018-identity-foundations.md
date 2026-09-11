@@ -69,12 +69,24 @@ only existing TokenResponse represents a completed app session. Partial authorit
 must never contain an access token, refresh cookie or protected UserBrief.
 
 The policy floor is invitations 24h; reset/email grants 30m; partial/recent-auth proofs
-5m; full local password+factor age 8h; password length 15–128 code points; mandatory
-native MFA. These are product decisions, not regulatory claims. A recent-auth proof
+5m; full local authentication age 8h; password length 15–128 code points.
+The September 12 product revision makes native MFA a deployment policy:
+`LOCAL_MFA_POLICY=required` (default) requires enrollment for every account;
+`optional` permits completed password-only accounts, including platform admins.
+Users with a confirmed factor must still present it under either policy. Password-only
+sessions are explicitly identified and rejected when policy requires MFA. Admins
+create accounts through invitations; recipients choose and manage their own passwords.
+These are product decisions, not regulatory claims. A recent-auth proof
 binds actor, target, operation, current authority, and exact intended change. Password
 intent uses a keyed commitment, never a stored fast unkeyed password digest. Request
 secrets use redacted representations. Cryptography and handlers are not implemented
 by this contract ticket.
+
+Sensitive self-service actions require the current password and a factor when the
+account has one or deployment policy requires it. Required-policy enrollment and MFA
+challenges remain restricted; optional-policy completed password verification may
+issue the existing TokenResponse. Configuration, installer, UI and release acceptance
+must cover both policies; this choice does not bypass the separate #208 admission guard.
 
 ## Lock and transaction contract
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, SecretStr, model_validator
 
 from app.schemas.auth import TokenResponse
 
@@ -46,10 +46,12 @@ class ResetCompleteRequest(LocalRequest):
 
 class RecentAuthenticationRequest(LocalRequest):
     password: SecretStr = Field(min_length=1, max_length=128)
-    factor: SecretStr = Field(min_length=1, max_length=1024)
+    factor: SecretStr | None = Field(default=None, min_length=1, max_length=1024)
     method: Literal["totp", "recovery_code"] = "totp"
     target_user_id: UserId
-    operation: Literal["password_change", "email_change", "factor_replace", "recovery_codes", "assisted_recovery"]
+    operation: Literal[
+        "password_change", "email_change", "factor_enroll", "factor_replace", "recovery_codes", "assisted_recovery"
+    ]
     intended_password: SecretStr | None = Field(default=None, max_length=128)
     intended_email: EmailStr | None = None
     intended_recovery_operation: (
@@ -160,6 +162,10 @@ class CompletedResponse(BaseModel):
     reauthentication_required: bool = True
 
 
+class EnrollmentResponse(RootModel[LocalAuthChallenge | CompletedResponse]):
+    """Enrollment completes without a factor only when installation policy permits it."""
+
+
 @dataclass(frozen=True)
 class LocalEndpointContract:
     path: str
@@ -183,7 +189,10 @@ LOCAL_ENDPOINT_CONTRACTS = (
         "get",
     ),
     LocalEndpointContract(
-        "/auth/local/enrollment/start", EnrollmentStartRequest, LocalAuthChallenge, "invitation grant", 198, 202
+        "/auth/local/enrollment/start", EnrollmentStartRequest, EnrollmentResponse, "invitation grant", 198, 202
+    ),
+    LocalEndpointContract(
+        "/auth/local/mfa/enroll", FactorReplacementRequest, LocalAuthChallenge, "bearer + recent proof", 199, 202
     ),
     LocalEndpointContract("/auth/local/mfa/setup", ChallengeRequest, FactorSetupResponse, "enrollment challenge", 199),
     LocalEndpointContract(
@@ -193,7 +202,11 @@ LOCAL_ENDPOINT_CONTRACTS = (
         "/auth/local/mfa/verify", FactorVerifyRequest, TokenResponse, "password + bound MFA challenge", 199
     ),
     LocalEndpointContract(
-        "/auth/local/recent-auth", RecentAuthenticationRequest, ActionProofResponse, "bearer + password + factor", 199
+        "/auth/local/recent-auth",
+        RecentAuthenticationRequest,
+        ActionProofResponse,
+        "bearer + password + factor when enabled or required",
+        199,
     ),
     LocalEndpointContract(
         "/auth/local/password/reset/request", ResetRequest, AcceptedResponse, "public, generic result", 200, 202

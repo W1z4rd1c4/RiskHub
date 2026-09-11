@@ -36,7 +36,7 @@ from .common import NativeContext, atomic_local_work, audit_local, commit_local,
 
 async def begin_password_login(
     db: AsyncSession, ctx: NativeContext, *, email: str, password: str, browser: str
-) -> LocalAuthChallenge:
+) -> LocalAuthChallenge | CompletedLocalAuthentication:
     account = normalize_email(email) or ""
     await ctx.limiter.require("password-source", ctx.source, 30, 900)
     if await ctx.limiter.password_locked(account):
@@ -83,9 +83,16 @@ async def begin_password_login(
         if upgraded:
             user.hashed_password = upgraded  # same credential, not a version-advancing change
         factor = await db.get(LocalAuthFactor, user.id)
-        enrolling = local_user_ready(user, enrollment=True)
-        if not enrolling and (factor is None or factor.confirmed_at is None):
-            raise invalid_proof()
+        confirmed = factor is not None and factor.confirmed_at is not None
+        enrolling = not confirmed
+        if not confirmed and ctx.settings.local_mfa_policy == "optional":
+            if local_user_ready(user, enrollment=True):
+                user.local_enrollment_state, user.is_active = "enrolled", True
+            await audit_local(db, user, "local_password_login_completed", actor=user)
+            # The caller commits the authority recheck and shared session issuance together.
+            return CompletedLocalAuthentication(
+                user, LocalSessionContext.completed(factor_generation=None, installation_id=ctx.installation_id)
+            )
         purpose = "enrollment" if enrolling else "mfa"
         _, raw = await issue_grant(
             db,
@@ -110,7 +117,7 @@ async def setup_factor(db: AsyncSession, ctx: NativeContext, *, raw: str, browse
         _, user = await read_grant(db, ctx, raw, "enrollment", browser=browser)
         await factor_limits(ctx, user.id)
         grant, user = await read_grant(db, ctx, raw, "enrollment", browser=browser, locked=True)
-        if not local_user_ready(user, enrollment=True):
+        if not (local_user_ready(user, enrollment=True) or local_user_ready(user)):
             raise invalid_proof()
         factor = await db.get(LocalAuthFactor, user.id)
         if factor and factor.confirmed_at is not None:
@@ -187,7 +194,7 @@ async def confirm_factor(
         factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
         expiry = coerce_utc(factor.setup_expires_at) if factor else None
         if (
-            not local_user_ready(user, enrollment=True)
+            not (local_user_ready(user, enrollment=True) or local_user_ready(user))
             or not user.role.is_active
             or factor is None
             or factor.confirmed_at is not None
@@ -296,12 +303,14 @@ async def recent_authentication(
         ):
             raise invalid_proof()
         factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
-        if factor is None or factor.confirmed_at is None:
-            raise invalid_proof()
-        if not await consume_factor(db, ctx, user, factor, code=data.factor.get_secret_value(), method=data.method):
-            await audit_local(db, user, "local_recent_factor_failed")
-            await commit_local(db, "recent_factor_failed")
-            raise invalid_proof()
+        confirmed = factor is not None and factor.confirmed_at is not None
+        if confirmed or ctx.settings.local_mfa_policy == "required":
+            if factor is None or not confirmed or data.factor is None:
+                raise invalid_proof()
+            if not await consume_factor(db, ctx, user, factor, code=data.factor.get_secret_value(), method=data.method):
+                await audit_local(db, user, "local_recent_factor_failed")
+                await commit_local(db, "recent_factor_failed")
+                raise invalid_proof()
         key_id, commitment = ctx.keys.commitment(
             intent_value(data), context=intent_context(ctx, user, data.operation, data.target_user_id)
         )
@@ -312,7 +321,7 @@ async def recent_authentication(
             "recent",
             LOCAL_CHALLENGE_TTL_SECONDS,
             browser=browser,
-            generation=factor.generation,
+            generation=factor.generation if factor and confirmed else None,
             context={"operation": data.operation, "target": user.id, "intent_key": key_id, "intent": commitment},
         )
         await commit_local(db, "recent_auth")
@@ -343,6 +352,27 @@ async def check_recent_proof(
     if not secrets.compare_digest(expected, grant.context.get("intent", "")):
         raise invalid_proof()
     factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
-    if factor is None or factor.confirmed_at is None or factor.generation != grant.factor_generation:
+    confirmed = factor is not None and factor.confirmed_at is not None
+    if confirmed or ctx.settings.local_mfa_policy == "required":
+        if factor is None or not confirmed or factor.generation != grant.factor_generation:
+            raise invalid_proof()
+    elif grant.factor_generation is not None:
         raise invalid_proof()
     return grant, user
+
+
+async def begin_factor_enrollment(
+    db: AsyncSession, ctx: NativeContext, actor: User, *, proof: str, browser: str
+) -> LocalAuthChallenge:
+    """Let an authenticated password-only user choose MFA without weakening an existing factor."""
+    async with atomic_local_work(db):
+        grant, user = await check_recent_proof(
+            db, ctx, actor, raw=proof, operation="factor_enroll", value="factor_enroll", browser=browser
+        )
+        factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
+        if factor is not None and factor.confirmed_at is not None:
+            raise invalid_proof()
+        await consume_grant(db, grant)
+        _, raw = await issue_grant(db, ctx, user, "enrollment", LOCAL_CHALLENGE_TTL_SECONDS, browser=browser)
+        await commit_local(db, "optional_factor_enrollment")
+        return LocalAuthChallenge(status="enrollment_required", challenge=raw)

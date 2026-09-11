@@ -131,6 +131,22 @@ Additional identity-governance rule for `microsoft_sso` mode:
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.
 
+### Native account and password management
+
+Native local-login deployments support `LOCAL_MFA_POLICY=required` (default) and
+`optional`. Optional policy allows users and platform administrators to sign in
+with a password after completing account setup. Users who enable MFA must still
+complete their factor challenge, even when the installation does not require MFA.
+
+Platform administrators create native accounts by name, email, role and organization
+assignment through the invitation workflow. The recipient chooses a password using
+the setup link. Users can change their own password or recover it through a reset
+link; administrators can initiate a reset link. Sensitive changes require the current
+password and, for accounts using MFA, their factor. Password changes/reset revoke old
+sessions and do not remove a configured factor. These backend contracts are delivered
+in #209/#210; installer and UI delivery remain in the subsequent identity groups,
+with production admission subject to #208.
+
 ### 1.5 Documentation Library Visibility
 
 Settings and platform documentation use a strict audience split:

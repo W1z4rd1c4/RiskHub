@@ -14,7 +14,7 @@ from app.core.permissions import is_platform_admin
 from app.core.production_contract import LOCAL_CHALLENGE_TTL_SECONDS, LOCAL_INVITATION_TTL_SECONDS
 from app.core.security import get_password_hash
 from app.models import Department, Role, User
-from app.schemas.local_auth import InvitationRequest, InvitationResponse, LocalAuthChallenge
+from app.schemas.local_auth import CompletedResponse, InvitationRequest, InvitationResponse, LocalAuthChallenge
 from app.services._auth_session_workflow.authority import invalidate_user_sessions
 from app.services._directory_identity import resolve_safe_default_role
 from app.services._identity_authority_lock import lock_identity_transition
@@ -108,7 +108,7 @@ async def manage_invitation(
 
 async def start_enrollment(
     db: AsyncSession, ctx: NativeContext, *, raw: str, password: str, browser: str
-) -> LocalAuthChallenge:
+) -> LocalAuthChallenge | CompletedResponse:
     await ctx.limiter.require("redeem-source", ctx.source, 10, 900)
     async with atomic_local_work(db):
         _, user = await read_grant(db, ctx, raw, "invite")
@@ -122,11 +122,16 @@ async def start_enrollment(
         await consume_grant(db, grant)
         user.hashed_password = encoded
         user.local_email_verified_at = utc_now()
-        user.local_enrollment_state = "password_set"
-        user.is_active = False
+        requires_factor = ctx.settings.local_mfa_policy == "required"
+        user.local_enrollment_state = "password_set" if requires_factor else "enrolled"
+        user.is_active = not requires_factor
         await invalidate_user_sessions(db=db, user=user, reason="local_password_enrollment")
         await revoke_grants(db, user.id)
-        _, challenge = await issue_grant(db, ctx, user, "enrollment", LOCAL_CHALLENGE_TTL_SECONDS, browser=browser)
+        challenge = None
+        if requires_factor:
+            _, challenge = await issue_grant(db, ctx, user, "enrollment", LOCAL_CHALLENGE_TTL_SECONDS, browser=browser)
         await audit_local(db, user, "local_password_enrolled")
         await commit_local(db, "enrollment_start")
-        return LocalAuthChallenge(status="enrollment_required", challenge=challenge)
+        if challenge is not None:
+            return LocalAuthChallenge(status="enrollment_required", challenge=challenge)
+        return CompletedResponse()

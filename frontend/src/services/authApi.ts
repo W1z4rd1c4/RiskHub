@@ -52,6 +52,7 @@ export interface AuthConfigResponse {
     auth_mode: AuthMode;
     demo_login_enabled: boolean;
     password_login_enabled: boolean;
+    local_mfa_policy?: 'required' | 'optional' | null;
     strict_capabilities: boolean;
     sso: {
         enabled: boolean;

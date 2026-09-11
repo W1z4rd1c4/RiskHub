@@ -79,8 +79,11 @@ python -m scripts.export_local_auth_contract --check
 All catalogue actions are POST, exclusively local-profile operations, and use existing
 service-owned transaction boundaries. The catalogue gives path, input/output schema,
 proof/capability requirement, response status and owning implementation issue. A
-password-set enrollment remains anonymous. Recent authentication requires current
-password+factor and a typed intended operation; the returned proof is single-use,
+password-set enrollment remains anonymous until the selected enrollment policy is met.
+`LOCAL_MFA_POLICY=required` (default) requires factor enrollment; `optional` permits
+password-only accounts after invitation verification and password setup. An already
+confirmed factor is always enforced. Recent authentication requires the current
+password, a factor when enabled or required, and a typed intended operation; the returned proof is single-use,
 version/actor/target/intent bound. Factor recovery for a privileged target is operator-
 controlled under #201, not an admin web override.
 

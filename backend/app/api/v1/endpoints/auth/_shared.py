@@ -152,7 +152,7 @@ async def _issue_refresh_session(
         user_agent=get_request_user_agent(request),
     )
     if local_context is not None:
-        refresh_row.auth_method = "local_mfa"
+        refresh_row.auth_method = local_context.auth_method
         refresh_row.authenticated_at = local_context.authenticated_at
         refresh_row.factor_generation = local_context.factor_generation
         refresh_row.installation_id = local_context.installation_id

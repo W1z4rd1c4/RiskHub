@@ -18,12 +18,14 @@ The additive migration `u0v1w2x3y4z5` follows `t9u0v1w2x3y4`: purpose grants,
 encrypted factors/delivery envelopes, backup-code verifiers, verified-email time
 and native authentication metadata on existing refresh rows. It infers no verified
 email or MFA from old data. User IDs and business/audit foreign keys are unchanged.
-There is no ordinary access for an invited or password-only account.
+Invited accounts have no ordinary access. Password-only accounts may complete
+enrollment and sign in when deployment policy is optional.
 
 ## Required nonsecret configuration and protected inputs
 
 | Input | Meaning |
 |---|---|
+| `LOCAL_MFA_POLICY` | `required` (default) or `optional`; optional permits password-only users/admins while retaining MFA for accounts that enabled it |
 | `PUBLIC_URL` | Explicit allowed origin used for links; HTTPS outside debug; never inferred from Host |
 | `LOCAL_AUTH_KEYRING_FILE` | Owner-only regular, non-symlink JSON file with independent 32-byte keys for delivery, TOTP and action commitments |
 | `LOCAL_SMTP_HOST`, `LOCAL_SMTP_PORT` | Explicit relay; default port 587 |
@@ -88,11 +90,12 @@ credential-route query strings are suppressed in request logs.
 | Transition | Authority / resulting state |
 |---|---|
 | Admin invitation | Existing platform-admin authority; create inactive `invited` User, no password, 24h grant |
-| Enrollment start | Single-use invite + compliant password → `password_set`, verified address, 5m browser-bound challenge |
+| Enrollment start | Single-use invite + compliant password verifies the address; required policy → `password_set` + 5m challenge; optional policy → completed `enrolled` account, no session until login |
 | MFA setup/confirm | Restricted challenge + real TOTP confirmation → `enrolled`; ten display-once backup codes; **no ordinary token yet** |
-| Password login | Existing verified password → HTTP 202 MFA/enrollment challenge; never ordinary TokenResponse in native mode |
+| Password login | Confirmed factor or required policy → HTTP 202 MFA/enrollment challenge; optional policy without a factor → shared TokenResponse and refresh session |
+| Optional MFA enrollment | Password-only bearer + recent `factor_enroll` proof → restricted enrollment/setup challenge; confirmation enables MFA and revokes existing sessions |
 | Factor login completion | Password challenge + current TOTP/unused backup code → common access/refresh session |
-| Recent authentication | Current password + factor → 5m single-use proof bound to actor/target/operation/exact keyed intended change |
+| Recent authentication | Current password + factor when enabled/required → 5m single-use proof bound to actor/target/operation/exact keyed intended change |
 | Reset request | Generic HTTP 202 for present/absent/ineligible target; does not lock account or revoke sessions |
 | Reset completion | Valid 30m grant + compliant password → revoke sessions/other proofs, retain MFA, require login |
 | Password change | Current bearer + action-bound proof → credential change/revocation; identical no-op does not churn authority |
@@ -120,12 +123,18 @@ insertion in the same service-owned transaction. There are no endpoint commits.
 ## Session lifetime and revocation
 
 Native full authentication is bounded at eight hours. Its immutable origin/expiry,
-factor generation and installation ID are signed and verified against existing
-refresh metadata/current factor. Rotation copies the original context, never now+8h.
+authentication method, factor generation when applicable, and installation ID are
+signed and verified against existing refresh metadata/current factor. Password-only
+sessions carry `auth_method=local_password` and null factor generation; MFA sessions
+carry `auth_method=local_mfa` and a confirmed generation. Rotation copies the original context, never now+8h.
 Ordinary/admin access TTLs remain 30/15 minutes and are capped at the remaining full
 authentication lifetime. The existing near-expiry, replay containment, CSRF, logout
-and token-version controls remain. Native bearer/refresh tokens lacking required
-MFA context are rejected even if otherwise signed correctly. Changing credentials
+and token-version controls remain. Missing or inconsistent method/context is rejected.
+Required policy rejects password-only bearer/refresh authority; enabling a factor
+also revokes password-only sessions. Apply policy configuration consistently to every
+API/scheduler process. Changing optional to required forces password-only users
+through enrollment at their next login. Changing required to optional does not remove
+existing factors or bypass them. Changing credentials
 or completing reset invalidates old sessions; resetting a password does not reset MFA.
 
 ## Abuse and availability policy

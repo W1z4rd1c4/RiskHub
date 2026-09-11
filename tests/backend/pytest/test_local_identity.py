@@ -851,3 +851,194 @@ def test_missing_intent_is_rejected_without_relying_on_assert(operation):
     data = RecentAuthenticationRequest.model_construct(operation=operation)
     with pytest.raises(AuthenticationError):
         intent_value(data)
+
+
+async def login_password_only(client, email, password=PASSWORD):
+    await csrf(client)
+    response = await client.post(
+        "/api/v1/auth/login", json={"email": email, "password": password}
+    )
+    assert response.status_code == 200, response.text
+    token = response.json()["access_token"]
+    client.headers["Authorization"] = "Bearer " + token
+    client.headers["X-CSRF-Token"] = client.cookies.get("riskhub_csrf_token")
+    return token
+
+
+@pytest.mark.asyncio
+async def test_password_only_admin_creates_account_and_user_manages_password(
+    native_context, client_factory, db_session, test_user, test_user_employee
+):
+    from app.core.tokens import decode_refresh_token
+    from app.models import LocalAuthFactor
+
+    native_context.local_mfa_policy = "optional"
+    test_user.local_email_verified_at = utc_now()
+    test_user.local_enrollment_state = "enrolled"
+    test_user.hashed_password = get_password_hash(PASSWORD)
+    await db_session.commit()
+    # The admin uses a real password-only session, not an auth dependency override.
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}
+    ) as admin:
+        await login_password_only(admin, test_user.email)
+        result = await admin.post(
+            "/api/v1/users/invitations",
+            json={
+                "name": "Password account",
+                "email": "password-only@example.com",
+                "role_id": test_user_employee.role_id,
+            },
+        )
+        assert result.status_code == 202, result.text
+        user_id = result.json()["user_id"]
+
+    _, invitation = await latest_mail(
+        db_session, native_context, user_id=user_id, kind="invitation"
+    )
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}
+    ) as client:
+        await csrf(client)
+        enrolled = await client.post(
+            "/api/v1/auth/local/enrollment/start",
+            json={"grant": invitation["credential"], "password": PASSWORD},
+        )
+        assert enrolled.status_code == 202, enrolled.text
+        assert enrolled.json()["status"] == "completed"
+        assert "access_token" not in enrolled.json()
+        assert client.cookies.get("riskhub_refresh_token") is None
+        assert await db_session.get(LocalAuthFactor, user_id) is None
+        token = await login_password_only(client, "password-only@example.com")
+        assert (await client.get("/api/v1/auth/me")).status_code == 200
+        # A non-admin cannot create another account in either authentication mode.
+        denied = await client.post(
+            "/api/v1/users/invitations",
+            json={"email": "unauthorized@example.com", "name": "Unauthorized"},
+        )
+        assert denied.status_code == 403, denied.text
+        original = decode_refresh_token(
+            client.cookies.get("riskhub_refresh_token"), native_context
+        )
+        assert original["auth_method"] == "local_password"
+        assert original["factor_generation"] is None
+        assert original["session_exp"] - original["auth_time"] == 8 * 3600
+        refreshed = await client.post("/api/v1/auth/refresh")
+        assert refreshed.status_code == 200, refreshed.text
+        rotated = decode_refresh_token(
+            client.cookies.get("riskhub_refresh_token"), native_context
+        )
+        assert rotated["session_exp"] == original["session_exp"]
+        assert rotated["auth_time"] == original["auth_time"]
+        client.headers["X-CSRF-Token"] = client.cookies.get("riskhub_csrf_token")
+        new_password = "Another independent passphrase 93!"
+        proof_result = await client.post(
+            "/api/v1/auth/local/recent-auth",
+            json={
+                "password": PASSWORD,
+                "target_user_id": user_id,
+                "operation": "password_change",
+                "intended_password": new_password,
+            },
+        )
+        assert proof_result.status_code == 200, proof_result.text
+        changed = await client.post(
+            "/api/v1/auth/local/password/change",
+            json={"recent_auth_proof": proof_result.json()["proof"], "password": new_password},
+        )
+        assert changed.status_code == 200, changed.text
+        assert (await client.get("/api/v1/auth/me", headers={"Authorization": "Bearer " + token})).status_code == 401
+        client.headers.pop("Authorization")
+        await csrf(client)
+        rejected = await client.post(
+            "/api/v1/auth/login", json={"email": "password-only@example.com", "password": PASSWORD}
+        )
+        assert rejected.status_code == 401
+        await login_password_only(client, "password-only@example.com", new_password)
+        reset = await client.post(
+            "/api/v1/auth/local/password/reset/request", json={"email": "password-only@example.com"}
+        )
+        assert reset.status_code == 202, reset.text
+        _, mail = await latest_mail(db_session, native_context, user_id=user_id, kind="reset")
+        reset_password = "A recovered local passphrase 85!"
+        completed = await client.post(
+            "/api/v1/auth/local/password/reset/complete",
+            json={"grant": mail["credential"], "password": reset_password},
+        )
+        assert completed.status_code == 200, completed.text
+        client.headers.pop("Authorization")
+        await login_password_only(client, "password-only@example.com", reset_password)
+        assert await db_session.get(LocalAuthFactor, user_id) is None
+
+
+@pytest.mark.asyncio
+async def test_required_policy_rejects_password_only_access_and_refresh(
+    native_context, client_factory, db_session, test_user
+):
+    native_context.local_mfa_policy = "optional"
+    test_user.local_email_verified_at = utc_now()
+    test_user.local_enrollment_state = "enrolled"
+    test_user.hashed_password = get_password_hash(PASSWORD)
+    await db_session.commit()
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        await login_password_only(client, test_user.email)
+        native_context.local_mfa_policy = "required"
+        assert (await client.get("/api/v1/auth/me")).status_code == 401
+        result = await client.post("/api/v1/auth/refresh")
+        assert result.status_code == 401, result.text
+        client.headers.pop("Authorization")
+        await csrf(client)
+        login = await client.post("/api/v1/auth/login", json={"email": test_user.email, "password": PASSWORD})
+        assert login.status_code == 202, login.text
+        assert login.json()["status"] == "enrollment_required"
+        assert "access_token" not in login.json()
+
+
+@pytest.mark.asyncio
+async def test_optional_policy_honors_user_enabled_mfa_and_revokes_password_sessions(
+    native_context, client_factory, db_session, test_user
+):
+    import pyotp
+
+    native_context.local_mfa_policy = "optional"
+    test_user.local_email_verified_at = utc_now()
+    test_user.local_enrollment_state = "enrolled"
+    test_user.hashed_password = get_password_hash(PASSWORD)
+    await db_session.commit()
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        old_token = await login_password_only(client, test_user.email)
+        proof = await client.post(
+            "/api/v1/auth/local/recent-auth",
+            json={"password": PASSWORD, "target_user_id": test_user.id, "operation": "factor_enroll"},
+        )
+        assert proof.status_code == 200, proof.text
+        start = await client.post(
+            "/api/v1/auth/local/mfa/enroll", json={"recent_auth_proof": proof.json()["proof"]}
+        )
+        assert start.status_code == 202, start.text
+        setup = await client.post("/api/v1/auth/local/mfa/setup", json={"challenge": start.json()["challenge"]})
+        assert setup.status_code == 200, setup.text
+        # Starting an optional enrollment must not lock an account out.
+        assert (await client.get("/api/v1/auth/me")).status_code == 200
+        confirmed = await client.post(
+            "/api/v1/auth/local/mfa/confirm",
+            json={
+                "challenge": setup.json()["challenge"],
+                "code": pyotp.parse_uri(setup.json()["provisioning_uri"]).now(),
+            },
+        )
+        assert confirmed.status_code == 200, confirmed.text
+        old_session = await client.get("/api/v1/auth/me", headers={"Authorization": "Bearer " + old_token})
+        assert old_session.status_code == 401
+        client.headers.pop("Authorization")
+        await login_native(client, test_user.email, PASSWORD, confirmed.json()["recovery_codes"][0])
+        rejected = await client.post(
+            "/api/v1/auth/local/recent-auth",
+            json={
+                "password": PASSWORD,
+                "target_user_id": test_user.id,
+                "operation": "password_change",
+                "intended_password": "A different complete passphrase 52!",
+            },
+        )
+        assert rejected.status_code == 401, rejected.text

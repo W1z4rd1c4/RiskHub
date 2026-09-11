@@ -19,7 +19,8 @@ from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.local_auth import LocalAuthChallenge
 from app.services._auth_session_workflow import commit_failed_password_login, commit_successful_password_login
 from app.services._auth_session_workflow.authority import lock_session_user
-from app.services._local_auth.factors import begin_password_login
+from app.services._local_auth.common import atomic_local_work, commit_local
+from app.services._local_auth.factors import CompletedLocalAuthentication, begin_password_login
 from app.services.account_lockout_service import AccountLockoutBackendError
 
 from ._local_transport import SafeAuthRoute, establish_browser, native_context
@@ -86,11 +87,24 @@ async def login(
     if native_identity_selected(settings):
         ctx = await native_context(request, db=db, settings=settings)
         browser = establish_browser(request, response, settings)
-        challenge_result = await begin_password_login(
-            db, ctx, email=credentials.email, password=credentials.password, browser=browser
-        )
-        response.status_code = 202
-        return challenge_result
+        async with atomic_local_work(db):
+            outcome = await begin_password_login(
+                db, ctx, email=credentials.email, password=credentials.password, browser=browser
+            )
+            if isinstance(outcome, CompletedLocalAuthentication):
+                native_result = _build_token_response(outcome.user, settings=settings, local_context=outcome.session)
+                await _issue_refresh_session(
+                    db=db,
+                    request=request,
+                    response=response,
+                    user=outcome.user,
+                    settings=settings,
+                    local_context=outcome.session,
+                )
+                await commit_local(db, "password_session")
+                return native_result
+            response.status_code = 202
+            return outcome
 
     # Check if account is locked due to too many failed attempts
     account_lockout = request.app.state.account_lockout

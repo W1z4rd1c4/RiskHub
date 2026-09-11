@@ -674,3 +674,27 @@ def test_empty_object_wire_types_do_not_accept_primitives():
     assert typescript_type({"type": "object", "additionalProperties": False}) == "Record<string, never>"
     assert typescript_type({"type": "object", "properties": {}}) == "Record<string, unknown>"
     assert typescript_type({"type": "object", "additionalProperties": {"type": "string"}}) == "Record<string, string>"
+
+
+def test_native_mfa_policy_is_explicit_and_validated():
+    from pydantic import ValidationError
+
+    from app.core.config import Settings
+
+    assert Settings().local_mfa_policy == "required"
+    assert Settings(local_mfa_policy="optional").local_mfa_policy == "optional"
+    with pytest.raises(ValidationError):
+        Settings(local_mfa_policy="disabled")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("policy", ["required", "optional"])
+@pytest.mark.parametrize("mode,directory", [("password", "none"), ("microsoft_sso", "graph"), ("hybrid_dev", "graph")])
+async def test_auth_config_reports_mfa_policy_only_for_native_identity(client_factory, policy, mode, directory):
+    from app.core.config import Settings
+
+    settings = Settings(auth_mode=mode, directory_provider=directory, local_mfa_policy=policy)
+    async with client_factory(settings=settings) as client:
+        result = await client.get("/api/v1/auth/config")
+        assert result.status_code == 200
+        assert result.json()["local_mfa_policy"] == (policy if mode == "password" else None)

@@ -24,6 +24,7 @@ from tests.backend.pytest.test_local_identity import (
     enroll,
     latest_mail,
     login_native,
+    login_password_only,
 )
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.postgres]
@@ -245,6 +246,7 @@ async def test_concurrent_invitation_email_uniqueness_has_one_outbox_side_effect
     assert len(deliveries) == 1
 
 
+@pytest.mark.parametrize("mfa_policy", ["required", "optional"])
 async def test_native_reset_racing_refresh_cannot_leave_usable_old_authority(
     async_engine,
     db_session,
@@ -252,8 +254,10 @@ async def test_native_reset_racing_refresh_cannot_leave_usable_old_authority(
     native_context,
     test_user,
     test_user_employee,
+    mfa_policy,
 ):
     require_postgres(async_engine)
+    native_context.local_mfa_policy = mfa_policy
     user_id = await create_invitation(
         client_factory,
         native_context,
@@ -267,8 +271,18 @@ async def test_native_reset_racing_refresh_cannot_leave_usable_old_authority(
     async with client_factory(
         settings=native_context, headers={"Origin": "http://test"}
     ) as client:
-        codes, _ = await enroll(client, invitation["credential"])
-        access = await login_native(client, "journey@example.com", PASSWORD, codes[0])
+        if mfa_policy == "required":
+            codes, _ = await enroll(client, invitation["credential"])
+            access = await login_native(client, "journey@example.com", PASSWORD, codes[0])
+        else:
+            await csrf(client)
+            enrolled = await client.post(
+                "/api/v1/auth/local/enrollment/start",
+                json={"grant": invitation["credential"], "password": PASSWORD},
+            )
+            assert enrolled.status_code == 202, enrolled.text
+            assert enrolled.json()["status"] == "completed"
+            access = await login_password_only(client, "journey@example.com")
         assert (
             await client.post(
                 "/api/v1/auth/local/password/reset/request",

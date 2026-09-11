@@ -15,7 +15,7 @@ from app.core.password_policy import run_password_work, validate_local_password
 from app.core.production_contract import LOCAL_RESET_TTL_SECONDS
 from app.core.security import get_password_hash, verify_password
 from app.core.user_query_options import user_selectinload_options
-from app.models import LocalAuthFactor, User
+from app.models import User
 from app.schemas.local_auth import CompletedResponse
 from app.services._auth_session_workflow.authority import invalidate_user_sessions, lock_session_user
 
@@ -41,8 +41,7 @@ async def request_password_reset(
                 .where(email_equals(User.email, account))
             )
         ).scalar_one_or_none()
-        factor = await db.get(LocalAuthFactor, user.id) if user else None
-        if target_allowed and user is not None and local_user_ready(user) and factor and factor.confirmed_at:
+        if target_allowed and user is not None and local_user_ready(user):
             if actor is not None:
                 from app.core.permissions import is_platform_admin
                 from app.services._identity_authority_lock import lock_identity_transition
@@ -78,12 +77,9 @@ async def complete_password_reset(
         validate_local_password(password, additions_file=ctx.settings.local_password_blocklist_file)
         encoded = await run_password_work(lambda: get_password_hash(password))
         grant, user = await read_grant(db, ctx, raw, "reset", locked=True)
-        factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
         if (
             not local_user_ready(user)
             or grant.context.get("email") != user.email
-            or factor is None
-            or factor.confirmed_at is None
         ):
             raise invalid_proof()
         await consume_grant(db, grant)

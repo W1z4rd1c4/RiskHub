@@ -15,8 +15,10 @@ from app.schemas.local_auth import (
     CompletedResponse,
     EmailChangeCompleteRequest,
     EmailChangeRequest,
+    EnrollmentResponse,
     EnrollmentStartRequest,
     FactorEnrollmentResponse,
+    FactorReplacementRequest,
     FactorSetupResponse,
     FactorVerifyRequest,
     LocalAuthChallenge,
@@ -34,7 +36,7 @@ from ._shared import _build_token_response, _issue_refresh_session
 router = APIRouter(prefix="/local", route_class=SafeAuthRoute)
 
 
-@router.post("/enrollment/start", response_model=LocalAuthChallenge, status_code=202)
+@router.post("/enrollment/start", response_model=EnrollmentResponse, status_code=202)
 async def enrollment_start(
     data: EnrollmentStartRequest,
     request: Request,
@@ -48,6 +50,19 @@ async def enrollment_start(
         raw=data.grant.get_secret_value(),
         password=data.password.get_secret_value(),
         browser=establish_browser(request, response, ctx.settings),
+    )
+
+
+@router.post("/mfa/enroll", response_model=LocalAuthChallenge, status_code=202)
+async def mfa_enroll(
+    data: FactorReplacementRequest,
+    request: Request,
+    user: User = Depends(deps.get_current_user),
+    ctx: NativeContext = Depends(native_context),
+    db: AsyncSession = Depends(get_db),
+):
+    return await factors.begin_factor_enrollment(
+        db, ctx, user, proof=data.recent_auth_proof.get_secret_value(), browser=browser_binding(request)
     )
 
 
