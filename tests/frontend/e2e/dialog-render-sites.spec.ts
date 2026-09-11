@@ -47,6 +47,7 @@ interface RenderSiteDriver {
   ownerSentinel: (page: Page, site: RenderSite) => Locator;
   activate?: (opener: Locator) => Promise<void>;
   ready?: (page: Page, surface: Locator) => Promise<void>;
+  dismissed?: (page: Page) => Promise<void>;
 }
 
 const contractPath = path.resolve(__dirname, '../contracts/dialog-surfaces.json');
@@ -410,6 +411,7 @@ const parentSiteIds = new Set([
   'confirm.vendor-contracts',
   'confirm.vendor-sub-outsourcing',
   'confirm.governed-mutation-reason',
+  'confirm.pending-change-cancellation',
   'confirm.dirty-task-guard',
   'link.control-overview',
   'risk-view.control-overview',
@@ -560,6 +562,7 @@ const parentOpeners: Record<string, (page: Page) => Locator> = {
   'confirm.vendor-contracts': (page) => page.getByTestId('vendor-contract-archive-1'),
   'confirm.vendor-sub-outsourcing': (page) => page.getByTestId('vendor-sub-outsourcing-archive-1'),
   'confirm.governed-mutation-reason': (page) => page.getByRole('button', { name: /open governed mutation reason/i }),
+  'confirm.pending-change-cancellation': (page) => page.getByRole('button', { name: /open pending cancellation/i }),
   'confirm.dirty-task-guard': (page) => page.getByRole('button', { name: /leave dirty task/i }),
   'link.control-overview': (page) => page.getByRole('button', { name: /link.*risk|manage.*risk|controls:detail/i }).first(),
   'risk-view.control-overview': (page) => page.getByRole('button', { name: /authentication drift/i }).first(),
@@ -582,6 +585,18 @@ function parentDriver(siteId: string): RenderSiteDriver {
       ? async (opener) => {
         await opener.page().getByTestId('dirty-task-contract-input').fill('Unsaved contract draft');
         await opener.click();
+      }
+      : undefined,
+    ready: siteId === 'confirm.pending-change-cancellation'
+      ? async (_page, surface) => {
+        await expect(surface).toContainText('Claims Platform');
+        await expect(surface).not.toContainText(/\b\d+\b/);
+      }
+      : undefined,
+    dismissed: siteId === 'confirm.pending-change-cancellation'
+      ? async (page) => {
+        await expect(page.getByTestId('pending-change-cancellation-owner'))
+          .toHaveAttribute('data-confirmation-count', '0');
       }
       : undefined,
   };
@@ -840,6 +855,7 @@ test.describe('validated application dialog render sites', () => {
       await page.keyboard.press('Escape');
       await expect(surface).toHaveCount(0);
       await expect(opener).toBeFocused();
+      await driver.dismissed?.(page);
       expect(unexpectedNetwork).toEqual([]);
       expect(unexpectedOutput).toEqual([]);
     });

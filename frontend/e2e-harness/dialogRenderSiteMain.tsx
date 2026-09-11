@@ -8,6 +8,7 @@ import '@/i18n';
 
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
@@ -292,6 +293,27 @@ function GovernedMutationReasonOwner() {
   );
 }
 
+function PendingChangeCancellationOwner() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [confirmationCount, setConfirmationCount] = useState(0);
+  return (
+    <div
+      data-testid="pending-change-cancellation-owner"
+      data-confirmation-count={confirmationCount}
+    >
+      <button type="button" onClick={() => setIsOpen(true)}>Open pending cancellation</button>
+      <PendingChangeCancellationDialog
+        isOpen={isOpen}
+        targetName="Claims Platform"
+        isLoading={false}
+        errorText={null}
+        onClose={() => setIsOpen(false)}
+        onConfirm={() => setConfirmationCount((count) => count + 1)}
+      />
+    </div>
+  );
+}
+
 function DirtyTaskGuardOwner() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState('');
@@ -337,6 +359,7 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'risk-drilldown.dashboard': return <DashboardOwner />;
     case 'issue.contextual-action': return <ContextualIssueOwner />;
     case 'confirm.governed-mutation-reason': return <GovernedMutationReasonOwner />;
+    case 'confirm.pending-change-cancellation': return <PendingChangeCancellationOwner />;
     case 'confirm.dirty-task-guard': return <DirtyTaskGuardOwner />;
     case 'inline.departments-delete':
     case 'frame.departments': return <DepartmentsPanel />;
