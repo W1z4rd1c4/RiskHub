@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build React application
 # =============================================================================
-FROM node:24-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14 AS builder
+FROM node:26-alpine@sha256:2d984a15c9b54fd0aeb608b8e0d0d83529eb34d2966db27a1fb4f1edc3d298a3 AS builder
 
 WORKDIR /app
 
