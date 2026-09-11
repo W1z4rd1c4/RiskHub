@@ -39,6 +39,8 @@ export type EmailChangeRequest = {
   new_email: string;
 };
 
+export type EnrollmentResponse = LocalAuthChallenge | CompletedResponse;
+
 export type EnrollmentStartRequest = {
   grant: string;
   password: string;
@@ -118,10 +120,10 @@ export type ReasonRequest = {
 
 export type RecentAuthenticationRequest = {
   password: string;
-  factor: string;
+  factor?: string | null;
   method?: "totp" | "recovery_code";
   target_user_id: number;
-  operation: "password_change" | "email_change" | "factor_replace" | "recovery_codes" | "assisted_recovery";
+  operation: "password_change" | "email_change" | "factor_enroll" | "factor_replace" | "recovery_codes" | "assisted_recovery";
   intended_password?: string | null;
   intended_email?: string | null;
   intended_recovery_operation?: "factor_recovery" | "credential_and_factor_recovery" | "verified_address_recovery" | null;

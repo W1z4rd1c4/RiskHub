@@ -22,6 +22,7 @@ class AuthSettingsMixin:
 
     # Auth mode (password vs SSO)
     auth_mode: Literal["password", "microsoft_sso", "hybrid_dev"] = "password"
+    local_mfa_policy: Literal["required", "optional"] = "required"
 
     # Microsoft Entra ID (SSO)
     entra_tenant_id: str | None = None

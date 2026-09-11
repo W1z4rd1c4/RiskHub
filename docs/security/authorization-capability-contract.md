@@ -26,6 +26,16 @@ migration/rollback limits are specified in [ADR-018](../adr/ADR-018-identity-fou
 and [identity foundations](./identity-foundations.md). Native production remains
 unavailable until #208; this is not a second authentication or authorization system.
 
+## Native MFA deployment policy — 2026-09-12
+
+`LOCAL_MFA_POLICY=required` remains the default; `optional` permits password-only
+users and platform administrators after account enrollment. Confirmed factors must
+still be enforced, and required policy rejects password-only sessions. Admin-created
+accounts use invitations; users choose, change and recover their passwords. Recent
+authentication follows the account factor and deployment policy. Group 2 implements
+these reserved contracts; installer/UI acceptance must cover both policies. The
+separate #208 production admission guard remains in force.
+
 ## Purpose
 
 RiskHub authorization is a business-policy contract, not only a set of route
