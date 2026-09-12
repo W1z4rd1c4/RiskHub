@@ -1082,7 +1082,7 @@
     }
   },
   "info": {
-    "description": "Native contracts: #198\u2013#200 handlers implemented for component verification; #201 reserved. Production admission remains closed.",
+    "description": "Native contracts: #198\u2013#201 handlers implemented for component verification. Production admission remains closed.",
     "title": "RiskHub reserved native identity contract",
     "version": "1.0.0"
   },
@@ -1206,7 +1206,7 @@
           }
         },
         "x-authentication": "bound replacement challenge",
-        "x-handler-implemented": false,
+        "x-handler-implemented": true,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1237,7 +1237,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
-        "x-handler-implemented": false,
+        "x-handler-implemented": true,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1516,7 +1516,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
-        "x-handler-implemented": false,
+        "x-handler-implemented": true,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1547,7 +1547,7 @@
           }
         },
         "x-authentication": "approved bound recovery challenge",
-        "x-handler-implemented": false,
+        "x-handler-implemented": true,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1578,7 +1578,7 @@
           }
         },
         "x-authentication": "approved recovery grant + required credential proof",
-        "x-handler-implemented": false,
+        "x-handler-implemented": true,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1754,7 +1754,7 @@
           }
         },
         "x-authentication": "platform admin + recent proof; privileged targets offline only",
-        "x-handler-implemented": false,
+        "x-handler-implemented": true,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
