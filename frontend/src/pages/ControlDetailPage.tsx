@@ -33,13 +33,20 @@ import { useContentTabs } from '@/hooks/useContentTabs';
 
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
+    return <ControlDetailRoute key={id ?? 'invalid'} rawId={id} />;
+}
+
+function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/controls');
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
-    const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
+    const loadControl = useCallback(
+        (controlId: number, signal?: AbortSignal) => controlApi.getControl(controlId, { signal }),
+        [],
+    );
     const {
         isRetrying,
         loadOutcome,
@@ -48,7 +55,7 @@ export function ControlDetailPage() {
         resourceId: controlId,
     } = useDetailQuery<Control>({
         entity: 'control',
-        rawId: id,
+        rawId,
         load: loadControl,
     });
 
@@ -74,7 +81,7 @@ export function ControlDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.control_data')}</p>
+                <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.control_data')}</p>
             </div>
         );
     }
@@ -240,6 +247,7 @@ export function ControlDetailPage() {
                     canUnlinkRisk={canUnlinkRisk}
                     linkErrorKey={workflow.linkErrorKey}
                     linkedRisksErrorKey={workflow.linkedRisksErrorKey}
+                    linkedRisksOutcome={workflow.linkedRisksOutcome}
                     isLinkDialogOpen={workflow.isLinkDialogOpen}
                     selectedRisk={workflow.selectedRisk}
                     isRiskModalOpen={workflow.isRiskModalOpen}
@@ -249,6 +257,7 @@ export function ControlDetailPage() {
                     onUnlinkRisk={workflow.handleUnlinkRisk}
                     onRiskClick={workflow.handleRiskClick}
                     onCloseRiskModal={workflow.closeRiskModal}
+                    onRetryLinkedRisks={() => void workflow.retryLinkedRisks()}
                 />}
             </div>
 

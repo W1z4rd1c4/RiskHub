@@ -7,8 +7,10 @@ import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 
 function MutationHarness({
     execute,
+    isCurrent = () => true,
 }: {
     execute: () => Promise<unknown>;
+    isCurrent?: () => boolean;
 }) {
     const setMessage = vi.fn((message: DetailActionMessage) => {
         window.__entityMutationMessage = message;
@@ -29,6 +31,7 @@ function MutationHarness({
                 onClick={() => void workflow.runEntityMutation({
                     approvalKey: 'approval.queued',
                     execute,
+                    isCurrent,
                     onDirectSuccess,
                 })}
             >
@@ -70,5 +73,34 @@ describe('useEntityDetailMutationWorkflow', () => {
             showApprovalLink: true,
             tone: 'pending',
         });
+    });
+
+    it('does not publish late success or failure effects for a superseded owner', async () => {
+        let resolve!: (value: unknown) => void;
+        let reject!: (error: unknown) => void;
+        let current = true;
+        const success = new Promise((accept) => { resolve = accept; });
+        const failure = new Promise((_accept, decline) => { reject = decline; });
+
+        window.__entityMutationDirectCount = 0;
+        window.__entityMutationMessage = undefined;
+        const { rerender } = render(
+            <MutationHarness execute={() => success} isCurrent={() => current} />,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'mutate' }));
+        current = false;
+        resolve(undefined);
+
+        await waitFor(() => expect(window.__entityMutationDirectCount).toBe(0));
+        expect(window.__entityMutationMessage).toBeUndefined();
+
+        current = true;
+        rerender(<MutationHarness execute={() => failure} isCurrent={() => current} />);
+        fireEvent.click(screen.getByRole('button', { name: 'mutate' }));
+        current = false;
+        reject(new Error('late owner failure'));
+
+        await waitFor(() => expect(window.__entityMutationMessage).toBeUndefined());
+        expect(window.__entityMutationDirectCount).toBe(0);
     });
 });

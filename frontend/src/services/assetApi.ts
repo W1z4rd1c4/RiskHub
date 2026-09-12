@@ -86,8 +86,9 @@ async function downloadAssetExport(params: AssetListParams, locale: 'en' | 'cs')
 }
 
 export const assetApi = {
-    async getAssets(params: AssetListParams): Promise<AssetListResponse> {
+    async getAssets(params: AssetListParams, options?: { signal?: AbortSignal }): Promise<AssetListResponse> {
         return apiClient.get('/assets', {
+            ...options,
             params: buildAssetCollectionQuery(params),
             schema: assetListResponseSchema,
         });

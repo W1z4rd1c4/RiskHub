@@ -145,6 +145,12 @@ export function ThreatForm({
 
     const setField = (field: keyof FormFields, value: string) => {
         setFields((current) => ({ ...current, [field]: value }));
+        setFieldErrors((current) => {
+            if (!current[field]) return current;
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
     };
 
     const validate = (): Partial<Record<keyof FormFields, string>> => {

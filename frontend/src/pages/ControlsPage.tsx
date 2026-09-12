@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
-import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { ControlSummary } from '@/types/control';
@@ -23,10 +22,9 @@ export function ControlsPage() {
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/controls');
     const { language } = useLanguage();
     const { t } = useTranslation('controls');
-    const pendingApprovalIds = usePendingApprovalIds('control');
     const state = useControlsPageState(language);
     const columns = buildControlColumns({
-        translate: t, pendingApprovalIds,
+        translate: t,
         onRestore: (controlId, event) => { event.stopPropagation(); void state.restoreControl(controlId); },
     });
     const views = CONTROL_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));

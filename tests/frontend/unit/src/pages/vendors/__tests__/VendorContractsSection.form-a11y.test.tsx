@@ -221,12 +221,12 @@ describe('VendorContractsSection form — Field migration (#59)', () => {
         expect(screen.getAllByRole('alert')).toHaveLength(1);
 
         dialog = screen.getByRole('alertdialog');
-        await user.type(
-            within(dialog).getByRole('textbox', {
-                name: new RegExp(i18n.t('vendors:form.request_reason')),
-            }),
-            'Corrected governed reason',
-        );
+        const retainedReason = within(dialog).getByRole('textbox', {
+            name: new RegExp(i18n.t('vendors:form.request_reason')),
+        });
+        expect(retainedReason).toHaveValue('First governed reason');
+        await user.clear(retainedReason);
+        await user.type(retainedReason, 'Corrected governed reason');
         await user.click(within(dialog).getByRole('button', {
             name: i18n.t('vendors:contracts.actions.archive'),
         }));

@@ -34,6 +34,8 @@ function ArchiveRestoreHarness({
                     archive,
                     approvalKey: 'approval.submitted',
                     onImmediate,
+                }).then((outcome) => {
+                    window.__archiveOutcome = outcome.kind;
                 })}
             >
                 archive
@@ -57,6 +59,7 @@ declare global {
         __detailImmediateCount?: number;
         __detailRestoredCount?: number;
         __lastDetailMessage?: DetailActionMessage;
+        __archiveOutcome?: string;
     }
 }
 
@@ -107,6 +110,7 @@ describe('useArchiveRestoreAction', () => {
 
     it('maps action failures to error messages', async () => {
         window.__lastDetailMessage = undefined;
+        window.__archiveOutcome = undefined;
         const archive = vi.fn().mockRejectedValue(new Error('boom'));
 
         render(<ArchiveRestoreHarness archive={archive} restore={vi.fn()} />);
@@ -115,5 +119,6 @@ describe('useArchiveRestoreAction', () => {
         await waitFor(() => {
             expect(window.__lastDetailMessage).toEqual({ key: 'errorKeys.action_failed', isError: true });
         });
+        expect(window.__archiveOutcome).toBe('failed');
     });
 });

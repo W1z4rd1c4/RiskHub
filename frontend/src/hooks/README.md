@@ -10,7 +10,6 @@ Folder for `frontend/src/hooks` implementation assets.
 - `useChartTheme.ts`
 - `useDebouncedValue.ts`
 - `useDepartmentDetail.ts`
-- `usePendingApprovalIds.ts`
 - `useRiskHubConfig.ts`
 - `useStatusTheme.ts`
 - `useUsersPageFilters.ts`

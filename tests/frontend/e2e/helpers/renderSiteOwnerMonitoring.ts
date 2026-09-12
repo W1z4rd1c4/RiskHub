@@ -10,6 +10,33 @@ interface ResponseEvent {
   status: number;
 }
 
+export function createOwnedAbortAccounting<RequestIdentity>() {
+  const inFlightRequests = new Map<RequestIdentity, string>();
+  const expectedAbortRequests = new Set<RequestIdentity>();
+
+  return {
+    requestStarted(request: RequestIdentity, operationKey: string): void {
+      // An exact duplicate supersedes only the older request objects already in flight.
+      inFlightRequests.forEach((activeOperationKey, activeRequest) => {
+        if (activeOperationKey === operationKey) expectedAbortRequests.add(activeRequest);
+      });
+      inFlightRequests.set(request, operationKey);
+    },
+    markCurrentRequestsAsExpectedAborts(): void {
+      inFlightRequests.forEach((_operationKey, request) => expectedAbortRequests.add(request));
+    },
+    requestFinished(request: RequestIdentity): void {
+      inFlightRequests.delete(request);
+      expectedAbortRequests.delete(request);
+    },
+    consumeExpectedAbort(request: RequestIdentity, failureText: string): boolean {
+      inFlightRequests.delete(request);
+      const expectedAbort = expectedAbortRequests.delete(request);
+      return expectedAbort && failureText === 'net::ERR_ABORTED';
+    },
+  };
+}
+
 const dashboardOverviewHandoffFailure = 'GET /api/v1/dashboard/overview net::ERR_ABORTED';
 
 function pathname(url: string): string {

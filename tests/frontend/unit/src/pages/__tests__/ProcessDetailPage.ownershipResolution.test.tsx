@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -7,10 +7,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Process } from '@/types/process';
 
 const mocks = vi.hoisted(() => ({
+    cancelApproval: vi.fn(),
+    archiveProcess: vi.fn(),
     canEdit: true,
     canViewGovernance: true,
     language: 'en' as 'en' | 'cs',
     process: null as Process | null,
+    fetchProcess: vi.fn(),
     ownershipTranslations: {
         en: {
             'processes:ownership_display.unknown_user': 'Unknown user',
@@ -25,16 +28,25 @@ const mocks = vi.hoisted(() => ({
     },
 }));
 
+vi.mock('@/services/processApi', () => ({
+    processApi: {
+        archiveProcess: (...args: unknown[]) => mocks.archiveProcess(...args),
+        getProcesses: vi.fn(),
+    },
+}));
+
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({ canViewGovernance: mocks.canViewGovernance }),
 }));
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string) => {
+        t: (key: string, options?: { targetName?: string }) => {
+            if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
             const translations = mocks.ownershipTranslations[mocks.language] as Record<string, string>;
             return translations[key] ?? key;
         },
+        i18n: { language: mocks.language },
     }),
 }));
 
@@ -44,13 +56,19 @@ vi.mock('@/pages/processes/useProcessDetailState', () => ({
         canEdit: mocks.canEdit,
         canRestore: false,
         error: null,
-        fetchProcess: vi.fn(),
+        fetchProcess: mocks.fetchProcess,
         isAccessDenied: false,
         isLoading: false,
         process: mocks.process,
         restoreProcess: vi.fn(),
         setProcess: vi.fn(),
     }),
+}));
+
+vi.mock('@/services/approvalsApi', () => ({
+    approvalsApi: {
+        cancel: (...args: unknown[]) => mocks.cancelApproval(...args),
+    },
 }));
 
 vi.mock('@/pages/processes/ProcessForm', () => ({
@@ -68,8 +86,6 @@ vi.mock('@/pages/processes/ProcessForm', () => ({
 vi.mock('@/pages/processes/ProcessVendorLinksSection', () => ({
     ProcessVendorLinksSection: () => <div data-testid="process-vendor-links-section" />,
 }));
-
-vi.mock('@/components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 
 import { ProcessDetailPage } from '@/pages/ProcessDetailPage';
 
@@ -104,6 +120,36 @@ function orphanedProcess(): Process {
     };
 }
 
+function governedPendingProcess(): Process {
+    return {
+        ...orphanedProcess(),
+        owner_orphaned: false,
+        ownership_status: 'assigned',
+        capabilities: {
+            can_read: true,
+            can_update: false,
+            can_archive: false,
+            can_restore: false,
+            has_pending_change: true,
+            business_edit_blocked: true,
+            can_cancel_pending_change: true,
+        },
+        pending_change: {
+            approval_id: 41,
+            proposal_id: 'proposal-41',
+            proposal_version: 1,
+            status: 'pending',
+            requested_at: '2026-07-16T09:00:00Z',
+            requested_by_name: 'Alice Requester',
+            reason: 'Improve resilience',
+            before: { l1_process: 'Claims handling' },
+            after: { l1_process: 'Claims handling v2' },
+            derived_impact: { before: {}, after: {} },
+            capabilities: { can_view_diff: true, can_cancel: true },
+        },
+    };
+}
+
 function LocationProbe() {
     const location = useLocation();
     return <div data-testid="location">{location.pathname}{location.search}</div>;
@@ -125,6 +171,9 @@ describe('ProcessDetailPage ownership resolution', () => {
         mocks.canViewGovernance = true;
         mocks.language = 'en';
         mocks.process = orphanedProcess();
+        mocks.cancelApproval.mockResolvedValue({ status: 'cancelled' });
+        mocks.fetchProcess.mockResolvedValue(undefined);
+        mocks.archiveProcess.mockResolvedValue(undefined);
     });
 
     it('suppresses edit and links an authorized operator to Process Governance accessibly', async () => {
@@ -205,6 +254,68 @@ describe('ProcessDetailPage ownership resolution', () => {
         expect(screen.getByRole('alert')).toHaveTextContent('messages.ownership_invalid_assignment');
         expect(screen.getByTestId('process-form')).toHaveAttribute('data-owner-id', '');
         expect(screen.getByTestId('process-form')).toHaveAttribute('data-department-id', '');
+    });
+
+    it('confirms the captured Process target before cancelling its pending change', async () => {
+        const user = userEvent.setup();
+        mocks.canEdit = false;
+        mocks.process = governedPendingProcess();
+        renderPage('view');
+
+        await user.click(screen.getByRole('button', { name: 'pending_change.cancel' }));
+        expect(mocks.cancelApproval).not.toHaveBeenCalled();
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('Claims handling');
+
+        await user.click(screen.getByRole('button', { name: 'pending_change_cancellation.confirm' }));
+        expect(mocks.cancelApproval).toHaveBeenCalledWith(41);
+    });
+
+    it('keeps an exact rejected Process archive rationale in the open dialog', async () => {
+        const user = userEvent.setup();
+        mocks.process = {
+            ...orphanedProcess(),
+            owner_orphaned: false,
+            ownership_status: 'assigned',
+            capabilities: {
+                ...orphanedProcess().capabilities,
+                protected_change_requires_approval: true,
+            },
+            derived: {
+                cif: 'yes',
+                bcm_check: 'ok',
+                linked_asset_count: 0,
+                linked_vendor_count: 0,
+                is_complete: true,
+                is_duplicate: false,
+                transitive_vendor_links: [],
+                inputs: {
+                    threshold_critical_score: 16,
+                    threshold_high_score: 12,
+                    threshold_medium_score: 8,
+                    mtpd_critical_hours: 24,
+                    mtpd_medium_hours: 72,
+                    criticality_class_source: 'score',
+                    cif_class_critical: false,
+                    cif_mtpd_within_critical: false,
+                    cif_any_impact_maximal: false,
+                    missing_for_completeness: [],
+                    manual_vendor_link_count: 0,
+                    transitive_vendor_pair_count: 0,
+                },
+            },
+        };
+        mocks.archiveProcess.mockRejectedValueOnce(new Error('rejected'));
+        renderPage('view');
+
+        await user.click(screen.getByTestId('process-detail-archive'));
+        const dialog = screen.getByRole('alertdialog');
+        const reason = screen.getByRole('textbox', { name: /form.request_reason/ });
+        await user.type(reason, '  Exact Process rationale  ');
+        await user.click(within(dialog).getByRole('button', { name: 'actions.archive' }));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent('errors.archive_failed');
+        expect(reason).toHaveValue('  Exact Process rationale  ');
+        expect(mocks.archiveProcess).toHaveBeenCalledWith(74, 'Exact Process rationale');
     });
 
     it.each([

@@ -7,10 +7,14 @@ import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
 interface KRIDetailOverviewTabProps {
     kri: KeyRiskIndicator;
     linkedRisk: Risk | null;
+    linkedRiskOutcome: CollectionOutcome;
+    onRetryLinkedRisk: () => void;
     dueDate: Date | null;
     formatNumber: (val: number) => string;
 }
@@ -18,6 +22,8 @@ interface KRIDetailOverviewTabProps {
 export function KRIDetailOverviewTab({
     kri,
     linkedRisk,
+    linkedRiskOutcome,
+    onRetryLinkedRisk,
     dueDate,
     formatNumber,
 }: KRIDetailOverviewTabProps) {
@@ -113,7 +119,29 @@ export function KRIDetailOverviewTab({
                     </h3>
                 </div>
 
-                {linkedRisk ? (
+                {linkedRiskOutcome.kind === 'initial-loading' ? (
+                    <div className="p-12 text-center text-sm text-muted-foreground" role="status">
+                        {t('common:loading.generic')}
+                    </div>
+                ) : linkedRiskOutcome.kind === 'fatal-error' || linkedRiskOutcome.kind === 'denied' ? (
+                    <TableErrorState
+                        testId="kri-linked-risk-load-state"
+                        message={t('common:errors.load_failed')}
+                        onRetry={linkedRiskOutcome.kind === 'fatal-error' ? onRetryLinkedRisk : undefined}
+                        isRetrying={linkedRiskOutcome.kind === 'fatal-error' && linkedRiskOutcome.isRetrying}
+                    />
+                ) : linkedRisk ? (
+                    <>
+                    {linkedRiskOutcome.kind === 'stale-with-error' ? (
+                        <TableErrorState
+                            variant="banner"
+                            testId="kri-linked-risk-load-state"
+                            message={t('common:detail_load.stale_description')}
+                            onRetry={onRetryLinkedRisk}
+                            isRetrying={linkedRiskOutcome.isRetrying}
+                            className="mb-4"
+                        />
+                    ) : null}
                     <Link
                         to={`/risks/${linkedRisk.id}`}
                         className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-left hover:bg-white/[0.04] hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-500 group"
@@ -174,6 +202,7 @@ export function KRIDetailOverviewTab({
                             </div>
                         </div>
                     </Link>
+                    </>
                 ) : (
                     <div className="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
                         <span className="text-sm text-slate-500 italic">{t('common:empty.no_risk_info')}</span>

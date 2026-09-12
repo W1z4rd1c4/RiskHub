@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown, RefreshCw } from 'lucide-react';
 
@@ -24,14 +24,46 @@ export function AuditLogsPanel() {
     const [lines, setLines] = useState<number>(100);
     const [eventFilter, setEventFilter] = useState<string>('');
     const [autoRefresh, setAutoRefresh] = useState(false);
+    const [eventVocabularyState, setEventVocabularyState] = useState<{
+        lines: number;
+        eventTypes: string[];
+    }>({ lines, eventTypes: [] });
     const [selectedLogExtra, setSelectedLogExtra] = useState<Record<string, unknown> | null>(null);
 
-    const { data, isFetching, isLoading, refetch } = useQuery({
+    const {
+        data: eventVocabulary,
+        isError: isEventVocabularyError,
+        refetch: refetchEventVocabulary,
+    } = useQuery({
+        queryKey: adminKeys.auditLogEventTypes(lines),
+        queryFn: () => adminApi.getAuditLogs({ lines, event_type: undefined }),
+        refetchInterval: autoRefresh ? 5000 : false,
+    });
+
+    const { data, isFetching, isLoading, refetch: refetchLogs } = useQuery({
         queryKey: adminKeys.auditLogs(lines, eventFilter),
         queryFn: () => adminApi.getAuditLogs({ lines, event_type: eventFilter || undefined }),
         refetchInterval: autoRefresh ? 5000 : false,
     });
     const logs = useMemo(() => data?.entries || [], [data?.entries]);
+    const eventTypes = eventVocabularyState.lines === lines
+        ? eventVocabularyState.eventTypes
+        : [];
+    useEffect(() => {
+        if (eventVocabulary) {
+            setEventVocabularyState({
+                lines,
+                eventTypes: getAuditEventTypes(eventVocabulary.entries),
+            });
+            return;
+        }
+        if (isEventVocabularyError && !eventFilter && data) {
+            setEventVocabularyState({
+                lines,
+                eventTypes: getAuditEventTypes(data.entries),
+            });
+        }
+    }, [data, eventFilter, eventVocabulary, isEventVocabularyError, lines]);
     const auditUserIds = useMemo(
         () => [...new Set(logs.map((log) => log.user_id).filter((userId): userId is number => userId !== null))]
             .sort((a, b) => a - b),
@@ -60,11 +92,10 @@ export function AuditLogsPanel() {
         queryFn: () => adminApi.getCapabilities(),
     });
 
-    if (isLoading && !data) {
+    if (isLoading && !data && !eventVocabulary && eventTypes.length === 0) {
         return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
     }
 
-    const eventTypes = getAuditEventTypes(logs);
     const canExportLoadedAuditLogs = resolveCapabilityFlag(capabilities, 'can_export_loaded_audit_logs');
     const canUpdateLogConfig = resolveCapabilityFlag(capabilities, 'can_update_log_config');
 
@@ -80,6 +111,7 @@ export function AuditLogsPanel() {
                         <span className="admin-muted text-xs">{t('audit.live')}</span>
                         <input
                             type="checkbox"
+                            aria-label={t('audit.live')}
                             checked={autoRefresh}
                             onChange={(event) => setAutoRefresh(event.target.checked)}
                             className="form-checkbox h-3 w-3 text-accent rounded bg-slate-800 border-white/10"
@@ -137,7 +169,7 @@ export function AuditLogsPanel() {
                         type="button"
                         variant="secondary"
                         size="icon"
-                        onClick={() => refetch()}
+                        onClick={() => void Promise.all([refetchLogs(), refetchEventVocabulary()])}
                         isLoading={isFetching}
                         title={t('console.manual_refresh')}
                         aria-label={t('console.manual_refresh')}

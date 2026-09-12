@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DirectoryUserImportPanel } from '@/components/users/DirectoryUserImportPanel';
@@ -7,6 +7,25 @@ import adminEn from '@/i18n/locales/en/admin.json';
 const mockSearchUsers = vi.fn();
 const mockImportUser = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((accept) => { resolve = accept; });
+    return { promise, resolve };
+}
+
+function directoryUser(externalId: string, displayName: string) {
+    return {
+        external_id: externalId,
+        display_name: displayName,
+        email: `${externalId}@example.com`,
+        user_principal_name: `${externalId}@example.com`,
+        department: 'Finance',
+        job_title: 'Analyst',
+        account_enabled: true,
+        source: 'graph' as const,
+    };
+}
 
 const { MockApiClientError } = vi.hoisted(() => {
     class HoistedMockApiClientError extends Error {
@@ -86,7 +105,9 @@ describe('DirectoryUserImportPanel', () => {
         });
 
         await waitFor(() => {
-            expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25);
+            expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25, {
+                signal: expect.any(AbortSignal),
+            });
         });
 
         expect(await screen.findByText(
@@ -119,7 +140,9 @@ describe('DirectoryUserImportPanel', () => {
         });
 
         await waitFor(() => {
-            expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25);
+            expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25, {
+                signal: expect.any(AbortSignal),
+            });
         });
 
         expect(await screen.findByText(
@@ -166,7 +189,9 @@ describe('DirectoryUserImportPanel', () => {
         });
 
         await waitFor(() => {
-            expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25);
+            expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25, {
+                signal: expect.any(AbortSignal),
+            });
         });
 
         fireEvent.click(await screen.findByRole('button', { name: adminEn.users.import }));
@@ -181,6 +206,71 @@ describe('DirectoryUserImportPanel', () => {
         expect(screen.queryByText(adminEn.users.directory_setup_help, { exact: false })).not.toBeInTheDocument();
         expect(onProviderUnavailableChange).toHaveBeenLastCalledWith(false);
         expect(onImported).not.toHaveBeenCalled();
+    });
+
+    it('keeps Bob as the visible and import target when Alice resolves late', async () => {
+        const alice = deferred<ReturnType<typeof directoryUser>[]>();
+        const bob = deferred<ReturnType<typeof directoryUser>[]>();
+        mockSearchUsers.mockImplementation((query: string) => (
+            query === 'alice' ? alice.promise : bob.promise
+        ));
+        mockImportUser.mockResolvedValue({ status: 'created' });
+
+        render(<DirectoryUserImportPanel onImported={() => undefined} />);
+        const search = screen.getByPlaceholderText(adminEn.users.directory_search_placeholder);
+        fireEvent.change(search, { target: { value: 'alice' } });
+        await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(1));
+
+        fireEvent.change(search, { target: { value: 'bob' } });
+        await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(2));
+        await act(async () => bob.resolve([directoryUser('oid-bob', 'Bob Example')]));
+        expect(await screen.findByText('Bob Example')).toBeInTheDocument();
+
+        await act(async () => alice.resolve([directoryUser('oid-alice', 'Alice Example')]));
+        expect(screen.queryByText('Alice Example')).not.toBeInTheDocument();
+        expect(screen.getByText('Bob Example')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: adminEn.users.import }));
+        await waitFor(() => expect(mockImportUser).toHaveBeenCalledWith('oid-bob'));
+    });
+
+    it('removes Alice before the debounced Bob request and never imports the stale result', async () => {
+        const bob = deferred<ReturnType<typeof directoryUser>[]>();
+        mockSearchUsers
+            .mockResolvedValueOnce([directoryUser('oid-alice', 'Alice Example')])
+            .mockReturnValueOnce(bob.promise);
+
+        render(<DirectoryUserImportPanel onImported={() => undefined} />);
+        const search = screen.getByPlaceholderText(adminEn.users.directory_search_placeholder);
+        fireEvent.change(search, { target: { value: 'alice' } });
+        expect(await screen.findByText('Alice Example')).toBeInTheDocument();
+
+        fireEvent.change(search, { target: { value: 'bob' } });
+
+        expect(screen.queryByText('Alice Example')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: adminEn.users.import })).not.toBeInTheDocument();
+        await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(2));
+
+        await act(async () => bob.resolve([directoryUser('oid-bob', 'Bob Example')]));
+        fireEvent.click(await screen.findByRole('button', { name: adminEn.users.import }));
+        await waitFor(() => expect(mockImportUser).toHaveBeenCalledWith('oid-bob'));
+        expect(mockImportUser).not.toHaveBeenCalledWith('oid-alice');
+    });
+
+    it('keeps cleared search empty when an earlier Directory response arrives late', async () => {
+        const alice = deferred<ReturnType<typeof directoryUser>[]>();
+        mockSearchUsers.mockReturnValue(alice.promise);
+
+        render(<DirectoryUserImportPanel onImported={() => undefined} />);
+        const search = screen.getByPlaceholderText(adminEn.users.directory_search_placeholder);
+        fireEvent.change(search, { target: { value: 'alice' } });
+        await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(1));
+
+        fireEvent.change(search, { target: { value: '' } });
+        await act(async () => alice.resolve([directoryUser('oid-alice', 'Alice Example')]));
+
+        expect(screen.queryByText('Alice Example')).not.toBeInTheDocument();
+        expect(screen.getByText(adminEn.users.directory_search_hint)).toBeInTheDocument();
     });
 
     afterAll(() => {

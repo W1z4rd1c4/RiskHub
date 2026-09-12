@@ -236,6 +236,7 @@ export default function ApprovalsPage() {
             <ApprovalResolutionDialog
                 selectedApproval={selectedApproval}
                 dialogMode={dialogMode}
+                locale={i18n.language}
                 resolutionNotes={resolutionNotes}
                 errorText={translateError(resolutionErrorKey)}
                 isSubmitting={isSubmitting}

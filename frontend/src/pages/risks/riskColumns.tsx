@@ -11,7 +11,6 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 type BuildRiskColumnsParams = {
     t: TranslateFn;
-    pendingApprovalIds: Set<number>;
     getColor: (riskType: string) => string;
     getDisplayName: (riskType: string) => string;
     getInitials: (riskType: string) => string;
@@ -34,7 +33,6 @@ export function getRiskStatusColor(status: RiskDisplayStatus): string {
 
 export function buildRiskColumns({
     t,
-    pendingApprovalIds,
     getColor,
     getDisplayName,
     getInitials,
@@ -52,7 +50,8 @@ export function buildRiskColumns({
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-foreground">{risk.name}</span>
                         {risk.is_priority && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
-                        {pendingApprovalIds.has(risk.id) && (
+                        {(resolveCapabilityFlag(risk.capabilities, 'has_pending_delete_approval')
+                            || resolveCapabilityFlag(risk.capabilities, 'has_pending_update_approval')) && (
                             <div
                                 className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-warning/10 text-warning-text border border-warning/20"
                                 title={t('columns.pending_tooltip')}

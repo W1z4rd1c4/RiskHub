@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 import { ApiClientError } from '@/services/apiClient';
@@ -209,7 +209,11 @@ describe('VendorDetailPage issue entry', () => {
         render(<VendorDetailPage />);
 
         await screen.findByTestId('vendor-pending-change');
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel request' }));
+        fireEvent.click(within(screen.getByTestId('vendor-pending-change')).getByRole('button', { name: 'Cancel request' }));
+        expect(mockCancelApproval).not.toHaveBeenCalled();
+        const dialog = screen.getByRole('alertdialog');
+        expect(dialog).toHaveTextContent('Atlas Cloud Services');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel request' }));
 
         await waitFor(() => expect(mockCancelApproval).toHaveBeenCalledWith(87));
         expect(mockGetVendor).toHaveBeenCalledTimes(2);
@@ -234,6 +238,24 @@ describe('VendorDetailPage issue entry', () => {
 
         await waitFor(() => expect(mockArchiveVendor).toHaveBeenCalledWith(31, 'Contract termination'));
         expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=87');
+    });
+
+    it('keeps an exact rejected Vendor archive rationale in the open dialog', async () => {
+        mockArchiveVendor.mockRejectedValueOnce(new Error('rejected'));
+        render(<VendorDetailPage />);
+
+        await screen.findByText('Atlas Cloud Services');
+        fireEvent.click(screen.getAllByRole('button', { name: 'Archive' }).at(-1)!);
+        const dialog = screen.getByRole('alertdialog');
+        const reason = within(dialog).getByRole('textbox', { name: /Request reason/ });
+        fireEvent.change(reason, { target: { value: '  Exact Vendor rationale  ' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+            'Failed to archive the vendor. Please try again.',
+        );
+        expect(reason).toHaveValue('  Exact Vendor rationale  ');
+        expect(mockArchiveVendor).toHaveBeenCalledWith(31, 'Exact Vendor rationale');
     });
 
     it('preserves the list return context when linked-create flash state is cleared, dismissed, and Back is used', async () => {

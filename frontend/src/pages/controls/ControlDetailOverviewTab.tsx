@@ -20,6 +20,7 @@ type ControlDetailOverviewTabProps = {
     canUnlinkRisk: boolean;
     linkErrorKey: string | null;
     linkedRisksErrorKey: string | null;
+    linkedRisksOutcome: 'loading' | 'content' | 'empty' | 'error' | 'stale-with-error' | 'denied';
     isLinkDialogOpen: boolean;
     selectedRisk: Risk | null;
     isRiskModalOpen: boolean;
@@ -29,6 +30,7 @@ type ControlDetailOverviewTabProps = {
     onUnlinkRisk: (riskId: number) => Promise<void>;
     onRiskClick: (riskId: number, event: MouseEvent) => void | Promise<void>;
     onCloseRiskModal: () => void;
+    onRetryLinkedRisks: () => void;
 };
 
 const container = {
@@ -54,6 +56,7 @@ export function ControlDetailOverviewTab({
     canUnlinkRisk,
     linkErrorKey,
     linkedRisksErrorKey,
+    linkedRisksOutcome,
     isLinkDialogOpen,
     selectedRisk,
     isRiskModalOpen,
@@ -63,6 +66,7 @@ export function ControlDetailOverviewTab({
     onUnlinkRisk,
     onRiskClick,
     onCloseRiskModal,
+    onRetryLinkedRisks,
 }: ControlDetailOverviewTabProps) {
     return (
         <>
@@ -168,7 +172,11 @@ export function ControlDetailOverviewTab({
                         {t('controls:detail.mitigated_risks')}
                     </h3>
                     <span data-testid="control-linked-risk-count" className="px-2 py-0.5 bg-success/10 text-success-text text-[10px] font-black rounded-full border border-success/20">
-                        {linkedRisks.length}
+                        {linkedRisksOutcome === 'content'
+                        || linkedRisksOutcome === 'empty'
+                        || linkedRisksOutcome === 'stale-with-error'
+                            ? linkedRisks.length
+                            : '—'}
                     </span>
                 </div>
 
@@ -179,10 +187,34 @@ export function ControlDetailOverviewTab({
                     </div>
                 )}
 
-                {linkedRisksErrorKey ? (
+                {linkedRisksOutcome === 'stale-with-error' && linkedRisksErrorKey ? (
+                    <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex flex-wrap items-center justify-between gap-3">
+                        <span className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            {t(linkedRisksErrorKey)}
+                        </span>
+                        <button type="button" className="text-xs font-bold text-accent-text" onClick={onRetryLinkedRisks}>
+                            {t('common:actions.retry')}
+                        </button>
+                    </div>
+                ) : null}
+
+                {linkedRisksOutcome === 'loading' ? (
+                    <div className="py-10 text-center text-sm text-muted-foreground" role="status">
+                        {t('common:loading.generic')}
+                    </div>
+                ) : linkedRisksOutcome === 'denied' ? (
+                    <div className="py-10 text-center border-2 border-dashed border-destructive/20 rounded-2xl bg-destructive/5" role="alert">
+                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                        <p className="text-xs text-destructive font-medium">{t('controls:access.denied')}</p>
+                    </div>
+                ) : linkedRisksOutcome === 'error' && linkedRisksErrorKey ? (
                     <div className="py-10 text-center border-2 border-dashed border-destructive/20 rounded-2xl bg-destructive/5">
                         <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
                         <p className="text-xs text-destructive font-medium">{t(linkedRisksErrorKey)}</p>
+                        <button type="button" className="mt-3 text-xs font-bold text-accent-text" onClick={onRetryLinkedRisks}>
+                            {t('common:actions.retry')}
+                        </button>
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -262,7 +294,7 @@ export function ControlDetailOverviewTab({
                     </div>
                 )}
 
-                {(canLinkRisk || canUnlinkRisk) && (
+                {linkedRisksOutcome !== 'denied' && (canLinkRisk || canUnlinkRisk) && (
                     <button
                         type="button"
                         onClick={onOpenLinkDialog}
@@ -273,7 +305,7 @@ export function ControlDetailOverviewTab({
                 )}
 
                 <LinkManagementDialog
-                    isOpen={isLinkDialogOpen}
+                    isOpen={isLinkDialogOpen && linkedRisksOutcome !== 'denied'}
                     onClose={onCloseLinkDialog}
                     mode="control-to-risk"
                     existingLinks={linkedRisks}
@@ -281,7 +313,11 @@ export function ControlDetailOverviewTab({
                     onUnlink={onUnlinkRisk}
                 />
 
-                <RiskQuickViewModal risk={selectedRisk} isOpen={isRiskModalOpen} onClose={onCloseRiskModal} />
+                <RiskQuickViewModal
+                    risk={linkedRisksOutcome === 'denied' ? null : selectedRisk}
+                    isOpen={isRiskModalOpen && linkedRisksOutcome !== 'denied'}
+                    onClose={onCloseRiskModal}
+                />
             </motion.div>
         </>
     );

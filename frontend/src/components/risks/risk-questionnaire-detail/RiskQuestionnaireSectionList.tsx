@@ -23,8 +23,10 @@ interface ClarificationState {
     handleRespondClarification: (clarificationId: number) => Promise<void>;
     requestMessage: string;
     requestQuestionKeys: string[];
+    requestingClarification: boolean;
     requestingSectionKey: string | null;
     respondingClarificationId: number | null;
+    respondingClarification: boolean;
     responseMessage: string;
     sectionClarifications: Map<string, RiskQuestionnaireClarification[]>;
     setRequestMessage: (value: string) => void;
@@ -94,6 +96,7 @@ export function RiskQuestionnaireSectionList({
                             onQuestionKeysChange={clarificationState.setRequestQuestionKeys}
                             onRequestMessageChange={clarificationState.setRequestMessage}
                             onSubmit={() => void clarificationState.handleRequestClarification(section.titleKey)}
+                            pending={clarificationState.requestingClarification}
                             questions={section.questions}
                             requestMessage={clarificationState.requestMessage}
                             requestQuestionKeys={clarificationState.requestQuestionKeys}
@@ -114,6 +117,7 @@ export function RiskQuestionnaireSectionList({
                                 clarificationState.setResponseMessage('');
                             }}
                             respondingClarificationId={clarificationState.respondingClarificationId}
+                            responding={clarificationState.respondingClarification}
                             responseMessage={clarificationState.responseMessage}
                             t={t}
                         />

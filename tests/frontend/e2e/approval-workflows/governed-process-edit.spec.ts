@@ -174,6 +174,15 @@ test.describe('Governed protected Process edit (#84)', () => {
                 && /\/api\/v1\/approvals\/\d+\/cancel$/.test(new URL(response.url()).pathname)
             ));
             await panel.getByRole('button', { name: /Cancel request|Zrušit žádost/ }).click();
+            const cancellationDialog = riskManagerPage.getByRole('alertdialog');
+            await expect(cancellationDialog).toContainText(processName);
+            await expect(cancellationDialog).toContainText(
+                /terminal and cannot be undone|konečný krok, který nelze vrátit zpět/,
+            );
+            await cancellationDialog.getByRole(
+                'button',
+                { name: /Cancel request|Zrušit žádost/, exact: true },
+            ).click();
             expect((await cancelled).status()).toBe(200);
 
             await expect(panel).toHaveCount(0);

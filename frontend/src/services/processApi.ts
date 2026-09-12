@@ -102,8 +102,9 @@ async function downloadProcessExport(params: ProcessListParams, locale: 'en' | '
 }
 
 export const processApi = {
-    async getProcesses(params: ProcessListParams): Promise<ProcessListResponse> {
+    async getProcesses(params: ProcessListParams, options?: { signal?: AbortSignal }): Promise<ProcessListResponse> {
         return apiClient.get('/processes', {
+            ...options,
             params: buildProcessCollectionQuery(params),
             schema: processListResponseSchema,
         });

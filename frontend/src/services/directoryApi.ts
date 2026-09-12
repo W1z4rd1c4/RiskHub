@@ -6,8 +6,9 @@ import {
 } from '@/services/api/schemas';
 
 export const directoryApi = {
-    searchUsers(q: string, limit = 25) {
+    searchUsers(q: string, limit = 25, options?: { signal?: AbortSignal }) {
         return apiClient.get('/directory/users/search', {
+            signal: options?.signal,
             params: { q, limit },
             schema: directoryUserArraySchema,
         });

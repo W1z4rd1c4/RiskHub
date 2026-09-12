@@ -107,8 +107,12 @@ export const kriApi = {
         return apiClient.get('/kris/breaches', { params, schema: keyRiskIndicatorArraySchema });
     },
 
-    async getKRI(id: number, params?: { include_archived?: boolean }): Promise<KeyRiskIndicator> {
-        return apiClient.get(`/kris/${id}`, { params, schema: keyRiskIndicatorSchema });
+    async getKRI(
+        id: number,
+        params?: { include_archived?: boolean },
+        options?: { signal?: AbortSignal },
+    ): Promise<KeyRiskIndicator> {
+        return apiClient.get(`/kris/${id}`, { ...options, params, schema: keyRiskIndicatorSchema });
     },
 
     async createKRI(data: KRICreate): Promise<KeyRiskIndicator> {
@@ -148,9 +152,11 @@ export const kriApi = {
             sort_by?: 'recorded_at' | 'period';
             sort_direction?: 'desc' | 'asc';
         },
+        options?: { signal?: AbortSignal },
     ): Promise<KRIHistoryListResponse> {
         const offset = legacyPageToOffset(params, DEFAULT_KRI_LEGACY_PAGE_SIZE);
         return apiClient.get(`/kris/${kriId}/history`, {
+            ...options,
             params: {
                 from_date: params?.from_date,
                 to_date: params?.to_date,
@@ -174,8 +180,11 @@ export const kriApi = {
         });
     },
 
-    async getOverdue(params?: { department_id?: number }): Promise<OverdueKRI[]> {
-        return apiClient.get('/kris/overdue', { params, schema: overdueKRIArraySchema });
+    async getOverdue(
+        params?: { department_id?: number },
+        options?: { signal?: AbortSignal },
+    ): Promise<OverdueKRI[]> {
+        return apiClient.get('/kris/overdue', { ...options, params, schema: overdueKRIArraySchema });
     },
 
     async getDueSoon(params?: { department_id?: number }): Promise<DueSoonKRI[]> {

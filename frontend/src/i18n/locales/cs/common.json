@@ -177,6 +177,11 @@
     "archive_reversible": "Tuto akci může administrátor vrátit zpět.",
     "remove_link": "Opravdu chcete odebrat toto propojení?"
   },
+  "pending_change_cancellation": {
+    "title": "Zrušit čekající žádost?",
+    "message": "Zrušit čekající žádost pro „{{targetName}}“? Jde o konečný krok, který nelze vrátit zpět.",
+    "confirm": "Zrušit žádost"
+  },
   "pagination": {
     "page": "Stránka",
     "of": "z",

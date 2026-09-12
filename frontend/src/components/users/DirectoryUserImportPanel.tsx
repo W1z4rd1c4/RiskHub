@@ -27,29 +27,35 @@ export function DirectoryUserImportPanel({
     const { t } = useTranslation('admin');
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<DirectoryUser[]>([]);
+    const [resultsQuery, setResultsQuery] = useState<string | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [isImportingOid, setIsImportingOid] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const importingOidRef = useRef<string | null>(null);
+    const normalizedQuery = query.trim();
 
     useEffect(() => {
-        const trimmed = query.trim();
-        if (!trimmed) {
-            setResults([]);
-            setErrorMessage(null);
+        const controller = new AbortController();
+        setResults([]);
+        setResultsQuery(null);
+        setErrorMessage(null);
+
+        if (!normalizedQuery) {
             onProviderUnavailableChange?.(false);
             setIsSearching(false);
-            return;
+            return () => controller.abort();
         }
 
+        setIsSearching(true);
         const handle = window.setTimeout(async () => {
             try {
-                setIsSearching(true);
-                setErrorMessage(null);
-                const users = await directoryApi.searchUsers(trimmed, 25);
+                const users = await directoryApi.searchUsers(normalizedQuery, 25, { signal: controller.signal });
+                if (controller.signal.aborted) return;
                 setResults(users);
+                setResultsQuery(normalizedQuery);
                 onProviderUnavailableChange?.(false);
             } catch (err) {
+                if (controller.signal.aborted) return;
                 logError('Directory search failed', err);
                 const providerUnavailable = isProviderUnavailableError(err);
                 onProviderUnavailableChange?.(providerUnavailable);
@@ -57,14 +63,23 @@ export function DirectoryUserImportPanel({
                     ? `${t('users.directory_setup_required')} ${t('users.directory_setup_help')}`
                     : `${t('users.directory_search_failed')} ${t('users.directory_retry_help')}`);
             } finally {
-                setIsSearching(false);
+                if (!controller.signal.aborted) {
+                    setIsSearching(false);
+                }
             }
         }, 250);
 
-        return () => window.clearTimeout(handle);
-    }, [query, t, onProviderUnavailableChange]);
+        return () => {
+            window.clearTimeout(handle);
+            controller.abort();
+        };
+    }, [normalizedQuery, t, onProviderUnavailableChange]);
 
-    const hasResults = useMemo(() => results.length > 0, [results.length]);
+    const visibleResults = useMemo(
+        () => resultsQuery === normalizedQuery ? results : [],
+        [normalizedQuery, results, resultsQuery],
+    );
+    const hasResults = visibleResults.length > 0;
 
     const handleImport = async (user: DirectoryUser) => {
         if (importingOidRef.current !== null) return;
@@ -118,14 +133,14 @@ export function DirectoryUserImportPanel({
                     </div>
                 ) : hasResults ? (
                     <ul className="divide-y divide-white/10">
-                        {results.map((entry) => (
+                        {visibleResults.map((entry) => (
                             <li key={entry.external_id} className="flex items-center justify-between gap-4 px-4 py-3">
                                 <div className="min-w-0">
                                     <p className="truncate text-sm font-semibold text-white">{entry.display_name}</p>
                                     <p className="truncate text-xs text-slate-400">
                                         {entry.email || entry.user_principal_name || t('common:fallbacks.not_available')}
                                     </p>
-                                    <p className="truncate text-xs text-slate-500">
+                                    <p className="truncate text-xs text-slate-400">
                                         {entry.department || t('access.table.no_department')}
                                         {entry.job_title ? ` • ${entry.job_title}` : ''}
                                     </p>
@@ -147,7 +162,7 @@ export function DirectoryUserImportPanel({
                     </ul>
                 ) : (
                     <div className="px-4 py-8 text-center text-sm text-slate-300">
-                        {query.trim()
+                        {normalizedQuery
                             ? t('users.directory_no_results')
                             : t('users.directory_search_hint')}
                     </div>

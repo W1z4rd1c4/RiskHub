@@ -376,6 +376,120 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
         expect(mockLinkKRI).not.toHaveBeenCalled();
     });
 
+    it('keeps a rejected governed create open with its reason and reuses it on Retry', async () => {
+        mockLinkRisk
+            .mockRejectedValueOnce(new ApiClientError({
+                status: 409,
+                code: 'vendor_pending_mutation',
+                messageKey: 'errorKeys.vendor_pending_mutation',
+                rawMessage: 'A governed Vendor change is already pending',
+            }))
+            .mockResolvedValueOnce({
+                status: 'approval_required',
+                approval_id: 899,
+                proposal_id: 'proposal-risk',
+                proposal_version: 1,
+            });
+
+        render(
+            <KRIForm
+                vendorContext={{
+                    vendorId: 12,
+                    returnTo: '/vendors/12',
+                    vendorName: 'Vendor Twelve',
+                    protectedChangeRequiresApproval: true,
+                }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /All readable risks|Všechna dostupná rizika/i }));
+        await screen.findByText('Standalone risk');
+        fireEvent.click(screen.getByRole('button', { name: /Standalone risk/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Next|Další/i }));
+        fireEvent.change(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i), {
+            target: { value: 'Recoverable governed KRI' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Describe what this KRI measures|Popište, co tento KRI měří/i), {
+            target: { value: 'Retains the governed request reason after rejection.' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /Request parent Risk link approval/i }));
+
+        const reasonDialog = await screen.findByRole('alertdialog');
+        const reasonInput = within(reasonDialog).getByRole('textbox', { name: /Request reason|Žádost/i });
+        fireEvent.change(reasonInput, { target: { value: 'Govern the parent Risk first' } });
+        fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
+        expect(await within(reasonDialog).findByRole('alert')).toHaveTextContent(
+            'A governed Vendor change is already pending',
+        );
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(reasonInput).toHaveValue('Govern the parent Risk first');
+
+        fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+
+        await waitFor(() => {
+            expect(mockLinkRisk).toHaveBeenCalledTimes(2);
+            expect(mockLinkRisk).toHaveBeenNthCalledWith(1, 12, 202, 'Govern the parent Risk first');
+            expect(mockLinkRisk).toHaveBeenNthCalledWith(2, 12, 202, 'Govern the parent Risk first');
+            expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=899');
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+        expect(mockCreateKri).not.toHaveBeenCalled();
+    });
+
+    it('discards a rejected governed create reason and error after explicit dismissal', async () => {
+        mockLinkRisk.mockRejectedValueOnce(new ApiClientError({
+            status: 409,
+            code: 'vendor_pending_mutation',
+            messageKey: 'errorKeys.vendor_pending_mutation',
+            rawMessage: 'A governed Vendor change is already pending',
+        }));
+
+        render(
+            <KRIForm
+                vendorContext={{
+                    vendorId: 12,
+                    returnTo: '/vendors/12',
+                    vendorName: 'Vendor Twelve',
+                    protectedChangeRequiresApproval: true,
+                }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /All readable risks|Všechna dostupná rizika/i }));
+        await screen.findByText('Standalone risk');
+        fireEvent.click(screen.getByRole('button', { name: /Standalone risk/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Next|Další/i }));
+        fireEvent.change(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i), {
+            target: { value: 'Dismissed governed KRI' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Describe what this KRI measures|Popište, co tento KRI měří/i), {
+            target: { value: 'Explicit dismissal starts a fresh governed request.' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /Request parent Risk link approval/i }));
+        const rejectedDialog = await screen.findByRole('alertdialog');
+        fireEvent.change(within(rejectedDialog).getByRole('textbox', { name: /Request reason|Žádost/i }), {
+            target: { value: 'Discard this rationale' },
+        });
+        fireEvent.click(within(rejectedDialog).getByRole('button', { name: /Continue|Pokračovat/i }));
+        expect(await within(rejectedDialog).findByRole('alert')).toHaveTextContent(
+            'A governed Vendor change is already pending',
+        );
+
+        fireEvent.click(within(rejectedDialog).getByRole('button', { name: /Cancel|Zrušit/i }));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /Request parent Risk link approval/i }));
+        const reopenedDialog = await screen.findByRole('alertdialog');
+        expect(within(reopenedDialog).getByRole('textbox', { name: /Request reason|Žádost/i })).toHaveValue('');
+        expect(within(reopenedDialog).queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('continues KRI creation when the protected parent Risk link applies directly', async () => {
         mockLinkRisk.mockResolvedValueOnce({ status: 'linked' });
         mockLinkKRI.mockResolvedValueOnce({ status: 'linked' });

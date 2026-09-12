@@ -115,7 +115,7 @@ export function CreatableCombobox({
                     id={suggestionListIsVisible ? listboxId : undefined}
                     role={suggestionListIsVisible ? 'listbox' : undefined}
                     tabIndex={suggestionListIsVisible ? 0 : undefined}
-                    className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-md"
+                    className="z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-md"
                 >
                     {suggestionListIsVisible ? (
                         <div>

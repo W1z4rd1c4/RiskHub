@@ -59,7 +59,6 @@ describe('Risks page presentation helpers', () => {
     it('renders archived-normalized risks as archived in the table status column', () => {
         const statusColumn = buildRiskColumns({
             t: (key) => key,
-            pendingApprovalIds: new Set(),
             getColor: () => 'bg-slate-500',
             getDisplayName: (riskType) => riskType,
             getInitials: () => 'OP',

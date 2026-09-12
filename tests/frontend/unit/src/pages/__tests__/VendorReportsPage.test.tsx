@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -142,6 +142,37 @@ describe('VendorReportsPage', () => {
         await user.click(await screen.findByRole('button', { name: /reports\.annual\.download_csv/ }));
 
         expect(downloadAnnualMock).toHaveBeenCalledWith(expect.any(Number), 'csv', null);
+    });
+
+    it.each(['1999', '2101', '2032.5', ''])('blocks an invalid annual-report year %j and clears the error when corrected', async (invalidYear) => {
+        getCapabilitiesMock.mockResolvedValue(allowReports({ can_use_department_filter: false }));
+        render(<VendorReportsPage />);
+
+        const yearInput = await screen.findByLabelText('reports.annual.year');
+        const downloadButton = screen.getByRole('button', { name: /reports\.annual\.download_csv/ });
+        fireEvent.change(yearInput, { target: { value: invalidYear } });
+
+        expect(yearInput).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByText('reports.annual.year_error')).toBeInTheDocument();
+        expect(downloadButton).toBeDisabled();
+        fireEvent.click(downloadButton);
+        expect(downloadAnnualMock).not.toHaveBeenCalled();
+
+        fireEvent.change(yearInput, { target: { value: '2000' } });
+        expect(yearInput).not.toHaveAttribute('aria-invalid');
+        expect(screen.queryByText('reports.annual.year_error')).not.toBeInTheDocument();
+        expect(downloadButton).toBeEnabled();
+    });
+
+    it.each(['2000', '2100'])('downloads an annual report for boundary year %s', async (validYear) => {
+        getCapabilitiesMock.mockResolvedValue(allowReports({ can_use_department_filter: false }));
+        render(<VendorReportsPage />);
+
+        const yearInput = await screen.findByLabelText('reports.annual.year');
+        fireEvent.change(yearInput, { target: { value: validYear } });
+        await userEvent.click(screen.getByRole('button', { name: /reports\.annual\.download_csv/ }));
+
+        expect(downloadAnnualMock).toHaveBeenCalledWith(Number(validYear), 'csv', null);
     });
 
     it('uses backend-enabled department filters for downloads', async () => {

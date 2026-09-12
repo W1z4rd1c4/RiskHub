@@ -13,6 +13,7 @@ interface ClarificationThreadProps {
     onStartResponse: (clarificationId: number) => void;
     onCancelResponse: () => void;
     respondingClarificationId: number | null;
+    responding: boolean;
     responseMessage: string;
     t: TranslateFn;
 }
@@ -26,6 +27,7 @@ export function ClarificationThread({
     onStartResponse,
     onCancelResponse,
     respondingClarificationId,
+    responding,
     responseMessage,
     t,
 }: ClarificationThreadProps) {
@@ -89,17 +91,18 @@ export function ClarificationThread({
                                         <div className="flex items-center justify-end gap-2">
                                             <button
                                                 onClick={onCancelResponse}
+                                                disabled={responding}
                                                 className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
                                             >
                                                 {t('common:actions.cancel')}
                                             </button>
                                             <button
                                                 onClick={() => onRespond(clarification.id)}
-                                                disabled={responseMessage.trim() === ''}
+                                                disabled={responding || responseMessage.trim() === ''}
                                                 className={cn(
                                                     'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all',
                                                     'bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50',
-                                                    responseMessage.trim() === '' && 'opacity-50 cursor-not-allowed',
+                                                    (responding || responseMessage.trim() === '') && 'opacity-50 cursor-not-allowed',
                                                 )}
                                             >
                                                 {t('common:actions.submit')}

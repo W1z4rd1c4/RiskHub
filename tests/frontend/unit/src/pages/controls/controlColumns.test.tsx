@@ -11,7 +11,6 @@ describe('buildControlColumns', () => {
         ));
         const columns = buildControlColumns({
             onRestore: vi.fn(),
-            pendingApprovalIds: new Set(),
             translate,
         });
         const frequencyColumn = columns.find((column) => column.key === 'frequency');

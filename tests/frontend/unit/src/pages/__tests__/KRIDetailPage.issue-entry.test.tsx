@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ApiClientError } from '@/services/apiClient';
@@ -8,6 +8,7 @@ const mockNavigate = vi.fn();
 const mockGetKRI = vi.fn();
 const mockGetHistory = vi.fn();
 const mockGetRisk = vi.fn();
+const mockDeleteKRI = vi.fn();
 let canIssueWrite = true;
 
 vi.mock('react-router-dom', async () => {
@@ -29,6 +30,7 @@ vi.mock('@/services/kriApi', () => ({
     kriApi: {
         getKRI: (...args: unknown[]) => mockGetKRI(...args),
         getHistory: (...args: unknown[]) => mockGetHistory(...args),
+        deleteKRI: (...args: unknown[]) => mockDeleteKRI(...args),
     },
 }));
 
@@ -87,10 +89,12 @@ describe('KRIDetailPage issue entry', () => {
             last_period_end: '2026-02-01T00:00:00Z',
             capabilities: {
                 can_create_issue: canIssueWrite,
+                can_archive_immediately: true,
             },
         }));
         mockGetHistory.mockResolvedValue({ items: [], total: 0 });
         mockGetRisk.mockResolvedValue({ id: 8, name: 'Claims Ops Risk' });
+        mockDeleteKRI.mockResolvedValue(undefined);
     });
 
     it('shows create-issue action and opens contextual modal with KRI metric name', async () => {
@@ -127,5 +131,29 @@ describe('KRIDetailPage issue entry', () => {
         expect(screen.queryByRole('heading', { name: /access denied/i })).not.toBeInTheDocument();
         expect(screen.queryByText('KRI Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the KRI archive rationale and error inside the dialog after rejection', async () => {
+        mockDeleteKRI.mockRejectedValueOnce(new Error('rejected'));
+        render(<KRIDetailPage />);
+        await screen.findAllByText('Claims Leakage Ratio');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        const dialog = screen.getByRole('alertdialog');
+        const reason = within(dialog).getByRole('textbox', { name: /reason/i });
+        fireEvent.change(reason, { target: { value: 'Exact KRI rationale' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Delete KRI' }));
+
+        expect(await within(dialog).findByRole('alert')).toBeInTheDocument();
+        expect(reason).toHaveValue('Exact KRI rationale');
+        expect(mockDeleteKRI).toHaveBeenCalledWith(21, 'Exact KRI rationale');
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        const reopenedDialog = screen.getByRole('alertdialog');
+        expect(within(reopenedDialog).queryByRole('alert')).not.toBeInTheDocument();
+        expect(within(reopenedDialog).getByRole('textbox', { name: /reason/i })).toHaveValue('');
     });
 });

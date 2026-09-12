@@ -157,4 +157,20 @@ describe('ArchiveConfirmDialog accessibility', () => {
         expect(error).toBeInTheDocument();
         expect(dialog).toHaveAccessibleDescription(/This field is required\./);
     });
+
+    it('keeps the submitted rationale and dialog available when archiving fails', async () => {
+        const user = userEvent.setup();
+        renderArchiveDialog({
+            onConfirm: vi.fn().mockRejectedValue(new Error('rejected')),
+        });
+
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive Control' });
+        const reason = within(dialog).getByRole('textbox', { name: /Reason for Archiving/ });
+        await user.type(reason, 'Exact control rationale');
+        await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
+
+        expect(await within(dialog).findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+        expect(reason).toHaveValue('Exact control rationale');
+        expect(screen.getByRole('alertdialog', { name: 'Archive Control' })).toBeInTheDocument();
+    });
 });

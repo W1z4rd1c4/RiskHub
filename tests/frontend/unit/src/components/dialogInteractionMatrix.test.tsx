@@ -342,8 +342,8 @@ const approvalFixture = {
     resource_type: 'risk',
     resource_id: 1,
     resource_name: 'Authentication Drift',
-    action_type: 'update',
-    pending_changes: null,
+    action_type: 'edit',
+    pending_changes: { name: { old: 'Authentication Drift', new: 'Authentication Drift Review' } },
     status: 'pending',
     reason: 'needs review',
     requested_by_id: 2,
@@ -356,6 +356,7 @@ const approvalFixture = {
     created_at: '2026-02-01T00:00:00Z',
     can_approve: true,
     can_reject: true,
+    capabilities: { can_view_pending_changes: true },
 } as unknown as ApprovalRequest;
 
 const riskFixture = {
@@ -425,6 +426,7 @@ function ApprovalResolutionSurface({ onClose }: { onClose: () => void }) {
         <ApprovalResolutionDialog
             selectedApproval={approvalFixture}
             dialogMode="approve"
+            locale="en"
             resolutionNotes=""
             errorText={null}
             isSubmitting={false}
@@ -759,6 +761,7 @@ const departmentLookupFixture = {
 const riskFiltersFixture = {
     processes: ['User Authentication'],
     categories: ['IT'],
+    subprocesses_by_process: { 'User Authentication': ['Access Review'] },
 };
 
 const departmentHubFixture = {

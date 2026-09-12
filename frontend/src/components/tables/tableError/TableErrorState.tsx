@@ -31,7 +31,7 @@ export function TableErrorState({
             onClick={onRetry}
             disabled={isRetrying}
             className={cn(
-                'flex items-center gap-2 rounded-lg bg-accent/20 px-4 py-2 text-accent transition-colors hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50',
+                'flex items-center gap-2 rounded-lg bg-accent/20 px-4 py-2 text-accent-text transition-colors hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50',
                 variant === 'block' && 'mx-auto',
             )}
         >
