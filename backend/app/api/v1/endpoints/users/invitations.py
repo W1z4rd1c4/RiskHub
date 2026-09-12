@@ -1,14 +1,20 @@
 """Admin-only local enrollment and nonsecret status adapters."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.api.v1.endpoints.auth._local_transport import SafeAuthRoute, native_context, native_read_context
+from app.api.v1.endpoints.auth._local_transport import (
+    SafeAuthRoute,
+    browser_binding,
+    native_context,
+    native_read_context,
+)
 from app.db.session import get_db
 from app.models import User
 from app.schemas.local_auth import (
     AcceptedResponse,
+    AssistedRecoveryRequest,
     CompletedResponse,
     InvitationRequest,
     InvitationResponse,
@@ -75,3 +81,18 @@ async def status(
     db: AsyncSession = Depends(get_db),
 ):
     return await identity_status(db, ctx, actor, user_id=user_id)
+
+
+@router.post("/{user_id}/recovery", response_model=AcceptedResponse, status_code=202)
+async def request_recovery(
+    user_id: int,
+    data: AssistedRecoveryRequest,
+    request: Request,
+    ctx: NativeContext = Depends(native_context),
+    actor: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services._local_auth.recovery import assisted_recovery
+
+    await assisted_recovery(db, ctx, actor, target_id=user_id, data=data, browser=browser_binding(request))
+    return AcceptedResponse()

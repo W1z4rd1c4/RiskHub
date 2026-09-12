@@ -495,14 +495,14 @@ async def test_wrong_browser_wrong_purpose_expiry_and_enrollment_replay(
         challenge = result.json()["challenge"]
         saved = client.cookies.get("riskhub_local_challenge")
         client.cookies.delete(
-            "riskhub_local_challenge", domain="test.local", path="/api/v1/auth"
+            "riskhub_local_challenge", domain="test.local", path="/api/v1"
         )
         result = await client.post(
             "/api/v1/auth/local/mfa/setup", json={"challenge": challenge}
         )
         assert result.status_code == 401
         client.cookies.set(
-            "riskhub_local_challenge", saved, domain="test.local", path="/api/v1/auth"
+            "riskhub_local_challenge", saved, domain="test.local", path="/api/v1"
         )
         result = await client.post(
             "/api/v1/auth/local/enrollment/start",

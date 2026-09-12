@@ -15,6 +15,9 @@ closed until #208. There is no separate app-session model here.
 | `credentials.py` | Reset/change and verified address changes using common authority revocation |
 | `delivery.py` | Encrypted delivery envelopes dispatched through the existing outbox over verified TLS SMTP |
 | `admin.py` | Admin reset-link requests and nonsecret delivery/enrollment status |
+| `factor_management.py` | Pending replacement and atomic recovery-code replacement |
+| `recovery.py`, `recovery_policy.py`, `recovery_approvals.py` | Restricted recovery and exact dual-approved operator authority |
+| `key_rotation.py`, `operator_io.py` | Locked re-encryption, actual key verification and operator output |
 | `sessions.py` | Validate native authentication metadata on the common JWT/refresh lineage |
 
 Lock order: lifecycle administration/ownership guards (only when needed) → User

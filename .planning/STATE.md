@@ -58,5 +58,7 @@ availability. See [identity foundations](../docs/security/identity-foundations.m
 The native credential layer now implements Argon2id, invite-only enrollment, optional
 or required MFA on shared sessions, and user password change/reset plus verified email
 changes. SMTP delivery uses the outbox and native startup requires Redis even in debug.
-Full native UI/installer, recovery and production acceptance remain subsequent groups;
+Factor replacement, restricted assisted/offline recovery and key rotation extend that
+layer, with recovery-pending accounts denied ordinary authority. Full native UI/installer
+and production acceptance remain subsequent groups;
 see [native credentials](../docs/security/identity-local-credentials.md).

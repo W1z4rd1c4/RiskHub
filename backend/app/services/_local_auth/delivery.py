@@ -25,13 +25,21 @@ from .common import NativeContext, native_identity_selected
 from .keys import LocalKeyring, read_secret_file, unavailable
 
 _TITLES = {
+    "recovery": "RiskHub account recovery",
+    "recovery_email": "Verify your RiskHub recovery address",
     "invitation": "RiskHub account invitation",
     "reset": "RiskHub password recovery",
     "email": "Verify your RiskHub email address",
     "email_requested": "RiskHub email change requested",
     "credentials_changed": "RiskHub account security changed",
 }
-_ROUTES = {"invitation": "enroll", "reset": "reset-password", "email": "verify-email"}
+_ROUTES = {
+    "invitation": "enroll",
+    "reset": "reset-password",
+    "email": "verify-email",
+    "recovery": "recover",
+    "recovery_email": "recover-email",
+}
 
 
 def validate_mail_configuration(settings: Settings) -> None:

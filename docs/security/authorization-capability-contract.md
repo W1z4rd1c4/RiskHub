@@ -26,6 +26,22 @@ migration/rollback limits are specified in [ADR-018](../adr/ADR-018-identity-fou
 and [identity foundations](./identity-foundations.md). Native production remains
 unavailable until #208; this is not a second authentication or authorization system.
 
+## Native recovery — 2026-09-12
+
+Factor replacement and recovery-code regeneration require single-use recent proofs.
+Ordinary assisted recovery requires an active platform admin and a proof bound to
+the target, expected authority version, operation and proposed address. Admin/CRO
+and global access/recovery-management targets require two independent signed offline
+approvals under maintenance. The sole last-admin exception issues a restricted grant
+for the existing User, without changing role, scope or business ownership.
+
+`local_recovery_pending` denies login, refresh and bearer authority under both MFA
+policies. Recovery cannot clear local suspension. Completion verifies current locked
+authority, the approved password/address changes and a new factor, then revokes all
+old sessions and artifacts atomically. Browser proof binding covers `/api/v1` so the
+admin recovery adapter can verify the same protected cookie. Native production
+admission remains closed until #208. See [the operator contract](identity-recovery.md).
+
 ## Native credentials — 2026-09-12
 
 Group 2 (#197–#200) implements native password/none identity as a component-tested,
@@ -46,7 +62,7 @@ password proof plus a factor when enabled or required, bound to the exact operat
 not remove MFA. All completed changes invalidate old sessions and outstanding grants
 transactionally through the existing auth workflow. No new business role, permission,
 or frontend action gate is introduced. Group 3 capability publication and assisted
-recovery remain separate; native production admission stays closed until #208.
+recovery use the dedicated [recovery contract](identity-recovery.md); native production admission stays closed until #208.
 
 See [native credential implementation](./identity-local-credentials.md), the generated
 [wire contract](./identity-local-auth.openapi.json), and public regression tests in

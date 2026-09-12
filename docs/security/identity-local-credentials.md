@@ -55,8 +55,8 @@ Generate every key independently with a cryptographic random generator. Do not
 reuse JWT SECRET_KEY or reuse one purpose's key in another purpose. Mount/read as
 the service user with owner-only permissions. Key IDs and purpose/installation/
 User/artifact context are authenticated by AES-GCM or a purpose-separated HMAC.
-Unknown/missing/corrupt keys fail closed. Automated key rotation and privileged
-lost-factor recovery belong to #201; do not remove an active factor to recover
+Unknown/missing/corrupt keys fail closed. Use the [factor recovery and key-rotation runbook](identity-recovery.md) for
+automated rotation and privileged lost-factor recovery; do not remove an active factor to recover
 access. Retain protected key backups separately from ordinary database backups.
 
 ## Deployment policy and account ownership
@@ -207,9 +207,9 @@ a real Redis instance when `TEST_REDIS_URL` is set. Skipped external infrastruct
 checks are not acceptance evidence. The PR records commands and exact candidate
 identity; no result in this document is inferred from a test's existence.
 
-Group 3 reuses these interfaces for assisted recovery/key rotation (#201), directory
-isolation/capabilities (#202), privileged bootstrap (#203) and installer selection
-(#204). Group 4 implements UI, safe restore and final production admission. Do not
+The [recovery backend](identity-recovery.md) extends these interfaces with factor
+replacement, governed recovery and key rotation. Directory isolation/capabilities
+(#202), privileged bootstrap (#203) and installer selection (#204) are subsequent deliveries. Group 4 implements UI, safe restore and final production admission. Do not
 replay bootstrap, reset factors through SQL, add hybrid fallback, or recreate another
 session/crypto/mail framework. Rollback must retain Argon2/factor decryptability,
 suspension and all revocations, or disable native authentication and roll forward

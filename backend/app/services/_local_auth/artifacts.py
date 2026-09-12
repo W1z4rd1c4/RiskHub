@@ -38,8 +38,9 @@ async def issue_grant(
     browser: str | None = None,
     generation: str | None = None,
     context: dict | None = None,
+    grant_id: str | None = None,
 ) -> tuple[LocalAuthGrant, str]:
-    selector, secret = uuid4().hex, secrets.token_urlsafe(32)
+    selector, secret = grant_id or uuid4().hex, secrets.token_urlsafe(32)
     row = LocalAuthGrant(
         id=selector,
         user_id=user.id,

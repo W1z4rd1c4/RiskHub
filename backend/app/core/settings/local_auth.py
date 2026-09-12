@@ -8,6 +8,7 @@ from pydantic import Field
 class LocalAuthSettingsMixin:
     public_url: str | None = None
     local_auth_keyring_file: str | None = Field(default=None, repr=False, exclude=True)
+    local_recovery_approvers_file: str | None = Field(default=None, repr=False, exclude=True)
     local_password_blocklist_file: str | None = None
     # Total deployment KDF allowance: two bounded 64-MiB jobs per API process.
     local_kdf_memory_budget_mib: int = Field(default=1024, ge=128, le=65536)

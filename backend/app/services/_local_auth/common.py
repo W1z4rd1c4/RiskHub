@@ -78,7 +78,10 @@ async def build_context(db: AsyncSession, *, settings: Settings, redis, source: 
 
 
 def local_user_ready(user: User, *, enrollment: bool = False) -> bool:
-    if user.external_id is not None or user.local_suspended or user.local_email_verified_at is None:
+    if (
+        user.external_id is not None or user.local_suspended or user.local_recovery_pending
+        or user.local_email_verified_at is None
+    ):
         return False
     if enrollment:
         return user.local_enrollment_state == "password_set"
@@ -96,7 +99,8 @@ async def atomic_local_work(db: AsyncSession) -> AsyncIterator[None]:
 
 
 async def audit_local(
-    db: AsyncSession, user: User | None, event: str, *, actor: User | None = None, reason: str | None = None
+    db: AsyncSession, user: User | None, event: str, *, actor: User | None = None,
+    reason: str | None = None, evidence: dict | None = None
 ) -> None:
     await log_activity(
         db=db,
@@ -108,7 +112,7 @@ async def audit_local(
         description=event,
         safe_description=event,
         safe_description_siem=event,
-        changes={"security_event": event, **({"reason": reason} if reason is not None else {})},
+        changes={"security_event": event, **({"reason": reason} if reason is not None else {}), **(evidence or {})},
     )
 
 

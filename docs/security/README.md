@@ -27,3 +27,6 @@ Canonical security policy and reporting documentation for RiskHub.
 
 [Native credentials and MFA](identity-local-credentials.md) documents group 2 inputs,
 proof/session boundaries, delivery, verification and the still-closed production gate.
+
+[Factor recovery and key operations](identity-recovery.md) documents self-service
+replacement, assisted recovery, dual-approved operator recovery and key rotation.

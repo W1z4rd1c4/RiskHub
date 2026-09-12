@@ -46,11 +46,29 @@
       "AssistedRecoveryRequest": {
         "additionalProperties": false,
         "properties": {
+          "expected_token_version": {
+            "minimum": 0,
+            "title": "Expected Token Version",
+            "type": "integer"
+          },
           "incident_reference": {
             "maxLength": 255,
             "minLength": 1,
             "title": "Incident Reference",
             "type": "string"
+          },
+          "new_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "New Email"
           },
           "operation": {
             "enum": [
@@ -83,6 +101,7 @@
           }
         },
         "required": [
+          "expected_token_version",
           "recent_auth_proof",
           "incident_reference",
           "verification_method",
@@ -219,6 +238,22 @@
       },
       "FactorEnrollmentResponse": {
         "properties": {
+          "notification_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Notification Status"
+          },
           "recovery_codes": {
             "items": {
               "type": "string"
@@ -482,6 +517,11 @@
             "title": "Local Suspended",
             "type": "boolean"
           },
+          "recovery_pending": {
+            "default": false,
+            "title": "Recovery Pending",
+            "type": "boolean"
+          },
           "user_id": {
             "exclusiveMinimum": 0,
             "title": "User Id",
@@ -654,6 +694,19 @@
       "RecentAuthenticationRequest": {
         "additionalProperties": false,
         "properties": {
+          "expected_token_version": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Token Version"
+          },
           "factor": {
             "anyOf": [
               {
@@ -697,6 +750,19 @@
             ],
             "default": null,
             "title": "Intended Password"
+          },
+          "intended_recovery_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intended Recovery Email"
           },
           "intended_recovery_operation": {
             "anyOf": [
@@ -765,6 +831,8 @@
             "anyOf": [
               {
                 "format": "password",
+                "maxLength": 128,
+                "minLength": 1,
                 "type": "string",
                 "writeOnly": true
               },
@@ -787,6 +855,8 @@
             "anyOf": [
               {
                 "format": "password",
+                "maxLength": 128,
+                "minLength": 1,
                 "type": "string",
                 "writeOnly": true
               },
@@ -796,6 +866,22 @@
             ],
             "default": null,
             "title": "New Password"
+          },
+          "verified_email_grant": {
+            "anyOf": [
+              {
+                "format": "password",
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Verified Email Grant"
           }
         },
         "required": [
@@ -1085,6 +1171,37 @@
         "x-authentication": "invitation grant",
         "x-handler-implemented": true,
         "x-implementation-issue": 198,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/factor/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bound replacement challenge",
+        "x-handler-implemented": false,
+        "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
       }

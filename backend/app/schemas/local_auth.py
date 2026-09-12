@@ -54,6 +54,8 @@ class RecentAuthenticationRequest(LocalRequest):
     ]
     intended_password: SecretStr | None = Field(default=None, max_length=128)
     intended_email: EmailStr | None = None
+    expected_token_version: Annotated[int, Field(strict=True, ge=0)] | None = None
+    intended_recovery_email: EmailStr | None = None
     intended_recovery_operation: (
         Literal["factor_recovery", "credential_and_factor_recovery", "verified_address_recovery"] | None
     ) = None
@@ -67,6 +69,11 @@ class RecentAuthenticationRequest(LocalRequest):
         }
         if self.operation in required and required[self.operation] is None:
             raise ValueError("The exact intended change is required for recent authentication")
+        if self.operation == "assisted_recovery":
+            if self.expected_token_version is None:
+                raise ValueError("Expected target authority version is required")
+            if self.intended_recovery_operation == "verified_address_recovery" and self.intended_recovery_email is None:
+                raise ValueError("The proposed verified address is required")
         return self
 
 
@@ -98,6 +105,8 @@ class InvitationRequest(LocalRequest):
 
 
 class AssistedRecoveryRequest(LocalRequest):
+    expected_token_version: Annotated[int, Field(strict=True, ge=0)]
+    new_email: EmailStr | None = None
     recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
     incident_reference: str = Field(min_length=1, max_length=255)
     verification_method: str = Field(min_length=1, max_length=255)
@@ -126,6 +135,7 @@ class FactorSetupResponse(BaseModel):
 class FactorEnrollmentResponse(BaseModel):
     status: Literal["enrolled"] = "enrolled"
     recovery_codes: list[str] = Field(repr=False)
+    notification_status: Literal["pending", "failed"] | None = None
     # Enrollment completion need not also create a full app session. Login may follow.
 
 
@@ -139,6 +149,7 @@ class LocalIdentityStatusResponse(BaseModel):
     user_id: UserId
     enrollment_state: Literal["invited", "password_set", "enrolled"] | None
     local_suspended: bool
+    recovery_pending: bool = False
     is_active: bool
     delivery_status: Literal["pending", "sent", "failed", "expired", "cancelled"] | None
 
@@ -149,8 +160,9 @@ class ReasonRequest(LocalRequest):
 
 class RecoveryStartRequest(LocalRequest):
     grant: SecretStr = Field(min_length=1, max_length=1024)
-    current_password: SecretStr | None = None
-    new_password: SecretStr | None = None
+    current_password: SecretStr | None = Field(default=None, min_length=1, max_length=128)
+    new_password: SecretStr | None = Field(default=None, min_length=1, max_length=128)
+    verified_email_grant: SecretStr | None = Field(default=None, min_length=1, max_length=1024)
 
 
 class AcceptedResponse(BaseModel):
@@ -229,6 +241,9 @@ LOCAL_ENDPOINT_CONTRACTS = (
     ),
     LocalEndpointContract(
         "/auth/local/factor/replace", FactorReplacementRequest, FactorSetupResponse, "bearer + recent proof", 201
+    ),
+    LocalEndpointContract(
+        "/auth/local/factor/confirm", FactorVerifyRequest, FactorEnrollmentResponse, "bound replacement challenge", 201
     ),
     LocalEndpointContract(
         "/auth/local/recovery-codes/regenerate",

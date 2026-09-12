@@ -119,7 +119,9 @@ enrollment before the current last effective administrator can be suspended.
 
 Users manage their own passwords through authenticated change or email reset.
 A reset invalidates old sessions and retains enrolled MFA. It cannot recover a lost
-factor; follow the approved recovery process when that becomes available. Native email
+factor; the [native recovery procedure](../security/identity-recovery.md) requires
+independent identity verification and separate offline approval for privileged accounts.
+Recovery-pending accounts stay unable to sign in, and recovery never clears a suspension. Native email
 changes require mailbox verification. See the
 native credential operator guide for API and
 operator details while the screens are being delivered.
