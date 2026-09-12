@@ -35,7 +35,8 @@ runs:
         assert livez == {"status": "alive"}
 
         readyz = json.loads(Path(".ci-artifacts/startup-smoke/readyz.json").read_text(encoding="utf-8"))
-        assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}
+        assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}
+        assert readyz["external_directory"] == "unchecked"
         assert readyz["ready"] is True
         assert readyz["database"] == "connected"
         assert readyz["redis"] in {"connected", "disabled"}
@@ -43,7 +44,8 @@ runs:
         assert readyz["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}
 
         health = json.loads(Path(".ci-artifacts/startup-smoke/health.json").read_text(encoding="utf-8"))
-        assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}
+        assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}
+        assert health["external_directory"] == "unchecked"
         assert health["status"] == "healthy"
         assert health["ready"] is True
         assert health["database"] == "connected"
