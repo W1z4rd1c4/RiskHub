@@ -10,6 +10,7 @@
  * - Cannot cancel terminal states (approved/rejected/cancelled)
  */
 import { test, expect, DEMO_ACCOUNTS } from '../fixtures/auth.fixture';
+import { E2E_APPROVALS } from '../fixtures/e2e-data';
 import { ApprovalsPage } from '../pages/ApprovalsPage';
 import { loginAsDemoUser } from '../helpers/login';
 
@@ -97,25 +98,17 @@ test.describe('Self-Approval Prevention & Cancellation', () => {
             await employeeContext.close();
         });
 
-        test('Privileged user can cancel any pending request', async ({ riskManagerPage }) => {
+        test('Privileged resolver sees cancellation on an independent legacy request', async ({ riskManagerPage }) => {
             const approvalsPage = new ApprovalsPage(riskManagerPage);
             await approvalsPage.navigate();
 
-            const count = await approvalsPage.getApprovalCount();
-            if (count === 0) {
-                test.skip();
-                return;
-            }
-
-            // Risk Manager may or may not have cancel ability depending on implementation
-            // The focus here is that privileged users have resolve ability
-            const status = await approvalsPage.getStatus(0);
-            if (status === 'pending' || status === 'pending_privileged') {
-                const hasApprove = await approvalsPage.isApproveButtonVisible(0);
-                const hasReject = await approvalsPage.isRejectButtonVisible(0);
-                expect(hasApprove).toBe(true);
-                expect(hasReject).toBe(true);
-            }
+            // Governed proposals and own requests have different resolver contracts.
+            const index = await approvalsPage.findCardByReason(E2E_APPROVALS.PENDING_RISK_DELETE.reason);
+            expect(index).toBeGreaterThanOrEqual(0);
+            await approvalsPage.expectStatus(index, E2E_APPROVALS.PENDING_RISK_DELETE.status);
+            expect(await approvalsPage.isCancelButtonVisible(index)).toBe(true);
+            expect(await approvalsPage.isApproveButtonVisible(index)).toBe(true);
+            expect(await approvalsPage.isRejectButtonVisible(index)).toBe(true);
         });
 
         test('Cannot cancel terminal states (approved/rejected/cancelled)', async ({ riskManagerPage }) => {
