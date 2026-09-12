@@ -194,7 +194,18 @@ def test_preflight_db_probe_attaches_stdin_and_propagates_probe_failure(
     secret_dir.mkdir()
     runtime_dir.mkdir()
     backend_env = tmp_path / "backend.env"
-    backend_env.write_text("DATABASE_URL=postgresql://unreachable\n", encoding="utf-8")
+    database_secret = secret_dir / "database_url"
+    database_secret.write_text("postgresql://unreachable\n", encoding="utf-8")
+    database_secret.chmod(0o600)
+    backend_env.write_text(
+        "PUBLIC_URL=https://riskhub.example.com\n"
+        "ENTRA_TENANT_ID=11111111-1111-4111-8111-111111111111\n"
+        "ENTRA_CLIENT_ID=22222222-2222-4222-8222-222222222222\n"
+        "BOOTSTRAP_ADMIN_EMAIL=admin@example.com\n"
+        "BOOTSTRAP_CRO_EMAIL=cro@example.com\n"
+        f"DATABASE_URL_FILE={database_secret}\n",
+        encoding="utf-8",
+    )
     captured_stdin = tmp_path / "docker.stdin"
 
     docker = bin_dir / "docker"
@@ -218,6 +229,7 @@ run() { "$@"; }
 log() { :; }
 die() { printf '%s\n' "$*" >&2; return 1; }
 require_file() { test -f "$1"; }
+source "$IDENTITY_MOUNTS_LIB"
 source "$PREFLIGHT_LIB"
 preflight_check_db_connectivity "$BACKEND_ENV" fake-backend-image
 """,
@@ -228,6 +240,9 @@ preflight_check_db_connectivity "$BACKEND_ENV" fake-backend-image
             "PATH": f"{bin_dir}:{os.environ['PATH']}",
             "PREFLIGHT_LIB": str(
                 REPO_ROOT / "scripts" / "prod" / "lib" / "preflight.sh"
+            ),
+            "IDENTITY_MOUNTS_LIB": str(
+                REPO_ROOT / "scripts" / "prod" / "lib" / "identity_mounts.sh"
             ),
             "BACKEND_ENV": str(backend_env),
             "SECRET_DIR": str(secret_dir),
