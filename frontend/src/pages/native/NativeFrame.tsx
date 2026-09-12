@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { activateLanguage, normalizeSupportedLanguage, STORAGE_KEY } from '@/i18n';
+import { normalizeSupportedLanguage } from '@/i18n';
 import { Field } from '@/components/ui/field';
 import { useTranslation } from '@/i18n/hooks';
 import type { NativeErrorKind } from '@/services/nativeAuthApi';
+import { selectLocalLanguage } from '@/utils/userSettingsStorage';
 
 export function NativeFrame({ title, children, error, pending }: {
     title: string; children: ReactNode; error?: NativeErrorKind | 'expired' | null; pending?: boolean;
@@ -29,9 +30,8 @@ export function NativeFrame({ title, children, error, pending }: {
                     languageFlight.current = controller;
                     const language = normalizeSupportedLanguage(event.target.value);
                     setLanguagePending(true); setLanguageError(false);
-                    void activateLanguage(i18n, language, controller.signal).then(() => {
-                        if (!controller.signal.aborted) localStorage.setItem(STORAGE_KEY, language);
-                    }).catch(() => { if (!controller.signal.aborted) setLanguageError(true); })
+                    void selectLocalLanguage(i18n, language, controller.signal)
+                        .catch(() => { if (!controller.signal.aborted) setLanguageError(true); })
                         .finally(() => { if (!controller.signal.aborted) setLanguagePending(false); });
                 }}><option value="en">{t('native.english')}</option><option value="cs">{t('native.czech')}</option></select>}
             </Field>

@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { matchPath } from 'react-router-dom';
 
 import type { AppRouteDef } from './types';
 
@@ -15,6 +16,10 @@ export const nativePublicRoutes: AppRouteDef[] = [
     { key: 'native-security', path: '/auth/local/security', element: <NativeSecurityPage key="security" /> },
     { key: 'native-verify-email', path: '/auth/local/verify-email', element: <NativeSecurityPage key="verify-email" /> },
 ];
+
+export function resolveNativeRoute(pathname: string): AppRouteDef | undefined {
+    return nativePublicRoutes.find((route) => route.path && matchPath(route.path, pathname));
+}
 
 export const publicRoutes: AppRouteDef[] = [
     ...nativePublicRoutes,

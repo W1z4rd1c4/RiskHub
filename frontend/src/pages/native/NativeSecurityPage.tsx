@@ -5,6 +5,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { resolveNativeRoute } from '@/routing/public';
 import { nativeAuthApi, NativeAuthError } from '@/services/nativeAuthApi';
 import { getSessionOwnershipSnapshot, isSessionOwnershipCurrent, useSessionSnapshot } from '@/services/session';
 import type { FactorSetupResponse, LocalAuthChallenge, RecentAuthenticationRequest } from '@/types/localAuth.generated';
@@ -25,7 +26,7 @@ export default function NativeSecurityPage() {
     const navigate = useNavigate();
     const session = useSessionSnapshot();
     const [grant, setGrant] = useFragmentCredential();
-    const verifyingEmail = location.pathname.endsWith('/verify-email');
+    const verifyingEmail = resolveNativeRoute(location.pathname)?.key === 'native-verify-email';
     const [operation, setOperation] = useState<Operation>(verifyingEmail ? 'email_change' : 'password_change');
     const [account, setAccount] = useState<Account | null>(null);
     const [accountError, setAccountError] = useState(false);
@@ -39,6 +40,7 @@ export default function NativeSecurityPage() {
     const [notificationFailed, setNotificationFailed] = useState(false);
     const [codes, setCodes] = useState<string[] | null>(null);
     const [completed, setCompleted] = useState(false);
+    const [unchanged, setUnchanged] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
     const [uncertain, setUncertain] = useState(false);
     const action = useNativeAction(() => { setPassword(''); setFactor(''); setNewPassword(''); setEmail(''); setCodes(null); setAccount(null); setGrant(''); });
@@ -63,7 +65,7 @@ export default function NativeSecurityPage() {
         const currentFactor = factor;
         const intendedPassword = newPassword;
         const intendedEmail = email;
-        setPassword(''); setFactor(''); setNewPassword('');
+        setPassword(''); setFactor(''); setNewPassword(''); setUnchanged(false);
         void action.run(async (signal) => {
             const options = { token, signal };
             const proof = await nativeAuthApi.recentAuth({
@@ -86,6 +88,7 @@ export default function NativeSecurityPage() {
             if ('challenge' in result) setChallenge({ value: result, mode: operation === 'factor_enroll' ? 'enrollment' : 'replacement', token });
             else if ('recovery_codes' in result) { action.clearSession(); setNotificationFailed(result.notification_status === 'failed'); setCodes(result.recovery_codes); }
             else if (result.status === 'accepted') setEmailSent(true);
+            else if (operation === 'password_change' && result.reauthentication_required === false) setUnchanged(true);
             else { setGrant(''); action.clearSession(); setCompleted(true); }
         }, (kind) => {
             if (kind === 'uncertain' || kind === 'unavailable') { setGrant(''); setUncertain(true); action.clearSession(); }
@@ -109,6 +112,7 @@ export default function NativeSecurityPage() {
     }
     const enabled = config.authConfig?.identity?.mode === 'native' && canManage;
     return <NativeFrame title={t(verifyingEmail ? 'native.email_confirm_title' : 'native.security_title')} pending={action.pending || config.isAuthConfigLoading} error={action.error}>
+        {unchanged && <p role="status">{t('native.password_unchanged')}</p>}
         {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
             !config.isAuthConfigLoading && !enabled ? <p role="alert">{t('native.errors.forbidden')}</p> :
                 accountError ? <><p role="alert">{t('native.errors.unavailable')}</p><Button onClick={() => setRetry((value) => value + 1)}>{t('native.retry')}</Button></> :

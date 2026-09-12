@@ -14,7 +14,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PrincipalQueryBoundary } from '@/contexts/PrincipalQueryBoundary';
-import { nativePublicRoutes, publicRoutes } from '@/routing/public';
+import { resolveNativeRoute, publicRoutes } from '@/routing/public';
 import type { AppRouteDef } from '@/routing/types';
 
 const ProtectedApplication = lazy(() => import('@/ProtectedApplication'));
@@ -104,7 +104,7 @@ export function RouteScope({ children }: { children: ReactNode }) {
       </ThemeProvider>
     </LanguageProvider>
   );
-  if (nativePublicRoutes.some((route) => route.path === location.pathname)) return presentation;
+  if (resolveNativeRoute(location.pathname)) return presentation;
   return <PrincipalQueryBoundary principalId={user?.id ?? null}>{presentation}</PrincipalQueryBoundary>;
 }
 

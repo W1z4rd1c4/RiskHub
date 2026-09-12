@@ -6,6 +6,9 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { RouteScope } from '@/App';
 import { StrictMode, useState } from 'react';
 import { NativeFactor } from '@/pages/native/NativeFactor';
+import { NativeFrame } from '@/pages/native/NativeFrame';
+import { preferencesApi } from '@/services/preferencesApi';
+import { syncPreferencesFromServer } from '@/utils/userSettingsStorage';
 import type { NativeErrorKind } from '@/services/nativeAuthApi';
 import NativePublicPage from '@/pages/native/NativePublicPage';
 import NativeSecurityPage from '@/pages/native/NativeSecurityPage';
@@ -68,11 +71,12 @@ function renderNative() {
 }
 
 describe('Native login authority', () => {
-    afterEach(() => {
+    afterEach(async () => {
         vi.restoreAllMocks();
         window.history.replaceState(null, '', '/');
         clearAuthConfigCache();
         __resetSessionStoreForTests();
+        await i18n.changeLanguage('en');
     });
 
     it('keeps a password challenge anonymous while factor verification is pending', async () => {
@@ -141,14 +145,14 @@ describe('Native login authority', () => {
         expect(screen.getByLabelText(/^password/i)).toHaveValue('');
     });
 
-    it('captures an invitation once in StrictMode and redeems only on explicit submission', async () => {
+    it.each(['/auth/local/enroll', '/auth/local/enroll/', '/AUTH/LOCAL/ENROLL'])('captures an invitation once and explicitly redeems accepted route %s', async (path) => {
         const requests: unknown[] = [];
         window.history.replaceState(null, '', '/auth/local/enroll#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
         server.use(
             http.get('*/api/v1/auth/config', () => HttpResponse.json({ ...nativeConfig, local_mfa_policy: 'optional' })),
             http.post('*/api/v1/auth/local/enrollment/start', async ({ request }) => { requests.push(await request.json()); return HttpResponse.json({ status: 'completed' }, { status: 202 }); }),
         );
-        renderFlow('/auth/local/enroll');
+        renderFlow(path);
         const password = await screen.findByLabelText(/new password/i);
         expect(window.location.hash).toBe('');
         expect(requests).toEqual([]);
@@ -176,6 +180,7 @@ describe('Native login authority', () => {
     });
 
     it('does not replay a reset after a lost single-use response', async () => {
+        signedIn();
         let calls = 0;
         window.history.replaceState(null, '', '/auth/local/reset-password#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
         server.use(
@@ -215,7 +220,7 @@ describe('Native login authority', () => {
         expect(getSessionSnapshot().user).toBeNull();
     });
 
-    it('requires an enabled factor under optional policy and retains display-once codes after logout', async () => {
+    it.each(['/auth/local/security', '/auth/local/security/', '/AUTH/LOCAL/SECURITY'])('retains display-once codes after logout at accepted route %s', async (path) => {
         signedIn();
         server.use(
             http.get('*/api/v1/auth/config', () => HttpResponse.json({ ...nativeConfig, local_mfa_policy: 'optional' })),
@@ -223,7 +228,7 @@ describe('Native login authority', () => {
             http.post('*/api/v1/auth/local/recent-auth', () => HttpResponse.json({ proof: 'codes-proof', expires_in: 300 })),
             http.post('*/api/v1/auth/local/recovery-codes/regenerate', () => HttpResponse.json({ status: 'enrolled', recovery_codes: ['private-code-one', 'private-code-two'] })),
         );
-        renderFlow('/auth/local/security', true);
+        renderFlow(path, true);
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText(/what would you like/i), 'recovery_codes');
         await user.type(screen.getByLabelText(/^password/i), 'current password 123');
@@ -234,6 +239,37 @@ describe('Native login authority', () => {
         await user.click(screen.getByRole('button', { name: /I have saved my codes/i }));
         await screen.findByText('Normal login');
         expect(screen.queryByText('private-code-one')).not.toBeInTheDocument();
+    });
+
+    it('preserves the session and reports an unchanged password truthfully', async () => {
+        signedIn();
+        server.use(
+            http.get('*/api/v1/auth/config', () => HttpResponse.json({ ...nativeConfig, local_mfa_policy: 'optional' })),
+            http.get('*/api/v1/auth/local/account', () => HttpResponse.json({ mfa_enabled: false, factor_required: false, mfa_policy: 'optional' })),
+            http.post('*/api/v1/auth/local/recent-auth', () => HttpResponse.json({ proof: 'unchanged-proof', expires_in: 300 })),
+            http.post('*/api/v1/auth/local/password/change', () => HttpResponse.json({ status: 'completed', reauthentication_required: false })),
+        );
+        renderFlow('/auth/local/security', true);
+        const user = userEvent.setup();
+        await user.type(await screen.findByLabelText(/new password/i), 'same password 123');
+        await user.type(screen.getByLabelText(/^password/i), 'same password 123');
+        await user.click(screen.getByRole('button', { name: /confirm change/i }));
+        await screen.findByText(/This is your current password/);
+        expect(getSessionSnapshot().token).toBe(finalSession.access_token);
+        expect(screen.queryByText(/previous sessions have ended/)).not.toBeInTheDocument();
+    });
+
+    it('keeps a native language selection when older preference hydration finishes', async () => {
+        let finish!: (value: { theme: 'dark'; language: 'en' }) => void;
+        const deferred = new Promise<{ theme: 'dark'; language: 'en' }>((resolve) => { finish = resolve; });
+        vi.spyOn(preferencesApi, 'get').mockReturnValueOnce(deferred);
+        const hydration = syncPreferencesFromServer();
+        render(<I18nextProvider i18n={i18n}><NativeFrame title="Account"><p>Account</p></NativeFrame></I18nextProvider>);
+        await userEvent.setup().selectOptions(screen.getByLabelText(/language/i), 'cs');
+        await waitFor(() => expect(i18n.language).toBe('cs'));
+        await act(async () => { finish({ theme: 'dark', language: 'en' }); await hydration; });
+        expect(i18n.language).toBe('cs');
+        expect(localStorage.getItem('riskhub-language')).toBe('cs');
     });
 
     it('clears pending security work on a different principal', async () => {

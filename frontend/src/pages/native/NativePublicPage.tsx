@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { nativeAuthApi } from '@/services/nativeAuthApi';
 import { useSessionSnapshot } from '@/services/session';
+import { resolveNativeRoute } from '@/routing/public';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import type { FactorSetupResponse, LocalAuthChallenge } from '@/types/localAuth.generated';
 import { NativeFrame } from './NativeFrame';
@@ -29,9 +30,10 @@ export default function NativePublicPage() {
     const [uncertain, setUncertain] = useState(false);
     const action = useNativeAction(() => { setPassword(''); setNewPassword(''); setGrant(''); setVerifiedGrant(''); });
     const config = useAuthConfigLoader({ unavailableServiceMessage: t('native.errors.unavailable'), unavailableConfigMessage: t('native.errors.unavailable') });
-    const enrollment = location.pathname.endsWith('/enroll');
-    const recoveryEmail = location.pathname.endsWith('/recover-email');
-    const recovery = location.pathname.endsWith('/recover') || recoveryEmail;
+    const routeKey = resolveNativeRoute(location.pathname)?.key;
+    const enrollment = routeKey === 'native-enroll';
+    const recoveryEmail = routeKey === 'native-recover-email';
+    const recovery = routeKey === 'native-recover' || recoveryEmail;
     const permitted = config.authConfig?.identity?.mode === 'native' && (
         enrollment ? config.authConfig.identity.local_enrollment_enabled :
             recovery ? config.authConfig.identity.recovery_method === 'governed_local' : config.authConfig.identity.password_reset_enabled
@@ -63,13 +65,17 @@ export default function NativePublicPage() {
                 setFinished(result.status === 'accepted' ? 'accepted' : 'completed');
             }
         }, (kind) => {
-            if (kind === 'uncertain' || kind === 'unavailable') { setGrant(''); setVerifiedGrant(''); setUncertain(true); }
+            if (kind === 'uncertain' || kind === 'unavailable') {
+                if (enrollment || recovery || grant) action.clearSession();
+                setGrant(''); setVerifiedGrant(''); setUncertain(true);
+            }
         });
     };
     if (challenge) return <NativeFactor challenge={challenge} mode={recovery ? 'recovery' : 'enrollment'}
         token={session.token ?? undefined} onDone={leave} onCancel={(reason) => {
             if (!reason) { leave(); return; }
-            setChallenge(null); setGrant(''); setVerifiedGrant(''); setUncertain(true); action.setError(reason);
+            setChallenge(null); setGrant(''); setVerifiedGrant(''); setUncertain(true);
+            action.clearSession(); action.setError(reason);
         }} />;
     return <NativeFrame title={title} error={action.error} pending={action.pending || config.isAuthConfigLoading}>
         {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
