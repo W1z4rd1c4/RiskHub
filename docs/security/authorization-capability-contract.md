@@ -10,6 +10,8 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 Native identity actions use `MeCapabilities.identity` and access-row invitation/reset/recovery/directory capabilities from `backend/app/services/identity_capabilities.py` and `backend/app/schemas/identity.py`. External-directory capability is distinct from local user-directory visibility. Native mode rejects external direct/HTTP work before effects, keeps ordinary jobs/outbox, and labels external health `not_applicable`. Privileged recovery remains offline-required; pending recovery cannot be resumed. Both user-profile and access-profile PATCH adapters reject resumption with `RECOVERY_PENDING` before changing account state or revoking recovery authority. See [directory isolation](identity-directory-isolation.md).
 
+Native bootstrap (#203) seeds only canonical references and distinct pending Admin/CRO Users under the identity lock. Restricted grants use the existing enrollment service; completion permanently closes bootstrap reissue. Reruns preserve role/scope, suspension and credentials. Operator abort revokes unused grants before verified artifact cleanup. See [bootstrap](identity-bootstrap.md).
+
 ## Architecture exception review
 
 2026-09-06: Architecture exception review routes RiskHub configuration and Vendor archive/restore commits through the shared rollback boundary. Mutation plus audit remain atomic; authorization guards, row visibility, capability exports, and permission semantics are unchanged. The existing four-module auth baseline and 27 public capability exports were reviewed and renewed through 2026-12-05.

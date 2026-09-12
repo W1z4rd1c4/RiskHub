@@ -57,6 +57,7 @@ __all__ = [
     "LocalAuthFactor",
     "LocalAuthGrant",
     "LocalAuthRecoveryCode",
+    "LocalBootstrapTarget",
     "Role",
     "Permission",
     "RolePermission",
@@ -132,3 +133,4 @@ __all__ = [
 ]
 
 from .local_auth import LocalAuthDelivery, LocalAuthFactor, LocalAuthGrant, LocalAuthRecoveryCode
+from .local_bootstrap import LocalBootstrapTarget

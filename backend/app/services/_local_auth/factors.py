@@ -31,6 +31,7 @@ from app.schemas.local_auth import (
 from app.services._auth_session_workflow.authority import invalidate_user_sessions, lock_session_user
 
 from .artifacts import consume_grant, failed_factor, issue_grant, read_grant, revoke_grants
+from .bootstrap_progress import complete_bootstrap_target
 from .common import NativeContext, atomic_local_work, audit_local, commit_local, invalid_proof, local_user_ready
 
 
@@ -88,6 +89,7 @@ async def begin_password_login(
         if not confirmed and ctx.settings.local_mfa_policy == "optional":
             if local_user_ready(user, enrollment=True):
                 user.local_enrollment_state, user.is_active = "enrolled", True
+                await complete_bootstrap_target(db, user)
             await audit_local(db, user, "local_password_login_completed", actor=user)
             # The caller commits the authority recheck and shared session issuance together.
             return CompletedLocalAuthentication(
@@ -224,6 +226,7 @@ async def confirm_factor(
                 )
             )
         user.local_enrollment_state, user.is_active = "enrolled", True
+        await complete_bootstrap_target(db, user)
         await invalidate_user_sessions(db=db, user=user, reason="local_factor_enrolled")
         await revoke_grants(db, user.id)
         await audit_local(db, user, "local_factor_enrolled")

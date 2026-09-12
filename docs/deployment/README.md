@@ -95,3 +95,14 @@ Release inputs:
 - `./scripts/install.sh upgrade ...` creates a timestamped non-secret backup under the runtime directory before it runs `preflight`, `upgrade`, `status`, and `smoke`.
 - Secret files and the database remain operator-managed backup responsibilities before release changes.
 - Before rolling out apply-time KRI approval validation, run `cd backend && ./venv/bin/python -m scripts.report_pending_kri_approval_preflight` and attach the JSON report to the deployment change record.
+
+## Staged native bootstrap command
+
+The DB-task image and Linux DB-task package include `scripts.bootstrap_local_users`
+for distinct initial Admin/CRO invitations. Follow the [native bootstrap operator
+contract](../security/identity-bootstrap.md) for key registration, protected file
+ownership, dry-run, handoff/resume, explicit reissue and abort. Recipients choose
+passwords; MFA is required by default and explicit optional policy supports
+password-only enrollment. Completed accounts can never be reset or have access
+restored by bootstrap. This backend command does not select a managed native
+production profile; installer integration and release admission remain #204/#208.

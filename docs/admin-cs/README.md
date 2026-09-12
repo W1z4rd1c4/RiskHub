@@ -197,3 +197,5 @@ Minimum pro handoff:
 - [Admin Console](./console.md)
 - [Správa uživatelů a přístupů](./user-management.md)
 - [Reporty a evidence exporty](./reports.md)
+
+- [Počáteční nativní účty Admin/CRO (provozní postup; produkční nasazení zatím není uvolněno)](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-bootstrap.md)

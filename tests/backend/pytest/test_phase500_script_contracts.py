@@ -38,6 +38,7 @@ SECURITY_SCRIPTS_DIR = REPO_ROOT / "scripts" / "security"
 EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
     "bootstrap_sso_user.py",
+    "bootstrap_local_users.py",
     "identity_installation.py",
     "local_recovery.py",
     "local_auth_keys.py",
@@ -408,6 +409,7 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
     for text in (makefile_text, workflow_text):
         assert "__init__.py" in text
         assert "bootstrap_sso_user.py" in text
+        assert "bootstrap_local_users.py" in text
         assert "identity_installation.py" in text
         assert "local_recovery.py" in text
         assert "local_auth_keys.py" in text

@@ -57,7 +57,7 @@ jobs:
           TEST_REDIS_URL: redis://localhost:6379/15
         run: |
           set -euo pipefail
-          pytest ../tests/backend/pytest/test_local_identity.py ../tests/backend/pytest/test_local_identity_delivery.py ../tests/backend/pytest/test_local_identity_postgres.py ../tests/backend/pytest/test_local_identity_redis.py ../tests/backend/pytest/test_local_recovery.py ../tests/backend/pytest/test_local_recovery_postgres.py ../tests/backend/pytest/test_identity_directory_isolation.py -q --no-cov | tee ../native-regression.log
+          pytest ../tests/backend/pytest/test_local_identity.py ../tests/backend/pytest/test_local_identity_delivery.py ../tests/backend/pytest/test_local_identity_postgres.py ../tests/backend/pytest/test_local_identity_redis.py ../tests/backend/pytest/test_local_recovery.py ../tests/backend/pytest/test_local_recovery_postgres.py ../tests/backend/pytest/test_identity_directory_isolation.py ../tests/backend/pytest/test_local_bootstrap.py -q --no-cov | tee ../native-regression.log
       - name: Existing identity, access, session and outbox contracts
         working-directory: backend
         env:

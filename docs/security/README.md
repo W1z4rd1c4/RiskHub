@@ -31,3 +31,5 @@ proof/session boundaries, delivery, verification and the still-closed production
 [Factor recovery and key operations](identity-recovery.md) documents self-service
 replacement, assisted recovery, dual-approved operator recovery and key rotation.
 - [Native directory isolation and capabilities](identity-directory-isolation.md)
+
+- [Initial native Admin/CRO bootstrap](identity-bootstrap.md): protected grants, interruption/resume, completion and operator diagnostics.

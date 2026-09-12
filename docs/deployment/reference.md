@@ -263,3 +263,14 @@ Linux target:
 For staged native runtime inputs (SMTP, keyring, KDF limits and password policy), use
 [native credentials](../security/identity-local-credentials.md#required-nonsecret-configuration-and-protected-inputs).
 The managed Entra renderer does not yet provision those inputs.
+
+## Staged native bootstrap command
+
+The DB-task image and Linux DB-task package include `scripts.bootstrap_local_users`
+for distinct initial Admin/CRO invitations. Follow the [native bootstrap operator
+contract](../security/identity-bootstrap.md) for key registration, protected file
+ownership, dry-run, handoff/resume, explicit reissue and abort. Recipients choose
+passwords; MFA is required by default and explicit optional policy supports
+password-only enrollment. Completed accounts can never be reset or have access
+restored by bootstrap. This backend command does not select a managed native
+production profile; installer integration and release admission remain #204/#208.

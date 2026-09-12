@@ -81,8 +81,9 @@ with the options in the adoption sequence. On Linux use the new release's
 with the deployment env-file loader and run as the service identity that can read
 its secret files. Never copy secret values into command history.
 
-Identity bootstrap still creates distinct Entra admin/CRO accounts. Native bootstrap
-and installer selection are later work under #203/#204. `LOCAL_MFA_POLICY` alone
+Managed identity bootstrap still uses distinct Entra admin/CRO accounts. The native
+[bootstrap service/CLI](identity-bootstrap.md) now supports protected one-time handoffs
+for distinct initial accounts; managed installer selection remains #204. `LOCAL_MFA_POLICY` alone
 does not enable native production; #208 owns that admission change.
 
 ## Writer and lock inventory
