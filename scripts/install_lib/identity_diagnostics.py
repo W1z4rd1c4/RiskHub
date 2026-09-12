@@ -25,6 +25,7 @@ def identity_diagnostics(
     }
     try:
         config = DeployConfig.from_env_file(config_path)
+        config.effective_trusted_proxies(target)
         validate_identity_transition(config_path, runtime_dir / "backend.env")
         result.update(
             configuration="valid",

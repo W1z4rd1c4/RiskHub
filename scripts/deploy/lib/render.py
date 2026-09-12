@@ -35,6 +35,11 @@ from app.core.native_identity_files import (
     read_native_secret,
 )  # noqa: E402
 
+from app.core.proxy_policy import (  # noqa: E402
+    DEFAULT_TRUSTED_PROXIES,
+    find_broad_trusted_proxy_entries,
+)
+
 TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
 DEFAULT_SECRET_DIR = Path("/etc/riskhub/secrets")
@@ -593,6 +598,8 @@ class DeployConfig:
                 )
             for proxy in trusted_proxies:
                 _validate_cidr("TRUSTED_PROXIES", proxy)
+            if find_broad_trusted_proxy_entries(trusted_proxies):
+                raise RenderError("TRUSTED_PROXIES contains broad network ranges; use explicit proxy hops")
         docker_network_subnet = _validate_cidr(
             "DOCKER_NETWORK_SUBNET",
             values.get("DOCKER_NETWORK_SUBNET", DEFAULT_DOCKER_NETWORK_SUBNET),
@@ -640,9 +647,11 @@ class DeployConfig:
     def effective_trusted_proxies(self, target: str) -> list[str]:
         if self.trusted_proxies is not None:
             return list(self.trusted_proxies)
-        defaults = ["127.0.0.1", "::1"]
+        defaults = list(DEFAULT_TRUSTED_PROXIES)
         if target == "docker":
             defaults.append(self.docker_network_subnet)
+        if find_broad_trusted_proxy_entries(defaults):
+            raise RenderError("DOCKER_NETWORK_SUBNET creates broad proxy trust; use a dedicated subnet or explicit TRUSTED_PROXIES")
         return defaults
 
     def backend_env(

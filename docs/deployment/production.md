@@ -297,6 +297,12 @@ a recorded MFA policy is an explicit config edit applied consistently to all wor
 read [session implications](../security/identity-local-credentials.md#session-lifetime-and-revocation).
 
 Use `scripts/deploy/templates/riskhub-native.env.example` for the non-secret inputs.
+Managed preflight uses the runtime's proxy policy: configure exact proxy hops or
+narrow dedicated proxy subnets. Broad trust such as `0.0.0.0/0`, `::/0` or whole
+private-address ranges is refused, including broad Docker-derived defaults, before
+runtime files or services are replaced. Managed installation does not enable the
+runtime's broad-trust exception.
+
 Configure the real HTTPS origin, distinct admin/CRO emails, SMTP hostname/port,
 verified `starttls` or `tls`, sender and username. Allow 128 MiB of KDF budget per API
 worker, within the deployment's available memory. The packaged password blocklist,

@@ -13,6 +13,7 @@ from install_lib.common import (
     secret_placeholder,
 )
 from install_lib.diagnostics import build_doctor_diagnostic_plan
+from install_lib.production_identity import select_identity
 from install_lib.production import (
     summary_demo,
     summary_dev,
@@ -397,6 +398,10 @@ def run_doctor(
         elif mode == "dev":
             summary_dev()
         else:
+            choice, policy = select_identity(
+                config_path, user_management=None, mfa_policy=None, options=options
+            )
             summary_production_lifecycle(
-                "doctor", payload["target"], config_path, secret_dir
+                "doctor", payload["target"], config_path, secret_dir,
+                user_management=choice, mfa_policy=policy,
             )

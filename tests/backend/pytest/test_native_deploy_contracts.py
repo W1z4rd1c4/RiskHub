@@ -535,3 +535,63 @@ exec {shlex.quote(chmod)} "$@"
             config.chmod(0o600)
     assert "LOCAL_MFA_POLICY=optional" in config.read_text()
     assert (secrets / "local_auth_keyring").is_file()
+
+
+@pytest.mark.parametrize("target", ["docker", "linux"])
+@pytest.mark.parametrize("proxy", ["0.0.0.0/0", "::/0", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fd00::/8"])
+def test_broad_proxy_trust_is_refused_before_runtime_is_written(tmp_path, target, proxy):
+    config, secrets = native_files(tmp_path, TRUSTED_PROXIES=json.dumps([proxy]))
+    out = tmp_path / "candidate"
+    result = renderer("write-runtime", "--config", config, "--target", target,
+                      "--secret-dir", secrets, "--out-dir", out)
+    assert result.returncode != 0 and "broad network ranges" in result.stderr
+    assert not (out / "backend.env").exists()
+
+
+def test_docker_derived_proxy_trust_uses_the_runtime_policy(tmp_path):
+    config, secrets = native_files(tmp_path, DOCKER_NETWORK_SUBNET="172.16.0.0/12")
+    out = tmp_path / "candidate"
+    refused = renderer("write-runtime", "--config", config, "--target", "docker",
+                       "--secret-dir", secrets, "--out-dir", out)
+    assert refused.returncode != 0 and "broad proxy trust" in refused.stderr
+    assert not (out / "backend.env").exists()
+    # Linux does not derive proxy trust from the Docker subnet.
+    accepted = renderer("write-runtime", "--config", config, "--target", "linux",
+                        "--secret-dir", secrets, "--out-dir", out)
+    assert accepted.returncode == 0, accepted.stderr
+
+
+@pytest.mark.parametrize("profile", ["entra", "required", "optional"])
+def test_human_readable_doctor_repair_preserves_identity_summary(tmp_path, profile):
+    import os
+
+    from tests.backend.pytest import test_install_script_contracts as install_support
+
+    if profile == "entra":
+        config, secrets = tmp_path / "riskhub.env", tmp_path / "secrets"
+        install_support._write_config(config)
+        install_support._write_secrets(secrets)
+    else:
+        config, secrets = native_files(tmp_path, LOCAL_MFA_POLICY=profile)
+    fake_bin = install_support._make_fake_bin(tmp_path)
+    fake_deploy = install_support._make_fake_deploy_script(tmp_path)
+    if profile != "entra":
+        fake_deploy.write_text(fake_deploy.read_text().replace('"microsoft_sso"', '"password"')
+                              .replace('"graph"', '"none"').replace('"not_applicable"', f'"{profile}"')
+                              .replace('"provider_managed"', '"completed"'))
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    result = install_support._run_install(
+        "doctor", "--mode", "production", "--target", "docker", "--config", str(config),
+        "--secret-dir", str(secrets), "--repair",
+        env={"PATH": f"{fake_bin}:{os.environ['PATH']}", "RISKHUB_RUNTIME_DIR": str(runtime),
+             "RISKHUB_LINUX_ROOT": str(tmp_path / "linux"), "RISKHUB_INSTALL_DEPLOY_SCRIPT": str(fake_deploy)},
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Repair applied: yes" in result.stdout
+    assert (runtime / "install-state.json").is_file()
+    if profile == "entra":
+        assert "Microsoft Entra app credentials are required" in result.stdout
+    else:
+        assert f"MFA policy: {profile}" in result.stdout
+        assert "Microsoft Entra app credentials are required" not in result.stdout
