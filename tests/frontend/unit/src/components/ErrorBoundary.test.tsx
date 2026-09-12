@@ -55,7 +55,7 @@ async function renderAppAt(
         }),
     }));
     vi.doMock('@/routing/public', () => ({
-        resolveNativeRoute: () => undefined,
+        resolvePublicRoute: () => undefined,
         publicRoutes: routes.publicRoutes ?? [],
     }));
     vi.doMock('@/routing', () => ({

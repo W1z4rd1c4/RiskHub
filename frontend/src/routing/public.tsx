@@ -28,3 +28,8 @@ export const publicRoutes: AppRouteDef[] = [
     { key: 'sso-callback', path: '/auth/sso/callback', element: <SsoCallbackPage /> },
     { key: 'landing', path: '/landing', element: <HeroPage /> },
 ];
+
+export function resolvePublicRoute(pathname: string): AppRouteDef | undefined {
+    const matched = matchRoutes(publicRoutes.map(({ path, key }) => ({ path, key })), pathname)?.at(-1);
+    return publicRoutes.find((route) => route.key === matched?.route.key);
+}

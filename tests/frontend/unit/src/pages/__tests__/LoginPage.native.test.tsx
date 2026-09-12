@@ -125,6 +125,23 @@ describe('Native login authority', () => {
         expect(factors).toBe(0);
     });
 
+    it('preserves the server redirect while the application changes from anonymous to signed in', async () => {
+        server.use(
+            http.get('*/api/v1/auth/config', () => HttpResponse.json({ ...nativeConfig, local_mfa_policy: 'optional' })),
+            http.post('*/api/v1/auth/login', () => HttpResponse.json({ ...finalSession, post_login_redirect_to: '/assets/161' })),
+        );
+        render(<I18nextProvider i18n={i18n}><AuthProvider><MemoryRouter initialEntries={['/login']}><RouteScope>
+            <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/assets/161" element={<div>Requested asset</div>} />
+                <Route path="/" element={<div>Default destination</div>} />
+            </Routes>
+        </RouteScope></MemoryRouter></AuthProvider></I18nextProvider>);
+        await fillLogin();
+        await screen.findByText('Requested asset');
+        expect(screen.queryByText('Default destination')).not.toBeInTheDocument();
+    });
+
     it('discards a late completed verification after cancellation', async () => {
         let finish!: () => void;
         let requested = false;

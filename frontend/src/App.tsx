@@ -14,7 +14,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PrincipalQueryBoundary } from '@/contexts/PrincipalQueryBoundary';
-import { resolveNativeRoute, publicRoutes } from '@/routing/public';
+import { resolvePublicRoute, publicRoutes } from '@/routing/public';
 import type { AppRouteDef } from '@/routing/types';
 
 const ProtectedApplication = lazy(() => import('@/ProtectedApplication'));
@@ -91,9 +91,9 @@ function App() {
   );
 }
 
-/** Native credential screens hold no QueryClient. Their display-once completion
- * state must survive their own session invalidation; protected data still lives
- * in the unchanged principal boundary and is disposed when leaving that scope. */
+/** Public authentication screens survive their own principal transition so login
+ * redirects and display-once results complete. Protected data stays inside the
+ * principal boundary and is disposed when leaving that scope. */
 export function RouteScope({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
@@ -104,7 +104,7 @@ export function RouteScope({ children }: { children: ReactNode }) {
       </ThemeProvider>
     </LanguageProvider>
   );
-  if (resolveNativeRoute(location.pathname)) return presentation;
+  if (resolvePublicRoute(location.pathname)) return presentation;
   return <PrincipalQueryBoundary principalId={user?.id ?? null}>{presentation}</PrincipalQueryBoundary>;
 }
 
