@@ -375,4 +375,28 @@ describe('AccessEditModal', () => {
         expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
         expect(accessApiMocks.updateAccessUser).not.toHaveBeenCalled();
     });
+    it('keeps verified native email out of the transaction while allowing an authorized name edit', async () => {
+        const target = makeAccessUser();
+        target.capabilities.verified_identity_fields = ['email'];
+        render(<AccessEditModal isOpen user={target} onClose={vi.fn()} onSaved={vi.fn()} />);
+        const name = await screen.findByLabelText(/full name/i);
+        expect(screen.getByLabelText(/email address/i)).toBeDisabled();
+        expect(screen.getByText(/Users change their recovery email in Account security/)).toBeInTheDocument();
+        const user = userEvent.setup();
+        await user.clear(name);
+        await user.type(name, 'Verified native user');
+        await user.click(screen.getByRole('button', { name: /save/i }));
+        expect(accessApiMocks.updateAccessUser).toHaveBeenCalledWith(target.id, { name: 'Verified native user' });
+    });
+
+    it('shows Entra-owned name and email as read-only', async () => {
+        const target = makeAccessUser();
+        target.capabilities.directory_owned_fields = ['name', 'email'];
+        target.capabilities.can_edit_identity = false;
+        render(<AccessEditModal isOpen user={target} onClose={vi.fn()} onSaved={vi.fn()} />);
+        expect(await screen.findByLabelText(/full name/i)).toBeDisabled();
+        expect(screen.getByLabelText(/email address/i)).toBeDisabled();
+        expect(screen.getByText(/These identity fields are managed in Microsoft Entra/)).toBeInTheDocument();
+    });
+
 });

@@ -6,6 +6,8 @@ Route-local modules for the `/users` page, including directory mode, access mode
 
 ## Contents
 
+- `NativeInviteForm.tsx`: recipient-chosen password invitations and cancellable local manager lookup
+- `NativeUserLifecyclePanel.tsx`: private status, exact-target recent proof and native lifecycle inside the access dialog
 - `BreakGlassEnableDialog.tsx`
 - `UsersAccessStats.tsx`
 - `UsersPageHeader.tsx`

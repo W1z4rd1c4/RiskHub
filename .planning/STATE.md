@@ -74,3 +74,9 @@ or factor login, reset, verified email, factor management and display-once codes
 Current-account MFA metadata and completed native capability projection support the
 UI. Protected principal cache isolation is retained; public credential screens have
 no query cache. Final production acceptance remains #208; use GitHub for live status.
+
+Implementation context (#206): `/users` now consumes native invitation and per-target
+lifecycle metadata, keeps verified/directory-owned email out of access PATCHes,
+and binds assisted recovery to recent authentication. Status, delivery and committed
+changes remain distinct. English/Czech guides and component/browser regression
+evidence accompany the delivery; GitHub remains authoritative for closure.

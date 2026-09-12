@@ -242,7 +242,10 @@
   "backend/app/schemas/identity.py",
   "backend/app/services/identity_capabilities.py",
   "backend/app/services/_local_auth/",
-  "backend/app/core/external_identity_policy.py"
+  "backend/app/core/external_identity_policy.py",
+  "frontend/src/services/nativeAdminApi.ts",
+  "frontend/src/pages/users/NativeInviteForm.tsx",
+  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx"
  ],
  "actions": [
   {
@@ -1212,6 +1215,25 @@
    ],
    "status": "authoritative",
    "findings": []
+  },
+  {
+   "id": "AUTHZ-NATIVE-ADMIN-LIFECYCLE",
+   "surface": "Native user administration",
+   "action": "Invite accounts, inspect private lifecycle state, resend/cancel invitations, request reset, suspend/resume and initiate ordinary recovery",
+   "actor_scope": "Eligible native platform Admin; current-user and per-target capabilities are required. Privileged recovery is offline-only. CRO business access and read-only directory access confer no identity lifecycle authority.",
+   "backend_authority": "backend/app/api/v1/endpoints/users/invitations.py applies native context and authenticated actor; backend/app/api/v1/endpoints/access.py applies access mutation authorization.",
+   "service_policy": "backend/app/services/_local_auth/enrollment.py, backend/app/services/_local_auth/admin.py and backend/app/services/_local_auth/recovery.py enforce eligibility and exact target/version/operation proof; backend/app/services/_identity_access_lifecycle/access_scope.py preserves atomic updates, last-Admin protection and redacted reason auditing.",
+   "response_capability": "backend/app/services/identity_capabilities.py projects MeCapabilities.identity.can_invite_users and AccessUserCapabilities invitation/reset/recovery flags, can_resume and field ownership; lifecycle status is a separately authorized nonsecret read.",
+   "frontend_gate": "frontend/src/pages/UserNewPage.tsx and frontend/src/pages/UsersPage.tsx require native configuration and current identity capability; frontend/src/pages/users/NativeInviteForm.tsx and frontend/src/pages/users/NativeUserLifecyclePanel.tsx use backend target flags, owned abortable requests and no-retry identity transport; frontend/src/components/access/accessEditModalLogic.ts excludes directory-owned and verified email from ordinary updates.",
+   "status": "authoritative",
+   "findings": [],
+   "tests": [
+    "tests/backend/pytest/test_access_management.py",
+    "tests/backend/pytest/test_identity_directory_isolation.py",
+    "tests/frontend/unit/src/pages/__tests__/UserNewPage.native.test.tsx",
+    "tests/frontend/unit/src/pages/__tests__/NativeUserLifecyclePanel.test.tsx",
+    "tests/frontend/e2e/native-admin.spec.ts"
+   ]
   }
  ]
 }

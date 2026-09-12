@@ -79,8 +79,9 @@ password-change operation, or recover a forgotten password through the generic e
 reset request and a single-use link. Administrators cannot set permanent native passwords
 through legacy user edits. Password reset preserves enrolled factors and revokes old
 sessions; it is not lost-factor recovery. Email changes use the separate verified-address
-workflow. These are backend contracts; account-security and invitation screens are
-tracked in #205/#206.
+workflow. Account-security and Admin invitation/lifecycle screens consume these backend
+contracts. See the [operator runbook](../admin/user-management.md); production
+admission remains gated by #208.
 
 Changing `LOCAL_MFA_POLICY` from optional to required rejects existing password-only
 access/refresh credentials; the next login enters factor enrollment. Switching to

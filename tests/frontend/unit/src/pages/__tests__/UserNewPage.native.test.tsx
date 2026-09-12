@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -69,4 +69,30 @@ describe('native account creation', () => {
         expect(screen.queryByRole('button', { name: /create account/i })).not.toBeInTheDocument();
         expect(document.querySelector('input[type="password"]')).toBeNull();
     });
+    it('cancels manager search A when B becomes the latest normalized query', async () => {
+        let completeA: (() => void) | undefined;
+        const waitA = new Promise<void>((resolve) => { completeA = resolve; });
+        let signalA: AbortSignal | undefined;
+        server.use(http.get('*/api/v1/users/lookup', async ({ request }) => {
+            const query = new URL(request.url).searchParams.get('q');
+            if (query === 'a') {
+                signalA = request.signal;
+                await waitA;
+                return HttpResponse.json([{ id: 70, name: 'Stale manager A', email: 'a@example.test' }]);
+            }
+            return HttpResponse.json(query === 'b' ? [{ id: 71, name: 'Current manager B', email: 'b@example.test' }] : []);
+        }));
+        renderCreate(true);
+        const user = userEvent.setup();
+        const search = await screen.findByLabelText(/search managers/i);
+        await user.type(search, 'a');
+        await waitFor(() => expect(signalA).toBeDefined());
+        await user.clear(search);
+        await user.type(search, 'b');
+        await screen.findByRole('option', { name: /Current manager B/ });
+        await act(async () => completeA?.());
+        expect(signalA?.aborted).toBe(true);
+        expect(screen.queryByRole('option', { name: /Stale manager A/ })).not.toBeInTheDocument();
+    });
+
 });

@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from 'node:fs';
-import { createHmac } from 'node:crypto';
+import { nativeTotp as totp, nativeLogin as login } from './setup/native_browser_helpers';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -9,34 +9,11 @@ test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 const handoffPath = process.env.NATIVE_E2E_HANDOFF;
 test.skip(!handoffPath, 'Requires a fresh isolated native installation and NATIVE_E2E_HANDOFF');
 
-function totp(secret: string): string {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    const bits = [...secret.toUpperCase().replace(/=+$/, '')].map((letter) => alphabet.indexOf(letter).toString(2).padStart(5, '0')).join('');
-    const key = Buffer.from(bits.match(/.{8}/g)!.map((byte) => Number.parseInt(byte, 2)));
-    const counter = Buffer.alloc(8);
-    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
-    const digest = createHmac('sha1', key).update(counter).digest();
-    const offset = digest[digest.length - 1] & 15;
-    return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0');
-}
 async function assertNoBrowserSecrets(page: Page, secrets: string[]) {
     const stored = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, state: window.history.state }));
     expect(secrets.some((secret) => stored.includes(secret))).toBe(false);
     expect(secrets.some((secret) => page.url().includes(secret))).toBe(false);
 }
-async function login(page: Page, email: string, password: string, backup?: string) {
-    await page.goto('/login');
-    await page.getByLabel(/^email/i).fill(email);
-    await page.getByLabel(/^password/i).fill(password);
-    await page.getByRole('button', { name: /^sign in$/i }).click();
-    if (backup) {
-        await page.getByLabel(/verification method/i).selectOption('recovery_code');
-        await page.getByLabel(/^backup code/i).fill(backup);
-        await page.getByRole('button', { name: /^verify$/i }).click();
-    }
-    await expect(page.getByTestId('logout-button')).toBeVisible();
-}
-
 test('real invitation, local session, password change and desktop accessibility', async ({ page, request }, testInfo) => {
     test.setTimeout(120_000);
     const configResponse = await request.get('/api/v1/auth/config');
