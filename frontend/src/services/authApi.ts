@@ -3,6 +3,8 @@
  */
 
 import type { infer as ZodInfer, ZodTypeAny } from 'zod';
+import type { LocalAuthChallenge } from '@/types/localAuth.generated';
+import { localAuthChallengeSchema } from '@/services/api/schemas/nativeAuth';
 
 import { ApiClientError } from '@/services/api/apiErrors';
 import {
@@ -209,13 +211,24 @@ async function getAuthConfig(): Promise<AuthConfigResponse> {
     return parseValidatedAuthBody(response, authConfigResponseSchema, 'Failed to get auth config');
 }
 
-async function login(credentials: LoginRequest): Promise<TokenResponse> {
-    return requestAuthJson('/login', {
+async function login(credentials: LoginRequest, signal?: AbortSignal): Promise<TokenResponse | LocalAuthChallenge> {
+    if (!getCsrfToken()) await ensureCsrf();
+    const response = await fetchAuthResponse(`${API_URL}/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() ?? '' },
         body: JSON.stringify(credentials),
         credentials: 'include',
-    }, 'Login failed', tokenResponseSchema);
+        signal,
+    });
+    if (!response.ok) {
+        const { detail } = await parseAuthError(response, 'Login failed');
+        throw buildAuthRequestError(response, detail);
+    }
+    if (response.status === 202) {
+        return parseValidatedAuthBody(response, localAuthChallengeSchema, 'Invalid authentication challenge');
+    }
+    if (response.status !== 200) throw buildAuthRequestError(response, 'Unexpected authentication response');
+    return parseValidatedAuthBody(response, tokenResponseSchema, 'Invalid authentication session');
 }
 
 async function demoLogin(email: string): Promise<TokenResponse> {

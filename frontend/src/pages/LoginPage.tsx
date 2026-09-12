@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
 import { AuthConfigErrorView, LoadingLoginView, LoginNotConfiguredView } from '@/pages/login/LoginStateViews';
+import { NativeLoginView } from '@/pages/native/NativeLoginView';
 import { DemoLoginView } from '@/pages/login/DemoLoginView';
 import { SsoOnlyView } from '@/pages/login/SsoOnlyView';
 import { type DemoAccountGroups, type ProdLanguage } from '@/pages/login/loginPageTypes';
@@ -219,7 +220,11 @@ export default function LoginPage() {
         );
     }
 
-    // auth_mode=password (or any unexpected state): only show demo UI if explicitly enabled.
+    if (authConfig.auth_mode === 'password' && authConfig.identity?.mode === 'native' && authConfig.password_login_enabled) {
+        return <NativeLoginView config={authConfig} returnTo={returnTo} />;
+    }
+
+    // Development password mode may expose only explicitly enabled demo accounts.
     if (authConfig.demo_login_enabled) {
         return (
             <DemoLoginView

@@ -241,6 +241,7 @@
   "frontend/src/types/vendor.ts",
   "backend/app/schemas/identity.py",
   "backend/app/services/identity_capabilities.py",
+  "backend/app/services/_local_auth/",
   "backend/app/core/external_identity_policy.py"
  ],
  "actions": [
@@ -1191,6 +1192,23 @@
    "tests": [
     "tests/backend/pytest/test_ict_register_committee.py",
     "tests/frontend/unit/src/pages/__tests__/IctCommitteeSection.presentation.test.tsx"
+   ],
+   "status": "authoritative",
+   "findings": []
+  },
+  {
+   "id": "AUTHZ-IDENTITY-OWN-CREDENTIALS",
+   "surface": "Native account security",
+   "action": "Read own nonsecret factor status and manage own password, verified email, authenticator and backup codes",
+   "actor_scope": "An eligible native principal with a current session; recent authentication is bound to the same actor, target and requested mutation. Completed credential changes invalidate prior sessions.",
+   "backend_authority": "backend/app/api/v1/endpoints/auth/local.py applies the current-user dependency and native identity/readiness guards; no client-supplied user selector is accepted by GET /auth/local/account.",
+   "service_policy": "backend/app/services/_local_auth/common.py and backend/app/services/_local_auth/credentials.py enforce native eligibility, factor policy, recent action proof and session invalidation.",
+   "response_capability": "backend/app/api/v1/endpoints/auth/_shared.py projects existing me_capabilities.identity.can_manage_own_credentials into completed native TokenResponse; /auth/me remains authoritative. GET /auth/local/account returns only mfa_enabled, factor_required and mfa_policy.",
+   "frontend_gate": "frontend/src/pages/SettingsPage.tsx and frontend/src/pages/native/NativeSecurityPage.tsx consume backend can_manage_own_credentials; frontend/src/pages/native/NativeFactor.tsx, frontend/src/pages/native/NativeLoginView.tsx, frontend/src/pages/native/NativePublicPage.tsx and frontend/src/pages/native/useNativeAction.ts keep partial challenges anonymous and discard stale credential work.",
+   "tests": [
+    "tests/backend/pytest/test_local_account_security.py",
+    "tests/frontend/unit/src/pages/__tests__/LoginPage.native.test.tsx",
+    "tests/frontend/e2e/native-account.spec.ts"
    ],
    "status": "authoritative",
    "findings": []

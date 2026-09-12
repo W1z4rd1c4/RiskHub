@@ -1,6 +1,6 @@
 ---
 title: User FAQ and Operational Support
-version: "2.4"
+version: "2.5"
 last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + in-app workflow behavior"
@@ -38,10 +38,19 @@ assign permanent native passwords.
 or optional MFA. Optional allows password-only accounts, including admins. If you have
 already enabled MFA, you still need your factor. A password reset does not remove it.
 
-**Where are the local-account controls?** The current production release uses your
-organization's Microsoft sign-in. RiskHub local-account screens are still being prepared.
-Your administrator can confirm their availability for your installed release. Continue
-using your organization's password and recovery service until local accounts are available.
+**Where are the local-account controls?** When enabled in your installed release,
+open **Settings → Account security**. This shows the actions supported for your
+account. Microsoft sign-in continues to use your organization's identity service.
+Your administrator can confirm local-account availability.
+
+**What if I lose all my factors?** Use an unused backup code if you have one.
+Otherwise contact your administrator. Privileged accounts require operator recovery;
+the website cannot override that process. A password reset alone does not remove MFA.
+
+**What if a link expires or the response is lost?** Request a current invitation or
+reset link when needed. After a lost response, the change may already be complete:
+return to sign in instead of submitting the same one-time action again. Keep all
+passwords, setup keys, backup codes and recovery links out of support screenshots.
 
 ## What This Page Helps You Do
 
