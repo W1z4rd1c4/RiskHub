@@ -9,6 +9,7 @@ import {
     cleanupGovernedProcessFixture,
     cleanupWithoutMaskingPrimaryFailure,
     getProcessByL1,
+    runCleanupSteps,
 } from '../helpers/ict-register';
 import { waitForDataLoad } from '../helpers/wait';
 
@@ -96,8 +97,10 @@ test.describe('Governed protected Process creation (#85)', () => {
     }) => {
         const processName = `E2E-GOV-CREATE-${Date.now()}`;
         const reason = `New critical function ${processName}`;
+        const otherProcessName = `${processName}-OTHER`;
         let primaryFailure: unknown;
         try {
+            await submitProtectedCreation(riskManagerPage, otherProcessName, `Other pending ${otherProcessName}`);
             await submitProtectedCreation(riskManagerPage, processName, reason);
 
             // The requester may cancel but cannot resolve their own governed proposal.
@@ -109,7 +112,10 @@ test.describe('Governed protected Process creation (#85)', () => {
             await riskManagerPage.goto('/processes');
             await waitForDataLoad(riskManagerPage);
             const pendingPanel = riskManagerPage.getByTestId('process-pending-creations');
-            await expect(pendingPanel).toContainText(processName);
+            const pendingCreation = pendingPanel.getByRole('listitem').filter({
+                has: riskManagerPage.getByRole('heading', { name: processName, exact: true }),
+            });
+            await expect(pendingCreation).toBeVisible();
             await expect(riskManagerPage.locator('table').first()).not.toContainText(processName);
 
             // A different operational user sees neither the proposal nor an operational row.
@@ -130,16 +136,20 @@ test.describe('Governed protected Process creation (#85)', () => {
                 response.request().method() === 'POST'
                 && /\/api\/v1\/approvals\/\d+\/cancel$/.test(new URL(response.url()).pathname)
             ));
-            await pendingPanel.getByRole('button', { name: /Cancel request|Zrušit žádost/ }).click();
+            await pendingCreation.getByRole('button', { name: /Cancel request|Zrušit žádost/ }).click();
             expect((await cancelled).status()).toBe(200);
-            await expect(pendingPanel).toHaveCount(0);
+            await expect(pendingCreation).toHaveCount(0);
+            await expect(pendingPanel.getByRole('heading', { name: otherProcessName, exact: true })).toBeVisible();
         } catch (error) {
             primaryFailure = error;
             throw error;
         } finally {
             await cleanupWithoutMaskingPrimaryFailure(
                 primaryFailure,
-                () => cleanupGovernedProcessFixture({ processName }),
+                () => runCleanupSteps('Clean up both pending creation fixtures', [
+                    () => cleanupGovernedProcessFixture({ processName }),
+                    () => cleanupGovernedProcessFixture({ processName: otherProcessName }),
+                ]),
                 test.info(),
             );
         }
