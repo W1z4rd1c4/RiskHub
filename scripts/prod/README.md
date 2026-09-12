@@ -51,4 +51,4 @@ Fresh bootstrap initializes/verifies an empty installation before Entra users ar
 created. Populated unbound installations require explicit maintenance adoption;
 managed upgrades stop API/scheduler writers before migrations. Follow
 [identity foundations](../../docs/security/identity-foundations.md) for adoption, failure recovery and replica draining.
-Native identity selection remains staged work; preserve production admission checks.
+Native identity selection and secret mounts use the shared renderer. Bootstrap selects protected native invitations or Entra-linked users; preserve the #208 production admission guard.

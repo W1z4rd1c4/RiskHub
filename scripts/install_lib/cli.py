@@ -6,7 +6,13 @@ from pathlib import Path
 from install_lib.common import SharedOptions, get_paths, run_command, show_help
 from install_lib.doctor import run_doctor
 from install_lib.lifecycle import build_logs_command
-from install_lib.production import run_demo, run_dev, run_production, run_upgrade, run_verify
+from install_lib.production import (
+    run_demo,
+    run_dev,
+    run_production,
+    run_upgrade,
+    run_verify,
+)
 from install_lib.runtime_state import resolve_production_target
 from install_lib.status import run_status
 
@@ -43,6 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--frontend-image")
         command.add_argument("--redis-image")
         command.add_argument("--bundle")
+        command.add_argument("--user-management", choices=("entra", "custom"))
+        command.add_argument("--mfa-policy", choices=("required", "optional"))
 
     verify = subparsers.add_parser("verify", add_help=False)
     verify.add_argument("--dry-run", action="store_true")
@@ -115,10 +123,21 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "demo":
-            run_demo(reset_dataset=args.reset, backend_only=False, no_build=args.no_build, options=options, paths=paths)
+            run_demo(
+                reset_dataset=args.reset,
+                backend_only=False,
+                no_build=args.no_build,
+                options=options,
+                paths=paths,
+            )
             return 0
         if args.command == "dev":
-            run_dev(backend_only=args.backend, daemon=args.daemon, options=options, paths=paths)
+            run_dev(
+                backend_only=args.backend,
+                daemon=args.daemon,
+                options=options,
+                paths=paths,
+            )
             return 0
         if args.command == "production":
             run_production(
@@ -132,6 +151,8 @@ def main(argv: list[str] | None = None) -> int:
                 frontend_image=args.frontend_image,
                 redis_image=args.redis_image,
                 bundle=args.bundle,
+                user_management=args.user_management,
+                mfa_policy=args.mfa_policy,
                 options=options,
                 paths=paths,
             )
@@ -148,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
                 frontend_image=args.frontend_image,
                 redis_image=args.redis_image,
                 bundle=args.bundle,
+                user_management=args.user_management,
+                mfa_policy=args.mfa_policy,
                 options=options,
                 paths=paths,
             )
@@ -178,7 +201,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "logs":
             resolved_target = None
             if args.mode not in {"demo", "dev"}:
-                resolved_target = resolve_production_target(paths, args.target, runtime_dir)
+                resolved_target = resolve_production_target(
+                    paths, args.target, runtime_dir
+                )
             command = build_logs_command(
                 paths=paths,
                 mode=args.mode or "",

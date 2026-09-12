@@ -3,6 +3,8 @@ set -euo pipefail
 
 DEPLOY_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${DEPLOY_LIB_DIR}/../../.." && pwd)"
+# shellcheck source=scripts/prod/lib/identity_mounts.sh
+source "${REPO_ROOT}/scripts/prod/lib/identity_mounts.sh"
 RENDERER="${DEPLOY_LIB_DIR}/render.py"
 # shellcheck disable=SC2034 # Shared sourced library constant.
 DEFAULT_CONFIG_PATH="${RISKHUB_DEFAULT_CONFIG_PATH:-/etc/riskhub/riskhub.env}"
@@ -117,7 +119,7 @@ run_redacted() {
 run_privileged() {
   if [[ "$EUID" -eq 0 ]]; then
     run "$@"
-    return 0
+    return $?
   fi
   require_cmd sudo
   if [[ "$DRY_RUN" == "true" ]]; then
@@ -137,7 +139,7 @@ run_privileged_sh() {
   local command_text="$2"
   if [[ "$EUID" -eq 0 ]]; then
     run_sh "$display" "$command_text"
-    return 0
+    return $?
   fi
   require_cmd sudo
   if [[ "$DRY_RUN" == "true" ]]; then
@@ -334,6 +336,11 @@ render_runtime_dir() {
     --out-dir "$out_dir"
 }
 
+prepare_native_handoff_directory() {
+  run_privileged python3 "$RENDERER" prepare-handoff \
+    --path "$(dirname "$RUNTIME_DIR")/handoff" --uid "$LINUX_UID" --gid "$LINUX_GID"
+}
+
 render_runtime_to_persistent_dir() {
   local config_path="$1"
   local target="$2"
@@ -405,8 +412,13 @@ make_runtime_dir() {
   local config_path="$1"
   local target="$2"
   local tmp_dir
-  tmp_dir="$(make_temp_dir_in_parent_dir "$(runtime_parent_dir)" "riskhub-deploy")"
-  render_runtime_dir "$config_path" "$target" "$tmp_dir"
+  tmp_dir="$(make_temp_dir_in_parent_dir "$(runtime_parent_dir)" "riskhub-deploy")" || return $?
+  local rc=0
+  render_runtime_dir "$config_path" "$target" "$tmp_dir" || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    cleanup_temp_dir "$tmp_dir"
+    return "$rc"
+  fi
   printf '%s\n' "$tmp_dir"
 }
 

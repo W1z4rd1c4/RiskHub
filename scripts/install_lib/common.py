@@ -179,8 +179,14 @@ def config_value_is_placeholder(key: str, value: str | None) -> bool:
     return value is None or value.strip() == "" or value.strip() == placeholder
 
 
-def ensure_production_config_ready(config_path: Path, *, options: SharedOptions) -> None:
+def ensure_production_config_ready(
+    config_path: Path, *, options: SharedOptions
+) -> None:
     for key, placeholder in CONFIG_PLACEHOLDERS.items():
+        if read_envfile_value(
+            config_path, "AUTH_MODE"
+        ) == "password" and key.startswith("ENTRA_"):
+            continue
         current_value = read_envfile_value(config_path, key)
         if not config_value_is_placeholder(key, current_value):
             continue
@@ -188,6 +194,21 @@ def ensure_production_config_ready(config_path: Path, *, options: SharedOptions)
         if config_value_is_placeholder(key, replacement):
             raise RuntimeError(f"{key} must be changed from the template placeholder.")
         write_envfile_value(config_path, key, replacement)
+    if read_envfile_value(config_path, "AUTH_MODE") == "password":
+        for key, placeholder, label in (
+            ("LOCAL_SMTP_HOST", "smtp.example.com", "SMTP hostname"),
+            ("LOCAL_SMTP_SENDER", "riskhub@example.com", "SMTP sender address"),
+            ("LOCAL_SMTP_USERNAME", "riskhub", "SMTP authentication username"),
+        ):
+            current = read_envfile_value(config_path, key)
+            if current and current != placeholder:
+                continue
+            replacement = prompt_value(label, placeholder, options=options)
+            if not replacement or replacement == placeholder:
+                raise RuntimeError(
+                    f"Set {key} in the native installation configuration."
+                )
+            write_envfile_value(config_path, key, replacement)
 
 
 def secret_placeholder(name: str) -> str:
@@ -234,6 +255,8 @@ Shared options:
   --dry-run                    Print commands without executing them
   --yes                        Non-interactive mode where supported
   --verbose                    More logging
+  --user-management entra|custom  Fresh production identity choice; upgrade preserves the installed profile
+  --mfa-policy required|optional  Native MFA policy (required by default; confirmed factors remain enforced)
 
 Examples:
   ./scripts/install.sh demo

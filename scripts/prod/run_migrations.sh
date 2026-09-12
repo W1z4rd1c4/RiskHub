@@ -61,6 +61,7 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+identity_secret_mounts "$BACKEND_ENV"
 if [[ "$DRY_RUN" != "true" ]]; then
   require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
 fi
@@ -84,7 +85,7 @@ confirm_or_die "Run alembic migrations against external PostgreSQL?"
 log "Running migrations: alembic upgrade head"
 run docker run --rm \
   --add-host host.docker.internal:host-gateway \
-  -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
+  "${SECRET_MOUNT_ARGS[@]}" \
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
   --env-file "$BACKEND_ENV" "$backend_db_image" alembic upgrade head
 log "Migrations: OK"

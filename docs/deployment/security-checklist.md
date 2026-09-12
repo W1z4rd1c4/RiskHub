@@ -9,14 +9,13 @@ RiskHub production deploys must satisfy these invariants:
 
 - `DEBUG=false`
 - `MOCK_AUTH_ENABLED=false`
-- `AUTH_MODE=microsoft_sso`
-- `DIRECTORY_PROVIDER=graph`
+- an installation-bound profile: `AUTH_MODE=microsoft_sso` / `DIRECTORY_PROVIDER=graph`, or staged native `AUTH_MODE=password` / `DIRECTORY_PROVIDER=none`
 - `SECRET_KEY` secret file length at least `32`
 - `SECRET_KEY` must not use a blocked weak default (for example `dev-secret-key-not-for-production-use`, `changeme`, `dev-secret`, `test-secret`, `secret`)
 - explicit external PostgreSQL `database_url` secret file
 - explicit `CORS_ORIGINS`
 - reachable `REDIS_URL`
-- valid `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and one supported Entra Graph credential mechanism
+- Entra only: valid `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and one supported Graph credential mechanism
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `REFRESH_TOKEN_MIGRATION_GRACE=false`
@@ -59,7 +58,9 @@ RiskHub production deploys must satisfy these invariants:
 
 ## Authentication
 
-- Production is SSO-only.
+- Source admission permits Entra only until #208; native installer component support is not production release acceptance.
+- Native preparation requires protected keyring/recovery-public-key/SMTP files, verified mail TLS, sufficient KDF memory and distinct invitation recipients; follow [native installation](production.md#native-installation-preparation-and-release-boundary).
+- Entra-specific checks below apply only to the Entra profile. Native services must make no Microsoft directory calls.
 - Require Microsoft Entra Enterprise App assignment before go-live.
 - Validate the Microsoft Entra app registration and redirect URIs before go-live.
 - Register both the sign-in callback (`/auth/sso/callback`) and the post-logout redirect (`/login`) for the production origin.

@@ -209,7 +209,7 @@ identity; no result in this document is inferred from a test's existence.
 
 The [recovery backend](identity-recovery.md) extends these interfaces with factor
 replacement, governed recovery and key rotation. Directory isolation/capabilities
-(#202), privileged bootstrap (#203) and installer selection (#204) are subsequent deliveries. Group 4 implements UI, safe restore and final production admission. Do not
+(#202), privileged bootstrap (#203) and installer selection (#204) have separate implementation contracts in this tree. Group 4 implements UI, safe restore and final production admission. Do not
 replay bootstrap, reset factors through SQL, add hybrid fallback, or recreate another
 session/crypto/mail framework. Rollback must retain Argon2/factor decryptability,
 suspension and all revocations, or disable native authentication and roll forward

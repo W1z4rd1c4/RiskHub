@@ -108,6 +108,7 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+identity_secret_mounts "$BACKEND_ENV"
 if [[ "$DRY_RUN" != "true" ]]; then
   require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
 fi
@@ -176,23 +177,36 @@ confirm_or_die "Run DB bootstrap (RBAC + departments + bootstrap privileged user
 docker_common_args=(
   docker run --rm
   --add-host host.docker.internal:host-gateway
-  -v "${SECRET_DIR}:${SECRET_DIR}:ro"
+  "${SECRET_MOUNT_ARGS[@]}"
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
   --env-file "$BACKEND_ENV"
   "$backend_db_image"
 )
-
-log "Seeding RBAC roles/permissions (canonical contract)..."
-run "${docker_common_args[@]}" python -m scripts.seed_roles_permissions
-
-log "Seeding departments..."
-run "${docker_common_args[@]}" python -m scripts.seed_departments
 
 # Empty databases can be bound during explicit installation; populated unbound
 # databases must go through reviewed adopt-entra maintenance first.
 log "Initializing or verifying installation identity before user bootstrap..."
 run "${docker_common_args[@]}" python -m scripts.identity_installation initialize --maintenance-confirmed --source "docker-bootstrap"
 run "${docker_common_args[@]}" python -m scripts.identity_installation verify
+
+if [[ "$(envfile_get "$BACKEND_ENV" "AUTH_MODE")" == "password" ]]; then
+  handoff_dir="$(dirname "$RUNTIME_DIR")/handoff"
+  log "Creating or resuming protected native enrollment handoffs..."
+  run docker run --rm --add-host host.docker.internal:host-gateway \
+    --network "$NETWORK_NAME" \
+    "${SECRET_MOUNT_ARGS[@]}" -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
+    -v "${handoff_dir}:${handoff_dir}:rw" --env-file "$BACKEND_ENV" "$backend_db_image" \
+    python -m scripts.bootstrap_local_users --maintenance-confirmed install \
+    --admin-email "$bootstrap_email" --cro-email "$cro_email" --handoff-dir "$handoff_dir"
+  log "Native bootstrap command completed; inspect enrollment status before declaring onboarding complete."
+  exit 0
+fi
+
+log "Seeding RBAC roles/permissions (canonical contract)..."
+run "${docker_common_args[@]}" python -m scripts.seed_roles_permissions
+
+log "Seeding departments..."
+run "${docker_common_args[@]}" python -m scripts.seed_departments
 
 log "Bootstrapping initial SSO user with pre-link (idempotent upsert)..."
 bootstrap_args=(python -m scripts.bootstrap_sso_user --email "$bootstrap_email" --role "$bootstrap_role" --access-scope "$bootstrap_scope")

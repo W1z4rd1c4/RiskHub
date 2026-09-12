@@ -11,9 +11,10 @@ Non-secret path:
 /etc/riskhub/riskhub.env
 ```
 
-Required keys:
+Shared and provider-specific keys (Entra tenant/client keys apply only to Entra):
 
-- `PUBLIC_URL`
+- `PUBLIC_URL` (HTTPS origin only)
+- `AUTH_MODE` (`microsoft_sso` or `password`)
 - `ALLOWED_HOSTS`
 - `ENTRA_TENANT_ID`
 - `ENTRA_CLIENT_ID`
@@ -30,7 +31,7 @@ Optional keys:
 - `METRICS_ENABLED` default `false`; set `true` to expose API Prometheus metrics at `/metrics`
 - `OTEL_EXPORTER_OTLP_ENDPOINT` unset by default; accepts an OTLP HTTP collector base URL or `/v1/traces` endpoint and normalizes base URLs for emitted spans
 - `OTEL_SERVICE_NAME` default `riskhub-api`
-- `CORS_ORIGINS` when you need an explicit override instead of the managed same-origin default
+- Managed `CORS_ORIGINS` and `ALLOWED_HOSTS` must agree exactly with `PUBLIC_URL`; conflicting explicit values are rejected
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` when using certificate credential mode
 - `BOOTSTRAP_ADMIN_EXTERNAL_ID` trusted Entra object ID (`oid`) override for the bootstrap admin; omit it to use exact email/UPN Graph lookup
 - `BOOTSTRAP_CRO_EXTERNAL_ID` trusted Entra object ID (`oid`) override for the bootstrap CRO; omit it to use exact email/UPN Graph lookup
@@ -54,7 +55,7 @@ Entra confidential credential files:
 - client secret mode: `entra_client_secret`
 - certificate mode: `entra_client_certificate_private_key`
 
-Production requires one supported Entra Graph credential mechanism:
+The Entra profile requires one supported Graph credential mechanism:
 
 - `ENTRA_CLIENT_SECRET_FILE`, or
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` + `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
@@ -69,8 +70,7 @@ operator-only `initialize`, `eligibility-report`, `adopt-entra` and `verify` com
 
 `LOCAL_MFA_POLICY` accepts `required` (default) or `optional` for the native
 `AUTH_MODE=password`, `DIRECTORY_PROVIDER=none` profile. Optional permits verified
-password-only users and admins; enabled factors remain required. The current production
-renderer remains Entra-only, and native production admission stays blocked until #208.
+password-only users and admins; enabled factors remain required. The shared renderer supports both profiles; native production admission stays blocked until #208.
 This key is not a production enablement override.
 
 ## Managed / Installer-Rendered Values
@@ -95,7 +95,7 @@ Production runtime note:
 - `ALLOWED_HOSTS` is a required production setting. Managed `docker`/`linux` install flows derive and render it from the configured public hostname, but manual operators must treat it as an explicit allowlist requirement rather than assuming it is optional or inferred from CORS settings.
 - `METRICS_ENABLED=true` exposes `/metrics` for Prometheus scraping. Keep it disabled unless the endpoint is reachable only from trusted monitoring networks.
 - `OTEL_EXPORTER_OTLP_ENDPOINT` configures OpenTelemetry export for emitted spans when an OTLP HTTP collector is available. It accepts either the collector base URL or `/v1/traces` endpoint; RiskHub normalizes base URLs to `/v1/traces`. Leaving it unset keeps OpenTelemetry disabled and does not change startup behavior.
-- `DIRECTORY_PROVIDER` must be set to `graph` in production.
+- `DIRECTORY_PROVIDER=graph` accompanies `AUTH_MODE=microsoft_sso`; `DIRECTORY_PROVIDER=none` accompanies native `AUTH_MODE=password`. No profile/tenant switching is supported.
 - `ENTRA_JIT_PROVISIONING_ENABLED` must be set to `false` in production.
 - `AUTH_SSO_ALLOW_EMAIL_LINK` must be set to `false` in production.
 - `REFRESH_TOKEN_MIGRATION_GRACE=false` requires refresh tokens to carry the current audience and issuer claims. The source default remains available only for explicitly controlled development or migration use; changing this value does not revoke sessions or bump `token_version`.
@@ -103,7 +103,7 @@ Production runtime note:
 - `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15` fixes the canonical platform-administrator access-token lifetime in production. CRO and all other roles use the ordinary-user lifetime.
 - `RATE_LIMIT_FAIL_CLOSED_ON_BACKEND_ERROR` defaults to `true` in production and controls whether Redis limiter outages fail closed (`503`) instead of degrading to in-memory limits.
 - Every `/api/v1/auth/sso/exchange` call must come from the backend-issued SSO challenge flow; direct bare-token exchange is unsupported.
-- Production requires one explicit Entra confidential credential mode: `ENTRA_CLIENT_SECRET_FILE`, or `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` plus `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`.
+- The Entra profile requires one explicit confidential credential mode: `ENTRA_CLIENT_SECRET_FILE`, or `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` plus `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`.
 
 Target-specific Redis URLs:
 
@@ -143,7 +143,7 @@ Wrapper notes:
 - `./scripts/install.sh upgrade ...` creates a timestamped non-secret backup under the runtime directory, then runs `preflight`, `upgrade`, `status`, and `smoke`.
 - `./scripts/install.sh verify ...` is non-mutating and dispatches to the production `status` and `smoke` checks for the selected target.
 - `./scripts/install.sh status ...` reports target, config/runtime paths, current release source, managed resource state, and the latest known successful deploy/smoke metadata. `--json` emits machine-readable output only.
-- `./scripts/install.sh doctor ...` is the first response for broken deployments. `--repair` is limited to safe scaffolding, path normalization, restart actions, metadata reconstruction, and post-repair `status`/`smoke`.
+- `./scripts/install.sh doctor ...` is the first response for broken deployments. `--repair` restarts valid runtimes and reconstructs metadata. Missing/invalid identity configuration or security files require explicit operator restoration; repair never recreates credentials, keys or enrollment grants.
 
 ## Advanced/Admin Command Reference
 
@@ -239,8 +239,7 @@ Linux target:
 
 - `DEBUG=false`
 - `MOCK_AUTH_ENABLED=false`
-- `AUTH_MODE=microsoft_sso`
-- `DIRECTORY_PROVIDER=graph`
+- matching `AUTH_MODE`/`DIRECTORY_PROVIDER` from the selected profile and installation binding
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `REFRESH_TOKEN_MIGRATION_GRACE=false`
@@ -264,13 +263,32 @@ For staged native runtime inputs (SMTP, keyring, KDF limits and password policy)
 [native credentials](../security/identity-local-credentials.md#required-nonsecret-configuration-and-protected-inputs).
 The managed Entra renderer does not yet provision those inputs.
 
-## Staged native bootstrap command
+## Native installation and bootstrap
 
-The DB-task image and Linux DB-task package include `scripts.bootstrap_local_users`
-for distinct initial Admin/CRO invitations. Follow the [native bootstrap operator
-contract](../security/identity-bootstrap.md) for key registration, protected file
-ownership, dry-run, handoff/resume, explicit reissue and abort. Recipients choose
-passwords; MFA is required by default and explicit optional policy supports
-password-only enrollment. Completed accounts can never be reset or have access
-restored by bootstrap. This backend command does not select a managed native
-production profile; installer integration and release admission remain #204/#208.
+See [native installation preparation](production.md#native-installation-preparation-and-release-boundary)
+for `--user-management custom`, `LOCAL_MFA_POLICY=required` (default) or
+`LOCAL_MFA_POLICY=optional`, secret ownership, handoff/resume, upgrades and diagnostics.
+The same renderer supports Docker/Linux; source admission remains closed until #208.
+Admin/CRO recipients choose passwords and completed accounts cannot be reset by bootstrap.
+
+Native provider inputs and protected files:
+
+| Input | Contract |
+|---|---|
+| `AUTH_MODE=password`, `DIRECTORY_PROVIDER=none` | No active Entra/emulator configuration |
+| `LOCAL_MFA_POLICY` | `required` by default; explicit `optional` permits password-only accounts |
+| `LOCAL_KDF_MEMORY_BUDGET_MIB` | Default 1024; at least 128 MiB per `API_WORKERS`, maximum 65536 |
+| `LOCAL_SMTP_HOST`, `LOCAL_SMTP_PORT` | Reachable delivery host and port (587 default) |
+| `LOCAL_SMTP_SECURITY` | Verified `starttls` (default) or `tls` |
+| `LOCAL_SMTP_SENDER`, `LOCAL_SMTP_USERNAME` | Sender address and SMTP authentication username |
+| `LOCAL_AUTH_KEYRING_FILE` | Renderer-selected `secrets/local_auth_keyring`; protected version-1 keyring |
+| `LOCAL_RECOVERY_APPROVERS_FILE` | Renderer-selected `secrets/local_recovery_approvers`; at least two public keys |
+| `LOCAL_SMTP_PASSWORD_FILE` | Renderer-selected `secrets/local_smtp_password`; owner-only secret |
+| `LOCAL_SMTP_CA_FILE`, `LOCAL_PASSWORD_BLOCKLIST_FILE` | Optional protected absolute file paths mounted into native runtime/DB tasks |
+
+`--user-management entra|custom` selects the tuple only during fresh setup;
+`--mfa-policy required|optional` applies only to native configuration. Reruns preserve
+recorded values and conflicting flags fail. The advanced `deploy.sh diagnose --target
+docker|linux [--deep]` returns safe JSON from the installed runtime; deep probes SMTP
+TLS/authentication without sending mail. Status/doctor include this state; native
+external directory is `not_applicable`, not a health failure.

@@ -66,3 +66,5 @@ see [native credentials](../docs/security/identity-local-credentials.md).
 Implementation context (#202): native external-directory admission, identity capability metadata and disabled-directory diagnostics are implemented in the current candidate; managed installer/bootstrap/UI release and live closure remain governed by their GitHub delivery items.
 
 Implementation context (#203): native bootstrap persists exact initial Admin/CRO principals, protected grant handoff/resume/reissue and permanent enrollment completion. Existing transport packaging includes the narrow command; managed profile selection and native production admission remain #204/#208.
+
+Implementation context (#204): shared Docker/Linux rendering supports the canonical identity tuple and both native MFA policies, protected file selection, pre-replacement compatibility inspection, native bootstrap/resume and read-only diagnostics. Native UI and final admission remain subsequent deliveries; GitHub controls live review/closure.

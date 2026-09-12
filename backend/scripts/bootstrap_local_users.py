@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from pathlib import Path
 
 from redis.asyncio import Redis
+from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.exceptions import AuthenticationError, AuthorizationError, ConflictError, ValidationError
 from app.db.session import session_context
+from app.models import LocalBootstrapTarget
 from app.services._local_auth.bootstrap import (
     BootstrapRequest,
     abort_pending_bootstrap,
@@ -44,7 +47,20 @@ async def run(args: argparse.Namespace) -> dict:
                 return await abort_pending_bootstrap(db, ctx, reason=args.reason)
             if args.command == "reissue":
                 return await reissue_bootstrap(db, ctx, slot=args.slot, output=args.output, reason=args.reason)
-            request = BootstrapRequest(args.admin_email, args.cro_email, args.admin_file, args.cro_file)
+            if args.command == "install":
+                targets = {
+                    target.slot: target
+                    for target in await db.scalars(
+                        select(LocalBootstrapTarget).where(LocalBootstrapTarget.installation_id == ctx.installation_id)
+                    )
+                }
+                admin_file = (
+                    targets["admin"].handoff_path if "admin" in targets else str(Path(args.handoff_dir) / "admin.json")
+                )
+                cro_file = targets["cro"].handoff_path if "cro" in targets else str(Path(args.handoff_dir) / "cro.json")
+                request = BootstrapRequest(args.admin_email, args.cro_email, admin_file, cro_file)
+            else:
+                request = BootstrapRequest(args.admin_email, args.cro_email, args.admin_file, args.cro_file)
             return await bootstrap_native(db, ctx, request, dry_run=args.dry_run)
     finally:
         await redis.aclose()
@@ -69,6 +85,9 @@ def main() -> None:
     for name in ("admin-email", "cro-email", "admin-file", "cro-file"):
         start.add_argument(f"--{name}", required=True)
     start.add_argument("--dry-run", action="store_true", help="Validate without database or file mutations")
+    install = sub.add_parser("install", help="Managed installer bootstrap; preserve persisted handoff paths on resume")
+    for name in ("admin-email", "cro-email", "handoff-dir"):
+        install.add_argument(f"--{name}", required=True)
     sub.add_parser("status", help="Read infrastructure, handoff and enrollment status without changing accounts")
     reissue = sub.add_parser("reissue", help="Explicitly supersede a never-enrolled pending grant")
     reissue.add_argument("--slot", choices=("admin", "cro"), required=True)

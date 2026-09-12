@@ -11,9 +11,9 @@
 Both targets require:
 
 - external PostgreSQL
-- a public RiskHub URL
-- Microsoft Entra app credentials, including one confidential credential method for Graph (`client secret` or `certificate credential`)
-- Enterprise App assignment required enabled for the RiskHub application before first production sign-in
+- a public HTTPS RiskHub URL
+- for Entra: app credentials with one confidential Graph credential (`client secret` or `certificate credential`)
+- for Entra: Enterprise App assignment required before first production sign-in
 - access to the release assets for the version you want to deploy
 - an encrypted host disk or encrypted mount for `/etc/riskhub`
 
@@ -80,7 +80,7 @@ or
 ./scripts/deploy.sh secrets-edit --target linux --secret-dir /etc/riskhub/secrets
 ```
 
-`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and the production `ALLOWED_HOSTS` allowlist stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env` and warns when production still uses client-secret mode.
+`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and the production `ALLOWED_HOSTS` allowlist stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. For the Entra profile, `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env` and warns when production still uses client-secret mode.
 
 If you enable read-only Entra business-role metadata in RiskHub, set `ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME=riskhubBusinessRole` in `/etc/riskhub/riskhub.env`, create that directory extension on the RiskHub app registration, and add the matching optional ID-token claim before rollout.
 
@@ -117,7 +117,7 @@ Before deployment, source each supplied `oid` from the configured Entra tenant a
 ./scripts/deploy.sh preflight --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
-Preflight validates the config, target prerequisites, explicit production `ALLOWED_HOSTS`, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, Graph-only production invariants, and the frontend bind port.
+Preflight validates the config, target prerequisites, explicit production `ALLOWED_HOSTS`, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, the selected identity profile and shared production invariants, and the frontend bind port.
 
 ## Identity migration prerequisite
 
@@ -125,7 +125,7 @@ Before upgrading an existing unbound installation, back up the database, configu
 and secrets, drain all API/scheduler writers, and complete the
 [identity adoption procedure](../security/identity-foundations.md) with the new
 release's DB-task tooling. Fresh installs initialize the empty database automatically
-before Entra bootstrap. Production still uses Entra; optional local MFA is a staged
+before profile-specific bootstrap. Production admission still permits Entra only; local MFA is a staged
 native feature awaiting the remaining identity release gates.
 
 Managed upgrades stop API/scheduler writers before migrations. If migration, identity
@@ -268,13 +268,104 @@ Linux target:
 
 Rollback does not downgrade the database. Use forward-fix migrations and backups/PITR for database incidents.
 
-## Staged native bootstrap command
+## Native installation preparation and release boundary
 
-The DB-task image and Linux DB-task package include `scripts.bootstrap_local_users`
-for distinct initial Admin/CRO invitations. Follow the [native bootstrap operator
-contract](../security/identity-bootstrap.md) for key registration, protected file
-ownership, dry-run, handoff/resume, explicit reissue and abort. Recipients choose
-passwords; MFA is required by default and explicit optional policy supports
-password-only enrollment. Completed accounts can never be reset or have access
-restored by bootstrap. This backend command does not select a managed native
-production profile; installer integration and release admission remain #204/#208.
+The shared installer accepts `--user-management entra|custom` on both targets.
+Fresh interactive setup offers Entra by default; unattended setup without a choice
+retains Entra semantics. The only persisted identity selector is the canonical
+`AUTH_MODE`/`DIRECTORY_PROVIDER` tuple. Existing installations retain that tuple and
+native MFA policy on reruns/upgrades. Conflicting options, tenant/profile changes,
+and missing recorded configuration are refused before replacing services.
+
+The custom profile is implemented for component verification, but **production
+admission remains closed until #208**. Deploy/upgrade reports that boundary;
+there is no runtime bypass. Do not enable debug/mock authentication to work around it.
+The following prepares its files without deploying an application:
+
+```bash
+./scripts/deploy.sh init --target docker --user-management custom --mfa-policy optional \
+  --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
+# The same interface accepts --target linux. Omit --mfa-policy for required MFA.
+```
+
+For an accepted release, add `--user-management custom --mfa-policy optional` to the
+public `install.sh production` command with its normal pinned images or Linux bundle.
+`required` is the default. Optional policy permits password-only users and admins
+after verified invitation/password setup; accounts with a confirmed factor still
+require it. On upgrade omit those options to preserve the recorded policy. Changing
+a recorded MFA policy is an explicit config edit applied consistently to all workers;
+read [session implications](../security/identity-local-credentials.md#session-lifetime-and-revocation).
+
+Use `scripts/deploy/templates/riskhub-native.env.example` for the non-secret inputs.
+Managed preflight uses the runtime's proxy policy: configure exact proxy hops or
+narrow dedicated proxy subnets. Broad trust such as `0.0.0.0/0`, `::/0` or whole
+private-address ranges is refused, including broad Docker-derived defaults, before
+runtime files or services are replaced. Managed installation does not enable the
+runtime's broad-trust exception.
+
+Configure the real HTTPS origin, distinct admin/CRO emails, SMTP hostname/port,
+verified `starttls` or `tls`, sender and username. Allow 128 MiB of KDF budget per API
+worker, within the deployment's available memory. The packaged password blocklist,
+15–128-character policy and eight-hour full-authentication limit remain mandatory.
+An optional additional blocklist or SMTP CA uses the documented protected file path.
+
+Native secret preparation creates separate random keyring keys once and leaves
+existing files untouched, including unused Entra files. It creates no Entra
+credential placeholders or mounts for native services. Populate `local_smtp_password`
+and register at least two independent approver public keys in
+`local_recovery_approvers`; the initial empty trust file is intentionally unusable.
+Follow the [keyring format](../security/identity-local-credentials.md) and
+[approver registration](../security/identity-recovery.md#privileged-or-last-admin-recovery).
+Keep those three native files owner-only (normally `0400`) and owned by service UID
+10001 or the configured Linux service user. Common DB/JWT/Redis files retain their
+protected deployment ownership. No private approver keys belong on this server.
+If scaffold creation is interrupted, validate existing files; restore a known keyring
+instead of rerunning initialization to replace it.
+
+Before service replacement, the candidate DB package performs a read-only check of
+profile/binding, schema revision, supported password hashes and actual decryption
+with retained key material. A populated unbound database requires explicit Entra
+adoption in maintenance; demo/native conversion is never automatic. Fresh empty
+installations migrate, bind/verify, then bootstrap. Upgrades drain all API/scheduler
+writers before migrations and bootstrap. The database image runs its bootstrap as
+UID 10001; Linux uses the application service UID. A protected sibling `handoff/`
+directory next to the runtime directory holds separate admin/CRO invitation files.
+
+Deliver each handoff privately to its recipient. They choose their own password
+and complete the selected MFA policy. A resumed installer preserves pending handoffs,
+including explicitly reissued paths, and never resets completed users. If failure
+occurs after grants commit, inspect [bootstrap status and resumable handoff](../security/identity-bootstrap.md)
+before retrying. Only the explicit maintenance reissue/abort commands change those
+artifacts. Keep writers stopped after a failed migration/bootstrap until reconciled.
+Retry the same `install.sh production` command with the same configuration, secret
+directory and immutable release inputs after resolving the reported failure. A
+recorded partial install resumes through candidate compatibility and bootstrap
+checks even if application containers or the Linux `current` link were never
+created. Linux removes the unused candidate from a failed attempt so the same
+bundle can be extracted again; an activated or previous release is preserved.
+If activation succeeded but a later smoke check failed, inspect status first and
+use the documented compatible-release upgrade/rollback procedure. Never delete
+runtime identity files or handoffs to make an installation appear fresh.
+
+`install.sh status --mode production --target docker|linux --json` includes the
+selected identity, MFA policy, external directory applicability, security availability
+and initial enrollment state. `doctor --deep` additionally checks SMTP TLS/login
+without sending a message. SMTP unreachability is `delivery=degraded`; invalid
+security state is `security=unavailable`. Neither probe changes accounts or sessions.
+Infrastructure readiness is not completed onboarding: `verify` requires completed
+native admin/CRO enrollment and working delivery. `doctor --repair` may restart
+valid runtimes and reconstruct metadata, but refuses missing/invalid identity state;
+it never changes profiles, regenerates secrets, resets passwords/factors, unsuspends
+accounts or bypasses recovery approvals. Restore recorded config/security files through
+the documented operator procedure before retrying. Logs retain sanitized failure
+categories; never paste handoffs, passwords or secret file contents into support logs.
+
+Back up PostgreSQL and the full retained keyring plus JWT/Redis/SMTP files before
+upgrades, with independent recovery public-key registration and protected handoffs.
+Native Docker rollback uses `upgrade` with all four pinned artifacts of the intended
+compatible release; the per-container previous-image shortcut is refused. Linux
+checks the previous release before changing its symlink. Rollback never downgrades
+the database: a candidate must support the current schema,
+contract, hashes and retained keys. If it cannot, keep maintenance active and roll
+forward. The restore/checkpoint release procedure remains #207/#208; do not infer
+production restore acceptance from these installer component checks.

@@ -65,6 +65,7 @@ def write_audit_input_files(
     (config_path.parent / "backend_valid.env").write_text(
         "\n".join(
             [
+                "PUBLIC_URL=https://riskhub.example.com",
                 "DEBUG=false",
                 "MOCK_AUTH_ENABLED=false",
                 "AUTH_MODE=microsoft_sso",

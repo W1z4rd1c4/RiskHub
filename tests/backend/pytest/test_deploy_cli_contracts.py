@@ -713,9 +713,15 @@ def test_docker_deploy_propagates_bootstrap_failure_before_app_install() -> None
         ("preflight", "", "pull ghcr.io/example/riskhub-backend", 1),
         ("pull", "pull ghcr.io/example/riskhub-backend", " python -", 73),
         ("db_preflight", " python -", "--name riskhub-redis", 73),
+        ("identity_compatibility", "scripts.identity_preflight", "--name riskhub-redis", 73),
         ("redis", "--name riskhub-redis", "alembic upgrade head", 73),
         ("migration", "alembic upgrade head", "scripts.seed_roles_permissions", 73),
-        ("identity", "scripts.identity_installation initialize", "scripts.bootstrap_sso_user", 73),
+        (
+            "identity",
+            "scripts.identity_installation initialize",
+            "scripts.bootstrap_sso_user",
+            73,
+        ),
         ("bootstrap", "scripts.bootstrap_sso_user", "--name riskhub-backend", 73),
         ("api", "--name riskhub-backend ", "--name riskhub-backend-scheduler", 73),
         (
@@ -846,7 +852,11 @@ set -euo pipefail
 source {str(REPO_ROOT / 'scripts/deploy/lib/common.sh')!r}
 source {str(REPO_ROOT / 'scripts/deploy/lib/linux.sh')!r}
 LINUX_BACKEND_ENV={str(backend_env)!r}
-run_privileged_sh() {{ bash -lc "$2"; }}
+run_privileged() {{
+  [[ "$1 $2 $3 $4" == "runuser -u riskhub --" ]] || return 92
+  shift 4
+  "$@"
+}}
 linux_run_db_tasks {str(release_dir)!r}
 """
         result = subprocess.run(
@@ -860,10 +870,18 @@ linux_run_db_tasks {str(release_dir)!r}
 
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
         commands = argv_log.read_text(encoding="utf-8").splitlines()
-        initialize = next(line for line in commands if "scripts.identity_installation initialize" in line)
-        verify = next(line for line in commands if "scripts.identity_installation verify" in line)
+        initialize = next(
+            line
+            for line in commands
+            if "scripts.identity_installation initialize" in line
+        )
+        verify = next(
+            line for line in commands if "scripts.identity_installation verify" in line
+        )
         admin = next(line for line in commands if "--role admin" in line)
-        assert commands.index(initialize) < commands.index(verify) < commands.index(admin)
+        assert (
+            commands.index(initialize) < commands.index(verify) < commands.index(admin)
+        )
         cro = next(line for line in commands if "--role cro" in line)
         if include_external_ids:
             assert "--external-id 11111111-2222-4333-8444-555555555555" in admin
@@ -1474,8 +1492,7 @@ def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> No
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert (
-            "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid "
-            "entra_client_certificate_private_key secret file was found"
+            "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE still contains the placeholder value"
         ) in output
         assert "Preflight: OK" not in output
 
@@ -1677,3 +1694,51 @@ def test_preflight_reports_config_validation_failures() -> None:
         assert (
             "BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different" in output
         )
+
+
+def test_public_installer_resumes_bootstrap_failure_before_containers_exist(tmp_path):
+    from tests.backend.pytest.test_install_script_contracts import _run_install
+
+    config, secrets, runtime = tmp_path / "riskhub.env", tmp_path / "secrets", tmp_path / "runtime"
+    _write_config(config, PUBLIC_URL="https://risk.example.test", BOOTSTRAP_ADMIN_EMAIL="admin@risk.example.test",
+                  BOOTSTRAP_CRO_EMAIL="cro@risk.example.test", ENTRA_TENANT_ID="aaaaaaaa-1234-4234-8234-123456789abc",
+                  ENTRA_CLIENT_ID="bbbbbbbb-1234-4234-8234-123456789abc")
+    _write_secrets(secrets)
+    fake_bin = _make_fake_bin(tmp_path)
+    # Real orchestration with deterministic external health/container adapters.
+    curl = fake_bin / "curl"
+    _write_exec(curl, "#!/usr/bin/env bash\nprintf '{\"ready\":true,\"database\":\"connected\"}\\n200\\n'\n")
+    docker = fake_bin / "docker"
+    docker_source = docker.read_text().replace('  run)\n', """  exec)
+    if [[ "$*" == *"http://localhost:8000/"* ]]; then
+      printf '404\\n'
+    else
+      printf '{"dead_letter_count":0,"missing_tables":[],"scheduler_runtime_rows":1}\\n'
+    fi
+    exit 0
+    ;;
+  run)
+""")
+    _write_exec(docker, docker_source)
+    command_log = tmp_path / "commands"
+    args = ["production", "--target", "docker", "--config", str(config), "--secret-dir", str(secrets),
+            "--backend-image", _image("backend"), "--backend-db-image", _image("db"),
+            "--frontend-image", _image("frontend"), "--redis-image", _image("redis"), "--yes"]
+    env = {"PATH": f"{fake_bin}:{os.environ['PATH']}", "RISKHUB_RUNTIME_DIR": str(runtime),
+           "RISKHUB_LINUX_ROOT": str(tmp_path / "linux"), "DOCKER_COMMAND_LOG": str(command_log),
+           "DOCKER_STATE_FILE": str(tmp_path / "containers"), "DOCKER_FAIL_BOOTSTRAP": "1"}
+    original = {p.name: p.read_bytes() for p in secrets.iterdir()}
+    first = _run_install(*args, env=env)
+    assert first.returncode != 0, first.stdout + first.stderr
+    assert (runtime / "backend.env").is_file(), first.stdout + first.stderr
+    assert "uvicorn app.main:app" not in command_log.read_text()
+    env["DOCKER_FAIL_BOOTSTRAP"] = "0"
+    command_log.write_text("")
+    second = _run_install(*args, env=env)
+    assert second.returncode == 0, second.stdout + second.stderr
+    calls = command_log.read_text()
+    assert "scripts.identity_preflight" in calls
+    assert "scripts.bootstrap_sso_user" in calls
+    assert "--name riskhub-backend" in calls and "--name riskhub-frontend" in calls
+    assert (runtime / "install-state.json").is_file()
+    assert original == {p.name: p.read_bytes() for p in secrets.iterdir()}

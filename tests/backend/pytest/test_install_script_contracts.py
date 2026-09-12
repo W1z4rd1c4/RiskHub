@@ -51,7 +51,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from install_lib.common import InstallPaths, secret_placeholder  # noqa: E402
+from install_lib.common import InstallPaths  # noqa: E402
 
 INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install.sh"
 COMPOSE_SCRIPT = REPO_ROOT / "scripts" / "compose.sh"
@@ -236,6 +236,12 @@ def _make_fake_deploy_script(tmp: Path) -> Path:
 set -euo pipefail
 if [[ -n "${RISKHUB_TEST_COMMAND_LOG:-}" ]]; then
   printf '%s\\n' "$0 $*" >> "${RISKHUB_TEST_COMMAND_LOG}"
+fi
+if [[ "${1:-}" == "diagnose" ]]; then
+  cat <<'JSON'
+{"auth_mode":"microsoft_sso","directory_provider":"graph","local_mfa_policy":"not_applicable",
+ "security":"available","onboarding":"provider_managed"}
+JSON
 fi
 exit 0
 """,
@@ -445,7 +451,9 @@ def test_install_production_dry_run_initializes_missing_scaffold_before_lifecycl
         assert "deploy --target docker" not in output
 
 
-def test_install_production_dry_run_initializes_missing_secret_scaffold_before_lifecycle() -> None:
+def test_install_production_dry_run_initializes_missing_secret_scaffold_before_lifecycle() -> (
+    None
+):
     with tempfile.TemporaryDirectory(prefix="riskhub-install-secret-scaffold-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -468,7 +476,10 @@ def test_install_production_dry_run_initializes_missing_secret_scaffold_before_l
         output = f"{result.stdout}\n{result.stderr}"
 
         assert result.returncode == 0, output
-        assert "secrets-init --target docker --secret-dir" in output
+        assert (
+            f"secrets-init --target docker --config {config_path} --secret-dir"
+            in output
+        )
         assert "preflight --target docker" not in output
         assert "deploy --target docker" not in output
 
@@ -765,7 +776,9 @@ def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
         _write_config(config_path)
         _write_secrets(secret_dir)
         runtime_dir.mkdir(parents=True, exist_ok=True)
-        (runtime_dir / "backend.env").write_text("backend=1\n", encoding="utf-8")
+        (runtime_dir / "backend.env").write_text(
+            config_path.read_text(), encoding="utf-8"
+        )
         (runtime_dir / "metadata.env").write_text(
             "\n".join(
                 [
@@ -786,7 +799,10 @@ def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
                 "config_path": str(config_path),
                 "secret_dir": str(secret_dir),
                 "runtime_dir": str(runtime_dir),
-                "current_release_source": {"kind": "docker_version", "version": "v1.2.3"},
+                "current_release_source": {
+                    "kind": "docker_version",
+                    "version": "v1.2.3",
+                },
                 "managed_resources": {"docker_containers": ["riskhub-backend"]},
                 "public_url": "https://riskhub.example.com.internal",
                 "last_successful_deploy_timestamp": "2026-04-04T10:00:00Z",
@@ -822,9 +838,14 @@ def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
         assert (latest_backup / "runtime" / "backend.env").exists()
         assert (latest_backup / "runtime" / "metadata.env").exists()
         assert (latest_backup / "runtime" / "install-state.json").exists()
-        backed_up_metadata = (latest_backup / "runtime" / "metadata.env").read_text(encoding="utf-8")
+        backed_up_metadata = (latest_backup / "runtime" / "metadata.env").read_text(
+            encoding="utf-8"
+        )
         assert "REDIS_URL_FILE=/etc/riskhub/runtime/redis_url" in backed_up_metadata
-        assert "REDIS_PASSWORD_FILE=/etc/riskhub/secrets/redis_password" in backed_up_metadata
+        assert (
+            "REDIS_PASSWORD_FILE=/etc/riskhub/secrets/redis_password"
+            in backed_up_metadata
+        )
         assert "REDIS_URL=" not in backed_up_metadata
         assert "redis-secret" not in backed_up_metadata
 
@@ -1072,7 +1093,7 @@ def test_install_doctor_flags_legacy_secret_placeholder_values() -> None:
         assert "redis_password_legacy_placeholder" in payload["findings"]
 
 
-def test_install_doctor_repair_scaffolds_canonical_secret_placeholders_and_stops_for_user_edits() -> None:
+def test_install_doctor_repair_refuses_to_recreate_missing_credentials() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-doctor-secret-scaffold-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -1109,15 +1130,17 @@ def test_install_doctor_repair_scaffolds_canonical_secret_placeholders_and_stops
         assert result.returncode == 0, output
         payload = json.loads(result.stdout)
         for name in ("database_url", "secret_key", "redis_password"):
-            assert (secret_dir / name).read_text(encoding="utf-8") == f"{secret_placeholder(name)}\n"
+            assert not (secret_dir / name).exists()
         assert payload["repair_requested"] is True
         assert payload["repair_applied"] is False
-        assert "secret_placeholders_require_user_edits" in payload["findings"]
+        assert "repair_requires_operator_reconciliation" in payload["findings"]
         assert any(
-            "edit generated secret scaffold files before rerunning doctor" in action
+            "Restore the recorded configuration and protected files" in action
             for action in payload["actions"]
         )
-        command_text = command_log.read_text(encoding="utf-8") if command_log.exists() else ""
+        command_text = (
+            command_log.read_text(encoding="utf-8") if command_log.exists() else ""
+        )
         assert " smoke " not in f" {command_text} "
         assert not (runtime_dir / "install-state.json").exists()
 

@@ -99,12 +99,6 @@ docker_deploy_or_upgrade() {
   set +e
   (
     set -e
-    if [[ "$DRY_RUN" != "true" ]]; then
-      copy_runtime_file "${runtime_dir}/backend.env" "${RUNTIME_DIR}/backend.env" 640
-      copy_runtime_file "${runtime_dir}/frontend.env" "${RUNTIME_DIR}/frontend.env" 640
-      copy_runtime_file "${runtime_dir}/metadata.env" "${RUNTIME_DIR}/metadata.env" 640
-      copy_runtime_file "${runtime_dir}/redis_url" "${RUNTIME_DIR}/redis_url" 440
-    fi
     source_metadata_env "$runtime_dir"
 
     local backend_env="${runtime_dir}/backend.env"
@@ -123,7 +117,8 @@ docker_deploy_or_upgrade() {
       fi
     else
       if [[ "$backend_exists" != "true" || "$scheduler_exists" != "true" || "$frontend_exists" != "true" ]]; then
-        die "Existing docker deployment not found. Use deploy for first install."
+        [[ -f "${RUNTIME_DIR}/backend.env" ]] || die "Existing docker deployment not found. Use deploy for first install."
+        log "Resuming recorded installation; missing application containers will be created after compatibility and bootstrap checks."
       fi
     fi
 
@@ -164,12 +159,27 @@ docker_deploy_or_upgrade() {
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/preflight.sh" "${db_preflight_args[@]}"
 
-    run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
-      "${REPO_ROOT}/scripts/prod/install_redis.sh" --backend-env "$backend_env" --redis-image "$DOCKER_REDIS_IMAGE" "${prod_common[@]}"
+    identity_secret_mounts "$backend_env"
+    log "Checking candidate identity, schema and key compatibility before replacing services..."
+    run docker run --rm --add-host host.docker.internal:host-gateway \
+      "${SECRET_MOUNT_ARGS[@]}" -v "${runtime_dir}/redis_url:${RUNTIME_DIR}/redis_url:ro" \
+      --env-file "$backend_env" "$DOCKER_BACKEND_DB_IMAGE" python -m scripts.identity_preflight
     if [[ "$action" == "upgrade" ]]; then
       log "Stopping API and scheduler writers before schema and identity changes..."
-      run docker stop riskhub-backend riskhub-backend-scheduler
+      if [[ "$backend_exists" == "true" ]]; then run docker stop riskhub-backend; fi
+      if [[ "$scheduler_exists" == "true" ]]; then run docker stop riskhub-backend-scheduler; fi
     fi
+    if [[ "$DRY_RUN" != "true" ]]; then
+      copy_runtime_file "${runtime_dir}/backend.env" "${RUNTIME_DIR}/backend.env" 640
+      copy_runtime_file "${runtime_dir}/frontend.env" "${RUNTIME_DIR}/frontend.env" 640
+      copy_runtime_file "${runtime_dir}/metadata.env" "${RUNTIME_DIR}/metadata.env" 640
+      copy_runtime_file "${runtime_dir}/redis_url" "${RUNTIME_DIR}/redis_url" 440
+    fi
+    if [[ "$AUTH_MODE" == "password" ]]; then
+      prepare_native_handoff_directory
+    fi
+    run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
+      "${REPO_ROOT}/scripts/prod/install_redis.sh" --backend-env "$backend_env" --redis-image "$DOCKER_REDIS_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/run_migrations.sh" --backend-env "$backend_env" --backend-db-image "$DOCKER_BACKEND_DB_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
@@ -192,12 +202,13 @@ docker_deploy_or_upgrade() {
     )
 
     if [[ "$action" == "upgrade" ]]; then
-      local prev_backend_image prev_frontend_image
+      local prev_backend_image prev_scheduler_image prev_frontend_image
       prev_backend_image="$(docker_image_for_container "riskhub-backend")"
+      prev_scheduler_image="$(docker_image_for_container "riskhub-backend-scheduler")"
       prev_frontend_image="$(docker_image_for_container "riskhub-frontend")"
-      backend_install_args+=(--previous-image "$prev_backend_image")
-      scheduler_install_args+=(--previous-image "$prev_backend_image")
-      frontend_install_args+=(--previous-image "$prev_frontend_image")
+      if [[ -n "$prev_backend_image" ]]; then backend_install_args+=(--previous-image "$prev_backend_image"); fi
+      if [[ -n "$prev_scheduler_image" ]]; then scheduler_install_args+=(--previous-image "$prev_scheduler_image"); fi
+      if [[ -n "$prev_frontend_image" ]]; then frontend_install_args+=(--previous-image "$prev_frontend_image"); fi
     fi
 
     if [[ "$YES" == "true" ]]; then

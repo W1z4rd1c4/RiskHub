@@ -6,16 +6,14 @@ import base64
 import hashlib
 import hmac
 import json
-import os
-import re
 import secrets
-import stat
 from dataclasses import dataclass, field
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.exceptions import ServiceFailure
+from app.core.native_identity_files import load_keyring_material, read_native_secret
 
 
 def unavailable() -> ServiceFailure:
@@ -25,19 +23,9 @@ def unavailable() -> ServiceFailure:
 
 
 def read_secret_file(path: str | None, *, max_bytes: int = 65536) -> bytes:
-    if not path:
-        raise unavailable()
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-        with os.fdopen(fd, "rb") as stream:
-            info = os.fstat(stream.fileno())
-            if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_size > max_bytes:
-                raise ValueError("Unsafe secret file")
-            value = stream.read(max_bytes + 1)
-            if not value or len(value) > max_bytes:
-                raise ValueError("Invalid secret file")
-            return value
-    except (OSError, ValueError):
+        return read_native_secret(path, max_bytes=max_bytes)
+    except ValueError:
         raise unavailable() from None
 
 
@@ -58,30 +46,10 @@ class LocalKeyring:
     @classmethod
     def load(cls, path: str | None) -> "LocalKeyring":
         try:
-            data = json.loads(read_secret_file(path))
-            if (
-                type(data["version"]) is not int
-                or data["version"] != 1
-                or set(data["purposes"]) != {"delivery", "totp", "action"}
-            ):
-                raise ValueError("Invalid keyring")
-            purposes = {}
-            unique: set[bytes] = set()
-            for purpose, entry in data["purposes"].items():
-                keys = {}
-                for key_id, value in entry["keys"].items():
-                    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", key_id):
-                        raise ValueError("Invalid key identifier")
-                    raw = base64.b64decode(value, validate=True)
-                    if len(raw) != 32 or raw in unique:
-                        raise ValueError("Keys must be independently generated")
-                    unique.add(raw)
-                    keys[key_id] = raw
-                if entry["active"] not in keys:
-                    raise ValueError("Missing active key")
-                purposes[purpose] = KeyPurpose(entry["active"], keys)
-            return cls(purposes)
-        except (KeyError, TypeError, ValueError, AttributeError):
+            return cls(
+                {purpose: KeyPurpose(active, keys) for purpose, (active, keys) in load_keyring_material(path).items()}
+            )
+        except ValueError:
             raise unavailable() from None
 
     def encrypt(self, purpose: str, plaintext: str, context: list[str]) -> tuple[str, str]:

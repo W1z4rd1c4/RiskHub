@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 from pathlib import Path
 
-from install_lib.common import InstallPaths, production_public_url, run_capture, timestamp_utc
+from install_lib.common import (
+    InstallPaths,
+    production_public_url,
+    run_capture,
+    timestamp_utc,
+)
+from install_lib.identity_diagnostics import identity_diagnostics
 
 
 def install_state_path(paths: InstallPaths, runtime_dir: Path | None = None) -> Path:
@@ -153,9 +158,14 @@ def production_status_payload(
     config_path: Path,
     secret_dir: Path,
     runtime_dir: Path,
+    deep: bool = False,
 ) -> dict:
     metadata = load_install_state(paths, runtime_dir)
-    current_release = docker_live_release_source() if target == "docker" else linux_live_release_source(paths)
+    current_release = (
+        docker_live_release_source()
+        if target == "docker"
+        else linux_live_release_source(paths)
+    )
     stale_reasons: list[str] = []
 
     if metadata:
@@ -208,23 +218,39 @@ def production_status_payload(
     return {
         "mode": "production",
         "target": target,
-        "installed": config_path.exists() or secret_dir.exists() or runtime_dir.exists(),
+        "installed": config_path.exists()
+        or secret_dir.exists()
+        or runtime_dir.exists(),
         "config_path": str(config_path),
         "secret_dir": str(secret_dir),
         "runtime_dir": str(runtime_dir),
-        "public_url": production_public_url(config_path) or (metadata or {}).get("public_url"),
+        "public_url": production_public_url(config_path)
+        or (metadata or {}).get("public_url"),
         "metadata": {
             "present": metadata is not None,
             "stale": bool(stale_reasons),
             "stale_reasons": stale_reasons,
             "path": str(install_state_path(paths, runtime_dir)),
         },
-        "current_release_source": current_release or (metadata or {}).get("current_release_source"),
+        "current_release_source": current_release
+        or (metadata or {}).get("current_release_source"),
         "managed_resources": (metadata or {}).get("managed_resources"),
-        "last_successful_deploy_timestamp": (metadata or {}).get("last_successful_deploy_timestamp"),
-        "last_successful_smoke_timestamp": (metadata or {}).get("last_successful_smoke_timestamp"),
+        "last_successful_deploy_timestamp": (metadata or {}).get(
+            "last_successful_deploy_timestamp"
+        ),
+        "last_successful_smoke_timestamp": (metadata or {}).get(
+            "last_successful_smoke_timestamp"
+        ),
         "last_successful_command": (metadata or {}).get("last_successful_command"),
         "services": services,
+        "identity": identity_diagnostics(
+            paths,
+            target=target,
+            config_path=config_path,
+            secret_dir=secret_dir,
+            runtime_dir=runtime_dir,
+            deep=deep,
+        ),
     }
 
 

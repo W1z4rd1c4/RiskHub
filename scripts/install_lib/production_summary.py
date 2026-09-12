@@ -48,7 +48,26 @@ Next:
     )
 
 
-def summary_production_lifecycle(lifecycle_mode: str, target: str, config_path: Path, secret_dir: Path) -> None:
+def summary_production_lifecycle(
+    lifecycle_mode: str, target: str, config_path: Path, secret_dir: Path,
+    *, user_management: str, mfa_policy: str,
+) -> None:
+    if user_management == "custom":
+        prerequisites = (
+            f"Native accounts with MFA policy: {mfa_policy}\n"
+            "  Verified SMTP, retained native keys and independent recovery approver registration are required\n"
+            "  Deliver protected admin/CRO handoffs; each recipient chooses their password\n"
+            "  Native production admission remains closed until #208 acceptance"
+        )
+    else:
+        prerequisites = "Microsoft Entra app credentials are required"
+    if user_management == "custom" and target == "docker":
+        rollback = (
+            "Use install.sh upgrade with all four pinned artifacts of a compatible release; "
+            "candidate identity preflight is required"
+        )
+    else:
+        rollback = f"./scripts/deploy.sh rollback --target {target} --config {config_path} --secret-dir {secret_dir}"
     print(
         f"""
 === RiskHub Install Summary ===
@@ -56,7 +75,8 @@ Mode: {lifecycle_mode}
 Target: {target}
 Manual prerequisites:
   External PostgreSQL is required
-  A public RiskHub URL and Microsoft Entra app credentials are required
+  A public HTTPS RiskHub URL is required
+  {prerequisites}
 Status:
   ./scripts/install.sh status --mode production --target {target}
 Verify:
@@ -66,7 +86,7 @@ Logs:
 Doctor:
   ./scripts/install.sh doctor --mode production --target {target} [--repair]
 Rollback:
-  ./scripts/deploy.sh rollback --target {target} --config {config_path} --secret-dir {secret_dir}
+  {rollback}
 Next:
   Use ./scripts/install.sh upgrade --target {target} for the next release change
   Back up secrets and the database through operator-managed processes before release changes"""

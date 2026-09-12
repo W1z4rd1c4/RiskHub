@@ -6,6 +6,8 @@ import asyncio
 import json
 import smtplib
 import ssl
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from email.message import EmailMessage
 from uuid import uuid4
@@ -96,27 +98,11 @@ async def enqueue_mail(
     return row
 
 
-def send_smtp(settings: Settings, *, delivery_id: str, payload: dict) -> None:
-    """Bounded verified TLS; caller gets sanitized failures, never SMTP content."""
+@contextmanager
+def smtp_connection(settings: Settings) -> Iterator[smtplib.SMTP]:
+    """Shared verified TLS and authenticated transport for delivery and diagnostics."""
     validate_mail_configuration(settings)
     tls = ssl.create_default_context(cafile=settings.local_smtp_ca_file)
-    kind = payload["kind"]
-    message = EmailMessage()
-    message["From"] = settings.local_smtp_sender
-    message["To"] = str(TypeAdapter(EmailStr).validate_python(payload["recipient"]))
-    message["Subject"] = _TITLES[kind]
-    message["Message-ID"] = f"<{delivery_id}@riskhub.local>"
-    if payload["credential"]:
-        link = f'{payload["origin"]}/auth/local/{_ROUTES[kind]}#{payload["credential"]}'
-        message.set_content(
-            f"{_TITLES[kind]}. Open this single-use link in RiskHub:\n\n{link}\n\n"
-            "Do not forward this link. Contact your administrator if you did not request it."
-        )
-    else:
-        message.set_content(
-            "Your RiskHub account security settings changed or a change was requested. "
-            "Contact your administrator immediately if this was not you."
-        )
     host = settings.local_smtp_host
     if host is None:
         raise unavailable()
@@ -135,6 +121,30 @@ def send_smtp(settings: Settings, *, delivery_id: str, payload: dict) -> None:
         if settings.local_smtp_username:
             password = read_secret_file(settings.local_smtp_password_file).decode().rstrip("\r\n")
             connection.login(settings.local_smtp_username, password)
+        yield connection
+
+
+def send_smtp(settings: Settings, *, delivery_id: str, payload: dict) -> None:
+    """Bounded verified TLS; caller gets sanitized failures, never SMTP content."""
+    validate_mail_configuration(settings)
+    kind = payload["kind"]
+    message = EmailMessage()
+    message["From"] = settings.local_smtp_sender
+    message["To"] = str(TypeAdapter(EmailStr).validate_python(payload["recipient"]))
+    message["Subject"] = _TITLES[kind]
+    message["Message-ID"] = f"<{delivery_id}@riskhub.local>"
+    if payload["credential"]:
+        link = f'{payload["origin"]}/auth/local/{_ROUTES[kind]}#{payload["credential"]}'
+        message.set_content(
+            f"{_TITLES[kind]}. Open this single-use link in RiskHub:\n\n{link}\n\n"
+            "Do not forward this link. Contact your administrator if you did not request it."
+        )
+    else:
+        message.set_content(
+            "Your RiskHub account security settings changed or a change was requested. "
+            "Contact your administrator immediately if this was not you."
+        )
+    with smtp_connection(settings) as connection:
         refused = connection.send_message(message)
         if refused:
             raise OSError("Delivery refused")
