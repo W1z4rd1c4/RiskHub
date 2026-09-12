@@ -12,11 +12,14 @@ import type { AssistedRecoveryRequest, LocalAccountSecurityResponse, LocalIdenti
 import { useNativeAction } from '@/pages/native/useNativeAction';
 
 type Operation = 'resend' | 'cancel' | 'reset' | 'recover' | 'suspend' | 'resume';
-export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh }: {
+export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh, blocked = false, unresolved = false, onUnknown }: {
     user: AccessUserRead;
     onBusy: (busy: boolean) => void;
     onCommitted: (user: AccessUserRead) => void;
     onRefresh: () => void;
+    blocked?: boolean;
+    unresolved?: boolean;
+    onUnknown?: (value: boolean) => void;
 }) {
     const { t } = useTranslation('admin');
     const session = useSessionSnapshot();
@@ -70,7 +73,7 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh 
     const refresh = () => { setReload((value) => value + 1); onRefresh(); };
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
-        if (!operation || !allowed(operation) || !status || !account || !session.token || loading || loadFailed || pending || uncertain) return;
+        if (!operation || !allowed(operation) || !status || !account || !session.token || loading || loadFailed || pending || blocked || unresolved || uncertain) return;
         const token = session.token;
         const target = user.id;
         const version = status.authority_version;
@@ -96,7 +99,7 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh 
             setOperation(null); setReason(''); setIncident(''); setVerification(''); setNewEmail('');
             refresh();
         }, (kind) => {
-            if (kind === 'uncertain' || kind === 'unavailable') { setUncertain(true); setOperation(null); }
+            if (kind === 'uncertain' || kind === 'unavailable') { setUncertain(true); setOperation(null); onUnknown?.(true); }
             // Refresh stale capability/status without discarding the operator's rationale.
             if (kind === 'forbidden' || kind === 'conflict') refresh();
         });
@@ -108,22 +111,22 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh 
         {loadFailed && <p role="alert">{t('native_users.status_failed')}</p>}
         {status && !loading && <dl className="grid grid-cols-2 gap-2 text-sm">
             <dt>{t('native_users.enrollment')}</dt><dd>{t(`native_users.states.${status.enrollment_state ?? 'unknown'}`)}</dd>
-            <dt>{t('native_users.delivery_label')}</dt><dd>{t(`native_users.delivery.${status.delivery_status ?? 'none'}`)}</dd>
+            <dt>{t('native_users.delivery_label')}</dt><dd>{t(`native_users.message_delivery.${status.delivery_status ?? 'none'}`)}</dd>
             <dt>{t('native_users.suspension')}</dt><dd>{t(status.local_suspended ? 'native_users.suspended' : 'native_users.not_suspended')}</dd>
             <dt>{t('native_users.recovery')}</dt><dd>{t(status.recovery_pending ? 'native_users.recovery_pending' : 'native_users.no_recovery')}</dd>
         </dl>}
         {outcome && <p ref={focus} tabIndex={-1} role="status">{outcome}</p>}
         {action.error && <p ref={focus} tabIndex={-1} role="alert">{t(`native_users.errors.${action.error}`)}</p>}
         {uncertain && <p role="alert">{t('native_users.unknown_action')}</p>}
-        <Button variant="outline" disabled={loading || pending} onClick={refresh}>{t('native_users.refresh_status')}</Button>
+        <Button variant="outline" disabled={loading || pending || blocked} onClick={refresh}>{t('native_users.refresh_status')}</Button>
         {resolveCapabilityFlag(user.capabilities, 'recovery_offline_required') && <p>{t('native_users.offline_recovery')}</p>}
         {user.capabilities?.active_status_block_reason && <p>{t('native_users.status_blocked')}</p>}
         {!operation && !uncertain && <div className="flex flex-wrap gap-2">{(['resend', 'cancel', 'reset', 'recover', 'suspend', 'resume'] as const).filter(allowed).map((next) =>
-            <Button key={next} variant="outline" disabled={loading || loadFailed || !status || pending} onClick={() => { setOperation(next); setOutcome(null); action.setError(null); }}>{t(`native_users.actions.${next}`)}</Button>)}</div>}
+            <Button key={next} variant="outline" disabled={loading || loadFailed || !status || pending || blocked || unresolved} onClick={() => { setOperation(next); setOutcome(null); action.setError(null); }}>{t(`native_users.actions.${next}`)}</Button>)}</div>}
         {operation && <form onSubmit={submit} className="space-y-4">
             <p>{t(`native_users.effects.${operation}`, { name: user.name, email: user.email })}</p>
             {!allowed(operation) && <p role="alert">{t('native_users.capability_changed')}</p>}
-            <fieldset disabled={pending} className="space-y-4">
+            <fieldset disabled={pending || blocked} className="space-y-4">
                 <Field label={t('native_users.reason')} required>{(field) => <Input {...field} ref={reasonInput} value={reason} onChange={(event) => setReason(event.target.value)} required maxLength={2000} />}</Field>
                 {operation === 'recover' && <>
                     <p>{t('native_users.verification_help')}</p>
@@ -140,7 +143,7 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh 
                     </>}
                 </>}
                 <div className="flex gap-3">
-                    <Button type="submit" disabled={!allowed(operation) || loading || loadFailed || uncertain}>{t('native_users.confirm_action')}</Button>
+                    <Button type="submit" disabled={!allowed(operation) || loading || loadFailed || uncertain || unresolved}>{t('native_users.confirm_action')}</Button>
                     <Button type="button" variant="outline" onClick={() => { setOperation(null); setPassword(''); setFactor(''); }}>{t('common:actions.cancel')}</Button>
                 </div>
             </fieldset>

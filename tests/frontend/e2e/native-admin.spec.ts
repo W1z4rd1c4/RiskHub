@@ -92,7 +92,9 @@ test('native administrator onboarding, lifecycle, recovery and EN/CS desktop acc
     await expect(dialog.getByRole('button', { name: /start assisted recovery/i })).toHaveCount(0);
     await dialog.getByRole('button', { name: /^close$/i }).click();
     await page.goto('/settings?tab=localization');
+    const savedLanguage = page.waitForResponse((response) => response.url().endsWith('/api/v1/preferences') && response.request().method() === 'PUT');
     await page.getByTestId('language-cs').click();
+    expect((await savedLanguage).status()).toBe(200);
     await page.goto('/users');
     for (const width of [1024, 1440]) {
         await page.setViewportSize({ width, height: width === 1024 ? 768 : 900 });

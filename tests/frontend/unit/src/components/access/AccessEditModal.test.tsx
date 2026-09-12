@@ -1,11 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import type { HTMLAttributes, ReactNode } from 'react';
 
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { ApiClientError } from '@/services/apiClient';
 import type { AccessUserRead, RoleWithPermissions } from '@/types/access';
+import { applyAuthenticatedSession } from '@/services/session';
+import { __resetSessionStoreForTests } from '@/services/session/store';
+import { server } from '@test/mocks/server';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -108,6 +113,7 @@ function makeAccessUser(overrides: Partial<AccessUserRead> = {}): AccessUserRead
 }
 
 describe('AccessEditModal', () => {
+    afterEach(() => __resetSessionStoreForTests());
     beforeEach(() => {
         accessApiMocks.listAccessRoles.mockReset();
         accessApiMocks.listAccessUsers.mockReset();
@@ -121,6 +127,39 @@ describe('AccessEditModal', () => {
         accessApiMocks.listAccessUsers.mockResolvedValue([]);
         accessApiMocks.updateAccessUser.mockResolvedValue(makeAccessUser());
         departmentApiMocks.getDepartments.mockResolvedValue([]);
+    });
+
+    it('blocks lifecycle actions during an access write and after its outcome becomes unknown', async () => {
+        applyAuthenticatedSession({ access_token: 'admin-test-token', token_type: 'bearer', user: mockAuthUser });
+        server.use(
+            http.get('*/api/v1/users/42/local-auth/status', () => HttpResponse.json({ user_id: 42, authority_version: 7,
+                enrollment_state: 'enrolled', local_suspended: false, recovery_pending: false, is_active: true, delivery_status: 'sent' })),
+            http.get('*/api/v1/auth/local/account', () => HttpResponse.json({ mfa_enabled: false, factor_required: false, mfa_policy: 'optional' })),
+        );
+        let rejectUpdate!: (error: Error) => void;
+        accessApiMocks.updateAccessUser.mockReturnValue(new Promise((_resolve, reject) => { rejectUpdate = reject; }));
+        const onSaved = vi.fn();
+        const onClose = vi.fn();
+        render(<AccessEditModal isOpen nativeLifecycle user={makeAccessUser({ capabilities: {
+            ...makeAccessUser().capabilities!, can_request_password_reset: true,
+        } })} onSaved={onSaved} onClose={onClose} />);
+        const user = userEvent.setup();
+        const reset = await screen.findByRole('button', { name: /send password reset link/i });
+        await waitFor(() => expect(reset).toBeEnabled());
+        await user.click(reset);
+        await user.type(screen.getByLabelText(/^reason/i), 'Requested reset');
+        const name = await screen.findByDisplayValue('Original User');
+        await user.clear(name);
+        await user.type(name, 'Updated User');
+        await user.click(screen.getByRole('button', { name: /^save/i }));
+        expect(screen.getByRole('button', { name: /confirm account action/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /refresh account status/i })).toBeDisabled();
+        await act(async () => { rejectUpdate(new Error('Connection lost after sending request')); });
+        await screen.findByText(/outcome is unknown/i);
+        expect(screen.getByRole('button', { name: /confirm account action/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /^save/i })).toBeDisabled();
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('submits platform fields and admin role assignment for Admin', async () => {

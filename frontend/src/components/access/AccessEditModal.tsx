@@ -57,6 +57,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
 
     const [lifecycleBusy, setLifecycleBusy] = useState(false);
     const flight = useRef(false);
+    const [lifecycleUnknown, setLifecycleUnknown] = useState(false);
     const [unknownOutcome, setUnknownOutcome] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -72,11 +73,12 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
         setErrorKey(null);
         setErrorMessage(null);
         setUnknownOutcome(false);
+        setLifecycleUnknown(false);
         setIsSubmitting(false);
     }, [isOpen, user?.id]);
 
     const handleSubmit = async () => {
-        if (!user || !selection || flight.current || lifecycleBusy || loadErrorKey || unknownOutcome) return;
+        if (!user || !selection || flight.current || lifecycleBusy || loadErrorKey || unknownOutcome || lifecycleUnknown) return;
 
         if (!hasChanges) {
             onClose();
@@ -158,14 +160,14 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
 
                     </motion.div>
                 )}
-                {isOpen && nativeLifecycle && <NativeUserLifecyclePanel key={user.id} user={user} onBusy={setLifecycleBusy} onCommitted={onSaved} onRefresh={onRefresh} />}
+                {isOpen && nativeLifecycle && <NativeUserLifecyclePanel key={user.id} user={user} onBusy={setLifecycleBusy} blocked={isSubmitting} unresolved={unknownOutcome || lifecycleUnknown} onUnknown={setLifecycleUnknown} onCommitted={onSaved} onRefresh={onRefresh} />}
             </div>
 
             {unknownOutcome && <p role="alert" className="p-4">{t('native_users.unknown_action', { ns: 'admin' })}</p>}
             <AccessEditFooter
                 hasChanges={hasChanges}
                 isSubmitting={busy}
-                isInitialized={isInitialized && !loadErrorKey && !unknownOutcome}
+                isInitialized={isInitialized && !loadErrorKey && !unknownOutcome && !lifecycleUnknown}
                 errorKey={visibleErrorKey}
                 errorMessage={errorMessage}
                 onClose={close}

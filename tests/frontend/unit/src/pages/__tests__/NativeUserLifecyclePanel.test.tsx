@@ -35,6 +35,12 @@ function view(user = target) {
 afterEach(() => __resetSessionStoreForTests());
 
 describe('native user lifecycle', () => {
+    it('uses message delivery wording for an enrolled account with a sent reset or recovery', async () => {
+        view();
+        await screen.findByText('Message sent.');
+        expect(screen.queryByText(/Invitation sent/)).not.toBeInTheDocument();
+    });
+
     it('preserves a committed reset when the following status refresh fails', async () => {
         let requests = 0;
         server.use(http.post('*/api/v1/users/42/password-reset', () => {

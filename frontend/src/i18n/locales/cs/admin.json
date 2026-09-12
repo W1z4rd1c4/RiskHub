@@ -918,6 +918,14 @@
       "factor_recovery": "Nahradit ztracené faktory; zachovat heslo",
       "credential_and_factor_recovery": "Obnovit heslo i faktory",
       "verified_address_recovery": "Obnovit ověřenou e-mailovou adresu a přihlašovací údaje"
+    },
+    "message_delivery": {
+      "pending": "Zpráva čeká na doručení.",
+      "sent": "Zpráva odeslána.",
+      "failed": "Doručení zprávy selhalo. Před vydáním nového odkazu zkontrolujte SMTP, frontu zpráv a požadovanou operaci.",
+      "expired": "Platnost odkazu vypršela",
+      "cancelled": "Odkaz zrušen",
+      "none": "Žádné zaznamenané doručení"
     }
   }
 }

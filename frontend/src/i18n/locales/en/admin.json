@@ -918,6 +918,14 @@
       "factor_recovery": "Replace lost factors; retain password",
       "credential_and_factor_recovery": "Recover password and factors",
       "verified_address_recovery": "Recover a verified email address and credentials"
+    },
+    "message_delivery": {
+      "pending": "Message queued for delivery.",
+      "sent": "Message sent.",
+      "failed": "Message delivery failed. Check SMTP/outbox health and the requested operation before issuing a new link.",
+      "expired": "Link expired",
+      "cancelled": "Link cancelled",
+      "none": "No delivery recorded"
     }
   }
 }
