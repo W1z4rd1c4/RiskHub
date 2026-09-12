@@ -50,7 +50,7 @@ export function NativeFactor({ challenge, mode, token, onSession, onDone, onCanc
             if (isLogin) return nativeAuthApi.verify(body, options);
             if (mode === 'replacement') return nativeAuthApi.confirmReplacement(body, options);
             if (mode === 'recovery') return nativeAuthApi.recoveryConfirm(body, options);
-            return nativeAuthApi.confirm(body, options);
+            return nativeAuthApi.confirmEnrollment(body, options);
         }, (result) => {
             setSetup(null);
             if ('access_token' in result) onSession?.(result);
