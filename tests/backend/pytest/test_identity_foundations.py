@@ -706,8 +706,8 @@ async def test_entra_adoption_rejects_noncanonical_and_ambiguous_subjects(
     db_session, test_user, test_user_employee, monkeypatch, alias
 ):
     from app.models import InstallationIdentity
-    from app.services.identity_installation import IdentityBindingError, establish_installation_binding
     from app.services.directory_provider_service import DirectoryProviderService
+    from app.services.identity_installation import IdentityBindingError, establish_installation_binding
 
     test_user.external_id = "abcdefab-1234-4567-89ab-abcdefabcdef"
     test_user_employee.external_id = alias
