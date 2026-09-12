@@ -119,7 +119,7 @@ enrollment before the current last effective administrator can be suspended.
 
 Users manage their own passwords through authenticated change or email reset.
 A reset invalidates old sessions and retains enrolled MFA. It cannot recover a lost
-factor; the [native recovery procedure](../security/identity-recovery.md) requires
+factor; the [native recovery procedure](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-recovery.md) requires
 independent identity verification and separate offline approval for privileged accounts.
 Recovery-pending accounts stay unable to sign in, and recovery never clears a suspension. Native email
 changes require mailbox verification. See the
