@@ -55,4 +55,3 @@ def find_broad_trusted_proxy_entries(trusted_proxies: Iterable[str]) -> list[str
         if any(network == broad for broad in broad_networks):
             flagged.append(entry.strip())
     return flagged
-
