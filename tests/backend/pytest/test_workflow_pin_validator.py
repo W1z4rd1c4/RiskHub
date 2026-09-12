@@ -536,8 +536,9 @@ def test_e2e_workflow_defines_production_profile_smoke_lane() -> None:
         "PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES: '15'",
         "REDIS_URL: redis://localhost:6379/0",
         "image: redis:7@sha256:",
-        'assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}',
+        'assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}',
         'assert payload["redis"] == "connected"',
+        'assert payload["external_directory"] == "unchecked"',
     ):
         assert snippet in text
 
@@ -711,8 +712,10 @@ def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure(
         assert f"artifact-name: {artifact_name}" in text
 
     for snippet in (
-        'assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}',
-        'assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}',
+        'assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}',
+        'assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}',
+        'assert readyz["external_directory"] == "unchecked"',
+        'assert health["external_directory"] == "unchecked"',
         "grep -qi '^x-frame-options: DENY'",
         "grep -qi '^content-security-policy:'",
         "grep -q '<script type=\"module\"'",
