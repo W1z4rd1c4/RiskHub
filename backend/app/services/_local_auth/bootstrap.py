@@ -76,11 +76,23 @@ async def _targets(db: AsyncSession, ctx: NativeContext) -> list[LocalBootstrapT
 
 
 async def _lock_targets(db: AsyncSession, targets: list[LocalBootstrapTarget]) -> dict[int, User]:
-    # Administration -> lifecycle advisory guards -> User -> bootstrap -> grant/delivery.
+    # Administration -> ordered target Users -> bootstrap -> grant/delivery.
+    # These operations change only onboarding artifacts, never ownership or
+    # subordinate assignments, so lifecycle ownership/org guards are unnecessary.
+    target_ids = {target.user_id for target in targets}
     users = {
-        target.user_id: await lock_identity_transition(db, user_id=target.user_id)
-        for target in sorted(targets, key=lambda target: target.user_id)
+        user.id: user
+        for user in await db.scalars(
+            select(User)
+            .where(User.id.in_(target_ids))
+            .order_by(User.id)
+            .options(*user_selectinload_options(include_permissions=True))
+            .with_for_update(of=User)
+            .execution_options(populate_existing=True)
+        )
     }
+    if users.keys() != target_ids:
+        raise ConflictError("Bootstrap target is unavailable")
     for target in targets:
         await db.refresh(target, with_for_update=True)
     return users

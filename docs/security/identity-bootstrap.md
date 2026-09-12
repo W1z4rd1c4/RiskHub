@@ -165,7 +165,11 @@ enrollment with exit `0` is not permission to claim production onboarding comple
 
 Run `test_local_bootstrap.py` with disposable PostgreSQL and Redis. It covers real
 CLI concurrency/conflicts, protected filesystem refusal, DB/file interruption,
-explicit reissue, and HTTP enrollment with required/optional MFA. Run native
+explicit reissue, and HTTP enrollment with required/optional MFA. Existing-target
+operations acquire the administration guard, then target User rows in ascending
+ID order, then bootstrap/artifact rows. They do not mutate ownership or subordinate
+assignments. PostgreSQL tests verify that dry-run does not block those unrelated
+writers and rechecks changes made by a concurrent target writer. Run native
 identity/session/recovery, Entra bootstrap, canonical seeding, architecture and
 production-packaging contracts alongside it. Docker UID/musl publication is
 verified in the DB-task image. Actual managed target installation evidence and

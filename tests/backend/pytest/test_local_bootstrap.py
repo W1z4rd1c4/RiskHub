@@ -389,6 +389,109 @@ async def test_concurrent_real_cli_bootstrap_is_idempotent_or_rejects_conflict(
 
 
 @pytest.mark.asyncio
+@pytest.mark.postgres
+@pytest.mark.parametrize("held_lock", ["ownership", "subordinate"])
+async def test_bootstrap_dry_run_does_not_lock_unmodified_ownership_or_subordinates(
+    bootstrap_context, bootstrap_request, db_session, async_engine, held_lock
+):
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models import Role
+    from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
+    from app.services._local_auth.bootstrap import bootstrap_native
+    from tests.backend.pytest.test_identity_foundations_postgres import require_postgres
+
+    require_postgres(async_engine)
+    await bootstrap_native(db_session, bootstrap_context, bootstrap_request)
+    admin, cro = (await db_session.scalars(select(User).order_by(User.id))).all()
+    subordinate = User(
+        email="subordinate@example.com",
+        name="Subordinate",
+        manager_id=admin.id,
+        role_id=await db_session.scalar(select(Role.id).where(Role.name == "employee")),
+        is_active=False,
+    )
+    db_session.add(subordinate)
+    await db_session.commit()
+    cro_id, subordinate_id = cro.id, subordinate.id
+    await db_session.rollback()
+    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    async with maker() as writer, maker() as bootstrap:
+        if held_lock == "ownership":
+            await acquire_asset_owner_identity_lock(writer, user_id=cro_id)
+        else:
+            await writer.execute(
+                select(User).where(User.id == subordinate_id).with_for_update(of=User)
+            )
+        # These runtime writers need neither initial account's authority. Bootstrap
+        # must not acquire their guards after holding any target User row.
+        result = await asyncio.wait_for(
+            bootstrap_native(
+                bootstrap, bootstrap_context, bootstrap_request, dry_run=True
+            ),
+            timeout=3,
+        )
+        assert result["dry_run"] and result["status"] == "admin-enrollment-pending"
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_bootstrap_locks_targets_in_id_order_and_rechecks_concurrent_changes(
+    bootstrap_context, bootstrap_request, db_session, async_engine
+):
+    import asyncio
+
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.core.exceptions import ConflictError
+    from app.services._local_auth.bootstrap import bootstrap_native
+    from tests.backend.pytest.test_identity_foundations_postgres import (
+        require_postgres,
+        wait_for_lock_waiters,
+    )
+
+    require_postgres(async_engine)
+    await bootstrap_native(db_session, bootstrap_context, bootstrap_request)
+    target_ids = list(await db_session.scalars(select(User.id).order_by(User.id)))
+    await db_session.rollback()
+    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+
+    async def resume():
+        async with maker() as session:
+            await session.execute(
+                text("SET LOCAL application_name = 'bootstrap-target-order'")
+            )
+            return await bootstrap_native(
+                session, bootstrap_context, bootstrap_request, dry_run=True
+            )
+
+    async with maker() as writer, maker() as observer:
+        first = await writer.scalar(
+            select(User).where(User.id == target_ids[0]).with_for_update(of=User)
+        )
+        task = asyncio.create_task(resume())
+        try:
+            await wait_for_lock_waiters(observer, {"bootstrap-target-order"})
+            # Blocking on the lower ID must not first retain the higher target.
+            await observer.execute(
+                select(User.id)
+                .where(User.id == target_ids[1])
+                .with_for_update(nowait=True)
+            )
+            await observer.rollback()
+            first.local_suspended = True
+            await writer.commit()
+            with pytest.raises(ConflictError, match="principal has changed"):
+                await asyncio.wait_for(task, timeout=3)
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("after_commit", [False, True])
 async def test_principal_commit_interruption_never_creates_duplicate_accounts(
     bootstrap_context, bootstrap_request, db_session, monkeypatch, after_commit
