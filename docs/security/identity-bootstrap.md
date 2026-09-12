@@ -1,8 +1,8 @@
 # Native initial Admin and CRO bootstrap
 
 This is the backend/operator contract for #203. The native production web startup
-guard remains closed until #208; the managed Docker/Linux installer integration is
-#204. These commands do not bypass that guard or deploy an application. Entra
+guard remains closed until #208. The shared Docker/Linux installer now selects the
+native bootstrap command; see [installation preparation](../deployment/production.md#native-installation-preparation-and-release-boundary). These commands do not bypass that guard or deploy an application. Entra
 bootstrap continues through its trusted directory-linked command.
 
 ## Prerequisites and recovery registration
@@ -175,3 +175,14 @@ production-packaging contracts alongside it. Docker UID/musl publication is
 verified in the DB-task image. Actual managed target installation evidence and
 production admission belong to #204/#208; backup retention/recovery drills belong
 to #207. No simulated component result substitutes for those release checks.
+
+## Managed installer invocation
+
+The installer invokes `bootstrap_local_users --maintenance-confirmed install
+--admin-email <email> --cro-email <email> --handoff-dir <protected-directory>` after
+migration and binding verification, under the application UID. This variant uses
+persisted handoff paths when targets already exist, including an operator's explicit
+reissue path. An empty installation uses `admin.json` and `cro.json` in the prepared
+0700 directory. A successful command still reports pending enrollment until both
+recipients finish. Operator `start`, `status`, `reissue` and `abort` retain their
+explicit maintenance contracts above.

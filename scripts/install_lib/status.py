@@ -13,7 +13,11 @@ from install_lib.common import (
 )
 from install_lib.diagnostics import build_status_diagnostic_plan
 from install_lib.runtime_adapters import run_lifecycle_commands
-from install_lib.runtime_state import docker_container_state, production_status_payload, resolve_production_target
+from install_lib.runtime_state import (
+    docker_container_state,
+    production_status_payload,
+    resolve_production_target,
+)
 
 
 def resolved_dev_node_status() -> dict:
@@ -73,6 +77,9 @@ def print_status_human(payload: dict) -> None:
     if payload["mode"] == "production":
         print(f"Target: {payload['target']}")
         print(f"Public URL: {payload.get('public_url') or 'unknown'}")
+        for key, value in payload.get("identity", {}).items():
+            if isinstance(value, str):
+                print(f"Identity {key.replace('_', ' ')}: {value}")
     if payload["mode"] == "demo":
         print(f"Docker ready: {'yes' if payload['docker_ready'] else 'no'}")
 

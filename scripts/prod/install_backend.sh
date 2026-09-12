@@ -80,6 +80,7 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+identity_secret_mounts "$BACKEND_ENV"
 if [[ "$DRY_RUN" != "true" ]]; then
   require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
 fi
@@ -158,7 +159,7 @@ if [[ ${#publish_args[@]} -gt 0 ]]; then
 fi
 docker_run_args+=(
   -v "${BACKEND_LOGS_VOLUME}:/app/logs"
-  -v "${SECRET_DIR}:${SECRET_DIR}:ro"
+  "${SECRET_MOUNT_ARGS[@]}"
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
   --env-file "$BACKEND_ENV"
   -e "ENABLE_SCHEDULER=${enable_scheduler}"

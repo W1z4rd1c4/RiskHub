@@ -40,6 +40,7 @@ EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "bootstrap_sso_user.py",
     "bootstrap_local_users.py",
     "identity_installation.py",
+    "identity_preflight.py",
     "local_recovery.py",
     "local_auth_keys.py",
     "revoke_refresh_sessions.py",

@@ -10,12 +10,20 @@ from install_lib.common import (
     timestamp_utc,
 )
 from install_lib.production_lifecycle import run_production_action
+from install_lib.production_identity import select_identity, validate_installed_identity
 from install_lib.production_release import (
     backup_non_secret_production_state,
     ensure_production_release_input,
     production_existing_install_detected,
 )
-from install_lib.production_secrets import ensure_production_secrets_ready, production_scaffold_missing
+from install_lib.production_secrets import (
+    ensure_production_secrets_ready,
+    production_scaffold_missing,
+)
+from install_lib.identity_diagnostics import (
+    identity_diagnostics,
+    require_completed_onboarding,
+)
 from install_lib.production_summary import (
     summary_demo,
     summary_dev,
@@ -63,9 +71,25 @@ def run_production(
     bundle: str | None,
     options: SharedOptions,
     paths: InstallPaths,
+    user_management: str | None = None,
+    mfa_policy: str | None = None,
 ) -> None:
     if target not in {"docker", "linux"}:
         raise RuntimeError("Production install requires --target docker|linux.")
+    choice, policy = select_identity(
+        config_path,
+        user_management=user_management,
+        mfa_policy=mfa_policy,
+        options=options,
+    )
+    validate_installed_identity(config_path, runtime_dir)
+    existing_install = production_existing_install_detected(
+        config_path, secret_dir, runtime_dir, paths
+    )
+    if existing_install and production_scaffold_missing(config_path, secret_dir):
+        raise RuntimeError(
+            "Installed configuration or credentials are missing; restore the known files before upgrading."
+        )
     version, bundle = ensure_production_release_input(
         target=target,
         version=version,
@@ -78,23 +102,57 @@ def run_production(
     )
 
     needs_config_init = not config_path.exists()
-    needs_secret_init = production_scaffold_missing(config_path, secret_dir) and not needs_config_init
+    needs_secret_init = (
+        production_scaffold_missing(config_path, secret_dir) and not needs_config_init
+    )
 
     if needs_config_init:
-        run_command([paths.deploy_script, "init", "--target", target, "--config", str(config_path), "--secret-dir", str(secret_dir)], options=options)
+        init_args = [
+            paths.deploy_script,
+            "init",
+            "--target",
+            target,
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--user-management",
+            choice,
+        ]
+        if choice == "custom":
+            init_args.extend(["--mfa-policy", policy])
+        run_command(init_args, options=options)
     if needs_secret_init and not needs_config_init:
-        run_command([paths.deploy_script, "secrets-init", "--target", target, "--secret-dir", str(secret_dir)], options=options)
+        run_command(
+            [
+                paths.deploy_script,
+                "secrets-init",
+                "--target",
+                target,
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+            ],
+            options=options,
+        )
     if options.dry_run and (needs_config_init or needs_secret_init):
         summary_production_lifecycle("production", target, config_path, secret_dir)
         return
 
     if not options.dry_run:
         ensure_production_config_ready(config_path, options=options)
-        ensure_production_secrets_ready(target=target, secret_dir=secret_dir, config_path=config_path, options=options, paths=paths)
+        ensure_production_secrets_ready(
+            target=target,
+            secret_dir=secret_dir,
+            config_path=config_path,
+            options=options,
+            paths=paths,
+        )
 
     run_production_action(
         lifecycle_command="production",
-        deploy_action="upgrade" if production_existing_install_detected(config_path, secret_dir, runtime_dir, paths) else "deploy",
+        deploy_action="upgrade" if existing_install else "deploy",
         target=target,
         config_path=config_path,
         secret_dir=secret_dir,
@@ -125,13 +183,26 @@ def run_upgrade(
     bundle: str | None,
     options: SharedOptions,
     paths: InstallPaths,
+    user_management: str | None = None,
+    mfa_policy: str | None = None,
 ) -> None:
     if target not in {"docker", "linux"}:
         raise RuntimeError("Upgrade requires --target docker|linux.")
     if not config_path.exists():
-        raise RuntimeError(f"Upgrade requires an existing production config at {config_path}.")
+        raise RuntimeError(
+            f"Upgrade requires an existing production config at {config_path}."
+        )
     if not secret_dir.exists():
-        raise RuntimeError(f"Upgrade requires an existing secret directory at {secret_dir}.")
+        raise RuntimeError(
+            f"Upgrade requires an existing secret directory at {secret_dir}."
+        )
+    select_identity(
+        config_path,
+        user_management=user_management,
+        mfa_policy=mfa_policy,
+        options=options,
+    )
+    validate_installed_identity(config_path, runtime_dir)
     version, bundle = ensure_production_release_input(
         target=target,
         version=version,
@@ -144,9 +215,17 @@ def run_upgrade(
     )
 
     if not options.dry_run and runtime_dir.exists():
-        backup_non_secret_production_state(config_path, runtime_dir, timestamp_utc().replace(":", ""))
+        backup_non_secret_production_state(
+            config_path, runtime_dir, timestamp_utc().replace(":", "")
+        )
     if not options.dry_run:
-        ensure_production_secrets_ready(target=target, secret_dir=secret_dir, config_path=config_path, options=options, paths=paths)
+        ensure_production_secrets_ready(
+            target=target,
+            secret_dir=secret_dir,
+            config_path=config_path,
+            options=options,
+            paths=paths,
+        )
 
     run_production_action(
         lifecycle_command="upgrade",
@@ -186,8 +265,19 @@ def run_verify(
         summary_dev()
         return
     resolved_target = resolve_production_target(paths, target, runtime_dir)
-    run_command([paths.deploy_script, "status", "--target", resolved_target], options=options)
-    smoke_command = [paths.deploy_script, "smoke", "--target", resolved_target, "--config", str(config_path), "--secret-dir", str(secret_dir)]
+    run_command(
+        [paths.deploy_script, "status", "--target", resolved_target], options=options
+    )
+    smoke_command = [
+        paths.deploy_script,
+        "smoke",
+        "--target",
+        resolved_target,
+        "--config",
+        str(config_path),
+        "--secret-dir",
+        str(secret_dir),
+    ]
     if options.yes:
         smoke_command.append("--yes")
     if options.dry_run:
@@ -195,4 +285,15 @@ def run_verify(
     if options.verbose:
         smoke_command.append("--verbose")
     run_command(smoke_command, options=options)
+    if not options.dry_run:
+        require_completed_onboarding(
+            identity_diagnostics(
+                paths,
+                target=resolved_target,
+                config_path=config_path,
+                secret_dir=secret_dir,
+                runtime_dir=runtime_dir,
+                deep=True,
+            )
+        )
     summary_production_lifecycle("verify", resolved_target, config_path, secret_dir)

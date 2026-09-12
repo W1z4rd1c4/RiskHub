@@ -13,7 +13,13 @@ from install_lib.common import (
     secret_placeholder,
 )
 from install_lib.diagnostics import build_doctor_diagnostic_plan
-from install_lib.production import summary_demo, summary_dev, summary_production_lifecycle, verify_demo, verify_dev
+from install_lib.production import (
+    summary_demo,
+    summary_dev,
+    summary_production_lifecycle,
+    verify_demo,
+    verify_dev,
+)
 from install_lib.runtime_adapters import run_lifecycle_commands
 from install_lib.runtime_state import (
     docker_container_state,
@@ -140,7 +146,9 @@ def run_doctor(
 
         if deep:
             if options.dry_run:
-                run_lifecycle_commands(diagnostic_plan.deep_check_commands, options=options)
+                run_lifecycle_commands(
+                    diagnostic_plan.deep_check_commands, options=options
+                )
                 deep_check = "dry_run"
             else:
                 try:
@@ -194,7 +202,9 @@ def run_doctor(
 
         if deep:
             if options.dry_run:
-                run_lifecycle_commands(diagnostic_plan.deep_check_commands, options=options)
+                run_lifecycle_commands(
+                    diagnostic_plan.deep_check_commands, options=options
+                )
                 deep_check = "dry_run"
             else:
                 try:
@@ -236,7 +246,21 @@ def run_doctor(
             config_path=config_path,
             secret_dir=secret_dir,
             runtime_dir=runtime_dir,
+            deep=deep,
         )
+        identity = state_payload["identity"]
+        if (
+            identity.get("configuration") != "valid"
+            or identity.get("security") != "available"
+        ):
+            findings.append("identity_security_unavailable")
+        if identity.get("delivery") == "degraded":
+            findings.append("identity_delivery_degraded")
+        if (
+            identity.get("auth_mode") == "password"
+            and identity.get("onboarding") != "completed"
+        ):
+            findings.append("native_onboarding_incomplete")
         if not state_payload["metadata"]["present"]:
             findings.append("install_state_missing")
         if state_payload["metadata"]["stale"]:
@@ -249,7 +273,10 @@ def run_doctor(
             findings.append("runtime_dir_missing")
         for secret_name in REQUIRED_PRODUCTION_SECRET_NAMES:
             secret_path = secret_dir / secret_name
-            if not secret_path.exists() or not secret_path.read_text(encoding="utf-8").strip():
+            if (
+                not secret_path.exists()
+                or not secret_path.read_text(encoding="utf-8").strip()
+            ):
                 findings.append(f"{secret_name}_missing")
             elif _secret_value_is_legacy_placeholder(secret_path):
                 findings.append(f"{secret_name}_legacy_placeholder")
@@ -278,51 +305,21 @@ def run_doctor(
                     findings.append("smoke_check_failed")
 
         if repair:
-            if not config_path.exists():
+            identity_invalid = (
+                identity.get("configuration") != "valid"
+                or identity.get("security") != "available"
+            )
+            credentials_missing = any(
+                not _trimmed_secret_value(secret_dir / name)
+                or _secret_value_is_unresolved_placeholder(secret_dir / name)
+                for name in REQUIRED_PRODUCTION_SECRET_NAMES
+            )
+            if identity_invalid or credentials_missing:
+                findings.append("repair_requires_operator_reconciliation")
                 actions.append(
-                    f"{paths.deploy_script} init --target {resolved_target} "
-                    f"--config {config_path} --secret-dir {secret_dir}"
+                    "Restore the recorded configuration and protected files from the installation backup; "
+                    "doctor cannot recreate identity keys, credentials, accounts or enrollment grants."
                 )
-                run_command(
-                    [
-                        paths.deploy_script,
-                        "init",
-                        "--target",
-                        resolved_target,
-                        "--config",
-                        str(config_path),
-                        "--secret-dir",
-                        str(secret_dir),
-                    ],
-                    options=options,
-                )
-            actions.append(f"ensure runtime/scaffold directories at {secret_dir} and {runtime_dir}")
-            if not options.dry_run:
-                secret_dir.mkdir(parents=True, exist_ok=True)
-                runtime_dir.mkdir(parents=True, exist_ok=True)
-            else:
-                run_command(["mkdir", "-p", str(secret_dir)], options=options)
-                run_command(["mkdir", "-p", str(runtime_dir)], options=options)
-
-            for secret_name in REQUIRED_PRODUCTION_SECRET_NAMES:
-                secret_path = secret_dir / secret_name
-                if not secret_path.exists():
-                    actions.append(f"create missing secret scaffold: {secret_name}")
-                    if options.dry_run:
-                        run_command(["touch", str(secret_path)], options=options)
-                    else:
-                        secret_dir.mkdir(parents=True, exist_ok=True)
-                        _write_secret_placeholder(secret_path)
-
-            unresolved_secret_placeholders = [
-                secret_name
-                for secret_name in REQUIRED_PRODUCTION_SECRET_NAMES
-                if _secret_value_is_unresolved_placeholder(secret_dir / secret_name)
-            ]
-            if unresolved_secret_placeholders:
-                if "secret_placeholders_require_user_edits" not in findings:
-                    findings.append("secret_placeholders_require_user_edits")
-                actions.append("edit generated secret scaffold files before rerunning doctor")
             else:
                 if resolved_target == "docker":
                     actions.append("restart docker managed resources")
@@ -333,14 +330,21 @@ def run_doctor(
                         "riskhub-frontend",
                     ):
                         if docker_container_state(container_name) != "missing":
-                            run_command(["docker", "restart", container_name], options=options)
+                            run_command(
+                                ["docker", "restart", container_name], options=options
+                            )
 
-                actions.append(f"{paths.deploy_script} status --target {resolved_target}")
+                actions.append(
+                    f"{paths.deploy_script} status --target {resolved_target}"
+                )
                 actions.append(
                     f"{paths.deploy_script} smoke --target {resolved_target} "
                     f"--config {config_path} --secret-dir {secret_dir}"
                 )
-                run_command([paths.deploy_script, "status", "--target", resolved_target], options=options)
+                run_command(
+                    [paths.deploy_script, "status", "--target", resolved_target],
+                    options=options,
+                )
                 run_command(
                     [
                         paths.deploy_script,
@@ -367,6 +371,7 @@ def run_doctor(
         payload = {
             **diagnostic_plan.payload_defaults,
             "deep_check": deep_check,
+            "identity": identity,
             "repair_applied": repair_applied,
             "findings": findings,
             "actions": actions,
@@ -392,4 +397,6 @@ def run_doctor(
         elif mode == "dev":
             summary_dev()
         else:
-            summary_production_lifecycle("doctor", payload["target"], config_path, secret_dir)
+            summary_production_lifecycle(
+                "doctor", payload["target"], config_path, secret_dir
+            )

@@ -31,21 +31,39 @@ def ensure_production_secrets_ready(
     options: SharedOptions,
     paths: InstallPaths,
 ) -> None:
-    thumbprint_value = read_envfile_value(config_path, "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT") or ""
+    thumbprint_value = (
+        read_envfile_value(config_path, "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT") or ""
+    )
+    native = read_envfile_value(config_path, "AUTH_MODE") == "password"
     certificate_mode = bool(thumbprint_value)
 
     needs_edit = any(
         secret_value_is_placeholder(secret_dir, secret_name)
         for secret_name in ("database_url", "secret_key", "redis_password")
     )
-    if not certificate_mode and secret_value_is_placeholder(secret_dir, "entra_client_secret"):
+    if (
+        not native
+        and not certificate_mode
+        and secret_value_is_placeholder(secret_dir, "entra_client_secret")
+    ):
         needs_edit = True
 
     if needs_edit:
         if not have_editor():
-            raise RuntimeError("Set $EDITOR or $VISUAL before guided production secret editing.")
+            raise RuntimeError(
+                "Set $EDITOR or $VISUAL before guided production secret editing."
+            )
         run_command(
-            [paths.deploy_script, "secrets-edit", "--target", target, "--secret-dir", str(secret_dir)],
+            [
+                paths.deploy_script,
+                "secrets-edit",
+                "--target",
+                target,
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+            ],
             options=options,
         )
 
@@ -53,10 +71,26 @@ def ensure_production_secrets_ready(
         if secret_value_is_placeholder(secret_dir, secret_name):
             raise RuntimeError(f"{secret_name} still contains the placeholder value.")
 
-    if certificate_mode:
-        if secret_value_is_placeholder(secret_dir, "entra_client_certificate_private_key"):
+    if native:
+        # Register approvers and provide SMTP credentials through protected files;
+        # the shared renderer validates their formats without printing contents.
+        for name in (
+            "local_auth_keyring",
+            "local_recovery_approvers",
+            "local_smtp_password",
+        ):
+            if not (secret_dir / name).is_file():
+                raise RuntimeError(
+                    f"Native identity requires {secret_dir / name}; resume secrets-init and configure the protected file."
+                )
+    elif certificate_mode:
+        if secret_value_is_placeholder(
+            secret_dir, "entra_client_certificate_private_key"
+        ):
             raise RuntimeError(
                 f"Certificate mode is selected, but {secret_dir / 'entra_client_certificate_private_key'} still contains the placeholder value."
             )
     elif secret_value_is_placeholder(secret_dir, "entra_client_secret"):
-        raise RuntimeError("Client-secret mode is selected, but entra_client_secret still contains the placeholder value.")
+        raise RuntimeError(
+            "Client-secret mode is selected, but entra_client_secret still contains the placeholder value."
+        )

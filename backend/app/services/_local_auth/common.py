@@ -14,7 +14,7 @@ from app.core.config import Settings
 from app.core.exceptions import AuthenticationError, AuthorizationError
 from app.core.local_session import native_identity_selected
 from app.core.password_policy import KDF_SLOTS_PER_PROCESS
-from app.core.production_contract import resolve_identity_profile
+from app.core.production_contract import LOCAL_KDF_MEMORY_MIB, resolve_identity_profile
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._auth_session_workflow.transactions import commit_auth_transaction
@@ -67,7 +67,10 @@ async def build_context(db: AsyncSession, *, settings: Settings, redis, source: 
             raise ValueError("Missing local security dependencies")
         from app.core.scheduler_jobs import resolve_process_worker_count
 
-        if resolve_process_worker_count() * KDF_SLOTS_PER_PROCESS * 64 > settings.local_kdf_memory_budget_mib:
+        if (
+            resolve_process_worker_count() * KDF_SLOTS_PER_PROCESS * LOCAL_KDF_MEMORY_MIB
+            > settings.local_kdf_memory_budget_mib
+        ):
             raise ValueError("KDF memory allowance is below the configured worker envelope")
         keys = LocalKeyring.load(settings.local_auth_keyring_file)
         return NativeContext(

@@ -86,8 +86,6 @@ preflight_backend_env() {
   # Production hardening invariants (mirror backend/app/main.py)
   envfile_require_exact "$backend_env" "DEBUG" "false"
   envfile_require_exact "$backend_env" "MOCK_AUTH_ENABLED" "false"
-  envfile_require_exact "$backend_env" "AUTH_MODE" "microsoft_sso"
-  envfile_require_exact "$backend_env" "DIRECTORY_PROVIDER" "graph"
   envfile_require_exact "$backend_env" "ENTRA_JIT_PROVISIONING_ENABLED" "false"
   envfile_require_exact "$backend_env" "AUTH_SSO_ALLOW_EMAIL_LINK" "false"
   envfile_require_exact "$backend_env" "REFRESH_TOKEN_MIGRATION_GRACE" "false"
@@ -131,48 +129,17 @@ preflight_backend_env() {
   envfile_require_nonempty "$backend_env" "CORS_ORIGINS"
   envfile_require_not_contains "$backend_env" "CORS_ORIGINS" "*"
 
-  envfile_require_nonempty "$backend_env" "ENTRA_TENANT_ID"
-  envfile_require_nonempty "$backend_env" "ENTRA_CLIENT_ID"
-  if grep -qE '^[[:space:]]*AD_EMULATOR_BASE_URL=' "$backend_env"; then
-    die "AD_EMULATOR_BASE_URL must not be present in $backend_env"
-  fi
-
-  local entra_client_secret_file entra_client_certificate_private_key_file entra_client_certificate_thumbprint
-  local has_secret_mode=false
-  local has_certificate_mode=false
-
-  entra_client_secret_file="$(envfile_get "$backend_env" "ENTRA_CLIENT_SECRET_FILE" || true)"
-  entra_client_certificate_private_key_file="$(envfile_get "$backend_env" "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE" || true)"
-  entra_client_certificate_thumbprint="$(envfile_get "$backend_env" "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT" || true)"
-
-  if [[ -n "$entra_client_secret_file" ]]; then
-    require_file "$entra_client_secret_file"
-    local client_secret
-    client_secret="$(cat "$entra_client_secret_file")"
-    [[ -n "$client_secret" ]] || die "ENTRA_CLIENT_SECRET_FILE must not be empty"
-    [[ "${client_secret%$'\n'}" != "CHANGE_ME_ENTRA_CLIENT_SECRET" ]] || die "ENTRA_CLIENT_SECRET_FILE still contains the placeholder value"
-    has_secret_mode=true
-  fi
-
-  if [[ -n "$entra_client_certificate_private_key_file" || -n "$entra_client_certificate_thumbprint" ]]; then
-    [[ -n "$entra_client_certificate_private_key_file" ]] || die "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE is required when ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set"
-    [[ -n "$entra_client_certificate_thumbprint" ]] || die "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is required when ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE is set"
-    require_file "$entra_client_certificate_private_key_file"
-    local certificate_private_key
-    certificate_private_key="$(cat "$entra_client_certificate_private_key_file")"
-    [[ -n "$certificate_private_key" ]] || die "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE must not be empty"
-    [[ "${certificate_private_key%$'\n'}" != "CHANGE_ME_ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY" ]] || die "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE still contains the placeholder value"
-    has_certificate_mode=true
-  fi
-
-  if [[ "$has_secret_mode" != "true" && "$has_certificate_mode" != "true" ]]; then
-    die "Expected one Entra Graph credential: ENTRA_CLIENT_SECRET_FILE or ENTRA_CLIENT_CERTIFICATE_THUMBPRINT + ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE in $backend_env"
-  fi
-  if [[ "$has_secret_mode" == "true" && "$has_certificate_mode" == "true" ]]; then
-    warn "Both ENTRA_CLIENT_SECRET_FILE and certificate credential are configured; certificate mode is active."
-  fi
-  if [[ "$has_secret_mode" == "true" && "$has_certificate_mode" != "true" ]]; then
+  local renderer identity_choice
+  renderer="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../deploy/lib" && pwd)/render.py"
+  identity_choice="$(python3 "$renderer" validate-profile --config "$backend_env" --secret-dir "$SECRET_DIR")" || die "Production identity profile validation failed"
+  if [[ "$identity_choice" == "custom" ]]; then
+    envfile_require_exact "$backend_env" "LOCAL_AUTH_KEYRING_FILE" "$SECRET_DIR/local_auth_keyring"
+    envfile_require_exact "$backend_env" "LOCAL_RECOVERY_APPROVERS_FILE" "$SECRET_DIR/local_recovery_approvers"
+    envfile_require_exact "$backend_env" "LOCAL_SMTP_PASSWORD_FILE" "$SECRET_DIR/local_smtp_password"
+  elif [[ -z "$(envfile_get "$backend_env" "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT" || true)" ]]; then
     warn "Production is using Entra client-secret mode; certificate mode is preferred unless explicitly waived."
+  elif [[ -n "$(envfile_get "$backend_env" "ENTRA_CLIENT_SECRET_FILE" || true)" ]]; then
+    warn "Both Entra credential references are configured; certificate mode is active."
   fi
 
   if [[ -f "$redis_url_file" ]]; then
@@ -264,10 +231,11 @@ preflight_check_db_connectivity() {
     die "DB check requested but no backend DB image provided (--backend-db-image)."
   fi
 
+  identity_secret_mounts "$backend_env"
   log "Checking external PostgreSQL connectivity (SELECT 1)..."
   run docker run --rm -i \
     --add-host host.docker.internal:host-gateway \
-    -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
+    "${SECRET_MOUNT_ARGS[@]}" \
     -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
     --env-file "$backend_env" "$backend_image" python - <<'PY'
 import asyncio

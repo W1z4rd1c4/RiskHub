@@ -25,7 +25,7 @@ Common rules across both targets:
 - The scheduler runs as a separate singleton runtime.
 - Scheduler ownership is enforced in-app with a Postgres advisory lock and recorded in `scheduler_job_runs`.
 - Post-commit side effects are dispatched from the transactional outbox table `app_outbox_events`.
-- Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`.
+- Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false` and a validated installation profile; source admission currently permits Entra only until #208.
 - Public `GET /api/v1/readyz` is the machine-facing readiness probe.
 - Public `GET /api/v1/health` is the diagnostic probe with dependency state for dashboards and smoke checks.
 
@@ -36,7 +36,7 @@ installations require explicit maintenance adoption before the first upgrade of 
 identity schema. Follow [identity foundations](../security/identity-foundations.md)
 for the report, dry-run, adoption and verification procedure. Startup only validates.
 Native password authentication has a configurable required/optional MFA contract,
-but production admission and its installer/UI release remain gated by #208.
+and managed profile selection; production admission remains gated by #208 and UI delivery is tracked separately.
 
 ## Read This First
 
@@ -96,13 +96,10 @@ Release inputs:
 - Secret files and the database remain operator-managed backup responsibilities before release changes.
 - Before rolling out apply-time KRI approval validation, run `cd backend && ./venv/bin/python -m scripts.report_pending_kri_approval_preflight` and attach the JSON report to the deployment change record.
 
-## Staged native bootstrap command
+## Native installation and bootstrap
 
-The DB-task image and Linux DB-task package include `scripts.bootstrap_local_users`
-for distinct initial Admin/CRO invitations. Follow the [native bootstrap operator
-contract](../security/identity-bootstrap.md) for key registration, protected file
-ownership, dry-run, handoff/resume, explicit reissue and abort. Recipients choose
-passwords; MFA is required by default and explicit optional policy supports
-password-only enrollment. Completed accounts can never be reset or have access
-restored by bootstrap. This backend command does not select a managed native
-production profile; installer integration and release admission remain #204/#208.
+See [native installation preparation](production.md#native-installation-preparation-and-release-boundary)
+for `--user-management custom`, `LOCAL_MFA_POLICY=required` (default) or
+`LOCAL_MFA_POLICY=optional`, secret ownership, handoff/resume, upgrades and diagnostics.
+The same renderer supports Docker/Linux; source admission remains closed until #208.
+Admin/CRO recipients choose passwords and completed accounts cannot be reset by bootstrap.

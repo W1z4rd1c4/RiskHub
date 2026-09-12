@@ -262,6 +262,7 @@ Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/READ
 - Native initial Admin/CRO bootstrap follows [the bootstrap contract](docs/security/identity-bootstrap.md): bind exact principals, use protected handoffs, and never reset completed accounts. Keep production admission closed until #208.
 - Native recovery follows [the recovery runbook](docs/security/identity-recovery.md): keep recovery-pending authority denied, preserve suspension, and require dual signed offline approval for privileged targets. Key retirement must account for retained backups.
 - Native `DIRECTORY_PROVIDER=none` must construct no Graph/emulator client or external-directory job; retain local user lookup and business/outbox jobs. See `docs/security/identity-directory-isolation.md` for profile/capability/diagnostic boundaries.
+- Installer `--user-management entra|custom` maps only to the canonical tuple; native `--mfa-policy required|optional` defaults to required. Preserve recorded identity on upgrade. Candidate preflight precedes service replacement; doctor never recreates identity keys/credentials or changes account eligibility.
 - Preserve the native production admission guard until #208; backend contracts do not imply installer/UI release. Run PostgreSQL identity/session regressions and keep generated local-auth schemas/types in sync.
 
 ## Quick Commands

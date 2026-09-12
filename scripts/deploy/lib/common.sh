@@ -3,6 +3,8 @@ set -euo pipefail
 
 DEPLOY_LIB_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${DEPLOY_LIB_DIR}/../../.." && pwd)"
+# shellcheck source=scripts/prod/lib/identity_mounts.sh
+source "${REPO_ROOT}/scripts/prod/lib/identity_mounts.sh"
 RENDERER="${DEPLOY_LIB_DIR}/render.py"
 # shellcheck disable=SC2034 # Shared sourced library constant.
 DEFAULT_CONFIG_PATH="${RISKHUB_DEFAULT_CONFIG_PATH:-/etc/riskhub/riskhub.env}"
@@ -332,6 +334,11 @@ render_runtime_dir() {
     --secret-dir "$SECRET_DIR" \
     --runtime-dir "$RUNTIME_DIR" \
     --out-dir "$out_dir"
+}
+
+prepare_native_handoff_directory() {
+  run_privileged python3 "$RENDERER" prepare-handoff \
+    --path "$(dirname "$RUNTIME_DIR")/handoff" --uid "$LINUX_UID" --gid "$LINUX_GID"
 }
 
 render_runtime_to_persistent_dir() {

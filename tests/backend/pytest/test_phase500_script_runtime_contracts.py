@@ -138,6 +138,7 @@ def _write_backend_env(
     include_both: bool = False,
 ) -> None:
     values = [
+        "PUBLIC_URL=https://riskhub.example.com",
         "DEBUG=false",
         "MOCK_AUTH_ENABLED=false",
         "AUTH_MODE=microsoft_sso",
@@ -201,6 +202,9 @@ def _write_secret_runtime(
             "-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
             encoding="utf-8",
         )
+    (secret_dir / "redis_password").write_text(
+        "riskhub_test_password\n", encoding="utf-8"
+    )
     (runtime_dir / "redis_url").write_text(
         "redis://:riskhub_test_password@redis:6379/0\n", encoding="utf-8"
     )

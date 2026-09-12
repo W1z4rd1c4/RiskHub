@@ -713,9 +713,15 @@ def test_docker_deploy_propagates_bootstrap_failure_before_app_install() -> None
         ("preflight", "", "pull ghcr.io/example/riskhub-backend", 1),
         ("pull", "pull ghcr.io/example/riskhub-backend", " python -", 73),
         ("db_preflight", " python -", "--name riskhub-redis", 73),
+        ("identity_compatibility", "scripts.identity_preflight", "--name riskhub-redis", 73),
         ("redis", "--name riskhub-redis", "alembic upgrade head", 73),
         ("migration", "alembic upgrade head", "scripts.seed_roles_permissions", 73),
-        ("identity", "scripts.identity_installation initialize", "scripts.bootstrap_sso_user", 73),
+        (
+            "identity",
+            "scripts.identity_installation initialize",
+            "scripts.bootstrap_sso_user",
+            73,
+        ),
         ("bootstrap", "scripts.bootstrap_sso_user", "--name riskhub-backend", 73),
         ("api", "--name riskhub-backend ", "--name riskhub-backend-scheduler", 73),
         (
@@ -846,7 +852,11 @@ set -euo pipefail
 source {str(REPO_ROOT / 'scripts/deploy/lib/common.sh')!r}
 source {str(REPO_ROOT / 'scripts/deploy/lib/linux.sh')!r}
 LINUX_BACKEND_ENV={str(backend_env)!r}
-run_privileged_sh() {{ bash -lc "$2"; }}
+run_privileged() {{
+  [[ "$1 $2 $3 $4" == "runuser -u riskhub --" ]] || return 92
+  shift 4
+  "$@"
+}}
 linux_run_db_tasks {str(release_dir)!r}
 """
         result = subprocess.run(
@@ -860,10 +870,18 @@ linux_run_db_tasks {str(release_dir)!r}
 
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
         commands = argv_log.read_text(encoding="utf-8").splitlines()
-        initialize = next(line for line in commands if "scripts.identity_installation initialize" in line)
-        verify = next(line for line in commands if "scripts.identity_installation verify" in line)
+        initialize = next(
+            line
+            for line in commands
+            if "scripts.identity_installation initialize" in line
+        )
+        verify = next(
+            line for line in commands if "scripts.identity_installation verify" in line
+        )
         admin = next(line for line in commands if "--role admin" in line)
-        assert commands.index(initialize) < commands.index(verify) < commands.index(admin)
+        assert (
+            commands.index(initialize) < commands.index(verify) < commands.index(admin)
+        )
         cro = next(line for line in commands if "--role cro" in line)
         if include_external_ids:
             assert "--external-id 11111111-2222-4333-8444-555555555555" in admin
@@ -1474,8 +1492,7 @@ def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> No
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert (
-            "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid "
-            "entra_client_certificate_private_key secret file was found"
+            "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE still contains the placeholder value"
         ) in output
         assert "Preflight: OK" not in output
 

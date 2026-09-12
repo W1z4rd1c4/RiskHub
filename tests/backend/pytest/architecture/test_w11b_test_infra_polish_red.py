@@ -19,6 +19,8 @@ ALLOWED_SUBPROCESS_IMPORTABILITY_CHECKS = {
 }
 
 ALLOWED_FILE_WIDE_MIXED_TOKEN_FALSE_POSITIVES = {
+    # #204 invokes the real Python renderer and separate Bash target-adapter harnesses.
+    "tests/backend/pytest/test_native_deploy_contracts.py",
     "tests/backend/pytest/test_phase500_script_runtime_contracts.py",
 }
 

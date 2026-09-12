@@ -137,8 +137,8 @@ linux_run_release_command() {
   local command_body="$3"
   local env_loader
   env_loader="$(envfile_loader_snippet "$LINUX_BACKEND_ENV")"
-  run_privileged_sh \
-    "$display" \
+  log "$display" >&2
+  run_privileged runuser -u "$LINUX_USER" -- bash -lc \
     "$(cat <<EOF
 set -euo pipefail
 ${env_loader}
@@ -150,6 +150,7 @@ EOF
 
 linux_run_db_tasks() {
   local release_dir="$1"
+  local identity_config="${2:-$LINUX_BACKEND_ENV}"
   local runtime_workdir="${release_dir}/backend"
   local db_workdir="${release_dir}/backend_db"
   local python_bin="${release_dir}/db-venv/bin/python"
@@ -163,6 +164,21 @@ linux_run_db_tasks() {
 
   linux_run_release_command \
     "$db_workdir" \
+    "Initialize or verify installation identity before user bootstrap" \
+    "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.identity_installation initialize --maintenance-confirmed --source linux-bootstrap; $(printf '%q' "$python_bin") -m scripts.identity_installation verify"
+
+  local auth_mode
+  auth_mode="$(python3 "$RENDERER" identity-choice --config "$identity_config")"
+  if [[ "$auth_mode" == "custom" ]]; then
+    local handoff_dir="$(dirname "$RUNTIME_DIR")/handoff"
+    linux_run_release_command \
+      "$db_workdir" "Create or resume protected native enrollment handoffs" \
+      "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_local_users --maintenance-confirmed install --admin-email \"\$BOOTSTRAP_ADMIN_EMAIL\" --cro-email \"\$BOOTSTRAP_CRO_EMAIL\" --handoff-dir $(printf '%q' "$handoff_dir")"
+    return
+  fi
+
+  linux_run_release_command \
+    "$db_workdir" \
     "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.seed_roles_permissions" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.seed_roles_permissions"
 
@@ -173,11 +189,6 @@ linux_run_db_tasks() {
 
   linux_run_release_command \
     "$db_workdir" \
-    "Initialize or verify installation identity before user bootstrap" \
-    "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.identity_installation initialize --maintenance-confirmed --source linux-bootstrap; $(printf '%q' "$python_bin") -m scripts.identity_installation verify"
-
-  linux_run_release_command \
-    "$db_workdir" \
     "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global (pre-link)" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); admin_args=($(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_ADMIN_EMAIL\" --role admin --access-scope global); if [[ -n \"\${BOOTSTRAP_ADMIN_EXTERNAL_ID:-}\" ]]; then admin_args+=(--external-id \"\$BOOTSTRAP_ADMIN_EXTERNAL_ID\"); fi; \"\${admin_args[@]}\""
 
@@ -185,6 +196,22 @@ linux_run_db_tasks() {
     "$db_workdir" \
     "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <cro> --role cro --access-scope global (pre-link)" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); cro_args=($(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_CRO_EMAIL\" --role cro --access-scope global); if [[ -n \"\${BOOTSTRAP_CRO_EXTERNAL_ID:-}\" ]]; then cro_args+=(--external-id \"\$BOOTSTRAP_CRO_EXTERNAL_ID\"); fi; \"\${cro_args[@]}\""
+}
+
+linux_identity_preflight() {
+  local release_dir="$1" config_path="$2" candidate_dir
+  candidate_dir="$(make_runtime_dir "$config_path" linux)"
+  local rc=0
+  (
+    set -e
+    run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$candidate_dir" || exit $?
+    local LINUX_BACKEND_ENV="${candidate_dir}/backend.env"
+    linux_run_release_command "${release_dir}/backend" \
+      "Check candidate identity, schema and keys before replacing services" \
+      "export PYTHONPATH=$(printf '%q' "${release_dir}/backend:${release_dir}/backend_db"); export REDIS_URL_FILE=$(printf '%q' "${candidate_dir}/redis_url"); $(printf '%q' "${release_dir}/db-venv/bin/python") -m scripts.identity_preflight"
+  ) || rc=$?
+  cleanup_runtime_dir "$candidate_dir"
+  return "$rc"
 }
 
 linux_reload_services() {
@@ -225,13 +252,19 @@ linux_deploy_or_upgrade() {
 
   linux_install_release "$bundle_path" "$release_version"
   linux_install_venvs "$release_dir"
+  linux_identity_preflight "$release_dir" "$config_path"
   # shellcheck disable=SC2153 # RUNTIME_DIR is a sourced global from deploy/lib/common.sh.
-  linux_render_runtime_files "$config_path" "$RUNTIME_DIR"
   if [[ "$action" == "upgrade" ]]; then
     log "Stopping API and scheduler writers before schema and identity changes..."
     run_privileged systemctl stop "$LINUX_BACKEND_SERVICE" "$LINUX_SCHEDULER_SERVICE"
   fi
-  linux_run_db_tasks "$release_dir"
+  linux_render_runtime_files "$config_path" "$RUNTIME_DIR"
+  if [[ "$(python3 "$RENDERER" identity-choice --config "$config_path")" == "custom" ]]; then
+    prepare_native_handoff_directory
+    run_privileged systemctl daemon-reload
+    run_privileged systemctl enable --now "$LINUX_REDIS_SERVICE"
+  fi
+  linux_run_db_tasks "$release_dir" "$config_path"
 
   if [[ -n "$previous_target" ]]; then
     run_privileged ln -sfn "$previous_target" "$LINUX_PREVIOUS_LINK"
@@ -405,6 +438,7 @@ linux_rollback() {
   local current_target previous_target
   current_target="$(readlink "$LINUX_CURRENT_LINK")"
   previous_target="$(readlink "$LINUX_PREVIOUS_LINK")"
+  linux_identity_preflight "$previous_target" "$config_path"
   run_privileged ln -sfn "$previous_target" "$LINUX_CURRENT_LINK"
   run_privileged ln -sfn "$current_target" "$LINUX_PREVIOUS_LINK"
   linux_reload_services

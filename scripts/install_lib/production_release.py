@@ -14,6 +14,10 @@ from install_lib.runtime_state import load_install_state
 
 IMAGE_DIGEST_RE = re.compile(r"@sha256:[0-9a-fA-F]{64}$")
 METADATA_ENV_BACKUP_ALLOWLIST = {
+    "AUTH_MODE",
+    "DIRECTORY_PROVIDER",
+    "LOCAL_MFA_POLICY",
+    "IDENTITY_CONTRACT_VERSION",
     "TARGET",
     "PUBLIC_URL",
     "SERVER_NAME",
@@ -117,6 +121,7 @@ def production_existing_install_detected(
     paths: InstallPaths,
 ) -> bool:
     return (
-        (config_path.exists() and secret_dir.exists() and runtime_dir.exists())
+        (runtime_dir / "backend.env").exists()
+        or paths.linux_current_link.exists()
         or load_install_state(paths, runtime_dir) is not None
     )

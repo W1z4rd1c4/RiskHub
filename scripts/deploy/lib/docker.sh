@@ -99,12 +99,6 @@ docker_deploy_or_upgrade() {
   set +e
   (
     set -e
-    if [[ "$DRY_RUN" != "true" ]]; then
-      copy_runtime_file "${runtime_dir}/backend.env" "${RUNTIME_DIR}/backend.env" 640
-      copy_runtime_file "${runtime_dir}/frontend.env" "${RUNTIME_DIR}/frontend.env" 640
-      copy_runtime_file "${runtime_dir}/metadata.env" "${RUNTIME_DIR}/metadata.env" 640
-      copy_runtime_file "${runtime_dir}/redis_url" "${RUNTIME_DIR}/redis_url" 440
-    fi
     source_metadata_env "$runtime_dir"
 
     local backend_env="${runtime_dir}/backend.env"
@@ -164,12 +158,26 @@ docker_deploy_or_upgrade() {
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/preflight.sh" "${db_preflight_args[@]}"
 
-    run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
-      "${REPO_ROOT}/scripts/prod/install_redis.sh" --backend-env "$backend_env" --redis-image "$DOCKER_REDIS_IMAGE" "${prod_common[@]}"
+    identity_secret_mounts "$backend_env"
+    log "Checking candidate identity, schema and key compatibility before replacing services..."
+    run docker run --rm --add-host host.docker.internal:host-gateway \
+      "${SECRET_MOUNT_ARGS[@]}" -v "${runtime_dir}/redis_url:${RUNTIME_DIR}/redis_url:ro" \
+      --env-file "$backend_env" "$DOCKER_BACKEND_DB_IMAGE" python -m scripts.identity_preflight
     if [[ "$action" == "upgrade" ]]; then
       log "Stopping API and scheduler writers before schema and identity changes..."
       run docker stop riskhub-backend riskhub-backend-scheduler
     fi
+    if [[ "$DRY_RUN" != "true" ]]; then
+      copy_runtime_file "${runtime_dir}/backend.env" "${RUNTIME_DIR}/backend.env" 640
+      copy_runtime_file "${runtime_dir}/frontend.env" "${RUNTIME_DIR}/frontend.env" 640
+      copy_runtime_file "${runtime_dir}/metadata.env" "${RUNTIME_DIR}/metadata.env" 640
+      copy_runtime_file "${runtime_dir}/redis_url" "${RUNTIME_DIR}/redis_url" 440
+    fi
+    if [[ "$AUTH_MODE" == "password" ]]; then
+      prepare_native_handoff_directory
+    fi
+    run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
+      "${REPO_ROOT}/scripts/prod/install_redis.sh" --backend-env "$backend_env" --redis-image "$DOCKER_REDIS_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/run_migrations.sh" --backend-env "$backend_env" --backend-db-image "$DOCKER_BACKEND_DB_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \

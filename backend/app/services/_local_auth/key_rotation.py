@@ -10,6 +10,7 @@ from app.models import LocalAuthDelivery, LocalAuthFactor, LocalAuthGrant, User
 from app.services._auth_session_workflow.authority import lock_session_user
 
 from .common import NativeContext, audit_local, commit_local
+from .keys import LocalKeyring
 
 
 def active_grants():
@@ -110,35 +111,37 @@ async def reencrypt_batch(db: AsyncSession, ctx: NativeContext, *, after_user_id
     }
 
 
-async def verify_key_material(db: AsyncSession, ctx: NativeContext) -> dict[str, dict[str, int]]:
+async def verify_key_material(
+    db: AsyncSession, *, installation_id: str, keys: LocalKeyring
+) -> dict[str, dict[str, int]]:
     """Exercise actual decrypt capability; a matching key ID alone proves nothing."""
     for factor in (await db.scalars(select(LocalAuthFactor))).all():
-        ctx.keys.decrypt(
-            "totp", factor.key_id, factor.encrypted_seed, [ctx.installation_id, str(factor.user_id), factor.generation]
+        keys.decrypt(
+            "totp", factor.key_id, factor.encrypted_seed, [installation_id, str(factor.user_id), factor.generation]
         )
     for row in (await db.scalars(select(LocalAuthDelivery).where(LocalAuthDelivery.ciphertext.is_not(None)))).all():
         if row.ciphertext is not None:
-            ctx.keys.decrypt(
+            keys.decrypt(
                 "delivery",
                 row.key_id,
                 row.ciphertext,
-                [ctx.installation_id, str(row.user_id), row.id, row.grant_id or "notice"],
+                [installation_id, str(row.user_id), row.id, row.grant_id or "notice"],
             )
     for grant in (await db.scalars(select(LocalAuthGrant).where(*active_grants()))).all():
         pending = grant.context.get("pending_factor")
         if pending:
-            ctx.keys.decrypt(
+            keys.decrypt(
                 "totp",
                 pending["key_id"],
                 pending["ciphertext"],
-                [ctx.installation_id, str(grant.user_id), pending["generation"]],
+                [installation_id, str(grant.user_id), pending["generation"]],
             )
         pending = grant.context.get("pending_password")
         if pending:
-            ctx.keys.decrypt(
+            keys.decrypt(
                 "delivery",
                 pending["key_id"],
                 pending["ciphertext"],
-                [ctx.installation_id, str(grant.user_id), grant.context["recovery_id"], "recovery-password"],
+                [installation_id, str(grant.user_id), grant.context["recovery_id"], "recovery-password"],
             )
     return await reference_counts(db)

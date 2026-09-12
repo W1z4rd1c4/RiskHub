@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=scripts/prod/lib/identity_mounts.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/identity_mounts.sh"
+
 # Shared constants (Phase 500 install path)
 # shellcheck disable=SC2034 # Shared sourced library constant.
 NETWORK_NAME="riskhub-network"

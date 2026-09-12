@@ -1,6 +1,6 @@
 # Deployment Advanced Notes
 
-> **Last Updated**: 2026-04-04
+> **Last Updated**: 2026-09-12
 > **Audience**: Maintainers / release engineering
 
 ## Internal Script Mapping
@@ -29,7 +29,7 @@ Internal implementation details:
   - runtime `venv` plus DB-task `db-venv` creation from the bundled wheelhouse
   - nginx render + validation
   - systemd unit render + install
-  - migrations, base seed, SSO bootstrap from `backend_db/`
+  - read-only identity preflight, migrations, installation binding and profile-specific bootstrap from `backend_db/`
 
 ## Release Artifacts
 
@@ -80,7 +80,7 @@ Fresh bootstrap initializes/verifies an empty installation before Entra users ar
 created. Populated unbound installations require explicit maintenance adoption;
 managed upgrades stop API/scheduler writers before migrations. Follow
 [identity foundations](../security/identity-foundations.md) for adoption, failure recovery and replica draining.
-Native identity selection remains staged work; preserve production admission checks.
+Native identity selection uses the shared renderer; preserve production admission checks.
 
 ## Staged native bootstrap command
 
@@ -90,5 +90,15 @@ contract](../security/identity-bootstrap.md) for key registration, protected fil
 ownership, dry-run, handoff/resume, explicit reissue and abort. Recipients choose
 passwords; MFA is required by default and explicit optional policy supports
 password-only enrollment. Completed accounts can never be reset or have access
-restored by bootstrap. This backend command does not select a managed native
-production profile; installer integration and release admission remain #204/#208.
+restored by bootstrap. The managed installer selects this bootstrap for native configuration. Production
+admission remains closed until #208.
+
+## Shared identity rendering
+
+The renderer imports the lightweight `production_contract` and native security-file
+validators without importing web Settings. `--user-management entra|custom` is an
+operator choice mapped to `AUTH_MODE`/`DIRECTORY_PROVIDER`; no separate persisted
+provider setting exists. The candidate preflight checks bound profile/schema/hash/
+key compatibility before replacing services. Native DB bootstrap runs under the
+service UID and resumes persisted handoff paths; runtime diagnostics never mutate
+identity state. The source production guard remains authoritative until #208.

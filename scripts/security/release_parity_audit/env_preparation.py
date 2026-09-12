@@ -11,6 +11,7 @@ def prepare_prod_env_files(
     backend_env.write_text(
         "\n".join(
             [
+                "PUBLIC_URL=https://riskhub.example.com",
                 "DEBUG=false",
                 "MOCK_AUTH_ENABLED=false",
                 "AUTH_MODE=microsoft_sso",

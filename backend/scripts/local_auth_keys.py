@@ -58,7 +58,7 @@ async def run(args: argparse.Namespace) -> dict:
             ctx = await build_context(db, settings=settings, redis=redis, source="key-maintenance")
             data = json.loads(read_secret_file(path))
             if args.command == "verify":
-                counts = await verify_key_material(db, ctx)
+                counts = await verify_key_material(db, installation_id=ctx.installation_id, keys=ctx.keys)
                 for purpose, references in counts.items():
                     if set(references) - set(ctx.keys.purposes[purpose].keys):
                         raise invalid_proof()

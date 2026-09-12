@@ -23,4 +23,11 @@ Fresh bootstrap initializes/verifies an empty installation before Entra users ar
 created. Populated unbound installations require explicit maintenance adoption;
 managed upgrades stop API/scheduler writers before migrations. Follow
 [identity foundations](../../docs/security/identity-foundations.md) for adoption, failure recovery and replica draining.
-Native identity selection remains staged work; preserve production admission checks.
+The shared renderer resolves `entra`/`custom` selection without importing web Settings. Native selection and both MFA policies are implemented for component verification; preserve the #208 production admission guard.
+
+Candidate DB artifacts include `scripts.identity_preflight` for read-only installed
+schema/profile/hash/key compatibility before replacing services. Runtime artifacts
+include `python -m app.services.identity_diagnostics` (optional `--probe-mail` for
+verified SMTP TLS/login without sending mail). Native secret mounts select only
+needed local files and shared DB/JWT inputs; preserve unused operator-owned Entra
+files on the host. See the [deployment guide](../../docs/deployment/production.md#native-installation-preparation-and-release-boundary).

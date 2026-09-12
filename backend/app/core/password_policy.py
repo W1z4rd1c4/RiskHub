@@ -12,11 +12,15 @@ from pathlib import Path
 from typing import TypeVar
 
 from app.core.exceptions import ServiceFailure, ValidationError
-from app.core.production_contract import LOCAL_PASSWORD_MAX_LENGTH, LOCAL_PASSWORD_MIN_LENGTH
+from app.core.production_contract import (
+    LOCAL_KDF_SLOTS_PER_PROCESS,
+    LOCAL_PASSWORD_MAX_LENGTH,
+    LOCAL_PASSWORD_MIN_LENGTH,
+)
 
 _T = TypeVar("_T")
 DATA_DIR = Path(__file__).parent / "password_data"
-KDF_SLOTS_PER_PROCESS = 2
+KDF_SLOTS_PER_PROCESS = LOCAL_KDF_SLOTS_PER_PROCESS
 _KDF_SLOTS = threading.BoundedSemaphore(KDF_SLOTS_PER_PROCESS)
 
 
