@@ -46,7 +46,7 @@ function signedIn() {
 }
 function renderFlow(path: string, security = false) {
     return render(<StrictMode><I18nextProvider i18n={i18n}><AuthProvider><MemoryRouter initialEntries={[path]}><RouteScope>
-        <Routes><Route path={path} element={security ? <NativeSecurityPage /> : <NativePublicPage />} />
+        <Routes><Route path={decodeURIComponent(path)} element={security ? <NativeSecurityPage /> : <NativePublicPage />} />
             <Route path="/login" element={<div>Normal login</div>} /></Routes>
     </RouteScope></MemoryRouter></AuthProvider></I18nextProvider></StrictMode>);
 }
@@ -145,7 +145,7 @@ describe('Native login authority', () => {
         expect(screen.getByLabelText(/^password/i)).toHaveValue('');
     });
 
-    it.each(['/auth/local/enroll', '/auth/local/enroll/', '/AUTH/LOCAL/ENROLL'])('captures an invitation once and explicitly redeems accepted route %s', async (path) => {
+    it.each(['/auth/local/enroll', '/auth/local/enroll/', '/AUTH/LOCAL/ENROLL', '/auth/local/%65nroll'])('captures an invitation once and explicitly redeems accepted route %s', async (path) => {
         const requests: unknown[] = [];
         window.history.replaceState(null, '', '/auth/local/enroll#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
         server.use(
@@ -220,7 +220,7 @@ describe('Native login authority', () => {
         expect(getSessionSnapshot().user).toBeNull();
     });
 
-    it.each(['/auth/local/security', '/auth/local/security/', '/AUTH/LOCAL/SECURITY'])('retains display-once codes after logout at accepted route %s', async (path) => {
+    it.each(['/auth/local/security', '/auth/local/security/', '/AUTH/LOCAL/SECURITY', '/auth/local/%73ecurity'])('retains display-once codes after logout at accepted route %s', async (path) => {
         signedIn();
         server.use(
             http.get('*/api/v1/auth/config', () => HttpResponse.json({ ...nativeConfig, local_mfa_policy: 'optional' })),

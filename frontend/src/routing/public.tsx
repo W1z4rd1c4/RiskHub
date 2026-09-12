@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { matchPath } from 'react-router-dom';
+import { matchRoutes } from 'react-router-dom';
 
 import type { AppRouteDef } from './types';
 
@@ -18,7 +18,8 @@ export const nativePublicRoutes: AppRouteDef[] = [
 ];
 
 export function resolveNativeRoute(pathname: string): AppRouteDef | undefined {
-    return nativePublicRoutes.find((route) => route.path && matchPath(route.path, pathname));
+    const matched = matchRoutes(nativePublicRoutes.map(({ path, key }) => ({ path, key })), pathname)?.at(-1);
+    return nativePublicRoutes.find((route) => route.key === matched?.route.key);
 }
 
 export const publicRoutes: AppRouteDef[] = [
