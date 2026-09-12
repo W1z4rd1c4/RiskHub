@@ -22,6 +22,7 @@ from app.services._directory_identity import resolve_safe_default_role
 from app.services._identity_authority_lock import lock_identity_transition
 
 from .artifacts import consume_grant, issue_grant, read_grant, revoke_grants
+from .bootstrap_progress import complete_bootstrap_target
 from .common import NativeContext, atomic_local_work, audit_local, commit_local, invalid_proof, local_user_ready
 from .delivery import enqueue_mail
 
@@ -133,6 +134,7 @@ async def start_enrollment(
         challenge = None
         if requires_factor:
             _, challenge = await issue_grant(db, ctx, user, "enrollment", LOCAL_CHALLENGE_TTL_SECONDS, browser=browser)
+        await complete_bootstrap_target(db, user)
         await audit_local(db, user, "local_password_enrolled")
         await commit_local(db, "enrollment_start")
         if challenge is not None:

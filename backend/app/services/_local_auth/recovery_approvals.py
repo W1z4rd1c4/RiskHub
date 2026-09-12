@@ -49,8 +49,7 @@ def validate_envelope(envelope: RecoveryEnvelope) -> None:
         raise invalid_proof()
 
 
-def verify_approvals(envelope: RecoveryEnvelope, signatures: list[dict], trust_file: str | None) -> list[str]:
-    validate_envelope(envelope)
+def load_recovery_approvers(trust_file: str | None) -> dict[str, Ed25519PublicKey]:
     try:
         trust = json.loads(read_secret_file(trust_file))
         if trust["version"] != 1 or type(trust["version"]) is not int:
@@ -73,6 +72,17 @@ def verify_approvals(envelope: RecoveryEnvelope, signatures: list[dict], trust_f
             keys[item["id"]] = Ed25519PublicKey.from_public_bytes(raw)
             public_keys.add(raw)
             accountable_names.add(item["name"].strip().casefold())
+        if len(keys) < 2:
+            raise ValueError("At least two independent approvers required")
+        return keys
+    except (KeyError, ValueError, TypeError):
+        raise invalid_proof() from None
+
+
+def verify_approvals(envelope: RecoveryEnvelope, signatures: list[dict], trust_file: str | None) -> list[str]:
+    validate_envelope(envelope)
+    try:
+        keys = load_recovery_approvers(trust_file)
         if len(signatures) != 2:
             raise ValueError("Exactly two approvals required")
         approved = []

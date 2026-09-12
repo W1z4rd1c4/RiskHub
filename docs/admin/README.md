@@ -197,3 +197,5 @@ Minimum handoff packet:
 - [Admin Console](./console.md)
 - [User and Access Governance](./user-management.md)
 - [Reports and Evidence Exports](./reports.md)
+
+- [Initial native Admin/CRO bootstrap (operator contract; production admission remains staged)](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-bootstrap.md)

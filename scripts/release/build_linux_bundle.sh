@@ -93,6 +93,7 @@ cp "${REPO_ROOT}/backend/scripts/__init__.py" "${BACKEND_DB_STAGE}/scripts/__ini
 cp "${REPO_ROOT}/backend/scripts/seed_roles_permissions.py" "${BACKEND_DB_STAGE}/scripts/seed_roles_permissions.py"
 cp "${REPO_ROOT}/backend/scripts/seed_departments.py" "${BACKEND_DB_STAGE}/scripts/seed_departments.py"
 cp "${REPO_ROOT}/backend/scripts/bootstrap_sso_user.py" "${BACKEND_DB_STAGE}/scripts/bootstrap_sso_user.py"
+cp "${REPO_ROOT}/backend/scripts/bootstrap_local_users.py" "${BACKEND_DB_STAGE}/scripts/bootstrap_local_users.py"
 cp "${REPO_ROOT}/backend/scripts/identity_installation.py" "${BACKEND_DB_STAGE}/scripts/identity_installation.py"
 cp "${REPO_ROOT}/backend/scripts/local_recovery.py" "${BACKEND_DB_STAGE}/scripts/local_recovery.py"
 cp "${REPO_ROOT}/backend/scripts/local_auth_keys.py" "${BACKEND_DB_STAGE}/scripts/local_auth_keys.py"

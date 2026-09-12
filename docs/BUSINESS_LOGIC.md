@@ -1264,3 +1264,5 @@ Compatibility behavior:
 *Document generated from codebase analysis. See individual model files for authoritative definitions.*
 
 Native identity runtime disables external directory clients, checks and scheduled jobs while preserving local user lookup and business access. Backend identity capabilities separate Admin credential lifecycle from CRO business access. Privileged recovery remains offline-required; recovery-pending users cannot be resumed through ordinary lifecycle controls. See [directory isolation](security/identity-directory-isolation.md).
+
+Native initial onboarding creates distinct inactive Admin/CRO principals with restricted enrollment grants. Recipients choose credentials; completed bootstrap cannot restore removed access or reset passwords/factors. Protected handoff failures resume the same valid grant; explicit reasoned reissue is limited to never-enrolled targets. See [native bootstrap](security/identity-bootstrap.md).

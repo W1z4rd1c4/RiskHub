@@ -333,3 +333,19 @@ authorization, generated-schema and deployment-packaging validators for this sur
 The [recovery runbook](security/identity-recovery.md) owns the operator commands.
 
 Native directory isolation coverage lives in `tests/backend/pytest/test_identity_directory_isolation.py`. Run it with the provider, directory import/lookup, deprovision, SSO, scheduler, health, admin telemetry and access-capability suites; network-denial assertions concern component composition and runtime seams, not the final #208 production matrix.
+
+Native bootstrap coverage lives in `tests/backend/pytest/test_local_bootstrap.py`:
+
+```bash
+cd backend
+TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@localhost:15432/riskhub_test \
+TEST_REDIS_URL=redis://localhost:16379/15 \
+pytest ../tests/backend/pytest/test_local_bootstrap.py -q --no-cov
+```
+
+Use disposable PostgreSQL/Redis for the real CLI races and interrupted handoffs.
+Run the existing enrollment, session, recovery, Entra bootstrap, canonical seed,
+architecture and production packaging contracts as well. Verify the DB-task image
+as UID 10001 and the Linux package contents; successful backend component checks
+do not open the #208 native production admission boundary. Operator commands and
+exit/status contracts live in [native bootstrap](security/identity-bootstrap.md).

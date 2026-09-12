@@ -100,6 +100,7 @@ COPY --chown=riskhub:riskhub scripts/__init__.py ./scripts/__init__.py
 COPY --chown=riskhub:riskhub scripts/seed_roles_permissions.py ./scripts/seed_roles_permissions.py
 COPY --chown=riskhub:riskhub scripts/seed_departments.py ./scripts/seed_departments.py
 COPY --chown=riskhub:riskhub scripts/bootstrap_sso_user.py ./scripts/bootstrap_sso_user.py
+COPY --chown=riskhub:riskhub scripts/bootstrap_local_users.py ./scripts/bootstrap_local_users.py
 COPY --chown=riskhub:riskhub scripts/identity_installation.py ./scripts/identity_installation.py
 COPY --chown=riskhub:riskhub scripts/local_recovery.py ./scripts/local_recovery.py
 COPY --chown=riskhub:riskhub scripts/local_auth_keys.py ./scripts/local_auth_keys.py
