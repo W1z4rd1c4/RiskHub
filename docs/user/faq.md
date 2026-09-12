@@ -1,7 +1,7 @@
 ---
 title: User FAQ and Operational Support
 version: "2.4"
-last_updated: "2026-04-25"
+last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + in-app workflow behavior"
 summary: "Fast answers for common user issues: visibility, approvals, edits, notifications, exports, and where to look before escalating."
@@ -26,6 +26,22 @@ tags:
 - [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
 - [Related Manuals](#related-manuals)
+
+## Passwords and MFA
+
+**Who manages my password?** Entra users use their organization's password and recovery
+service. Native local users choose a password when accepting an admin invitation and
+can change it after reauthentication or request an email reset. Admins cannot see or
+assign permanent native passwords.
+
+**Is MFA mandatory for local login?** The installation chooses required MFA (the default)
+or optional MFA. Optional allows password-only accounts, including admins. If you have
+already enabled MFA, you still need your factor. A password reset does not remove it.
+
+**Where are the local-account controls?** The current production release uses your
+organization's Microsoft sign-in. RiskHub local-account screens are still being prepared.
+Your administrator can confirm their availability for your installed release. Continue
+using your organization's password and recovery service until local accounts are available.
 
 ## What This Page Helps You Do
 

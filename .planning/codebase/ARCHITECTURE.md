@@ -120,3 +120,9 @@ changes through `_identity_authority_lock.py` and the shared auth-session workfl
 [ADR-018](../../docs/adr/ADR-018-identity-foundations.md) owns these rules. Native
 contracts reserve a common session lineage with configurable MFA; production admission
 remains a separate release gate.
+
+Native credential orchestration lives in `services/_local_auth/`; it uses existing
+User/session/outbox ownership rather than parallel identity infrastructure. HTTP routes
+are in `auth/local.py` and `users/invitations.py`. `core/local_session.py` carries native
+claims on the shared session lineage. See
+[native credentials](../../docs/security/identity-local-credentials.md).

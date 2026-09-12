@@ -265,12 +265,14 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 def register_middleware(app: FastAPI, settings: Settings) -> None:
+    from app.middleware.auth_body_limit import AuthBodyLimitMiddleware
     from app.middleware.language import LanguageMiddleware
     from app.middleware.logging_context import LoggingContextMiddleware
     from app.middleware.rate_limit import RateLimitMiddleware
     from app.middleware.security_headers import SecurityHeadersMiddleware
     from app.middleware.security_protocol import ProtocolGuardMiddleware
 
+    app.add_middleware(AuthBodyLimitMiddleware)
     app.add_middleware(ProtocolGuardMiddleware)
     app.add_middleware(
         RateLimitMiddleware,
@@ -320,9 +322,11 @@ def register_routes(app: FastAPI, settings: Settings) -> None:
 async def bootstrap_runtime_services(app: FastAPI) -> None:
     settings: Settings = app.state.settings
 
-    if not settings.debug:
+    from app.core.local_session import native_identity_selected
+
+    if not settings.debug or native_identity_selected(settings):
         if not settings.redis_url:
-            raise RuntimeError("FATAL: REDIS_URL is required in production mode (DEBUG=false).")
+            raise RuntimeError("FATAL: REDIS_URL is required in production mode or native identity mode.")
         from redis.asyncio import Redis
 
         redis = Redis.from_url(settings.redis_url, decode_responses=True)

@@ -70,3 +70,15 @@ async def test_debug_demo_single_worker_can_use_in_memory_lockout(monkeypatch: p
     assert isinstance(app.state.account_lockout, AccountLockoutService)
     assert isinstance(app.state.account_lockout.backend, InMemoryAccountLockoutBackend)
     assert app.state.sso_challenge_store is not None
+
+
+@pytest.mark.asyncio
+async def test_native_debug_startup_requires_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    from unittest.mock import AsyncMock
+
+    start = AsyncMock()
+    monkeypatch.setattr("app.main.start_scheduler_async", start)
+    app = _app_with_settings(_settings(debug=True, auth_mode="password", directory_provider="none", redis_url=None))
+    with pytest.raises(RuntimeError, match="REDIS_URL is required"):
+        await bootstrap_runtime_services(app)
+    start.assert_not_awaited()

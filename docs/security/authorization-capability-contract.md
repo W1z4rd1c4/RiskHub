@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-09-07
+> Last reviewed: 2026-09-08
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -26,15 +26,32 @@ migration/rollback limits are specified in [ADR-018](../adr/ADR-018-identity-fou
 and [identity foundations](./identity-foundations.md). Native production remains
 unavailable until #208; this is not a second authentication or authorization system.
 
-## Native MFA deployment policy — 2026-09-12
+## Native credentials — 2026-09-12
 
-`LOCAL_MFA_POLICY=required` remains the default; `optional` permits password-only
-users and platform administrators after account enrollment. Confirmed factors must
-still be enforced, and required policy rejects password-only sessions. Admin-created
-accounts use invitations; users choose, change and recover their passwords. Recent
-authentication follows the account factor and deployment policy. Group 2 implements
-these reserved contracts; installer/UI acceptance must cover both policies. The
-separate #208 production admission guard remains in force.
+Group 2 (#197–#200) implements native password/none identity as a component-tested,
+not-yet-released profile. `LOCAL_MFA_POLICY=required` (default) requires MFA enrollment;
+`optional` permits verified password-only users and platform admins. Confirmed factors
+remain required under either policy. Login returns restricted challenges until the
+account's policy is satisfied, then issues the existing session. Authentication method,
+confirmed factor generation when applicable, installation identity,
+full-authentication age, active role, and User version are validated by the common
+bearer/refresh boundary. Native sessions retain the original eight-hour authentication
+limit through rotation. Entra/hybrid development response semantics remain unchanged.
+
+Native invitations, resend/cancel, delivery status, and admin reset-link requests are
+platform-Admin-only; CRO business-access authority does not include credential lifecycle.
+Generic user creation and password/recovery-email PATCH cannot bypass invitation or
+verified recovery. Self-service credential/email mutations require single-use recent
+password proof plus a factor when enabled or required, bound to the exact operation and target; password reset does
+not remove MFA. All completed changes invalidate old sessions and outstanding grants
+transactionally through the existing auth workflow. No new business role, permission,
+or frontend action gate is introduced. Group 3 capability publication and assisted
+recovery remain separate; native production admission stays closed until #208.
+
+See [native credential implementation](./identity-local-credentials.md), the generated
+[wire contract](./identity-local-auth.openapi.json), and public regression tests in
+`test_local_identity.py`, `test_local_identity_postgres.py`, and
+`test_local_identity_delivery.py` for enforcement and failure outcomes.
 
 ## Purpose
 

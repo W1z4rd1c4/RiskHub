@@ -65,3 +65,8 @@ After deploying:
 - verify backend readiness endpoint `GET /api/v1/readyz`
 - verify diagnostic health endpoint `GET /api/v1/health`
 - check logs for startup guard failures (secrets/CORS/auth mode)
+
+The subsequent native migration `u0v1w2x3y4z5` adds grants, encrypted delivery/factors
+and refresh metadata. It does not infer verified email or enrollment for existing users.
+Its downgrade refuses credential loss. Preserve key backups, revocations and suspension
+when restoring; the complete native restore/release acceptance remains #207/#208.

@@ -259,3 +259,7 @@ Linux target:
   - `scheduler_job_runs` or `app_outbox_events` is missing
   - the scheduler runtime is not represented by exactly one running `__scheduler_runtime__` row
   - dead-letter outbox rows exist
+
+For staged native runtime inputs (SMTP, keyring, KDF limits and password policy), use
+[native credentials](../security/identity-local-credentials.md#required-nonsecret-configuration-and-protected-inputs).
+The managed Entra renderer does not yet provision those inputs.

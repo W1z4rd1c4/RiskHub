@@ -69,6 +69,8 @@
           },
           "recent_auth_proof": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Recent Auth Proof",
             "type": "string",
             "writeOnly": true
@@ -95,6 +97,8 @@
         "properties": {
           "challenge": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Challenge",
             "type": "string",
             "writeOnly": true
@@ -128,12 +132,16 @@
         "properties": {
           "grant": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Grant",
             "type": "string",
             "writeOnly": true
           },
           "recent_auth_proof": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Recent Auth Proof",
             "type": "string",
             "writeOnly": true
@@ -156,6 +164,8 @@
           },
           "recent_auth_proof": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Recent Auth Proof",
             "type": "string",
             "writeOnly": true
@@ -185,12 +195,16 @@
         "properties": {
           "grant": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Grant",
             "type": "string",
             "writeOnly": true
           },
           "password": {
             "format": "password",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Password",
             "type": "string",
             "writeOnly": true
@@ -230,6 +244,8 @@
         "properties": {
           "recent_auth_proof": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Recent Auth Proof",
             "type": "string",
             "writeOnly": true
@@ -270,12 +286,16 @@
         "properties": {
           "challenge": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Challenge",
             "type": "string",
             "writeOnly": true
           },
           "code": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Code",
             "type": "string",
             "writeOnly": true
@@ -418,6 +438,72 @@
         "title": "LocalAuthChallenge",
         "type": "object"
       },
+      "LocalIdentityStatusResponse": {
+        "properties": {
+          "delivery_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "sent",
+                  "failed",
+                  "expired",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Status"
+          },
+          "enrollment_state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "invited",
+                  "password_set",
+                  "enrolled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enrollment State"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "local_suspended": {
+            "title": "Local Suspended",
+            "type": "boolean"
+          },
+          "user_id": {
+            "exclusiveMinimum": 0,
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "enrollment_state",
+          "local_suspended",
+          "is_active",
+          "delivery_status"
+        ],
+        "title": "LocalIdentityStatusResponse",
+        "type": "object"
+      },
+      "LocalRequest": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "LocalRequest",
+        "type": "object"
+      },
       "MeCapabilities": {
         "description": "Backend-authoritative shell and route-gate capabilities for the current user.",
         "properties": {
@@ -527,12 +613,16 @@
         "properties": {
           "password": {
             "format": "password",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Password",
             "type": "string",
             "writeOnly": true
           },
           "recent_auth_proof": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Recent Auth Proof",
             "type": "string",
             "writeOnly": true
@@ -568,6 +658,8 @@
             "anyOf": [
               {
                 "format": "password",
+                "maxLength": 1024,
+                "minLength": 1,
                 "type": "string",
                 "writeOnly": true
               },
@@ -595,6 +687,7 @@
             "anyOf": [
               {
                 "format": "password",
+                "maxLength": 128,
                 "type": "string",
                 "writeOnly": true
               },
@@ -645,6 +738,8 @@
           },
           "password": {
             "format": "password",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Password",
             "type": "string",
             "writeOnly": true
@@ -682,6 +777,8 @@
           },
           "grant": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Grant",
             "type": "string",
             "writeOnly": true
@@ -712,12 +809,16 @@
         "properties": {
           "grant": {
             "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
             "title": "Grant",
             "type": "string",
             "writeOnly": true
           },
           "password": {
             "format": "password",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Password",
             "type": "string",
             "writeOnly": true
@@ -889,7 +990,7 @@
     }
   },
   "info": {
-    "description": "Not a live API. #193 contracts; implementation #198\u2013#201.",
+    "description": "Native contracts: #198\u2013#200 handlers implemented for component verification; #201 reserved. Production admission remains closed.",
     "title": "RiskHub reserved native identity contract",
     "version": "1.0.0"
   },
@@ -920,6 +1021,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
+        "x-handler-implemented": true,
         "x-implementation-issue": 200,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -950,6 +1052,7 @@
           }
         },
         "x-authentication": "bearer + recent proof + new-address grant",
+        "x-handler-implemented": true,
         "x-implementation-issue": 200,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -980,6 +1083,7 @@
           }
         },
         "x-authentication": "invitation grant",
+        "x-handler-implemented": true,
         "x-implementation-issue": 198,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1010,6 +1114,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
+        "x-handler-implemented": false,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1040,6 +1145,7 @@
           }
         },
         "x-authentication": "setup challenge",
+        "x-handler-implemented": true,
         "x-implementation-issue": 199,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1070,6 +1176,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
+        "x-handler-implemented": true,
         "x-implementation-issue": 199,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1100,6 +1207,7 @@
           }
         },
         "x-authentication": "enrollment challenge",
+        "x-handler-implemented": true,
         "x-implementation-issue": 199,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1130,6 +1238,7 @@
           }
         },
         "x-authentication": "password + bound MFA challenge",
+        "x-handler-implemented": true,
         "x-implementation-issue": 199,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1160,6 +1269,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
+        "x-handler-implemented": true,
         "x-implementation-issue": 200,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1190,6 +1300,7 @@
           }
         },
         "x-authentication": "reset grant",
+        "x-handler-implemented": true,
         "x-implementation-issue": 200,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1220,6 +1331,7 @@
           }
         },
         "x-authentication": "public, generic result",
+        "x-handler-implemented": true,
         "x-implementation-issue": 200,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1250,6 +1362,7 @@
           }
         },
         "x-authentication": "bearer + password + factor when enabled or required",
+        "x-handler-implemented": true,
         "x-implementation-issue": 199,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1280,6 +1393,7 @@
           }
         },
         "x-authentication": "bearer + recent proof",
+        "x-handler-implemented": false,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1310,6 +1424,7 @@
           }
         },
         "x-authentication": "approved bound recovery challenge",
+        "x-handler-implemented": false,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1340,6 +1455,7 @@
           }
         },
         "x-authentication": "approved recovery grant + required credential proof",
+        "x-handler-implemented": false,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1370,6 +1486,7 @@
           }
         },
         "x-authentication": "platform admin",
+        "x-handler-implemented": true,
         "x-implementation-issue": 198,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1400,6 +1517,7 @@
           }
         },
         "x-authentication": "platform admin",
+        "x-handler-implemented": true,
         "x-implementation-issue": 198,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1430,6 +1548,28 @@
           }
         },
         "x-authentication": "platform admin",
+        "x-handler-implemented": true,
+        "x-implementation-issue": 198,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/users/{user_id}/local-auth/status": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalIdentityStatusResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "platform admin",
+        "x-handler-implemented": true,
         "x-implementation-issue": 198,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1460,6 +1600,7 @@
           }
         },
         "x-authentication": "platform admin",
+        "x-handler-implemented": true,
         "x-implementation-issue": 200,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
@@ -1490,6 +1631,7 @@
           }
         },
         "x-authentication": "platform admin + recent proof; privileged targets offline only",
+        "x-handler-implemented": false,
         "x-implementation-issue": 201,
         "x-profile": "password/none (not released)",
         "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
