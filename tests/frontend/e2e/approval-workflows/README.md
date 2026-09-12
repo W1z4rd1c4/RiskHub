@@ -49,3 +49,9 @@ no request-reason field and the link mutates without entering the queue.
 Keep this README updated when responsibilities or structure in this folder change.
 This bundle now includes a deterministic row-action contract check:
 primary-approver pending rows must expose `Approve` and hide `Reject`.
+
+Queue tests select a request by its unique process heading or deterministic seed
+reason. They must not assume that the queue's first entry is independently
+resolvable or that cancelling one proposal removes other pending proposals.
+The resolver cancellation check targets the independent legacy risk-delete
+fixture; governed proposals keep their separate requester-only cancellation rule.
