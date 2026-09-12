@@ -1,6 +1,6 @@
 ---
 title: Getting Started with RiskHub
-version: "2.5"
+version: "2.6"
 last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
@@ -28,15 +28,40 @@ tags:
 
 ## Signing in and password ownership
 
-Use the sign-in method supplied by your organization. For Entra sign-in, password and
-MFA management stays with your organization's identity service. Demo persona cards are
-for development and evaluation.
+Use the sign-in method supplied by your organization. Microsoft sign-in manages
+passwords and MFA through your organization's identity service. Demo persona cards
+are for evaluation. Local accounts remain subject to your installed release;
+your administrator can confirm availability.
 
-RiskHub local accounts are being prepared for a later release. An administrator will
-invite you to choose and manage your own password. Your organization may require MFA
-or permit password-only login; once you enable MFA, it remains required for your account.
-The current production release uses your organization's Microsoft sign-in. Your
-administrator can confirm when local accounts are available in your installed release.
+When local accounts are available:
+
+1. Open your administrator's invitation. Opening it does not create the account;
+   choose your own password and select **Continue**. Use 15–128 characters and
+   avoid common passwords. There is no public self-registration.
+2. If prompted, add the displayed setup key to your authenticator as a time-based
+   account and enter its current code. Store the ten backup codes privately and
+   acknowledge them. They are shown once and each code works once.
+3. Return to **Sign in**. A password-only installation can complete setup without
+   an authenticator. If you enable an authenticator, you must use it or a backup
+   code on subsequent sign-ins, even when MFA is optional for the installation.
+4. Open **Settings → Account security** to change your password or email, enable
+   or replace an authenticator, or replace backup codes. Verify your current
+   password and, when required, a factor to approve the specific change.
+
+A new email address becomes active only after you open its verification link and
+confirm the change. Sign in first if needed, then reopen the link. Password and
+factor changes end your prior sessions; sign in again after completion. Keep new
+backup codes before leaving their display. Changing email also ends prior sessions
+when the new address is confirmed.
+
+Choose **Forgot password?** to request a reset link. Resetting a password retains
+an enabled authenticator. If you have lost both the authenticator and backup
+codes, contact your administrator; privileged accounts require operator recovery.
+Follow the approved recovery instructions and keep recovery links private.
+
+The **Language** selector offers English and Czech. If a link or verification
+expires, start again or request a current invitation. If a response is lost, the
+action may already have completed: return to sign in instead of repeating it.
 See [FAQ](./faq.md#passwords-and-mfa).
 
 ## What This Page Helps You Do

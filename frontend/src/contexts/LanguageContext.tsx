@@ -11,7 +11,6 @@ import { useTranslation as useI18nextTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLatestPreferenceSync, type PreferenceSyncStatus } from '@/hooks/useLatestPreferenceSync';
 import {
-    activateLanguage,
     normalizeSupportedLanguage,
     STORAGE_KEY,
     type SupportedLanguage,
@@ -19,6 +18,7 @@ import {
 import {
     markLanguageIntent,
     saveLanguageToServer,
+    selectLocalLanguage,
 } from '@/utils/userSettingsStorage';
 import { logError } from '@/services/logger';
 
@@ -37,8 +37,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const { isAuthenticated } = useAuth();
     const language = normalizeSupportedLanguage(i18n.language);
     const applyLanguage = useCallback(async (value: SupportedLanguage) => {
-        await activateLanguage(i18n, value);
-        localStorage.setItem(STORAGE_KEY, value);
+        await selectLocalLanguage(i18n, value);
     }, [i18n]);
     const {
         status: syncStatus,
@@ -64,8 +63,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }, [acknowledgeExternalValue]);
 
     const setLanguage = useCallback((newLanguage: SupportedLanguage) => {
-        markLanguageIntent();
         if (isAuthenticated) {
+            markLanguageIntent();
             syncLanguage(newLanguage);
         } else {
             void applyLanguage(newLanguage).catch((error: unknown) => {

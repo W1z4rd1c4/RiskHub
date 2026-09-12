@@ -145,6 +145,14 @@ class InvitationResponse(BaseModel):
     delivery_status: Literal["pending", "sent", "failed"]
 
 
+class LocalAccountSecurityResponse(BaseModel):
+    """Nonsecret current-account projection; never grants mutation authority."""
+
+    mfa_enabled: bool
+    factor_required: bool
+    mfa_policy: Literal["required", "optional"]
+
+
 class LocalIdentityStatusResponse(BaseModel):
     user_id: UserId
     authority_version: Annotated[int, Field(strict=True, ge=0)]
@@ -192,6 +200,10 @@ class LocalEndpointContract:
 
 # This catalogue is documentation/schema input, never a dynamic route registry.
 LOCAL_ENDPOINT_CONTRACTS = (
+    LocalEndpointContract(
+        "/auth/local/account", LocalRequest, LocalAccountSecurityResponse,
+        "current native bearer", 205, 200, "get",
+    ),
     LocalEndpointContract(
         "/users/{user_id}/local-auth/status",
         LocalRequest,

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { User, Palette, Globe, BookOpen, Bell } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +12,7 @@ const settingsTabs = ['profile', 'appearance', 'localization', 'notifications', 
 type TabId = (typeof settingsTabs)[number];
 
 export function SettingsPage() {
-    const { t } = useTranslation('settings');
+    const { t } = useTranslation(['settings', 'auth']);
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useContentTabQuery<TabId>({
         tabs: settingsTabs,
@@ -48,6 +50,10 @@ export function SettingsPage() {
                 </div>
             </header>
 
+            {resolveCapabilityFlag(user?.me_capabilities?.identity, 'can_manage_own_credentials') && (
+                <Link className="inline-flex rounded-lg border px-4 py-2 text-foreground underline" to="/auth/local/security">{t('auth:native.security_title')}</Link>
+            )}
+
             {/* Tab Navigation */}
             <div className="glass-card p-2 flex gap-2 overflow-x-auto" role="tablist" aria-label={t('title')}>
                 {tabs.map((tab, index) => {
@@ -74,7 +80,7 @@ export function SettingsPage() {
             {/* Tab Content */}
             {settingsTabs.map((tab) => (
                 <div key={tab} className="glass-card p-6" {...getPanelProps(tab)}>
-                    {activeTab === tab && tab === 'profile' && user ? <ProfileSettings user={user} /> : null}
+                    {activeTab === tab && tab === 'profile' && user ? <ProfileSettings user={user} nativeAccount={resolveCapabilityFlag(user.me_capabilities?.identity, 'can_manage_own_credentials')} /> : null}
                     {activeTab === tab && tab === 'appearance' ? <AppearanceSettings /> : null}
                     {activeTab === tab && tab === 'localization' ? <LocalizationSettings /> : null}
                     {activeTab === tab && tab === 'notifications' ? <NotificationSettings /> : null}

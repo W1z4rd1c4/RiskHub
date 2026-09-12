@@ -3,6 +3,7 @@ import { getPermissionLabel } from '@/components/access/permissionPresentation';
 import { useTranslation } from '@/i18n/hooks';
 
 interface ProfileSettingsProps {
+    nativeAccount?: boolean;
     user: {
         id: number;
         email: string;
@@ -18,7 +19,7 @@ interface ProfileSettingsProps {
     };
 }
 
-export function ProfileSettings({ user }: ProfileSettingsProps) {
+export function ProfileSettings({ user, nativeAccount = false }: ProfileSettingsProps) {
     const { t } = useTranslation('settings');
 
     const effectivePermissions = user.effective_permissions ?? user.permissions ?? [];
@@ -101,7 +102,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
 
                 {/* AD Notice */}
                 <p className="text-xs text-slate-500 mt-3 italic">
-                    {t('profile.ad_notice')}
+                    {t(nativeAccount ? 'profile.local_notice' : 'profile.ad_notice')}
                 </p>
             </section>
 

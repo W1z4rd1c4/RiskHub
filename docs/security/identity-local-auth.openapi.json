@@ -469,6 +469,34 @@
         "title": "InvitationResponse",
         "type": "object"
       },
+      "LocalAccountSecurityResponse": {
+        "description": "Nonsecret current-account projection; never grants mutation authority.",
+        "properties": {
+          "factor_required": {
+            "title": "Factor Required",
+            "type": "boolean"
+          },
+          "mfa_enabled": {
+            "title": "Mfa Enabled",
+            "type": "boolean"
+          },
+          "mfa_policy": {
+            "enum": [
+              "required",
+              "optional"
+            ],
+            "title": "Mfa Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mfa_enabled",
+          "factor_required",
+          "mfa_policy"
+        ],
+        "title": "LocalAccountSecurityResponse",
+        "type": "object"
+      },
       "LocalAuthChallenge": {
         "additionalProperties": false,
         "properties": {
@@ -1111,12 +1139,33 @@
     }
   },
   "info": {
-    "description": "Native contracts: #198\u2013#201 handlers implemented for component verification. Production admission remains closed.",
+    "description": "Native contracts: #198\u2013#201 and #205 handlers implemented for component verification. Production admission remains closed.",
     "title": "RiskHub reserved native identity contract",
     "version": "1.0.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/auth/local/account": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalAccountSecurityResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "current native bearer",
+        "x-handler-implemented": true,
+        "x-implementation-issue": 205,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
     "/api/v1/auth/local/email/change": {
       "post": {
         "requestBody": {

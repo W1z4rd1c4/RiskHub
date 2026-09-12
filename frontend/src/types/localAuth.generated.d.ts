@@ -91,6 +91,12 @@ export type InvitationResponse = {
   delivery_status: "pending" | "sent" | "failed";
 };
 
+export type LocalAccountSecurityResponse = {
+  mfa_enabled: boolean;
+  factor_required: boolean;
+  mfa_policy: "required" | "optional";
+};
+
 export type LocalAuthChallenge = {
   status: "mfa_required" | "enrollment_required";
   challenge: string;
