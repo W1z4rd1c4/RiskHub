@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed implementation in PR #209, group 1 of umbrella #192 (#193–#196).
+Foundations implemented in merged PR #209, group 1 of umbrella #192 (#193–#196).
 Native production admission remains closed until #208. This ADR does not assert
 completed MFA, password recovery, deployment selection, or independent review.
 
@@ -136,3 +136,13 @@ The migration test checks existing IDs/inactivity and unchanged ownership refere
 Independent PostgreSQL transactions cover binding races, last-admin removal and
 issuance/account-change races; existing replay tests remain required. Evidence and
 unexecuted gates are recorded against the actual PR candidate, not asserted here.
+
+## Native recovery extension
+
+The recovery service adds a separate `local_recovery_pending` denial flag. It is not
+a local suspension and recovery cannot clear a suspension. Proof-bound replacement
+retains the active factor until the new factor is confirmed. Offline privileged
+recovery requires two independent signed approvals for the exact installation, User,
+version and operation. Recovery grants never carry ordinary session authority.
+[Recovery and key operations](../security/identity-recovery.md) owns the procedure,
+crypto envelope and key-retention contract. #208 still owns production admission.

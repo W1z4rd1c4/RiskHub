@@ -13,6 +13,8 @@ export type ActionProofResponse = {
 };
 
 export type AssistedRecoveryRequest = {
+  expected_token_version: number;
+  new_email?: string | null;
   recent_auth_proof: string;
   incident_reference: string;
   verification_method: string;
@@ -49,6 +51,7 @@ export type EnrollmentStartRequest = {
 export type FactorEnrollmentResponse = {
   status?: "enrolled";
   recovery_codes: Array<string>;
+  notification_status?: "pending" | "failed" | null;
 };
 
 export type FactorReplacementRequest = {
@@ -89,8 +92,10 @@ export type LocalAuthChallenge = {
 
 export type LocalIdentityStatusResponse = {
   user_id: number;
+  authority_version: number;
   enrollment_state: "invited" | "password_set" | "enrolled" | null;
   local_suspended: boolean;
+  recovery_pending?: boolean;
   is_active: boolean;
   delivery_status: "pending" | "sent" | "failed" | "expired" | "cancelled" | null;
 };
@@ -136,6 +141,8 @@ export type RecentAuthenticationRequest = {
   operation: "password_change" | "email_change" | "factor_enroll" | "factor_replace" | "recovery_codes" | "assisted_recovery";
   intended_password?: string | null;
   intended_email?: string | null;
+  expected_token_version?: number | null;
+  intended_recovery_email?: string | null;
   intended_recovery_operation?: "factor_recovery" | "credential_and_factor_recovery" | "verified_address_recovery" | null;
 };
 
@@ -143,6 +150,7 @@ export type RecoveryStartRequest = {
   grant: string;
   current_password?: string | null;
   new_password?: string | null;
+  verified_email_grant?: string | null;
 };
 
 export type ResetCompleteRequest = {

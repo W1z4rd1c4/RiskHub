@@ -306,3 +306,28 @@ npx playwright test -c playwright.config.ts --project=chromium ../tests/frontend
 - If docs endpoint tests fail after locale edits, verify per-file fallback logic and file parity.
 - If docs UI tests fail, inspect expected tags/audience labels in mocked payloads.
 - If type-check fails, ensure docs API interfaces still include `audience` and `tags`.
+
+
+## Native recovery and key-maintenance regression
+
+Use a disposable PostgreSQL database and Redis namespace; never point the suite at
+an application database. The native fixture supplies component-only key material,
+and CLI tests use non-debug maintenance configuration without opening native
+production admission. Supply `TEST_DATABASE_URL` and `TEST_REDIS_URL` explicitly:
+
+```bash
+cd backend
+TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@localhost:15432/riskhub_test \
+TEST_REDIS_URL=redis://localhost:16379/15 \
+pytest ../tests/backend/pytest/test_local_recovery.py \
+  ../tests/backend/pytest/test_local_recovery_postgres.py -q --no-cov
+```
+
+The native identity workflow runs these alongside enrollment, credentials, TLS mail,
+Redis and shared session regressions. Recovery tests cover API-sourced concurrency
+versions, real Ed25519 operator approvals, affected-user lost-key recovery, protected
+key restoration, interrupted rotation and independent PostgreSQL races. SQLite tests
+cover functional denial behavior but prove no row-lock or concurrent-write safety;
+PostgreSQL/Redis skips are missing acceptance evidence. Run architecture locks and the
+authorization, generated-schema and deployment-packaging validators for this surface.
+The [recovery runbook](security/identity-recovery.md) owns the operator commands.

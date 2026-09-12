@@ -24,6 +24,7 @@ from app.schemas.local_auth import (
     LocalAuthChallenge,
     PasswordChangeRequest,
     RecentAuthenticationRequest,
+    RecoveryStartRequest,
     ResetCompleteRequest,
     ResetRequest,
 )
@@ -213,6 +214,96 @@ async def email_confirm(
         raw=data.grant.get_secret_value(),
         proof=data.recent_auth_proof.get_secret_value(),
         browser=browser_binding(request),
+    )
+    clear_refresh_cookie(response, ctx.settings)
+    return result
+
+
+@router.post("/factor/replace", response_model=FactorSetupResponse)
+async def factor_replace(
+    data: FactorReplacementRequest,
+    request: Request,
+    user: User = Depends(deps.get_current_user),
+    ctx: NativeContext = Depends(native_context),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services._local_auth.factor_management import begin_replacement
+
+    return await begin_replacement(
+        db, ctx, user, proof=data.recent_auth_proof.get_secret_value(), browser=browser_binding(request)
+    )
+
+
+@router.post("/factor/confirm", response_model=FactorEnrollmentResponse)
+async def factor_replace_confirm(
+    data: FactorVerifyRequest,
+    request: Request,
+    response: Response,
+    ctx: NativeContext = Depends(native_context),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services._local_auth.factor_management import complete_replacement
+
+    result = await complete_replacement(
+        db,
+        ctx,
+        raw=data.challenge.get_secret_value(),
+        browser=browser_binding(request),
+        code=data.code.get_secret_value(),
+        method=data.method,
+    )
+    clear_refresh_cookie(response, ctx.settings)
+    return result
+
+
+@router.post("/recovery-codes/regenerate", response_model=FactorEnrollmentResponse)
+async def recovery_codes_regenerate(
+    data: FactorReplacementRequest,
+    request: Request,
+    response: Response,
+    user: User = Depends(deps.get_current_user),
+    ctx: NativeContext = Depends(native_context),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services._local_auth.factor_management import regenerate_codes
+
+    result = await regenerate_codes(
+        db, ctx, user, proof=data.recent_auth_proof.get_secret_value(), browser=browser_binding(request)
+    )
+    clear_refresh_cookie(response, ctx.settings)
+    return result
+
+
+@router.post("/recovery/start", response_model=FactorSetupResponse)
+async def recovery_start(
+    data: RecoveryStartRequest,
+    request: Request,
+    response: Response,
+    ctx: NativeContext = Depends(native_context),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services._local_auth.recovery import start_recovery
+
+    return await start_recovery(db, ctx, data, browser=establish_browser(request, response, ctx.settings))
+
+
+@router.post("/recovery/confirm", response_model=FactorEnrollmentResponse)
+async def recovery_confirm(
+    data: FactorVerifyRequest,
+    request: Request,
+    response: Response,
+    ctx: NativeContext = Depends(native_context),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services._local_auth.recovery import complete_recovery
+
+    result = await complete_recovery(
+        db,
+        ctx,
+        raw=data.challenge.get_secret_value(),
+        browser=browser_binding(request),
+        code=data.code.get_secret_value(),
+        method=data.method,
     )
     clear_refresh_cookie(response, ctx.settings)
     return result

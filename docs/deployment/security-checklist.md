@@ -199,3 +199,10 @@ existing TLS infrastructure typically use one of:
 - A managed cloud load balancer that terminates TLS (for example Azure
   Application Gateway, AWS ALB, or GCP HTTPS Load Balancer).
 - Cloudflare or a comparable TLS-terminating CDN in front of the proxy.
+
+### Native recovery preparation
+
+Native production admission remains closed until release acceptance. For native
+component/installer verification, follow the [recovery and key runbook](../security/identity-recovery.md):
+configure independently held approver keys, protect the native keyring and backup
+inventory, and rehearse recovery without clearing a suspension or enabled factor.

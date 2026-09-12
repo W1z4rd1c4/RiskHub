@@ -39,6 +39,8 @@ EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
     "bootstrap_sso_user.py",
     "identity_installation.py",
+    "local_recovery.py",
+    "local_auth_keys.py",
     "revoke_refresh_sessions.py",
     "seed_departments.py",
     "seed_roles_permissions.py",
@@ -407,6 +409,8 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
         assert "__init__.py" in text
         assert "bootstrap_sso_user.py" in text
         assert "identity_installation.py" in text
+        assert "local_recovery.py" in text
+        assert "local_auth_keys.py" in text
         assert "revoke_refresh_sessions.py" in text
         assert "seed_departments.py" in text
         assert "seed_roles_permissions.py" in text

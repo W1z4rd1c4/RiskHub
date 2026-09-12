@@ -23,7 +23,7 @@ def documents() -> dict[Path, str]:
         paths["/api/v1" + endpoint.path] = {
             endpoint.method: {
                 "x-implementation-issue": endpoint.owner_issue,
-                "x-handler-implemented": endpoint.owner_issue in {198, 199, 200},
+                "x-handler-implemented": endpoint.owner_issue in {198, 199, 200, 201},
                 "x-authentication": endpoint.authentication,
                 "x-profile": "password/none (not released)",
                 "x-transaction-owner": "identity/auth service workflow, never endpoint commit",
@@ -53,8 +53,8 @@ def documents() -> dict[Path, str]:
             "title": "RiskHub reserved native identity contract",
             "version": "1.0.0",
             "description": (
-                "Native contracts: #198–#200 handlers implemented for component verification; "
-                "#201 reserved. Production admission remains closed."
+                "Native contracts: #198–#201 handlers implemented for component verification. "
+                "Production admission remains closed."
             ),
         },
         "paths": paths,

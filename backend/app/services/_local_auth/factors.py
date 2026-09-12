@@ -147,6 +147,19 @@ def recovery_digest(ctx: NativeContext, user_id: int, generation: str, code: str
     ).hexdigest()
 
 
+def match_totp_step(seed: str, code: str, *, last_step: int = -1) -> int | None:
+    if len(code) != 6 or not code.isascii() or not code.isdigit():
+        return None
+    current_step = int(utc_now().timestamp()) // 30
+    totp = pyotp.TOTP(seed)
+    matched = [
+        step
+        for step in range(current_step - 1, current_step + 2)
+        if step > last_step and secrets.compare_digest(totp.at(step * 30), code)
+    ]
+    return max(matched) if matched else None
+
+
 async def consume_factor(
     db: AsyncSession, ctx: NativeContext, user: User, factor: LocalAuthFactor, *, code: str, method: str
 ) -> bool:
@@ -156,16 +169,10 @@ async def consume_factor(
         seed = ctx.keys.decrypt(
             "totp", factor.key_id, factor.encrypted_seed, [ctx.installation_id, str(user.id), factor.generation]
         )
-        totp = pyotp.TOTP(seed)
-        current_step = int(utc_now().timestamp()) // 30
-        matched = [
-            step
-            for step in range(current_step - 1, current_step + 2)
-            if step > factor.last_time_step and secrets.compare_digest(totp.at(step * 30), code)
-        ]
-        if not matched:
+        matched_step = match_totp_step(seed, code, last_step=factor.last_time_step)
+        if matched_step is None:
             return False
-        factor.last_time_step = max(matched)
+        factor.last_time_step = matched_step
         db.add(factor)
         return True
     if method == "recovery_code" and factor.confirmed_at is not None and len(code) <= 128:
@@ -264,6 +271,16 @@ def intent_value(data: RecentAuthenticationRequest) -> str:
         if data.intended_email is None:
             raise invalid_proof()
         return normalize_email(str(data.intended_email)) or ""
+    if data.operation == "assisted_recovery":
+        from .recovery_policy import recovery_intent
+
+        if data.expected_token_version is None or data.intended_recovery_operation is None:
+            raise invalid_proof()
+        return recovery_intent(
+            data.intended_recovery_operation,
+            data.expected_token_version,
+            str(data.intended_recovery_email) if data.intended_recovery_email else None,
+        )
     return data.operation
 
 
@@ -274,8 +291,13 @@ def intent_context(ctx: NativeContext, user: User, operation: str, target: int) 
 async def recent_authentication(
     db: AsyncSession, ctx: NativeContext, actor: User, data: RecentAuthenticationRequest, *, browser: str
 ) -> ActionProofResponse:
-    if data.target_user_id != actor.id or data.operation == "assisted_recovery":
-        raise AuthorizationError("Assisted recovery is not available in this delivery")
+    assisted = data.operation == "assisted_recovery"
+    if not assisted and data.target_user_id != actor.id:
+        raise AuthorizationError("A self-service proof must target the authenticated account")
+    if assisted:
+        from .recovery_policy import require_recovery_actor
+
+        require_recovery_actor(actor)
     await ctx.limiter.require("password-source", ctx.source, 30, 900)
     await factor_limits(ctx, actor.id)
     account = normalize_email(actor.email) or ""
@@ -293,6 +315,16 @@ async def recent_authentication(
             await audit_local(db, None, "local_recent_auth_failed")
             await commit_local(db, "recent_auth_failed")
             raise invalid_proof()
+        if assisted:
+            from app.services._identity_authority_lock import lock_identity_transition
+
+            from .recovery_policy import require_recoverable, require_recovery_actor
+
+            target = await lock_identity_transition(db, user_id=data.target_user_id, actor=actor)
+            require_recovery_actor(actor)
+            if data.expected_token_version is None:
+                raise invalid_proof()
+            require_recoverable(target, version=data.expected_token_version, web=True)
         user = await lock_session_user(db, user_id=actor.id)
         if (
             user is None
@@ -322,7 +354,12 @@ async def recent_authentication(
             LOCAL_CHALLENGE_TTL_SECONDS,
             browser=browser,
             generation=factor.generation if factor and confirmed else None,
-            context={"operation": data.operation, "target": user.id, "intent_key": key_id, "intent": commitment},
+            context={
+                "operation": data.operation,
+                "target": data.target_user_id,
+                "intent_key": key_id,
+                "intent": commitment,
+            },
         )
         await commit_local(db, "recent_auth")
         return ActionProofResponse(proof=raw)
@@ -338,16 +375,20 @@ async def check_recent_proof(
     value: str,
     browser: str,
     locked: bool = True,
+    target_user_id: int | None = None,
 ) -> tuple[LocalAuthGrant, User]:
+    target_id = actor.id if target_user_id is None else target_user_id
     grant, user = await read_grant(db, ctx, raw, "recent", locked=locked, browser=browser, expected_user_id=actor.id)
     if (
         not local_user_ready(user)
         or grant.context.get("operation") != operation
-        or grant.context.get("target") != user.id
+        or grant.context.get("target") != target_id
     ):
         raise invalid_proof()
+    if grant.context.get("intent_key") != ctx.keys.purposes["action"].active:
+        raise invalid_proof()
     _, expected = ctx.keys.commitment(
-        value, key_id=grant.context.get("intent_key"), context=intent_context(ctx, user, operation, user.id)
+        value, key_id=grant.context.get("intent_key"), context=intent_context(ctx, user, operation, target_id)
     )
     if not secrets.compare_digest(expected, grant.context.get("intent", "")):
         raise invalid_proof()

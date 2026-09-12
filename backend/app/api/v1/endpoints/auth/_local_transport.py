@@ -78,7 +78,7 @@ def establish_browser(request: Request, response: Response, settings: Settings) 
         httponly=True,
         secure=not settings.debug,
         samesite="strict",
-        path="/api/v1/auth",
+        path="/api/v1",
         max_age=8 * 3600,
     )
     return value

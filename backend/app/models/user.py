@@ -53,6 +53,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     # Local suspension survives upstream directory changes. is_active is its effective projection.
     local_suspended: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    local_recovery_pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     local_suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # NULL denotes an existing Entra/legacy-development account, not native production enrollment.
     local_enrollment_state: Mapped[str | None] = mapped_column(String(20), nullable=True)

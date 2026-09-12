@@ -65,8 +65,10 @@ async def identity_status(db: AsyncSession, ctx: NativeContext, actor: User, *, 
                 status = "failed"
     return {
         "user_id": user.id,
+        "authority_version": user.token_version,
         "enrollment_state": user.local_enrollment_state,
         "local_suspended": user.local_suspended,
+        "recovery_pending": user.local_recovery_pending,
         "is_active": user.is_active,
         "delivery_status": status,
     }

@@ -131,6 +131,16 @@ Additional identity-governance rule for `microsoft_sso` mode:
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.
 
+### Native account recovery
+
+Existing factors can be replaced only after recent password/factor proof and successful
+confirmation of a new factor. Ordinary assisted recovery is Admin-only and requires
+independent identity verification plus a specific recorded operation. Privileged
+accounts use two independent offline approvals under maintenance. Recovery preserves
+the existing User, role, scope, business assignments and local suspension. A recovering
+account has no ordinary access until approved enrollment completes, regardless of MFA
+policy. See [the recovery operating contract](security/identity-recovery.md).
+
 ### Native account and password management
 
 Native local-login deployments support `LOCAL_MFA_POLICY=required` (default) and
