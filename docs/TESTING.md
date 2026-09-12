@@ -383,3 +383,82 @@ the privilege-wrapper regression with a pinned Debian Python test image.
 Component tests and Docker bootstrap replays establish installer behavior; they
 do not satisfy #208's non-debug Docker/Linux, native/Entra, real delivery and
 operator acceptance requirements or permit removing the admission guard.
+
+### Native login and account-security browser coverage
+
+`tests/frontend/unit/src/pages/__tests__/LoginPage.native.test.tsx` covers anonymous
+202 challenges, completed password-only sessions, cancellation and late responses,
+fragment removal, generic reset confirmation, lost responses, recent proof,
+credential invalidation and display-once codes. Keep the existing session and
+`tests/frontend/unit/src/contexts/PrincipalQueryBoundary.test.tsx` regressions green.
+`tests/backend/pytest/test_local_account_security.py` verifies the current-user
+projection and completed native capability parity with `/auth/me`; run it with the
+native PostgreSQL regressions as well as the fast SQLite tests.
+
+The real browser journey is `tests/frontend/e2e/native-account.spec.ts`. It uses
+fresh installation-bound Admin/CRO invitations, real Argon2/TOTP/backup-code and
+session endpoints, password change, factor enrollment/replacement and EN/CS
+keyboard/axe checks at 1024×768 and 1440×900. It is intentionally skipped in the
+demo-persona suite. Use Node 24 and the backend Python environment to run it against
+an isolated PostgreSQL/Redis fixture. No existing app database may be reused.
+
+```bash
+# Supply a disposable loopback URL whose database name is riskhub_native_e2e_<unique_run>.
+python tests/frontend/e2e/setup/native_fixture.py prepare \
+  --root /private/tmp/riskhub-native-browser-required \
+  --database-url "$NATIVE_TEST_DATABASE_URL" \
+  --redis-url "$NATIVE_TEST_REDIS_URL" \
+  --public-url http://localhost:15175 --mfa-policy required
+python tests/frontend/e2e/setup/native_fixture.py serve \
+  --root /private/tmp/riskhub-native-browser-required --port 18002
+# In a second terminal:
+cd frontend
+VITE_DEV_API_TARGET=http://localhost:18002 npm run dev -- --host 127.0.0.1 --port 15175
+# In a third terminal, from frontend:
+FRONTEND_URL=http://localhost:15175 BACKEND_URL=http://localhost:18002 \
+NATIVE_E2E_HANDOFF=/private/tmp/riskhub-native-browser-required/handoff/admin.json \
+npm run test:e2e -- --config playwright.native.config.ts \
+  ../tests/frontend/e2e/native-account.spec.ts --project=ci --workers=1 --retries=0
+```
+
+Repeat with a fresh database and directory plus `--mfa-policy optional` for the
+password-only administrator and voluntary-MFA journey. The fixture refuses an
+existing database or directory; retain failed fixtures for diagnosis and select a
+new run name. On Linux, use a real absolute temporary directory such as `/tmp/...`;
+on macOS `/private/tmp/...` avoids the `/tmp` symlink in protected handoff paths.
+Set `PLAYWRIGHT_CHROMIUM_CHANNEL=chrome` only when using an installed Chrome instead
+of Playwright Chromium. Stop the owned API/Vite processes after the run and remove
+only the disposable databases and protected fixture directories you created.
+
+Traces, videos and automatic failure screenshots are disabled for credential
+journeys. Explicit screenshots are taken before entering secrets. Handoffs and
+fixture configuration stay mode 0600 and must not be uploaded. This is component
+verification with a debug server; it does not open native production admission or
+replace #208's real Entra, managed-target, verified delivery and restore matrix.
+
+### Native administration browser fixture
+
+`tests/frontend/e2e/native-admin.spec.ts` runs real Admin invitation, resend/cancel,
+recipient enrollment, access edit, suspension/resumption, reset request, ordinary
+recovery and privileged offline escalation. It checks EN/CS desktop focus and axe at
+1024x768 and 1440x900. Prepare a fresh fixture with `native_fixture.py` as above;
+use `--public-url http://localhost:15176` and either MFA policy. Serve its backend on
+18003, then run Vite with `VITE_DEV_API_TARGET=http://localhost:18003` on port 15176.
+
+From `frontend`, with Node 24 and the backend interpreter:
+
+```bash
+NATIVE_E2E_ROOT=/private/tmp/riskhub-native-admin-<unique-run> \
+NATIVE_E2E_PYTHON=/path/to/backend/python \
+FRONTEND_URL=http://localhost:15176 BACKEND_URL=http://localhost:18003 \
+npm run test:e2e -- --config playwright.native.config.ts \
+  ../tests/frontend/e2e/native-admin.spec.ts --project=ci --workers=1 --retries=0
+```
+
+The fixture mailbox helper decrypts only an active invitation from the owned,
+loopback `riskhub_native_e2e_*` database into an exclusive 0600 handoff. It does not
+send mail, change grants, print credentials or substitute fake auth. The recipient
+redeems that invitation through the real API. SMTP delivery remains separately
+covered by the backend TLS/outbox suite; final managed deployment/tenant acceptance
+remains #208. Use a fresh database/root per complete run. Traces, video and automatic
+screenshots are disabled; explicit screenshots precede credential entry.

@@ -5,6 +5,10 @@ export interface AccessEditCapabilities {
     canEditPlatformFields: boolean;
     canEditBusinessFields: boolean;
     canEditRole: boolean;
+    canEditName: boolean;
+    canEditEmail: boolean;
+    directoryOwned: boolean;
+    verifiedEmail: boolean;
 }
 
 export interface AccessEditSelection {
@@ -29,6 +33,10 @@ export function resolveAccessEditCapabilities(
     const canEditBusinessFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_business_access');
     return {
         canEditPlatformFields,
+        canEditName: canEditPlatformFields && !user?.capabilities?.directory_owned_fields?.includes('name'),
+        canEditEmail: canEditPlatformFields && !user?.capabilities?.directory_owned_fields?.includes('email') && !user?.capabilities?.verified_identity_fields?.includes('email'),
+        directoryOwned: Boolean(user?.capabilities?.directory_owned_fields?.length),
+        verifiedEmail: Boolean(user?.capabilities?.verified_identity_fields?.includes('email')),
         canEditBusinessFields,
         canEditRole: resolveCapabilityFlag(user?.capabilities, 'can_edit_role'),
     };
@@ -58,7 +66,8 @@ export function accessEditHasChanges(
     capabilities: AccessEditCapabilities,
 ): boolean {
     return (
-        (capabilities.canEditPlatformFields && (selection.name !== user.name || selection.email !== user.email))
+        (capabilities.canEditName && selection.name !== user.name)
+        || (capabilities.canEditEmail && selection.email !== user.email)
         || (capabilities.canEditRole && selection.roleId !== user.role_id)
         || (capabilities.canEditBusinessFields && selection.departmentId !== user.department_id)
         || (capabilities.canEditBusinessFields && selection.managerId !== user.manager_id)
@@ -85,10 +94,10 @@ export function buildAccessUserUpdate(
     if (capabilities.canEditBusinessFields && selection.scope !== user.access_scope) {
         accessUpdate.access_scope = selection.scope;
     }
-    if (capabilities.canEditPlatformFields && selection.name !== user.name) {
+    if (capabilities.canEditName && selection.name !== user.name) {
         accessUpdate.name = selection.name;
     }
-    if (capabilities.canEditPlatformFields && selection.email !== user.email) {
+    if (capabilities.canEditEmail && selection.email !== user.email) {
         accessUpdate.email = selection.email;
     }
 

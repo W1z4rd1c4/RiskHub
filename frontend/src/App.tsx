@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import {
   Navigate,
   Route,
@@ -14,7 +14,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PrincipalQueryBoundary } from '@/contexts/PrincipalQueryBoundary';
-import { publicRoutes } from '@/routing/public';
+import { resolvePublicRoute, publicRoutes } from '@/routing/public';
 import type { AppRouteDef } from '@/routing/types';
 
 const ProtectedApplication = lazy(() => import('@/ProtectedApplication'));
@@ -79,32 +79,33 @@ function AppRoutes() {
 const router = createBrowserRouter([
   {
     path: '*',
-    element: <AppRoutes />,
+    element: <RouteScope><AppRoutes /></RouteScope>,
   },
 ]);
 
 function App() {
   return (
     <AuthProvider>
-      <PrincipalOwnedApplication />
+      <RouterProvider router={router} />
     </AuthProvider>
   );
 }
 
-function PrincipalOwnedApplication() {
+/** Public authentication screens survive their own principal transition so login
+ * redirects and display-once results complete. Protected data stays inside the
+ * principal boundary and is disposed when leaving that scope. */
+export function RouteScope({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-
-  return (
-    <PrincipalQueryBoundary principalId={user?.id ?? null}>
-      <LanguageProvider>
-        <ThemeProvider>
-          <MotionConfig reducedMotion="user">
-            <RouterProvider router={router} />
-          </MotionConfig>
-        </ThemeProvider>
-      </LanguageProvider>
-    </PrincipalQueryBoundary>
+  const location = useLocation();
+  const presentation = (
+    <LanguageProvider>
+      <ThemeProvider>
+        <MotionConfig reducedMotion="user">{children}</MotionConfig>
+      </ThemeProvider>
+    </LanguageProvider>
   );
+  if (resolvePublicRoute(location.pathname)) return presentation;
+  return <PrincipalQueryBoundary principalId={user?.id ?? null}>{presentation}</PrincipalQueryBoundary>;
 }
 
 export default App;

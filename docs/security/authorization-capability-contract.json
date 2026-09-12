@@ -241,7 +241,11 @@
   "frontend/src/types/vendor.ts",
   "backend/app/schemas/identity.py",
   "backend/app/services/identity_capabilities.py",
-  "backend/app/core/external_identity_policy.py"
+  "backend/app/services/_local_auth/",
+  "backend/app/core/external_identity_policy.py",
+  "frontend/src/services/nativeAdminApi.ts",
+  "frontend/src/pages/users/NativeInviteForm.tsx",
+  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx"
  ],
  "actions": [
   {
@@ -1194,6 +1198,42 @@
    ],
    "status": "authoritative",
    "findings": []
+  },
+  {
+   "id": "AUTHZ-IDENTITY-OWN-CREDENTIALS",
+   "surface": "Native account security",
+   "action": "Read own nonsecret factor status and manage own password, verified email, authenticator and backup codes",
+   "actor_scope": "An eligible native principal with a current session; recent authentication is bound to the same actor, target and requested mutation. Completed credential changes invalidate prior sessions.",
+   "backend_authority": "backend/app/api/v1/endpoints/auth/local.py applies the current-user dependency and native identity/readiness guards; no client-supplied user selector is accepted by GET /auth/local/account.",
+   "service_policy": "backend/app/services/_local_auth/common.py and backend/app/services/_local_auth/credentials.py enforce native eligibility, factor policy, recent action proof and session invalidation.",
+   "response_capability": "backend/app/api/v1/endpoints/auth/_shared.py projects existing me_capabilities.identity.can_manage_own_credentials into completed native TokenResponse; /auth/me remains authoritative. GET /auth/local/account returns only mfa_enabled, factor_required and mfa_policy.",
+   "frontend_gate": "frontend/src/pages/SettingsPage.tsx and frontend/src/pages/native/NativeSecurityPage.tsx consume backend can_manage_own_credentials; frontend/src/pages/native/NativeFactor.tsx, frontend/src/pages/native/NativeLoginView.tsx, frontend/src/pages/native/NativePublicPage.tsx and frontend/src/pages/native/useNativeAction.ts keep partial challenges anonymous and discard stale credential work.",
+   "tests": [
+    "tests/backend/pytest/test_local_account_security.py",
+    "tests/frontend/unit/src/pages/__tests__/LoginPage.native.test.tsx",
+    "tests/frontend/e2e/native-account.spec.ts"
+   ],
+   "status": "authoritative",
+   "findings": []
+  },
+  {
+   "id": "AUTHZ-NATIVE-ADMIN-LIFECYCLE",
+   "surface": "Native user administration",
+   "action": "Invite accounts, inspect private lifecycle state, resend/cancel invitations, request reset, suspend/resume and initiate ordinary recovery",
+   "actor_scope": "Eligible native platform Admin; current-user and per-target capabilities are required. Privileged recovery is offline-only. CRO business access and read-only directory access confer no identity lifecycle authority.",
+   "backend_authority": "backend/app/api/v1/endpoints/users/invitations.py applies native context and authenticated actor; backend/app/api/v1/endpoints/access.py applies access mutation authorization.",
+   "service_policy": "backend/app/services/_local_auth/enrollment.py, backend/app/services/_local_auth/admin.py and backend/app/services/_local_auth/recovery.py enforce eligibility and exact target/version/operation proof; backend/app/services/_identity_access_lifecycle/access_scope.py preserves atomic updates, last-Admin protection and redacted reason auditing.",
+   "response_capability": "backend/app/services/identity_capabilities.py projects MeCapabilities.identity.can_invite_users and AccessUserCapabilities invitation/reset/recovery flags, can_resume and field ownership; lifecycle status is a separately authorized nonsecret read.",
+   "frontend_gate": "frontend/src/pages/UserNewPage.tsx and frontend/src/pages/UsersPage.tsx require native configuration and current identity capability; frontend/src/pages/users/NativeInviteForm.tsx and frontend/src/pages/users/NativeUserLifecyclePanel.tsx use backend target flags, owned abortable requests and no-retry identity transport; frontend/src/components/access/accessEditModalLogic.ts excludes directory-owned and verified email from ordinary updates.",
+   "status": "authoritative",
+   "findings": [],
+   "tests": [
+    "tests/backend/pytest/test_access_management.py",
+    "tests/backend/pytest/test_identity_directory_isolation.py",
+    "tests/frontend/unit/src/pages/__tests__/UserNewPage.native.test.tsx",
+    "tests/frontend/unit/src/pages/__tests__/NativeUserLifecyclePanel.test.tsx",
+    "tests/frontend/e2e/native-admin.spec.ts"
+   ]
   }
  ]
 }

@@ -64,6 +64,8 @@ export function UsersPage() {
     const isDirectoryMode = pageMode === 'directory';
     const {
         authMode,
+        identity,
+        retryAuthConfig,
         authModeError,
         authModeStatus,
         isAuthModeReady,
@@ -74,6 +76,7 @@ export function UsersPage() {
         directoryPage,
         directoryTotal,
         fetchUsers,
+        applyCommittedUser,
         filters,
         isLoading,
         loadErrorKey,
@@ -115,12 +118,21 @@ export function UsersPage() {
         t,
     });
 
+    useEffect(() => {
+        if (!selectedUser) return;
+        const current = users.find((candidate) => candidate.id === selectedUser.id);
+        if (current && current !== selectedUser) setSelectedUser(current);
+    }, [users, selectedUser]);
+
     const handleEditAccess = (user: AccessUserRead) => {
         setSelectedUser(user);
         setEditModalOpen(true);
     };
 
-    const handleAccessSaved = () => {
+    const handleAccessSaved = (updated: AccessUserRead) => {
+        applyCommittedUser(updated);
+        setSelectedUser(updated);
+        setOutcome({ kind: 'status', message: t('native_users.access_saved') });
         void fetchUsers();
     };
 
@@ -240,7 +252,9 @@ export function UsersPage() {
         ? users.filter((user) => user.access_scope === 'global' && user.role.name !== 'admin').length
         : 0;
     const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
-    const canCreateLocalUser = resolveCapabilityFlag(directoryCapabilities, 'can_create_local_user');
+    const nativeLifecycle = identity?.mode === 'native' && resolveCapabilityFlag(currentUser?.me_capabilities?.identity, 'can_invite_users');
+    const canCreateLocalUser = identity?.mode === 'native' ? nativeLifecycle : resolveCapabilityFlag(directoryCapabilities, 'can_create_local_user');
+    const canCheckDirectory = resolveCapabilityFlag(currentUser?.me_capabilities?.identity, 'can_check_directory_users');
     const canImportDirectoryUser = resolveCapabilityFlag(directoryCapabilities, 'can_import_directory_user');
     const allowAuthModeActions = isAuthModeReady
         && (isDirectoryFirstMode ? canImportDirectoryUser : canCreateLocalUser);
@@ -250,7 +264,7 @@ export function UsersPage() {
         <div className="space-y-8 animate-in fade-in duration-500">
             <UsersPageHeader
                 allowAuthModeActions={allowAuthModeActions}
-                canRunDirectoryCheck={canImportDirectoryUser}
+                canRunDirectoryCheck={canCheckDirectory}
                 isAccessMode={isAccessMode}
                 isCheckingAllDirectory={isCheckingAllDirectory}
                 isDirectoryFirstMode={isDirectoryFirstMode}
@@ -264,9 +278,14 @@ export function UsersPage() {
                     className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
                 >
                     {authModeError}
+                    <button type="button" className="ml-3 underline" onClick={retryAuthConfig}>{t('native_users.retry')}</button>
                 </div>
             )}
 
+            {locationState?.nativeInvitation && nativeLifecycle && <div role="status" className="rounded-md border p-4">
+                <p>{t('native_users.created', locationState.nativeInvitation)}</p>
+                <p>{t(`native_users.delivery.${locationState.nativeInvitation.delivery_status}`)}</p>
+            </div>}
             {outcome && (
                 <div
                     role={outcome.kind}
@@ -336,9 +355,10 @@ export function UsersPage() {
                         expandedUserId={expandedUserId}
                         onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
                         onEditAccess={handleEditAccess}
+                        onManageIdentity={nativeLifecycle ? handleEditAccess : undefined}
                         onToggleStatus={handleToggleClick}
                         onBreakGlassEnable={handleBreakGlassOpen}
-                        canRunDirectoryChecks={canImportDirectoryUser}
+                        canRunDirectoryChecks={canCheckDirectory}
                         checkingDirectoryUserId={checkingDirectoryUserId}
                         onCheckDirectory={handleCheckSingleDirectory}
                         presentationModelsByUserId={accessWorkflow.presentationModelsByUserId}
@@ -362,6 +382,8 @@ export function UsersPage() {
                 onClose={() => setEditModalOpen(false)}
                 user={selectedUser}
                 onSaved={handleAccessSaved}
+                nativeLifecycle={nativeLifecycle}
+                onRefresh={() => void fetchUsers()}
             />
 
             <ConfirmDialog

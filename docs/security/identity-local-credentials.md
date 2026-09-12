@@ -79,8 +79,9 @@ password-change operation, or recover a forgotten password through the generic e
 reset request and a single-use link. Administrators cannot set permanent native passwords
 through legacy user edits. Password reset preserves enrolled factors and revokes old
 sessions; it is not lost-factor recovery. Email changes use the separate verified-address
-workflow. These are backend contracts; account-security and invitation screens are
-tracked in #205/#206.
+workflow. Account-security and Admin invitation/lifecycle screens consume these backend
+contracts. See the [operator runbook](../admin/user-management.md); production
+admission remains gated by #208.
 
 Changing `LOCAL_MFA_POLICY` from optional to required rejects existing password-only
 access/refresh credentials; the next login enters factor enrollment. Switching to
@@ -110,8 +111,8 @@ controlled reset/enrollment, not implicit adoption into native production.
 
 ## HTTP state machine and transaction boundaries
 
-See [generated API contract](identity-local-auth.openapi.json). It marks #198–#200
-handlers implemented and #201 handlers reserved; none implies production release.
+See [generated API contract](identity-local-auth.openapi.json). It marks #198–#201 and #205 handlers implemented for component verification;
+none implies production release.
 All credential mutations require allowed Origin/Referer and double-submit CSRF.
 Preauthentication uses a separate HttpOnly/SameSite-strict browser-binding cookie,
 which carries no ordinary authentication authority. Obtain CSRF through the existing
@@ -127,6 +128,7 @@ credential-route query strings are suppressed in request logs.
 | Password login | Confirmed factor or required policy → HTTP 202 MFA/enrollment challenge; optional policy without a factor → shared TokenResponse and refresh session |
 | Optional MFA enrollment | Password-only bearer + recent `factor_enroll` proof → restricted enrollment/setup challenge; confirmation enables MFA and revokes existing sessions |
 | Factor login completion | Password challenge + current TOTP/unused backup code → common access/refresh session |
+| Account security status | Current native bearer → own MFA enabled/required policy only; no seeds, codes or target selector |
 | Recent authentication | Current password + factor when enabled/required → 5m single-use proof bound to actor/target/operation/exact keyed intended change |
 | Reset request | Generic HTTP 202 for present/absent/ineligible target; does not lock account or revoke sessions |
 | Reset completion | Valid 30m grant + compliant password → revoke sessions/other proofs, retain MFA, require login |
@@ -215,3 +217,31 @@ session/crypto/mail framework. Rollback must retain Argon2/factor decryptability
 suspension and all revocations, or disable native authentication and roll forward
 under maintenance. Migration downgrade intentionally refuses destructive credential
 loss. The Entra-only production guard remains authoritative.
+
+## Native browser experience (#205)
+
+One frontend reads the runtime identity contract. Native password-only completion
+and HTTP 202 challenges have distinct paths; only HTTP 200 completed sessions enter
+the existing session coordinator. Native completed UserBrief responses include the
+same authoritative capabilities as `/auth/me`. `GET /api/v1/auth/local/account`
+requires a current eligible native actor and returns only `mfa_enabled`,
+`factor_required` and `mfa_policy`; it does not grant mutation authority.
+
+Public routes are `/login` and `/auth/local/{enroll,reset-password,recover,recover-email}`.
+The Settings link opens `/auth/local/security`; new-address confirmation uses
+`/auth/local/verify-email`. The latter asks users to sign in and reopen their link
+when necessary. These credential screens have no QueryClient. They sit outside the
+principal cache boundary so their own session invalidation can retain display-once
+backup codes until acknowledgment. Protected application data retains the existing
+principal boundary; changing owners cancels old work, and same-owner refresh keeps
+its client. Exiting the protected scope also disposes its cached data.
+
+Fragments are captured before paint, removed from browser and router history, and
+redeemed only by explicit POST. Passwords, setup keys, challenges, proofs and codes
+remain in component/request memory. Owner changes, cancellation and expiry discard
+pending work. A lost single-use response does not trigger an automatic retry.
+Password/email/factor completion clears the prior session before normal login;
+backup codes can be acknowledged after that clearing. No web privileged-recovery
+override or public registration is provided. EN/CS forms use shared accessible
+controls and preserve the cold-login dependency gate. The native production guard
+remains closed until #208.

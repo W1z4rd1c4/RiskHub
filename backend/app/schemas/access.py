@@ -101,6 +101,14 @@ class AccessUserUpdate(BaseModel):
     manager_id: Optional[int] = None
     access_scope: Optional[AccessScopeEnum] = None
     is_active: Optional[bool] = None
+    reason: str | None = Field(default=None, min_length=1, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def _normalize_reason(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("Reason must contain text")
+        return value.strip() if value is not None else None
 
     @field_validator("email", mode="before")
     @classmethod

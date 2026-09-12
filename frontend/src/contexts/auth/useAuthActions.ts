@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { AuthUser, TokenResponse } from '@/services/authApi';
+import type { AuthUser } from '@/services/authApi';
 import { authApi } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { AuthRequestError } from '@/services/authRequest';
@@ -33,7 +33,10 @@ export function useAuthActions({
         setLogoutErrorState(null);
 
         try {
-            const response: TokenResponse = await authApi.login({ email, password });
+            const response = await authApi.login({ email, password });
+            if ('challenge' in response) {
+                throw new AuthRequestError({ code: 'AUTH_REQUEST_FAILED', message: 'Complete native authentication first' });
+            }
             applyAuthenticatedSession(response);
             markPreferencesReady(false);
             void hydratePreferences();

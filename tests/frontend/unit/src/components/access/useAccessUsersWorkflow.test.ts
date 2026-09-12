@@ -33,7 +33,7 @@ describe('useAccessUsersWorkflow helpers', () => {
             canEdit: true,
             canDeactivate: true,
             canReactivate: false,
-            canRunDirectoryCheck: true,
+            canRunDirectoryCheck: false,
         });
         expect(buildAccessUserPresentationModel(users[0]).departmentText).toBe('Unknown department');
     });

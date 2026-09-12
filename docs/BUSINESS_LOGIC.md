@@ -1266,3 +1266,30 @@ Compatibility behavior:
 Native identity runtime disables external directory clients, checks and scheduled jobs while preserving local user lookup and business access. Backend identity capabilities separate Admin credential lifecycle from CRO business access. Privileged recovery remains offline-required; recovery-pending users cannot be resumed through ordinary lifecycle controls. See [directory isolation](security/identity-directory-isolation.md).
 
 Native initial onboarding creates distinct inactive Admin/CRO principals with restricted enrollment grants. Recipients choose credentials; completed bootstrap cannot restore removed access or reset passwords/factors. Protected handoff failures resume the same valid grant; explicit reasoned reissue is limited to never-enrolled targets. See [native bootstrap](security/identity-bootstrap.md).
+
+### Native account security experience
+
+Eligible native users manage passwords, verified email and factors from Settings →
+Account security. The current-account status endpoint exposes only MFA enabled,
+factor-required and installation-policy metadata. It never changes authority or
+returns stored factor secrets. Completed native login and refresh responses carry
+the same backend capabilities as `/auth/me`; partial challenges carry no principal.
+An optional-MFA account can change/reset its password without a factor until it
+voluntarily enables one. Thereafter the factor remains enforced under either policy.
+Public credential pages retain display-once codes through their own session clearing;
+protected principal caches are still disposed on ownership changes. Final native
+production release remains gated by #208.
+
+### Native account administration
+
+Native Admins invite users through `/users/new` without choosing permanent passwords.
+Both password-only optional-MFA and MFA sessions use the same capability-gated flow.
+`/users` provides authorized setup/delivery status, invitation resend/cancel, reset
+requests, suspension/resumption and ordinary assisted recovery in the existing access
+dialog. Recovery requires exact-target recent proof and independent identity
+verification; privileged recovery remains offline with two operators. CRO business
+access authority does not confer identity lifecycle authority. Verified native email
+and Entra-owned profile fields cannot be changed through ordinary access PATCHes.
+Account-creation success, delivery degradation, failed reload and unknown mutation
+outcome are separate states. The access update accepts an optional bounded reason
+as audit metadata, redacted by the existing free-text audit policy.

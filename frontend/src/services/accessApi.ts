@@ -17,7 +17,7 @@ export const accessApi = {
      * Requires privileged access. Non-Admin callers do not receive platform
      * Admin users.
      */
-    async listAccessUsers(filters?: AccessUserFilters): Promise<AccessUserRead[]> {
+    async listAccessUsers(filters?: AccessUserFilters, options?: { signal?: AbortSignal }): Promise<AccessUserRead[]> {
         const params: Record<string, string | number | boolean | undefined> = {};
         if (filters?.department_id !== undefined) {
             params.department_id = filters.department_id;
@@ -32,7 +32,7 @@ export const accessApi = {
             params.is_privileged = filters.is_privileged;
         }
 
-        return apiClient.get('/access/users', { params, schema: accessUserReadArraySchema });
+        return apiClient.get('/access/users', { ...options, params, schema: accessUserReadArraySchema });
     },
 
     /**
@@ -51,8 +51,8 @@ export const accessApi = {
      * Requires privileged access. Non-Admin callers do not receive the Admin
      * role.
      */
-    async listAccessRoles(): Promise<RoleWithPermissions[]> {
-        return apiClient.get('/access/roles', { schema: roleWithPermissionsArraySchema });
+    async listAccessRoles(options?: { signal?: AbortSignal }): Promise<RoleWithPermissions[]> {
+        return apiClient.get('/access/roles', { ...options, schema: roleWithPermissionsArraySchema });
     },
 
     /**
