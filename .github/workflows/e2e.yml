@@ -373,7 +373,8 @@ jobs:
 
           with urllib.request.urlopen("http://localhost:8000/api/v1/readyz", timeout=10) as response:
               ready_payload = json.load(response)
-          assert set(ready_payload) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}, ready_payload
+          assert set(ready_payload) == {"ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}, ready_payload
+          assert ready_payload["external_directory"] == "unchecked", ready_payload
           assert ready_payload["ready"] is True, ready_payload
           assert ready_payload["database"] == "connected", ready_payload
           assert ready_payload["redis"] == "connected", ready_payload
@@ -384,7 +385,8 @@ jobs:
               payload = json.load(response)
               headers = response.headers
 
-          assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}, payload
+          assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status", "external_directory"}, payload
+          assert payload["external_directory"] == "unchecked", payload
           assert payload["status"] == "healthy", payload
           assert payload["ready"] is True, payload
           assert payload["database"] == "connected", payload
