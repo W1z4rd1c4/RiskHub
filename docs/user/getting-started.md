@@ -1,7 +1,7 @@
 ---
 title: Getting Started with RiskHub
 version: "2.5"
-last_updated: "2026-07-31"
+last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
 summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
@@ -25,6 +25,19 @@ tags:
 - [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
 - [Related Manuals](#related-manuals)
+
+## Signing in and password ownership
+
+Use the sign-in method supplied by your organization. For Entra sign-in, password and
+MFA management stays with your organization's identity service. Demo persona cards are
+for development and evaluation.
+
+Native local accounts are being delivered in stages. Their contract lets an admin invite
+you, then lets you choose and manage your own password. An installation may require MFA
+or permit password-only login; once you enable MFA, it remains required for your account.
+The complete native login, enrollment and account-security screens are tracked in #205,
+and native production admission remains gated by #208. Follow the controls available in
+your installed version. See [FAQ](./faq.md#passwords-and-mfa).
 
 ## What This Page Helps You Do
 

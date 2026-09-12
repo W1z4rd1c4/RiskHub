@@ -1,7 +1,7 @@
 ---
 title: User FAQ and Operational Support
 version: "2.4"
-last_updated: "2026-04-25"
+last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + in-app workflow behavior"
 summary: "Fast answers for common user issues: visibility, approvals, edits, notifications, exports, and where to look before escalating."
@@ -26,6 +26,22 @@ tags:
 - [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
 - [Related Manuals](#related-manuals)
+
+## Passwords and MFA
+
+**Who manages my password?** Entra users use their organization's password and recovery
+service. Native local users choose a password when accepting an admin invitation and
+can change it after reauthentication or request an email reset. Admins cannot see or
+assign permanent native passwords.
+
+**Is MFA mandatory for local login?** The installation chooses required MFA (the default)
+or optional MFA. Optional allows password-only accounts, including admins. If you have
+already enabled MFA, you still need your factor. A password reset does not remove it.
+
+**Where are the native controls?** The backend workflows are staged under #197–#200;
+the login/account-security and admin screens are tracked in #205/#206, with production
+admission in #208. The legacy development login is not the completed native account UI.
+Ask your administrator which authentication profile your installed version supports.
 
 ## What This Page Helps You Do
 

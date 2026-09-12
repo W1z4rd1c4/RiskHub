@@ -1,7 +1,7 @@
 ---
 title: User and Access Governance Runbook
-version: "2.3"
-last_updated: "2026-03-29"
+version: "2.4"
+last_updated: "2026-09-12"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Operator-safe runbook for adding users, changing access, deactivating accounts, and troubleshooting common access incidents."
@@ -90,7 +90,7 @@ If a user should not have any `/users` entitlement, expect the route to redirect
 1. Open `/users`.
 2. Select the auth-mode-specific CTA shown on `/users`:
    - **Add from AD** in directory-first auth modes (`microsoft_sso`, `hybrid_dev`)
-   - **Add user** in password mode
+   - **Add user** in legacy password development mode; see the staged native workflow below
 3. Use the creation flow currently available in the UI:
    - import or external-identity flow
    - direct-entry flow
@@ -99,6 +99,30 @@ If a user should not have any `/users` entitlement, expect the route to redirect
 6. Save and verify the user appears in `/users`.
 
 If creation actions are missing or disabled, first confirm that the current session is operating as platform `admin`. Creation and import are least-privilege lifecycle actions and should not be improvised from non-admin sessions. If the actions should be present and still are not, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md).
+
+### Native local account invitations and passwords
+
+The native backend supports admin-created invitations; its full admin UI is tracked
+in #206 and native production admission remains gated by #208. The legacy **Add user**
+form is not the native invitation interface. Use this section as the native operating
+contract and only use controls delivered by your installed version.
+
+Admins choose the account's name, email, role and organization assignments and send
+an invitation. The recipient verifies the invitation and chooses the password; admins
+do not assign or view permanent passwords. Invitation status distinguishes pending,
+sent, failed, expired and cancelled delivery. Pending accounts cannot sign in.
+
+The installation's MFA policy applies to ordinary users and admins. Required MFA
+adds factor setup to enrollment; optional MFA allows password-only accounts. Users
+who have enabled MFA must still supply it. A replacement administrator must complete
+enrollment before the current last effective administrator can be suspended.
+
+Users manage their own passwords through authenticated change or email reset.
+A reset invalidates old sessions and retains enrolled MFA. It cannot recover a lost
+factor; follow the approved recovery process when that becomes available. Native email
+changes require mailbox verification. See the
+native credential operator guide for API and
+operator details while the screens are being delivered.
 
 ### Update profile
 
@@ -134,8 +158,8 @@ Use deactivation for offboarding, containment, or urgent access removal.
 
 1. Locate the user in `/users`.
 2. Deactivate or reactivate the account.
-3. If the case is security-sensitive, open `/admin` -> **Sessions** and revoke active sessions.
-4. Verify the new account status and, if applicable, session revocation.
+3. Security-relevant changes invalidate existing sessions automatically. Use `/admin` -> **Sessions** to inspect the result or revoke sessions for a separate containment action.
+4. Verify the new account status. Local suspension survives directory synchronization; resuming locally does not override upstream denial or incomplete native enrollment. The last effective platform administrator cannot be removed.
 
 ## Verification Checklist
 

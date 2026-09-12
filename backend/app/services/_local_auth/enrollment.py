@@ -14,6 +14,8 @@ from app.core.permissions import is_platform_admin
 from app.core.production_contract import LOCAL_CHALLENGE_TTL_SECONDS, LOCAL_INVITATION_TTL_SECONDS
 from app.core.security import get_password_hash
 from app.models import Department, Role, User
+from app.models.role import RoleType
+from app.models.user import AccessScope
 from app.schemas.local_auth import CompletedResponse, InvitationRequest, InvitationResponse, LocalAuthChallenge
 from app.services._auth_session_workflow.authority import invalidate_user_sessions
 from app.services._directory_identity import resolve_safe_default_role
@@ -54,6 +56,7 @@ async def invite_user(db: AsyncSession, ctx: NativeContext, actor: User, data: I
             email=email,
             name=data.name,
             role_id=role.id,
+            access_scope=AccessScope.GLOBAL if role.name == RoleType.ADMIN else AccessScope.DEPARTMENT,
             department_id=data.department_id,
             manager_id=data.manager_id,
             is_active=False,

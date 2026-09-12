@@ -1042,3 +1042,41 @@ async def test_optional_policy_honors_user_enabled_mfa_and_revokes_password_sess
             },
         )
         assert rejected.status_code == 401, rejected.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mfa_policy", ["required", "optional"])
+async def test_invited_admin_can_replace_original_admin_after_enrollment(
+    native_context, client_factory, db_session, test_user, mfa_policy
+):
+    from app.models.user import AccessScope
+    from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
+
+    native_context.local_mfa_policy = mfa_policy
+    original_id = test_user.id
+    replacement_id = await create_invitation(
+        client_factory, native_context, db_session, test_user, test_user.role_id,
+        email="replacement-admin@example.com",
+    )
+    replacement = await db_session.get(User, replacement_id)
+    assert replacement.access_scope == AccessScope.GLOBAL
+    assert replacement_id not in await effective_platform_admin_ids(db_session, settings=native_context)
+    _, invitation = await latest_mail(db_session, native_context, user_id=replacement_id, kind="invitation")
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        if mfa_policy == "required":
+            codes, _ = await enroll(client, invitation["credential"])
+            await login_native(client, replacement.email, PASSWORD, codes[0])
+        else:
+            await csrf(client)
+            result = await client.post(
+                "/api/v1/auth/local/enrollment/start",
+                json={"grant": invitation["credential"], "password": PASSWORD},
+            )
+            assert result.status_code == 202, result.text
+            await login_password_only(client, replacement.email)
+        assert replacement_id in await effective_platform_admin_ids(db_session, settings=native_context)
+        suspended = await client.patch(f"/api/v1/users/{original_id}", json={"is_active": False})
+        assert suspended.status_code == 200, suspended.text
+        assert await effective_platform_admin_ids(db_session, settings=native_context) == {replacement_id}
+        last = await client.patch(f"/api/v1/users/{replacement_id}", json={"is_active": False})
+        assert last.status_code == 409, last.text

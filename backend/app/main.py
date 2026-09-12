@@ -322,9 +322,11 @@ def register_routes(app: FastAPI, settings: Settings) -> None:
 async def bootstrap_runtime_services(app: FastAPI) -> None:
     settings: Settings = app.state.settings
 
-    if not settings.debug:
+    from app.core.local_session import native_identity_selected
+
+    if not settings.debug or native_identity_selected(settings):
         if not settings.redis_url:
-            raise RuntimeError("FATAL: REDIS_URL is required in production mode (DEBUG=false).")
+            raise RuntimeError("FATAL: REDIS_URL is required in production mode or native identity mode.")
         from redis.asyncio import Redis
 
         redis = Redis.from_url(settings.redis_url, decode_responses=True)

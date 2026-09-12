@@ -56,3 +56,8 @@ Read [identity foundations](../security/identity-foundations.md) and
 [ADR-018](../adr/ADR-018-identity-foundations.md) before changing auth/session or user
 lifecycle behavior. Production adoption, native MFA policy and release boundaries
 are linked from [Security and Production Guardrails](../../AGENTS.md#security-and-production-guardrails).
+
+Native implementation details live in [native credentials](../security/identity-local-credentials.md).
+Reuse `_local_auth/` and the existing session/outbox workflow. Verify both MFA policies,
+real Redis startup, admin invitation completion and password change/reset revocation;
+keep UI and installer documentation explicit about later-group delivery.

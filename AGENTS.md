@@ -257,7 +257,7 @@ Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/READ
   - strong `SECRET_KEY`
   - webhook signature verification enabled when webhook endpoints are used
 - Do not expose or depend on demo auth paths in production behavior.
-- Follow [identity foundations](docs/security/identity-foundations.md) and ADR-018 for installation binding, account eligibility, lock order and session invalidation. Startup validates; maintenance tooling establishes/adopts identity.
+- Follow [identity foundations](docs/security/identity-foundations.md), [native credentials](docs/security/identity-local-credentials.md) and ADR-018 for installation binding, account eligibility, lock order and session invalidation. Startup validates; maintenance tooling establishes/adopts identity.
 - Native MFA policy defaults to `required`; explicit `optional` permits password-only accounts including admins, while confirmed factors stay enforced. Admin-created native accounts use invitations and recipients choose/manage passwords.
 - Preserve the native production admission guard until #208; backend contracts do not imply installer/UI release. Run PostgreSQL identity/session regressions and keep generated local-auth schemas/types in sync.
 

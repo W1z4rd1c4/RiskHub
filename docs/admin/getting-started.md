@@ -1,7 +1,7 @@
 ---
 title: Admin Onboarding and First-Day Runbook
 version: "2.1"
-last_updated: "2026-03-15"
+last_updated: "2026-09-12"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + frontend/src/pages/UsersPage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Day-one admin readiness runbook with explicit healthy, degraded, and stop states for platform operators."
@@ -46,6 +46,15 @@ Safety rules for day-one validation:
 - do not treat missing buttons as a prompt to try alternate or manual flows
 - do not continue if the environment falls into `Stop and escalate`
 - capture evidence as you go so you do not have to reconstruct the first hour later
+
+## Authentication readiness
+
+Confirm the installed authentication profile with the deployment owner. Entra accounts
+retain organization-managed credentials. Identity-schema upgrades require the explicit
+installation adoption check in the deployment runbook before access work.
+Native account invitations and user password management are staged backend features;
+read [User and Access Governance](./user-management.md#native-local-account-invitations-and-passwords)
+for the required/optional MFA behavior and current UI release boundary.
 
 ## Readiness States
 

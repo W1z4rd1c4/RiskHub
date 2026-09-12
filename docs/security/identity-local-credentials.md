@@ -1,10 +1,10 @@
 # Native credentials — group 2 developer and operator contract
 
-Status: implemented on the Group 2 development branch for #197–#200; **not a
-supported production profile yet**. Production admission still fails closed under
-ADR-018 until #208. This document does not authorize a production deployment.
-Read [identity foundations](identity-foundations.md) before schema changes. PR #210
-is stacked on PR #209; its unresolved base checks/reviews remain prerequisites.
+Scope: native backend credentials for #197–#200, including optional MFA,
+administrator-created invitations and user-managed passwords. **Native production
+is not enabled yet**: ADR-018 retains the release admission guard until #208.
+Read [identity foundations](identity-foundations.md) before schema changes; #210
+builds on #209. Candidate-specific review and CI evidence lives in the PRs.
 
 ## Runtime and data ownership
 
@@ -12,6 +12,9 @@ Select `AUTH_MODE=password` and `DIRECTORY_PROVIDER=none` together for native
 component verification. Existing Entra and hybrid development flows retain their
 separate behavior. No environment variable bypasses the production-release guard.
 Use a correctly bound installation; native mode refuses directory-linked users.
+Native debug startup connects to configured Redis and fails before starting runtime
+services if Redis is missing or unavailable. Hybrid demo mode retains its existing
+single-worker in-memory development behavior.
 
 One RiskHub User, authorization policy and access/refresh session lineage remain.
 The additive migration `u0v1w2x3y4z5` follows `t9u0v1w2x3y4`: purpose grants,
@@ -55,6 +58,35 @@ User/artifact context are authenticated by AES-GCM or a purpose-separated HMAC.
 Unknown/missing/corrupt keys fail closed. Automated key rotation and privileged
 lost-factor recovery belong to #201; do not remove an active factor to recover
 access. Retain protected key backups separately from ordinary database backups.
+
+## Deployment policy and account ownership
+
+| Deployment/account state | Enrollment and sign-in | Credential management |
+|---|---|---|
+| Required MFA (default), including admins | Verify invitation, choose password, confirm factor; password then factor at login | Current password plus factor for recent proof |
+| Optional MFA, no confirmed factor | Verify invitation and choose password; password-only login | Current password for recent proof; factor field may be omitted |
+| Optional MFA, confirmed factor | Password plus existing factor at login | Current password plus factor; optional policy never bypasses enabled MFA |
+
+An authenticated platform administrator creates an invitation with name, email, role,
+department and manager. The recipient chooses the permanent password. Explicit Admin
+invitations receive canonical global platform scope, so completed enrollment can make
+them an effective replacement administrator; pending invitations do not count. Business
+accounts start at department scope, with later business scope changes governed by CRO.
+Admin is still excluded from business data by the shared role policy.
+
+Users change their own password through recent authentication followed by the exact
+password-change operation, or recover a forgotten password through the generic email
+reset request and a single-use link. Administrators cannot set permanent native passwords
+through legacy user edits. Password reset preserves enrolled factors and revokes old
+sessions; it is not lost-factor recovery. Email changes use the separate verified-address
+workflow. These are backend contracts; account-security and invitation screens are
+tracked in #205/#206.
+
+Changing `LOCAL_MFA_POLICY` from optional to required rejects existing password-only
+access/refresh credentials; the next login enters factor enrollment. Switching to
+optional permits eligible accounts without a confirmed factor, including admins, while
+confirmed factors remain required. Restart all replicas with one consistent policy;
+configuration changes do not delete factors or erase revocation history.
 
 ## Passwords and admission
 

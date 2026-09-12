@@ -167,3 +167,13 @@ Maintainers should keep the public GitHub repository settings aligned with the r
 - Discussions: enabled for Q&A and self-hosting help
 - Wiki: disabled while documentation remains in `docs/`
 - Social preview: upload `docs/assets/readme/social-preview.png` in GitHub repository settings after README screenshot recapture
+
+## Native component verification
+
+The native backend uses a bound disposable database, real shared Redis, protected
+local-auth keys and configured TLS SMTP. See
+[native credentials](../security/identity-local-credentials.md) for inputs, policy
+transitions, invitation/password journeys and the release boundary. Test both
+`LOCAL_MFA_POLICY=required` and `optional`; a confirmed factor must remain enforced.
+The focused fixture supplies test-only keys/binding. Never use demo seeds as a
+production local-account bootstrap.

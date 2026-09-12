@@ -54,3 +54,9 @@ supports required MFA by default and explicit optional MFA; confirmed factors re
 required. Runtime credentials, UI/installer delivery and release admission are tracked
 in #192's groups. This commit-scoped note does not assert issue closure or production
 availability. See [identity foundations](../docs/security/identity-foundations.md).
+
+The native credential layer now implements Argon2id, invite-only enrollment, optional
+or required MFA on shared sessions, and user password change/reset plus verified email
+changes. SMTP delivery uses the outbox and native startup requires Redis even in debug.
+Full native UI/installer, recovery and production acceptance remain subsequent groups;
+see [native credentials](../docs/security/identity-local-credentials.md).

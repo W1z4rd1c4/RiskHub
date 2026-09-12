@@ -165,3 +165,11 @@ SQLite skips are not evidence. Check generated contracts with
 `cd backend && python -m scripts.export_local_auth_contract --check`, then run
 architecture locks, authz/production-doc validators, and frontend checks on Node 24.
 The hosted command set lives in `.github/workflows/identity-foundations.yml`.
+
+Native verification additionally runs `test_local_identity.py`,
+`test_local_identity_delivery.py`, `test_local_identity_postgres.py`,
+`test_local_identity_redis.py` and `test_account_lockout_runtime.py`. Set
+`TEST_DATABASE_URL` to a disposable Postgres database and `TEST_REDIS_URL` to a dedicated
+Redis test database. Cover required/optional MFA, administrator replacement after
+invitation, password change/reset revocation and real-Redis lifespan startup.
+See `.github/workflows/identity-local.yml` for the complete hosted command set.

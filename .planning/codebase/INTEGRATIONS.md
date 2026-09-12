@@ -91,3 +91,9 @@ validates without writing. Explicit DB-task maintenance initializes/adopts the b
 Native `password`/`none` configuration defines required/optional MFA, with shared User,
 authorization and session authority; native production remains gated. See
 [identity foundations](../../docs/security/identity-foundations.md).
+
+Native credential components use `_local_auth/` with shared Redis admission and
+verified-TLS SMTP delivered through the existing outbox. Separate protected keys encrypt
+factor/delivery data. Debug native startup connects Redis; ordinary hybrid demo defaults
+remain unchanged. [Native credentials](../../docs/security/identity-local-credentials.md)
+is the configuration and session-policy source.

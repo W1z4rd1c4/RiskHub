@@ -51,3 +51,52 @@ async def test_native_limits_are_shared_across_clients_and_fail_closed():
             await first.delete(key)
         await first.aclose()
         await second.aclose()
+
+
+async def test_native_lifespan_connects_real_redis_before_password_login(
+    native_context, client_factory, db_session, test_user, monkeypatch
+):
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from app import main
+    from app.core.datetime_utils import utc_now
+    from app.core.security import get_password_hash
+
+    url = os.environ.get("TEST_REDIS_URL")
+    if not url:
+        pytest.skip("TEST_REDIS_URL required for native lifespan proof")
+    native_context.redis_url = url
+    native_context.local_mfa_policy = "optional"
+    test_user.hashed_password = get_password_hash("Native lifespan passphrase 734!")
+    test_user.local_email_verified_at = utc_now()
+    test_user.local_enrollment_state = "enrolled"
+    await db_session.commit()
+
+    @asynccontextmanager
+    async def sessions():
+        yield db_session
+
+    # The fixture owns its migrated database and scheduler. Exercise the real
+    # lifespan and Redis bootstrap without disposing shared test infrastructure.
+    monkeypatch.setattr(main.app.state, "settings", native_context)
+    monkeypatch.setattr(main.app.state, "account_lockout", main.app.state.account_lockout)
+    monkeypatch.setattr(main.app.state, "sso_challenge_store", main.app.state.sso_challenge_store)
+    monkeypatch.setattr(main.app.state, "db_engine", SimpleNamespace(dispose=AsyncMock()))
+    monkeypatch.setattr(main.app.state, "db_sessionmaker", sessions)
+    monkeypatch.setattr(main, "enforce_schema_head", AsyncMock())
+    monkeypatch.setattr(main, "start_scheduler_async", AsyncMock())
+    monkeypatch.setattr(main, "stop_scheduler_async", AsyncMock())
+    async with main.lifespan(main.app):
+        assert isinstance(main.app.state.redis, Redis)
+        assert await main.app.state.redis.ping()
+        async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+            await client.get("/api/v1/auth/csrf")
+            client.headers["X-CSRF-Token"] = client.cookies.get("riskhub_csrf_token")
+            login = await client.post(
+                "/api/v1/auth/login",
+                json={"email": test_user.email, "password": "Native lifespan passphrase 734!"},
+            )
+            assert login.status_code == 200, login.text
+            assert login.json()["access_token"]
