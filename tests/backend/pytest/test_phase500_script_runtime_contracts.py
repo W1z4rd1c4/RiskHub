@@ -220,7 +220,7 @@ def _write_frontend_env(path: Path, *, host_port: str, container_port: str) -> N
     (
         ("preflight.sh", ("--frontend-env", "{frontend_env}", "--check-db"), 1),
         ("run_migrations.sh", (), 1),
-        ("bootstrap_db.sh", (), 4),
+        ("bootstrap_db.sh", (), 6),
         ("install_backend.sh", (), 1),
     ),
 )
@@ -284,6 +284,14 @@ def test_host_database_docker_runs_map_host_docker_internal(
 
     assert result.returncode == 0, output
     assert len(docker_runs) == expected_run_count
+    if script_name == "bootstrap_db.sh":
+        binding_commands = [
+            args for args in docker_runs if "scripts.identity_installation" in args
+        ]
+        assert len(binding_commands) == 2
+        assert [args[args.index("scripts.identity_installation") + 1] for args in binding_commands] == [
+            "initialize", "verify",
+        ]
     for args in docker_runs:
         add_host_index = args.index("--add-host")
         assert args[add_host_index + 1] == "host.docker.internal:host-gateway"
