@@ -142,12 +142,10 @@ export function KRIFormContainer({
         isRiskLinkedToVendor(state.formData.risk_id, vendorContext, lookups.vendorLinkedRiskIds)
     ), [lookups.vendorLinkedRiskIds, state.formData.risk_id, vendorContext]);
 
-    const visibleError = state.error ?? lookups.lookupErrorKey;
+    const visibleError = state.pendingGovernedCreate !== null && state.error !== null ? null : state.error ?? lookups.lookupErrorKey;
     const cancelLabel = firstStepBackLabel ?? t('common:actions.cancel');
-    const isLoadingRisks =
-        state.showOnlyVendorLinkedRisks && vendorContext
-            ? lookups.isLoadingVendorLinkedRisks
-            : lookups.isLoadingGenericRisks;
+    const isLoadingRisks = state.showOnlyVendorLinkedRisks && vendorContext
+        ? lookups.isLoadingVendorLinkedRisks : lookups.isLoadingGenericRisks;
 
     const setFormError = (error: string | null) => setStatePatch({ error });
     const validateStep1 = () => validateRiskSelection(state.formData.risk_id, setFormError, t);
@@ -246,11 +244,12 @@ export function KRIFormContainer({
             </form>
 
             <KriCreateDialogs
+                errorText={state.error ? t(state.error) : null}
                 isMismatchDialogOpen={state.isMismatchDialogOpen}
                 isProtectedVendor={Boolean(vendorContext?.protectedChangeRequiresApproval)}
                 isSubmitting={state.isSubmitting}
                 pendingGovernedCreate={state.pendingGovernedCreate}
-                onCancelGoverned={() => setStatePatch({ pendingGovernedCreate: null })}
+                onCancelGoverned={() => setStatePatch({ error: null, pendingGovernedCreate: null })}
                 onCancelMismatch={() => setStatePatch({ isMismatchDialogOpen: false })}
                 onConfirmGoverned={(requestReason) => void finalizeCreate({ ...state.pendingGovernedCreate, requestReason })}
                 onCreate={(options) => void beginCreate(options)}

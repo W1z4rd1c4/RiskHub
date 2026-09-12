@@ -20,7 +20,9 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string) => key,
+        t: (key: string, options?: { targetName?: string }) => (
+            key === 'pending_change_cancellation.message' ? options?.targetName ?? key : key
+        ),
         i18n: { language: 'en' },
     }),
 }));
@@ -60,8 +62,6 @@ vi.mock('@/pages/threats/ThreatForm', () => ({
 vi.mock('@/pages/threats/ThreatRiskLinksSection', () => ({
     ThreatRiskLinksSection: () => <div data-testid="threat-risk-links-section" />,
 }));
-
-vi.mock('@/components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 
 import { ThreatDetailPage } from '@/pages/ThreatDetailPage';
 
@@ -260,6 +260,10 @@ describe('ThreatDetailPage orphan stewardship resolution', () => {
         renderPage('view');
 
         await user.click(screen.getByRole('button', { name: 'pending_change.cancel' }));
+        expect(mocks.cancelApproval).not.toHaveBeenCalled();
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('Orphaned ransomware scenario');
+
+        await user.click(screen.getByRole('button', { name: 'pending_change_cancellation.confirm' }));
 
         await waitFor(() => expect(mocks.cancelApproval).toHaveBeenCalledWith(88));
         expect(mocks.fetchThreat).toHaveBeenCalledTimes(1);

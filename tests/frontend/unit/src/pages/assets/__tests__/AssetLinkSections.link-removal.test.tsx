@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Asset } from '@/types/asset';
 
 const mockRemoveProcessLink = vi.fn().mockResolvedValue({});
+const mockRemoveAssetLink = vi.fn().mockResolvedValue({});
 
 vi.mock('@/services/assetApi', () => ({
     assetApi: {
@@ -23,7 +24,7 @@ vi.mock('@/services/assetApi', () => ({
         updateProcessLink: vi.fn(),
         removeProcessLink: (...args: unknown[]) => mockRemoveProcessLink(...args),
         addAssetLink: vi.fn(),
-        removeAssetLink: vi.fn(),
+        removeAssetLink: (...args: unknown[]) => mockRemoveAssetLink(...args),
         addVendorLink: vi.fn(),
         removeVendorLink: vi.fn(),
     },
@@ -68,6 +69,7 @@ function renderSection(assetUnderTest: Asset = asset) {
 beforeEach(() => {
     vi.clearAllMocks();
     mockRemoveProcessLink.mockResolvedValue({});
+    mockRemoveAssetLink.mockResolvedValue({});
     (assetApi.getProcessLinks as ReturnType<typeof vi.fn>).mockResolvedValue([
         {
             id: 10,
@@ -133,6 +135,8 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
 
         const dialogAlert = await within(dialog).findByRole('alert');
         expect(dialogAlert).toHaveTextContent(i18n.t('assets:links.errors.mutation_failed'));
+        expect(within(dialog).getByRole('textbox', { name: /request reason/i }))
+            .toHaveValue('First governed reason');
         expect(screen.getAllByRole('alert')).toHaveLength(1);
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
@@ -147,6 +151,104 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
         expect(mockRemoveProcessLink).toHaveBeenNthCalledWith(2, 1, 100, 'Corrected governed reason');
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('does not carry a dismissed Process-link error into another removal dialog', async () => {
+        mockRemoveProcessLink.mockRejectedValueOnce(
+            Object.assign(new Error('reason rejected'), { status: 422 }),
+        );
+        (assetApi.getAssetLinks as ReturnType<typeof vi.fn>).mockResolvedValue([{
+            id: 20,
+            dependent_asset_id: 1,
+            dependent_asset_name: 'Current asset',
+            supporting_asset_id: 2,
+            supporting_asset_name: 'Payments platform',
+            dependency_type: null,
+            spof: null,
+        }]);
+        renderSection();
+
+        fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
+        const rejectedDialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(rejectedDialog).getByRole('textbox', { name: /request reason/i }), {
+            target: { value: 'Rejected Process rationale' },
+        });
+        fireEvent.click(within(rejectedDialog).getByRole('button', {
+            name: i18n.t('processes:link_approval.continue'),
+        }));
+        expect(await within(rejectedDialog).findByRole('alert')).toHaveTextContent(
+            i18n.t('assets:links.errors.mutation_failed'),
+        );
+
+        fireEvent.click(within(rejectedDialog).getByRole('button', {
+            name: i18n.t('common:actions.cancel'),
+        }));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+
+        fireEvent.click(await screen.findByTestId('asset-asset-link-remove-20'));
+        expect(within(screen.getByRole('alertdialog')).queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('announces a rejected Asset-link removal only inside its retained dialog', async () => {
+        mockRemoveAssetLink.mockRejectedValueOnce(Object.assign(new Error('reason rejected'), { status: 422 }));
+        (assetApi.getAssetLinks as ReturnType<typeof vi.fn>).mockResolvedValue([{
+            id: 20,
+            dependent_asset_id: 1,
+            dependent_asset_name: 'Current asset',
+            supporting_asset_id: 2,
+            supporting_asset_name: 'Payments platform',
+            dependency_type: null,
+            spof: null,
+        }]);
+        renderSection();
+
+        fireEvent.click(await screen.findByTestId('asset-asset-link-remove-20'));
+        const dialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox', { name: /request reason/i }), {
+            target: { value: 'Retain this rationale' },
+        });
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('assets:links.remove') }));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+            i18n.t('assets:links.errors.mutation_failed'),
+        );
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(within(dialog).getByRole('textbox', { name: /request reason/i }))
+            .toHaveValue('Retain this rationale');
+    });
+
+    it('keeps a rejected Asset-link addition error and rationale inside the dialog', async () => {
+        vi.mocked(assetApi.getAssets).mockResolvedValue({
+            items: [{ id: 2, name: 'Payments platform', is_archived: false }],
+            total: 1,
+            offset: 0,
+            limit: 100,
+        } as Awaited<ReturnType<typeof assetApi.getAssets>>);
+        vi.mocked(assetApi.addAssetLink).mockRejectedValueOnce(
+            Object.assign(new Error('reason rejected'), { status: 422 }),
+        );
+        renderSection();
+
+        fireEvent.click(await screen.findByTestId('asset-asset-link-select'));
+        fireEvent.click(await screen.findByRole('option', { name: 'Payments platform' }));
+        fireEvent.click(screen.getByTestId('asset-asset-link-add'));
+
+        const dialog = screen.getByRole('alertdialog');
+        const reason = within(dialog).getByRole('textbox', { name: /request reason/i });
+        fireEvent.change(reason, { target: { value: 'Retain governed addition reason' } });
+        fireEvent.click(within(dialog).getByRole('button', {
+            name: i18n.t('assets:link_approval.continue'),
+        }));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+            i18n.t('assets:links.errors.mutation_failed'),
+        );
+        expect(reason).toHaveValue('Retain governed addition reason');
+        expect(screen.getAllByText(i18n.t('assets:links.errors.mutation_failed'))).toHaveLength(1);
+
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.cancel') }));
+        fireEvent.click(screen.getByTestId('asset-asset-link-add'));
+        expect(within(screen.getByRole('alertdialog')).queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('cancelling the dialog leaves the link untouched', async () => {

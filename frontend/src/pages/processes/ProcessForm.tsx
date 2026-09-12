@@ -322,15 +322,30 @@ export function ProcessForm({
 
     const setField = (field: keyof FormFields, value: string) => {
         setFields((current) => ({ ...current, [field]: value }));
+        setFieldErrors((current) => {
+            if (!current[field]) return current;
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
     };
 
     const setProcessOwner = (value: string) => {
         const selectedOwner = (ownerQuery.data ?? []).find((user) => String(user.id) === value);
+        const selectedDepartment = selectedOwner?.department_id?.toString() ?? '';
         setFields((current) => ({
             ...current,
             process_owner_user_id: value,
-            owning_department_id: current.owning_department_id || selectedOwner?.department_id?.toString() || '',
+            owning_department_id: current.owning_department_id || selectedDepartment,
         }));
+        setFieldErrors((current) => {
+            const next = { ...current };
+            delete next.process_owner_user_id;
+            if (!fields.owning_department_id && selectedDepartment) {
+                delete next.owning_department_id;
+            }
+            return next;
+        });
     };
 
     const validate = (): Partial<Record<keyof FormFields, string>> => {

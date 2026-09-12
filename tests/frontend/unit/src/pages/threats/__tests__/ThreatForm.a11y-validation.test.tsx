@@ -411,6 +411,25 @@ describe('ThreatForm — Field migration + validation + submit feedback (#59)', 
         expect(mockCreateThreat).not.toHaveBeenCalled();
     });
 
+    it('clears only the field error corrected by the user', async () => {
+        const user = userEvent.setup();
+        renderForm();
+        await user.click(screen.getByTestId('threat-form-submit'));
+
+        const name = screen.getByRole('textbox', { name: nameLabel() });
+        const steward = screen.getByTestId('threat-form-steward');
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(steward).toHaveAttribute('aria-invalid', 'true');
+
+        await user.type(name, 'Phishing');
+        expect(name).not.toHaveAttribute('aria-invalid');
+        expect(steward).toHaveAttribute('aria-invalid', 'true');
+
+        await user.click(steward);
+        await user.click(await screen.findByRole('option', { name: /Clara Security/ }));
+        expect(steward).not.toHaveAttribute('aria-invalid');
+    });
+
     it('labels and focuses the required CISO steward selector when it is the first invalid field', async () => {
         const user = userEvent.setup();
         renderForm();

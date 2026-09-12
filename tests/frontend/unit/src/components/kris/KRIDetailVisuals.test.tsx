@@ -77,6 +77,8 @@ describe('KRI detail visuals', () => {
                 unit="%"
                 onSelectEntry={vi.fn()}
                 canRequestCorrection
+                outcome={{ kind: 'content', isRefreshing: false }}
+                onRetry={vi.fn()}
             />
         );
 
@@ -108,6 +110,8 @@ describe('KRI detail visuals', () => {
             upperLimit: 10,
             unit: '%',
             onSelectEntry: vi.fn(),
+            outcome: { kind: 'content' as const, isRefreshing: false },
+            onRetry: vi.fn(),
         };
 
         const { rerender } = render(<KRIDetailHistoryTab {...baseProps} canRequestCorrection={false} />);
@@ -142,6 +146,8 @@ describe('KRI detail visuals', () => {
                     monitoring_status: 'optimal',
                 }}
                 linkedRisk={null}
+                linkedRiskOutcome={{ kind: 'empty', isRefreshing: false }}
+                onRetryLinkedRisk={vi.fn()}
                 dueDate={null}
                 formatNumber={(value) => String(value)}
             />
@@ -179,6 +185,8 @@ describe('KRI detail visuals', () => {
                         description: 'Concentration in one cloud provider',
                         process: 'ICT operations',
                     } as never}
+                    linkedRiskOutcome={{ kind: 'content', isRefreshing: false }}
+                    onRetryLinkedRisk={vi.fn()}
                     dueDate={null}
                     formatNumber={(value) => String(value)}
                 />

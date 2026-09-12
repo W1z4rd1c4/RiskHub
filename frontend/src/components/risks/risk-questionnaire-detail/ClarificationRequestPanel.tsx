@@ -7,6 +7,7 @@ interface ClarificationRequestPanelProps {
     onQuestionKeysChange: (value: string[]) => void;
     onRequestMessageChange: (value: string) => void;
     onSubmit: () => void;
+    pending: boolean;
     questions: RiskQuestionnaireQuestion[];
     requestMessage: string;
     requestQuestionKeys: string[];
@@ -18,6 +19,7 @@ export function ClarificationRequestPanel({
     onQuestionKeysChange,
     onRequestMessageChange,
     onSubmit,
+    pending,
     questions,
     requestMessage,
     requestQuestionKeys,
@@ -64,17 +66,18 @@ export function ClarificationRequestPanel({
             <div className="flex items-center justify-end gap-2">
                 <button
                     onClick={onCancel}
+                    disabled={pending}
                     className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
                 >
                     {t('common:actions.cancel')}
                 </button>
                 <button
                     onClick={onSubmit}
-                    disabled={requestMessage.trim() === ''}
+                    disabled={pending || requestMessage.trim() === ''}
                     className={cn(
                         'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all',
                         'bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50',
-                        requestMessage.trim() === '' && 'opacity-50 cursor-not-allowed',
+                        (pending || requestMessage.trim() === '') && 'opacity-50 cursor-not-allowed',
                     )}
                 >
                     {t('common:actions.submit')}

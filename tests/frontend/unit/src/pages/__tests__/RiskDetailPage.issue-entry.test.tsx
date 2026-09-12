@@ -55,15 +55,20 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/components/ConfirmDialog', () => ({
     ConfirmDialog: ({
+        errorText,
         isOpen,
         onConfirm,
     }: {
+        errorText?: string | null;
         isOpen: boolean;
         onConfirm: (reason?: string) => void;
     }) => isOpen ? (
-        <button type="button" onClick={() => onConfirm('Risk no longer applies')}>
-            confirm-risk-archive
-        </button>
+        <>
+            <button type="button" onClick={() => onConfirm('Risk no longer applies')}>
+                confirm-risk-archive
+            </button>
+            {errorText ? <div role="alert" data-testid="risk-archive-error">{errorText}</div> : null}
+        </>
     ) : null,
 }));
 
@@ -233,5 +238,18 @@ describe('RiskDetailPage issue entry', () => {
 
         await waitFor(() => expect(mockDeleteRisk).toHaveBeenCalledWith(7, 'Risk no longer applies'));
         expect(mockNavigate).toHaveBeenCalledWith(returnTo);
+    });
+
+    it('keeps the Risk archive dialog open with an in-dialog error after rejection', async () => {
+        mockDeleteRisk.mockRejectedValueOnce(new Error('rejected'));
+        render(<RiskDetailPage />);
+        await screen.findByText('Liquidity Risk');
+
+        fireEvent.click(screen.getByRole('button', { name: /archive/i }));
+        fireEvent.click(await screen.findByRole('button', { name: 'confirm-risk-archive' }));
+
+        expect(await screen.findByTestId('risk-archive-error')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'confirm-risk-archive' })).toBeInTheDocument();
+        expect(mockNavigate).not.toHaveBeenCalledWith('/risks');
     });
 });

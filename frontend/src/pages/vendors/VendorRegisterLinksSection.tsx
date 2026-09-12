@@ -256,7 +256,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                 </h2>
             </div>
 
-            {sectionError ? (
+            {sectionError && pendingProcessAction === null && pendingAssetAction === null ? (
                 <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
                     {sectionError}
                 </div>
@@ -287,13 +287,14 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                         <button
                                             type="button"
                                             data-testid={`vendor-asset-link-remove-${row.link.id}`}
-                                            onClick={() =>
+                                            onClick={() => {
+                                                setSectionError(null);
                                                 setPendingAssetAction({
                                                     kind: 'remove',
                                                     assetId: row.link.asset_id,
                                                     linkId: row.link.id,
-                                                })
-                                            }
+                                                });
+                                            }}
                                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                             title={t('register_links.remove')}
                                         >
@@ -331,7 +332,10 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                 type="button"
                                 data-testid="vendor-asset-link-add"
                                 disabled={!assetToLink || !assetLinkServiceCode || addAssetLink.isPending}
-                                onClick={() => setPendingAssetAction({ kind: 'add' })}
+                                onClick={() => {
+                                    setSectionError(null);
+                                    setPendingAssetAction({ kind: 'add' });
+                                }}
                                 className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Plus className="h-4 w-4" />
@@ -373,12 +377,13 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                             type="button"
                                             data-testid={`vendor-process-link-remove-${row.link.id}`}
                                             disabled={row.processEditBlocked}
-                                            onClick={() =>
+                                            onClick={() => {
+                                                setSectionError(null);
                                                 setPendingProcessAction({ kind: 'remove',
                                                     processId: row.link.process_id,
                                                     linkId: row.link.id,
-                                                })
-                                            }
+                                                });
+                                            }}
                                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                             title={row.processEditBlocked
                                                 ? t('processes:pending_change.link_action_blocked')
@@ -409,7 +414,10 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                 type="button"
                                 data-testid="vendor-process-link-add"
                                 disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
-                                onClick={() => setPendingProcessAction({ kind: 'add' })}
+                                onClick={() => {
+                                    setSectionError(null);
+                                    setPendingProcessAction({ kind: 'add' });
+                                }}
                                 className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Plus className="h-4 w-4" />
@@ -430,7 +438,11 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                 namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addProcessLink.isPending || removeProcessLink.isPending}
-                onClose={() => setPendingProcessAction(null)}
+                errorText={sectionError}
+                onClose={() => {
+                    setPendingProcessAction(null);
+                    setSectionError(null);
+                }}
                 onConfirm={(reason) => {
                     if (pendingProcessAction?.kind === 'add') addProcessLink.mutate(reason);
                     if (pendingProcessAction?.kind === 'remove') {
@@ -444,7 +456,11 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                 namespace="assets"
                 kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addAssetLink.isPending || removeAssetLink.isPending}
-                onClose={() => setPendingAssetAction(null)}
+                errorText={sectionError}
+                onClose={() => {
+                    setPendingAssetAction(null);
+                    setSectionError(null);
+                }}
                 onConfirm={(reason) => {
                     if (pendingAssetAction?.kind === 'add') {
                         addAssetLink.mutate(reason);

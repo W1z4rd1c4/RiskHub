@@ -20,6 +20,10 @@ import { useContentTabs } from '@/hooks/useContentTabs';
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
+    return <KRIDetailRoute key={id ?? 'invalid'} rawId={id} />;
+}
+
+function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/kris');
@@ -31,12 +35,14 @@ export function KRIDetailPage() {
         approvalBanner,
         canRecordValue,
         canRequestHistoryCorrection,
+        deleteErrorKey,
         dueDate,
         handleDelete,
         handleRecordSuccess,
         handleRestore,
         handleSave,
         history,
+        historyOutcome,
         historyTotal,
         isDeleteDialogOpen,
         isDeleting,
@@ -49,18 +55,21 @@ export function KRIDetailPage() {
         kri,
         kriId,
         linkedRisk,
+        linkedRiskOutcome,
         loadOutcome,
         refreshKri,
         refreshHistory,
+        retryLinkedRisk,
         selectedHistoryEntry,
         setActiveTab,
         setApprovalBanner,
+        setDeleteErrorKey,
         setIsDeleteDialogOpen,
         setIsEditModalOpen,
         setIsIssueModalOpen,
         setIsValueModalOpen,
         setSelectedHistoryEntry,
-    } = useKriDetailState({ rawId: id, returnTo });
+    } = useKriDetailState({ rawId, returnTo });
     const { getPanelProps, getTabProps } = useContentTabs({
         tabs: kriDetailTabs,
         activeTab,
@@ -175,7 +184,14 @@ export function KRIDetailPage() {
                             <RotateCcw className="h-4 w-4 mr-1" /> {t('common:actions.unarchive')}
                         </Button>
                     ) : (
-                        canArchiveKri && <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isDeleting}>
+                        canArchiveKri && <Button
+                            variant="destructive"
+                            onClick={() => {
+                                setDeleteErrorKey(null);
+                                setIsDeleteDialogOpen(true);
+                            }}
+                            disabled={isDeleting}
+                        >
                             <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
                         </Button>
                     )}
@@ -236,6 +252,8 @@ export function KRIDetailPage() {
                 {activeTab === 'overview' && <KRIDetailOverviewTab
                     kri={kri}
                     linkedRisk={linkedRisk}
+                    linkedRiskOutcome={linkedRiskOutcome}
+                    onRetryLinkedRisk={() => void retryLinkedRisk()}
                     dueDate={dueDate}
                     formatNumber={formatNumber}
                 />}
@@ -251,6 +269,8 @@ export function KRIDetailPage() {
                     unit={kri.unit}
                     onSelectEntry={setSelectedHistoryEntry}
                     canRequestCorrection={canRequestHistoryCorrection}
+                    outcome={historyOutcome}
+                    onRetry={() => kriId !== null && void refreshHistory(kriId)}
                 />}
             </div>
 
@@ -281,7 +301,7 @@ export function KRIDetailPage() {
 
             {/* History Edit Modal */}
             {
-                kri && selectedHistoryEntry && (
+                kri && selectedHistoryEntry && historyOutcome.kind !== 'denied' && (
                     <KRIHistoryEditModal
                         isOpen={!!selectedHistoryEntry}
                         onClose={() => setSelectedHistoryEntry(null)}
@@ -306,7 +326,10 @@ export function KRIDetailPage() {
 
                     <ConfirmDialog
                         isOpen={isDeleteDialogOpen}
-                        onClose={() => setIsDeleteDialogOpen(false)}
+                        onClose={() => {
+                            setDeleteErrorKey(null);
+                            setIsDeleteDialogOpen(false);
+                        }}
                         onConfirm={(inputValue) => handleDelete(inputValue)}
                         title={t('kris:delete_dialog.title')}
                         message={t('kris:delete_dialog.message')}
@@ -317,6 +340,7 @@ export function KRIDetailPage() {
                         inputLabel={t('kris:delete_dialog.reason_label')}
                         inputPlaceholder={t('kris:delete_dialog.reason_placeholder')}
                         inputRequired
+                        errorText={deleteErrorKey ? t(deleteErrorKey, { ns: 'errorKeys' }) : null}
                     />
                 </>
             )}

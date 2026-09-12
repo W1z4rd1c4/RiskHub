@@ -320,8 +320,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
 
     const removeAssetLink = useMutation({
         mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) => assetApi.removeAssetLink(asset.id, linkId, reason),
+        onMutate: () => setLinkError(null),
         onSuccess: async (result) => {
             setLinkError(null);
+            setPendingRemoval(null);
             if (isProcessApprovalQueuedResponse(result)) {
                 navigateToApprovalRequest(navigate, result.approval_id);
                 return;
@@ -365,8 +367,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
 
     const removeVendorLink = useMutation({
         mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) => assetApi.removeVendorLink(asset.id, linkId, reason),
+        onMutate: () => setLinkError(null),
         onSuccess: async (result) => {
             setLinkError(null);
+            setPendingRemoval(null);
             if (isProcessApprovalQueuedResponse(result)) {
                 navigateToApprovalRequest(navigate, result.approval_id);
                 return;
@@ -402,8 +406,6 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         .filter((vendor) => !vendor.is_archived)
         .map((vendor) => ({ value: String(vendor.id), label: vendor.name }));
 
-    // Run the confirmed removal, then close the dialog (optimistic close — the
-    // mutation's own onSuccess/onError refreshes the list / surfaces the error).
     const confirmRemoval = (reason?: string) => {
         if (!pendingRemoval) {
             return;
@@ -413,7 +415,11 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         } else if (pendingRemoval.kind === 'vendor') {
             removeVendorLink.mutate({ linkId: pendingRemoval.id, reason: reason?.trim() ?? '' });
         }
+    };
+
+    const closeRemovalDialog = () => {
         setPendingRemoval(null);
+        setLinkError(null);
     };
 
     const openProcessAction = (action: PendingProcessAction) => {
@@ -421,11 +427,19 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         setPendingProcessAction(action);
     };
 
+    const openAssetAction = (action: 'asset_add' | 'vendor_add') => {
+        setLinkError(null);
+        setPendingAssetAction(action);
+    };
+
     return (
         <>
-            {/* The governed Process dialog traps focus, so its rejected-mutation
+            {/* A governed link dialog traps focus, so its rejected-mutation
                 error is announced inside the dialog while it remains open. */}
-            {linkError && pendingProcessAction === null ? (
+            {linkError
+                && pendingProcessAction === null
+                && pendingAssetAction === null
+                && pendingRemoval === null ? (
                 <div role="alert" className="glass-card border border-rose-400/30 text-rose-300 text-sm font-medium">
                     {linkError}
                 </div>
@@ -687,7 +701,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     type="button"
                                     data-testid="asset-asset-link-add"
                                     disabled={!assetToLink || addAssetLink.isPending}
-                                    onClick={() => setPendingAssetAction('asset_add')}
+                                    onClick={() => openAssetAction('asset_add')}
                                     className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
@@ -800,7 +814,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                     type="button"
                                     data-testid="asset-vendor-link-add"
                                     disabled={!vendorLinkPayload || addVendorLink.isPending}
-                                    onClick={() => setPendingAssetAction('vendor_add')}
+                                    onClick={() => openAssetAction('vendor_add')}
                                     className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
@@ -814,7 +828,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
 
             <ConfirmDialog
                 isOpen={pendingRemoval !== null}
-                onClose={() => setPendingRemoval(null)}
+                onClose={closeRemovalDialog}
                 onConfirm={confirmRemoval}
                 title={t('links.remove_confirm.title')}
                 message={t('links.remove_confirm.message', { name: pendingRemoval?.name ?? '' })}
@@ -824,6 +838,8 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 inputRequired
                 inputLabel={t('form.request_reason')}
                 inputPlaceholder={t('form.request_reason_help')}
+                isLoading={removeAssetLink.isPending || removeVendorLink.isPending}
+                errorText={pendingRemoval ? linkError : null}
             />
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null}
@@ -836,7 +852,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                         : 'link_add'}
                 isLoading={addProcessLink.isPending || setPrimaryProcess.isPending || removeProcessLink.isPending}
                 errorText={linkError}
-                onClose={() => setPendingProcessAction(null)}
+                onClose={() => {
+                    setPendingProcessAction(null);
+                    setLinkError(null);
+                }}
                 onConfirm={(reason) => {
                     if (pendingProcessAction?.kind === 'add') addProcessLink.mutate(reason);
                     if (pendingProcessAction?.kind === 'update') {
@@ -853,7 +872,11 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 namespace="assets"
                 kind="link_add"
                 isLoading={addAssetLink.isPending || addVendorLink.isPending}
-                onClose={() => setPendingAssetAction(null)}
+                errorText={linkError}
+                onClose={() => {
+                    setPendingAssetAction(null);
+                    setLinkError(null);
+                }}
                 onConfirm={(reason) => {
                     if (pendingAssetAction === 'asset_add') addAssetLink.mutate(reason);
                     if (pendingAssetAction === 'vendor_add') addVendorLink.mutate(reason);

@@ -88,6 +88,7 @@ export function useKriSubmit({
       // A protected Vendor must not be linked through the direct create
       // payload — the relationship goes through the governed
       // vendor.link.kri.add route after the KRI exists (#100).
+      let completionPatch: KriFormStatePatch = {};
       try {
         setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
         const parentRiskApprovalId = await submitProtectedParentRiskLink(
@@ -96,6 +97,7 @@ export function useKriSubmit({
           options,
         );
         if (parentRiskApprovalId !== null) {
+          completionPatch = { pendingGovernedCreate: null };
           acceptCurrentSnapshot(submittedSnapshot);
           navigateToApprovalRequest(navigate, parentRiskApprovalId);
           return;
@@ -113,6 +115,7 @@ export function useKriSubmit({
               ? [vendorContext.vendorId]
               : undefined,
         });
+        completionPatch = { pendingGovernedCreate: null };
         if (vendorContext) {
           let linkedDirectly = true;
           if (isProtectedVendorContext) {
@@ -162,7 +165,7 @@ export function useKriSubmit({
         setStatePatch({
           isMismatchDialogOpen: false,
           isSubmitting: false,
-          pendingGovernedCreate: null,
+          ...completionPatch,
         });
       }
     },

@@ -188,6 +188,12 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
                 linkedControls={[]}
                 linkedVendors={[]}
                 overdueKRIs={[]}
+                linkedControlsOutcome={{ kind: 'content', isRefreshing: false }}
+                linkedVendorsOutcome={{ kind: 'content', isRefreshing: false }}
+                overdueKrisOutcome={{ kind: 'content', isRefreshing: false }}
+                onRetryLinkedControls={vi.fn()}
+                onRetryLinkedVendors={vi.fn()}
+                onRetryOverdueKris={vi.fn()}
                 getColor={() => '#334155'}
                 getDisplayName={() => 'Operational'}
                 onNavigateToNewKri={onNavigateToNewKri}

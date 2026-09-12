@@ -361,6 +361,7 @@
     "title": "Error",
     "try_again": "Try again",
     "load_failed": "Failed to load vendors",
+    "archive_failed": "Failed to archive the vendor. Please try again.",
     "save_failed": "Failed to save vendor",
     "not_found": "Not found",
     "vendor_not_found": "Vendor not found",
@@ -380,6 +381,7 @@
     "annual": {
       "title": "Annual Vendor Management Report",
       "year": "Year",
+      "year_error": "Enter a whole year from 2000 to 2100.",
       "download_csv": "Download CSV"
     },
     "dora": {

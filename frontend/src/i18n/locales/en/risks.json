@@ -91,6 +91,7 @@
     "required": "Required",
     "readonly_hint": "Read-only: you are not assigned to submit this questionnaire.",
     "validation_missing": "Please answer all required questions.",
+    "validation_required": "This question is required.",
     "compare_toggle": "Compare to last cycle",
     "no_previous_cycle": "No previous cycle available.",
     "changed": "Changed",

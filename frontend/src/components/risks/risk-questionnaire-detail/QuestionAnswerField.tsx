@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -37,12 +38,24 @@ export function QuestionAnswerField({
     worstCaseImpactOptions,
     worstCaseImpactQuestionKey,
 }: QuestionAnswerFieldProps) {
+    const controlId = useId();
     const label = t(`risks:questionnaire.questions.${question.key}`, question.key);
     const value = answers[question.key];
     const missing = missingKeys.includes(question.key);
     const spanFullWidth = question.type === 'textarea';
     const changed = isChanged(question.key);
     const helperText = question.helperTextKey ? t(`risks:${question.helperTextKey}`, '') : '';
+    const labelId = `${controlId}-label`;
+    const helperId = helperText ? `${controlId}-help` : undefined;
+    const errorId = missing ? `${controlId}-error` : undefined;
+    const describedBy = [helperId, errorId].filter(Boolean).join(' ') || undefined;
+    const controlA11y = {
+        id: controlId,
+        'aria-labelledby': labelId,
+        'aria-describedby': describedBy,
+        'aria-invalid': missing ? true : undefined,
+        'aria-required': question.required ? true : undefined,
+    } as const;
 
     if (!isEditable) {
         return (
@@ -64,15 +77,27 @@ export function QuestionAnswerField({
     }
 
     return (
-        <div className={cn('space-y-1', spanFullWidth && 'md:col-span-2')}>
-            <QuestionLabel changed={changed} label={label} missing={missing} required={question.required} t={t} />
+        <div
+            className={cn('space-y-1', spanFullWidth && 'md:col-span-2')}
+            data-questionnaire-question={question.key}
+        >
+            <QuestionLabel
+                changed={changed}
+                controlId={controlId}
+                label={label}
+                labelId={labelId}
+                missing={missing}
+                required={question.required}
+                t={t}
+            />
 
             {helperText && (
-                <div className="text-xs text-slate-500">{helperText}</div>
+                <div id={helperId} className="text-xs text-slate-500">{helperText}</div>
             )}
 
             {(question.key === likelihoodQuestionKey || question.key === worstCaseImpactQuestionKey) && (
                 <ThemedSelect
+                    {...controlA11y}
                     value={typeof value === 'number' ? String(value) : ''}
                     onValueChange={(nextValue) => {
                         setAnswers((current) => ({
@@ -92,8 +117,12 @@ export function QuestionAnswerField({
 
             {question.type === 'boolean' && (
                 <ThemedSelect
+                    {...controlA11y}
                     value={typeof value === 'boolean' ? String(value) : ''}
-                    onValueChange={(nextValue) => setAnswers((current) => ({ ...current, [question.key]: nextValue === 'true' }))}
+                    onValueChange={(nextValue) => setAnswers((current) => ({
+                        ...current,
+                        [question.key]: nextValue === '' ? undefined : nextValue === 'true',
+                    }))}
                     placeholder={t('common:actions.select')}
                     allowEmpty
                     emptyLabel={t('common:labels.none')}
@@ -106,6 +135,7 @@ export function QuestionAnswerField({
 
             {question.type === 'single_select' && (
                 <ThemedSelect
+                    {...controlA11y}
                     value={typeof value === 'string' ? value : ''}
                     onValueChange={(nextValue) => setAnswers((current) => ({ ...current, [question.key]: nextValue }))}
                     placeholder={t('common:actions.select')}
@@ -120,6 +150,7 @@ export function QuestionAnswerField({
 
             {question.type === 'text' && (
                 <input
+                    {...controlA11y}
                     value={typeof value === 'string' ? value : ''}
                     onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
                     className={cn(
@@ -131,6 +162,7 @@ export function QuestionAnswerField({
 
             {question.type === 'number' && question.key !== likelihoodQuestionKey && question.key !== worstCaseImpactQuestionKey && (
                 <input
+                    {...controlA11y}
                     type="number"
                     min={1}
                     max={5}
@@ -152,6 +184,7 @@ export function QuestionAnswerField({
 
             {question.type === 'textarea' && (
                 <textarea
+                    {...controlA11y}
                     value={typeof value === 'string' ? value : ''}
                     onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
                     rows={3}
@@ -167,28 +200,47 @@ export function QuestionAnswerField({
                     {t('risks:questionnaire.previous')}: {renderAnswer(question.key, getPreviousAnswer(question.key))}
                 </div>
             )}
+            {missing ? (
+                <p id={errorId} className="text-xs font-medium text-rose-400">
+                    {t('risks:questionnaire.validation_required')}
+                </p>
+            ) : null}
         </div>
     );
 }
 
 function QuestionLabel({
     changed,
+    controlId,
     label,
+    labelId,
     missing,
     required,
     t,
 }: {
     changed: boolean;
+    controlId?: string;
     label: string;
+    labelId?: string;
     missing: boolean;
     required: boolean;
     t: TranslateFn;
 }) {
     return (
         <div className="flex items-center gap-2">
-            <p className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}>
-                {label}
-            </p>
+            {controlId ? (
+                <label
+                    id={labelId}
+                    htmlFor={controlId}
+                    className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}
+                >
+                    {label}
+                </label>
+            ) : (
+                <p className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}>
+                    {label}
+                </p>
+            )}
             {changed && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
                     {t('risks:questionnaire.changed')}

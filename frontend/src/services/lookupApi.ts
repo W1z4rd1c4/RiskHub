@@ -71,8 +71,15 @@ export const lookupApi = {
         return apiClient.get('/users/lookup', { params, schema: userLookupArraySchema });
     },
 
-    async getRiskOwners(params?: AssignmentOwnerLookupParams): Promise<UserLookupItem[]> {
-        return apiClient.get('/users/lookup/risk-owners', { params, schema: userLookupArraySchema });
+    async getRiskOwners(
+        params?: AssignmentOwnerLookupParams,
+        options?: { signal?: AbortSignal },
+    ): Promise<UserLookupItem[]> {
+        return apiClient.get('/users/lookup/risk-owners', {
+            params,
+            schema: userLookupArraySchema,
+            signal: options?.signal,
+        });
     },
 
     async getControlOwners(params?: AssignmentOwnerLookupParams): Promise<UserLookupItem[]> {
@@ -125,11 +132,21 @@ export const lookupApi = {
         });
     },
 
-    async getDepartments(): Promise<DepartmentSummary[]> {
-        return apiClient.get('/departments', { schema: departmentSummaryArraySchema });
+    async getDepartments(options?: { signal?: AbortSignal }): Promise<DepartmentSummary[]> {
+        return apiClient.get('/departments', {
+            schema: departmentSummaryArraySchema,
+            signal: options?.signal,
+        });
     },
 
-    async getRiskFilters(): Promise<{ processes: string[], categories: string[] }> {
-        return apiClient.get('/lookups/risk-filters', { schema: riskFiltersSchema });
+    async getRiskFilters(options?: { signal?: AbortSignal }): Promise<{
+        processes: string[];
+        categories: string[];
+        subprocesses_by_process: Record<string, string[]>;
+    }> {
+        return apiClient.get('/lookups/risk-filters', {
+            schema: riskFiltersSchema,
+            signal: options?.signal,
+        });
     }
 };

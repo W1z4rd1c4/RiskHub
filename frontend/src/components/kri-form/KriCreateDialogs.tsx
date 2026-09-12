@@ -7,6 +7,7 @@ interface KriCreateOptions {
 }
 
 interface KriCreateDialogsProps {
+    errorText?: string | null;
     isMismatchDialogOpen: boolean;
     isProtectedVendor: boolean;
     isSubmitting: boolean;
@@ -18,6 +19,7 @@ interface KriCreateDialogsProps {
 }
 
 export function KriCreateDialogs({
+    errorText = null,
     isMismatchDialogOpen,
     isProtectedVendor,
     isSubmitting,
@@ -45,6 +47,7 @@ export function KriCreateDialogs({
                     kind="link_add"
                     namespace="vendors"
                     reasonRequired
+                    errorText={errorText}
                     onClose={onCancelGoverned}
                     onConfirm={onConfirmGoverned}
                 />

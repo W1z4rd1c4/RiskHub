@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
@@ -82,6 +82,12 @@ export function ConfirmDialog({
     const styles = variantStyles[variant];
     const IconComponent = styles.icon;
 
+    useEffect(() => {
+        if (!isOpen) {
+            setInputValue('');
+        }
+    }, [isOpen]);
+
     const handleClose = useCallback(() => {
         if (isLoading) return;
         setInputValue('');
@@ -95,7 +101,6 @@ export function ConfirmDialog({
 
     const handleConfirm = () => {
         onConfirm(showInput ? inputValue : undefined);
-        setInputValue('');
     };
 
     const isConfirmDisabled = isLoading || (showInput && inputRequired && !inputValue.trim());
@@ -151,6 +156,7 @@ export function ConfirmDialog({
                             onChange={(e) => setInputValue(e.target.value)}
                             placeholder={resolvedInputPlaceholder}
                             rows={3}
+                            disabled={isLoading}
                             aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
                             className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-accent/50 transition-all resize-none"
                         />

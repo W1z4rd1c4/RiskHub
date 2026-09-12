@@ -177,6 +177,11 @@
     "archive_reversible": "This action can be undone by an administrator.",
     "remove_link": "Are you sure you want to remove this link?"
   },
+  "pending_change_cancellation": {
+    "title": "Cancel pending request?",
+    "message": "Cancel the pending request for \"{{targetName}}\"? This is terminal and cannot be undone.",
+    "confirm": "Cancel request"
+  },
   "pagination": {
     "page": "Page",
     "of": "of",

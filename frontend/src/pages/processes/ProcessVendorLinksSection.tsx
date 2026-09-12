@@ -122,7 +122,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                 </h2>
             </div>
 
-            {linkError ? (
+            {linkError && pendingAction === null ? (
                 <div className="border border-rose-400/30 rounded-xl px-4 py-3 text-rose-300 text-sm font-medium">
                     {linkError}
                 </div>
@@ -150,7 +150,10 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                                     <button
                                         type="button"
                                         data-testid={`process-vendor-link-remove-${link.id}`}
-                                        onClick={() => setPendingAction({ kind: 'remove', linkId: link.id })}
+                                        onClick={() => {
+                                            setLinkError(null);
+                                            setPendingAction({ kind: 'remove', linkId: link.id });
+                                        }}
                                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
                                         title={t('links.remove')}
                                     >
@@ -189,7 +192,10 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                             type="button"
                             data-testid="process-vendor-link-add"
                             disabled={!linkPayload || addVendorLink.isPending}
-                            onClick={() => setPendingAction({ kind: 'add' })}
+                            onClick={() => {
+                                setLinkError(null);
+                                setPendingAction({ kind: 'add' });
+                            }}
                             className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             <Plus className="h-4 w-4" />
@@ -204,7 +210,11 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                 namespace="processes"
                 kind={pendingAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addVendorLink.isPending || removeVendorLink.isPending}
-                onClose={() => setPendingAction(null)}
+                errorText={linkError}
+                onClose={() => {
+                    setPendingAction(null);
+                    setLinkError(null);
+                }}
                 onConfirm={(reason) => {
                     if (pendingAction?.kind === 'remove') {
                         removeVendorLink.mutate({ linkId: pendingAction.linkId, reason });

@@ -30,6 +30,10 @@ import { useContentTabs } from '@/hooks/useContentTabs';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
+    return <RiskDetailRoute key={id ?? 'invalid'} rawId={id} />;
+}
+
+function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/risks');
@@ -47,18 +51,25 @@ export function RiskDetailPage() {
         isCreateDialogOpen,
         isDeleteDialogOpen,
         isDeleting,
-        isHistoryLoading,
         isIssueModalOpen,
         isLinkDialogOpen,
         isRetrying,
         kriHistoryItems,
+        kriHistoryOutcome,
         linkErrorKey,
         linkedControls,
+        linkedControlsOutcome,
         linkedVendors,
+        linkedVendorsOutcome,
         loadOutcome,
         overdueKRIs,
+        overdueKrisOutcome,
         refreshData,
         resourceId,
+        retryKriHistory,
+        retryLinkedControls,
+        retryLinkedVendors,
+        retryOverdueKris,
         risk,
         setActiveTab,
         setApprovalMessage,
@@ -68,7 +79,7 @@ export function RiskDetailPage() {
         setIsIssueModalOpen,
         setIsLinkDialogOpen,
         setLinkErrorKey,
-    } = useRiskDetailState({ rawId: id, returnTo });
+    } = useRiskDetailState({ rawId, returnTo });
     const { getPanelProps, getTabProps } = useContentTabs({
         tabs: riskDetailTabs,
         activeTab,
@@ -89,7 +100,7 @@ export function RiskDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4" aria-busy="true" data-loading="true">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.risk_data')}</p>
+                <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.risk_data')}</p>
             </div>
         );
     }
@@ -215,7 +226,10 @@ export function RiskDetailPage() {
                                 type="button"
                                 variant="destructive"
                                 size="icon"
-                                onClick={() => setIsDeleteDialogOpen(true)}
+                                onClick={() => {
+                                    setApprovalMessage(null);
+                                    setIsDeleteDialogOpen(true);
+                                }}
                                 title={t('actions.archive')}
                                 aria-label={t('actions.archive')}
                             >
@@ -268,6 +282,12 @@ export function RiskDetailPage() {
                     linkedControls={linkedControls}
                     linkedVendors={linkedVendors}
                     overdueKRIs={overdueKRIs}
+                    linkedControlsOutcome={linkedControlsOutcome}
+                    linkedVendorsOutcome={linkedVendorsOutcome}
+                    overdueKrisOutcome={overdueKrisOutcome}
+                    onRetryLinkedControls={() => void retryLinkedControls()}
+                    onRetryLinkedVendors={() => void retryLinkedVendors()}
+                    onRetryOverdueKris={() => void retryOverdueKris()}
                     getColor={getColor}
                     getDisplayName={getDisplayName}
                     onNavigateToNewKri={() => navigate(`/kris/new?risk_id=${risk.id}`)}
@@ -291,8 +311,9 @@ export function RiskDetailPage() {
             <div {...getPanelProps('history')}>
                 {activeTab === 'history' && <RiskDetailKriHistoryTab
                     items={kriHistoryItems}
-                    loading={isHistoryLoading}
                     hasKRIs={!!(risk.kris && risk.kris.length > 0)}
+                    outcome={kriHistoryOutcome}
+                    onRetry={() => void retryKriHistory()}
                 />}
             </div>
 
@@ -314,6 +335,9 @@ export function RiskDetailPage() {
                 showInput
                 inputLabel={t('common:labels.archive_reason')}
                 inputPlaceholder={t('common:labels.archive_reason_placeholder')}
+                errorText={approvalMessage?.isError
+                    ? t(approvalMessage.key, { ns: 'errorKeys' })
+                    : null}
             />
 
         </div>

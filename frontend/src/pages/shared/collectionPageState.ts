@@ -6,6 +6,7 @@ import type { CollectionCapabilities, CollectionGroup } from '@/types/collection
 export interface CollectionLoadFailureOptions {
     clearOnNonForbidden?: boolean;
     fallbackErrorKey?: string;
+    isAccessDenied?: (error: unknown) => boolean;
     toErrorKey?: (error: unknown) => string | null;
 }
 
@@ -139,7 +140,7 @@ export function resolveCollectionLoadFailure(
     error: unknown,
     options: CollectionLoadFailureOptions = {}
 ): CollectionLoadFailureResolution {
-    const isAccessDenied = isForbiddenApiError(error);
+    const isAccessDenied = options.isAccessDenied?.(error) ?? isForbiddenApiError(error);
     return {
         errorKey: isAccessDenied
             ? null
@@ -196,9 +197,7 @@ export function useLatestRequestGuard() {
         return latestRequestIdRef.current;
     }, []);
 
-    const isCurrentRequest = useCallback((requestId: number) => {
-        return requestId === latestRequestIdRef.current;
-    }, []);
+    const isCurrentRequest = useCallback((requestId: number) => requestId === latestRequestIdRef.current, []);
 
     return { beginRequest, isCurrentRequest };
 }

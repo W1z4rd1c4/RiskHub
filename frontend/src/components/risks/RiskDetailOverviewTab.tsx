@@ -1,8 +1,12 @@
+import type { ReactNode } from 'react';
 import type { OverdueKRI } from '@/types/kri';
 import type { ControlEffectiveness, Risk, RiskControlLink } from '@/types/risk';
 import type { Vendor } from '@/types/vendor';
 
+import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
 import { RiskAssessmentSection } from './detail-overview/RiskAssessmentSection';
 import { RiskKriSection } from './detail-overview/RiskKriSection';
@@ -20,6 +24,12 @@ interface RiskDetailOverviewTabProps {
     linkedControls: RiskControlLink[];
     linkedVendors: Vendor[];
     overdueKRIs: OverdueKRI[];
+    linkedControlsOutcome: CollectionOutcome;
+    linkedVendorsOutcome: CollectionOutcome;
+    overdueKrisOutcome: CollectionOutcome;
+    onRetryLinkedControls: () => void;
+    onRetryLinkedVendors: () => void;
+    onRetryOverdueKris: () => void;
     getColor: (type: string) => string;
     getDisplayName: (type: string) => string;
     onNavigateToNewKri: () => void;
@@ -38,11 +48,85 @@ interface RiskDetailOverviewTabProps {
     setIsCreateDialogOpen: (open: boolean) => void;
 }
 
+function SidecarSection({
+    children,
+    className,
+    label,
+    onRetry,
+    outcome,
+    retainChildrenOnFailure = false,
+    testId,
+}: {
+    children: ReactNode;
+    className?: string;
+    label: string;
+    onRetry: () => void;
+    outcome: CollectionOutcome;
+    retainChildrenOnFailure?: boolean;
+    testId: string;
+}) {
+    const { t } = useTranslation('common');
+    const isError = outcome.kind === 'fatal-error' || outcome.kind === 'stale-with-error';
+    const isRetrying = isError ? outcome.isRetrying : false;
+    const errorMessage = outcome.kind === 'stale-with-error'
+        ? `${label}: ${t('common:detail_load.stale_description')}`
+        : `${label}: ${t('common:errors.load_failed')}`;
+
+    return (
+        <div
+            className={className}
+            aria-busy={outcome.kind === 'initial-loading' || outcome.kind === 'content' && outcome.isRefreshing}
+        >
+            {outcome.kind === 'fatal-error' || outcome.kind === 'denied' ? (
+                retainChildrenOnFailure ? <>
+                    <TableErrorState
+                        variant="banner"
+                        testId={testId}
+                        message={errorMessage}
+                        onRetry={outcome.kind === 'fatal-error' ? onRetry : undefined}
+                        isRetrying={isRetrying}
+                        className="mb-4"
+                    />
+                    {children}
+                </> :
+                <TableErrorState
+                    testId={testId}
+                    message={errorMessage}
+                    onRetry={outcome.kind === 'fatal-error' ? onRetry : undefined}
+                    isRetrying={isRetrying}
+                />
+            ) : outcome.kind === 'initial-loading' ? (
+                <div className="glass-card py-12 text-center text-sm text-muted-foreground" role="status">
+                    {t('common:loading.generic')}
+                </div>
+            ) : <>
+            {outcome.kind === 'stale-with-error' ? (
+                <TableErrorState
+                    variant="banner"
+                    testId={testId}
+                    message={errorMessage}
+                    onRetry={onRetry}
+                    isRetrying={isRetrying}
+                    className="mb-4"
+                />
+            ) : null}
+            {children}
+            </>}
+        </div>
+    );
+}
+
 export function RiskDetailOverviewTab({
     risk,
     linkedControls,
     linkedVendors,
     overdueKRIs,
+    linkedControlsOutcome,
+    linkedVendorsOutcome,
+    overdueKrisOutcome,
+    onRetryLinkedControls,
+    onRetryLinkedVendors,
+    onRetryOverdueKris,
     getColor,
     getDisplayName,
     onNavigateToNewKri,
@@ -60,6 +144,7 @@ export function RiskDetailOverviewTab({
     isCreateDialogOpen,
     setIsCreateDialogOpen,
 }: RiskDetailOverviewTabProps) {
+    const { t } = useTranslation(['risks', 'common']);
     const { activeControls, draftControls, archivedControls } = groupLinkedControls(linkedControls);
     const canCreateKri = resolveCapabilityFlag(risk.capabilities, 'can_create_kri');
     const canCreateLinkedControl = resolveCapabilityFlag(risk.capabilities, 'can_create_linked_control');
@@ -71,44 +156,77 @@ export function RiskDetailOverviewTab({
             <RiskAssessmentSection risk={risk} />
             <RiskSummaryCards
                 risk={risk}
-                activeControlCount={activeControls.length}
+                activeControlCount={linkedControlsOutcome.kind === 'content'
+                    || linkedControlsOutcome.kind === 'empty'
+                    || linkedControlsOutcome.kind === 'stale-with-error'
+                    ? activeControls.length
+                    : null}
                 linkedKriCount={risk.kris?.length ?? 0}
-                linkedVendorCount={linkedVendors.length}
+                linkedVendorCount={linkedVendorsOutcome.kind === 'content'
+                    || linkedVendorsOutcome.kind === 'empty'
+                    || linkedVendorsOutcome.kind === 'stale-with-error'
+                    ? linkedVendors.length
+                    : null}
                 getColor={getColor}
                 getDisplayName={getDisplayName}
             >
-                <RiskKriSection
-                    risk={risk}
-                    overdueKRIs={overdueKRIs}
-                    canCreateKri={canCreateKri}
-                    onNavigateToNewKri={onNavigateToNewKri}
-                    onNavigateToKri={onNavigateToKri}
-                />
+                <SidecarSection
+                    className="md:col-span-2 lg:col-span-3"
+                    label={t('overview.risk_appetite_indicators', { ns: 'risks' })}
+                    outcome={overdueKrisOutcome}
+                    onRetry={onRetryOverdueKris}
+                    retainChildrenOnFailure
+                    testId="risk-overdue-kris-load-state"
+                >
+                    <RiskKriSection
+                        risk={risk}
+                        overdueKRIs={overdueKrisOutcome.kind === 'content' || overdueKrisOutcome.kind === 'empty'
+                            ? overdueKRIs
+                            : []}
+                        canCreateKri={canCreateKri}
+                        onNavigateToNewKri={onNavigateToNewKri}
+                        onNavigateToKri={onNavigateToKri}
+                    />
+                </SidecarSection>
             </RiskSummaryCards>
-            <RiskLinkedControlsSection
-                linkedControls={linkedControls}
-                activeControls={activeControls}
-                draftControls={draftControls}
-                archivedControls={archivedControls}
-                isLinkDialogOpen={isLinkDialogOpen}
-                setIsLinkDialogOpen={setIsLinkDialogOpen}
-                dialogMode={dialogMode}
-                setDialogMode={setDialogMode}
-                isCreateDialogOpen={isCreateDialogOpen}
-                setIsCreateDialogOpen={setIsCreateDialogOpen}
-                onLinkControl={onLinkControl}
-                onUnlinkControl={onUnlinkControl}
-                onOpenCreateControl={onOpenCreateControl}
-                onNavigateToControl={onNavigateToControl}
-                onRefreshData={onRefreshData}
-                canCreateLinkedControl={canCreateLinkedControl}
-                canLinkControls={canLinkControls}
-                canUnlinkControls={canUnlinkControls}
-            />
-            <RiskLinkedVendorsSection
-                linkedVendors={linkedVendors}
-                onNavigateToVendor={onNavigateToVendor}
-            />
+            <SidecarSection
+                label={t('overview.mitigating_controls', { ns: 'risks' })}
+                outcome={linkedControlsOutcome}
+                onRetry={onRetryLinkedControls}
+                testId="risk-linked-controls-load-state"
+            >
+                <RiskLinkedControlsSection
+                    linkedControls={linkedControls}
+                    activeControls={activeControls}
+                    draftControls={draftControls}
+                    archivedControls={archivedControls}
+                    isLinkDialogOpen={isLinkDialogOpen}
+                    setIsLinkDialogOpen={setIsLinkDialogOpen}
+                    dialogMode={dialogMode}
+                    setDialogMode={setDialogMode}
+                    isCreateDialogOpen={isCreateDialogOpen}
+                    setIsCreateDialogOpen={setIsCreateDialogOpen}
+                    onLinkControl={onLinkControl}
+                    onUnlinkControl={onUnlinkControl}
+                    onOpenCreateControl={onOpenCreateControl}
+                    onNavigateToControl={onNavigateToControl}
+                    onRefreshData={onRefreshData}
+                    canCreateLinkedControl={canCreateLinkedControl}
+                    canLinkControls={canLinkControls}
+                    canUnlinkControls={canUnlinkControls}
+                />
+            </SidecarSection>
+            <SidecarSection
+                label={t('overview.linked_vendors', { ns: 'risks' })}
+                outcome={linkedVendorsOutcome}
+                onRetry={onRetryLinkedVendors}
+                testId="risk-linked-vendors-load-state"
+            >
+                <RiskLinkedVendorsSection
+                    linkedVendors={linkedVendors}
+                    onNavigateToVendor={onNavigateToVendor}
+                />
+            </SidecarSection>
             <RiskRegisterLinksSection
                 risk={risk}
                 canManageLinks={resolveCapabilityFlag(risk.capabilities, 'can_update')}

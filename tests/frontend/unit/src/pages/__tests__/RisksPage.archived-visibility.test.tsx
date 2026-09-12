@@ -130,6 +130,65 @@ describe('RisksPage archived visibility', () => {
         clearBootstrapSession();
     });
 
+    it('projects pending state from each Risk row without requesting the approval queue', async () => {
+        let approvalQueueRequests = 0;
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(makeUser())),
+            http.get('*/api/v1/risks', () => HttpResponse.json({
+                items: [{
+                    id: 91,
+                    risk_id_code: 'R-PENDING-091',
+                    name: 'Pending Risk change',
+                    process: 'Claims',
+                    risk_type: 'operational',
+                    category: 'Operations',
+                    description: 'Pending state comes from this visible row.',
+                    gross_score: 9,
+                    gross_probability: 3,
+                    gross_impact: 3,
+                    net_score: 4,
+                    status: 'active',
+                    is_archived: false,
+                    is_priority: false,
+                    capabilities: {
+                        can_read: true,
+                        can_update: false,
+                        can_update_sensitive_fields: false,
+                        can_request_update_approval: false,
+                        can_archive_immediately: false,
+                        can_request_archive_approval: false,
+                        can_restore: false,
+                        can_send_questionnaire: false,
+                        can_create_kri: false,
+                        can_create_linked_control: false,
+                        can_link_controls: false,
+                        can_unlink_controls: false,
+                        can_view_linked_controls: true,
+                        can_view_linked_vendors: true,
+                        can_create_issue: false,
+                        has_pending_delete_approval: false,
+                        has_pending_update_approval: true,
+                        requires_privileged_update_approval: false,
+                        requires_privileged_delete_approval: false,
+                    },
+                }],
+                total: 1,
+                offset: 0,
+                limit: 20,
+            })),
+            http.get('*/api/v1/approvals', () => {
+                approvalQueueRequests += 1;
+                return HttpResponse.json({ items: [], total: 0, skip: 0, limit: 100 });
+            }),
+        );
+
+        await renderWithRoute('/risks');
+
+        expect(await screen.findByText('Pending Risk change')).toBeInTheDocument();
+        expect(screen.getByText('Pending')).toBeInTheDocument();
+        expect(approvalQueueRequests).toBe(0);
+    });
+
     it('hides archived risks by default and shows them when lifecycle is set to Archived', async () => {
         const user = makeUser();
 

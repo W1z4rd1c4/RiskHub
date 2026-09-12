@@ -361,6 +361,7 @@
     "title": "Chyba",
     "try_again": "Zkusit znovu",
     "load_failed": "Nepodařilo se načíst dodavatele",
+    "archive_failed": "Dodavatele se nepodařilo archivovat. Zkuste to znovu.",
     "save_failed": "Nepodařilo se uložit dodavatele",
     "not_found": "Nenalezeno",
     "vendor_not_found": "Dodavatel nebyl nalezen",
@@ -380,6 +381,7 @@
     "annual": {
       "title": "Roční report řízení dodavatelů",
       "year": "Rok",
+      "year_error": "Zadejte celý rok od 2000 do 2100.",
       "download_csv": "Stáhnout CSV"
     },
     "dora": {

@@ -8,6 +8,7 @@ import {
 export const riskFiltersSchema = passthroughObject({
     processes: z.array(z.string()),
     categories: z.array(z.string()),
+    subprocesses_by_process: z.record(z.string(), z.array(z.string())),
 });
 
 export const userPreferencesSchema: z.ZodType<UserPreferences> = passthroughObject({

@@ -33,17 +33,39 @@ interface JourneyConfig {
 
 interface JourneyState {
     activeToken: string | null;
+    croRiskFilterRequests: number;
+    croSidecarRequests: number;
     currentPrincipal: Principal | null;
     departmentOverviewRequests: number;
     forceNotificationRefresh: boolean;
     localeModuleRequests: JourneyLocale[];
+    markCroRiskFiltersSettled: () => void;
+    markCroRiskFiltersStarted: () => void;
+    markCroSidecarSettled: () => void;
+    markCroSidecarStarted: () => void;
+    markDepartmentRiskFiltersStarted: () => void;
+    markDepartmentSidecarStarted: () => void;
     notificationRequests: number;
     overviewRequests: number;
     preferencePutAttempts: number;
     protectedAuthorizations: Record<Principal | 'refreshed-department-head', string[]>;
+    releaseCroRiskFilters: () => void;
+    releaseCroSidecar: () => void;
+    releaseDepartmentRiskFilters: () => void;
+    releaseDepartmentSidecar: () => void;
     refreshRequests: number;
     releaseDepartmentOverview: () => void;
+    waitForCroRiskFilters: Promise<void>;
+    waitForCroRiskFiltersSettled: Promise<void>;
+    waitForCroRiskFiltersStarted: Promise<void>;
+    waitForCroSidecar: Promise<void>;
+    waitForCroSidecarSettled: Promise<void>;
+    waitForCroSidecarStarted: Promise<void>;
     waitForDepartmentOverview: Promise<void>;
+    waitForDepartmentRiskFilters: Promise<void>;
+    waitForDepartmentRiskFiltersStarted: Promise<void>;
+    waitForDepartmentSidecar: Promise<void>;
+    waitForDepartmentSidecarStarted: Promise<void>;
 }
 
 const CRO_EMAIL = 'cro.ux162@example.test';
@@ -51,6 +73,13 @@ const DEPARTMENT_HEAD_EMAIL = 'department-head.ux162@example.test';
 const CRO_TOKEN = 'ux162-cro-token';
 const DEPARTMENT_HEAD_TOKEN = 'ux162-department-head-token';
 const REFRESHED_DEPARTMENT_HEAD_TOKEN = 'ux162-department-head-refreshed-token';
+const CROSS_TICKET_RISK_ID = 16240;
+const CRO_RISK_NAME = 'CRO confidential settlement risk';
+const CRO_SIDECAR_NAME = 'CRO confidential settlement control';
+const CRO_LOOKUP_PROCESS = 'CRO confidential process';
+const DEPARTMENT_RISK_NAME = 'Operations settlement risk';
+const DEPARTMENT_SIDECAR_NAME = 'Operations settlement control';
+const DEPARTMENT_LOOKUP_PROCESS = 'Operations current process';
 
 const JOURNEYS: JourneyConfig[] = [
     {
@@ -167,6 +196,89 @@ function overview(totalControls: number) {
     };
 }
 
+function risk(principal: Principal) {
+    const isCro = principal === 'cro';
+    return {
+        id: CROSS_TICKET_RISK_ID,
+        risk_id_code: isCro ? 'R-CRO-ONLY' : 'R-OPS-CURRENT',
+        name: isCro ? CRO_RISK_NAME : DEPARTMENT_RISK_NAME,
+        process: isCro ? CRO_LOOKUP_PROCESS : DEPARTMENT_LOOKUP_PROCESS,
+        subprocess: isCro ? 'Restricted settlement' : 'Current settlement',
+        risk_type: 'operational',
+        category: isCro ? 'CRO restricted category' : 'Operations category',
+        description: isCro
+            ? 'This record must never survive the principal switch.'
+            : 'This record belongs to the current Department Head session.',
+        department_id: isCro ? null : 7,
+        owner_id: null,
+        gross_probability: 4,
+        gross_impact: 4,
+        gross_score: 16,
+        net_probability: 3,
+        net_impact: 3,
+        net_score: 9,
+        status: 'active',
+        is_archived: false,
+        is_priority: false,
+        created_at: '2026-08-31T10:00:00Z',
+        updated_at: '2026-08-31T12:00:00Z',
+        kris: [],
+        capabilities: {
+            can_read: true,
+            can_update: isCro,
+            can_update_sensitive_fields: false,
+            can_request_update_approval: false,
+            can_archive_immediately: isCro,
+            can_request_archive_approval: false,
+            can_restore: false,
+            can_send_questionnaire: false,
+            can_create_kri: false,
+            can_create_linked_control: false,
+            can_link_controls: false,
+            can_unlink_controls: isCro,
+            can_view_linked_controls: true,
+            can_view_linked_vendors: true,
+            can_create_issue: false,
+            has_pending_delete_approval: false,
+            has_pending_update_approval: false,
+            requires_privileged_update_approval: false,
+            requires_privileged_delete_approval: false,
+        },
+    };
+}
+
+function linkedControl(principal: Principal) {
+    const isCro = principal === 'cro';
+    const controlId = isCro ? 16241 : 16242;
+    return {
+        id: controlId,
+        control_id: controlId,
+        risk_id: CROSS_TICKET_RISK_ID,
+        effectiveness: 'high',
+        notes: null,
+        created_at: '2026-08-31T11:00:00Z',
+        control: {
+            id: controlId,
+            name: isCro ? CRO_SIDECAR_NAME : DEPARTMENT_SIDECAR_NAME,
+            frequency: 'monthly',
+            risk_level: 2,
+            status: 'active',
+            is_archived: false,
+        },
+    };
+}
+
+function riskFilters(principal: Principal) {
+    const process = principal === 'cro' ? CRO_LOOKUP_PROCESS : DEPARTMENT_LOOKUP_PROCESS;
+    return {
+        processes: [process],
+        categories: [principal === 'cro' ? 'CRO restricted category' : 'Operations category'],
+        subprocesses_by_process: {
+            [process]: [principal === 'cro' ? 'Restricted settlement' : 'Current settlement'],
+        },
+    };
+}
+
 function authorization(route: Route): string {
     return route.request().headers().authorization ?? '<none>';
 }
@@ -175,18 +287,39 @@ async function json(route: Route, body: unknown, status = 200) {
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
+function deferred() {
+    let release!: () => void;
+    const promise = new Promise<void>((resolve) => { release = resolve; });
+    return { promise, release };
+}
+
 function createJourneyState(): JourneyState {
-    let releaseDepartmentOverview!: () => void;
-    const waitForDepartmentOverview = new Promise<void>((resolve) => {
-        releaseDepartmentOverview = resolve;
-    });
+    const croRiskFilters = deferred();
+    const croRiskFiltersSettled = deferred();
+    const croRiskFiltersStarted = deferred();
+    const croSidecar = deferred();
+    const croSidecarSettled = deferred();
+    const croSidecarStarted = deferred();
+    const departmentOverview = deferred();
+    const departmentRiskFilters = deferred();
+    const departmentRiskFiltersStarted = deferred();
+    const departmentSidecar = deferred();
+    const departmentSidecarStarted = deferred();
 
     return {
         activeToken: null,
+        croRiskFilterRequests: 0,
+        croSidecarRequests: 0,
         currentPrincipal: null,
         departmentOverviewRequests: 0,
         forceNotificationRefresh: false,
         localeModuleRequests: [],
+        markCroRiskFiltersSettled: croRiskFiltersSettled.release,
+        markCroRiskFiltersStarted: croRiskFiltersStarted.release,
+        markCroSidecarSettled: croSidecarSettled.release,
+        markCroSidecarStarted: croSidecarStarted.release,
+        markDepartmentRiskFiltersStarted: departmentRiskFiltersStarted.release,
+        markDepartmentSidecarStarted: departmentSidecarStarted.release,
         notificationRequests: 0,
         overviewRequests: 0,
         preferencePutAttempts: 0,
@@ -195,9 +328,23 @@ function createJourneyState(): JourneyState {
             'department-head': [],
             'refreshed-department-head': [],
         },
+        releaseCroRiskFilters: croRiskFilters.release,
+        releaseCroSidecar: croSidecar.release,
+        releaseDepartmentRiskFilters: departmentRiskFilters.release,
+        releaseDepartmentSidecar: departmentSidecar.release,
         refreshRequests: 0,
-        releaseDepartmentOverview,
-        waitForDepartmentOverview,
+        releaseDepartmentOverview: departmentOverview.release,
+        waitForCroRiskFilters: croRiskFilters.promise,
+        waitForCroRiskFiltersSettled: croRiskFiltersSettled.promise,
+        waitForCroRiskFiltersStarted: croRiskFiltersStarted.promise,
+        waitForCroSidecar: croSidecar.promise,
+        waitForCroSidecarSettled: croSidecarSettled.promise,
+        waitForCroSidecarStarted: croSidecarStarted.promise,
+        waitForDepartmentOverview: departmentOverview.promise,
+        waitForDepartmentRiskFilters: departmentRiskFilters.promise,
+        waitForDepartmentRiskFiltersStarted: departmentRiskFiltersStarted.promise,
+        waitForDepartmentSidecar: departmentSidecar.promise,
+        waitForDepartmentSidecarStarted: departmentSidecarStarted.promise,
     };
 }
 
@@ -205,9 +352,10 @@ async function installRouteIntercepts(page: Page, config: JourneyConfig, state: 
     await page.route('**/api/v1/**', async (route) => {
         const request = route.request();
         const url = new URL(request.url());
+        const requestAuthorization = authorization(route);
 
         if (!url.pathname.startsWith('/api/v1/auth/')) {
-            const actualAuthorization = authorization(route);
+            const actualAuthorization = requestAuthorization;
             const expectedAuthorization = state.activeToken ? `Bearer ${state.activeToken}` : null;
             if (!state.currentPrincipal || !expectedAuthorization || actualAuthorization !== expectedAuthorization) {
                 throw new Error(
@@ -324,6 +472,86 @@ async function installRouteIntercepts(page: Page, config: JourneyConfig, state: 
             return;
         }
 
+        if (url.pathname === `/api/v1/risks/${CROSS_TICKET_RISK_ID}` && request.method() === 'GET') {
+            await json(route, risk(requestAuthorization === `Bearer ${CRO_TOKEN}` ? 'cro' : 'department-head'));
+            return;
+        }
+
+        if (url.pathname === `/api/v1/risks/${CROSS_TICKET_RISK_ID}/controls` && request.method() === 'GET') {
+            const principal = requestAuthorization === `Bearer ${CRO_TOKEN}` ? 'cro' : 'department-head';
+            if (principal === 'cro') {
+                state.croSidecarRequests += 1;
+                state.markCroSidecarStarted();
+                await state.waitForCroSidecar;
+            } else {
+                state.markDepartmentSidecarStarted();
+                await state.waitForDepartmentSidecar;
+            }
+            await json(route, [linkedControl(principal)]);
+            if (principal === 'cro') state.markCroSidecarSettled();
+            return;
+        }
+
+        if (
+            url.pathname === `/api/v1/risks/${CROSS_TICKET_RISK_ID}/vendors`
+            || url.pathname === `/api/v1/risks/${CROSS_TICKET_RISK_ID}/threat-links`
+            || url.pathname === `/api/v1/risks/${CROSS_TICKET_RISK_ID}/process-links`
+            || url.pathname === `/api/v1/risks/${CROSS_TICKET_RISK_ID}/asset-links`
+            || url.pathname === '/api/v1/kris/overdue'
+        ) {
+            await json(route, []);
+            return;
+        }
+
+        if (url.pathname === '/api/v1/risks' && request.method() === 'GET') {
+            await json(route, {
+                items: [],
+                total: 0,
+                offset: 0,
+                limit: Number(url.searchParams.get('limit') ?? 1),
+                groups: [],
+                facets: {},
+                capabilities: {
+                    can_create: true,
+                    can_export: false,
+                    can_view_vendor_contexts: false,
+                },
+            });
+            return;
+        }
+
+        if (url.pathname === '/api/v1/lookups/risk-filters') {
+            const principal = requestAuthorization === `Bearer ${CRO_TOKEN}` ? 'cro' : 'department-head';
+            if (principal === 'cro') {
+                state.croRiskFilterRequests += 1;
+                state.markCroRiskFiltersStarted();
+                await state.waitForCroRiskFilters;
+            } else {
+                state.markDepartmentRiskFiltersStarted();
+                await state.waitForDepartmentRiskFilters;
+            }
+            await json(route, riskFilters(principal));
+            if (principal === 'cro') state.markCroRiskFiltersSettled();
+            return;
+        }
+
+        if (url.pathname === '/api/v1/users/lookup/risk-owners') {
+            await json(route, []);
+            return;
+        }
+
+        if (url.pathname === '/api/v1/riskhub/public-risk-types') {
+            await json(route, []);
+            return;
+        }
+
+        if (url.pathname.startsWith('/api/v1/riskhub/public-config/')) {
+            await json(route, {
+                value: url.pathname.includes('critical') ? 16 : url.pathname.includes('high') ? 10 : 5,
+            });
+            return;
+        }
+
         if (url.pathname === '/api/v1/preferences') {
             if (request.method() === 'PUT') {
                 state.preferencePutAttempts += 1;
@@ -375,6 +603,35 @@ function dashboardSentinel(page: Page, label: string, value: number) {
     return page.getByRole('button').filter({ hasText: label }).filter({ hasText: String(value) });
 }
 
+async function navigateSpa(page: Page, target: string) {
+    await page.evaluate((path) => {
+        window.history.pushState({}, '', path);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+    }, target);
+}
+
+async function assertAccessibleDesktopState(page: Page, testInfo: TestInfo, label: string) {
+    await page.locator('main').evaluate(async (element) => {
+        const finiteAnimations = element.getAnimations({ subtree: true }).filter((animation) => (
+            animation.effect?.getComputedTiming().iterations !== Infinity
+        ));
+        await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
+    });
+    const geometry = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(geometry.scrollWidth, `${label} horizontal overflow`).toBeLessThanOrEqual(geometry.clientWidth + 1);
+
+    const axe = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze();
+    const findings = toFindings(axe.violations);
+    await testInfo.attach(`ux162-cross-ticket-axe-${label}`, {
+        body: JSON.stringify(findings, null, 2),
+        contentType: 'application/json',
+    });
+    assertZeroAxeFindings(findings, label);
+}
+
 async function openJourney(browser: Browser, config: JourneyConfig) {
     const context = await browser.newContext({ viewport: config.viewport });
     await context.addInitScript(({ locale }) => {
@@ -414,6 +671,17 @@ async function runPrincipalJourney(
         expect(state.protectedAuthorizations.cro.length).toBeGreaterThan(0);
         expect(new Set(state.protectedAuthorizations.cro)).toEqual(new Set([`Bearer ${CRO_TOKEN}`]));
 
+        await navigateSpa(page, `/risks/${CROSS_TICKET_RISK_ID}`);
+        await expect(page.getByRole('heading', { name: CRO_RISK_NAME })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Edit Risk|Upravit riziko/i })).toBeVisible();
+        await state.waitForCroSidecarStarted;
+
+        await navigateSpa(page, '/risks/new');
+        await state.waitForCroRiskFiltersStarted;
+        await expect(page.getByRole('combobox', { name: /Main Process|Hlavní proces/i })).toBeVisible();
+        expect(state.croSidecarRequests).toBeGreaterThan(0);
+        expect(state.croRiskFilterRequests).toBeGreaterThan(0);
+
         await page.getByTestId('logout-button').click();
         await expect(page).toHaveURL(/\/login/);
         await expect(dashboardSentinel(page, config.copy.totalControls, 91)).toHaveCount(0);
@@ -432,6 +700,53 @@ async function runPrincipalJourney(
             .toEqual(new Set([`Bearer ${DEPARTMENT_HEAD_TOKEN}`]));
 
         state.releaseDepartmentOverview();
+        await expect(dashboardSentinel(page, config.copy.totalControls, 7)).toBeVisible();
+
+        await navigateSpa(page, `/risks/${CROSS_TICKET_RISK_ID}`);
+        await expect(page.getByRole('heading', { name: DEPARTMENT_RISK_NAME })).toBeVisible();
+        await state.waitForDepartmentSidecarStarted;
+
+        state.releaseCroSidecar();
+        await state.waitForCroSidecarSettled;
+        await expect(page.getByRole('button', { name: /Edit Risk|Upravit riziko/i })).toHaveCount(0);
+        await expect(page.getByText(CRO_RISK_NAME, { exact: true })).toHaveCount(0);
+        await expect(page.getByText(CRO_SIDECAR_NAME, { exact: true })).toHaveCount(0);
+        await expect(page.getByText(DEPARTMENT_SIDECAR_NAME, { exact: true })).toHaveCount(0);
+
+        state.releaseDepartmentSidecar();
+        await expect(page.getByRole('button', { name: new RegExp(DEPARTMENT_SIDECAR_NAME, 'i') })).toBeVisible();
+        await assertAccessibleDesktopState(page, testInfo, `${config.label} current-principal Risk`);
+
+        await navigateSpa(page, '/risks/new');
+        const processInput = page.getByRole('combobox', { name: /Main Process|Hlavní proces/i });
+        await expect(processInput).toBeVisible();
+        await state.waitForDepartmentRiskFiltersStarted;
+        await processInput.fill('CRO');
+        await expect(processInput).toHaveValue('CRO');
+
+        state.releaseCroRiskFilters();
+        await state.waitForCroRiskFiltersSettled;
+        await expect(page.getByRole('option', { name: CRO_LOOKUP_PROCESS })).toHaveCount(0);
+        await expect(processInput).toHaveValue('CRO');
+        await expect(page.getByText(CRO_RISK_NAME, { exact: true })).toHaveCount(0);
+        await expect(page.getByText(CRO_SIDECAR_NAME, { exact: true })).toHaveCount(0);
+
+        state.releaseDepartmentRiskFilters();
+        await processInput.fill('Operations');
+        await expect(page.getByRole('option', { name: DEPARTMENT_LOOKUP_PROCESS })).toBeVisible();
+        await expect(page.getByRole('option', { name: CRO_LOOKUP_PROCESS })).toHaveCount(0);
+        const listboxBox = await page.getByRole('listbox').boundingBox();
+        const categoryBox = await page.getByRole('combobox', { name: /Category|Kategorie/i }).boundingBox();
+        if (!listboxBox || !categoryBox) throw new Error('Risk lookup listbox and Category field must be rendered');
+        expect(
+            listboxBox.y + listboxBox.height,
+            `${config.label} Risk process listbox must not cover the Category field`,
+        ).toBeLessThanOrEqual(categoryBox.y);
+        await expect(page.getByText(CRO_RISK_NAME, { exact: true })).toHaveCount(0);
+        await expect(page.getByText(CRO_SIDECAR_NAME, { exact: true })).toHaveCount(0);
+        await assertAccessibleDesktopState(page, testInfo, `${config.label} current-principal Risk lookup`);
+
+        await navigateSpa(page, '/');
         await expect(dashboardSentinel(page, config.copy.totalControls, 7)).toBeVisible();
 
         const overviewRequestsBeforeRefresh = state.overviewRequests;
@@ -477,7 +792,11 @@ async function runPrincipalJourney(
         });
         assertZeroAxeFindings(findings, `${config.label} changed Unsynced preference state`);
     } finally {
+        state.releaseCroSidecar();
+        state.releaseCroRiskFilters();
         state.releaseDepartmentOverview();
+        state.releaseDepartmentRiskFilters();
+        state.releaseDepartmentSidecar();
         await context.close();
     }
 }

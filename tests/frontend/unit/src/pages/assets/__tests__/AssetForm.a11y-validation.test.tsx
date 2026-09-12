@@ -151,6 +151,31 @@ describe('AssetForm — Field migration + validation (#59)', () => {
         expect(mockCreateAsset).not.toHaveBeenCalled();
     });
 
+    it('clears only corrected field errors, including the Department filled from Business Owner', async () => {
+        const user = userEvent.setup();
+        await renderForm();
+        await user.click(screen.getByTestId('asset-form-submit'));
+
+        const name = screen.getByRole('textbox', { name: nameLabel() });
+        const businessOwner = screen.getByTestId('asset-form-business-owner');
+        const ictOwner = screen.getByTestId('asset-form-ict-owner');
+        const department = screen.getByTestId('asset-form-owner-department');
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(businessOwner).toHaveAttribute('aria-invalid', 'true');
+        expect(ictOwner).toHaveAttribute('aria-invalid', 'true');
+        expect(department).toHaveAttribute('aria-invalid', 'true');
+
+        await user.type(name, 'Payments platform');
+        expect(name).not.toHaveAttribute('aria-invalid');
+        expect(ictOwner).toHaveAttribute('aria-invalid', 'true');
+
+        await user.click(businessOwner);
+        await user.click(await screen.findByRole('option', { name: /Alex Owner/ }));
+        expect(businessOwner).not.toHaveAttribute('aria-invalid');
+        expect(department).not.toHaveAttribute('aria-invalid');
+        expect(ictOwner).toHaveAttribute('aria-invalid', 'true');
+    });
+
     it('submits successfully once the required field is filled', async () => {
         const user = userEvent.setup();
         mockCreateAsset.mockResolvedValue({ id: 7, name: 'Payroll DB' });

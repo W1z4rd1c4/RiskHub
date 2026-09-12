@@ -94,8 +94,9 @@ async function downloadThreatExport(params: ThreatListParams, locale: 'en' | 'cs
 }
 
 export const threatApi = {
-    async getThreats(params: ThreatListParams): Promise<ThreatListResponse> {
+    async getThreats(params: ThreatListParams, options?: { signal?: AbortSignal }): Promise<ThreatListResponse> {
         return apiClient.get('/threats', {
+            ...options,
             params: buildThreatCollectionQuery(params),
             schema: threatListResponseSchema,
         });
@@ -159,8 +160,8 @@ export const threatApi = {
 
 /** The Risk-detail end of the ICT Register Link relations (issue #47). */
 export const riskRegisterLinksApi = {
-    async getThreatLinks(riskId: number): Promise<ThreatRiskLink[]> {
-        return apiClient.get(`/risks/${riskId}/threat-links`, { schema: threatRiskLinkListSchema });
+    async getThreatLinks(riskId: number, options?: { signal?: AbortSignal }): Promise<ThreatRiskLink[]> {
+        return apiClient.get(`/risks/${riskId}/threat-links`, { ...options, schema: threatRiskLinkListSchema });
     },
 
     async addThreatLink(riskId: number, threatId: number): Promise<ThreatRiskLink> {
@@ -175,8 +176,8 @@ export const riskRegisterLinksApi = {
         return apiClient.delete(`/risks/${riskId}/threat-links/${linkId}`, { schema: voidSchema });
     },
 
-    async getProcessLinks(riskId: number): Promise<RiskProcessLink[]> {
-        return apiClient.get(`/risks/${riskId}/process-links`, { schema: riskProcessLinkListSchema });
+    async getProcessLinks(riskId: number, options?: { signal?: AbortSignal }): Promise<RiskProcessLink[]> {
+        return apiClient.get(`/risks/${riskId}/process-links`, { ...options, schema: riskProcessLinkListSchema });
     },
 
     async addProcessLink(
@@ -202,8 +203,8 @@ export const riskRegisterLinksApi = {
         });
     },
 
-    async getAssetLinks(riskId: number): Promise<RiskAssetLink[]> {
-        return apiClient.get(`/risks/${riskId}/asset-links`, { schema: riskAssetLinkListSchema });
+    async getAssetLinks(riskId: number, options?: { signal?: AbortSignal }): Promise<RiskAssetLink[]> {
+        return apiClient.get(`/risks/${riskId}/asset-links`, { ...options, schema: riskAssetLinkListSchema });
     },
 
     async addAssetLink(

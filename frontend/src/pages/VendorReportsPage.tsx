@@ -4,6 +4,7 @@ import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { parseBoundedInteger } from '@/lib/boundedInteger';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { logError } from '@/services/logger';
@@ -21,7 +22,7 @@ type DoraDownloadRequest = {
 export function VendorReportsPage() {
     const { t } = useTranslation('vendors');
     const { t: tCommon } = useTranslation('common');
-    const [year, setYear] = useState<number>(new Date().getFullYear());
+    const [year, setYear] = useState(String(new Date().getFullYear()));
     const [departmentId, setDepartmentId] = useState<number | null>(null);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const vendorCapability = useVendorReportCapabilities();
@@ -37,6 +38,7 @@ export function VendorReportsPage() {
     const canDownloadAnnual = resolveCapabilityFlag(capabilities, 'can_download_annual_report');
     const canDownloadDora = resolveCapabilityFlag(capabilities, 'can_download_dora_register');
     const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
+    const annualReportYear = parseBoundedInteger(year, 2000, 2100);
 
     const downloadAnnual = async (request: AnnualDownloadRequest) => {
         setIsAnnualDownloading(true);
@@ -153,6 +155,7 @@ export function VendorReportsPage() {
                     <Field
                         id="vendor-report-year"
                         label={t('reports.annual.year')}
+                        error={annualReportYear === null ? t('reports.annual.year_error') : undefined}
                         className="w-28"
                     >
                         {(field) => (
@@ -160,7 +163,7 @@ export function VendorReportsPage() {
                                 {...field}
                                 type="number"
                                 value={year}
-                                onChange={(event) => setYear(Number(event.target.value))}
+                                onChange={(event) => setYear(event.target.value)}
                                 className="font-mono"
                                 min={2000}
                                 max={2100}
@@ -174,8 +177,12 @@ export function VendorReportsPage() {
                             <button
                                 type="button"
                                 aria-busy={isAnnualDownloading}
-                                disabled={isAnnualDownloading}
-                                onClick={() => void downloadAnnual({ year, departmentId: effectiveDepartmentId })}
+                                disabled={isAnnualDownloading || annualReportYear === null}
+                                onClick={() => {
+                                    if (annualReportYear !== null) {
+                                        void downloadAnnual({ year: annualReportYear, departmentId: effectiveDepartmentId });
+                                    }
+                                }}
                                 className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors disabled:opacity-60 flex items-center gap-2"
                             >
                                 <FileSpreadsheet className="h-4 w-4" />

@@ -31,6 +31,7 @@
   "applicationRenderSites": [
     { "id": "destination-launcher.sidebar", "component": "DestinationLauncher", "file": "frontend/src/components/layout/Sidebar.tsx", "verificationCaseId": "owner.destination-launcher" },
     { "id": "confirm.governed-mutation-reason", "component": "ConfirmDialog", "file": "frontend/src/components/approvals/GovernedMutationReasonDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
+    { "id": "confirm.pending-change-cancellation", "component": "ConfirmDialog", "file": "frontend/src/components/approvals/PendingChangeCancellationDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "confirm.link-management", "component": "ConfirmDialog", "file": "frontend/src/components/LinkManagementDialog.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "issue.execution-history", "component": "IssueQuickCreateModal", "file": "frontend/src/components/executions/ExecutionHistory.tsx", "verificationCaseId": "owner.issue-quick-create-modal" },
     { "id": "mismatch.kri-form", "component": "KriMismatchDialog", "file": "frontend/src/components/kri-form/KriCreateDialogs.tsx", "verificationCaseId": "owner.kri-mismatch-dialog" },

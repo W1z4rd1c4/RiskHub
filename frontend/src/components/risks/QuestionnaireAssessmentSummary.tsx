@@ -1,6 +1,8 @@
 import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
+import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 
 import type { TranslateFn } from './risk-questionnaire-detail/questionnairePresentation';
+import type { LatestSubmittedLoadOutcome } from './useRiskQuestionnairesTabData';
 import {
     formatQuestionnaireDate,
     getLatestQuestionnaireChangedCount,
@@ -10,7 +12,9 @@ import {
 interface QuestionnaireAssessmentSummaryProps {
     latestSubmitted: RiskQuestionnaireDetail | null;
     latestSubmittedLoading: boolean;
+    loadOutcome: LatestSubmittedLoadOutcome;
     locale: string;
+    onRetry: () => void;
     t: TranslateFn;
     totalAssets: number;
 }
@@ -18,7 +22,9 @@ interface QuestionnaireAssessmentSummaryProps {
 export function QuestionnaireAssessmentSummary({
     latestSubmitted,
     latestSubmittedLoading,
+    loadOutcome,
     locale,
+    onRetry,
     t,
     totalAssets,
 }: QuestionnaireAssessmentSummaryProps) {
@@ -35,14 +41,32 @@ export function QuestionnaireAssessmentSummary({
                 {t('risks:questionnaires.assessment_summary_title')}
             </h4>
 
-            {latestSubmittedLoading ? (
+            {loadOutcome === 'stale-with-error' ? (
+                <TableErrorState
+                    variant="banner"
+                    testId="risk-questionnaire-summary-load-state"
+                    message={t('common:detail_load.stale_description')}
+                    onRetry={onRetry}
+                    isRetrying={latestSubmittedLoading}
+                    className="mb-4"
+                />
+            ) : null}
+
+            {loadOutcome === 'fatal-error' || loadOutcome === 'denied' ? (
+                <TableErrorState
+                    testId="risk-questionnaire-summary-load-state"
+                    message={t('common:errors.load_failed')}
+                    onRetry={loadOutcome === 'fatal-error' ? onRetry : undefined}
+                    isRetrying={latestSubmittedLoading}
+                />
+            ) : latestSubmittedLoading && !latestSubmitted ? (
                 <div className="text-sm text-slate-400">{t('loading.generic')}</div>
             ) : !latestSubmitted ? (
                 <div className="text-sm text-slate-400">
                     {t('risks:questionnaires.assessment_summary_empty')}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div data-testid="risk-questionnaire-summary-content" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_submitted_at')}

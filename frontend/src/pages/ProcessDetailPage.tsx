@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
@@ -130,6 +131,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const [isArchiving, setIsArchiving] = useState(false);
     const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+    const [pendingCancellation, setPendingCancellation] = useState<{
+        approvalId: number;
+        targetName: string;
+    } | null>(null);
+    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
 
     const {
         canArchive,
@@ -156,7 +162,9 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         }
         try {
             setIsArchiving(true);
+            setActionError(null);
             const result = await processApi.archiveProcess(process.id, requestReason?.trim() ?? '');
+            setIsArchiveDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
                 void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
                 return;
@@ -167,20 +175,29 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             setActionError(t('errors.archive_failed'));
         } finally {
             setIsArchiving(false);
-            setIsArchiveDialogOpen(false);
         }
     };
 
-    const cancelPendingChange = async () => {
+    const openPendingChangeCancellation = () => {
         if (!process?.pending_change) return;
+        setPendingCancellationError(null);
+        setPendingCancellation({
+            approvalId: process.pending_change.approval_id,
+            targetName: process.l1_process,
+        });
+    };
+
+    const cancelPendingChange = async () => {
+        if (!pendingCancellation || isCancellingPendingChange) return;
         try {
             setIsCancellingPendingChange(true);
-            setActionError(null);
-            await approvalsApi.cancel(process.pending_change.approval_id);
-            await fetchProcess();
+            setPendingCancellationError(null);
+            await approvalsApi.cancel(pendingCancellation.approvalId);
+            setPendingCancellation(null);
+            void fetchProcess();
         } catch (cancelError) {
             logError('Failed to cancel pending Process change:', cancelError);
-            setActionError(t('pending_change.cancel_failed'));
+            setPendingCancellationError(t('pending_change.cancel_failed'));
         } finally {
             setIsCancellingPendingChange(false);
         }
@@ -237,6 +254,19 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const staleWarning = loadOutcome === 'stale-with-error' ? (
         <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchProcess()} />
     ) : null;
+    const pendingCancellationDialog = (
+        <PendingChangeCancellationDialog
+            isOpen={pendingCancellation !== null}
+            targetName={pendingCancellation?.targetName ?? ''}
+            isLoading={isCancellingPendingChange}
+            errorText={pendingCancellationError}
+            onClose={() => {
+                setPendingCancellation(null);
+                setPendingCancellationError(null);
+            }}
+            onConfirm={() => void cancelPendingChange()}
+        />
+    );
 
     if (mode === 'edit') {
         if (process.capabilities?.business_edit_blocked || process.pending_change) {
@@ -268,7 +298,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             locale={i18n.language}
                             cancelling={isCancellingPendingChange}
                             onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
-                                ? () => void cancelPendingChange()
+                                ? openPendingChangeCancellation
                                 : undefined}
                         />
                     ) : (
@@ -276,6 +306,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             {t('pending_change.business_edits_blocked')}
                         </div>
                     )}
+                    {pendingCancellationDialog}
                 </div>
             );
         }
@@ -375,7 +406,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     locale={i18n.language}
                     cancelling={isCancellingPendingChange}
                     onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
-                        ? () => void cancelPendingChange()
+                        ? openPendingChangeCancellation
                         : undefined}
                 />
             ) : null}
@@ -453,7 +484,10 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     {canArchive && (
                         <button
                             type="button"
-                            onClick={() => setIsArchiveDialogOpen(true)}
+                            onClick={() => {
+                                setActionError(null);
+                                setIsArchiveDialogOpen(true);
+                            }}
                             data-testid="process-detail-archive"
                             className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
@@ -742,7 +776,9 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 inputRequired={processMutationRequiresApprovalReason(process)}
                 inputLabel={t('form.request_reason')}
                 inputPlaceholder={t('form.request_reason_help')}
+                errorText={actionError}
             />
+            {pendingCancellationDialog}
         </div>
     );
 }

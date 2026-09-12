@@ -152,10 +152,14 @@ describe('KRIDetailPage approval-aware edit flow', () => {
 
         await screen.findAllByText('Claims Leakage Ratio');
         await waitFor(() => {
-            expect(mockGetHistory).toHaveBeenCalledWith(21, expect.objectContaining({
-                sort_by: 'period',
-                sort_direction: 'desc',
-            }));
+            expect(mockGetHistory).toHaveBeenCalledWith(
+                21,
+                expect.objectContaining({
+                    sort_by: 'period',
+                    sort_direction: 'desc',
+                }),
+                { signal: expect.any(AbortSignal) },
+            );
         });
         fireEvent.click(screen.getByRole('button', { name: /Edit|Upravit/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'trigger-kri-save' }));

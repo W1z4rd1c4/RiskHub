@@ -295,6 +295,19 @@ async function driveUx157RiskAuthoring(page: Page, config: Ux157JourneyConfig): 
     const lookupRisks = Array.from({ length: 18 }, (_, index) => syntheticRiskLookup(index));
     let submittedPayload: Record<string, unknown> | null = null;
 
+    await page.route('**/api/v1/lookups/risk-filters', async (route) => {
+        await route.fulfill({
+            status: 200,
+            json: {
+                processes: lookupRisks.map((risk) => risk.process),
+                categories: lookupRisks.map((risk) => risk.category),
+                subprocesses_by_process: Object.fromEntries(
+                    lookupRisks.map((risk) => [risk.process, [risk.subprocess]]),
+                ),
+            },
+        });
+    });
+
     await page.route('**/api/v1/risks**', async (route, request) => {
         const url = new URL(request.url());
         if (url.pathname !== '/api/v1/risks') {
@@ -499,6 +512,7 @@ async function driveUx157RiskAuthoring(page: Page, config: Ux157JourneyConfig): 
         net_impact: 1,
     });
     await axeScanZero(page, ['main'], `UX-157 approval-queued risk status (${config.locale})`);
+    await page.unroute('**/api/v1/lookups/risk-filters');
     await page.unroute('**/api/v1/risks**');
 }
 

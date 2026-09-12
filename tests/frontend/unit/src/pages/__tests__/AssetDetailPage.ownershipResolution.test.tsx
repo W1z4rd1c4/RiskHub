@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -8,9 +8,19 @@ import type { Asset } from '@/types/asset';
 
 const mocks = vi.hoisted(() => ({
     asset: null as Asset | null,
+    archiveAsset: vi.fn(),
+    cancelApproval: vi.fn(),
     canEdit: true,
     canViewGovernance: true,
     error: null as string | null,
+    fetchAsset: vi.fn(),
+}));
+
+vi.mock('@/services/assetApi', () => ({
+    assetApi: {
+        archiveAsset: (...args: unknown[]) => mocks.archiveAsset(...args),
+        getAssets: vi.fn(),
+    },
 }));
 
 vi.mock('@/authz/useAuthz', () => ({
@@ -19,11 +29,11 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, options?: { date?: string; time?: string }) => (
-            key === 'pending_change.requested_by_at'
-                ? `${options?.date}|${options?.time}`
-                : key
-        ),
+        t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
+            if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
+            if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
+            return key;
+        },
         i18n: { language: 'cs' },
     }),
 }));
@@ -35,12 +45,18 @@ vi.mock('@/pages/assets/useAssetDetailState', () => ({
         canEdit: mocks.canEdit,
         canRestore: false,
         error: mocks.error,
-        fetchAsset: vi.fn(),
+        fetchAsset: mocks.fetchAsset,
         isAccessDenied: false,
         isLoading: false,
         restoreAsset: vi.fn(),
         setAsset: vi.fn(),
     }),
+}));
+
+vi.mock('@/services/approvalsApi', () => ({
+    approvalsApi: {
+        cancel: (...args: unknown[]) => mocks.cancelApproval(...args),
+    },
 }));
 
 vi.mock('@/pages/assets/AssetForm', () => ({
@@ -50,8 +66,6 @@ vi.mock('@/pages/assets/AssetForm', () => ({
 vi.mock('@/pages/assets/AssetLinkSections', () => ({
     AssetLinkSections: () => <div data-testid="asset-link-sections" />,
 }));
-
-vi.mock('@/components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
 
 import { AssetDetailPage } from '@/pages/AssetDetailPage';
 
@@ -184,6 +198,9 @@ describe('AssetDetailPage ownership resolution', () => {
         mocks.canEdit = true;
         mocks.canViewGovernance = true;
         mocks.error = null;
+        mocks.cancelApproval.mockResolvedValue({ status: 'cancelled' });
+        mocks.fetchAsset.mockResolvedValue(undefined);
+        mocks.archiveAsset.mockResolvedValue(undefined);
     });
 
     it('propagates the active Czech locale to pending-change timestamps', () => {
@@ -340,6 +357,36 @@ describe('AssetDetailPage ownership resolution', () => {
         );
         expect(screen.getByTestId('asset-pending-change')).toBeInTheDocument();
         expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
+    });
+
+    it('confirms the captured Asset target before cancelling its pending change', async () => {
+        const user = userEvent.setup();
+        mocks.asset = governedPendingAsset();
+        renderPage('view');
+
+        await user.click(screen.getByRole('button', { name: 'pending_change.cancel' }));
+        expect(mocks.cancelApproval).not.toHaveBeenCalled();
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('Customer account platform');
+
+        await user.click(screen.getByRole('button', { name: 'pending_change_cancellation.confirm' }));
+        expect(mocks.cancelApproval).toHaveBeenCalledWith(86);
+    });
+
+    it('keeps an exact rejected Asset archive rationale in the open dialog', async () => {
+        const user = userEvent.setup();
+        mocks.asset = ownedAsset();
+        mocks.archiveAsset.mockRejectedValueOnce(new Error('rejected'));
+        renderPage('view');
+
+        await user.click(screen.getByTestId('asset-detail-archive'));
+        const dialog = screen.getByRole('alertdialog');
+        const reason = screen.getByRole('textbox', { name: /form.request_reason/ });
+        await user.type(reason, '  Exact Asset rationale  ');
+        await user.click(within(dialog).getByRole('button', { name: 'actions.archive' }));
+
+        expect(await within(dialog).findByRole('alert')).toHaveTextContent('errors.archive_failed');
+        expect(reason).toHaveValue('  Exact Asset rationale  ');
+        expect(mocks.archiveAsset).toHaveBeenCalledWith(75, 'Exact Asset rationale');
     });
 
     it('renders the generic pending banner from a redacted Asset API projection', () => {

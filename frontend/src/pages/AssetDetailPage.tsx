@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { Button } from '@/components/ui/button';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useAuthz } from '@/authz/useAuthz';
@@ -89,6 +90,11 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     const [isArchiving, setIsArchiving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
     const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
+    const [pendingCancellation, setPendingCancellation] = useState<{
+        approvalId: number;
+        targetName: string;
+    } | null>(null);
+    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
 
     const {
         asset,
@@ -115,7 +121,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         }
         try {
             setIsArchiving(true);
+            setActionError(null);
             const result = await assetApi.archiveAsset(asset.id, requestReason?.trim() ?? '');
+            setIsArchiveDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
                 void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
                 return;
@@ -126,20 +134,29 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
             setActionError(t('errors.archive_failed'));
         } finally {
             setIsArchiving(false);
-            setIsArchiveDialogOpen(false);
         }
     };
 
-    const cancelPendingChange = async () => {
+    const openPendingChangeCancellation = () => {
         if (!asset?.pending_change?.approval_id) return;
+        setPendingCancellationError(null);
+        setPendingCancellation({
+            approvalId: asset.pending_change.approval_id,
+            targetName: asset.name,
+        });
+    };
+
+    const cancelPendingChange = async () => {
+        if (!pendingCancellation || isCancellingPendingChange) return;
         try {
             setIsCancellingPendingChange(true);
-            setActionError(null);
-            await approvalsApi.cancel(asset.pending_change.approval_id);
-            await fetchAsset();
+            setPendingCancellationError(null);
+            await approvalsApi.cancel(pendingCancellation.approvalId);
+            setPendingCancellation(null);
+            void fetchAsset();
         } catch (cancelError) {
             logError('Failed to cancel pending Asset change:', cancelError);
-            setActionError(t('pending_change.cancel_failed'));
+            setPendingCancellationError(t('pending_change.cancel_failed'));
         } finally {
             setIsCancellingPendingChange(false);
         }
@@ -196,6 +213,19 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     const staleWarning = loadOutcome === 'stale-with-error' ? (
         <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchAsset()} />
     ) : null;
+    const pendingCancellationDialog = (
+        <PendingChangeCancellationDialog
+            isOpen={pendingCancellation !== null}
+            targetName={pendingCancellation?.targetName ?? ''}
+            isLoading={isCancellingPendingChange}
+            errorText={pendingCancellationError}
+            onClose={() => {
+                setPendingCancellation(null);
+                setPendingCancellationError(null);
+            }}
+            onConfirm={() => void cancelPendingChange()}
+        />
+    );
 
     if (mode === 'edit') {
         if (resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked')) {
@@ -216,9 +246,10 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             pendingChange={asset.pending_change}
                             locale={i18n.language}
                             cancelling={isCancellingPendingChange}
-                            onCancel={resolveCapabilityFlag(asset.pending_change.capabilities, 'can_cancel') ? () => void cancelPendingChange() : undefined}
+                            onCancel={resolveCapabilityFlag(asset.pending_change.capabilities, 'can_cancel') ? openPendingChangeCancellation : undefined}
                         />
                     ) : null}
+                    {pendingCancellationDialog}
                 </div>
             );
         }
@@ -294,7 +325,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     pendingChange={asset.pending_change}
                     locale={i18n.language}
                     cancelling={isCancellingPendingChange}
-                    onCancel={resolveCapabilityFlag(asset.pending_change.capabilities, 'can_cancel') ? () => void cancelPendingChange() : undefined}
+                    onCancel={resolveCapabilityFlag(asset.pending_change.capabilities, 'can_cancel') ? openPendingChangeCancellation : undefined}
                 />
             ) : null}
             {asset.ownership_status === 'pending_governance' ? (
@@ -367,7 +398,10 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={() => setIsArchiveDialogOpen(true)}
+                            onClick={() => {
+                                setActionError(null);
+                                setIsArchiveDialogOpen(true);
+                            }}
                             data-testid="asset-detail-archive"
                         >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -631,7 +665,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 inputRequired
                 inputLabel={t('form.request_reason')}
                 inputPlaceholder={t('form.request_reason_help')}
+                errorText={actionError}
             />
+            {pendingCancellationDialog}
         </div>
     );
 }
