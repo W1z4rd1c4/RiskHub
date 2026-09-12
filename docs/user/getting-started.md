@@ -32,12 +32,12 @@ Use the sign-in method supplied by your organization. For Entra sign-in, passwor
 MFA management stays with your organization's identity service. Demo persona cards are
 for development and evaluation.
 
-Native local accounts are being delivered in stages. Their contract lets an admin invite
-you, then lets you choose and manage your own password. An installation may require MFA
+RiskHub local accounts are being prepared for a later release. An administrator will
+invite you to choose and manage your own password. Your organization may require MFA
 or permit password-only login; once you enable MFA, it remains required for your account.
-The complete native login, enrollment and account-security screens are tracked in #205,
-and native production admission remains gated by #208. Follow the controls available in
-your installed version. See [FAQ](./faq.md#passwords-and-mfa).
+The current production release uses your organization's Microsoft sign-in. Your
+administrator can confirm when local accounts are available in your installed release.
+See [FAQ](./faq.md#passwords-and-mfa).
 
 ## What This Page Helps You Do
 

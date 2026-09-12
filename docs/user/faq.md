@@ -38,10 +38,10 @@ assign permanent native passwords.
 or optional MFA. Optional allows password-only accounts, including admins. If you have
 already enabled MFA, you still need your factor. A password reset does not remove it.
 
-**Where are the native controls?** The backend workflows are staged under #197–#200;
-the login/account-security and admin screens are tracked in #205/#206, with production
-admission in #208. The legacy development login is not the completed native account UI.
-Ask your administrator which authentication profile your installed version supports.
+**Where are the local-account controls?** The current production release uses your
+organization's Microsoft sign-in. RiskHub local-account screens are still being prepared.
+Your administrator can confirm their availability for your installed release. Continue
+using your organization's password and recovery service until local accounts are available.
 
 ## What This Page Helps You Do
 
