@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { resolveNativeRoute } from '@/routing/public';
 import { nativeAuthApi, NativeAuthError } from '@/services/nativeAuthApi';
-import { getSessionOwnershipSnapshot, isSessionOwnershipCurrent, useSessionSnapshot } from '@/services/session';
+import { applyAuthenticatedSession, clearExplicitLogoutSuppressed, getSessionOwnershipSnapshot, isSessionOwnershipCurrent, useSessionSnapshot } from '@/services/session';
 import type { FactorSetupResponse, LocalAuthChallenge, RecentAuthenticationRequest } from '@/types/localAuth.generated';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { NativeFrame } from './NativeFrame';
@@ -108,7 +108,11 @@ export default function NativeSecurityPage() {
         {completed && <p role="status">{t('native.changed')}</p>}<Button onClick={leave}>{t('native.back_login')}</Button>
     </NativeFrame>;
     if (config.authConfig?.identity?.mode === 'native' && config.authConfig.password_login_enabled && !session.token) {
-        return <NativeLoginView config={config.authConfig} returnTo={location.pathname} />;
+        return <NativeLoginView config={config.authConfig} onSession={(response) => {
+            clearExplicitLogoutSuppressed();
+            const target = applyAuthenticatedSession(response, location.pathname);
+            void navigate(target, { replace: true });
+        }} />;
     }
     const enabled = config.authConfig?.identity?.mode === 'native' && canManage;
     return <NativeFrame title={t(verifyingEmail ? 'native.email_confirm_title' : 'native.security_title')} pending={action.pending || config.isAuthConfigLoading} error={action.error}>

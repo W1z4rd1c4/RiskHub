@@ -4,7 +4,7 @@ import base from './playwright.config';
 /** Isolated native fixture: never substitutes demo identities or records credentials. */
 export default defineConfig(base, {
     globalSetup: undefined,
-    testMatch: ['**/native-account.spec.ts', '**/ux162-principal-session.spec.ts'],
+    testMatch: ['**/native-account.spec.ts', '**/ux162-principal-session.spec.ts', '**/issue161-recoverable-actions.spec.ts'],
     fullyParallel: false,
     retries: 0,
     use: { ...base.use, trace: 'off', video: 'off', screenshot: 'off' },

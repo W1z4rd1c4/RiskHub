@@ -12,7 +12,8 @@ import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { useLoginActions } from '@/pages/login/useLoginActions';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
 import { logError } from '@/services/logger';
-import { useSessionSnapshot } from '@/services/session';
+import { applyAuthenticatedSession, clearExplicitLogoutSuppressed, useSessionSnapshot } from '@/services/session';
+import type { TokenResponse } from '@/services/authApi';
 import { activateLanguage, normalizeSupportedLanguage, STORAGE_KEY } from '@/i18n';
 
 function stripErrorKeyPrefix(errorKey: string): string {
@@ -39,14 +40,24 @@ export default function LoginPage() {
     const [isCompletingSsoLogout, setIsCompletingSsoLogout] = useState(false);
     const prodLanguageActivationRef = useRef<AbortController | null>(null);
     const hasAccessToken = session.token !== null;
+    const loginCompleted = useRef(false);
     const showBootstrapUnavailableBanner = authErrorParam === 'service_unavailable';
 
     useEffect(() => {
-        if (!hasAccessToken) {
+        if (!hasAccessToken || loginCompleted.current) {
             return;
         }
         void navigate(returnTo, { replace: true });
     }, [hasAccessToken, navigate, returnTo]);
+
+    const completeLogin = (response: TokenResponse) => {
+        // The explicit login response owns this redirect; the existing-session
+        // effect must not replace it when the shared session store updates.
+        loginCompleted.current = true;
+        clearExplicitLogoutSuppressed();
+        const target = applyAuthenticatedSession(response, returnTo);
+        void navigate(target, { replace: true });
+    };
 
     useEffect(() => () => {
         prodLanguageActivationRef.current?.abort();
@@ -81,6 +92,7 @@ export default function LoginPage() {
     } = useLoginActions({
         returnTo,
         translate: t,
+        onSession: completeLogin,
     });
 
     const resolveFixedTranslate = useMemo(
@@ -221,7 +233,7 @@ export default function LoginPage() {
     }
 
     if (authConfig.auth_mode === 'password' && authConfig.identity?.mode === 'native' && authConfig.password_login_enabled) {
-        return <NativeLoginView config={authConfig} returnTo={returnTo} />;
+        return <NativeLoginView config={authConfig} onSession={completeLogin} />;
     }
 
     // Development password mode may expose only explicitly enabled demo accounts.
