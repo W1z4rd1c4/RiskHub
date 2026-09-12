@@ -83,3 +83,11 @@
 ---
 
 *Integration audit refreshed on 2026-05-25*
+
+## Identity foundation update (2026-09-12)
+
+Entra production is bound to a persisted installation profile and tenant; startup
+validates without writing. Explicit DB-task maintenance initializes/adopts the binding.
+Native `password`/`none` configuration defines required/optional MFA, with shared User,
+authorization and session authority; native production remains gated. See
+[identity foundations](../../docs/security/identity-foundations.md).

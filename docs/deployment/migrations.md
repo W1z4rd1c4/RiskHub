@@ -1,6 +1,6 @@
 # Database Migrations (Alembic)
 
-> **Last Updated**: 2026-04-05  
+> **Last Updated**: 2026-09-12
 > **Audience**: DevOps / Release Engineering
 
 ---
@@ -31,6 +31,19 @@ This is intentional:
 `./scripts/install.sh upgrade ...` also creates a timestamped non-secret runtime backup before the release change. Database backups and secret backups remain operator-managed responsibilities.
 
 The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but the public operator surface is `./scripts/install.sh` while the production migration/bootstrap execution path remains target-specific under `./scripts/deploy.sh`.
+
+## Identity schema adoption
+
+`t9u0v1w2x3y4` adds installation identity and separates local suspension from directory
+eligibility. Drain all writers before applying it. Fresh installation binds before
+user bootstrap; populated databases require the explicit `adopt-entra` report/dry-run
+and verification sequence in [identity foundations](../security/identity-foundations.md).
+The upgrade wrapper does not infer or repair a missing binding. User identities,
+business ownership and revocation history must survive the migration.
+
+Run `python -m scripts.identity_installation verify` in the release DB-task environment
+before resuming API/scheduler instances. A failed check is a maintenance stop, not a
+reason to enable debug, change tenant/provider, or downgrade the identity schema.
 
 ## Rollback posture
 

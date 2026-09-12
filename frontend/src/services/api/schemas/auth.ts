@@ -76,6 +76,7 @@ export const authConfigResponseSchema: z.ZodType<AuthConfigResponse> = passthrou
     auth_mode: z.enum(['password', 'microsoft_sso', 'hybrid_dev']),
     demo_login_enabled: z.boolean(),
     password_login_enabled: z.boolean(),
+    local_mfa_policy: z.enum(['required', 'optional']).nullable().optional(),
     strict_capabilities: z.boolean().default(false),
     sso: passthroughObject({
         enabled: z.boolean(),

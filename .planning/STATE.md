@@ -45,3 +45,12 @@ state. When it differs from code, tests, migrations, or runtime configuration,
 those artifacts establish implemented behavior for the referenced commit. A
 future planning reconciliation may update this file, but must not use it as a
 substitute for live work tracking.
+
+## Identity implementation snapshot (2026-09-12)
+
+The identity foundation adds typed provider contracts, explicit installation/tenant
+binding, separate local suspension and shared authority invalidation. Native policy
+supports required MFA by default and explicit optional MFA; confirmed factors remain
+required. Runtime credentials, UI/installer delivery and release admission are tracked
+in #192's groups. This commit-scoped note does not assert issue closure or production
+availability. See [identity foundations](../docs/security/identity-foundations.md).
