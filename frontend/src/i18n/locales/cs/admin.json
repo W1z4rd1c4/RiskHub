@@ -822,5 +822,102 @@
     "role_access": "Role a přístup",
     "platform_role": "Role na platformě",
     "active_immediately": "Tento uživatel je aktivní a může se přihlásit okamžitě"
+  },
+  "native_users": {
+    "create_account": "Vytvořit účet",
+    "email": "E-mail",
+    "department": "Oddělení",
+    "manager": "Nadřízený",
+    "manager_search": "Hledat nadřízeného podle jména nebo e-mailu",
+    "choose_role": "Vyberte roli",
+    "no_assignment": "Bez přiřazení",
+    "recipient_chooses_password": "Příjemce obdrží pozvánku a zvolí si vlastní heslo. Nastavení MFA odpovídá pravidlům instalace.",
+    "created": "Účet pro {{name}} ({{email}}) byl vytvořen.",
+    "view_users": "Zobrazit uživatele",
+    "retry": "Zkusit znovu",
+    "options_failed": "Možnosti přiřazení účtu se nepodařilo načíst. Před vytvořením účtu zkuste načtení znovu.",
+    "manager_failed": "Hledání nadřízeného selhalo. Zkuste to znovu nebo pokračujte bez nadřízeného.",
+    "check_users_before_retry": "Před vytvořením další pozvánky zkontrolujte seznam uživatelů",
+    "delivery": {
+      "pending": "Doručení čeká. Účet existuje a pozvánka je ve frontě.",
+      "sent": "Pozvánka byla odeslána. Nastavení účtu je ještě nutné dokončit.",
+      "failed": "Doručení selhalo. Účet existuje; zkontrolujte konfiguraci doručování a odešlete jeho pozvánku znovu.",
+      "expired": "Platnost odkazu vypršela",
+      "cancelled": "Odkaz zrušen",
+      "none": "Žádné zaznamenané doručení"
+    },
+    "errors": {
+      "invalid": "Údaje účtu byly odmítnuty nebo účet již existuje. Zkontrolujte seznam uživatelů a opravte údaje.",
+      "limited": "Příliš mnoho požadavků. Před dalším pokusem počkejte.",
+      "unavailable": "Služba identity není dostupná. Před dalším pokusem ověřte, zda účet nebyl vytvořen.",
+      "uncertain": "Odpověď se ztratila. Účet mohl být vytvořen; před dalším pokusem zkontrolujte seznam uživatelů.",
+      "forbidden": "Tato akce již není povolena. Obnovte seznam uživatelů a ověřte svůj přístup.",
+      "conflict": "Účet se změnil nebo by akce odebrala posledního způsobilého správce platformy. Zkontrolujte obnovená oprávnění a opravte požadavek.",
+      "expired": "Platnost ověření vypršela. Ověřte se znovu."
+    },
+    "directory_owned": "Tyto údaje spravuje Microsoft Entra. Změňte je v adresáři.",
+    "verified_email": "Uživatelé mění e-mail pro obnovení po ověření v Zabezpečení účtu. Nedostupnou adresu řešte řízeným obnovením.",
+    "lifecycle": "Životní cyklus účtu",
+    "loading": "Načítání stavu účtu…",
+    "status_failed": "Stav účtu se nepodařilo načíst. Před změnou načtení zopakujte.",
+    "enrollment": "Nastavení účtu",
+    "delivery_label": "Doručení zprávy",
+    "suspension": "Místní pozastavení",
+    "suspended": "Pozastaveno",
+    "not_suspended": "Nepozastaveno",
+    "recovery": "Obnovení",
+    "recovery_pending": "Probíhá obnovení; přihlášení je blokováno",
+    "no_recovery": "Žádné probíhající obnovení",
+    "unknown_action": "Výsledek požadavku není znám. Před další akcí zkontrolujte obnovený stav účtu a auditní záznam. Po ověření výsledku toto okno zavřete.",
+    "refresh_status": "Obnovit stav účtu",
+    "offline_recovery": "Obnovení privilegovaného účtu vyžaduje offline postup se dvěma operátory. Kontaktujte určené operátory s odkazem na incident. Webový postup tento požadavek nemůže obejít.",
+    "status_blocked": "Server tuto změnu stavu nyní blokuje. Zachovejte způsobilého správce platformy a před opakováním vyřešte omezení nastavení, adresáře nebo obnovení.",
+    "capability_changed": "Tato akce již pro účet není povolena. Odůvodnění bylo zachováno; zkontrolujte obnovený stav.",
+    "reason": "Odůvodnění",
+    "incident": "Odkaz na incident",
+    "verification": "Způsob ověření totožnosti",
+    "verification_help": "Dodržujte schválený postup ověření totožnosti. Samotný přístup k e-mailu nestačí. Zaznamenejte metodu a odkaz na incident; nevkládejte sem doklady totožnosti.",
+    "recovery_operation": "Operace obnovení",
+    "new_email": "Navrhovaný e-mail pro obnovení",
+    "admin_password": "Vaše heslo správce",
+    "admin_factor": "Váš kód autentizátoru nebo obnovovací kód",
+    "factor_method": "Metoda ověření",
+    "confirm_action": "Potvrdit akci účtu",
+    "access_saved": "Změny přístupu byly uloženy. Případné upozornění na načtení seznamu nemění úspěšně uloženou změnu.",
+    "actions": {
+      "resend": "Znovu odeslat pozvánku",
+      "cancel": "Zrušit pozvánku",
+      "reset": "Odeslat odkaz na obnovení hesla",
+      "recover": "Zahájit asistované obnovení",
+      "suspend": "Pozastavit účet",
+      "resume": "Obnovit účet"
+    },
+    "states": {
+      "invited": "Pozván; čeká na nastavení příjemcem",
+      "password_set": "Heslo nastaveno; čeká na povinné MFA",
+      "enrolled": "Nastavení dokončeno",
+      "unknown": "Stav nastavení není dostupný"
+    },
+    "effects": {
+      "resend": "Odeslat novou pozvánku pro {{name}} ({{email}}). Předchozí odkazy přestanou platit.",
+      "cancel": "Zrušit nastavení účtu {{name}} ({{email}}). Dosavadní pozvánky přestanou platit.",
+      "reset": "Vyžádat řízené obnovení hesla pro {{name}} ({{email}}). Heslo volí příjemce; doručení se zobrazuje samostatně.",
+      "recover": "Zahájit obnovení pro {{name}} ({{email}}) pomocí níže uvedené operace. Relace budou zneplatněny a přihlášení zůstane blokováno do dokončení obnovení. Obnovení faktorů nahradí původní faktory a kódy.",
+      "suspend": "Pozastavit {{name}} ({{email}}) a zneplatnit relace. Vlastněné položky zůstávají přiřazeny a případné přeřazení je samostatné.",
+      "resume": "Zrušit místní pozastavení pro {{name}} ({{email}}). Přihlášení musí nadále umožňovat nastavení, MFA, obnovení a stav adresáře. Položky zůstávají přiřazeny."
+    },
+    "completed": {
+      "resend": "Nová pozvánka vytvořena.",
+      "cancel": "Pozvánka zrušena.",
+      "reset": "Požadavek na obnovení hesla přijat. Samostatně zkontrolujte doručení.",
+      "recover": "Požadavek na obnovení přijat. Přihlášení je blokováno do dokončení. Samostatně zkontrolujte doručení.",
+      "suspend": "Účet pozastaven; relace zneplatněny.",
+      "resume": "Místní pozastavení zrušeno. Ostatní podmínky přihlášení stále platí."
+    },
+    "operations": {
+      "factor_recovery": "Nahradit ztracené faktory; zachovat heslo",
+      "credential_and_factor_recovery": "Obnovit heslo i faktory",
+      "verified_address_recovery": "Obnovit ověřenou e-mailovou adresu a přihlašovací údaje"
+    }
   }
 }

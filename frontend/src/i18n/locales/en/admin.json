@@ -822,5 +822,102 @@
     "role_access": "Role & Access",
     "platform_role": "Platform Role",
     "active_immediately": "This user is active and can log in immediately"
+  },
+  "native_users": {
+    "create_account": "Create account",
+    "email": "Email",
+    "department": "Department",
+    "manager": "Manager",
+    "manager_search": "Search managers by name or email",
+    "choose_role": "Choose a role",
+    "no_assignment": "No assignment",
+    "recipient_chooses_password": "The recipient receives an invitation and chooses their own password. MFA setup follows the installation policy.",
+    "created": "Account created for {{name}} ({{email}}).",
+    "view_users": "View users",
+    "retry": "Retry",
+    "options_failed": "Account assignment options could not be loaded. Retry before creating the account.",
+    "manager_failed": "Manager search failed. Retry or continue without a manager.",
+    "check_users_before_retry": "Check the user list before creating another invitation",
+    "delivery": {
+      "pending": "Delivery pending. The account exists and the invitation is queued.",
+      "sent": "Invitation sent. Account setup is still required.",
+      "failed": "Delivery failed. The account exists; check delivery configuration and resend its invitation.",
+      "expired": "Link expired",
+      "cancelled": "Link cancelled",
+      "none": "No delivery recorded"
+    },
+    "errors": {
+      "invalid": "The account details were rejected or already exist. Check the user list and correct the details.",
+      "limited": "Too many requests. Wait before trying again.",
+      "unavailable": "The identity service is unavailable. Check whether the account was created before trying again.",
+      "uncertain": "The response was lost. The account may have been created; check the user list before trying again.",
+      "forbidden": "This action is no longer permitted. Refresh the user list and your access.",
+      "conflict": "The account changed or this action would remove the last eligible platform administrator. Review the refreshed capabilities and correct the request.",
+      "expired": "Verification expired. Authenticate again."
+    },
+    "directory_owned": "These identity fields are managed in Microsoft Entra. Update them in the directory.",
+    "verified_email": "Users change their recovery email in Account security after verification. For an inaccessible address, use governed recovery.",
+    "lifecycle": "Account lifecycle",
+    "loading": "Loading account status…",
+    "status_failed": "Account status could not be loaded. Retry before making a change.",
+    "enrollment": "Account setup",
+    "delivery_label": "Message delivery",
+    "suspension": "Local suspension",
+    "suspended": "Suspended",
+    "not_suspended": "Not suspended",
+    "recovery": "Recovery",
+    "recovery_pending": "Recovery pending; sign-in is blocked",
+    "no_recovery": "No recovery pending",
+    "unknown_action": "The request outcome is unknown. Check the refreshed account status and the audit log before starting another action. Close this dialog when the outcome is established.",
+    "refresh_status": "Refresh account status",
+    "offline_recovery": "Privileged account recovery requires the offline, two-operator recovery procedure. Contact the designated recovery operators with an incident reference. Web recovery cannot override this requirement.",
+    "status_blocked": "The backend currently blocks this status change. Keep an eligible platform administrator and resolve any enrollment, directory or recovery restrictions before retrying.",
+    "capability_changed": "This action is no longer permitted for this account. Your rationale is retained; review the refreshed status.",
+    "reason": "Reason",
+    "incident": "Incident reference",
+    "verification": "Identity verification method",
+    "verification_help": "Follow the approved identity-verification procedure. Mailbox possession alone is insufficient. Record the method and incident reference, without copying identity documents here.",
+    "recovery_operation": "Recovery operation",
+    "new_email": "Proposed recovery email",
+    "admin_password": "Your administrator password",
+    "admin_factor": "Your authenticator or recovery code",
+    "factor_method": "Verification method",
+    "confirm_action": "Confirm account action",
+    "access_saved": "Access changes saved. Any list reload warning is separate from this completed change.",
+    "actions": {
+      "resend": "Resend invitation",
+      "cancel": "Cancel invitation",
+      "reset": "Send password reset link",
+      "recover": "Start assisted recovery",
+      "suspend": "Suspend account",
+      "resume": "Resume account"
+    },
+    "states": {
+      "invited": "Invited; recipient setup pending",
+      "password_set": "Password set; required MFA setup pending",
+      "enrolled": "Setup complete",
+      "unknown": "No enrollment state available"
+    },
+    "effects": {
+      "resend": "Send a new invitation to {{name}} ({{email}}). Previous invitation links stop working.",
+      "cancel": "Cancel enrollment for {{name}} ({{email}}). Existing invitation links stop working.",
+      "reset": "Request a governed password reset link for {{name}} ({{email}}). The recipient chooses the password; delivery is reported separately.",
+      "recover": "Start recovery for {{name}} ({{email}}) using the operation below. Existing sessions are revoked and sign-in remains blocked until recovery completes. Factor recovery replaces the old factors and codes.",
+      "suspend": "Suspend {{name}} ({{email}}) and revoke their sessions. Owned items remain assigned and must be reassigned separately if needed.",
+      "resume": "Remove local suspension for {{name}} ({{email}}). Enrollment, MFA, recovery and directory eligibility must still permit sign-in. Owned items remain assigned."
+    },
+    "completed": {
+      "resend": "New invitation created.",
+      "cancel": "Invitation cancelled.",
+      "reset": "Password reset request accepted. Check delivery status separately.",
+      "recover": "Recovery request accepted. Sign-in is blocked until recovery completes. Check delivery separately.",
+      "suspend": "Account suspended; sessions revoked.",
+      "resume": "Local suspension removed. Other sign-in requirements still apply."
+    },
+    "operations": {
+      "factor_recovery": "Replace lost factors; retain password",
+      "credential_and_factor_recovery": "Recover password and factors",
+      "verified_address_recovery": "Recover a verified email address and credentials"
+    }
   }
 }

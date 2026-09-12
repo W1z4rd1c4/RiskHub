@@ -81,7 +81,7 @@ export function buildAccessUserActionModel(
         canDeactivate: Boolean(user.is_active && canChangeStatus),
         canReactivate: Boolean(!user.is_active && canChangeStatus),
         canBreakGlassEnable: resolveCapabilityFlag(capabilities, 'can_break_glass_enable'),
-        canRunDirectoryCheck: Boolean(user.external_id),
+        canRunDirectoryCheck: resolveCapabilityFlag(capabilities, 'can_check_directory'),
     };
 }
 

@@ -72,6 +72,7 @@ export interface AccessUserCapabilities {
 }
 
 export interface AccessUserUpdate {
+    reason?: string;
     name?: string;
     email?: string;
     role_id?: number;

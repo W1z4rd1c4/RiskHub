@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { getSessionOwnershipSnapshot, isSessionOwnershipCurrent } from '@/services/session';
 import { accessApi } from '@/services/accessApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import { logError } from '@/services/logger';
@@ -19,6 +20,7 @@ interface UseAccessEditModalStateArgs {
 }
 
 export function useAccessEditModalState({ isOpen, user, capabilities }: UseAccessEditModalStateArgs) {
+    const targetRef = useRef<number | null>(null);
     const initTimerRef = useRef<number | null>(null);
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
@@ -42,20 +44,24 @@ export function useAccessEditModalState({ isOpen, user, capabilities }: UseAcces
         }, 100);
     }, [clearInitTimer]);
 
-    const loadData = useCallback(async (activeUser: AccessUserRead) => {
+    const loadData = useCallback(async (activeUser: AccessUserRead, signal: AbortSignal) => {
+        const owner = getSessionOwnershipSnapshot();
+        const current = () => !signal.aborted && isSessionOwnershipCurrent(owner);
         try {
-            const rolesData = await accessApi.listAccessRoles();
+            const rolesData = await accessApi.listAccessRoles({ signal });
             const [deptsData, usersData] = capabilities.canEditBusinessFields
                 ? await Promise.all([
-                    departmentApi.getDepartments(),
-                    accessApi.listAccessUsers(),
+                    departmentApi.getDepartments({ signal }),
+                    accessApi.listAccessUsers(undefined, { signal }),
                 ])
                 : [[], []];
+            if (!current()) return;
             setRoles(filterEditableRoles(rolesData, capabilities.canEditPlatformFields));
             setDepartments(deptsData);
             setAllUsers(usersData.filter((candidate) => candidate.is_active && candidate.id !== activeUser.id));
             markInitializedSoon();
         } catch (err) {
+            if (!current()) return;
             logError('Failed to load data:', err);
             setLoadErrorKey('errorKeys.request_failed');
             setIsInitialized(true);
@@ -65,15 +71,19 @@ export function useAccessEditModalState({ isOpen, user, capabilities }: UseAcces
     useEffect(() => {
         if (!isOpen || !user) {
             clearInitTimer();
+            targetRef.current = null;
             return;
         }
 
+        const controller = new AbortController();
         setIsInitialized(false);
         setLoadErrorKey(null);
-        setSelection(selectionFromUser(user));
-        void loadData(user);
+        const sameTarget = targetRef.current === user.id;
+        setSelection((previous) => previous && sameTarget ? previous : selectionFromUser(user));
+        targetRef.current = user.id;
+        void loadData(user, controller.signal);
 
-        return clearInitTimer;
+        return () => { controller.abort(); clearInitTimer(); };
     }, [clearInitTimer, isOpen, loadData, user]);
 
     return {

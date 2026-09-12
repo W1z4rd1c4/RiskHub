@@ -716,3 +716,27 @@ async def test_access_update_logs_combined_user_changes(
     assert entry is not None
     assert entry.changes["department_id"]["new"] is None
     assert entry.changes["manager_id"]["new"] == "[REDACTED]"
+
+
+@pytest.mark.asyncio
+async def test_suspension_records_reason_without_mutating_identity_fields(
+    auth_client: AsyncClient, db_session, test_user_employee: User,
+):
+    from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
+
+    response = await auth_client.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"is_active": False, "reason": "INC-206: confirmed departure"},
+    )
+    assert response.status_code == 200
+    assert response.json()["local_suspended"] is True
+    entry = (await db_session.execute(select(ActivityLog).where(
+        ActivityLog.entity_type == ActivityEntityType.USER.value,
+        ActivityLog.entity_id == test_user_employee.id,
+        ActivityLog.action == ActivityAction.UPDATE.value,
+    ))).scalars().one()
+    # The existing audit policy records the supplied reason field while redacting
+    # free text from activity/SIEM surfaces; it is never assigned onto User.
+    assert entry.changes["reason"]["new"] == "[REDACTED]"
+    assert "INC-206: confirmed departure" not in entry.description
+    assert not hasattr(test_user_employee, "reason")

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { getSessionOwnershipSnapshot, isSessionOwnershipCurrent } from '@/services/session';
 import { useUsersPageFilters } from '@/hooks/useUsersPageFilters';
 import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
@@ -25,6 +26,7 @@ export function useUsersPageData({
     loadDirectoryCapabilities,
     pageMode,
 }: UseUsersPageDataOptions) {
+    const request = useRef<AbortController | null>(null);
     const [users, setUsers] = useState<AccessUserRead[]>([]);
     const [directoryUsers, setDirectoryUsers] = useState<UserDirectoryEntry[]>([]);
     const [directoryAvailableRoles, setDirectoryAvailableRoles] = useState<UserDirectoryRoleFacet[]>([]);
@@ -46,92 +48,75 @@ export function useUsersPageData({
         setDirectoryTotal(0);
     }, []);
 
-    const fetchDirectoryCapabilities = useCallback(async () => {
-        try {
-            const data = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 });
-            setDirectoryCapabilities(data.capabilities ?? null);
-            setDirectoryAvailableRoles(data.available_roles ?? []);
-        } catch {
-            setDirectoryCapabilities(null);
-            setDirectoryAvailableRoles([]);
-        }
-    }, []);
-
+    const query = filters.searchTerm.trim().toLowerCase();
     const fetchUsers = useCallback(async () => {
+        request.current?.abort();
+        const controller = new AbortController();
+        request.current = controller;
+        const owner = getSessionOwnershipSnapshot();
+        const current = () => !controller.signal.aborted && isSessionOwnershipCurrent(owner);
         try {
             setIsLoading(true);
             setLoadErrorKey(null);
-            if (pageMode === 'access') {
-                const data = await accessApi.listAccessUsers();
+            if (pageMode === 'access' || pageMode === 'department-access') {
+                const data = pageMode === 'access'
+                    ? await accessApi.listAccessUsers(undefined, { signal: controller.signal })
+                    : await accessApi.listDepartmentAccessUsers(departmentId);
+                if (!current()) return;
                 setUsers(data);
                 resetDirectoryData();
                 if (loadDirectoryCapabilities) {
-                    await fetchDirectoryCapabilities();
-                } else {
-                    setDirectoryCapabilities(null);
-                }
-                return;
-            }
-            if (pageMode === 'department-access') {
-                const data = await accessApi.listDepartmentAccessUsers(departmentId);
-                setUsers(data);
-                resetDirectoryData();
-                if (loadDirectoryCapabilities) {
-                    await fetchDirectoryCapabilities();
-                } else {
-                    setDirectoryCapabilities(null);
-                }
+                    try {
+                        const directory = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 }, { signal: controller.signal });
+                        if (!current()) return;
+                        setDirectoryCapabilities(directory.capabilities ?? null);
+                        setDirectoryAvailableRoles(directory.available_roles ?? []);
+                    } catch {
+                        if (current()) { setDirectoryCapabilities(null); setDirectoryAvailableRoles([]); }
+                    }
+                } else setDirectoryCapabilities(null);
                 return;
             }
             if (pageMode === 'directory') {
-                const data = await userDirectoryApi.listDirectoryUsers({
-                    q: filters.searchTerm || undefined,
+                const data = await userDirectoryApi.listDirectoryUsers({ q: query || undefined,
                     role_name: filters.roleFilter !== 'all' ? filters.roleFilter : undefined,
-                    skip: (directoryPage - 1) * DIRECTORY_PAGE_SIZE,
-                    limit: DIRECTORY_PAGE_SIZE,
-                });
-                setUsers([]);
-                setDirectoryUsers(data.items);
+                    skip: (directoryPage - 1) * DIRECTORY_PAGE_SIZE, limit: DIRECTORY_PAGE_SIZE,
+                }, { signal: controller.signal });
+                if (!current()) return;
+                setUsers([]); setDirectoryUsers(data.items);
                 setDirectoryAvailableRoles(data.available_roles ?? []);
-                setDirectoryCapabilities(data.capabilities ?? null);
-                setDirectoryTotal(data.total);
+                setDirectoryCapabilities(data.capabilities ?? null); setDirectoryTotal(data.total);
                 return;
             }
-
-            setUsers([]);
-            resetDirectoryData();
-            setDirectoryCapabilities(null);
+            setUsers([]); resetDirectoryData(); setDirectoryCapabilities(null);
         } catch (error) {
+            if (!current()) return;
             logError('Failed to fetch users.', error);
-            setUsers([]);
-            resetDirectoryData();
-            setDirectoryCapabilities(null);
+            // Retain committed rows separately from the reload warning.
             setLoadErrorKey(apiClient.toUiMessageKey(error));
         } finally {
-            setIsLoading(false);
+            if (current()) setIsLoading(false);
         }
-    }, [
-        directoryPage,
-        departmentId,
-        fetchDirectoryCapabilities,
-        filters.roleFilter,
-        filters.searchTerm,
-        loadDirectoryCapabilities,
-        pageMode,
-        resetDirectoryData,
-    ]);
+    }, [directoryPage, departmentId, filters.roleFilter, query, loadDirectoryCapabilities, pageMode, resetDirectoryData]);
+
+    const applyCommittedUser = useCallback((updated: AccessUserRead) => {
+        request.current?.abort();
+        setUsers((previous) => previous.map((user) => user.id === updated.id ? updated : user));
+        setIsLoading(false);
+    }, []);
 
     useEffect(() => {
         if (currentUserLoaded && pageMode !== 'forbidden') {
             void fetchUsers();
         }
+        return () => request.current?.abort();
     }, [currentUserLoaded, fetchUsers, pageMode]);
 
     useEffect(() => {
         if (isDirectoryMode) {
             setDirectoryPage(1);
         }
-    }, [filters.roleFilter, filters.searchTerm, isDirectoryMode]);
+    }, [filters.roleFilter, query, isDirectoryMode]);
 
     return {
         directoryAvailableRoles,
@@ -140,6 +125,7 @@ export function useUsersPageData({
         directoryTotal,
         directoryUsers,
         fetchUsers,
+        applyCommittedUser,
         filters,
         isLoading,
         loadErrorKey,

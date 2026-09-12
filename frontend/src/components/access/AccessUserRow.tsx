@@ -30,6 +30,7 @@ interface AccessUserRowProps {
     expandedUserId: number | null;
     onBreakGlassEnable?: (user: AccessUserRead) => void;
     onCheckDirectory?: (user: AccessUserRead) => void;
+    onManageIdentity?: (user: AccessUserRead) => void;
     onEditAccess: (user: AccessUserRead) => void;
     onToggleExpand: (userId: number) => void;
     onToggleStatus: (user: AccessUserRead) => void;
@@ -105,6 +106,7 @@ export function AccessUserRow({
     onBreakGlassEnable,
     onCheckDirectory,
     onEditAccess,
+    onManageIdentity,
     onToggleExpand,
     onToggleStatus,
     presentationModel,
@@ -190,6 +192,7 @@ export function AccessUserRow({
                         )}
                     >
                         {user.is_active ? t('access.status.active') : t('access.status.inactive')}
+                        {onManageIdentity && user.local_enrollment_state && <span className="ml-2">{t(`native_users.states.${user.local_enrollment_state}`)}</span>}
                     </span>
                 </td>
                 <td className="py-4 px-4 text-right">
@@ -204,7 +207,8 @@ export function AccessUserRow({
                                 <Edit2 className="h-4 w-4" aria-hidden="true" />
                             </button>
                         )}
-                        {canChangeActiveStatus && (
+                        {onManageIdentity && <button type="button" className="rounded-md border px-2 py-1 text-sm" onClick={() => onManageIdentity(user)}>{t('native_users.lifecycle')}</button>}
+                        {canChangeActiveStatus && !onManageIdentity && (
                             <button
                                 onClick={() => onToggleStatus(user)}
                                 className={cn(

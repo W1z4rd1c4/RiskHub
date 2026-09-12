@@ -37,8 +37,8 @@ export const userApi = {
      * Scoped user lookup for pickers/dropdowns.
      * Returns users visible to the current user based on their access scope.
      */
-    async listVisibleUsers(params?: { q?: string; include_inactive?: boolean; department_id?: number; skip?: number; limit?: number }) {
-        return apiClient.get('/users/lookup', { params, schema: userLookupArraySchema });
+    async listVisibleUsers(params?: { q?: string; include_inactive?: boolean; department_id?: number; skip?: number; limit?: number }, options?: { signal?: AbortSignal }) {
+        return apiClient.get('/users/lookup', { ...options, params, schema: userLookupArraySchema });
     },
 
     async getShellSummary(options?: { signal?: AbortSignal }) {

@@ -87,8 +87,8 @@ export const departmentApi = {
     /**
      * Get list of all departments with summary statistics
      */
-    getDepartments: async (): Promise<DepartmentSummary[]> => {
-        return apiClient.get('/departments', { schema: departmentSummaryArraySchema });
+    getDepartments: async (options?: { signal?: AbortSignal }): Promise<DepartmentSummary[]> => {
+        return apiClient.get('/departments', { ...options, schema: departmentSummaryArraySchema });
     },
 
     /**

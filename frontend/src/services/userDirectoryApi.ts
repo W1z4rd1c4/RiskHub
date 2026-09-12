@@ -9,8 +9,9 @@ export const userDirectoryApi = {
         department_id?: number;
         skip?: number;
         limit?: number;
-    }) {
+    }, options?: { signal?: AbortSignal }) {
         return apiClient.get('/users/directory', {
+            ...options,
             params,
             schema: userDirectoryListResponseSchema,
         });
