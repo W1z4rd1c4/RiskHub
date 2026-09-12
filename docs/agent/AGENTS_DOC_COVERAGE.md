@@ -35,7 +35,7 @@ Row schema:
 | architecture_locks | `Architecture Locks` | `AGENTS.md`; `docs/adr/README.md`; `docs/README.md`; `tests/backend/pytest/architecture/` | full | `AGENTS.md` owns the contributor rule and registry inventory. | 2026-08-24 |
 | client_factory | `client_factory` | `AGENTS.md`; `tests/backend/pytest/conftest.py`; `tests/backend/pytest/_get_db_override_whitelist.toml` | full | `AGENTS.md` owns the test-authoring rule; code and whitelist enforce it. | 2026-08-24 |
 | frontend_display_guardrails | `Frontend Display Guardrails` | `AGENTS.md`; `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | none | 2026-08-24 |
-| security_production_guardrails | `Security and Production Guardrails` | `AGENTS.md`; `docs/deployment/security-checklist.md`; `docs/deployment/README.md` | full | none | 2026-08-24 |
+| security_production_guardrails | `Security and Production Guardrails` | `AGENTS.md`; `docs/deployment/security-checklist.md`; `docs/deployment/README.md`; `docs/security/identity-foundations.md` | full | Includes installation binding and staged native MFA policy. | 2026-09-12 |
 | quick_commands | `Quick Commands` | `AGENTS.md`; `scripts/install.sh`; `scripts/dev.sh`; `scripts/compose.sh`; `scripts/deploy.sh`; `scripts/Makefile`; `docs/development/README.md`; `docs/deployment/reference.md` | full | none | 2026-08-24 |
 | demo_dev_auth_local | `Demo/Dev Auth (local)` | `AGENTS.md`; `scripts/install.sh`; `scripts/dev.sh`; `docs/development/README.md`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-08-24 |
 | repo_hygiene | `Repo Hygiene` | `AGENTS.md`; `.planning/codebase/STRUCTURE.md` | full | Tool-specific files link to the canonical section and do not repeat it. | 2026-08-24 |

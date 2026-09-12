@@ -263,6 +263,7 @@ jobs:
           expected = {
               "__init__.py",
               "bootstrap_sso_user.py",
+              "identity_installation.py",
               "revoke_refresh_sessions.py",
               "seed_departments.py",
               "seed_roles_permissions.py",

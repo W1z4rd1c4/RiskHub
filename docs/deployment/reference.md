@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-04-05
+> **Last Updated**: 2026-09-12
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -60,6 +60,18 @@ Production requires one supported Entra Graph credential mechanism:
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` + `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
 
 If both are configured, certificate mode is preferred and becomes the active runtime mode.
+
+## Installation identity and staged native policy
+
+Production API/scheduler startup validates the persisted profile, tenant and contract
+version. See [identity foundations](../security/identity-foundations.md) for the
+operator-only `initialize`, `eligibility-report`, `adopt-entra` and `verify` commands.
+
+`LOCAL_MFA_POLICY` accepts `required` (default) or `optional` for the native
+`AUTH_MODE=password`, `DIRECTORY_PROVIDER=none` profile. Optional permits verified
+password-only users and admins; enabled factors remain required. The current production
+renderer remains Entra-only, and native production admission stays blocked until #208.
+This key is not a production enablement override.
 
 ## Managed / Installer-Rendered Values
 

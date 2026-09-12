@@ -188,6 +188,12 @@ run "${docker_common_args[@]}" python -m scripts.seed_roles_permissions
 log "Seeding departments..."
 run "${docker_common_args[@]}" python -m scripts.seed_departments
 
+# Empty databases can be bound during explicit installation; populated unbound
+# databases must go through reviewed adopt-entra maintenance first.
+log "Initializing or verifying installation identity before user bootstrap..."
+run "${docker_common_args[@]}" python -m scripts.identity_installation initialize --maintenance-confirmed --source "docker-bootstrap"
+run "${docker_common_args[@]}" python -m scripts.identity_installation verify
+
 log "Bootstrapping initial SSO user with pre-link (idempotent upsert)..."
 bootstrap_args=(python -m scripts.bootstrap_sso_user --email "$bootstrap_email" --role "$bootstrap_role" --access-scope "$bootstrap_scope")
 if [[ -n "$bootstrap_department" ]]; then

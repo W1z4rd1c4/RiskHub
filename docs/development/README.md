@@ -114,6 +114,16 @@ Behavior:
 AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh
 ```
 
+## Identity foundation development
+
+Production installation identity is established explicitly and startup validation is
+read-only; see [identity foundations](../security/identity-foundations.md). Keep the
+usual hybrid demo defaults for browser verification. The native profile pairs
+`AUTH_MODE=password` with `DIRECTORY_PROVIDER=none` and defines
+`LOCAL_MFA_POLICY=required|optional` (required by default). It is staged backend work;
+complete native UI/installer delivery and production admission remain later gates.
+Do not treat disabling the demo picker as a supported native production install.
+
 ## E2E and Testing Notes
 
 - Playwright E2E still defaults to the local Vite frontend at `http://localhost:5173`

@@ -49,3 +49,10 @@ Documentation and work-tracking authority is defined in
   deltas, linked back to `AGENTS.md` for general rules.
 
 Verification date: 2026-08-24
+
+## Identity changes
+
+Read [identity foundations](../security/identity-foundations.md) and
+[ADR-018](../adr/ADR-018-identity-foundations.md) before changing auth/session or user
+lifecycle behavior. Production adoption, native MFA policy and release boundaries
+are linked from [Security and Production Guardrails](../../AGENTS.md#security-and-production-guardrails).

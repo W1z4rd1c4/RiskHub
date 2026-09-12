@@ -698,3 +698,29 @@ async def test_auth_config_reports_mfa_policy_only_for_native_identity(client_fa
         result = await client.get("/api/v1/auth/config")
         assert result.status_code == 200
         assert result.json()["local_mfa_policy"] == (policy if mode == "password" else None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("alias", ["ABCDEFAB-1234-4567-89AB-ABCDEFABCDEF", "{abcdefab-1234-4567-89ab-abcdefabcdef}"])
+async def test_entra_adoption_rejects_noncanonical_and_ambiguous_subjects(
+    db_session, test_user, test_user_employee, monkeypatch, alias
+):
+    from app.models import InstallationIdentity
+    from app.services.identity_installation import IdentityBindingError, establish_installation_binding
+    from app.services.directory_provider_service import DirectoryProviderService
+
+    test_user.external_id = "abcdefab-1234-4567-89ab-abcdefabcdef"
+    test_user_employee.external_id = alias
+    await db_session.commit()
+    directory = AsyncMock()
+    monkeypatch.setattr(DirectoryProviderService, "get_user", directory)
+    for dry_run in (True, False):
+        with pytest.raises(IdentityBindingError, match="unique canonical object ID"):
+            await establish_installation_binding(
+                db_session, settings=identity_settings(), source="reviewed-adoption",
+                adopt_entra=True, dry_run=dry_run,
+            )
+    directory.assert_not_awaited()
+    assert not (await db_session.execute(select(InstallationIdentity))).scalars().all()
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.external_id == alias
