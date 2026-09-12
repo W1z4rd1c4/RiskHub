@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.email import normalize_email
+from app.schemas.identity import IdentityConfig
 from app.schemas.user import UserBrief
 
 
@@ -65,6 +66,7 @@ class DemoPersonaRead(BaseModel):
 
 
 class AuthConfigResponse(BaseModel):
+    identity: IdentityConfig | None = None
     auth_mode: Literal["password", "microsoft_sso", "hybrid_dev"]
     demo_login_enabled: bool
     password_login_enabled: bool

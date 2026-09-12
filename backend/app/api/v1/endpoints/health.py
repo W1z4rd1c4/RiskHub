@@ -6,6 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
+from app.core.external_identity_policy import external_directory_enabled
 from app.core.scheduler_runtime import get_scheduler_runtime_state
 from app.db.session import get_db
 from app.schemas.health import HealthResponse, LivenessResponse, ReadinessResponse
@@ -36,6 +38,7 @@ async def _get_redis_status(request: Request) -> Literal["connected", "disconnec
 async def _build_readiness_response(
     request: Request,
     db: AsyncSession,
+    settings: Settings,
 ) -> ReadinessResponse:
     database = await _get_database_status(db)
     redis = await _get_redis_status(request)
@@ -48,6 +51,7 @@ async def _build_readiness_response(
         scheduler_runtime["scheduler_status"],
     )
     return ReadinessResponse(
+        external_directory="unchecked" if external_directory_enabled(settings) else "not_applicable",
         ready=ready,
         database=database,
         redis=redis,
@@ -68,19 +72,22 @@ async def readiness_check(
     request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> ReadinessResponse:
     """Request-serving readiness endpoint for machine probes."""
 
-    readiness = await _build_readiness_response(request, db)
+    readiness = await _build_readiness_response(request, db, settings)
     response.status_code = status.HTTP_200_OK if readiness.ready else status.HTTP_503_SERVICE_UNAVAILABLE
     return readiness
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check(request: Request, db: AsyncSession = Depends(get_db)) -> HealthResponse:
+async def health_check(
+    request: Request, db: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> HealthResponse:
     """Diagnostic health endpoint for humans and dashboards."""
 
-    readiness = await _build_readiness_response(request, db)
+    readiness = await _build_readiness_response(request, db, settings)
     health_status: Literal["healthy", "degraded"] = (
         "healthy" if readiness.ready and readiness.redis != "disconnected" else "degraded"
     )

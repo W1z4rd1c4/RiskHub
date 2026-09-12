@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.api import deps
+from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.core.permissions import get_effective_permissions, get_scope_label
 from app.models import User
@@ -11,9 +12,9 @@ router = APIRouter()
 logger = get_logger("auth.me")
 
 
-def _build_logged_me_capabilities(current_user: User) -> MeCapabilities:
+def _build_logged_me_capabilities(current_user: User, settings: Settings) -> MeCapabilities:
     try:
-        capabilities = build_me_capabilities(current_user)
+        capabilities = build_me_capabilities(current_user, settings=settings)
     except Exception:
         logger.exception("me_capabilities.parse_error", user_id=current_user.id)
         raise
@@ -22,7 +23,9 @@ def _build_logged_me_capabilities(current_user: User) -> MeCapabilities:
 
 
 @router.get("/me", response_model=UserBrief)
-async def get_current_user_info(current_user: User = Depends(deps.get_current_user)):
+async def get_current_user_info(
+    current_user: User = Depends(deps.get_current_user), settings: Settings = Depends(get_settings)
+):
     """
     Get current authenticated user information.
 
@@ -49,11 +52,13 @@ async def get_current_user_info(current_user: User = Depends(deps.get_current_us
         entra_business_role=current_user.entra_business_role,
         department_id=current_user.department_id,
         department_name=current_user.department.name if current_user.department else None,
-        me_capabilities=_build_logged_me_capabilities(current_user),
+        me_capabilities=_build_logged_me_capabilities(current_user, settings),
     )
 
 
 @router.get("/me/capabilities", response_model=MeCapabilities)
-async def get_current_user_capabilities(current_user: User = Depends(deps.get_current_user)):
+async def get_current_user_capabilities(
+    current_user: User = Depends(deps.get_current_user), settings: Settings = Depends(get_settings)
+):
     """Get backend-authoritative shell and route-gate capabilities for the current user."""
-    return _build_logged_me_capabilities(current_user)
+    return _build_logged_me_capabilities(current_user, settings)

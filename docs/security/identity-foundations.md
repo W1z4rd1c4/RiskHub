@@ -170,3 +170,5 @@ independent security review has already passed. The PR description is the candid
 specific evidence ledger. Do not close the four issues solely because a draft exists.
 Preserve native admission denial until #208. Use the normal protected-branch review
 and release process; this guide is not candidate-specific approval evidence.
+
+See [native directory isolation](identity-directory-isolation.md) for external service admission, local-directory continuity, capabilities and diagnostics.

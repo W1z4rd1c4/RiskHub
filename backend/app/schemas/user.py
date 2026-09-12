@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
 from app.core.email import normalize_email
+from app.schemas.identity import CurrentIdentityCapabilities
 
 
 class AccessScopeEnum(str, Enum):
@@ -93,6 +94,7 @@ class UserRead(BaseModel):
 class MeCapabilities(BaseModel):
     """Backend-authoritative shell and route-gate capabilities for the current user."""
 
+    identity: CurrentIdentityCapabilities = Field(default_factory=CurrentIdentityCapabilities)
     can_view_user_directory: bool = False
     can_view_access_users: bool = False
     can_view_department_access_users: bool = False

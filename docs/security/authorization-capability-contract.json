@@ -3,6 +3,8 @@
  "last_reviewed": "2026-09-12",
  "last_architecture_refactor_reviewed": "2026-09-08",
  "architecture_refactor_notes": [
+  "2026-09-12: Recovery-pending resumption is rejected by both user-profile and access-profile PATCH services with RECOVERY_PENDING before mutation or recovery-grant revocation; the real HTTP regression completes the preserved grant afterward.",
+  "2026-09-12: #202 gates external-directory/SSO construction, direct work and scheduler registration for native identity. MeCapabilities.identity and AccessUserCapabilities project invitation/reset/recovery and external-directory actions from central profile/actor/target eligibility. Privileged recovery is offline-required; CRO retains business access only. Public diagnostics expose not_applicable without binding; authorized admin health includes persisted binding. No production admission change.",
   "2026-09-12: Native recovery (#201) adds proof-bound factor replacement and code regeneration, admin-assisted ordinary recovery and dual-Ed25519-approved offline privileged/last-admin recovery. local_recovery_pending denies ordinary authority; completion preserves suspension, role/scope/ownership and revokes old sessions and artifacts. Recent proofs bind target, expected authority, operation and intended address. Key maintenance preserves factor generations/counters and retains keys required by live state or backups. Native production admission remains closed until #208.",
   "2026-09-12: Identity groups 1/2 support LOCAL_MFA_POLICY=required (default) or optional. Optional policy admits verified password-only users and platform admins; accounts with confirmed factors always require them. Shared session validation binds authentication method, factor generation when applicable, installation, absolute authentication age, active role and User version. Admins create accounts through invitations and initiate reset links. Users change/recover their passwords; recent proofs require password plus factor when enabled or required. Factor enrollment and credential changes revoke prior authority; password recovery retains MFA. Required policy rejects password-only sessions. Existing business authorization and the #208 production admission guard remain unchanged.",
   "2026-09-07: Identity group 1 (#193–#196) separates local suspension from upstream eligibility, preserves the last effective global platform admin under a serialized lifecycle guard, and invalidates session authority on actual credential/access changes. Production access/refresh authority rejects absent or boolean versions. AccessUserCapabilities adds can_resume and explanatory field-ownership/status metadata; backend mutation policy remains authoritative. Installation binding is explicitly established and checked before production runtime/scheduler admission; custom production remains unavailable until #208. See ADR-018 and docs/security/identity-foundations.md for migration, ownership, and lock order.",
@@ -235,7 +237,10 @@
   "frontend/src/services/session/",
   "frontend/src/services/vendorReportApi.ts",
   "frontend/src/types/process.ts",
-  "frontend/src/types/vendor.ts"
+  "frontend/src/types/vendor.ts",
+  "backend/app/schemas/identity.py",
+  "backend/app/services/identity_capabilities.py",
+  "backend/app/core/external_identity_policy.py"
  ],
  "actions": [
   {
@@ -283,13 +288,14 @@
    "action": "Read backend-authoritative access-user action capabilities on access user rows",
    "actor_scope": "Same access-list visibility; backend computes per-target identity, business-access, role, lifecycle, break-glass, and session actions",
    "backend_authority": "backend/app/api/v1/endpoints/access.py returns AccessUserRead.capabilities for access user list/update responses",
-   "service_policy": "backend/app/services/_access_workflow/policy.py::access_user_capabilities",
-   "response_capability": "backend/app/schemas/access.py AccessUserCapabilities; docs/security/capability-catalog.json access_user surface validates backend and frontend field parity",
+   "service_policy": "backend/app/services/_access_workflow/policy.py::access_user_capabilities; backend/app/services/identity_capabilities.py derives native invitation/reset/recovery and external directory eligibility from profile and the native enforcement policy",
+   "response_capability": "backend/app/schemas/access.py AccessUserCapabilities; docs/security/capability-catalog.json access_user surface validates backend and frontend field parity; backend/app/schemas/identity.py CurrentIdentityCapabilities is nested under MeCapabilities.identity; access rows add invitation/reset/recovery/directory booleans and verified_identity_fields",
    "frontend_gate": "frontend/src/services/api/schemas/entities/identity.ts requires accessUserCapabilitiesSchema on each AccessUserRead; frontend/src/components/access/useAccessUsersWorkflow.ts and frontend/src/components/access/usersTablePresentation.ts consume backend capabilities without optional fallback",
    "tests": [
     "tests/backend/pytest/test_access_management.py",
     "tests/backend/pytest/architecture/test_capability_catalog_includes_access_user_red.py",
-    "tests/frontend/unit/src/authz/useAuthz.invariant.test.ts"
+    "tests/frontend/unit/src/authz/useAuthz.invariant.test.ts",
+    "tests/backend/pytest/test_identity_directory_isolation.py"
    ],
    "status": "authoritative",
    "findings": []

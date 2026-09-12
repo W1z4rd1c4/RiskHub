@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, model_validator
 # ============================================================================
 # Orphan Entity Schemas
 # ============================================================================
+from app.schemas.identity import IdentityBindingRead
 
 
 class OrphanFixResponse(BaseModel):
@@ -78,6 +79,8 @@ class OrphanStatsResponse(BaseModel):
 class SystemHealthResponse(BaseModel):
     """System health status response."""
 
+    external_directory: Literal["not_applicable", "unchecked"] = "unchecked"
+    identity_binding: IdentityBindingRead | None = None
     database_status: str  # "connected" | "error"
     database_latency_ms: float
     uptime_seconds: int

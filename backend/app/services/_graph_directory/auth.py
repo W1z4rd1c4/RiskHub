@@ -9,6 +9,7 @@ from typing import Any
 
 from app.core.config import EntraConfidentialCredential, Settings
 from app.core.datetime_utils import utc_now
+from app.core.external_identity_policy import require_external_directory
 from app.core.outbound_guard import OutboundRequestError, guard_resolved_outbound_url
 from app.services._graph_directory.errors import (
     GraphCredentialError,
@@ -35,6 +36,7 @@ class GraphAccessTokenProvider:
     """Acquire and cache Microsoft Graph client-credential access tokens."""
 
     def __init__(self, settings: Settings):
+        require_external_directory(settings)
         self._settings = settings
         self._token: str | None = None
         self._token_expiry: datetime | None = None

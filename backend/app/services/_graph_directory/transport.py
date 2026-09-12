@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.core.external_identity_policy import require_external_directory
 from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
@@ -25,6 +26,7 @@ class GraphApiTransport:
     """Minimal transport layer for Graph GET requests."""
 
     def __init__(self, settings: Settings, token_provider: GraphAccessTokenProvider):
+        require_external_directory(settings)
         self._settings = settings
         self._token_provider = token_provider
 

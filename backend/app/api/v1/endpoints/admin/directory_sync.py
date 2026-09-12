@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.core.external_identity_policy import require_external_directory
 from app.core.identity_policy import projected_account_active
 from app.db.session import get_db
 from app.models import User
@@ -66,7 +67,9 @@ async def break_glass_enable_directory_user(
     payload: DirectoryBreakGlassEnableRequest,
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_platform_admin),
+    settings: Settings = Depends(get_settings),
 ) -> dict:
+    require_external_directory(settings)
     user = await lock_identity_transition(db, user_id=user_id, actor=admin_user)
     if user.local_suspended:
         raise HTTPException(
@@ -84,7 +87,7 @@ async def break_glass_enable_directory_user(
     user.break_glass_reason = payload.reason.strip()
     user.break_glass_expires_at = now + payload.expires_delta
     user.break_glass_granted_by_user_id = admin_user.id
-    user.is_active = projected_account_active(user)
+    user.is_active = projected_account_active(user, settings=settings)
     await invalidate_user_sessions(db=db, user=user, reason="directory_break_glass_granted")
     db.add(user)
 

@@ -26,6 +26,7 @@ async def test_health_check_returns_diagnostic_shape(client_factory) -> None:
     assert response.json() == {
         "status": "healthy",
         "ready": True,
+        "external_directory": "unchecked",
         "database": "connected",
         "redis": "disabled",
         "scheduler_role": "disabled",
@@ -48,6 +49,7 @@ async def test_readyz_returns_service_unavailable_for_database_errors(client_fac
     assert response.status_code == 503
     assert response.json() == {
         "ready": False,
+        "external_directory": "unchecked",
         "database": "disconnected",
         "redis": "disabled",
         "scheduler_role": "disabled",
@@ -72,6 +74,7 @@ async def test_readyz_stays_ready_when_redis_is_disconnected(
     assert readiness.status_code == 200
     assert readiness.json() == {
         "ready": True,
+        "external_directory": "unchecked",
         "database": "connected",
         "redis": "disconnected",
         "scheduler_role": "disabled",

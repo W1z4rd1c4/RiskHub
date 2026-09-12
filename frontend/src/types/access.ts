@@ -24,6 +24,7 @@ export interface AccessUserRead {
     name: string;
     is_active: boolean;
     local_suspended?: boolean;
+    local_recovery_pending?: boolean;
     local_enrollment_state?: string | null;
     role_id: number;
     role: {
@@ -59,8 +60,15 @@ export interface AccessUserCapabilities {
     can_break_glass_enable: boolean;
     can_revoke_sessions: boolean;
     can_resume?: boolean;
+    can_reissue_invitation?: boolean;
+    can_cancel_invitation?: boolean;
+    can_request_password_reset?: boolean;
+    can_initiate_recovery?: boolean;
+    recovery_offline_required?: boolean;
+    can_check_directory?: boolean;
     active_status_block_reason?: string | null;
     directory_owned_fields?: string[];
+    verified_identity_fields?: string[];
 }
 
 export interface AccessUserUpdate {

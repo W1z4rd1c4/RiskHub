@@ -331,3 +331,5 @@ cover functional denial behavior but prove no row-lock or concurrent-write safet
 PostgreSQL/Redis skips are missing acceptance evidence. Run architecture locks and the
 authorization, generated-schema and deployment-packaging validators for this surface.
 The [recovery runbook](security/identity-recovery.md) owns the operator commands.
+
+Native directory isolation coverage lives in `tests/backend/pytest/test_identity_directory_isolation.py`. Run it with the provider, directory import/lookup, deprovision, SSO, scheduler, health, admin telemetry and access-capability suites; network-denial assertions concern component composition and runtime seams, not the final #208 production matrix.

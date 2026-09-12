@@ -1,4 +1,11 @@
 export interface SystemHealth {
+    external_directory?: 'not_applicable' | 'unchecked';
+    identity_binding?: {
+        installation_id: string;
+        auth_mode: 'password' | 'microsoft_sso';
+        tenant_id: string | null;
+        contract_version: number;
+    } | null;
     database_status: string;
     database_latency_ms: number;
     uptime_seconds: number;

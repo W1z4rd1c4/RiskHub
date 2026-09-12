@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.core.config import Settings
+from app.core.external_identity_policy import external_directory_enabled
 from app.models import User
 from app.models.role import RoleType
 from app.schemas.admin import AdminConsoleCapabilities
@@ -10,11 +12,11 @@ def _is_platform_admin(user: User) -> bool:
     return getattr(role, "name", None) == RoleType.ADMIN.value
 
 
-def build_admin_capabilities(user: User) -> AdminConsoleCapabilities:
+def build_admin_capabilities(user: User, *, settings: Settings | None = None) -> AdminConsoleCapabilities:
     is_admin = _is_platform_admin(user)
     return AdminConsoleCapabilities(
         can_revoke_sessions=is_admin,
-        can_run_directory_check_all=is_admin,
+        can_run_directory_check_all=bool(is_admin and (settings is None or external_directory_enabled(settings))),
         can_update_log_config=is_admin,
         can_export_loaded_audit_logs=is_admin,
     )

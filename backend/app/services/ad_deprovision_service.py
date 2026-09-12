@@ -6,8 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.core.external_identity_policy import require_external_directory
 from app.core.identity_policy import projected_account_active
 from app.core.permissions import is_platform_admin
 from app.models import User
@@ -50,6 +51,7 @@ class ADDeprovisionService:
         actor: User | None = None,
         trigger: str = "manual_check_user",
     ) -> dict[str, Any]:
+        require_external_directory(settings)
         user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         if user is None:
             raise ValueError("User not found")
@@ -75,6 +77,7 @@ class ADDeprovisionService:
         actor: User | None = None,
         trigger: str = "manual_check_all",
     ) -> dict[str, Any]:
+        require_external_directory(settings)
         provider = DirectoryProviderService(settings)
         users = (
             (await db.execute(select(User).where(User.external_id.is_not(None)).order_by(User.id.asc())))
@@ -114,7 +117,9 @@ class ADDeprovisionService:
         trigger: str,
         sync_status: str,
         deprovision_reason: str,
+        settings: Settings | None = None,
     ) -> dict[str, Any]:
+        require_external_directory(settings or get_settings())
         return await cls._deprovision_user(
             db,
             user=user,
@@ -135,6 +140,7 @@ class ADDeprovisionService:
         actor: User | None,
         trigger: str,
     ) -> dict[str, Any]:
+        require_external_directory(settings)
         now = utc_now()
         if not user.external_id:
             user.directory_sync_status = "skipped"

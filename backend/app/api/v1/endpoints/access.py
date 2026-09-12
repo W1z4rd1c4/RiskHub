@@ -75,6 +75,7 @@ def _build_access_user_read(
         name=user.name,
         is_active=user.is_active,
         local_suspended=user.local_suspended,
+        local_recovery_pending=user.local_recovery_pending,
         local_enrollment_state=user.local_enrollment_state,
         role_id=user.role_id,
         role=RoleRead.model_validate(user.role),

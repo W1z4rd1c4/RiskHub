@@ -4,6 +4,7 @@ from typing import Any
 
 from app.core.config import Settings
 from app.core.email import normalize_email
+from app.core.external_identity_policy import require_external_directory
 from app.schemas.directory import DirectoryUserRead
 from app.services._directory_identity import normalize_directory_user_read
 from app.services._graph_directory.auth import GraphAccessTokenProvider, reset_graph_token_cache_for_tests
@@ -27,6 +28,7 @@ class GraphDirectoryService:
     """Microsoft Graph directory client using client-credentials flow."""
 
     def __init__(self, settings: Settings):
+        require_external_directory(settings)
         self._settings = settings
         self._token_provider = GraphAccessTokenProvider(settings)
         self._transport = GraphApiTransport(settings, self._token_provider)

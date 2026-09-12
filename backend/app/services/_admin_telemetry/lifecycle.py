@@ -9,8 +9,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
-from app.models import Control, KeyRiskIndicator, OutboxEvent, Risk, User
+from app.core.external_identity_policy import external_directory_enabled
+from app.models import Control, InstallationIdentity, KeyRiskIndicator, OutboxEvent, Risk, User
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.schemas.admin import (
     OutboxEventFailureSummary,
@@ -20,6 +22,7 @@ from app.schemas.admin import (
     SystemHealthResponse,
     SystemStatsResponse,
 )
+from app.schemas.identity import IdentityBindingRead
 from app.services._admin_telemetry.projections import serialize_scheduler_run
 from app.services._auth_session_workflow import revoke_user_sessions
 
@@ -52,14 +55,19 @@ class AdminOperationOutcome:
     user_email: str
 
 
-async def build_system_health_snapshot(request: Request, db: AsyncSession) -> SystemHealthSnapshot:
+async def build_system_health_snapshot(
+    request: Request, db: AsyncSession, *, settings: Settings | None = None
+) -> SystemHealthSnapshot:
     import time
 
     import psutil
 
+    settings = settings or get_settings()
+    binding = None
     start = time.perf_counter()
     try:
         await db.execute(select(func.count()).select_from(User))
+        binding = await db.get(InstallationIdentity, 1)
         db_status = "connected"
     except Exception:
         logger.exception(
@@ -81,6 +89,17 @@ async def build_system_health_snapshot(request: Request, db: AsyncSession) -> Sy
 
     return SystemHealthSnapshot(
         response=SystemHealthResponse(
+            external_directory="unchecked" if external_directory_enabled(settings) else "not_applicable",
+            identity_binding=(
+                IdentityBindingRead(
+                    installation_id=binding.installation_id,
+                    auth_mode=binding.auth_mode,
+                    tenant_id=binding.tenant_id,
+                    contract_version=binding.contract_version,
+                )
+                if binding
+                else None
+            ),
             database_status=db_status,
             database_latency_ms=round(latency_ms, 2),
             uptime_seconds=uptime_seconds,

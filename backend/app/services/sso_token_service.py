@@ -13,6 +13,7 @@ from app.core.activity_logger import audit_logger
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.email import normalize_email
+from app.core.external_identity_policy import require_sso
 from app.core.logging import get_logger
 from app.core.outbound_guard import (
     OutboundRequestError,
@@ -71,6 +72,7 @@ class EntraTokenVerifier:
     JWKS_TTL_SECONDS = 60 * 15  # 15m
 
     def __init__(self, *, settings: Settings):
+        require_sso(settings)
         auth_settings = settings.auth
         if not auth_settings.entra_tenant_id or not auth_settings.entra_client_id:
             raise SsoProviderUnavailableError("Missing Entra configuration")
@@ -320,6 +322,7 @@ def _verifier_key(settings: Settings) -> tuple[str, str, str, int, tuple[str, ..
 
 
 def _get_verifier(settings: Settings) -> EntraTokenVerifier:
+    require_sso(settings)
     key = _verifier_key(settings)
     verifier = _verifier_cache.get(key)
     if verifier is None:

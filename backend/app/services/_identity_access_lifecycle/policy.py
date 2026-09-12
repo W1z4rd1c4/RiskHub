@@ -87,6 +87,8 @@ def prepare_manual_activity_update(*, user: User, update_data: dict, settings: S
     active = update_data["is_active"]
     if type(active) is not bool:
         raise ValidationError("is_active must be a boolean")
+    if active and user.local_recovery_pending:
+        raise AuthorizationError("Account cannot resume until recovery is completed", code="RECOVERY_PENDING")
     if active and not upstream_and_enrollment_allow_access(user, settings=settings):
         raise AuthorizationError("Account cannot resume until upstream eligibility and enrollment are satisfied")
     update_data["local_suspended"] = not active
