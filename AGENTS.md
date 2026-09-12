@@ -29,7 +29,7 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | Architecture Locks | `AGENTS.md`<br>`docs/adr/README.md`<br>`docs/README.md` | full | RiskHub Maintainer | 2026-08-24 |
 | client_factory | `AGENTS.md`<br>`tests/backend/pytest/conftest.py`<br>`tests/backend/pytest/_get_db_override_whitelist.toml` | full | RiskHub Maintainer | 2026-08-24 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md`<br>`docs/security/identity-foundations.md` | full | RiskHub Maintainer | 2026-09-12 |
 | Quick Commands | `scripts/install.sh`<br>`scripts/dev.sh`<br>`scripts/compose.sh`<br>`scripts/deploy.sh`<br>`scripts/Makefile`<br>`docs/development/README.md`<br>`docs/deployment/reference.md` | full | RiskHub Maintainer | 2026-04-05 |
 | Demo/Dev Auth (local) | `scripts/install.sh`<br>`scripts/dev.sh`<br>`docs/development/README.md`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-04-05 |
 | Repo Hygiene | `AGENTS.md`<br>`.planning/codebase/STRUCTURE.md` | full | RiskHub Maintainer | 2026-08-24 |
@@ -248,7 +248,7 @@ Canonical Source: `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md`
 
 ## Security and Production Guardrails
 
-Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/README.md`
+Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/README.md`, `docs/security/identity-foundations.md`
 
 - Never commit real secrets or environment values.
 - Production defaults must keep:
@@ -257,6 +257,9 @@ Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/READ
   - strong `SECRET_KEY`
   - webhook signature verification enabled when webhook endpoints are used
 - Do not expose or depend on demo auth paths in production behavior.
+- Follow [identity foundations](docs/security/identity-foundations.md) and ADR-018 for installation binding, account eligibility, lock order and session invalidation. Startup validates; maintenance tooling establishes/adopts identity.
+- Native MFA policy defaults to `required`; explicit `optional` permits password-only accounts including admins, while confirmed factors stay enforced. Admin-created native accounts use invitations and recipients choose/manage passwords.
+- Preserve the native production admission guard until #208; backend contracts do not imply installer/UI release. Run PostgreSQL identity/session regressions and keep generated local-auth schemas/types in sync.
 
 ## Quick Commands
 

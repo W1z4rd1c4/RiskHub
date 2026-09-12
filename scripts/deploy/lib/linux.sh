@@ -173,6 +173,11 @@ linux_run_db_tasks() {
 
   linux_run_release_command \
     "$db_workdir" \
+    "Initialize or verify installation identity before user bootstrap" \
+    "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.identity_installation initialize --maintenance-confirmed --source linux-bootstrap; $(printf '%q' "$python_bin") -m scripts.identity_installation verify"
+
+  linux_run_release_command \
+    "$db_workdir" \
     "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global (pre-link)" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); admin_args=($(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_ADMIN_EMAIL\" --role admin --access-scope global); if [[ -n \"\${BOOTSTRAP_ADMIN_EXTERNAL_ID:-}\" ]]; then admin_args+=(--external-id \"\$BOOTSTRAP_ADMIN_EXTERNAL_ID\"); fi; \"\${admin_args[@]}\""
 
@@ -222,6 +227,10 @@ linux_deploy_or_upgrade() {
   linux_install_venvs "$release_dir"
   # shellcheck disable=SC2153 # RUNTIME_DIR is a sourced global from deploy/lib/common.sh.
   linux_render_runtime_files "$config_path" "$RUNTIME_DIR"
+  if [[ "$action" == "upgrade" ]]; then
+    log "Stopping API and scheduler writers before schema and identity changes..."
+    run_privileged systemctl stop "$LINUX_BACKEND_SERVICE" "$LINUX_SCHEDULER_SERVICE"
+  fi
   linux_run_db_tasks "$release_dir"
 
   if [[ -n "$previous_target" ]]; then

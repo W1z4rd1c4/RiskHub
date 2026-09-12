@@ -72,3 +72,12 @@ Maintainer note:
 - `riskhub-redis.service` runs local Redis using the host secret file
 - the runtime service lane reads from `current/backend` with `current/venv`
 - DB lifecycle tasks run from `current/backend_db` with `current/db-venv`
+
+## Identity DB tasks
+
+Release DB artifacts include the operator-only `scripts.identity_installation` module.
+Fresh bootstrap initializes/verifies an empty installation before Entra users are
+created. Populated unbound installations require explicit maintenance adoption;
+managed upgrades stop API/scheduler writers before migrations. Follow
+[identity foundations](../security/identity-foundations.md) for adoption, failure recovery and replica draining.
+Native identity selection remains staged work; preserve production admission checks.

@@ -50,3 +50,11 @@ guards against reintroducing the pre-package single-file service shape.
 
 Verification date:
 - 2026-05-10
+
+## Identity/session boundaries
+
+Auth endpoints retain service-owned transaction commits under
+`services/_auth_session_workflow/`. Account-security changes use the common authority
+transition and ordered lifecycle locks described in
+[ADR-018](../adr/ADR-018-identity-foundations.md). Do not bypass installation binding,
+local suspension or last-effective-admin checks with an endpoint-local update.

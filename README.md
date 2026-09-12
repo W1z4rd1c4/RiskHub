@@ -81,6 +81,11 @@ Production deployment is intentionally separate from local startup:
 
 Current startup details, reset behavior, and local runtime notes live in the [development guide](./docs/development/README.md).
 
+Native local identity is being delivered in stages under #192. Its contract supports
+optional MFA, administrator invitations and user-managed passwords. Production currently
+remains Entra-only; see [identity foundations](./docs/security/identity-foundations.md)
+for the migration prerequisite and release boundary.
+
 ## How RiskHub Works
 
 ### 1. Run the risk operating loop

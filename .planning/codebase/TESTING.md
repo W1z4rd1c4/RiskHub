@@ -155,3 +155,13 @@
 ---
 
 *Testing audit refreshed on 2026-05-25*
+
+## Identity foundation verification
+
+Run `test_identity_foundations.py`, `test_identity_foundations_postgres.py` and
+`test_identity_authority_loading.py` with the auth/access/directory regression set.
+Use a separate `TEST_DATABASE_URL` database for Postgres locks and migration behavior;
+SQLite skips are not evidence. Check generated contracts with
+`cd backend && python -m scripts.export_local_auth_contract --check`, then run
+architecture locks, authz/production-doc validators, and frontend checks on Node 24.
+The hosted command set lives in `.github/workflows/identity-foundations.yml`.

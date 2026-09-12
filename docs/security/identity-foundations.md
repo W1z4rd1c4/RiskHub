@@ -44,6 +44,47 @@ not a reason to remove the guard. Validate an existing admin login and scoped bu
 read before reopening normal traffic. Versionless access credentials require login
 again; already modern current-version authority retains its existing semantics.
 
+## Release tooling and maintenance recovery
+
+The Docker DB-task image and Linux `backend_db/scripts/` lane include
+`scripts.identity_installation`; the long-running API image does not ship operator
+commands. Fresh explicit installation runs `initialize` and `verify` after reference
+seeding and before privileged-user bootstrap. Repeating this on an equal binding is
+read-only. A populated unbound database is refused: deploy/upgrade never automatically
+adopts users or changes provider/tenant.
+
+Docker and Linux upgrades stop their managed API and scheduler before migrations.
+Operators must also drain traffic and stop any additional replicas, jobs or external
+writers. A failed migration, binding check or bootstrap leaves managed writers stopped;
+keep maintenance in place, fix forward, verify the binding and resume the release.
+Do not restart an old binary against the changed eligibility schema.
+
+For an existing Entra installation's first upgrade, apply the new migration in the
+maintenance window, run the adoption sequence above, and then continue the normal
+upgrade. Use the **new release's** DB task environment, production env-file and secret
+mounts. Docker's DB-task invocation has this form (substitute the installed paths and
+immutable release image):
+
+```bash
+docker run --rm --add-host host.docker.internal:host-gateway \
+  --env-file /etc/riskhub/runtime/backend.env \
+  -v /etc/riskhub/secrets:/etc/riskhub/secrets:ro \
+  -v /etc/riskhub/runtime:/etc/riskhub/runtime:ro \
+  ghcr.io/<owner>/riskhub-backend-db:<version>@sha256:<digest> \
+  python -m scripts.identity_installation verify
+```
+
+Use the same invocation for `eligibility-report`, `adopt-entra` and its dry-run,
+with the options in the adoption sequence. On Linux use the new release's
+`db-venv/bin/python`, working directory `backend_db/`, and
+`PYTHONPATH=<release>/backend:<release>/backend_db`; load the installed backend env
+with the deployment env-file loader and run as the service identity that can read
+its secret files. Never copy secret values into command history.
+
+Identity bootstrap still creates distinct Entra admin/CRO accounts. Native bootstrap
+and installer selection are later work under #203/#204. `LOCAL_MFA_POLICY` alone
+does not enable native production; #208 owns that admission change.
+
 ## Writer and lock inventory
 
 | Writer | Transaction owner / shared behavior |
@@ -127,4 +168,5 @@ locks, frontend schema/type checks and applicable hosted gates must all be revie
 This handoff records requirements and commands, not an assertion that every gate or
 independent security review has already passed. The PR description is the candidate-
 specific evidence ledger. Do not close the four issues solely because a draft exists.
-Do not remove native admission denial or merge/deploy without the normal approval.
+Preserve native admission denial until #208. Use the normal protected-branch review
+and release process; this guide is not candidate-specific approval evidence.

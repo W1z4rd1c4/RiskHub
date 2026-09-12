@@ -49,3 +49,11 @@ Add roadmap intent here only when it is useful across commits. Put executable
 scope, ownership, acceptance criteria, dependencies, and status in the live
 GitHub work item. A merged delivery change may update this snapshot to record the
 result, but must not turn this file back into a parallel live tracker.
+
+## Identity delivery contract
+
+The #192 identity track stages shared foundations, native credential workflows,
+recovery/bootstrap/installer work, and UI/restore/release verification. Native deployments
+must support required or optional MFA, admin-created invitations and user-managed
+passwords. Production admission remains #208's acceptance gate. Consult GitHub for
+current group status; this is roadmap intent, not a completion declaration.

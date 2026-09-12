@@ -715,6 +715,7 @@ def test_docker_deploy_propagates_bootstrap_failure_before_app_install() -> None
         ("db_preflight", " python -", "--name riskhub-redis", 73),
         ("redis", "--name riskhub-redis", "alembic upgrade head", 73),
         ("migration", "alembic upgrade head", "scripts.seed_roles_permissions", 73),
+        ("identity", "scripts.identity_installation initialize", "scripts.bootstrap_sso_user", 73),
         ("bootstrap", "scripts.bootstrap_sso_user", "--name riskhub-backend", 73),
         ("api", "--name riskhub-backend ", "--name riskhub-backend-scheduler", 73),
         (
@@ -859,7 +860,10 @@ linux_run_db_tasks {str(release_dir)!r}
 
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
         commands = argv_log.read_text(encoding="utf-8").splitlines()
+        initialize = next(line for line in commands if "scripts.identity_installation initialize" in line)
+        verify = next(line for line in commands if "scripts.identity_installation verify" in line)
         admin = next(line for line in commands if "--role admin" in line)
+        assert commands.index(initialize) < commands.index(verify) < commands.index(admin)
         cro = next(line for line in commands if "--role cro" in line)
         if include_external_ids:
             assert "--external-id 11111111-2222-4333-8444-555555555555" in admin

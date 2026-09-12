@@ -1,13 +1,13 @@
 # Repository Structure
 
-**Analysis Date:** 2026-09-08
+**Analysis Date:** 2026-09-12
 
 This file is a versioned repository-structure snapshot for the commit that
 contains it. It does not assign live work or determine whether an issue, pull
 request, or project item is open. See
 [`docs/DOCUMENTATION_OWNERSHIP.md`](../../docs/DOCUMENTATION_OWNERSHIP.md).
 
-Tracked file counts refreshed from `git ls-files` on 2026-09-08.
+Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 
 ## Top-Level Layout
 
@@ -46,7 +46,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-08.
 
 ### Primary subdirectories
 - `frontend/src/pages/` - 242 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 324 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
+- `frontend/src/components/` - 325 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -55,7 +55,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-08.
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 79 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - 81 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 
@@ -92,4 +92,4 @@ in the applicable GitHub Issue, pull request, or Project item.
 
 ---
 
-*Structure audit refreshed on 2026-09-08*
+*Structure audit refreshed on 2026-09-12*

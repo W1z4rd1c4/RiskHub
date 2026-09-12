@@ -1,6 +1,6 @@
 # RiskHub Deployment
 
-> **Last Updated**: 2026-04-05
+> **Last Updated**: 2026-09-12
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -28,6 +28,15 @@ Common rules across both targets:
 - Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`.
 - Public `GET /api/v1/readyz` is the machine-facing readiness probe.
 - Public `GET /api/v1/health` is the diagnostic probe with dependency state for dashboards and smoke checks.
+
+## Identity preparation
+
+Fresh installs bind the empty database before Entra user bootstrap. Existing unbound
+installations require explicit maintenance adoption before the first upgrade of the
+identity schema. Follow [identity foundations](../security/identity-foundations.md)
+for the report, dry-run, adoption and verification procedure. Startup only validates.
+Native password authentication has a configurable required/optional MFA contract,
+but production admission and its installer/UI release remain gated by #208.
 
 ## Read This First
 

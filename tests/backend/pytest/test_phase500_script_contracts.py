@@ -38,6 +38,7 @@ SECURITY_SCRIPTS_DIR = REPO_ROOT / "scripts" / "security"
 EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
     "bootstrap_sso_user.py",
+    "identity_installation.py",
     "revoke_refresh_sessions.py",
     "seed_departments.py",
     "seed_roles_permissions.py",
@@ -405,6 +406,7 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
     for text in (makefile_text, workflow_text):
         assert "__init__.py" in text
         assert "bootstrap_sso_user.py" in text
+        assert "identity_installation.py" in text
         assert "revoke_refresh_sessions.py" in text
         assert "seed_departments.py" in text
         assert "seed_roles_permissions.py" in text

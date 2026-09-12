@@ -1,6 +1,6 @@
 # Production Quickstart
 
-> **Last Updated**: 2026-04-05
+> **Last Updated**: 2026-09-12
 > **Audience**: Production administrators
 
 ## Choose A Target
@@ -118,6 +118,19 @@ Before deployment, source each supplied `oid` from the configured Entra tenant a
 ```
 
 Preflight validates the config, target prerequisites, explicit production `ALLOWED_HOSTS`, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, Graph-only production invariants, and the frontend bind port.
+
+## Identity migration prerequisite
+
+Before upgrading an existing unbound installation, back up the database, configuration
+and secrets, drain all API/scheduler writers, and complete the
+[identity adoption procedure](../security/identity-foundations.md) with the new
+release's DB-task tooling. Fresh installs initialize the empty database automatically
+before Entra bootstrap. Production still uses Entra; optional local MFA is a staged
+native feature awaiting the remaining identity release gates.
+
+Managed upgrades stop API/scheduler writers before migrations. If migration, identity
+verification or bootstrap fails, keep maintenance active and fix forward before
+resuming. Additional replicas and external writers remain the operator's responsibility.
 
 ## 4. Deploy
 

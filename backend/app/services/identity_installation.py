@@ -104,6 +104,19 @@ async def establish_installation_binding(
     if adopt_entra and profile.auth_mode != "microsoft_sso":
         raise IdentityBindingError("adopt-entra is unavailable for a local profile")
     if inventory:
+        subjects: set[str] = set()
+        for user_id, oid, _version in inventory:
+            try:
+                canonical_oid = str(UUID(oid or ""))
+            except (ValueError, TypeError) as exc:
+                raise IdentityBindingError(
+                    f"Entra adoption cannot verify User {user_id}; reconcile its object ID"
+                ) from exc
+            if canonical_oid in subjects or oid != canonical_oid:
+                raise IdentityBindingError(
+                    f"Entra adoption requires a unique canonical object ID for User {user_id}; reconcile its mapping"
+                )
+            subjects.add(canonical_oid)
         provider = DirectoryProviderService(settings)
         # No advisory/User row lock is held across Graph network I/O.
         for user_id, oid, _version in inventory:

@@ -166,6 +166,10 @@ docker_deploy_or_upgrade() {
 
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/install_redis.sh" --backend-env "$backend_env" --redis-image "$DOCKER_REDIS_IMAGE" "${prod_common[@]}"
+    if [[ "$action" == "upgrade" ]]; then
+      log "Stopping API and scheduler writers before schema and identity changes..."
+      run docker stop riskhub-backend riskhub-backend-scheduler
+    fi
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/run_migrations.sh" --backend-env "$backend_env" --backend-db-image "$DOCKER_BACKEND_DB_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \

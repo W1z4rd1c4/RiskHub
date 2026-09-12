@@ -43,3 +43,12 @@ Retained internal helper scripts still commonly support:
   - `scheduler_job_runs` and `app_outbox_events` exist
   - exactly one active scheduler runtime row exists
   - dead-letter outbox count is zero
+
+## Identity DB tasks
+
+Release DB artifacts include the operator-only `scripts.identity_installation` module.
+Fresh bootstrap initializes/verifies an empty installation before Entra users are
+created. Populated unbound installations require explicit maintenance adoption;
+managed upgrades stop API/scheduler writers before migrations. Follow
+[identity foundations](../../docs/security/identity-foundations.md) for adoption, failure recovery and replica draining.
+Native identity selection remains staged work; preserve production admission checks.

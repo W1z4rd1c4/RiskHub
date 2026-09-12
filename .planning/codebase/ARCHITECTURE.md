@@ -111,3 +111,12 @@ RiskHub is a containerized full-stack application:
 ---
 
 *Architecture analysis refreshed on 2026-05-25*
+
+## Identity foundation boundaries
+
+`core/identity_policy.py` owns account eligibility; `services/identity_installation.py`
+owns explicit binding and read-only validation. Lifecycle writers serialize authority
+changes through `_identity_authority_lock.py` and the shared auth-session workflow.
+[ADR-018](../../docs/adr/ADR-018-identity-foundations.md) owns these rules. Native
+contracts reserve a common session lineage with configurable MFA; production admission
+remains a separate release gate.

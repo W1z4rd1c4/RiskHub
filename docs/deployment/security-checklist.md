@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-04-06
+> **Last Updated**: 2026-09-12
 > **Audience**: DevOps / Security Engineering
 
 ## Config And Startup Guards
@@ -24,6 +24,20 @@ RiskHub production deploys must satisfy these invariants:
 - `PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES=15`
 - reviewed `TRUSTED_PROXIES` when traffic passes through non-default proxy networks
 - if broad proxy ranges are intentionally trusted in production, set `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` explicitly instead of relying on warnings
+
+## Identity rollout
+
+- Verify the persisted installation profile/tenant with the release DB-task CLI.
+- For a populated unbound Entra database, complete the reviewed maintenance adoption
+  in [identity foundations](../security/identity-foundations.md); never auto-convert
+  demo users or rewrite directory object IDs.
+- Stop all old API/scheduler writers before identity migrations, including replicas
+  outside the managed deployment. Keep failed upgrades stopped until verified.
+- Preserve local suspension independently of directory status and retain an effective
+  platform administrator. Role/scope/security changes invalidate old sessions.
+- Native optional MFA allows password-only accounts, including admins, only after
+  verified enrollment; enrolled factors remain enforced. Native production is still
+  denied pending #208, regardless of the policy setting.
 
 ## Network
 
