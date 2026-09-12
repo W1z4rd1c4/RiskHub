@@ -8,7 +8,7 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
 
-Native identity actions use `MeCapabilities.identity` and access-row invitation/reset/recovery/directory capabilities from `backend/app/services/identity_capabilities.py` and `backend/app/schemas/identity.py`. External-directory capability is distinct from local user-directory visibility. Native mode rejects external direct/HTTP work before effects, keeps ordinary jobs/outbox, and labels external health `not_applicable`. Privileged recovery remains offline-required; pending recovery cannot be resumed. See [directory isolation](identity-directory-isolation.md).
+Native identity actions use `MeCapabilities.identity` and access-row invitation/reset/recovery/directory capabilities from `backend/app/services/identity_capabilities.py` and `backend/app/schemas/identity.py`. External-directory capability is distinct from local user-directory visibility. Native mode rejects external direct/HTTP work before effects, keeps ordinary jobs/outbox, and labels external health `not_applicable`. Privileged recovery remains offline-required; pending recovery cannot be resumed. Both user-profile and access-profile PATCH adapters reject resumption with `RECOVERY_PENDING` before changing account state or revoking recovery authority. See [directory isolation](identity-directory-isolation.md).
 
 ## Architecture exception review
 

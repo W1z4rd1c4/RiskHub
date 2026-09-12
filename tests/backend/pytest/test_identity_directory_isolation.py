@@ -288,3 +288,103 @@ asyncio.run(app.state.db_engine.dispose())
         timeout=30,
     )
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.asyncio
+async def test_recovery_pending_resume_is_denied_without_invalidating_recovery(
+    native_context, client_factory, db_session, test_user, test_user_employee
+):
+    import pyotp
+
+    from app.core.security import get_password_hash
+    from app.models import LocalAuthGrant, User
+    from tests.backend.pytest.test_local_identity import (
+        PASSWORD,
+        create_invitation,
+        csrf,
+        enroll,
+        latest_mail,
+        login_password_only,
+    )
+    from tests.backend.pytest.test_local_recovery import recent
+
+    test_user.hashed_password = get_password_hash(PASSWORD)
+    user_id = await create_invitation(
+        client_factory,
+        native_context,
+        db_session,
+        test_user,
+        test_user_employee.role_id,
+    )
+    _, invitation = await latest_mail(
+        db_session, native_context, user_id=user_id, kind="invitation"
+    )
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}
+    ) as client:
+        await enroll(client, invitation["credential"])
+    native_context.local_mfa_policy = "optional"
+    target = await db_session.get(User, user_id, populate_existing=True)
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}
+    ) as client:
+        await login_password_only(client, test_user.email, PASSWORD)
+        proof = await recent(
+            client,
+            user_id,
+            None,
+            "assisted_recovery",
+            expected_token_version=target.token_version,
+            intended_recovery_operation="factor_recovery",
+        )
+        result = await client.post(
+            f"/api/v1/users/{user_id}/recovery",
+            json={
+                "recent_auth_proof": proof,
+                "expected_token_version": target.token_version,
+                "operation": "factor_recovery",
+                "incident_reference": "INC-resume-regression",
+                "verification_method": "in-person",
+                "reason": "Verified loss of factor",
+            },
+        )
+        assert result.status_code == 202, result.text
+        delivery, recovery = await latest_mail(
+            db_session, native_context, user_id=user_id, kind="recovery"
+        )
+        await db_session.refresh(target)
+        pending_version = target.token_version
+        for path in [f"/api/v1/access/users/{user_id}", f"/api/v1/users/{user_id}"]:
+            denied = await client.patch(path, json={"is_active": True})
+            assert denied.status_code == 403, (path, denied.text)
+            assert denied.json()["detail"]["code"] == "RECOVERY_PENDING"
+            await db_session.refresh(target)
+            grant = await db_session.get(
+                LocalAuthGrant, delivery.grant_id, populate_existing=True
+            )
+            assert (
+                target.local_recovery_pending
+                and not target.is_active
+                and not target.local_suspended
+            )
+            assert target.token_version == pending_version
+            assert grant.revoked_at is None and grant.consumed_at is None
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}
+    ) as client:
+        await csrf(client)
+        started = await client.post(
+            "/api/v1/auth/local/recovery/start",
+            json={"grant": recovery["credential"], "current_password": PASSWORD},
+        )
+        assert started.status_code == 200, started.text
+        completed = await client.post(
+            "/api/v1/auth/local/recovery/confirm",
+            json={
+                "challenge": started.json()["challenge"],
+                "code": pyotp.parse_uri(started.json()["provisioning_uri"]).now(),
+            },
+        )
+        assert completed.status_code == 200, completed.text
+        await db_session.refresh(target)
+        assert target.is_active and not target.local_recovery_pending

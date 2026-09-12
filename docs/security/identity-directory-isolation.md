@@ -60,7 +60,9 @@ and `can_check_directory`. Pending invitations can be managed only while unsuspe
 password reset requires an eligible enrolled account. Ordinary assisted recovery
 reuses the recovery service eligibility rules. Privileged recovery is explanatory
 `offline_required`, never an executable web override. Recovery-pending accounts
-cannot be resumed through ordinary lifecycle controls.
+cannot be resumed through ordinary lifecycle controls. Both profile and access PATCH
+services return `403` with `detail.code=RECOVERY_PENDING` without changing account
+state, authority version or the recovery grant; explicit suspension remains allowed.
 
 Native `verified_identity_fields=["email"]` directs email changes through verified credential workflows. Entra-linked directory-owned identity fields are not locally editable.
 
