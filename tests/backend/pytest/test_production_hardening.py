@@ -138,8 +138,8 @@ def test_database_url_default_guard_triggers_in_production():
         create_app(_production_settings(database_url=DEFAULT_DATABASE_URL))
 
 
-def test_production_requires_graph_directory_provider() -> None:
-    with pytest.raises(RuntimeError, match="DIRECTORY_PROVIDER must be 'graph'"):
+def test_entra_production_requires_graph_directory_provider() -> None:
+    with pytest.raises(RuntimeError, match="AUTH_MODE=microsoft_sso requires DIRECTORY_PROVIDER=graph"):
         create_app(_production_settings(directory_provider="auto"))
 
 

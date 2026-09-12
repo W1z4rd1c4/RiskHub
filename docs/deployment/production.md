@@ -331,6 +331,15 @@ including explicitly reissued paths, and never resets completed users. If failur
 occurs after grants commit, inspect [bootstrap status and resumable handoff](../security/identity-bootstrap.md)
 before retrying. Only the explicit maintenance reissue/abort commands change those
 artifacts. Keep writers stopped after a failed migration/bootstrap until reconciled.
+Retry the same `install.sh production` command with the same configuration, secret
+directory and immutable release inputs after resolving the reported failure. A
+recorded partial install resumes through candidate compatibility and bootstrap
+checks even if application containers or the Linux `current` link were never
+created. Linux removes the unused candidate from a failed attempt so the same
+bundle can be extracted again; an activated or previous release is preserved.
+If activation succeeded but a later smoke check failed, inspect status first and
+use the documented compatible-release upgrade/rollback procedure. Never delete
+runtime identity files or handoffs to make an installation appear fresh.
 
 `install.sh status --mode production --target docker|linux --json` includes the
 selected identity, MFA policy, external directory applicability, security availability

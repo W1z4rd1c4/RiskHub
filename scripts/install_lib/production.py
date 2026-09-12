@@ -137,7 +137,7 @@ def run_production(
             options=options,
         )
     if options.dry_run and (needs_config_init or needs_secret_init):
-        summary_production_lifecycle("production", target, config_path, secret_dir)
+        summary_production_lifecycle("production", target, config_path, secret_dir, user_management=choice, mfa_policy=policy)
         return
 
     if not options.dry_run:
@@ -166,7 +166,7 @@ def run_production(
         options=options,
         paths=paths,
     )
-    summary_production_lifecycle("production", target, config_path, secret_dir)
+    summary_production_lifecycle("production", target, config_path, secret_dir, user_management=choice, mfa_policy=policy)
 
 
 def run_upgrade(
@@ -196,7 +196,7 @@ def run_upgrade(
         raise RuntimeError(
             f"Upgrade requires an existing secret directory at {secret_dir}."
         )
-    select_identity(
+    choice, policy = select_identity(
         config_path,
         user_management=user_management,
         mfa_policy=mfa_policy,
@@ -243,7 +243,7 @@ def run_upgrade(
         options=options,
         paths=paths,
     )
-    summary_production_lifecycle("upgrade", target, config_path, secret_dir)
+    summary_production_lifecycle("upgrade", target, config_path, secret_dir, user_management=choice, mfa_policy=policy)
 
 
 def run_verify(
@@ -296,4 +296,5 @@ def run_verify(
                 deep=True,
             )
         )
-    summary_production_lifecycle("verify", resolved_target, config_path, secret_dir)
+    choice, policy = select_identity(config_path, user_management=None, mfa_policy=None, options=options)
+    summary_production_lifecycle("verify", resolved_target, config_path, secret_dir, user_management=choice, mfa_policy=policy)

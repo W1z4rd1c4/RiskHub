@@ -117,7 +117,8 @@ docker_deploy_or_upgrade() {
       fi
     else
       if [[ "$backend_exists" != "true" || "$scheduler_exists" != "true" || "$frontend_exists" != "true" ]]; then
-        die "Existing docker deployment not found. Use deploy for first install."
+        [[ -f "${RUNTIME_DIR}/backend.env" ]] || die "Existing docker deployment not found. Use deploy for first install."
+        log "Resuming recorded installation; missing application containers will be created after compatibility and bootstrap checks."
       fi
     fi
 
@@ -165,7 +166,8 @@ docker_deploy_or_upgrade() {
       --env-file "$backend_env" "$DOCKER_BACKEND_DB_IMAGE" python -m scripts.identity_preflight
     if [[ "$action" == "upgrade" ]]; then
       log "Stopping API and scheduler writers before schema and identity changes..."
-      run docker stop riskhub-backend riskhub-backend-scheduler
+      if [[ "$backend_exists" == "true" ]]; then run docker stop riskhub-backend; fi
+      if [[ "$scheduler_exists" == "true" ]]; then run docker stop riskhub-backend-scheduler; fi
     fi
     if [[ "$DRY_RUN" != "true" ]]; then
       copy_runtime_file "${runtime_dir}/backend.env" "${RUNTIME_DIR}/backend.env" 640
@@ -200,12 +202,13 @@ docker_deploy_or_upgrade() {
     )
 
     if [[ "$action" == "upgrade" ]]; then
-      local prev_backend_image prev_frontend_image
+      local prev_backend_image prev_scheduler_image prev_frontend_image
       prev_backend_image="$(docker_image_for_container "riskhub-backend")"
+      prev_scheduler_image="$(docker_image_for_container "riskhub-backend-scheduler")"
       prev_frontend_image="$(docker_image_for_container "riskhub-frontend")"
-      backend_install_args+=(--previous-image "$prev_backend_image")
-      scheduler_install_args+=(--previous-image "$prev_backend_image")
-      frontend_install_args+=(--previous-image "$prev_frontend_image")
+      if [[ -n "$prev_backend_image" ]]; then backend_install_args+=(--previous-image "$prev_backend_image"); fi
+      if [[ -n "$prev_scheduler_image" ]]; then scheduler_install_args+=(--previous-image "$prev_scheduler_image"); fi
+      if [[ -n "$prev_frontend_image" ]]; then frontend_install_args+=(--previous-image "$prev_frontend_image"); fi
     fi
 
     if [[ "$YES" == "true" ]]; then

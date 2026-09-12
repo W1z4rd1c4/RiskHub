@@ -286,6 +286,7 @@ set -euo pipefail
 source {shlex.quote(str(REPO_ROOT / 'scripts/deploy/lib/common.sh'))}
 source {shlex.quote(str(REPO_ROOT / 'scripts/deploy/lib/linux.sh'))}
 LINUX_CURRENT_LINK={shlex.quote(str(tmp_path / 'current'))}
+LINUX_RELEASES_DIR={shlex.quote(str(tmp_path / 'releases'))}
 require_file() {{ :; }}
 linux_preflight() {{ :; }}
 confirm_or_die() {{ :; }}
@@ -294,7 +295,10 @@ linux_install_release() {{ :; }}
 linux_install_venvs() {{ :; }}
 make_runtime_dir() {{ echo {shlex.quote(str(candidate))}; }}
 cleanup_runtime_dir() {{ echo cleanup >> {shlex.quote(str(log))}; }}
-run_privileged() {{ echo "$*" >> {shlex.quote(str(log))}; return {83 if failure == 'ownership' else 0}; }}
+run_privileged() {{
+  echo "$*" >> {shlex.quote(str(log))}
+  if [[ "$1" == chown ]]; then return {83 if failure == 'ownership' else 0}; fi
+}}
 linux_run_release_command() {{ echo candidate >> {shlex.quote(str(log))}; return 74; }}
 linux_render_runtime_files() {{ echo REPLACED >> {shlex.quote(str(log))}; }}
 linux_deploy_or_upgrade deploy {shlex.quote(str(config))} unused.tar.gz
@@ -382,3 +386,152 @@ def test_native_source_admission_remains_closed(tmp_path, target):
     )
     assert result.returncode != 0 and "#208" in result.stderr
     assert "Pulling" not in result.stdout
+
+
+@pytest.mark.parametrize("failure_stage", ["candidate", "bootstrap"])
+def test_linux_failed_install_retries_same_bundle_without_losing_identity(tmp_path, failure_stage):
+    import shlex
+
+    from tests.backend.pytest.test_deploy_cli_contracts import _make_linux_bundle
+
+    config, _ = native_files(tmp_path)
+    bundle = _make_linux_bundle(tmp_path, "test-retry")
+    root = tmp_path / "installed"
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    handoff = tmp_path / "admin-handoff"
+    script = f"""
+set -euo pipefail
+source {shlex.quote(str(REPO_ROOT / 'scripts/deploy/lib/common.sh'))}
+source {shlex.quote(str(REPO_ROOT / 'scripts/deploy/lib/linux.sh'))}
+LINUX_RELEASES_DIR={shlex.quote(str(root / 'releases'))}
+LINUX_CURRENT_LINK={shlex.quote(str(root / 'current'))}
+LINUX_PREVIOUS_LINK={shlex.quote(str(root / 'previous'))}
+LINUX_BACKEND_ENV={shlex.quote(str(runtime / 'backend.env'))}
+LINUX_USER=test-user
+LINUX_GROUP=test-group
+linux_preflight() {{ :; }}
+confirm_or_die() {{ :; }}
+ensure_linux_user() {{ :; }}
+run_privileged() {{ if [[ "$1" == chown || "$1" == systemctl ]]; then return; fi; "$@"; }}
+linux_install_venvs() {{ :; }}
+linux_identity_preflight() {{ if [[ "${{ATTEMPT}}" == first && {failure_stage} == candidate ]]; then return 74; fi; }}
+linux_render_runtime_files() {{ cp {shlex.quote(str(config))} "$LINUX_BACKEND_ENV"; }}
+prepare_native_handoff_directory() {{ :; }}
+linux_run_db_tasks() {{
+  if [[ ! -f {shlex.quote(str(handoff))} ]]; then echo committed-handoff > {shlex.quote(str(handoff))}; fi
+  if [[ "${{ATTEMPT}}" == first && {failure_stage} == bootstrap ]]; then return 75; fi
+}}
+linux_reload_services() {{ :; }}
+linux_smoke() {{ :; }}
+ATTEMPT=first
+# Capture the child status without putting the function in a conditional list.
+set +e
+linux_deploy_or_upgrade deploy {shlex.quote(str(config))} {shlex.quote(str(bundle))}
+first_rc=$?
+set -e
+[[ "$first_rc" == {74 if failure_stage == 'candidate' else 75} ]]
+[[ ! -e "$LINUX_RELEASES_DIR/test-retry" ]]
+ATTEMPT=second
+action=deploy
+[[ ! -f "$LINUX_BACKEND_ENV" ]] || action=upgrade
+linux_deploy_or_upgrade "$action" {shlex.quote(str(config))} {shlex.quote(str(bundle))}
+[[ "$(readlink "$LINUX_CURRENT_LINK")" == "$LINUX_RELEASES_DIR/test-retry" ]]
+[[ "$(cat {shlex.quote(str(handoff))})" == committed-handoff ]]
+"""
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (root / "releases/test-retry/manifest.json").is_file()
+
+
+def test_root_privileged_wrappers_propagate_candidate_failure(tmp_path):
+    import os
+
+    image = os.environ.get("RISKHUB_PRIVILEGE_TEST_IMAGE")
+    if not image:
+        pytest.skip("Set RISKHUB_PRIVILEGE_TEST_IMAGE to a local Linux image with bash/python/runuser")
+    script = """
+set -euo pipefail
+source /work/scripts/deploy/lib/common.sh
+source /work/scripts/deploy/lib/linux.sh
+LINUX_USER=root
+LINUX_GROUP=root
+make_runtime_dir() { mkdir -p /tmp/candidate; touch /tmp/candidate/backend.env; echo /tmp/candidate; }
+cleanup_runtime_dir() { rm -rf /tmp/candidate; }
+if run_privileged false; then echo masked-command; exit 91; fi
+if run_privileged_sh deliberate-failure 'exit 73'; then echo masked-shell; exit 92; fi
+if linux_identity_preflight /no-such-candidate /unused; then echo masked-preflight; exit 93; fi
+[[ ! -d /tmp/candidate ]]
+"""
+    result = subprocess.run(
+        ["docker", "run", "--rm", "--network", "none", "--user", "0", "--entrypoint", "bash",
+         "-v", f"{REPO_ROOT}:/work:ro", image, "-c", script],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "masked-" not in result.stdout
+
+
+@pytest.mark.parametrize("target", ["docker", "linux"])
+def test_native_public_dry_run_summary_matches_policy_and_release_boundary(tmp_path, target):
+    import os
+
+    from tests.backend.pytest.test_deploy_cli_contracts import _image
+
+    args = [str(REPO_ROOT / "scripts/install.sh"), "production", "--target", target,
+            "--config", str(tmp_path / "config"), "--secret-dir", str(tmp_path / "secrets"),
+            "--user-management", "custom", "--mfa-policy", "optional", "--yes", "--dry-run"]
+    if target == "docker":
+        for flag, name in [("--backend-image", "backend"), ("--backend-db-image", "db"),
+                           ("--frontend-image", "frontend"), ("--redis-image", "redis")]:
+            args.extend([flag, _image(name)])
+    else:
+        args.extend(["--bundle", "unused.tar.gz"])
+    result = subprocess.run(args, env={**os.environ, "RISKHUB_RUNTIME_DIR": str(tmp_path / "runtime")},
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "MFA policy: optional" in result.stdout
+    assert "#208" in result.stdout
+    assert "Microsoft Entra app credentials are required" not in result.stdout
+    if target == "docker":
+        assert "deploy.sh rollback" not in result.stdout
+        assert "all four pinned artifacts" in result.stdout
+
+
+def test_native_init_does_not_reopen_protected_config_after_copy(tmp_path):
+    import os
+    import shlex
+    import shutil
+
+    if os.geteuid() == 0:
+        pytest.skip("This file-permission regression requires an unprivileged operator")
+    config, secrets = tmp_path / "riskhub.env", tmp_path / "secrets"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    chmod = shutil.which("chmod")
+    assert chmod
+    shim = fake_bin / "chmod"
+    # Model a privilege-assisted protected copy: after chmod, the operator
+    # cannot reopen the config, but can continue creating their test scaffold.
+    shim.write_text(f'''#!/usr/bin/env bash
+if [[ "$1" == 600 && "$2" == {shlex.quote(str(config))} ]]; then
+  exec {shlex.quote(chmod)} 000 "$2"
+fi
+exec {shlex.quote(chmod)} "$@"
+''')
+    shim.chmod(0o755)
+    try:
+        result = subprocess.run(
+            [str(REPO_ROOT / "scripts/deploy.sh"), "init", "--target", "linux",
+             "--config", str(config), "--secret-dir", str(secrets),
+             "--user-management", "custom", "--mfa-policy", "optional"],
+            env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                 "RISKHUB_RUNTIME_DIR": str(tmp_path / "runtime")},
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+    finally:
+        if config.exists():
+            config.chmod(0o600)
+    assert "LOCAL_MFA_POLICY=optional" in config.read_text()
+    assert (secrets / "local_auth_keyring").is_file()

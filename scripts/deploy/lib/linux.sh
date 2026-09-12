@@ -18,55 +18,42 @@ linux_require_prerequisites() {
   run "$pybin" --version >/dev/null
 }
 
-linux_preflight() {
+linux_preflight() (
+  set -e
   local config_path="$1"
   local allow_port_in_use="${2:-false}"
   linux_require_prerequisites
-  local runtime_dir=""
-  runtime_dir="$(make_runtime_dir "$config_path" "linux")"
-  local rc=0
-  {
-    source_metadata_env "$runtime_dir"
-    check_bind_port "$FRONTEND_BIND_PORT" "$allow_port_in_use"
-    warn_if_path_not_encrypted_mount "$SECRET_DIR"
-  } || rc=$?
-  cleanup_runtime_dir "$runtime_dir"
-  return "$rc"
-}
+  runtime_dir=""
+  runtime_dir="$(make_runtime_dir "$config_path" "linux")" || exit $?
+  trap 'cleanup_runtime_dir "$runtime_dir"' EXIT
 
-linux_install_release() {
+  source_metadata_env "$runtime_dir" || exit $?
+  check_bind_port "$FRONTEND_BIND_PORT" "$allow_port_in_use" || exit $?
+  warn_if_path_not_encrypted_mount "$SECRET_DIR"
+)
+
+linux_install_release() (
+  set -e
   local bundle_path="$1"
   local release_version="$2"
   local release_dir="${LINUX_RELEASES_DIR}/${release_version}"
-  local extract_root
   extract_root="$(mktemp -d "${TMPDIR:-/tmp}/riskhub-linux-release.XXXXXX")"
-  local rc=0
+  trap 'rm -rf "$extract_root"' EXIT
 
-  {
-    if [[ -e "$release_dir" ]]; then
-      die "Release directory already exists: ${release_dir}"
-    fi
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-      run tar -xzf "$bundle_path" -C "$extract_root"
-      ensure_dir "$LINUX_RELEASES_DIR"
-      run_privileged mv "${extract_root}/riskhub-linux-${release_version}" "$release_dir"
-      ensure_linux_user
-      run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$release_dir"
-    else
-      run tar -xzf "$bundle_path" -C "$extract_root"
-      local extracted_dir="${extract_root}/riskhub-linux-${release_version}"
-      require_file "${extracted_dir}/manifest.json"
-      ensure_dir "$LINUX_RELEASES_DIR"
-      run_privileged mv "$extracted_dir" "$release_dir"
-      ensure_linux_user
-      run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$release_dir"
-    fi
-  } || rc=$?
-
-  rm -rf "$extract_root"
-  return "$rc"
-}
+  if [[ "$DRY_RUN" == "true" ]]; then
+    run tar -xzf "$bundle_path" -C "$extract_root"
+    run_privileged cp -a "${extract_root}/riskhub-linux-${release_version}/." "$release_dir"
+    ensure_linux_user
+    run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$release_dir"
+  else
+    run tar -xzf "$bundle_path" -C "$extract_root"
+    local extracted_dir="${extract_root}/riskhub-linux-${release_version}"
+    require_file "${extracted_dir}/manifest.json"
+    run_privileged cp -a "${extracted_dir}/." "$release_dir"
+    ensure_linux_user
+    run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$release_dir"
+  fi
+)
 
 linux_install_venvs() {
   local release_dir="$1"
@@ -94,49 +81,45 @@ linux_install_venvs() {
   run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "${release_dir}/db-venv"
 }
 
-linux_render_runtime_files() {
+linux_render_runtime_files() (
+  set -e
   local config_path="$1"
   local runtime_dir="$2"
-  local tmp_runtime
   tmp_runtime="$(make_temp_dir_in_parent_dir "$(dirname "$runtime_dir")" "riskhub-linux-runtime")"
-  local rc=0
+  trap 'cleanup_temp_dir "$tmp_runtime"' EXIT
 
-  {
-    render_runtime_dir "$config_path" "linux" "$tmp_runtime"
-    copy_runtime_file "${tmp_runtime}/backend.env" "$LINUX_BACKEND_ENV" 640
-    copy_runtime_file "${tmp_runtime}/frontend.env" "${runtime_dir}/frontend.env" 640
-    copy_runtime_file "${tmp_runtime}/metadata.env" "${runtime_dir}/metadata.env" 640
-    copy_runtime_file "${tmp_runtime}/redis_url" "${runtime_dir}/redis_url" 440
+  render_runtime_dir "$config_path" "linux" "$tmp_runtime"
+  copy_runtime_file "${tmp_runtime}/backend.env" "$LINUX_BACKEND_ENV" 640
+  copy_runtime_file "${tmp_runtime}/frontend.env" "${runtime_dir}/frontend.env" 640
+  copy_runtime_file "${tmp_runtime}/metadata.env" "${runtime_dir}/metadata.env" 640
+  copy_runtime_file "${tmp_runtime}/redis_url" "${runtime_dir}/redis_url" 440
 
-    local backend_unit_tmp="${tmp_runtime}/riskhub-backend.service"
-    local scheduler_unit_tmp="${tmp_runtime}/riskhub-scheduler.service"
-    local redis_unit_tmp="${tmp_runtime}/riskhub-redis.service"
-    local nginx_site_tmp="${tmp_runtime}/riskhub.conf"
-    local nginx_full_tmp="${tmp_runtime}/nginx-full.conf"
-    render_linux_backend_unit "$config_path" "$backend_unit_tmp"
-    render_linux_scheduler_unit "$config_path" "$scheduler_unit_tmp"
-    render_linux_redis_unit "$redis_unit_tmp"
-    render_linux_site "$config_path" "$nginx_site_tmp"
-    render_linux_nginx_full "$config_path" "$nginx_full_tmp"
+  local backend_unit_tmp="${tmp_runtime}/riskhub-backend.service"
+  local scheduler_unit_tmp="${tmp_runtime}/riskhub-scheduler.service"
+  local redis_unit_tmp="${tmp_runtime}/riskhub-redis.service"
+  local nginx_site_tmp="${tmp_runtime}/riskhub.conf"
+  local nginx_full_tmp="${tmp_runtime}/nginx-full.conf"
+  render_linux_backend_unit "$config_path" "$backend_unit_tmp"
+  render_linux_scheduler_unit "$config_path" "$scheduler_unit_tmp"
+  render_linux_redis_unit "$redis_unit_tmp"
+  render_linux_site "$config_path" "$nginx_site_tmp"
+  render_linux_nginx_full "$config_path" "$nginx_full_tmp"
 
-    run nginx -t -c "$nginx_full_tmp" -p "$tmp_runtime"
+  run nginx -t -c "$nginx_full_tmp" -p "$tmp_runtime"
 
-    copy_file "$backend_unit_tmp" "/etc/systemd/system/${LINUX_BACKEND_SERVICE}.service" 644
-    copy_file "$scheduler_unit_tmp" "/etc/systemd/system/${LINUX_SCHEDULER_SERVICE}.service" 644
-    copy_file "$redis_unit_tmp" "/etc/systemd/system/${LINUX_REDIS_SERVICE}.service" 644
-    copy_file "$nginx_site_tmp" "$LINUX_NGINX_SITE" 644
-  } || rc=$?
-
-  cleanup_temp_dir "$tmp_runtime"
-  return "$rc"
-}
+  copy_file "$backend_unit_tmp" "/etc/systemd/system/${LINUX_BACKEND_SERVICE}.service" 644
+  copy_file "$scheduler_unit_tmp" "/etc/systemd/system/${LINUX_SCHEDULER_SERVICE}.service" 644
+  copy_file "$redis_unit_tmp" "/etc/systemd/system/${LINUX_REDIS_SERVICE}.service" 644
+  copy_file "$nginx_site_tmp" "$LINUX_NGINX_SITE" 644
+)
 
 linux_run_release_command() {
   local workdir="$1"
   local display="$2"
   local command_body="$3"
+  local command_env="${4:-$LINUX_BACKEND_ENV}"
   local env_loader
-  env_loader="$(envfile_loader_snippet "$LINUX_BACKEND_ENV")"
+  env_loader="$(envfile_loader_snippet "$command_env")"
   log "$display" >&2
   run_privileged runuser -u "$LINUX_USER" -- bash -lc \
     "$(cat <<EOF
@@ -170,7 +153,9 @@ linux_run_db_tasks() {
   local auth_mode
   auth_mode="$(python3 "$RENDERER" identity-choice --config "$identity_config")"
   if [[ "$auth_mode" == "custom" ]]; then
-    local handoff_dir="$(dirname "$RUNTIME_DIR")/handoff"
+    local handoff_dir
+    # shellcheck disable=SC2153 # RUNTIME_DIR is the shared persistent deployment path.
+    handoff_dir="$(dirname "$RUNTIME_DIR")/handoff"
     linux_run_release_command \
       "$db_workdir" "Create or resume protected native enrollment handoffs" \
       "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_local_users --maintenance-confirmed install --admin-email \"\$BOOTSTRAP_ADMIN_EMAIL\" --cro-email \"\$BOOTSTRAP_CRO_EMAIL\" --handoff-dir $(printf '%q' "$handoff_dir")"
@@ -205,10 +190,10 @@ linux_identity_preflight() {
   (
     set -e
     run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$candidate_dir" || exit $?
-    local LINUX_BACKEND_ENV="${candidate_dir}/backend.env"
     linux_run_release_command "${release_dir}/backend" \
       "Check candidate identity, schema and keys before replacing services" \
-      "export PYTHONPATH=$(printf '%q' "${release_dir}/backend:${release_dir}/backend_db"); export REDIS_URL_FILE=$(printf '%q' "${candidate_dir}/redis_url"); $(printf '%q' "${release_dir}/db-venv/bin/python") -m scripts.identity_preflight"
+      "export PYTHONPATH=$(printf '%q' "${release_dir}/backend:${release_dir}/backend_db"); export REDIS_URL_FILE=$(printf '%q' "${candidate_dir}/redis_url"); $(printf '%q' "${release_dir}/db-venv/bin/python") -m scripts.identity_preflight" \
+      "${candidate_dir}/backend.env"
   ) || rc=$?
   cleanup_runtime_dir "$candidate_dir"
   return "$rc"
@@ -225,7 +210,8 @@ linux_reload_services() {
   run_privileged systemctl restart nginx
 }
 
-linux_deploy_or_upgrade() {
+linux_deploy_or_upgrade() (
+  set -e
   local action="$1"
   local config_path="$2"
   local bundle_path="$3"
@@ -234,7 +220,7 @@ linux_deploy_or_upgrade() {
   local allow_port_in_use="false"
   if [[ "$action" == "upgrade" ]]; then
     allow_port_in_use="true"
-    [[ -L "$LINUX_CURRENT_LINK" ]] || die "Current linux deployment not found. Use deploy for first install."
+    [[ -L "$LINUX_CURRENT_LINK" || -f "$LINUX_BACKEND_ENV" ]] || die "Current linux deployment not found. Use deploy for first install."
   else
     [[ ! -L "$LINUX_CURRENT_LINK" ]] || die "Existing linux deployment detected. Use upgrade instead of deploy."
   fi
@@ -244,7 +230,16 @@ linux_deploy_or_upgrade() {
 
   local release_version
   release_version="$(bundle_version "$bundle_path")"
-  local release_dir="${LINUX_RELEASES_DIR}/${release_version}"
+  [[ "$release_version" =~ ^[a-zA-Z0-9][a-zA-Z0-9._+-]*$ ]] || die "Invalid release version"
+  release_dir="${LINUX_RELEASES_DIR}/${release_version}"
+  [[ ! -e "$release_dir" && ! -L "$release_dir" ]] || die "Release directory already exists: ${release_dir}"
+  ensure_dir "$LINUX_RELEASES_DIR"
+  # mkdir reserves the candidate atomically. Register cleanup only after success,
+  # so an overlapping attempt cannot remove another installer's directory.
+  run_privileged mkdir "$release_dir" || exit $?
+  # This invocation owns only this newly created candidate. Never remove a
+  # release selected by either symlink, including after an activation failure.
+  trap 'rc=$?; if [[ "$rc" -ne 0 && "$DRY_RUN" != "true" && "$(readlink "$LINUX_CURRENT_LINK" || true)" != "$release_dir" && "$(readlink "$LINUX_PREVIOUS_LINK" || true)" != "$release_dir" ]]; then run_privileged rm -rf -- "$release_dir"; fi; exit "$rc"' EXIT
   local previous_target=""
   if [[ -L "$LINUX_CURRENT_LINK" ]]; then
     previous_target="$(readlink "$LINUX_CURRENT_LINK")"
@@ -254,7 +249,7 @@ linux_deploy_or_upgrade() {
   linux_install_venvs "$release_dir"
   linux_identity_preflight "$release_dir" "$config_path"
   # shellcheck disable=SC2153 # RUNTIME_DIR is a sourced global from deploy/lib/common.sh.
-  if [[ "$action" == "upgrade" ]]; then
+  if [[ -n "$previous_target" ]]; then
     log "Stopping API and scheduler writers before schema and identity changes..."
     run_privileged systemctl stop "$LINUX_BACKEND_SERVICE" "$LINUX_SCHEDULER_SERVICE"
   fi
@@ -272,7 +267,7 @@ linux_deploy_or_upgrade() {
   run_privileged ln -sfn "$release_dir" "$LINUX_CURRENT_LINK"
   linux_reload_services
   linux_smoke "$config_path"
-}
+)
 
 linux_status() {
   printf '%s\n' "COMPONENT	STATUS"
@@ -319,7 +314,7 @@ linux_logs() {
 linux_smoke() {
   local config_path="$1"
   local runtime_dir=""
-  runtime_dir="$(make_runtime_dir "$config_path" "linux")"
+  runtime_dir="$(make_runtime_dir "$config_path" "linux")" || exit $?
   local rc=0
   {
     source_metadata_env "$runtime_dir"

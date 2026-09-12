@@ -1694,3 +1694,51 @@ def test_preflight_reports_config_validation_failures() -> None:
         assert (
             "BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different" in output
         )
+
+
+def test_public_installer_resumes_bootstrap_failure_before_containers_exist(tmp_path):
+    from tests.backend.pytest.test_install_script_contracts import _run_install
+
+    config, secrets, runtime = tmp_path / "riskhub.env", tmp_path / "secrets", tmp_path / "runtime"
+    _write_config(config, PUBLIC_URL="https://risk.example.test", BOOTSTRAP_ADMIN_EMAIL="admin@risk.example.test",
+                  BOOTSTRAP_CRO_EMAIL="cro@risk.example.test", ENTRA_TENANT_ID="aaaaaaaa-1234-4234-8234-123456789abc",
+                  ENTRA_CLIENT_ID="bbbbbbbb-1234-4234-8234-123456789abc")
+    _write_secrets(secrets)
+    fake_bin = _make_fake_bin(tmp_path)
+    # Real orchestration with deterministic external health/container adapters.
+    curl = fake_bin / "curl"
+    _write_exec(curl, "#!/usr/bin/env bash\nprintf '{\"ready\":true,\"database\":\"connected\"}\\n200\\n'\n")
+    docker = fake_bin / "docker"
+    docker_source = docker.read_text().replace('  run)\n', """  exec)
+    if [[ "$*" == *"http://localhost:8000/"* ]]; then
+      printf '404\\n'
+    else
+      printf '{"dead_letter_count":0,"missing_tables":[],"scheduler_runtime_rows":1}\\n'
+    fi
+    exit 0
+    ;;
+  run)
+""")
+    _write_exec(docker, docker_source)
+    command_log = tmp_path / "commands"
+    args = ["production", "--target", "docker", "--config", str(config), "--secret-dir", str(secrets),
+            "--backend-image", _image("backend"), "--backend-db-image", _image("db"),
+            "--frontend-image", _image("frontend"), "--redis-image", _image("redis"), "--yes"]
+    env = {"PATH": f"{fake_bin}:{os.environ['PATH']}", "RISKHUB_RUNTIME_DIR": str(runtime),
+           "RISKHUB_LINUX_ROOT": str(tmp_path / "linux"), "DOCKER_COMMAND_LOG": str(command_log),
+           "DOCKER_STATE_FILE": str(tmp_path / "containers"), "DOCKER_FAIL_BOOTSTRAP": "1"}
+    original = {p.name: p.read_bytes() for p in secrets.iterdir()}
+    first = _run_install(*args, env=env)
+    assert first.returncode != 0, first.stdout + first.stderr
+    assert (runtime / "backend.env").is_file(), first.stdout + first.stderr
+    assert "uvicorn app.main:app" not in command_log.read_text()
+    env["DOCKER_FAIL_BOOTSTRAP"] = "0"
+    command_log.write_text("")
+    second = _run_install(*args, env=env)
+    assert second.returncode == 0, second.stdout + second.stderr
+    calls = command_log.read_text()
+    assert "scripts.identity_preflight" in calls
+    assert "scripts.bootstrap_sso_user" in calls
+    assert "--name riskhub-backend" in calls and "--name riskhub-frontend" in calls
+    assert (runtime / "install-state.json").is_file()
+    assert original == {p.name: p.read_bytes() for p in secrets.iterdir()}

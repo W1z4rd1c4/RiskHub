@@ -255,9 +255,12 @@ deploy_init() {
   if [[ -f "$config_path" && "$force" != "true" ]]; then
     die "Config already exists: ${config_path} (use --force to overwrite)"
   fi
-  copy_file "$example" "$config_path" 600
   if [[ "$IDENTITY_CHOICE" == "custom" ]]; then
-    run python3 -c 'from pathlib import Path; import sys; p=Path(sys.argv[1]); p.write_text(p.read_text().replace("LOCAL_MFA_POLICY=required", "LOCAL_MFA_POLICY=" + sys.argv[2]))' "$config_path" "$MFA_POLICY"
+    local template_content
+    template_content="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).read_text().replace("LOCAL_MFA_POLICY=required", "LOCAL_MFA_POLICY=" + sys.argv[2]), end="")' "$example" "$MFA_POLICY")"
+    write_file_content "$config_path" "$template_content"$'\n' 600
+  else
+    copy_file "$example" "$config_path" 600
   fi
   deploy_secrets_init "$force"
   ensure_runtime_dir_scaffold
@@ -432,10 +435,12 @@ case "$command_name" in
   preflight)
     require_file "$CONFIG_PATH"
     secrets_check
+    allow_existing_port="false"
+    [[ ! -f "$LINUX_BACKEND_ENV" ]] || allow_existing_port="true"
     if [[ "$TARGET" == "docker" ]]; then
-      docker_preflight "$CONFIG_PATH" "false"
+      docker_preflight "$CONFIG_PATH" "$allow_existing_port"
     else
-      linux_preflight "$CONFIG_PATH" "false"
+      linux_preflight "$CONFIG_PATH" "$allow_existing_port"
     fi
     ;;
   deploy)

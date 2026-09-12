@@ -349,3 +349,37 @@ architecture and production packaging contracts as well. Verify the DB-task imag
 as UID 10001 and the Linux package contents; successful backend component checks
 do not open the #208 native production admission boundary. Operator commands and
 exit/status contracts live in [native bootstrap](security/identity-bootstrap.md).
+
+### Managed native installer and candidate compatibility
+
+Run the renderer, public installer and target-adapter contracts without a live
+database from `backend/`:
+
+```bash
+pytest ../tests/backend/pytest/test_native_deploy_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_install_script_contracts.py ../tests/backend/pytest/test_install_production_helpers.py -q --no-cov
+```
+
+`test_native_deploy_contracts.py` covers both targets/policies, profile preservation,
+secret mounting, candidate refusal before replacement, interrupted-install retry,
+non-destructive secret initialization and the closed production admission guard.
+The privileged-wrapper test uses the local image named by
+`RISKHUB_PRIVILEGE_TEST_IMAGE` in a disposable Linux container; it never changes the host's service state or ownership.
+
+`test_identity_preflight.py` requires a disposable PostgreSQL database and Redis.
+Use the same isolated fixtures as native bootstrap and delivery tests; never point
+these commands at an application database:
+
+```bash
+cd backend
+export TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test
+export TEST_REDIS_URL=redis://localhost:6379/15
+pytest ../tests/backend/pytest/test_identity_preflight.py ../tests/backend/pytest/test_local_bootstrap.py ../tests/backend/pytest/test_local_identity_delivery.py -q --no-cov
+```
+
+The native CI PostgreSQL/Redis lane includes candidate preflight. Run
+`make -f scripts/Makefile verify-prod-install-scripts` from the repository root to
+check shell syntax, ShellCheck, the exact runtime/DB-task artifact inventories and
+the privilege-wrapper regression with a pinned Debian Python test image.
+Component tests and Docker bootstrap replays establish installer behavior; they
+do not satisfy #208's non-debug Docker/Linux, native/Entra, real delivery and
+operator acceptance requirements or permit removing the admission guard.

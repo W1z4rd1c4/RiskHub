@@ -119,7 +119,7 @@ run_redacted() {
 run_privileged() {
   if [[ "$EUID" -eq 0 ]]; then
     run "$@"
-    return 0
+    return $?
   fi
   require_cmd sudo
   if [[ "$DRY_RUN" == "true" ]]; then
@@ -139,7 +139,7 @@ run_privileged_sh() {
   local command_text="$2"
   if [[ "$EUID" -eq 0 ]]; then
     run_sh "$display" "$command_text"
-    return 0
+    return $?
   fi
   require_cmd sudo
   if [[ "$DRY_RUN" == "true" ]]; then
@@ -412,8 +412,13 @@ make_runtime_dir() {
   local config_path="$1"
   local target="$2"
   local tmp_dir
-  tmp_dir="$(make_temp_dir_in_parent_dir "$(runtime_parent_dir)" "riskhub-deploy")"
-  render_runtime_dir "$config_path" "$target" "$tmp_dir"
+  tmp_dir="$(make_temp_dir_in_parent_dir "$(runtime_parent_dir)" "riskhub-deploy")" || return $?
+  local rc=0
+  render_runtime_dir "$config_path" "$target" "$tmp_dir" || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    cleanup_temp_dir "$tmp_dir"
+    return "$rc"
+  fi
   printf '%s\n' "$tmp_dir"
 }
 

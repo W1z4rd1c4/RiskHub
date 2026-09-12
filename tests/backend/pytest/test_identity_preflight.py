@@ -1,6 +1,7 @@
 """Installed-state checks reject incompatible releases without mutating authority."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,14 @@ from tests.backend.pytest import test_local_bootstrap as bootstrap_support
 from tests.backend.pytest.test_identity_foundations_postgres import require_postgres
 from tests.backend.pytest.test_local_recovery import cli_environment, run_cli
 
-pytestmark = [pytest.mark.asyncio, pytest.mark.postgres]
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.postgres,
+    pytest.mark.skipif(
+        not os.environ.get("TEST_REDIS_URL"),
+        reason="Native CLI integration requires TEST_REDIS_URL; covered by the native PostgreSQL/Redis CI lane",
+    ),
+]
 ALEMBIC_CONFIG = Path(__file__).resolve().parents[3] / "backend" / "alembic.ini"
 bootstrap_context = bootstrap_support.bootstrap_context
 bootstrap_request = bootstrap_support.bootstrap_request
