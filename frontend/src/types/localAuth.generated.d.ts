@@ -31,6 +31,13 @@ export type CompletedResponse = {
   reauthentication_required?: boolean;
 };
 
+export type CurrentIdentityCapabilities = {
+  can_invite_users?: boolean;
+  can_manage_own_credentials?: boolean;
+  can_import_directory_users?: boolean;
+  can_check_directory_users?: boolean;
+};
+
 export type EmailChangeCompleteRequest = {
   recent_auth_proof: string;
   grant: string;
@@ -103,6 +110,7 @@ export type LocalIdentityStatusResponse = {
 export type LocalRequest = Record<string, never>;
 
 export type MeCapabilities = {
+  identity?: CurrentIdentityCapabilities;
   can_view_user_directory?: boolean;
   can_view_access_users?: boolean;
   can_view_department_access_users?: boolean;

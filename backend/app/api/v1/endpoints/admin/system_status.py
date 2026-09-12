@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.models import User
 from app.schemas.admin import (
@@ -29,12 +30,13 @@ async def get_system_health(
     request: Request,
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_platform_admin),
+    settings: Settings = Depends(get_settings),
 ) -> SystemHealthResponse:
     """
     Get system health status including database connectivity and latency.
     Admin only.
     """
-    return (await build_system_health_snapshot(request, db)).response
+    return (await build_system_health_snapshot(request, db, settings=settings)).response
 
 
 @router.get("/jobs/status", response_model=SchedulerStatusResponse)

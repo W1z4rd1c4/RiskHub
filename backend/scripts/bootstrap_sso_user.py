@@ -11,6 +11,7 @@ from sqlalchemy import func, select, text
 
 from app.core.config import get_settings
 from app.core.email import email_equals, normalize_email
+from app.core.external_identity_policy import require_external_directory
 from app.db.session import session_context
 from app.models import Department, Role, User
 from app.models.user import AccessScope
@@ -90,6 +91,7 @@ async def _resolve_department_id(department: str | None) -> int | None:
 
 async def _run(args: argparse.Namespace) -> int:
     settings = get_settings()
+    require_external_directory(settings)
     email = normalize_email(args.email)
     if not email or "@" not in email:
         raise SystemExit("Invalid --email (must be a valid email address)")

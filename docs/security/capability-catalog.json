@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-09-07",
+ "last_reviewed": "2026-09-12",
  "owner": "RiskHub Maintainer",
  "description": "Validator catalog for backend Pydantic capability models and frontend Zod capability schemas. The authorization capability contract remains the source of protected action semantics; this catalog checks field-shape drift only.",
  "surfaces": [
@@ -806,7 +806,30 @@
     "can_change_active_status",
     "can_break_glass_enable",
     "can_revoke_sessions",
-    "can_resume"
+    "can_resume",
+    "can_reissue_invitation",
+    "can_cancel_invitation",
+    "can_request_password_reset",
+    "can_initiate_recovery",
+    "recovery_offline_required",
+    "can_check_directory"
+   ]
+  },
+  {
+   "id": "current_identity",
+   "backend": {
+    "path": "backend/app/schemas/identity.py",
+    "class": "CurrentIdentityCapabilities"
+   },
+   "frontend": {
+    "path": "frontend/src/services/api/schemas/auth.ts",
+    "schema": "currentIdentityCapabilitiesSchema"
+   },
+   "fields": [
+    "can_invite_users",
+    "can_manage_own_credentials",
+    "can_import_directory_users",
+    "can_check_directory_users"
    ]
   }
  ]

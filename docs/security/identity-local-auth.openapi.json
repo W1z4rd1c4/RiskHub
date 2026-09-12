@@ -146,6 +146,32 @@
         "title": "CompletedResponse",
         "type": "object"
       },
+      "CurrentIdentityCapabilities": {
+        "properties": {
+          "can_check_directory_users": {
+            "default": false,
+            "title": "Can Check Directory Users",
+            "type": "boolean"
+          },
+          "can_import_directory_users": {
+            "default": false,
+            "title": "Can Import Directory Users",
+            "type": "boolean"
+          },
+          "can_invite_users": {
+            "default": false,
+            "title": "Can Invite Users",
+            "type": "boolean"
+          },
+          "can_manage_own_credentials": {
+            "default": false,
+            "title": "Can Manage Own Credentials",
+            "type": "boolean"
+          }
+        },
+        "title": "CurrentIdentityCapabilities",
+        "type": "object"
+      },
       "EmailChangeCompleteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -637,6 +663,9 @@
             "default": false,
             "title": "Can View Users Route",
             "type": "boolean"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/CurrentIdentityCapabilities"
           },
           "is_second_line": {
             "default": false,

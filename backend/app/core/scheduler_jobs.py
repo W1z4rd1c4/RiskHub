@@ -5,7 +5,14 @@ import os
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from app.core.config import get_settings
 from app.core.datetime_utils import utc_now
+from app.core.external_identity_policy import (
+    external_directory_enabled,
+    require_external_directory,
+    require_sso,
+    sso_enabled,
+)
 from app.core.logging import get_logger
 from app.core.scheduler_registry import (
     DEFAULT_SCHEDULER_JOB_PROFILE,
@@ -76,6 +83,7 @@ async def _ad_deprovision_check_job() -> object:
     from app.services.ad_deprovision_service import ADDeprovisionService
 
     settings = get_settings()
+    require_external_directory(settings)
     async with get_db_context() as db:
         return await ADDeprovisionService.check_all_users(
             db,
@@ -87,6 +95,7 @@ async def _ad_deprovision_check_job() -> object:
 
 async def run_ad_deprovision_check():
     """Background job: Check external-directory users and auto-deprovision missing accounts."""
+    require_external_directory(get_settings())
     return await execute_tracked_job("ad_deprovision_check", _ad_deprovision_check_job)
 
 
@@ -101,6 +110,7 @@ async def _sso_jwks_refresh_job() -> object:
 
 async def run_sso_jwks_refresh():
     """Background job: Proactively refresh Entra discovery/JWKS metadata."""
+    require_sso(get_settings())
     return await execute_tracked_job("sso_jwks_refresh", _sso_jwks_refresh_job)
 
 
@@ -167,7 +177,6 @@ def register_full_scheduler_jobs(settings) -> tuple[str, ...]:
         "kri_deadline_check",
         "questionnaire_deadline_check",
         "issue_deadline_check",
-        "ad_deprovision_check",
         "orphan_scan",
     ]
     scheduler.add_job(
@@ -191,13 +200,15 @@ def register_full_scheduler_jobs(settings) -> tuple[str, ...]:
         name="Daily Issue Deadline Check",
         replace_existing=True,
     )
-    scheduler.add_job(
-        run_ad_deprovision_check,
-        IntervalTrigger(minutes=max(int(settings.ad_deprovision_check_interval_minutes), 1)),
-        id="ad_deprovision_check",
-        name="AD Deprovision Check",
-        replace_existing=True,
-    )
+    if external_directory_enabled(settings):
+        scheduler.add_job(
+            run_ad_deprovision_check,
+            IntervalTrigger(minutes=max(int(settings.ad_deprovision_check_interval_minutes), 1)),
+            id="ad_deprovision_check",
+            name="AD Deprovision Check",
+            replace_existing=True,
+        )
+        registered_job_ids.insert(3, "ad_deprovision_check")
     scheduler.add_job(
         run_orphan_scan,
         CronTrigger(hour=8, minute=15),
@@ -205,11 +216,7 @@ def register_full_scheduler_jobs(settings) -> tuple[str, ...]:
         name="Daily Orphan Governance Scan",
         replace_existing=True,
     )
-    if (
-        settings.auth_mode in ("microsoft_sso", "hybrid_dev")
-        and settings.entra_tenant_id
-        and settings.entra_client_id
-    ):
+    if sso_enabled(settings) and settings.entra_tenant_id and settings.entra_client_id:
         scheduler.add_job(
             run_sso_jwks_refresh,
             IntervalTrigger(minutes=10),

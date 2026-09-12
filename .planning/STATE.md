@@ -62,3 +62,5 @@ Factor replacement, restricted assisted/offline recovery and key rotation extend
 layer, with recovery-pending accounts denied ordinary authority. Full native UI/installer
 and production acceptance remain subsequent groups;
 see [native credentials](../docs/security/identity-local-credentials.md).
+
+Implementation context (#202): native external-directory admission, identity capability metadata and disabled-directory diagnostics are implemented in the current candidate; managed installer/bootstrap/UI release and live closure remain governed by their GitHub delivery items.

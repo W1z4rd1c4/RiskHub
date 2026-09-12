@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.exceptions import ConflictError, ServiceFailure, ValidationError
+from app.core.external_identity_policy import require_external_directory
 from app.core.identity_policy import projected_account_active
 from app.models import Role, User
 from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
@@ -66,6 +67,7 @@ async def import_directory_identity(
     payload: DirectoryImportRequest,
     provider_name: str,
 ) -> IdentityImportOutcome:
+    require_external_directory(settings)
     normalized_email = resolve_directory_email(directory_user)
     if normalized_email is None:
         raise ValidationError("Directory user is missing an importable email address")
@@ -143,6 +145,7 @@ async def import_directory_identity(
                 user=user,
                 actor=current_user,
                 trigger="directory_import",
+                settings=settings,
                 sync_status="directory_disabled",
                 deprovision_reason=ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED,
             )

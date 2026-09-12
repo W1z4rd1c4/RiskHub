@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.config import Settings, get_settings
+from app.core.external_identity_policy import require_external_directory
 from app.db.session import get_db
 from app.models import User
 from app.models.role import RoleType
@@ -32,6 +33,7 @@ def _require_directory_admin(current_user: User = Depends(deps.get_current_user)
 
 
 def _provider_or_503(settings: Settings) -> DirectoryProviderService:
+    require_external_directory(settings)
     try:
         return DirectoryProviderService(settings)
     except DirectoryProviderUnavailableError as exc:

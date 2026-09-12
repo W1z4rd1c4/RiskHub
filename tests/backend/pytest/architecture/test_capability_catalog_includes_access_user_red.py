@@ -23,6 +23,12 @@ REQUIRED_FIELDS = {
     "can_change_active_status",
     "can_break_glass_enable",
     "can_revoke_sessions",
+    "can_reissue_invitation",
+    "can_cancel_invitation",
+    "can_request_password_reset",
+    "can_initiate_recovery",
+    "recovery_offline_required",
+    "can_check_directory",
 }
 
 

@@ -7,6 +7,7 @@ import httpx
 
 from app.core.config import Settings
 from app.core.email import normalize_email
+from app.core.external_identity_policy import require_external_directory
 from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
@@ -39,6 +40,7 @@ class _ADEmulatorDirectoryService:
     """Optional dev fallback provider backed by an AD emulator HTTP API."""
 
     def __init__(self, settings: Settings):
+        require_external_directory(settings)
         self._settings = settings
         self._base_url = (settings.ad_emulator_base_url or "").rstrip("/")
         self._base_host = extract_host(self._base_url) if self._base_url else None
@@ -144,6 +146,7 @@ class DirectoryProviderService:
     """Provider-agnostic directory access facade."""
 
     def __init__(self, settings: Settings):
+        require_external_directory(settings)
         self._settings = settings
         self._provider = self._build_provider(settings)
 

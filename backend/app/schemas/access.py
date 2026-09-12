@@ -38,6 +38,7 @@ class AccessUserRead(BaseModel):
     email: str
     name: str
     is_active: bool
+    local_recovery_pending: bool = False
     local_suspended: bool = False
     local_enrollment_state: str | None = None
     role_id: int
@@ -72,9 +73,16 @@ class AccessUserCapabilities(BaseModel):
     can_change_active_status: bool
     can_break_glass_enable: bool
     can_revoke_sessions: bool
+    can_reissue_invitation: bool = False
+    can_cancel_invitation: bool = False
+    can_request_password_reset: bool = False
+    can_initiate_recovery: bool = False
+    recovery_offline_required: bool = False
+    can_check_directory: bool = False
     can_resume: bool = False
     active_status_block_reason: str | None = None
     directory_owned_fields: list[str] = Field(default_factory=list)
+    verified_identity_fields: list[str] = Field(default_factory=list)
 
 
 class AccessUserUpdate(BaseModel):

@@ -85,7 +85,8 @@ def test_scheduler_role_status_reports_follower_ready() -> None:
 
 
 @pytest_asyncio.fixture
-async def isolated_scheduler(async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch):
+async def isolated_scheduler(async_engine: AsyncEngine, db_session, monkeypatch: pytest.MonkeyPatch):
+    # Request the canonical per-test database reset even when the test uses its own sessions.
     import app.core.scheduler_jobs as scheduler_jobs_module
     import app.core.scheduler_runtime as scheduler_runtime
 

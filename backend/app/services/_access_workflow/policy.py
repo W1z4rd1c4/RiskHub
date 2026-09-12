@@ -6,12 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
+from app.core.external_identity_policy import external_directory_enabled
 from app.core.identity_policy import DIRECTORY_OWNED_FIELDS, upstream_and_enrollment_allow_access
+from app.core.local_session import native_identity_selected
 from app.core.permissions import has_permission, is_privileged_user
 from app.models import Role, User
 from app.models.role import RoleType
 from app.schemas.access import AccessUserCapabilities
 from app.services._directory_identity import has_auto_deprovision_reason
+from app.services.identity_capabilities import target_identity_capabilities
 
 ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 PLATFORM_ADMIN_FIELDS = {"name", "email"}
@@ -94,6 +97,7 @@ def access_user_capabilities(
     can_resume = bool(
         can_change_active_status
         and not target_user.is_active
+        and not target_user.local_recovery_pending
         and upstream_and_enrollment_allow_access(target_user, settings=settings)
     )
     block_reason = None
@@ -116,15 +120,21 @@ def access_user_capabilities(
         else []
     )
     return AccessUserCapabilities(
-        can_edit_identity=bool(current_is_admin and not hidden_from_current),
+        **(target_identity_capabilities(current_user, target_user, settings) if settings is not None else {}),
+        can_edit_identity=bool(current_is_admin and not hidden_from_current and not directory_fields),
         can_edit_business_access=bool(current_is_cro and not hidden_from_current),
         can_edit_role=bool((current_is_admin or current_is_cro) and not hidden_from_current),
         can_deactivate=bool(can_change_active_status and target_user.is_active),
         can_change_active_status=can_change_active_status,
-        can_break_glass_enable=bool(can_break_glass_enable and not target_user.local_suspended),
+        can_break_glass_enable=bool(
+            can_break_glass_enable
+            and not target_user.local_suspended
+            and (settings is None or external_directory_enabled(settings))
+        ),
         can_resume=can_resume,
         active_status_block_reason=block_reason,
         directory_owned_fields=directory_fields,
+        verified_identity_fields=["email"] if settings is not None and native_identity_selected(settings) else [],
         can_revoke_sessions=bool(current_is_admin and current_user.id != target_user.id and not hidden_from_current),
     )
 

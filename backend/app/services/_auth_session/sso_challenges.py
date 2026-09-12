@@ -9,6 +9,7 @@ from starlette.requests import Request
 
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
+from app.core.external_identity_policy import sso_enabled
 from app.core.identity_policy import can_authenticate_user
 from app.core.tokens import get_sso_challenge_cookie
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse
@@ -140,7 +141,7 @@ async def resolve_sso_start(
     request: Request,
     settings: Settings,
 ) -> SsoStartResolution:
-    if settings.auth_mode not in ("microsoft_sso", "hybrid_dev"):
+    if not sso_enabled(settings):
         return SsoStartResolution(
             failure=SsoFailure(status_code=HTTPStatus.FORBIDDEN, detail="SSO is not enabled.", code="SSO_DISABLED")
         )
@@ -185,7 +186,7 @@ async def resolve_sso_exchange(
     settings: Settings,
     token_verifier=None,
 ) -> SsoExchangeResolution:
-    if settings.auth_mode not in ("microsoft_sso", "hybrid_dev"):
+    if not sso_enabled(settings):
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             failure=SsoFailure(status_code=HTTPStatus.FORBIDDEN, detail="SSO is not enabled.", code="SSO_DISABLED"),

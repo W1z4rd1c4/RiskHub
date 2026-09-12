@@ -21,6 +21,13 @@ import type {
 import { passthroughObject, stringArraySchema, unknownRecordSchema, z } from './common';
 
 export const systemHealthSchema: z.ZodType<SystemHealth> = passthroughObject({
+    external_directory: z.enum(['not_applicable', 'unchecked']).optional(),
+    identity_binding: passthroughObject({
+        installation_id: z.string(),
+        auth_mode: z.enum(['password', 'microsoft_sso']),
+        tenant_id: z.string().nullable(),
+        contract_version: z.number(),
+    }).nullable().optional(),
     database_status: z.string(),
     database_latency_ms: z.number(),
     uptime_seconds: z.number(),

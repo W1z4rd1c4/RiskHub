@@ -106,8 +106,15 @@ export const accessUserCapabilitiesSchema = passthroughObject({
     can_break_glass_enable: z.boolean(),
     can_revoke_sessions: z.boolean(),
     can_resume: z.boolean().optional(),
+    can_reissue_invitation: z.boolean().optional(),
+    can_cancel_invitation: z.boolean().optional(),
+    can_request_password_reset: z.boolean().optional(),
+    can_initiate_recovery: z.boolean().optional(),
+    recovery_offline_required: z.boolean().optional(),
+    can_check_directory: z.boolean().optional(),
     active_status_block_reason: z.string().nullable().optional(),
     directory_owned_fields: z.array(z.string()).optional(),
+    verified_identity_fields: z.array(z.string()).optional(),
 });
 export const accessUserReadSchema: z.ZodType<AccessUserRead> = passthroughObject({
     id: z.number(),
@@ -115,6 +122,7 @@ export const accessUserReadSchema: z.ZodType<AccessUserRead> = passthroughObject
     name: z.string(),
     is_active: z.boolean(),
     local_suspended: z.boolean().optional(),
+    local_recovery_pending: z.boolean().optional(),
     local_enrollment_state: z.string().nullable().optional(),
     role_id: z.number(),
     role: passthroughObject({

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from app.core.config import Settings
 from app.core.permissions import can_view_risk_committee
 from app.models import User
 from app.models.role import RoleType
 from app.models.user import AccessScope
+from app.schemas.identity import CurrentIdentityCapabilities
 from app.schemas.user import MeCapabilities
+from app.services.identity_capabilities import current_identity_capabilities
 
 from .perimeter import Capabilities
 
@@ -35,7 +38,7 @@ def _has_global_scope(user: User) -> bool:
     return getattr(user, "access_scope", None) == AccessScope.GLOBAL
 
 
-def build_me_capabilities(user: User) -> MeCapabilities:
+def build_me_capabilities(user: User, *, settings: Settings | None = None) -> MeCapabilities:
     capabilities = Capabilities.for_user(user)
     role_name = _role_name(user)
     has_global_scope = _has_global_scope(user)
@@ -43,8 +46,7 @@ def build_me_capabilities(user: User) -> MeCapabilities:
     is_department_head = role_name == RoleType.DEPARTMENT_HEAD.value
 
     resource_permissions = {
-        f"{resource}:{action}": capabilities.can(action, resource)
-        for resource, action in _RESOURCE_PERMISSION_CHECKS
+        f"{resource}:{action}": capabilities.can(action, resource) for resource, action in _RESOURCE_PERMISSION_CHECKS
     }
 
     can_view_user_directory = resource_permissions["users:read"]
@@ -55,6 +57,9 @@ def build_me_capabilities(user: User) -> MeCapabilities:
     can_view_department_access = can_view_department_access_users or can_view_access_users
 
     return MeCapabilities(
+        identity=current_identity_capabilities(user, settings)
+        if settings is not None
+        else CurrentIdentityCapabilities(),
         can_view_user_directory=can_view_user_directory,
         can_view_access_users=can_view_access_users,
         can_view_department_access_users=can_view_department_access_users,
@@ -64,12 +69,8 @@ def build_me_capabilities(user: User) -> MeCapabilities:
         can_view_department_access=can_view_department_access,
         can_view_admin_console=is_platform_admin,
         can_view_riskhub=role_name == RoleType.CRO.value,
-        can_view_governance=(
-            not is_platform_admin and has_global_scope and resource_permissions["users:write"]
-        ),
-        can_view_activity_log=(
-            not is_platform_admin and resource_permissions["activity_log:read"]
-        ),
+        can_view_governance=(not is_platform_admin and has_global_scope and resource_permissions["users:write"]),
+        can_view_activity_log=(not is_platform_admin and resource_permissions["activity_log:read"]),
         can_view_committee=can_view_risk_committee(user),
         can_view_users_page=can_view_users_route,
         is_second_line=role_name in {RoleType.RISK_MANAGER.value, RoleType.COMPLIANCE.value},

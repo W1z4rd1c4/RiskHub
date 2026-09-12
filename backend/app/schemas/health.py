@@ -16,6 +16,7 @@ class LivenessResponse(BaseModel):
 class ReadinessResponse(BaseModel):
     """Readiness response model."""
 
+    external_directory: Literal["not_applicable", "unchecked"] = "unchecked"
     ready: bool
     database: Literal["connected", "disconnected"]
     redis: Literal["connected", "disconnected", "disabled"]

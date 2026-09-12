@@ -12,6 +12,8 @@ BACKEND_TEST_ROOT = REPO_ROOT / "tests/backend/pytest"
 ARCHITECTURE_TEST_ROOT = BACKEND_TEST_ROOT / "architecture"
 
 ALLOWED_SUBPROCESS_IMPORTABILITY_CHECKS = {
+    # #202 instruments cold application composition before import and isolates global scheduler state.
+    "tests/backend/pytest/test_identity_directory_isolation.py",
     "tests/backend/pytest/api/v1/test_issue_register_projection.py",
     "tests/backend/pytest/test_install_script_contracts.py",
 }

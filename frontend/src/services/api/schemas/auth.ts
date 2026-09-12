@@ -43,7 +43,15 @@ export const authUserSchema: z.ZodType<AuthUser> = passthroughObject({
     me_capabilities: z.lazy(() => meCapabilitiesSchema).nullable().optional(),
 });
 
+export const currentIdentityCapabilitiesSchema = passthroughObject({
+    can_invite_users: z.boolean(),
+    can_manage_own_credentials: z.boolean(),
+    can_import_directory_users: z.boolean(),
+    can_check_directory_users: z.boolean(),
+});
+
 export const meCapabilitiesSchema: z.ZodType<MeCapabilities> = passthroughObject({
+    identity: currentIdentityCapabilitiesSchema.optional(),
     can_view_user_directory: z.boolean(),
     can_view_access_users: z.boolean(),
     can_view_department_access_users: z.boolean(),
@@ -73,6 +81,14 @@ export const tokenResponseSchema: z.ZodType<TokenResponse> = passthroughObject({
 });
 
 export const authConfigResponseSchema: z.ZodType<AuthConfigResponse> = passthroughObject({
+    identity: passthroughObject({
+        mode: z.enum(['native', 'entra', 'development']),
+        external_directory: z.enum(['enabled', 'disabled']),
+        local_enrollment_enabled: z.boolean(),
+        password_reset_enabled: z.boolean(),
+        factor_management_enabled: z.boolean(),
+        recovery_method: z.enum(['governed_local', 'identity_provider', 'unsupported']),
+    }).nullable().optional(),
     auth_mode: z.enum(['password', 'microsoft_sso', 'hybrid_dev']),
     demo_login_enabled: z.boolean(),
     password_login_enabled: z.boolean(),

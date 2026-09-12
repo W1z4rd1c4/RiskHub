@@ -48,7 +48,24 @@ export interface DemoPersona {
     color: 'rose' | 'purple' | 'violet' | 'amber' | 'emerald' | 'sky' | 'teal' | 'indigo' | 'pink';
 }
 
+export interface IdentityConfig {
+    mode: 'native' | 'entra' | 'development';
+    external_directory: 'enabled' | 'disabled';
+    local_enrollment_enabled: boolean;
+    password_reset_enabled: boolean;
+    factor_management_enabled: boolean;
+    recovery_method: 'governed_local' | 'identity_provider' | 'unsupported';
+}
+
+export interface CurrentIdentityCapabilities {
+    can_invite_users: boolean;
+    can_manage_own_credentials: boolean;
+    can_import_directory_users: boolean;
+    can_check_directory_users: boolean;
+}
+
 export interface AuthConfigResponse {
+    identity?: IdentityConfig | null;
     auth_mode: AuthMode;
     demo_login_enabled: boolean;
     password_login_enabled: boolean;
@@ -90,6 +107,7 @@ export interface TokenResponse {
 export type AuthUser = TokenResponse['user'];
 
 export interface MeCapabilities {
+    identity?: CurrentIdentityCapabilities;
     can_view_user_directory: boolean;
     can_view_access_users: boolean;
     can_view_department_access_users: boolean;
