@@ -147,6 +147,7 @@ class InvitationResponse(BaseModel):
 
 class LocalIdentityStatusResponse(BaseModel):
     user_id: UserId
+    authority_version: Annotated[int, Field(strict=True, ge=0)]
     enrollment_state: Literal["invited", "password_set", "enrolled"] | None
     local_suspended: bool
     recovery_pending: bool = False

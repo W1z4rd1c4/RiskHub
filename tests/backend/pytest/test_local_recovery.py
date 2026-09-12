@@ -148,6 +148,9 @@ async def test_assisted_recovery(
         settings=native_context, headers={"Origin": "http://test"}
     ) as client:
         await login_password_only(client, test_user.email, PASSWORD)
+        status = await client.get(f"/api/v1/users/{user_id}/local-auth/status")
+        assert status.status_code == 200, status.text
+        version = status.json()["authority_version"]
         proof = await recent(
             client,
             user_id,
@@ -259,6 +262,7 @@ def cli_environment(settings, approvers=None):
     }
 
 
+@pytest.mark.parametrize("lost_key", [False, True])
 async def test_offline_privileged_recovery_cli(
     native_context,
     client_factory,
@@ -267,6 +271,7 @@ async def test_offline_privileged_recovery_cli(
     test_user_employee,
     tmp_path,
     async_engine,
+    lost_key,
 ):
     import base64
     import json
@@ -287,6 +292,52 @@ async def test_offline_privileged_recovery_cli(
         settings=native_context, headers={"Origin": "http://test"}
     ) as client:
         await enroll(client, invitation["credential"])
+    unaffected_id = None
+    if lost_key:
+        from pathlib import Path
+
+        # Only the affected account retains v1. A healthy account uses the new key.
+        key_file = Path(native_context.local_auth_keyring_file)
+        data = json.loads(key_file.read_text())
+        import secrets
+
+        data["purposes"]["totp"]["keys"]["v2"] = base64.b64encode(
+            secrets.token_bytes(32)
+        ).decode()
+        data["purposes"]["totp"]["active"] = "v2"
+        key_file.write_text(json.dumps(data))
+        unaffected_id = await create_invitation(
+            client_factory,
+            native_context,
+            db_session,
+            test_user,
+            test_user_employee.role_id,
+            email="unaffected@example.com",
+        )
+        _, unaffected_mail = await latest_mail(
+            db_session, native_context, user_id=unaffected_id, kind="invitation"
+        )
+        async with client_factory(
+            settings=native_context, headers={"Origin": "http://test"}
+        ) as other:
+            unaffected_codes, _ = await enroll(other, unaffected_mail["credential"])
+        unaffected = await db_session.get(
+            LocalAuthFactor, unaffected_id, populate_existing=True
+        )
+        unaffected_state = (
+            unaffected.generation,
+            unaffected.encrypted_seed,
+            unaffected.last_time_step,
+        )
+        del data["purposes"]["totp"]["keys"]["v1"]
+        key_file.write_text(json.dumps(data))
+        failed = await run_cli(
+            "scripts.local_auth_keys",
+            cli_environment(native_context),
+            "--maintenance-confirmed",
+            "verify",
+        )
+        assert failed[0] == 2
     test_user.local_suspended, test_user.is_active = True, False
     await db_session.commit()
     trust = {"version": 1, "approvers": []}
@@ -405,6 +456,31 @@ async def test_offline_privileged_recovery_cli(
         and target.is_active
         and not target.local_recovery_pending
     )
+
+    if lost_key:
+        assert native_context.local_mfa_policy == "required"
+        affected = await db_session.get(
+            LocalAuthFactor, user_id, populate_existing=True
+        )
+        assert affected.key_id == "v2"
+        unaffected = await db_session.get(
+            LocalAuthFactor, unaffected_id, populate_existing=True
+        )
+        assert (
+            unaffected.generation,
+            unaffected.encrypted_seed,
+            unaffected.last_time_step,
+        ) == unaffected_state
+        async with client_factory(
+            settings=native_context, headers={"Origin": "http://test"}
+        ) as other:
+            await login_native(
+                other, "unaffected@example.com", PASSWORD, unaffected_codes[0]
+            )
+        verified = await run_cli(
+            "scripts.local_auth_keys", env, "--maintenance-confirmed", "verify"
+        )
+        assert verified[0] == 0, verified[2]
 
 
 async def test_recovery_approval_abuse_cases(tmp_path):
@@ -672,3 +748,87 @@ async def test_privileged_recovery_is_rejected_on_web(
         assert result.status_code == 401, result.text
         await db_session.refresh(target)
         assert not target.local_recovery_pending
+
+
+@pytest.mark.parametrize("damage", ["missing", "wrong"])
+async def test_protected_key_backup_restores_affected_login(
+    native_context,
+    client_factory,
+    db_session,
+    test_user,
+    test_user_employee,
+    tmp_path,
+    async_engine,
+    damage,
+):
+    import base64
+    import json
+    import secrets
+    from pathlib import Path
+
+    from tests.backend.pytest.test_identity_foundations_postgres import require_postgres
+
+    require_postgres(async_engine)
+    user_id = await create_invitation(
+        client_factory,
+        native_context,
+        db_session,
+        test_user,
+        test_user_employee.role_id,
+    )
+    _, invitation = await latest_mail(
+        db_session, native_context, user_id=user_id, kind="invitation"
+    )
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}
+    ) as client:
+        codes, setup = await enroll(client, invitation["credential"])
+        await login_native(client, "journey@example.com", PASSWORD, codes[0])
+        before = await db_session.get(LocalAuthFactor, user_id, populate_existing=True)
+        state = before.generation, before.encrypted_seed, before.last_time_step
+        key_file = Path(native_context.local_auth_keyring_file)
+        backup = tmp_path / "protected-key-backup.json"
+        backup.write_bytes(key_file.read_bytes())
+        backup.chmod(0o600)
+        data = json.loads(backup.read_text())
+        entry = data["purposes"]["totp"]
+        fresh = base64.b64encode(secrets.token_bytes(32)).decode()
+        if damage == "missing":
+            entry.update(active="v2", keys={"v2": fresh})
+        else:
+            entry["keys"]["v1"] = fresh
+        key_file.write_text(json.dumps(data))
+        env = cli_environment(native_context)
+        result = await run_cli(
+            "scripts.local_auth_keys", env, "--maintenance-confirmed", "verify"
+        )
+        assert result[0] == 2
+        await csrf(client)
+        challenge = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "journey@example.com", "password": PASSWORD},
+        )
+        assert challenge.status_code == 202
+        denied = await client.post(
+            "/api/v1/auth/local/mfa/verify",
+            json={
+                "challenge": challenge.json()["challenge"],
+                "method": "totp",
+                "code": pyotp.parse_uri(setup["provisioning_uri"]).now(),
+            },
+        )
+        assert denied.status_code == 503, denied.text
+        assert "access_token" not in denied.json()
+        key_file.write_bytes(backup.read_bytes())
+        restored = await run_cli(
+            "scripts.local_auth_keys", env, "--maintenance-confirmed", "verify"
+        )
+        assert restored[0] == 0, restored[2]
+        await db_session.refresh(before)
+        assert (
+            before.generation,
+            before.encrypted_seed,
+            before.last_time_step,
+        ) == state
+        assert native_context.local_mfa_policy == "required"
+        await login_native(client, "journey@example.com", PASSWORD, codes[1])

@@ -41,8 +41,11 @@ retain identity-document evidence in the organization's approved incident system
 not in RiskHub request fields. The application records the reference but cannot
 prove that this human verification occurred.
 
-Obtain an `assisted_recovery` recent-auth proof for the exact target user, expected
-`token_version`, approved operation and proposed address when relevant. Submit it to
+Read `GET /api/v1/users/{user_id}/local-auth/status` as the administrator and use its
+nonsecret `authority_version` as `expected_token_version`. Obtain an
+`assisted_recovery` recent-auth proof for that exact target/version, approved operation
+and proposed address when relevant. Refresh status and repeat verification when a
+concurrent account change invalidates that version. Submit it to
 `POST /api/v1/users/{user_id}/recovery` with matching values. Admin creation/reset
 permissions do not permit a direct password or factor overwrite. Admin, CRO and
 accounts with global access/recovery-management authority require the offline

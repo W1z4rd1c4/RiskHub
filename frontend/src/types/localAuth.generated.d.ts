@@ -92,6 +92,7 @@ export type LocalAuthChallenge = {
 
 export type LocalIdentityStatusResponse = {
   user_id: number;
+  authority_version: number;
   enrollment_state: "invited" | "password_set" | "enrolled" | null;
   local_suspended: boolean;
   recovery_pending?: boolean;

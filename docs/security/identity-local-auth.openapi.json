@@ -475,6 +475,11 @@
       },
       "LocalIdentityStatusResponse": {
         "properties": {
+          "authority_version": {
+            "minimum": 0,
+            "title": "Authority Version",
+            "type": "integer"
+          },
           "delivery_status": {
             "anyOf": [
               {
@@ -530,6 +535,7 @@
         },
         "required": [
           "user_id",
+          "authority_version",
           "enrollment_state",
           "local_suspended",
           "is_active",
