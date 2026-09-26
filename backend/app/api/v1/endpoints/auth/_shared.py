@@ -26,6 +26,7 @@ from app.models import RefreshToken, User
 from app.schemas.auth import TokenResponse
 from app.schemas.user import AccessScopeEnum, UserBrief
 from app.services._directory_identity import resolve_safe_default_role as resolve_directory_safe_default_role
+from app.services.authorization_capabilities import build_me_capabilities
 
 if TYPE_CHECKING:
     from app.models import Role
@@ -88,6 +89,7 @@ def _build_token_response(
         effective_permissions=effective_permissions,
         access_scope=AccessScopeEnum(user.access_scope.value),
         scope_label=scope_label,
+        me_capabilities=build_me_capabilities(user, settings=settings) if local_context is not None else None,
     )
     access_token = create_access_token(
         data={

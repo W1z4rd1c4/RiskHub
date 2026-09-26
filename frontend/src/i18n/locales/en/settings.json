@@ -21,7 +21,8 @@
     "access_scope": "Access Scope",
     "ad_notice": "Your profile is managed by your organization's Active Directory. Contact your IT administrator to update your information.",
     "all_permissions": "All permissions",
-    "no_permissions_assigned": "No permissions assigned"
+    "no_permissions_assigned": "No permissions assigned",
+    "local_notice": "Manage your password, verified email and authenticator in Account security."
   },
   "appearance": {
     "title": "Theme",

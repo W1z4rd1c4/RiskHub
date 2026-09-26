@@ -21,7 +21,8 @@
     "access_scope": "Rozsah přístupu",
     "ad_notice": "Váš profil je spravován Active Directory vaší organizace. Pro aktualizaci informací kontaktujte správce IT.",
     "all_permissions": "Všechna oprávnění",
-    "no_permissions_assigned": "Nejsou přiřazena žádná oprávnění"
+    "no_permissions_assigned": "Nejsou přiřazena žádná oprávnění",
+    "local_notice": "Heslo, ověřený e-mail a ověřovací aplikaci spravujte v Zabezpečení účtu."
   },
   "appearance": {
     "title": "Motiv",

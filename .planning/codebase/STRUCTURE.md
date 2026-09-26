@@ -36,7 +36,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 522 tracked test files (484 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 523 tracked test files (485 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -45,7 +45,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 242 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/pages/` - 250 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
 - `frontend/src/components/` - 325 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
@@ -55,7 +55,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 81 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - 82 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 
