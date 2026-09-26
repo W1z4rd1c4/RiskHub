@@ -1,13 +1,13 @@
 # Repository Structure
 
-**Analysis Date:** 2026-09-12
+**Analysis Date:** 2026-09-26
 
 This file is a versioned repository-structure snapshot for the commit that
 contains it. It does not assign live work or determine whether an issue, pull
 request, or project item is open. See
 [`docs/DOCUMENTATION_OWNERSHIP.md`](../../docs/DOCUMENTATION_OWNERSHIP.md).
 
-Tracked file counts refreshed from `git ls-files` on 2026-09-12.
+Tracked file counts refreshed from `git ls-files` on 2026-09-26.
 
 ## Top-Level Layout
 
@@ -27,16 +27,16 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 
 ### Primary subdirectories
 - `backend/app/api/v1/endpoints/` - 170 Python modules/packages (measured git-tracked `*.py` snapshot; extensively split into subrouters for maintainability)
-- `backend/app/models/` - 37 model modules (measured git-tracked `*.py` snapshot)
+- `backend/app/models/` - 38 model modules (measured git-tracked `*.py` snapshot)
 - `backend/app/schemas/` - 35 schema modules (measured git-tracked `*.py` snapshot)
-- `backend/app/services/` - 395 Python modules (measured repository `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_governed_mutations`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
+- `backend/app/services/` - 405 Python modules (measured repository `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_governed_mutations`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
 - `backend/app/core/` - configuration facade + segmented settings package, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - 12 Python modules (measured git-tracked `*.py` snapshot; security/logging/language/rate-limit middleware with facade-preserving splits)
 - `backend/app/integrations/` - reserved integration package and vendor-signal package docs; current directory/Graph behavior lives in service-layer adapters
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 523 tracked test files (485 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 525 tracked test files (487 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -92,4 +92,4 @@ in the applicable GitHub Issue, pull request, or Project item.
 
 ---
 
-*Structure audit refreshed on 2026-09-12*
+*Structure audit refreshed on 2026-09-26*

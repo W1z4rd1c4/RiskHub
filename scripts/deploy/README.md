@@ -31,3 +31,13 @@ include `python -m app.services.identity_diagnostics` (optional `--probe-mail` f
 verified SMTP TLS/login without sending mail). Native secret mounts select only
 needed local files and shared DB/JWT inputs; preserve unused operator-owned Entra
 files on the host. See the [deployment guide](../../docs/deployment/production.md#native-installation-preparation-and-release-boundary).
+
+## Identity backup and restore
+
+The installed DB-task maintenance entrypoint is `python -m scripts.identity_restore`.
+It provides `backup`, `verify-backup` (disposable validation DB), `restore`/`--resume`,
+`review-status`, `reconcile-user`, and `verify-cutover`. Keep API/scheduler writers
+stopped until the exact cutover and existing-admin recovery are verified. Managed
+release compatibility requires `python -m scripts.identity_preflight --restore-contract 1`;
+older releases refuse this protocol. See the
+[operator procedure](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-restore.md).

@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.models.user import AccessScope
 from app.services._auth_session_workflow.transactions import commit_auth_transaction
+from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
 from app.services._local_auth.common import audit_local
 from app.services._local_auth.keys import LocalKeyring
 from app.services.identity_installation import validate_installation_binding
@@ -121,6 +122,8 @@ async def reconcile_restored_security(
                 state.credential_commitment,
             )
         )
+        if binding.auth_mode == "password" and settings.local_mfa_policy == "required":
+            known_credentials = known_credentials and factor is not None and factor.confirmed_at is not None
         if known_access and state is not None:
             user.role_id = state.role_id
             user.access_scope = AccessScope(state.access_scope)
@@ -175,6 +178,19 @@ async def reconcile_restored_security(
                 "source": source,
             },
         )
+    await db.flush()
+    if not await effective_platform_admin_ids(db, settings=settings):
+        # A restored installation without a usable administrator stays in recovery.
+        # Do not reopen ordinary access while the privileged recovery is unresolved.
+        for user in users:
+            if user.is_active:
+                user.is_active = False
+                if not user.restore_quarantined:
+                    user.restore_quarantined = True
+                    quarantined += 1
+                await audit_local(
+                    db, user, "identity_restore_admin_recovery_required", evidence={"restore_epoch": epoch}
+                )
     # Pending secret-bearing contexts and all delivery envelopes belong to the old
     # authority even when their expiry lies in the future.
     await db.execute(update(LocalAuthGrant).values(revoked_at=now, context={}, browser_hash=None))

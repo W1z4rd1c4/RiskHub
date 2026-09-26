@@ -14,7 +14,9 @@ from sqlalchemy.engine import make_url
 from app.core.config import Settings
 from app.db.session import session_context
 from app.models import IdentityRestoreCutover
+from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
 from app.services.identity_installation import validate_installation_binding
+from app.services.transaction_boundary import commit_service_boundary
 
 from .admission import state_path, validate_restore_admission
 from .checkpoint import SecurityCheckpoint, capture_checkpoint
@@ -29,7 +31,13 @@ from .files import (
     write_private,
 )
 from .manifest import BackupManifest, make_manifest, verify_manifest
-from .postgres import dump_database, maintenance_database, require_quiet_database, restore_database
+from .postgres import (
+    dump_database,
+    maintenance_database,
+    reload_restored_schema,
+    require_quiet_database,
+    restore_database,
+)
 
 
 def load_signed(path: Path, key: bytes) -> dict:
@@ -90,7 +98,7 @@ async def verify_backup(
         )
         if tables:
             raise RestoreError("Validation database must be empty; preserve it after a failed drill for inspection")
-        await db.commit()
+        await commit_service_boundary(db, boundary="identity_restore_validation_quiescence")
         await restore_database(validation_url, dump, replace=False)
         # This reads and decrypts the actual restored records, not just matching key IDs.
         actual = await make_manifest(
@@ -255,10 +263,11 @@ async def restore(
             cutover = await db.get(IdentityRestoreCutover, 1) if has_cutover else None
             already_reconciled = cutover is not None and cutover.epoch == journal["epoch"]
             await require_quiet_database(db)
-            await db.commit()
+            await commit_service_boundary(db, boundary="identity_restore_destination_quiescence")
             if not already_reconciled:
                 await restore_database(settings.database_url, dump, replace=True)
                 db.expunge_all()
+                await reload_restored_schema(db)
                 actual = await make_manifest(
                     db, restored_settings, dump=dump, application_identity=manifest.application_identity
                 )
@@ -301,4 +310,9 @@ async def verify_cutover(settings: Settings) -> dict:
         cutover = await db.get(IdentityRestoreCutover, 1)
         if cutover is None:
             raise RestoreError("No completed restore cutover exists")
-        return {"status": "verified", "installation_id": binding.installation_id, "epoch": cutover.epoch}
+        return {
+            "status": "verified",
+            "installation_id": binding.installation_id,
+            "epoch": cutover.epoch,
+            "administrator_recovery_required": not bool(await effective_platform_admin_ids(db, settings=settings)),
+        }

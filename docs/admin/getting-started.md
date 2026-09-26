@@ -195,3 +195,12 @@ Include:
 - [Admin Console](./console.md)
 - [User and Access Governance](./user-management.md)
 - [Reports and Evidence Exports](./reports.md)
+
+## Accounts after a backup restore
+
+Restored accounts can remain quarantined until an operator verifies current access
+and credential freshness. The ordinary Activate control cannot clear quarantine.
+Recover the existing administrator through the approved recovery procedure, then
+review each affected user's access. Users with obsolete credentials must choose new
+credentials through recovery. Do not create a replacement administrator or replay
+initial setup. See the [restore operating guide](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-restore.md).

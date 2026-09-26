@@ -74,3 +74,11 @@ or factor login, reset, verified email, factor management and display-once codes
 Current-account MFA metadata and completed native capability projection support the
 UI. Protected principal cache isolation is retained; public credential screens have
 no query cache. Final production acceptance remains #208; use GitHub for live status.
+
+### Identity restore implementation snapshot — 2026-09-26
+
+#207 adds protected backup manifests, current security checkpoints, quarantine and
+restartable signing cutover through installed maintenance commands. The source native
+production guard stays closed pending #208. The owner explicitly excluded real Entra
+and Linux environment journeys from the remaining release acceptance; live #208
+records that scope amendment. GitHub remains authoritative for delivery/merge status.

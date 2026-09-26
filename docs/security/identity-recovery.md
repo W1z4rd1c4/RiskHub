@@ -211,3 +211,9 @@ revocations. Disable initiation when a compatible recovery runtime is unavailabl
 then roll forward under maintenance. Never replay bootstrap, drop the pending flag,
 restore consumed codes, bypass approvals or remove the production admission guard to
 recover availability.
+
+## Restore continuity
+
+Follow [identity-safe restore](identity-restore.md) for signed manifests, current security
+checkpoints, new signing authority, quarantine, explicit access review and compatible
+rollback. Old JWT keys and consumed authentication artifacts must never be reinstated.

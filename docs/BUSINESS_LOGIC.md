@@ -1279,3 +1279,16 @@ voluntarily enables one. Thereafter the factor remains enforced under either pol
 Public credential pages retain display-once codes through their own session clearing;
 protected principal caches are still disposed on ownership changes. Final native
 production release remains gated by #208.
+
+### Identity restore and access freshness
+
+Same-profile restore preserves User IDs and business ownership but cannot establish
+current authority from old data. Protected maintenance validates the dump and decrypt
+keys, captures current security evidence, replaces the sole JWT signing authority,
+and revokes old refresh/purpose artifacts and recovery codes. `restore_quarantined`
+independently blocks login, refresh, API authority and ordinary activation/break-glass.
+Unknown credentials require existing-account recovery; unknown access requires an
+explicit operator review. Recovery alone cannot clear restore quarantine. Entra also
+requires current upstream eligibility. No available platform administrator means
+ordinary access stays quarantined pending existing-admin recovery. See
+[the restore contract](security/identity-restore.md).

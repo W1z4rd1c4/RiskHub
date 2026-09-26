@@ -86,7 +86,7 @@ RUN python -m pip uninstall --yes pip && \
     rm -rf /usr/local/lib/python3.13/ensurepip
 RUN apk upgrade --no-cache && apk add --no-cache \
     libpq \
-    postgresql-client \
+    postgresql16-client \
     su-exec
 
 RUN addgroup -S -g 10001 riskhub && adduser -S -D -u 10001 -G riskhub riskhub

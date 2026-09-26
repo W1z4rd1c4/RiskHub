@@ -14,6 +14,7 @@ from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.services._auth_session_workflow.transactions import commit_auth_transaction
 from app.services._graph_directory import GraphDirectoryService
+from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
 from app.services._local_auth.common import audit_local
 
 from .admission import validate_restore_admission
@@ -81,6 +82,8 @@ async def reconcile_user(db: AsyncSession, settings: Settings, review: AccessRev
         raise RestoreError("Access review is stale or does not describe a quarantined existing user")
     if role.name in {RoleType.ADMIN, RoleType.CRO} and role.id != user.role_id:
         raise RestoreError("Restore review cannot create a privileged account or elevate an existing account")
+    if role.name != RoleType.ADMIN and not await effective_platform_admin_ids(db, settings=settings):
+        raise RestoreError("Recover and review the existing platform administrator before ordinary access")
     scope = AccessScope(review.access_scope)
     if review.department_id is not None:
         department = await db.get(Department, review.department_id)

@@ -157,3 +157,9 @@ If a linked record is missing, you may not have access to that related item. Ask
 ## Related Manuals
 
 Start with [Getting Started](./getting-started.md), [Access Management](./access-management.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md), [Dashboard](./dashboard.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
+
+## Why can I not sign in after a backup restore?
+
+An operator may need to verify your current access and send you a fresh recovery
+invitation. Old sessions, reset links and backup codes no longer work after restore.
+Contact your administrator; use only the newly issued recovery instructions.

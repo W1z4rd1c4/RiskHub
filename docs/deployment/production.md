@@ -367,5 +367,9 @@ compatible release; the per-container previous-image shortcut is refused. Linux
 checks the previous release before changing its symlink. Rollback never downgrades
 the database: a candidate must support the current schema,
 contract, hashes and retained keys. If it cannot, keep maintenance active and roll
-forward. The restore/checkpoint release procedure remains #207/#208; do not infer
-production restore acceptance from these installer component checks.
+forward. Follow [identity-safe backup and restore](../security/identity-restore.md)
+for executable checkpoint, quarantine, cutover and reconciliation commands. A restore
+always replaces JWT signing authority; never reinstate a historical JWT secret.
+Final production admission remains the separate #208 gate. The owner explicitly
+skipped real Entra tenant and Linux runtime acceptance on September 26; those
+environment journeys are unverified.

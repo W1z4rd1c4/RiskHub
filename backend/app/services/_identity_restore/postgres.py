@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.core.config import Settings
 from app.services._local_auth.bootstrap_files import destination
+from app.services.transaction_boundary import commit_service_boundary
 
 from .files import RestoreError
 
@@ -21,14 +22,14 @@ from .files import RestoreError
 async def maintenance_database(settings: Settings):
     if settings.debug or settings.mock_auth_enabled:
         raise RestoreError("Use the stopped installation's non-debug configuration")
-    engine = create_async_engine(settings.database_url)
+    engine = create_async_engine(settings.database_url, connect_args={"prepared_statement_cache_size": 0})
     try:
         async with engine.connect() as connection:
             if connection.dialect.name != "postgresql":
                 raise RestoreError("Identity restore requires PostgreSQL")
             if not await connection.scalar(text("SELECT pg_try_advisory_lock(728194, 207)")):
                 raise RestoreError("Another identity maintenance operation holds this database")
-            await connection.commit()
+            await commit_service_boundary(connection, boundary="identity_restore_maintenance_lock")
             try:
                 async with AsyncSession(bind=connection, expire_on_commit=False) as db:
                     await require_quiet_database(db)
@@ -36,7 +37,7 @@ async def maintenance_database(settings: Settings):
             finally:
                 await connection.rollback()
                 await connection.execute(text("SELECT pg_advisory_unlock(728194, 207)"))
-                await connection.commit()
+                await commit_service_boundary(connection, boundary="identity_restore_maintenance_unlock")
     finally:
         await engine.dispose()
 
@@ -104,3 +105,13 @@ async def restore_database(database_url: str, dump: Path, *, replace: bool) -> N
     # --dbname has no credentials; the actual destination is supplied through PGDATABASE.
     command.extend(["--dbname", make_url(database_url).database or "", str(dump)])
     await pg_command(command, database_url)
+
+
+async def reload_restored_schema(db: AsyncSession) -> None:
+    """Discard asyncpg enum/type caches after external pg_restore replaces the schema."""
+    connection = await db.connection()
+    raw = await connection.get_raw_connection()
+    driver = raw.driver_connection
+    if driver is None:
+        raise RestoreError("Maintenance database connection is unavailable")
+    await driver.reload_schema_state()

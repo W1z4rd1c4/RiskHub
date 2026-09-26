@@ -292,3 +292,13 @@ recorded values and conflicting flags fail. The advanced `deploy.sh diagnose --t
 docker|linux [--deep]` returns safe JSON from the installed runtime; deep probes SMTP
 TLS/authentication without sending mail. Status/doctor include this state; native
 external directory is `not_applicable`, not a health failure.
+
+## Identity backup and restore
+
+The installed DB-task maintenance entrypoint is `python -m scripts.identity_restore`.
+It provides `backup`, `verify-backup` (disposable validation DB), `restore`/`--resume`,
+`review-status`, `reconcile-user`, and `verify-cutover`. Keep API/scheduler writers
+stopped until the exact cutover and existing-admin recovery are verified. Managed
+release compatibility requires `python -m scripts.identity_preflight --restore-contract 1`;
+older releases refuse this protocol. See the
+[operator procedure](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-restore.md).

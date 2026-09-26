@@ -11,7 +11,6 @@ from pathlib import Path
 from app.core.config import get_settings
 from app.db.session import session_context
 from app.services._identity_restore.files import RestoreError, read_private, write_private
-from app.services._identity_restore.operations import backup, restore, verify_backup, verify_cutover
 from app.services._identity_restore.postgres import maintenance_database
 from app.services._identity_restore.review import AccessReview, reconcile_user, review_status
 from app.services._local_auth.operator_io import route_console_logs_to_stderr
@@ -54,6 +53,8 @@ def parser() -> argparse.ArgumentParser:
 
 
 async def run(args: argparse.Namespace) -> dict:
+    from app.services._identity_restore.operations import backup, restore, verify_backup, verify_cutover
+
     if args.command == "init-evidence-key":
         write_private(args.output, secrets.token_bytes(32))
         return {"status": "evidence-key-created"}

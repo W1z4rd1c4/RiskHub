@@ -103,3 +103,13 @@ for `--user-management custom`, `LOCAL_MFA_POLICY=required` (default) or
 `LOCAL_MFA_POLICY=optional`, secret ownership, handoff/resume, upgrades and diagnostics.
 The same renderer supports Docker/Linux; source admission remains closed until #208.
 Admin/CRO recipients choose passwords and completed accounts cannot be reset by bootstrap.
+
+## Identity backup and restore
+
+The installed DB-task maintenance entrypoint is `python -m scripts.identity_restore`.
+It provides `backup`, `verify-backup` (disposable validation DB), `restore`/`--resume`,
+`review-status`, `reconcile-user`, and `verify-cutover`. Keep API/scheduler writers
+stopped until the exact cutover and existing-admin recovery are verified. Managed
+release compatibility requires `python -m scripts.identity_preflight --restore-contract 1`;
+older releases refuse this protocol. See the
+[operator procedure](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-restore.md).
