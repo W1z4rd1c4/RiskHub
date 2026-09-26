@@ -165,3 +165,29 @@ async def test_demo_login_records_refresh_session_ip_using_trusted_proxy_resolut
         await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user.id))
     ).scalar_one()
     assert refresh_row.created_ip == "198.51.100.42"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("platform_admin", [True, False])
+async def test_demo_login_and_refresh_project_current_identity_capabilities(
+    demo_auth_client, test_user_platform_admin, test_user_employee, platform_admin
+):
+    user = test_user_platform_admin if platform_admin else test_user_employee
+    login = await demo_auth_client.post("/api/v1/auth/demo-login", json={"email": user.email})
+    assert login.status_code == 200
+    capabilities = login.json()["user"]["me_capabilities"]
+    assert capabilities is not None
+    assert capabilities["identity"]["can_check_directory_users"] is platform_admin
+    assert capabilities["identity"]["can_import_directory_users"] is platform_admin
+    assert capabilities["identity"]["can_invite_users"] is False
+    refreshed = await demo_auth_client.post(
+        "/api/v1/auth/refresh",
+        headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": demo_auth_client.cookies["riskhub_csrf_token"]},
+    )
+    assert refreshed.status_code == 200
+    assert refreshed.json()["user"]["me_capabilities"] == capabilities
+    current = await demo_auth_client.get(
+        "/api/v1/auth/me", headers={"Authorization": "Bearer " + refreshed.json()["access_token"]}
+    )
+    assert current.status_code == 200
+    assert current.json()["me_capabilities"] == capabilities

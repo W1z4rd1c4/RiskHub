@@ -18,6 +18,14 @@ Native bootstrap (#203) seeds only canonical references and distinct pending Adm
 
 2026-09-06: Architecture exception review routes RiskHub configuration and Vendor archive/restore commits through the shared rollback boundary. Mutation plus audit remain atomic; authorization guards, row visibility, capability exports, and permission semantics are unchanged. The existing four-module auth baseline and 27 public capability exports were reviewed and renewed through 2026-12-05.
 
+## Completed session capability projection — 2026-09-27
+
+Every completed shared session response, including Entra/development login and
+refresh, carries current `MeCapabilities` and identity action metadata. Native
+partial challenges still carry no ordinary session. Directory controls consume
+the same backend projection as `/auth/me`; role, permission and provider authority
+remain unchanged.
+
 ## Identity foundations — 2026-09-07
 
 Group 1 (#193–#196) adds independent local suspension and a serialized last-effective-

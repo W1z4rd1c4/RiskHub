@@ -775,6 +775,7 @@ async function driveUx157UsersAndAdmin(page: Page, config: Ux157JourneyConfig): 
                     can_deactivate: true,
                     can_change_active_status: true,
                     can_break_glass_enable: true,
+                    can_check_directory: true,
                     can_revoke_sessions: true,
                 },
             }],
