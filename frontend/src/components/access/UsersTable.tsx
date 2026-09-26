@@ -14,6 +14,7 @@ interface UsersTableProps {
     directoryUsers: UserDirectoryEntry[];
     expandedUserId: number | null;
     onToggleExpand: (userId: number) => void;
+    onManageIdentity?: (user: AccessUserRead) => void;
     onEditAccess: (user: AccessUserRead) => void;
     onToggleStatus: (user: AccessUserRead) => void;
     onBreakGlassEnable?: (user: AccessUserRead) => void;
@@ -40,6 +41,7 @@ export function UsersTable({
     expandedUserId,
     onToggleExpand,
     onEditAccess,
+    onManageIdentity,
     onToggleStatus,
     onBreakGlassEnable,
     canRunDirectoryChecks = false,
@@ -88,6 +90,7 @@ export function UsersTable({
                                     onBreakGlassEnable={onBreakGlassEnable}
                                     onCheckDirectory={onCheckDirectory}
                                     onEditAccess={onEditAccess}
+                                    onManageIdentity={onManageIdentity}
                                     onToggleExpand={onToggleExpand}
                                     onToggleStatus={onToggleStatus}
                                     presentationModel={presentationModel}

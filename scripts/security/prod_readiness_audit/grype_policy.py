@@ -197,12 +197,19 @@ def validate_grype_policy(policy_path: Path, *, today: date | None = None) -> No
         package_location = _exact_selector(
             package, field="location", indentation=6, error_field="package.location"
         )
-        upstream_name = _exact_selector(
-            package,
-            field="upstream-name",
-            indentation=6,
-            error_field="package.upstream-name",
-        )
+        # Binary catalog records may have no upstream package at all. Requiring
+        # an invented name makes an otherwise exact rule silently fail to match.
+        if package_type == "binary" and "upstream-name:" not in package:
+            if "upstreams=[]" not in reasons[0]:
+                raise GrypePolicyError("missing upstream-name requires binary scanner evidence upstreams=[]")
+            upstream_name = ""
+        else:
+            upstream_name = _exact_selector(
+                package,
+                field="upstream-name",
+                indentation=6,
+                error_field="package.upstream-name",
+            )
         namespace = _exact_selector(
             suppression, field="namespace", indentation=4, error_field="namespace"
         )

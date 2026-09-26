@@ -1,4 +1,5 @@
-import { Building2, Check, Crown, Loader2, Mail, Shield, User, UserCircle, X } from 'lucide-react';
+import { Building2, Check, Crown, Loader2, Shield, User, X } from 'lucide-react';
+import { useId } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -23,13 +24,13 @@ export function AccessEditModalHeader({ title, userName, onClose }: { title: str
         <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
             <div>
                 <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
-                <p className="text-xs text-slate-500 font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground font-medium">{userName}</p>
             </div>
             <button
                 type="button"
                 onClick={onClose}
                 aria-label={t('actions.close')}
-                className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
+                className="p-2 glass rounded-lg text-muted-foreground hover:text-white transition-colors"
             >
                 <X className="h-5 w-5" />
             </button>
@@ -41,58 +42,28 @@ export function AccessEditLoading({ label }: { label: string }) {
     return (
         <div className="py-20 flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-10 w-10 text-accent animate-spin" />
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{label}</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
         </div>
     );
 }
 
-export function AccessEditIdentitySection({
-    selection,
-    setSelection,
-    t,
-}: {
+export function AccessEditIdentitySection({ selection, setSelection, capabilities, t }: {
     selection: AccessEditSelection;
     setSelection: Dispatch<SetStateAction<AccessEditSelection | null>>;
+    capabilities: AccessEditCapabilities;
     t: Translate;
 }) {
-    return (
-        <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <UserCircle className="h-4 w-4 text-accent" />
-                {t('user_new.personal_information', { ns: 'admin' })}
-            </label>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                        {t('user_new.full_name', { ns: 'admin' })}
-                    </label>
-                    <div className="relative">
-                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                        <input
-                            type="text"
-                            value={selection.name}
-                            onChange={(event) => updateSelection(setSelection, { name: event.target.value })}
-                            className="w-full rounded-xl border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
-                        />
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                        {t('user_new.email_address', { ns: 'admin' })}
-                    </label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                        <input
-                            type="email"
-                            value={selection.email}
-                            onChange={(event) => updateSelection(setSelection, { email: event.target.value })}
-                            className="w-full rounded-xl border border-white/10 bg-white/5 py-2 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    const nameId = useId();
+    const emailId = useId();
+    return <section className="space-y-3">
+        <h3 className="font-semibold">{t('user_new.personal_information', { ns: 'admin' })}</h3>
+        <label className="block" htmlFor={nameId}>{t('user_new.full_name', { ns: 'admin' })}</label>
+        <input id={nameId} className="w-full rounded-md border bg-background p-2" value={selection.name} disabled={!capabilities.canEditName} onChange={(event) => updateSelection(setSelection, { name: event.target.value })} />
+        <label className="block" htmlFor={emailId}>{t('user_new.email_address', { ns: 'admin' })}</label>
+        <input id={emailId} type="email" className="w-full rounded-md border bg-background p-2" value={selection.email} disabled={!capabilities.canEditEmail} onChange={(event) => updateSelection(setSelection, { email: event.target.value })} />
+        {capabilities.directoryOwned && <p className="text-sm">{t('native_users.directory_owned', { ns: 'admin' })}</p>}
+        {capabilities.verifiedEmail && <p className="text-sm">{t('native_users.verified_email', { ns: 'admin' })}</p>}
+    </section>;
 }
 
 export function AccessEditRoleSection({
@@ -125,7 +96,7 @@ export function AccessEditRoleSection({
                         <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-purple-400' : 'text-white'}`}>
                             {role.display_name}
                         </p>
-                        <p className="text-[10px] text-slate-500">{t('access.modal.permissions_count', { ns: 'admin', count: role.permissions.length })}</p>
+                        <p className="text-[10px] text-muted-foreground">{t('access.modal.permissions_count', { ns: 'admin', count: role.permissions.length })}</p>
                     </button>
                 ))}
             </div>
@@ -203,7 +174,7 @@ export function AccessEditBusinessSections({
                                 <p className={`text-sm font-bold ${selection.scope === option.value ? 'text-amber-400' : 'text-white'}`}>
                                     {t(option.labelKey)}
                                 </p>
-                                <p className="text-[10px] text-slate-500">{t(option.descriptionKey)}</p>
+                                <p className="text-[10px] text-muted-foreground">{t(option.descriptionKey)}</p>
                             </div>
                         </button>
                     ))}
@@ -241,7 +212,7 @@ export function AccessEditFooter({
             )}
 
             <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-2">
                     {hasChanges ? (
                         <>
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -257,6 +228,7 @@ export function AccessEditFooter({
                 <div className="flex items-center gap-3">
                     <button
                         onClick={onClose}
+                        disabled={isSubmitting}
                         className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
                     >
                         {t('actions.cancel', { ns: 'common' })}
@@ -294,8 +266,8 @@ export function AccessEditFormSections({
 }) {
     return (
         <>
-            {capabilities.canEditPlatformFields && (
-                <AccessEditIdentitySection selection={selection} setSelection={setSelection} t={t} />
+            {(capabilities.canEditPlatformFields || capabilities.directoryOwned || capabilities.verifiedEmail) && (
+                <AccessEditIdentitySection capabilities={capabilities} selection={selection} setSelection={setSelection} t={t} />
             )}
             {capabilities.canEditRole && roles.length > 0 && (
                 <AccessEditRoleSection

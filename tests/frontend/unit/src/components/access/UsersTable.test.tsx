@@ -181,12 +181,12 @@ describe('UsersTable', () => {
         expect(onBreakGlassEnable).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
     });
 
-    it('shows directory checks only for linked external users when enabled', async () => {
+    it('shows directory checks when both current-user and target capabilities allow them', async () => {
         const onCheckDirectory = vi.fn();
         renderUsersTable({
             canRunDirectoryChecks: true,
             onCheckDirectory,
-            accessUsers: [makeAccessUser({ external_id: 'external-7' })],
+            accessUsers: [makeAccessUser({ external_id: 'external-7', capabilities: { ...makeAccessUser().capabilities!, can_check_directory: true } })],
         });
 
         await userEvent.click(screen.getByRole('button', { name: 'Check AD' }));

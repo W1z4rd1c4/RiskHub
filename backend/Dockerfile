@@ -6,6 +6,9 @@
 # =============================================================================
 FROM python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a AS builder-base
 
+COPY security/apply_cpython_backport.py /tmp/apply_cpython_backport.py
+RUN python /tmp/apply_cpython_backport.py && rm /tmp/apply_cpython_backport.py
+
 WORKDIR /app
 
 # Build deps for cffi/bcrypt/psycopg2 and other native wheels.
@@ -14,6 +17,15 @@ RUN apk add --no-cache \
     libffi-dev \
     openssl-dev \
     postgresql-dev
+
+# Fixed upstream zlib while Alpine's package still carries the vulnerable version.
+FROM builder-base AS builder-security
+ADD --checksum=sha256:405ac4ad42a57eef1beab57536fc77367f08a5008a5d8ce652148c5dc4d9fe76 https://codeload.github.com/madler/zlib/tar.gz/d81c2d7eb705c62294ba03299255672078e89115 /tmp/zlib-fixed.tar.gz
+RUN mkdir /tmp/zlib-fixed /fixed && \
+    tar -xzf /tmp/zlib-fixed.tar.gz -C /tmp/zlib-fixed --strip-components=1 && \
+    cd /tmp/zlib-fixed && ./configure --shared && make -j2 && make check && \
+    cp libz.so.1.3.2.1-motley /fixed/libz.so.1.3.2 && \
+    cp LICENSE /fixed/ZLIB-LICENSE
 
 FROM builder-base AS builder-runtime
 
@@ -38,6 +50,12 @@ WORKDIR /app
 RUN python -m pip uninstall --yes pip && \
     rm -rf /usr/local/lib/python3.13/ensurepip
 RUN apk upgrade --no-cache && apk add --no-cache su-exec
+
+COPY --from=builder-base /usr/local/lib/python3.13/tarfile.py /usr/local/lib/python3.13/tarfile.py
+COPY --from=builder-security /fixed/libz.so.1.3.2 /usr/lib/libz.so.1.3.2
+COPY --from=builder-security /fixed/ZLIB-LICENSE /usr/local/share/licenses/zlib-backport/LICENSE
+COPY security/verify_runtime_backports.py /tmp/verify_runtime_backports.py
+RUN python /tmp/verify_runtime_backports.py && rm /tmp/verify_runtime_backports.py
 
 # Create non-root user with a stable uid/gid for host-mounted secret readability.
 RUN addgroup -S -g 10001 riskhub && adduser -S -D -u 10001 -G riskhub riskhub
@@ -88,6 +106,12 @@ RUN apk upgrade --no-cache && apk add --no-cache \
     libpq \
     postgresql16-client \
     su-exec
+
+COPY --from=builder-base /usr/local/lib/python3.13/tarfile.py /usr/local/lib/python3.13/tarfile.py
+COPY --from=builder-security /fixed/libz.so.1.3.2 /usr/lib/libz.so.1.3.2
+COPY --from=builder-security /fixed/ZLIB-LICENSE /usr/local/share/licenses/zlib-backport/LICENSE
+COPY security/verify_runtime_backports.py /tmp/verify_runtime_backports.py
+RUN python /tmp/verify_runtime_backports.py && rm /tmp/verify_runtime_backports.py
 
 RUN addgroup -S -g 10001 riskhub && adduser -S -D -u 10001 -G riskhub riskhub
 

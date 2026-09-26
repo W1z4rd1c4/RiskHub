@@ -56,6 +56,7 @@ async def update_access_profile(
 ) -> User:
     update_data = user_data if isinstance(user_data, dict) else user_data.model_dump(exclude_unset=True)
     update_data = dict(update_data)
+    reason = update_data.pop("reason", None)
     user = await lock_identity_transition(db, user_id=user_id, actor=current_user)
     if is_platform_admin(user) and not is_platform_admin(current_user):
         raise NotFoundError("User not found")
@@ -148,6 +149,8 @@ async def update_access_profile(
         extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
 
     changes = build_change_set(user, update_data, extra_changes=extra_changes)
+    if reason and changes:
+        changes["reason"] = {"old": None, "new": reason}
     for field, value in update_data.items():
         setattr(user, field, value)
 

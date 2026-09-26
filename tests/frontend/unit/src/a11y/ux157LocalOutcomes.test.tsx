@@ -56,6 +56,7 @@ const accessUser = {
         can_change_active_status: true,
         can_break_glass_enable: true,
         can_revoke_sessions: true,
+        can_check_directory: true,
     },
 };
 
@@ -69,6 +70,33 @@ const authUser = {
     effective_permissions: ['*:*'],
     access_scope: 'global',
     scope_label: 'Global',
+    me_capabilities: {
+        can_view_user_directory: true,
+        can_view_access_users: true,
+        can_view_department_access_users: true,
+        can_view_users_route: true,
+        can_view_approvals: true,
+        can_manage_access: true,
+        can_view_department_access: true,
+        can_view_admin_console: true,
+        can_view_riskhub: true,
+        can_view_governance: true,
+        can_view_activity_log: true,
+        can_view_committee: true,
+        can_view_users_page: true,
+        is_second_line: true,
+        can_read_risks: true,
+        can_read_controls: true,
+        can_read_vendors: true,
+        can_read_departments: true,
+        resource_permissions: { 'users:read': true, 'users:write': true },
+        identity: {
+            can_invite_users: false,
+            can_manage_own_credentials: false,
+            can_import_directory_users: true,
+            can_check_directory_users: true,
+        },
+    },
 };
 
 const directoryCapabilities = {

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import type { DirectoryImportResponse } from '@/types/directory';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { useSessionSnapshot } from '@/services/session';
+import { NativeInviteForm } from './users/NativeInviteForm';
 
 import { UserNewDirectoryImportSection } from './users/UserNewDirectoryImportSection';
 import { UserNewLocalForm } from './users/UserNewLocalForm';
@@ -12,9 +14,11 @@ import { useUserNewPageAccess } from './users/useUserNewPageAccess';
 
 export function UserNewPage() {
     const navigate = useNavigate();
+    const session = useSessionSnapshot();
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const {
         authConfig,
+        retryAccess,
         authConfigError,
         directoryCapabilities,
         isAuthConfigLoading,
@@ -34,10 +38,12 @@ export function UserNewPage() {
     const isDirectoryFirstMode = authConfig?.auth_mode
         ? authConfig.auth_mode !== 'password'
         : false;
+    const isNative = authConfig?.identity?.mode === 'native';
+    const canInvite = resolveCapabilityFlag(session.user?.me_capabilities?.identity, 'can_invite_users');
     const canCreateLocalUser = resolveCapabilityFlag(directoryCapabilities, 'can_create_local_user');
     const canImportDirectoryUser = resolveCapabilityFlag(directoryCapabilities, 'can_import_directory_user');
     const localUserWorkflow = useLocalUserCreateWorkflow({
-        enabled: !isDirectoryFirstMode && canCreateLocalUser,
+        enabled: !isNative && !isDirectoryFirstMode && canCreateLocalUser,
         onCreated: () => {
             void navigate('/users');
         },
@@ -83,8 +89,11 @@ export function UserNewPage() {
                     <Shield className="h-5 w-5 shrink-0" />
                     <p>
                         {t('user_new.auth_mode_load_failed', { ns: 'admin' })}
+                        <button type="button" className="ml-3 underline" onClick={retryAccess}>{t('native_users.retry', { ns: 'admin' })}</button>
                     </p>
                 </div>
+            ) : isNative ? (
+                canInvite ? <NativeInviteForm /> : <p role="alert">{t('access.denied', { ns: 'common' })}</p>
             ) : isDirectoryFirstMode && canImportDirectoryUser ? (
                 <UserNewDirectoryImportSection
                     authConfig={authConfig}

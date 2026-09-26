@@ -49,6 +49,8 @@ APPROVED_INJECTED_TRIGGERS = {
 }
 EXPECTED_PRODUCTION_STEP_NAMES = [
     None,
+    "Set up policy validator Python",
+    "Validate Grype policy and expiry",
     "Build Backend Image",
     "Build Frontend Image",
     "Run Trivy on Backend",
@@ -283,6 +285,20 @@ def _validate_pre_scan_steps(
         {
             "uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
             "with": {"ref": "${{ github.event.pull_request.head.sha || github.sha }}"},
+        },
+        {
+            "name": "Set up policy validator Python",
+            "uses": "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+            "with": {"python-version": "3.13"},
+        },
+        {
+            "name": "Validate Grype policy and expiry",
+            "run": (
+                "set -euo pipefail "
+                "python3 -m pip install PyYAML==6.0.3 "
+                "python3 scripts/security/prod_readiness_audit/grype_policy.py "
+                "--policy backend/security/grype-ignore.yaml"
+            ),
         },
         {
             "name": "Build Backend Image",
