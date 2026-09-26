@@ -69,9 +69,26 @@ def test_shared_replay_invalidation_still_bumps_and_revokes_without_commit() -> 
     path = REPO_ROOT / "backend/app/services/_auth_session_workflow/authority.py"
     source = _function_source(path, "invalidate_user_sessions")
     revoke = _function_source(path, "revoke_user_refresh_tokens")
-    assert source.index("user.token_version += 1") < source.index(
-        "await revoke_user_refresh_tokens("
+    # The shared primitive can advance beyond a verified restore checkpoint.
+    # Keep the architectural ordering lock independent of += versus = syntax;
+    # PostgreSQL authority/restore tests assert the resulting version and rows.
+    tree = ast.parse(source)
+    mutations = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Assign, ast.AugAssign))
+        and any(
+            ast.unparse(target) == "user.token_version"
+            for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+        )
+    ]
+    revoke_call = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "revoke_user_refresh_tokens"
     )
+    assert len(mutations) == 1 and mutations[0].lineno < revoke_call.lineno
     assert "RefreshToken.revoked_at.is_(None)" in revoke
     assert "RefreshToken.user_id == user_id" in revoke
     assert "commit(" not in source + revoke
