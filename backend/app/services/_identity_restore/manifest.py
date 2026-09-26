@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -68,8 +69,16 @@ def validate_application_identity(value: dict[str, str]) -> None:
 
 
 async def make_manifest(
-    db: AsyncSession, settings: Settings, *, dump: Path, application_identity: dict[str, str]
+    db: AsyncSession,
+    settings: Settings,
+    *,
+    dump: Path,
+    application_identity: dict[str, str],
+    captured_at: str | None = None,
 ) -> BackupManifest:
+    captured = datetime.fromisoformat(captured_at) if captured_at is not None else utc_now()
+    if captured.tzinfo is None:
+        raise RestoreError("Backup capture time must carry its UTC offset")
     binding = await validate_installation_binding(db, settings=settings)
     validate_application_identity(application_identity)
     revisions = list(await db.scalars(text("SELECT version_num FROM alembic_version")))
@@ -83,7 +92,7 @@ async def make_manifest(
         if incomplete is not None:
             raise RestoreError("Complete initial account enrollment before creating a restorable native backup")
         keys = LocalKeyring.load(settings.local_auth_keyring_file)
-        references = await verify_key_material(db, installation_id=binding.installation_id, keys=keys)
+        references = await verify_key_material(db, installation_id=binding.installation_id, keys=keys, as_of=captured)
         key_ids = {purpose: sorted(references[purpose]) for purpose in references}
     formats: set[str] = set()
     for password_hash in await db.scalars(select(User.hashed_password).where(User.hashed_password.is_not(None))):
@@ -100,7 +109,7 @@ async def make_manifest(
         application_identity=application_identity,
         password_formats=sorted(formats),
         key_ids=key_ids,
-        captured_at=utc_now().isoformat(),
+        captured_at=captured.isoformat(),
         dump_sha256=dump_digest(dump),
     )
 

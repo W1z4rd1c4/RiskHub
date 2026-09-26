@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,7 +15,7 @@ from app.core.datetime_utils import utc_now
 from app.core.security import create_access_token, decode_access_token, get_password_hash
 from app.core.tokens import create_refresh_token, decode_refresh_token
 from app.db.session import session_context
-from app.models import InstallationIdentity, LocalAuthFactor, Risk, User
+from app.models import InstallationIdentity, LocalAuthFactor, LocalAuthGrant, Risk, User
 from app.services._identity_restore.postgres import dump_database, restore_database
 from tests.backend.pytest.test_identity_foundations_postgres import require_postgres
 from tests.backend.pytest.test_local_recovery import run_cli
@@ -94,6 +95,17 @@ async def test_real_cli_restores_backup_without_reviving_later_token_or_old_pass
         user.local_email_verified_at = utc_now()
         user.hashed_password = get_password_hash("Before backup password 83!")
         user.token_version = 7
+        db_session.add(
+            LocalAuthGrant(
+                user_id=user.id,
+                installation_id=installation_id,
+                purpose="recent",
+                secret_hash="f" * 64,
+                token_version=7,
+                expires_at=utc_now() + timedelta(minutes=5),
+                context={"intent_key": "v1"},
+            )
+        )
         await db_session.commit()
         binding = await db_session.get(InstallationIdentity, 1)
         installation_id = binding.installation_id
@@ -158,6 +170,28 @@ async def test_real_cli_restores_backup_without_reviving_later_token_or_old_pass
         ]
         await cli("--maintenance-confirmed", "backup", *shared, "--application-identity", app_identity)
         if not unplanned and fault is None:
+            from app.services._identity_restore import manifest as manifest_module
+            from app.services._identity_restore.operations import verify_backup
+            from app.services._local_auth import key_rotation
+
+            # Restore the real dump after advancing the inventory clock beyond
+            # its recent-auth grant's expiry. The backup-time key set stays exact.
+            future = utc_now() + timedelta(hours=1)
+            with monkeypatch.context() as clock:
+                clock.setattr(manifest_module, "utc_now", lambda: future)
+                clock.setattr(key_rotation, "utc_now", lambda: future)
+                verified = await verify_backup(
+                    settings,
+                    dump=root / "backup.dump",
+                    manifest_path=root / "backup.json",
+                    evidence_key=evidence_key.read_bytes(),
+                    installation_id=installation_id,
+                    validation_url=validation_url,
+                    migration_config=Path(__file__).resolve().parents[3] / "backend/alembic.ini",
+                )
+                assert verified.key_ids["action"] == ["v1"]
+            await admin.execute(f'DROP DATABASE "{validation_name}" WITH (FORCE)')
+            await admin.execute(f'CREATE DATABASE "{validation_name}"')
             await reject_incompatible_backups(
                 root,
                 env,

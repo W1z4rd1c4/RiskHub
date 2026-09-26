@@ -302,3 +302,108 @@ async def test_restore_purges_only_owned_redis_authentication_state():
         assert await redis.get("riskhub:other-installation:local-auth:challenge:one") == b"preserve"
     finally:
         await redis.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+@pytest.mark.parametrize("upstream_state", ["enabled", "disabled", "changed-during-fetch"])
+async def test_directory_review_fetches_before_user_lock_and_rechecks_authority(
+    native_context,
+    db_session,
+    async_engine,
+    test_user,
+    tmp_path,
+    monkeypatch,
+    upstream_state,
+):
+    """Component Graph contract only; no real Entra tenant is used or claimed."""
+    import json
+    from datetime import timedelta
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from sqlalchemy import text, update
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.core.datetime_utils import utc_now
+    from app.models import IdentityRestoreCutover, InstallationIdentity, RefreshToken, User
+    from app.services._identity_restore import review as review_module
+    from app.services._identity_restore.files import RestoreError
+    from tests.backend.pytest.test_identity_foundations_postgres import require_postgres
+
+    require_postgres(async_engine)
+    user = test_user
+    user.external_id = str(uuid4())
+    user.restore_quarantined, user.is_active = True, False
+    binding = await db_session.get(InstallationIdentity, 1)
+    binding.auth_mode, binding.tenant_id = "microsoft_sso", str(uuid4())
+    key = tmp_path / "signing-key"
+    key.write_text("verified signing authority " * 4)
+    key.chmod(0o600)
+    settings = native_context.model_copy(
+        update={
+            "auth_mode": "microsoft_sso",
+            "directory_provider": "graph",
+            "entra_tenant_id": binding.tenant_id,
+            "secret_key_file": str(key),
+            "secret_key": key.read_text(),
+        }
+    )
+    evidence = dict(
+        version=1,
+        status="ready",
+        installation_id=binding.installation_id,
+        epoch=str(uuid4()),
+        signing_fingerprint=fingerprint(key.read_bytes()),
+        manifest_digest="1" * 64,
+        checkpoint_digest=None,
+    )
+    row = IdentityRestoreCutover(
+        id=1, cutover_at=utc_now(), **{k: v for k, v in evidence.items() if k not in {"version", "status"}}
+    )
+    refresh = RefreshToken(
+        user_id=user.id, jti=uuid4().hex, token_version=user.token_version, expires_at=utc_now() + timedelta(days=1)
+    )
+    db_session.add_all([row, refresh])
+    await db_session.commit()
+    marker = Path(str(key) + ".restore-state.json")
+    marker.write_text(json.dumps(evidence))
+    marker.chmod(0o600)
+    payload = await review_module.review_status(db_session, settings, user.id)
+    for field in ("restore_quarantined", "credential_recovery_pending"):
+        payload.pop(field)
+    payload.update(
+        reason="Reviewed current external eligibility and access",
+        reviewer="Incident reviewer",
+        incident_reference="INC-restore-contract",
+    )
+    review = review_module.AccessReview.model_validate(payload)
+
+    async def current_upstream(_service, subject):
+        assert subject == user.external_id
+        locks = await db_session.scalar(
+            text(
+                "SELECT count(*) FROM pg_locks WHERE pid=pg_backend_pid() "
+                "AND relation='users'::regclass AND mode IN ('RowShareLock','RowExclusiveLock')"
+            )
+        )
+        assert locks == 0, "Remote directory fetch must precede the User critical section"
+        if upstream_state == "changed-during-fetch":
+            async with AsyncSession(async_engine) as other:
+                await other.execute(update(User).where(User.id == user.id).values(token_version=User.token_version + 1))
+                await other.commit()
+        return SimpleNamespace(external_id=subject, account_enabled=upstream_state != "disabled")
+
+    monkeypatch.setattr(review_module.GraphDirectoryService, "get_user", current_upstream)
+    if upstream_state != "enabled":
+        with pytest.raises(RestoreError):
+            await review_module.reconcile_user(db_session, settings, review)
+        await db_session.rollback()
+        await db_session.refresh(user)
+        assert user.restore_quarantined and not user.is_active
+    else:
+        result = await review_module.reconcile_user(db_session, settings, review)
+        await db_session.refresh(refresh)
+        assert result["active"] and not user.restore_quarantined
+        assert user.token_version == review.expected_token_version + 1
+        assert refresh.revoked_reason == "identity_restore_access_review"

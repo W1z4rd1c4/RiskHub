@@ -102,7 +102,11 @@ async def verify_backup(
         await restore_database(validation_url, dump, replace=False)
         # This reads and decrypts the actual restored records, not just matching key IDs.
         actual = await make_manifest(
-            db, validation_settings, dump=dump, application_identity=manifest.application_identity
+            db,
+            validation_settings,
+            dump=dump,
+            application_identity=manifest.application_identity,
+            captured_at=manifest.captured_at,
         )
         expected = manifest.model_dump(exclude={"captured_at"})
         if actual.model_dump(exclude={"captured_at"}) != expected:
@@ -269,7 +273,11 @@ async def restore(
                 db.expunge_all()
                 await reload_restored_schema(db)
                 actual = await make_manifest(
-                    db, restored_settings, dump=dump, application_identity=manifest.application_identity
+                    db,
+                    restored_settings,
+                    dump=dump,
+                    application_identity=manifest.application_identity,
+                    captured_at=manifest.captured_at,
                 )
                 if actual.model_dump(exclude={"captured_at"}) != manifest.model_dump(exclude={"captured_at"}):
                     raise RestoreError("Destination content is incompatible; remain in maintenance")

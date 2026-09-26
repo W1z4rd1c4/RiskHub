@@ -67,7 +67,9 @@ Native initial Admin/CRO enrollment must be complete before a restorable backup 
 created. The signed manifest binds installation/profile/tenant, identity and restore
 contracts, exact Alembic revision, immutable application identities, supported
 password/factor formats, referenced encryption-key IDs, timestamp and dump SHA-256.
-It contains no key material. Legacy unsigned dumps and unknown/older schema formats
+Grant-key references are evaluated at the signed backup capture time, so normal
+grant expiry cannot make an unchanged backup incompatible. It contains no key
+material. Legacy unsigned dumps and unknown/older schema formats
 are refused; migrate and create a verified backup with the compatible release.
 
 A dry run restores only into a **separate empty disposable PostgreSQL database**.

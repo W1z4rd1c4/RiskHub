@@ -25,6 +25,7 @@ from app.models import (
     User,
 )
 from app.models.user import AccessScope
+from app.services._auth_session_workflow.authority import invalidate_user_sessions
 from app.services._auth_session_workflow.transactions import commit_auth_transaction
 from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
 from app.services._local_auth.common import audit_local
@@ -163,7 +164,13 @@ async def reconcile_restored_security(
             factor.last_time_step = max(
                 factor.last_time_step, cutoff_step, state.factor_last_step or -1 if state else -1
             )
-        user.token_version = max(user.token_version, state.token_version if state else 0) + 1
+        await invalidate_user_sessions(
+            db=db,
+            user=user,
+            reason="identity_restore_cutover",
+            now=now,
+            version_floor=state.token_version if state else None,
+        )
         user.is_active = bool(
             state is not None and state.is_active and projected_account_active(user, settings=settings)
         )

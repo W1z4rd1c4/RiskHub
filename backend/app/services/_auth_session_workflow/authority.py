@@ -50,6 +50,7 @@ async def invalidate_user_sessions(
     user: User,
     reason: str,
     now: datetime | None = None,
+    version_floor: int | None = None,
 ) -> int:
     from app.models.local_auth import LocalAuthGrant
 
@@ -60,6 +61,8 @@ async def invalidate_user_sessions(
         )
         .values(revoked_at=now or utc_now())
     )
-    user.token_version += 1
+    # Restore may have independently verified a newer authority counter. Advance
+    # beyond that floor while retaining the shared revocation boundary.
+    user.token_version = max(user.token_version, version_floor if version_floor is not None else 0) + 1
     db.add(user)
     return await revoke_user_refresh_tokens(db=db, user_id=user.id, reason=reason, now=now)

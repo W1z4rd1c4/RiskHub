@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.identity_policy import projected_account_active
+from app.core.user_query_options import user_selectinload_options
 from app.models import Department, IdentityRestoreCutover, LocalAuthFactor, Role, User
 from app.models.role import RoleType
 from app.models.user import AccessScope
+from app.services._auth_session_workflow.authority import invalidate_user_sessions
 from app.services._auth_session_workflow.transactions import commit_auth_transaction
 from app.services._graph_directory import GraphDirectoryService
 from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
@@ -65,13 +67,28 @@ async def review_status(db: AsyncSession, settings: Settings, user_id: int) -> d
 
 async def reconcile_user(db: AsyncSession, settings: Settings, review: AccessReview) -> dict:
     await validate_restore_admission(db, settings=settings)
+    probe = await db.get(User, review.user_id)
+    if probe is None:
+        raise RestoreError("Review requires an existing user")
+    expected_subject = probe.external_id
+    upstream = None
+    if expected_subject is not None:
+        # Never hold a User row lock across a remote directory request.
+        upstream = await GraphDirectoryService(settings).get_user(expected_subject)
     cutover = await db.get(IdentityRestoreCutover, 1)
-    user = await db.get(User, review.user_id, with_for_update=True)
+    user = await db.scalar(
+        select(User)
+        .where(User.id == review.user_id)
+        .options(*user_selectinload_options(include_permissions=True))
+        .with_for_update(of=User)
+        .execution_options(populate_existing=True)
+    )
     role = await db.get(Role, review.role_id)
     if (
         cutover is None
         or cutover.epoch != review.epoch
         or user is None
+        or user.external_id != expected_subject
         or not user.restore_quarantined
         or user.token_version != review.expected_token_version
         or role is None
@@ -94,8 +111,7 @@ async def reconcile_user(db: AsyncSession, settings: Settings, review: AccessRev
     ):
         raise RestoreError("Review must select an existing separate manager")
     if user.external_id is not None:
-        current = await GraphDirectoryService(settings).get_user(user.external_id)
-        if current.external_id != user.external_id or current.account_enabled is not True:
+        if upstream is None or upstream.external_id != user.external_id or upstream.account_enabled is not True:
             raise RestoreError("Current upstream account eligibility could not be established")
         user.directory_sync_status, user.deprovision_reason, user.deprovisioned_at = "active", None, None
     else:
@@ -117,7 +133,7 @@ async def reconcile_user(db: AsyncSession, settings: Settings, review: AccessRev
     user.local_suspended = review.suspended
     user.local_suspended_at = utc_now() if review.suspended else None
     user.restore_quarantined = False
-    user.token_version += 1
+    await invalidate_user_sessions(db=db, user=user, reason="identity_restore_access_review")
     user.is_active = projected_account_active(user, settings=settings)
     await audit_local(
         db,
