@@ -8,11 +8,11 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.core.native_identity_files import read_native_secret
 from app.models import IdentityRestoreCutover, InstallationIdentity
 from app.services.identity_installation import IdentityBindingError
 
 from .files import fingerprint
+from .runtime_files import read_runtime
 
 RESTORE_CONTRACT_VERSION = 1
 
@@ -35,7 +35,7 @@ async def validate_restore_admission(db: AsyncSession, *, settings: Settings) ->
             raise IdentityBindingError("Restore evidence is missing; keep API and scheduler stopped")
         return
     try:
-        evidence = json.loads(read_native_secret(str(path), max_bytes=32768))
+        evidence = json.loads(read_runtime(path, maximum=32768))
         binding = await db.get(InstallationIdentity, 1)
         if (
             evidence.get("version") != RESTORE_CONTRACT_VERSION

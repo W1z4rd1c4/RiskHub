@@ -407,3 +407,59 @@ async def test_directory_review_fetches_before_user_lock_and_rechecks_authority(
         assert result["active"] and not user.restore_quarantined
         assert user.token_version == review.expected_token_version + 1
         assert refresh.revoked_reason == "identity_restore_access_review"
+
+
+@pytest.mark.parametrize("unsafe", ["symlink", "hardlink", "group_write", "world_read", "directory_write"])
+def test_installed_restore_files_reject_unsafe_access(tmp_path, unsafe):
+    from app.services._identity_restore.files import RestoreError
+    from app.services._identity_restore.runtime_files import read_runtime, write_runtime
+
+    directory = tmp_path.resolve() / "installed"
+    directory.mkdir(mode=0o750)
+    key = directory / "secret_key"
+    key.write_bytes(b"installed authority")
+    key.chmod(0o440)
+    if unsafe == "symlink":
+        actual = directory / "actual"
+        key.rename(actual)
+        key.symlink_to(actual)
+    elif unsafe == "hardlink":
+        (directory / "alias").hardlink_to(key)
+    elif unsafe == "group_write":
+        key.chmod(0o460)
+    elif unsafe == "world_read":
+        key.chmod(0o444)
+    else:
+        directory.chmod(0o770)
+    with pytest.raises(RestoreError):
+        read_runtime(key)
+    with pytest.raises(RestoreError):
+        write_runtime(key, b"new authority", signing_file=key, expected=b"installed authority")
+    assert key.read_bytes() == b"installed authority"
+
+
+def test_installed_restore_preserves_readers_and_refuses_stale_replacement(tmp_path):
+    import stat
+
+    from app.services._identity_restore.files import RestoreError, read_private
+    from app.services._identity_restore.runtime_files import read_runtime, write_runtime
+
+    directory = tmp_path.resolve() / "installed"
+    directory.mkdir(mode=0o750)
+    key = directory / "secret_key"
+    key.write_bytes(b"old authority")
+    key.chmod(0o440)
+    original = key.stat()
+    marker = directory / "secret_key.restore-state.json"
+    write_runtime(marker, b"pending cutover", signing_file=key)
+    write_runtime(key, b"new authority", signing_file=key, expected=b"old authority")
+    for path in (key, marker):
+        info = path.stat()
+        assert (info.st_uid, info.st_gid, stat.S_IMODE(info.st_mode)) == (original.st_uid, original.st_gid, 0o440)
+    assert read_runtime(key) == b"new authority"
+    with pytest.raises(RestoreError, match="changed"):
+        write_runtime(key, b"stale operator", signing_file=key, expected=b"old authority")
+    assert read_runtime(key) == b"new authority"
+    # Runtime's installed reader group must not weaken private backup evidence.
+    with pytest.raises(ValueError):
+        read_private(key)

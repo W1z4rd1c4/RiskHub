@@ -21,11 +21,36 @@ PostgreSQL 16 client, avoiding incompatible newer-client restore directives. A L
 provide a suitable PostgreSQL client. No live Linux or real Entra-tenant journey is
 claimed by this delivery; those environment tests were skipped by the owner.
 
-Run as the owner of the installed signing file. Use absolute paths without symlinks,
-0700 directories and owner-only regular files. Mount the security and operation
+Run as the owner of the installed signing file (root for a managed Docker install).
+Use absolute paths without symlinks. Backup evidence and operation journals require
+0700 directories and owner-only regular files. Installed signing files and cutover
+markers preserve their original ownership and permissions, including root:service
+0440 files under a root:service 0750 directory. Other writers and world-readable
+secrets are rejected. Mount the security and operation
 **directories**, not individual writable files, for maintenance containers: atomic
 file replacement requires replacing directory entries. Regular services continue to
 receive read-only file mounts. Scope writable mounts to the maintenance command.
+
+For managed Docker, run the command through the installed DB-task image as the
+signing-file owner. For example, after stopping writers, use the actual installed
+runtime/secret/evidence directories and a verified digest-pinned DB-task image:
+
+```bash
+docker run --rm --user 0:0 --network riskhub-network \
+  --add-host host.docker.internal:host-gateway \
+  --entrypoint /usr/local/bin/python \
+  -e PYTHONPATH=/home/riskhub/.local/lib/python3.13/site-packages \
+  --env-file /absolute/runtime/backend.env \
+  -v /absolute/runtime:/absolute/runtime:ro \
+  -v /absolute/secrets:/absolute/secrets:rw \
+  -v /secure:/secure:rw \
+  VERIFIED_DB_TASK_IMAGE -m scripts.identity_restore --help
+```
+
+Replace `--help` with the operation below. Mount each directory at its configured
+absolute path. The standard image entrypoint drops privileges to the service user,
+so maintenance deliberately invokes Python directly as root. Recreate API and
+scheduler containers after cutover so read-only file mounts use the new inodes.
 
 Keep four separate protected sets:
 

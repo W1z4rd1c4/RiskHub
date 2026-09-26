@@ -38,6 +38,7 @@ from .postgres import (
     require_quiet_database,
     restore_database,
 )
+from .runtime_files import read_runtime, write_runtime
 
 
 def load_signed(path: Path, key: bytes) -> dict:
@@ -146,7 +147,7 @@ async def restore(
     if not settings.redis_url:
         raise RestoreError("Restore requires the installed shared security-state service")
     # File validation happens before any database mutation.
-    read_private(Path(settings.secret_key_file or ""), maximum=4096)
+    read_runtime(Path(settings.secret_key_file or ""), maximum=4096)
     if resume:
         journal = load_signed(journal_path, evidence_key)
         if (
@@ -195,7 +196,7 @@ async def restore(
                     if not unplanned or tables:
                         raise RestoreError("Only an empty destination can be recovered without its current binding")
                     if marker_path.exists():
-                        previous = json.loads(read_private(marker_path))
+                        previous = json.loads(read_runtime(marker_path))
                         if previous.get("status") != "ready" or previous.get("installation_id") != installation_id:
                             raise RestoreError("Unfinished or different installation evidence exists")
                 checkpoint = (
@@ -214,7 +215,7 @@ async def restore(
                         "directory_provider": settings.directory_provider,
                         "local_mfa_policy": settings.local_mfa_policy,
                         "manifest_application_identity": manifest.application_identity,
-                        "previous_cutover": json.loads(read_private(marker_path)) if marker_path.exists() else None,
+                        "previous_cutover": json.loads(read_runtime(marker_path)) if marker_path.exists() else None,
                     },
                     evidence_key,
                 )
@@ -228,19 +229,20 @@ async def restore(
                     "manifest_path": str(manifest_path),
                     "manifest_digest": fingerprint(read_private(manifest_path)),
                     "checkpoint_digest": fingerprint(read_private(checkpoint_path)) if checkpoint else None,
-                    "previous_signing_fingerprint": fingerprint(read_private(Path(settings.secret_key_file or ""))),
+                    "previous_signing_fingerprint": fingerprint(read_runtime(Path(settings.secret_key_file or ""))),
                     "signing_fingerprint": fingerprint(next_key),
                     "source": source,
                     "complete": False,
                 }
                 save_signed(journal_path, journal, evidence_key)
-                write_private(
+                write_runtime(
                     marker_path,
                     canonical_json(_marker(journal)),
-                    expected=read_private(marker_path) if marker_path.exists() else None,
+                    signing_file=Path(settings.secret_key_file or ""),
+                    expected=read_runtime(marker_path) if marker_path.exists() else None,
                 )
             else:
-                marker = json.loads(read_private(marker_path))
+                marker = json.loads(read_runtime(marker_path))
                 if marker == _marker(journal, ready=True):
                     await validate_restore_admission(db, settings=settings)
                     journal["complete"] = True
@@ -257,9 +259,9 @@ async def restore(
             if fingerprint(new_key) != journal["signing_fingerprint"]:
                 raise RestoreError("Pending signing authority changed")
             installed_key_path = Path(settings.secret_key_file or "")
-            current_key = read_private(installed_key_path, maximum=4096)
+            current_key = read_runtime(installed_key_path, maximum=4096)
             if fingerprint(current_key) == journal["previous_signing_fingerprint"]:
-                write_private(installed_key_path, new_key, expected=current_key)
+                write_runtime(installed_key_path, new_key, signing_file=installed_key_path, expected=current_key)
             elif fingerprint(current_key) != journal["signing_fingerprint"]:
                 raise RestoreError("Unexpected signing authority; keep writers stopped")
             restored_settings = settings.model_copy(update={"secret_key": new_key.decode()})
@@ -296,8 +298,13 @@ async def restore(
             else:
                 result = {"resumed_after_database_cutover": True}
             await purge_installation_auth(redis, installation_id)
-            pending = read_private(marker_path)
-            write_private(marker_path, canonical_json(_marker(journal, ready=True)), expected=pending)
+            pending = read_runtime(marker_path)
+            write_runtime(
+                marker_path,
+                canonical_json(_marker(journal, ready=True)),
+                signing_file=installed_key_path,
+                expected=pending,
+            )
             await validate_restore_admission(db, settings=restored_settings)
             journal["complete"] = True
             save_signed(journal_path, journal, evidence_key, replace=True)

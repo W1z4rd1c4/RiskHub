@@ -114,9 +114,12 @@ async def test_real_cli_restores_backup_without_reviving_later_token_or_old_pass
         await db_session.commit()
         await dump_database(str(seed_url.render_as_string(hide_password=False)), root / "seed.dump")
         await restore_database(target_url, root / "seed.dump", replace=False)
-        key = root / "signing-key"
+        runtime_files = root / "installed"
+        runtime_files.mkdir(mode=0o750)
+        key = runtime_files / "signing-key"
         key.write_text("isolated real CLI signing authority " * 3)
-        key.chmod(0o600)
+        key.chmod(0o440)
+        initial_key_stat = key.stat()
         app_identity = root / "application.json"
         app_identity.write_text(json.dumps({"source_commit": "a" * 40}))
         app_identity.chmod(0o600)
@@ -280,6 +283,10 @@ async def test_real_cli_restores_backup_without_reviving_later_token_or_old_pass
         else:
             result = await cli(*restore_args)
         assert result["status"] == "cutover-complete"
+        for runtime_path in (key, Path(str(key) + ".restore-state.json")):
+            installed = runtime_path.stat()
+            assert installed.st_mode & 0o777 == 0o440
+            assert (installed.st_uid, installed.st_gid) == (initial_key_stat.st_uid, initial_key_stat.st_gid)
         changed_settings = settings.model_copy(update={"secret_key": key.read_text()})
         with pytest.raises(InvalidTokenError):
             decode_access_token(later, settings=changed_settings)
@@ -348,7 +355,7 @@ async def reject_incompatible_backups(
         {"dump_sha256": "f" * 64},
         {"key_ids": {"totp": ["missing-key"], "delivery": [], "action": []}},
     ]
-    before_key = (root / "signing-key").read_bytes()
+    before_key = (root / "installed" / "signing-key").read_bytes()
     for index, change in enumerate(changes):
         manifest = root / f"incompatible-{index}.json"
         manifest.write_text(json.dumps(sign_artifact(original["payload"] | change, evidence_key.read_bytes())))
@@ -377,8 +384,8 @@ async def reject_incompatible_backups(
         )
         assert result[0] == 2, result
         assert not list(operation.iterdir())
-        assert (root / "signing-key").read_bytes() == before_key
-        assert not Path(str(root / "signing-key") + ".restore-state.json").exists()
+        assert (root / "installed" / "signing-key").read_bytes() == before_key
+        assert not Path(str(root / "installed" / "signing-key") + ".restore-state.json").exists()
     # A matching key identifier with wrong cryptographic bytes passes metadata
     # checks but must fail actual decryption in the separate restored database.
     wrong_keys = json.loads(Path(settings.local_auth_keyring_file).read_text())
@@ -403,7 +410,7 @@ async def reject_incompatible_backups(
         validation_file,
     )
     assert result[0] != 0
-    assert (root / "signing-key").read_bytes() == before_key
+    assert (root / "installed" / "signing-key").read_bytes() == before_key
     await admin.execute(f'DROP DATABASE "{validation_name}" WITH (FORCE)')
     await admin.execute(f'CREATE DATABASE "{validation_name}"')
 
