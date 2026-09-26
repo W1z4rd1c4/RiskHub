@@ -163,7 +163,7 @@ docker_deploy_or_upgrade() {
     log "Checking candidate identity, schema and key compatibility before replacing services..."
     run docker run --rm --add-host host.docker.internal:host-gateway \
       "${SECRET_MOUNT_ARGS[@]}" -v "${runtime_dir}/redis_url:${RUNTIME_DIR}/redis_url:ro" \
-      --env-file "$backend_env" "$DOCKER_BACKEND_DB_IMAGE" python -m scripts.identity_preflight
+      --env-file "$backend_env" "$DOCKER_BACKEND_DB_IMAGE" python -m scripts.identity_preflight --restore-contract 1
     if [[ "$action" == "upgrade" ]]; then
       log "Stopping API and scheduler writers before schema and identity changes..."
       if [[ "$backend_exists" == "true" ]]; then run docker stop riskhub-backend; fi

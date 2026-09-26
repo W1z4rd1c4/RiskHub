@@ -262,6 +262,9 @@ async def start_scheduler_async() -> None:
     if not settings.debug:
         async with runtime_state.db_sessionmaker() as db:
             await validate_installation_binding(db, settings=settings)
+            from app.services._identity_restore.admission import validate_restore_admission
+
+            await validate_restore_admission(db, settings=settings)
 
     # Lazy imports keep this module free of the scheduler_jobs/outbox import cycle.
     from app.core.scheduler_jobs import resolve_process_worker_count

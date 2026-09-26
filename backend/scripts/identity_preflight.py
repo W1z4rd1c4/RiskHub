@@ -18,6 +18,7 @@ from app.core.production_contract import resolve_identity_profile
 from app.core.security import _bounded_password_hash
 from app.db.session import session_context
 from app.models import InstallationIdentity, User
+from app.services._identity_restore.admission import RESTORE_CONTRACT_VERSION, validate_restore_admission
 from app.services._local_auth.delivery import validate_mail_configuration
 from app.services._local_auth.key_rotation import verify_key_material
 from app.services._local_auth.keys import LocalKeyring
@@ -71,6 +72,8 @@ async def inspect_identity(db: AsyncSession, settings: Settings, *, migration_co
             )
         return {"status": "fresh-unbound", "auth_mode": profile.auth_mode, "mutated": False}
     validated = await validate_installation_binding(db, settings=settings)
+    if "identity_restore_cutover" in tables:
+        await validate_restore_admission(db, settings=settings)
     if keys is not None:
         if not {"local_auth_factors", "local_auth_grants", "local_auth_deliveries"} <= tables:
             if populated:
@@ -101,6 +104,7 @@ def main() -> None:
     route_console_logs_to_stderr()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--alembic-config", type=Path, default=Path("alembic.ini"))
+    parser.add_argument("--restore-contract", type=int, choices=[RESTORE_CONTRACT_VERSION], required=True)
     args = parser.parse_args()
     try:
         result = asyncio.run(run(args.alembic_config))

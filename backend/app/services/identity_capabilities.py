@@ -30,6 +30,7 @@ def identity_config(settings: Settings) -> IdentityConfig:
 def current_identity_capabilities(user: User, settings: Settings) -> CurrentIdentityCapabilities:
     active = bool(
         user.is_active
+        and not user.restore_quarantined
         and not user.local_suspended
         and not user.local_recovery_pending
         and user.role
@@ -48,7 +49,12 @@ def current_identity_capabilities(user: User, settings: Settings) -> CurrentIden
 def target_identity_capabilities(actor: User, target: User, settings: Settings) -> dict[str, bool]:
     current = current_identity_capabilities(actor, settings)
     native_target = native_identity_selected(settings) and target.external_id is None
-    pending = native_target and target.local_enrollment_state == "invited" and not target.local_suspended
+    pending = (
+        native_target
+        and target.local_enrollment_state == "invited"
+        and not target.local_suspended
+        and not target.restore_quarantined
+    )
     recoverable = False
     if native_target and target.role is not None:
         try:

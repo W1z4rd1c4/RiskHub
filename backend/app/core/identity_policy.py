@@ -17,6 +17,7 @@ AUTHORITY_FIELDS = frozenset(
         "password_changed",
         "is_active",
         "local_suspended",
+        "restore_quarantined",
         "local_enrollment_state",
         "local_recovery_pending",
         "role_id",
@@ -35,7 +36,7 @@ def projected_account_active(user: User, *, settings: Settings | None = None) ->
     native production requires explicit completed enrollment. Unrelated profile
     synchronization must not use this to erase unexplained legacy inactivity.
     """
-    if user.local_suspended or user.local_recovery_pending:
+    if user.restore_quarantined or user.local_suspended or user.local_recovery_pending:
         return False
     return upstream_and_enrollment_allow_access(user, settings=settings)
 

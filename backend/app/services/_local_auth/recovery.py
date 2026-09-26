@@ -272,7 +272,7 @@ async def complete_recovery(
             ).scalar_one_or_none():
                 raise invalid_proof()
             user.email, user.local_email_verified_at = address, utc_now()
-        user.local_recovery_pending, user.is_active = False, True
+        user.local_recovery_pending, user.is_active = False, not user.restore_quarantined
         codes = await replace_recovery_codes(db, ctx, user, active.generation)
         await invalidate_user_sessions(db=db, user=user, reason="local_recovery_completed")
         await audit_local(

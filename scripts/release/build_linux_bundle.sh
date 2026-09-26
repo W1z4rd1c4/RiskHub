@@ -95,6 +95,7 @@ cp "${REPO_ROOT}/backend/scripts/seed_departments.py" "${BACKEND_DB_STAGE}/scrip
 cp "${REPO_ROOT}/backend/scripts/bootstrap_sso_user.py" "${BACKEND_DB_STAGE}/scripts/bootstrap_sso_user.py"
 cp "${REPO_ROOT}/backend/scripts/bootstrap_local_users.py" "${BACKEND_DB_STAGE}/scripts/bootstrap_local_users.py"
 cp "${REPO_ROOT}/backend/scripts/identity_preflight.py" "${BACKEND_DB_STAGE}/scripts/identity_preflight.py"
+cp "${REPO_ROOT}/backend/scripts/identity_restore.py" "${BACKEND_DB_STAGE}/scripts/identity_restore.py"
 cp "${REPO_ROOT}/backend/scripts/identity_installation.py" "${BACKEND_DB_STAGE}/scripts/identity_installation.py"
 cp "${REPO_ROOT}/backend/scripts/local_recovery.py" "${BACKEND_DB_STAGE}/scripts/local_recovery.py"
 cp "${REPO_ROOT}/backend/scripts/local_auth_keys.py" "${BACKEND_DB_STAGE}/scripts/local_auth_keys.py"
