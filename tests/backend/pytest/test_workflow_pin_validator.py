@@ -554,11 +554,32 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
     )
 
 
-def test_grype_runtime_policy_has_no_suppressions() -> None:
+def test_grype_workflow_enforces_policy_expiry_before_scanning(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+    from datetime import UTC, datetime, timedelta
+
     import yaml
 
+    workflow = yaml.safe_load(SECURITY_WORKFLOW.read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["container-security"]["steps"]
+    names = [step.get("name") for step in steps]
+    check = steps[names.index("Validate Grype policy and expiry")]
+    assert names.index("Validate Grype policy and expiry") < names.index("Run Grype on Backend SBOM")
+    assert not check.get("continue-on-error") and "if" not in check
+    command = next(line.split() for line in check["run"].splitlines() if "--policy" in line)
+    expired = tmp_path / "expired.yaml"
     policy = yaml.safe_load(GRYPE_IGNORE.read_text(encoding="utf-8"))
-    assert policy == {"ignore": []}
+    yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+    # Preserve the strict human-readable format accepted by the CLI validator.
+    text = GRYPE_IGNORE.read_text(encoding="utf-8")
+    for item in policy["ignore"]:
+        text = text.replace(str(item["expires-on"]), yesterday)
+    expired.write_text(text)
+    command[0] = sys.executable
+    command[-1] = str(expired)
+    result = subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True)
+    assert result.returncode != 0 and "expired" in result.stderr.lower()
 
 
 def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
