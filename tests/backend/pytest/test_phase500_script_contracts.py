@@ -1026,9 +1026,12 @@ def test_prod_readiness_detached_tree_gitleaks_scan_uses_no_git_mode_and_fails_c
     assert scan.required is True
 
 
-def test_grype_policy_has_no_runtime_acceptances() -> None:
-    policy = yaml.safe_load(GRYPE_IGNORE.read_text(encoding="utf-8"))
-    assert policy == {"ignore": []}
+def test_grype_policy_runtime_exceptions_are_valid_and_unexpired() -> None:
+    from prod_readiness_audit.grype_policy import validate_grype_policy
+
+    # Exact source-backport selectors and image proofs are checked in
+    # test_prod_readiness_grype_policy; enforce the live expiration here too.
+    validate_grype_policy(GRYPE_IGNORE)
 
 
 def test_prod_readiness_phase_plan_restores_negative_probes_and_runtime_verification() -> (
