@@ -89,7 +89,7 @@ def _build_token_response(
         effective_permissions=effective_permissions,
         access_scope=AccessScopeEnum(user.access_scope.value),
         scope_label=scope_label,
-        me_capabilities=build_me_capabilities(user, settings=settings) if local_context is not None else None,
+        me_capabilities=build_me_capabilities(user, settings=settings),
     )
     access_token = create_access_token(
         data={
