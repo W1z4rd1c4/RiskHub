@@ -7,6 +7,7 @@ from app.api import deps
 from app.core.tokens import clear_refresh_cookie
 from app.db.session import get_db
 from app.models import User
+from app.models.local_auth import LocalAuthFactor
 from app.schemas.auth import TokenResponse
 from app.schemas.local_auth import (
     AcceptedResponse,
@@ -21,6 +22,7 @@ from app.schemas.local_auth import (
     FactorReplacementRequest,
     FactorSetupResponse,
     FactorVerifyRequest,
+    LocalAccountSecurityResponse,
     LocalAuthChallenge,
     PasswordChangeRequest,
     RecentAuthenticationRequest,
@@ -29,12 +31,35 @@ from app.schemas.local_auth import (
     ResetRequest,
 )
 from app.services._local_auth import credentials, enrollment, factors
-from app.services._local_auth.common import NativeContext, atomic_local_work, commit_local
+from app.services._local_auth.common import (
+    NativeContext,
+    atomic_local_work,
+    commit_local,
+    invalid_proof,
+    local_user_ready,
+)
 
-from ._local_transport import SafeAuthRoute, browser_binding, establish_browser, native_context
+from ._local_transport import SafeAuthRoute, browser_binding, establish_browser, native_context, native_read_context
 from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter(prefix="/local", route_class=SafeAuthRoute)
+
+
+@router.get("/account", response_model=LocalAccountSecurityResponse)
+async def account_security(
+    user: User = Depends(deps.get_current_user),
+    ctx: NativeContext = Depends(native_read_context),
+    db: AsyncSession = Depends(get_db),
+):
+    if not local_user_ready(user):
+        raise invalid_proof()
+    factor = await db.get(LocalAuthFactor, user.id)
+    enabled = factor is not None and factor.confirmed_at is not None
+    return LocalAccountSecurityResponse(
+        mfa_enabled=enabled,
+        factor_required=enabled or ctx.settings.local_mfa_policy == "required",
+        mfa_policy=ctx.settings.local_mfa_policy,
+    )
 
 
 @router.post("/enrollment/start", response_model=EnrollmentResponse, status_code=202)

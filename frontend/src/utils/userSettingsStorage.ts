@@ -7,7 +7,8 @@
  * - On logout: Clear local (guest state)
  */
 import { preferencesApi, type UserPreferences, type PreferencesUpdate } from '@/services/preferencesApi';
-import i18n from '@/i18n';
+import type { i18n as I18nInstance } from 'i18next';
+import i18n, { activateLanguage, type SupportedLanguage } from '@/i18n';
 import {
     getSessionOwnershipSnapshot,
     isSessionOwnershipCurrent,
@@ -71,6 +72,15 @@ export function markThemeIntent(): void {
 
 export function markLanguageIntent(): void {
     languageIntentVersion += 1;
+}
+
+/** A deliberate local selection outranks hydration that started before it. */
+export async function selectLocalLanguage(
+    instance: I18nInstance, language: SupportedLanguage, signal?: AbortSignal,
+): Promise<void> {
+    markLanguageIntent();
+    await activateLanguage(instance, language, signal);
+    if (!signal?.aborted) setLocalLanguage(language);
 }
 
 // ============================================================================

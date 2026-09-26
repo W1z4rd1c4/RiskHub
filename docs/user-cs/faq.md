@@ -1,7 +1,7 @@
 ---
 title: FAQ a provozní podpora
-version: "2.4"
-last_updated: "2026-04-25"
+version: "2.5"
+last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + chování workflow v aplikaci"
 summary: "Rychlé odpovědi na časté problémy: viditelnost, schvalování, editace, notifikace, exporty a co zkontrolovat před eskalací."
@@ -26,6 +26,29 @@ tags:
 - [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
 - [Související manuály](#související-manuály)
+
+## Hesla a vícefaktorové ověřování
+
+**Kdo spravuje mé heslo?** Při přihlášení Microsoftem použijte firemní službu pro
+hesla a obnovu. U místního účtu si zvolíte heslo v pozvánce od správce. Správce
+nemůže zobrazit ani zadat vaše trvalé heslo.
+
+**Je MFA povinné?** Instalace může vyžadovat MFA (výchozí nastavení), nebo povolit
+přihlášení pouze heslem, včetně správců. Po zapnutí ověřovací aplikace je pro váš
+účet vyžadována i při volitelném MFA. Obnova hesla ji neodstraní.
+
+**Kde změním zabezpečení účtu?** Pokud je místní přihlášení ve vaší verzi dostupné,
+vyberte **Nastavení → Zabezpečení účtu**. Stránka zobrazí podporované změny hesla,
+ověřeného e-mailu, ověřovací aplikace a záložních kódů. Dostupnost potvrdí správce.
+
+**Co při ztrátě všech faktorů?** Použijte nepoužitý záložní kód, pokud jej máte.
+Jinak kontaktujte správce. Privilegované účty vyžadují obnovu provozovatelem;
+webová stránka tento postup nemůže obejít.
+
+**Co když odkaz vypršel nebo se odpověď ztratila?** Vyžádejte si aktuální pozvánku
+nebo odkaz pro obnovu. Po ztrátě odpovědi již mohla změna proběhnout: vraťte se
+k přihlášení a neopakujte stejnou jednorázovou akci. Hesla, klíče, záložní kódy
+ani odkazy pro obnovu neposílejte ve snímcích obrazovky podpoře.
 
 ## S čím vám tato stránka pomůže
 

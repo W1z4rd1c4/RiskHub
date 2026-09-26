@@ -1,7 +1,7 @@
 ---
 title: Začínáme s RiskHub
-version: "2.5"
-last_updated: "2026-07-31"
+version: "2.6"
+last_updated: "2026-09-12"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routy"
 summary: "Onboarding manuál pro non-admin uživatele: ověření scope, navigace, workflow připravenost a nejčastější chyby na začátku."
@@ -25,6 +25,41 @@ tags:
 - [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
 - [Související manuály](#související-manuály)
+
+## Přihlášení a zabezpečení účtu
+
+Použijte způsob přihlášení určený vaší organizací. Při přihlášení Microsoftem
+spravuje hesla a vícefaktorové ověřování firemní služba identity. Demo účty slouží
+k vyzkoušení aplikace. Dostupnost místních účtů v nainstalované verzi potvrdí správce.
+
+Pokud jsou místní účty dostupné:
+
+1. Otevřete pozvánku od správce, zvolte vlastní heslo a vyberte **Pokračovat**.
+   Samotné otevření odkazu účet nevytvoří. Heslo má mít 15–128 znaků a nesmí být
+   běžně používané. Veřejná registrace není dostupná.
+2. Pokud jste vyzváni, přidejte zobrazený klíč do ověřovací aplikace jako časový
+   účet a zadejte aktuální kód. Deset záložních kódů bezpečně uložte a potvrďte
+   uložení. Zobrazí se pouze jednou a každý lze použít jednou.
+3. Vraťte se k přihlášení. Instalace s volitelným MFA dovoluje účet pouze s heslem.
+   Jakmile ověřovací aplikaci zapnete, přihlášení ji nebo záložní kód vyžaduje
+   i při volitelném MFA.
+4. V **Nastavení → Zabezpečení účtu** můžete změnit heslo nebo e-mail, zapnout
+   či vyměnit ověřovací aplikaci a nahradit záložní kódy. Konkrétní změnu schvalte
+   současným heslem a případně ověřovacím kódem.
+
+Nová e-mailová adresa se aktivuje až po otevření ověřovacího odkazu a potvrzení
+změny. Pokud je třeba, nejprve se přihlaste a odkaz otevřete znovu. Změna hesla,
+ověřovací aplikace nebo záložních kódů ukončí předchozí relace. Totéž platí po
+potvrzení nové adresy. Poté se přihlaste znovu. Nové záložní kódy před odchodem uložte.
+
+Přes **Zapomenuté heslo?** si vyžádejte odkaz pro obnovu. Obnova hesla zachová
+zapnuté MFA. Při ztrátě ověřovací aplikace i záložních kódů kontaktujte správce;
+privilegované účty vyžadují obnovu provozovatelem. Postupujte podle schválených
+pokynů a odkazy pro obnovu uchovávejte v tajnosti.
+
+Přepínač **Jazyk** nabízí češtinu a angličtinu. Po vypršení odkazu nebo ověření
+začněte znovu či požádejte o aktuální pozvánku. Pokud se odpověď ztratila, změna
+již mohla proběhnout: vraťte se k přihlášení a neopakujte ji naslepo.
 
 ## S čím vám tato stránka pomůže
 
