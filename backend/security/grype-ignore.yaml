@@ -10,6 +10,7 @@
 # - package.version: affected version (or range rationale in reason)
 # - namespace, fix-state, and match-type: exact vulnerability-match selectors
 # - package.type, package.location, and package.upstream-name: exact scanner artifact selectors
+#   Binary records with upstreams=[] omit upstream-name and record that evidence in reason.
 #
 # Example:
 # ignore:
@@ -26,4 +27,27 @@
 #       location: /usr/local/bin/python3.13
 #       upstream-name: python
 
-ignore: []
+ignore:
+  - vulnerability: CVE-2026-82049
+    reason: "Owner: RiskHub Maintainer. Decision: fixed by the exact upstream CPython 3.13 backport b8f23e307097552eaea2604383a12ab280520d0d, with both extraction-filter regression proofs required by each image build. Scanner evidence: Grype 0.110 reports binary Python 3.13.15 with upstreams=[] by version despite the patched tarfile implementation. No-fix proof: the pinned official 3.13.15 image has no package-level fixed release identity; the source fix is applied before dependency builds and copied into both final targets. Reachability: crafted hardlink-to-symlink archives now resolve inside the destination and the outside-file regression fails the build otherwise. Exit: adopt a fixed official Python base and remove this exact rule and backport; see backend/security/README.md."
+    namespace: nvd:cpe
+    fix-state: fixed
+    match-type: cpe-match
+    expires-on: 2026-10-10
+    package:
+      name: python
+      version: 3.13.15
+      type: binary
+      location: /usr/local/bin/python3.13
+  - vulnerability: CVE-2026-85091
+    reason: "Owner: RiskHub Maintainer. Decision: replace the vulnerable zlib shared object with checksum-pinned upstream d81c2d7eb705c62294ba03299255672078e89115 containing df84af25dc1942490e1d1c899a07619152a46148 and its follow-up fixes. Scanner evidence: Grype 0.110 reports the unchanged Alpine zlib 1.3.2-r0 package record; actual library is 1.3.2.1-motley. No-fix proof: Alpine 3.24 still serves 1.3.2-r0; the upstream source correction is built with make check and loaded-version assertions in both final images. Reachability: CPython and the system libz.so.1 both load the corrected library; mismatches fail image construction. Exit: replace with a fixed Alpine package and remove this exact rule and source overlay; see backend/security/README.md."
+    namespace: nvd:cpe
+    fix-state: unknown
+    match-type: cpe-match
+    expires-on: 2026-10-10
+    package:
+      name: zlib
+      version: 1.3.2-r0
+      type: apk
+      location: /lib/apk/db/installed
+      upstream-name: zlib
