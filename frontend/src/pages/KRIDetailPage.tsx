@@ -39,10 +39,13 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
         dueDate,
         handleDelete,
         handleRecordSuccess,
-        handleRestore,
+        restoreState,
         handleSave,
         history,
         historyOutcome,
+        historyAccessDenied,
+        historyPage,
+        setHistoryPage,
         historyTotal,
         isDeleteDialogOpen,
         isDeleting,
@@ -106,7 +109,6 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
     const MonitoringIcon = monitoring.icon;
     const canUpdateKri = resolveCapabilityFlag(kri.capabilities, 'can_update');
     const canArchiveKri = canArchive(kri.capabilities);
-    const canRestoreKri = resolveCapabilityFlag(kri.capabilities, 'can_restore');
     const canCreateIssue = resolveCapabilityFlag(kri.capabilities, 'can_create_issue');
 
     return (
@@ -180,8 +182,18 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                         </Button>
                     )}
                     {kri.is_archived ? (
-                        canRestoreKri && <Button variant="outline" onClick={handleRestore}>
-                            <RotateCcw className="h-4 w-4 mr-1" /> {t('common:actions.unarchive')}
+                        restoreState.canRestore && <Button
+                            variant="outline"
+                            onClick={() => void restoreState.restore()}
+                            disabled={!restoreState.canSubmit}
+                            isLoading={restoreState.outcome === 'pending'}
+                            aria-describedby={restoreState.outcome !== 'idle' ? 'kri-restore-feedback' : undefined}
+                            className="text-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground"
+                        >
+                            <RotateCcw aria-hidden="true" className="h-4 w-4 mr-1" />
+                            {restoreState.outcome === 'pending' ? t('kris:restore.pending')
+                                : ['rejected', 'archived'].includes(restoreState.outcome) ? t('kris:restore.retry')
+                                    : t('common:actions.unarchive')}
                         </Button>
                     ) : (
                         canArchiveKri && <Button
@@ -197,6 +209,21 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     )}
                 </div>
             </motion.div>
+
+            {restoreState.outcome !== 'idle' ? (
+                <div id="kri-restore-feedback" className="mb-6 rounded-xl border border-border bg-card p-4 text-sm text-foreground">
+                    <p role={['rejected', 'unknown', 'denied'].includes(restoreState.outcome) ? 'alert' : 'status'}>
+                        {t(`kris:restore.${restoreState.outcome}`)}
+                    </p>
+                    {restoreState.reconciliationFailed ? <p role="alert" className="mt-2">{t('kris:restore.refresh_failed')}</p> : null}
+                    {['unknown', 'denied'].includes(restoreState.outcome) && restoreState.canReconcile ? (
+                        <Button variant="outline" className="mt-3 text-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground"
+                            onClick={() => void restoreState.reconcile()} isLoading={restoreState.isReconciling}>
+                            {restoreState.isReconciling ? t('kris:restore.refreshing') : t('kris:restore.refresh')}
+                        </Button>
+                    ) : null}
+                </div>
+            ) : null}
 
             {approvalBanner ? (
                 <motion.div
@@ -243,7 +270,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                         : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
-                    <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')} ({historyTotal})
+                    <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')}{['content', 'empty', 'stale-with-error'].includes(historyOutcome.kind) ? ` (${historyTotal})` : ''}
                 </button>
             </div>
 
@@ -263,6 +290,8 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 {activeTab === 'history' && <KRIDetailHistoryTab
                     history={history}
                     historyTotal={historyTotal}
+                    page={historyPage}
+                    onPageChange={setHistoryPage}
                     isLoadingHistory={isLoadingHistory}
                     lowerLimit={kri.lower_limit}
                     upperLimit={kri.upper_limit}
@@ -270,6 +299,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     onSelectEntry={setSelectedHistoryEntry}
                     canRequestCorrection={canRequestHistoryCorrection}
                     outcome={historyOutcome}
+                    accessDenied={historyAccessDenied}
                     onRetry={() => kriId !== null && void refreshHistory(kriId)}
                 />}
             </div>

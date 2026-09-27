@@ -22,7 +22,7 @@ export function LinkSearchResultItem({
     const presentation = buildLinkSearchResultPresentation(mode, result, t);
 
     return (
-        <div className={`w-full flex items-stretch group ${presentation.isArchived ? 'opacity-70' : ''}`}>
+        <div className="w-full flex items-stretch group">
             <button
                 type="button"
                 onClick={() => onSelect(result.id)}
@@ -37,12 +37,12 @@ export function LinkSearchResultItem({
                         </span>
                     )}
                 </span>
-                <span className="text-xs text-slate-500 mt-0.5">
+                <span className="text-xs text-slate-400 mt-0.5">
                     <span className="flex items-center gap-1">
                         {presentation.primaryMeta}
                         {presentation.secondaryMeta && (
                             <>
-                                <span className="text-slate-700 mx-1">/</span>
+                                <span className="text-slate-400 mx-1">/</span>
                                 <span className="text-slate-400 font-medium italic">{presentation.secondaryMeta}</span>
                             </>
                         )}
@@ -53,11 +53,11 @@ export function LinkSearchResultItem({
                 {mode === 'risk-to-control' && (
                     <>
                         <div className="flex flex-col items-end">
-                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Level</span>
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('linking.risk_level_short')}</span>
                             <span className="text-xs font-bold text-white">{result.risk_level}/5</span>
                         </div>
                         <div className="flex flex-col items-end min-w-[60px]">
-                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest text-right">Freq</span>
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest text-right">{t('linking.frequency_short')}</span>
                             <span className="text-xs font-bold text-white capitalize">{result.frequency}</span>
                         </div>
                     </>

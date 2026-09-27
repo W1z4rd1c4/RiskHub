@@ -175,6 +175,24 @@ Rules:
 
 ---
 
+### 1.6 Creation access checks
+
+Risk, Control and KRI creation, and Asset, Process, Threat and Vendor creation
+modes, open their forms only after the backend explicitly permits creation.
+Creating a Risk, Control or KRI from a Vendor additionally requires the relevant
+linked-creation permission for that Vendor. A frontend role does not substitute
+for either decision.
+
+A network or server failure while checking access shows a localized inability to
+check access with **Retry**. This does not mean permission was denied. The form
+stays unavailable while a required check is pending or failed. Retry repeats only
+failed checks, prevents overlapping retries, and keeps the intended page and
+return context; results from a previous route cannot admit the current form.
+For combined checks, denial takes precedence over pending, then failure, and only
+all-allowed checks admit the form. Protected forbidden/not-found responses share
+one non-leaky denial; existing sign-in/session-loss behavior is preserved. This
+presentation and recovery contract does not change backend authorization policy.
+
 ## 2. Entity Ownership Rules
 
 ### 2.1 Risk
@@ -272,6 +290,7 @@ Rules:
 - Non-privileged value submissions queue approval requests and preserve request-time period-window validity using the queued server `recorded_at`. If an approved queued value is stale because that period was recorded while the approval was pending, approval execution auto-rejects without creating a duplicate history row.
 - Future `recorded_at` timestamps are rejected for direct privileged value submissions.
 - KRI history defaults to recorded-at descending order for API compatibility and also supports period-first sorting; the KRI detail UI requests period-first descending order.
+- KRI detail history uses bounded 50-entry pages persisted as `history_page` in the detail URL (page 1 is the default). The displayed range, trend period-end dates, and comparison choices describe only the loaded page. Period labels and trend windows preserve calendar dates independently of the viewer’s timezone. Explicit 403 denial is distinguished from non-leaky 404 unavailability; neither offers retry. Older/newer navigation preserves existing authorization and exact correction identities; failed continuation never labels previous-page rows as the requested page.
 - History correction requires `risks:write` plus canonical KRI read access. Reporting-owner status alone grants read/submit authority, not correction authority.
 - KRI history responses expose backend capability metadata such as `can_request_correction`; frontend action visibility should consume this metadata when present.
 - Current-value correction uses deterministic latest-row selection: `period_end DESC`, then `recorded_at DESC`, then `id DESC`.
@@ -817,6 +836,8 @@ Non-privileged users can access resources **outside their department** if they a
 | `POST /api/v1/kris/{id}/restore` | `risks:delete` | `is_archived=false`, clear archive metadata |
 | `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata (`status='active'` alias appears only in tabular CSV exports synthesized at `backend/app/services/_reporting/exports/`, not in REST responses) |
 | `POST /api/v1/vendor-slas/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata |
+
+KRI detail restore uses backend `can_restore` metadata and allows one in-flight action. A successful response supplies the authoritative restored KRI and current capabilities directly; a later history read failure is a separate warning and does not reverse the restore. Definite request rejections remain adjacent to the action. Network/timeout errors, malformed success responses, and server errors are uncertain outcomes: users must refresh the record through its actor/record-owned detail query before another restore is offered. Denials require a fresh authorized read rather than reuse of cached eligibility. Delayed results are discarded after record navigation or a session/principal change; pending, error, and success feedback is localized and announced.
 
 ### 8.4 Approval Action Decision Tree
 

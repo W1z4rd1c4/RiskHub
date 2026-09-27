@@ -113,7 +113,11 @@ async function visit(page: Page, route: string): Promise<void> {
   await waitForDataLoad(page, 30000);
   const main = page.locator('main');
   await expect(main).toBeVisible();
-  await main.evaluate(async (element) => {
+  await waitForFiniteAnimations(main);
+}
+
+async function waitForFiniteAnimations(locator: Locator): Promise<void> {
+  await locator.evaluate(async (element) => {
     const finiteAnimations = element.getAnimations({ subtree: true }).filter((animation) => (
       animation.effect?.getComputedTiming().iterations !== Infinity
     ));
@@ -768,6 +772,7 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(linkSearchResult.getByText('Freq', { exact: true }), 'Link result Freq label');
     await expectReadableTypography(linkSearchResult.getByText('quarterly', { exact: true }), 'Link result Freq value');
     await expectReadableTypography(suggestions.getByRole('button', { name: /Unarchive/i }), 'Link result action');
+    await waitForFiniteAnimations(linkDialog);
     const linkSearchStateAxe = await new AxeBuilder({ page })
       .include('[data-testid="link-management-dialog"]')
       .withRules(['color-contrast'])
@@ -803,6 +808,7 @@ test.describe('UX-24 audited theme matrix', () => {
       existingLinksDialog.getByText('high', { exact: true }),
       'Existing Link effectiveness',
     );
+    await waitForFiniteAnimations(existingLinksDialog);
     const existingLinksStateAxe = await new AxeBuilder({ page })
       .include('[data-testid="link-management-dialog"]')
       .withRules(['color-contrast'])

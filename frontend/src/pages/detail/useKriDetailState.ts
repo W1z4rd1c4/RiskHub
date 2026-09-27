@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
 import { useTranslation } from '@/i18n/hooks';
 import { parseUpdateResult } from '@/lib/approvalUi';
+import { KRI_HISTORY_PAGE_SIZE } from '@/lib/kriHistory';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ApiClientError, apiClient } from '@/services/apiClient';
 import { kriApi } from '@/services/kriApi';
@@ -13,8 +14,9 @@ import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '
 import type { Risk } from '@/types/risk';
 
 import { useDetailQuery } from './useDetailQuery';
+import { useKriRestore } from './useKriRestore';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
-import { useCollectionDataState } from '@/pages/shared/collectionPageState';
+import { resolveCollectionOutcome, useCollectionDataState } from '@/pages/shared/collectionPageState';
 import { isAbortError } from '@/services/api/requestRuntime';
 
 export type KriDetailTabView = 'overview' | 'history';
@@ -31,23 +33,33 @@ function isProtectedUnavailableError(error: unknown): boolean {
 
 export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     const navigate = useNavigate();
+    const [historyParams, setHistoryParams] = useSearchParams();
+    const requestedPage = Number(historyParams.get('history_page') ?? 1);
+    const historyPage = Number.isSafeInteger(requestedPage) && requestedPage > 0
+        && requestedPage <= Math.floor(Number.MAX_SAFE_INTEGER / KRI_HISTORY_PAGE_SIZE) ? requestedPage : 1;
+    const historyPageRef = useRef(historyPage);
+    historyPageRef.current = historyPage;
+    const setHistoryPage = useCallback((page: number) => {
+        const next = new URLSearchParams(historyParams);
+        if (page === 1) next.delete('history_page');
+        else next.set('history_page', String(page));
+        setHistoryParams(next);
+    }, [historyParams, setHistoryParams]);
     const { t: tErrors } = useTranslation('errorKeys');
     const [activeTab, setActiveTab] = useContentTabQuery<KriDetailTabView>({
         tabs: kriDetailTabs,
         defaultTab: 'overview',
     });
+    const [historyAccessDenied, setHistoryAccessDenied] = useState(false);
     const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
     const {
         applyFailure: applyHistoryFailure,
         applySuccess: applyHistorySuccess,
         beginQuery: beginHistoryQuery,
-        capabilities: historyCapabilities,
-        isLoading: isLoadingHistory,
-        items: history,
-        outcome: historyOutcome,
+        forQuery: historyForQuery,
+        isLoading: historyRequestLoading,
         reset: resetHistory,
         setIsLoading: setIsLoadingHistory,
-        totalCount: historyTotal,
     } = useCollectionDataState<KRIHistoryEntry, KRIHistoryCapabilities>();
     const {
         applyFailure: applyLinkedRiskFailure,
@@ -78,6 +90,8 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         refetch: fetchKRI,
         resource: kri,
         resourceId: kriId,
+        setResource,
+        refetchOutcome,
     } = useDetailQuery<KeyRiskIndicator>({
         entity: 'kri',
         rawId,
@@ -85,6 +99,12 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     });
     const detailOwnerRef = useRef<number | null>(kriId);
     detailOwnerRef.current = kriId;
+    const historySnapshot = historyForQuery(`${kriId}:${historyPage}`);
+    const history = historySnapshot.items;
+    const historyTotal = historySnapshot.totalCount;
+    const historyCapabilities = historySnapshot.capabilities;
+    const isLoadingHistory = !historySnapshot.isCurrentQuery || historyRequestLoading;
+    const historyOutcome = resolveCollectionOutcome(historySnapshot, isLoadingHistory);
     const linkedRisk = linkedRisks[0] ?? null;
 
     useEffect(() => () => {
@@ -152,16 +172,19 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     ]);
 
     const fetchHistory = useCallback(async (id: number) => {
-        if (detailOwnerRef.current !== id) return;
+        if (detailOwnerRef.current !== id || historyPageRef.current !== historyPage) return;
         historyControllerRef.current?.abort();
         const controller = new AbortController();
         historyControllerRef.current = controller;
-        const queryIdentity = String(id);
+        const page = historyPage;
+        const queryIdentity = `${id}:${page}`;
         beginHistoryQuery(queryIdentity);
+        setHistoryAccessDenied(false);
         setIsLoadingHistory(true);
         try {
             const response = await kriApi.getHistory(id, {
-                size: 50,
+                page,
+                size: KRI_HISTORY_PAGE_SIZE,
                 include_archived: true,
                 sort_by: 'period',
                 sort_direction: 'desc',
@@ -170,6 +193,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
                 controller.signal.aborted
                 || historyControllerRef.current !== controller
                 || detailOwnerRef.current !== id
+                || historyPageRef.current !== page
             ) return;
             applyHistorySuccess(queryIdentity, {
                 items: response.items,
@@ -183,15 +207,17 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
                 || controller.signal.aborted
                 || historyControllerRef.current !== controller
                 || detailOwnerRef.current !== id
+                || historyPageRef.current !== page
             ) return;
             logError('Failed to fetch history.', error);
+            setHistoryAccessDenied(error instanceof ApiClientError && error.status === 403);
             applyHistoryFailure(error, {
                 fallbackErrorKey: 'errorKeys.unexpected',
                 isAccessDenied: isProtectedUnavailableError,
                 toErrorKey: (failure) => apiClient.toUiMessageKey(failure),
             });
         } finally {
-            if (historyControllerRef.current === controller && detailOwnerRef.current === id) {
+            if (historyControllerRef.current === controller && detailOwnerRef.current === id && historyPageRef.current === page) {
                 historyControllerRef.current = null;
                 setIsLoadingHistory(false);
             }
@@ -200,6 +226,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         applyHistoryFailure,
         applyHistorySuccess,
         beginHistoryQuery,
+        historyPage,
         setIsLoadingHistory,
     ]);
 
@@ -222,12 +249,16 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         }
         const ownerId = kri.id;
         void fetchLinkedRisk(ownerId, kri.risk_id);
-        void fetchHistory(ownerId);
         return () => {
-            historyControllerRef.current?.abort();
             linkedRiskControllerRef.current?.abort();
         };
-    }, [fetchHistory, fetchLinkedRisk, kri]);
+    }, [fetchLinkedRisk, kri]);
+
+    useEffect(() => {
+        setSelectedHistoryEntry(null);
+        if (kri) void fetchHistory(kri.id);
+        return () => historyControllerRef.current?.abort();
+    }, [fetchHistory, kri]);
 
     useEffect(() => {
         if (historyOutcome.kind === 'denied') {
@@ -263,19 +294,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         }
     }, [kri, navigate, returnTo]);
 
-    const handleRestore = useCallback(async () => {
-        if (!kri) return;
-        const ownerId = kri.id;
-        try {
-            await kriApi.restoreKRI(ownerId);
-            if (detailOwnerRef.current === ownerId) {
-                await fetchKRI();
-            }
-        } catch (error) {
-            if (detailOwnerRef.current !== ownerId) return;
-            logError('Failed to restore KRI.', error);
-        }
-    }, [fetchKRI, kri]);
+    const restoreState = useKriRestore({ kri, resourceId: kriId, setResource, refresh: refetchOutcome });
 
     const handleSave = useCallback(async (
         data: Partial<KeyRiskIndicator>,
@@ -339,10 +358,13 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         dueDate,
         handleDelete,
         handleRecordSuccess,
-        handleRestore,
+        restoreState,
         handleSave,
         history,
         historyOutcome,
+        historyAccessDenied: historySnapshot.isCurrentQuery && historyOutcome.kind === 'denied' && historyAccessDenied,
+        historyPage,
+        setHistoryPage,
         historyTotal,
         isDeleteDialogOpen,
         isDeleting,

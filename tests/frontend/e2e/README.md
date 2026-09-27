@@ -23,6 +23,12 @@ Playwright global setup validates fixture health before tests run (risks, contro
 approval journeys language-pure for controlled labels while preserving user
 free text.
 
+`kri-restore-outcomes.spec.ts` intercepts the public API for deterministic restore
+outcomes on the real KRI detail page. Its six cases cover English/Czech in all three
+themes, deferred duplicate activation, definite rejection, ambiguous transport loss,
+authorized read reconciliation, rendered text contrast, and strict-zero axe feedback.
+Run it with `--project=ci --workers=1`; it does not require changing seeded data.
+
 ## Targeted Run Command
 
 ```bash

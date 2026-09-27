@@ -41,6 +41,8 @@ function Workflow() {
       <output aria-live="polite">{outcome}</output>
       {family === 'history' && (
         <KRIDetailHistoryTab
+          page={1}
+          onPageChange={noop}
           history={state === 'empty' ? [] : history}
           historyTotal={state === 'empty' ? 0 : 2}
           isLoadingHistory={false}

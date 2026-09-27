@@ -11,3 +11,17 @@ Canonical frontend UI display guardrails for RiskHub.
 
 Verification date:
 - 2026-04-25
+
+## Creation access checks
+
+The shared creation gate is fail-closed: only explicit backend capability `true`
+permits the form. Network/server read failures show a localized access-check
+failure and Retry, not a permission denial. HTTP 403/404 share the same non-leaky
+denial; HTTP 401 retains the API client's session-loss handling. Retry reloads
+only failed required checks and suppresses overlapping or obsolete-route results.
+For composed checks the precedence is denied, loading, error, then allowed.
+
+Consumers are RiskNewPage, ControlNewPage, KRINewPage, and the creation modes of
+AssetDetailPage, ProcessDetailPage, ThreatDetailPage, and VendorDetailPage. The
+three new-page linked-vendor checks use the same contract. Existing edit-page
+loading/denial presentation remains supported. No frontend role implies access.

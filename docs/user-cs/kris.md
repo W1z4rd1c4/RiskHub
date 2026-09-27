@@ -124,6 +124,8 @@ Dialog Export má dva odlišné režimy evidence:
 - **Aktuální pohled** stáhne všechny řádky odpovídající aktuálnímu hledání, filtrům, řazení, pohledu a vybrané skupině. Stránkování seznamu se nepoužije. CSV obsahuje metriku, popis, navázané riziko a oddělení, hodnoty a limity, breach kód i popisek, frekvenci, monitoring, termín a prodlení, reporting ownera, poslední report a lifecycle.
 - **Historický snapshot** používá zvolené datum a reports službu. Použijte ho, když důkaz musí reprodukovat stav známý k minulému datu; nejde o export živého registru.
 
+Záložka Historie načítá nejvýše 50 záznamů na stránku. Tlačítka **Starší záznamy** a **Novější záznamy** zpřístupní zbývající dostupné záznamy; rozsah (například `51–75 z 75`) ukazuje načtenou část. Trend uvádí data konce období na dané stránce a výběr pro porovnání je omezen na stejnou stránku. Pro porovnání starších období nebo povolenou opravu přejděte na odpovídající stránku. Vybraná stránka historie je v URL detailu, takže obnovení a navigace Zpět/Vpřed ji zachovají. Při selhání načtení se zobrazí chyba s možností opakování místo nesprávně označených dat z předchozí stránky; oprávnění k opravám se nemění.
+
 Pro evidenci historie hodnot použijte záložku Historie v detailu KRI nebo stránku **Záznam aktivit**; samostatný export detailu nebo historie neexistuje.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:
@@ -142,6 +144,14 @@ Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílej
 - U dodavatele ověřte také navázané riziko.
 
 Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.
+
+## Obnovení archivovaného KRI
+
+Otevřete archivovaný KRI a zvolte **Obnovit z archivu**, pokud je akce dostupná. Stav **Obnovování…** znamená, že požadavek stále probíhá; akce zůstane zakázaná, dokud není znám výsledek.
+
+Při odmítnutí zůstane záznam viditelný a podle situace je dostupná akce **Zkusit obnovení znovu**. Při ztrátě spojení nemusí být výsledek znám: před dalším obnovením zvolte **Načíst záznam znovu**. Tím ověříte aktuální stav a přístupová práva, aniž by se znovu odeslal požadavek na obnovení. Pokud načtení selže, zopakujte načtení. Po změně oprávnění může akce zmizet.
+
+Zpráva **KRI byl obnoven.** potvrzuje, že server vrátil obnovený záznam. Samostatné upozornění na chybu načítání historie tento výsledek neruší; opakujte načtení historie, nikoli obnovení KRI.
 
 ## Troubleshooting
 

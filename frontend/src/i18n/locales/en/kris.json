@@ -255,7 +255,17 @@
     "record_timeline": "Record Timeline",
     "entries_count": "{{count}} entries",
     "compare_periods": "Compare Periods",
-    "need_two_entries_compare": "Select at least two entries to compare."
+    "need_two_entries_compare": "Select at least two entries to compare.",
+    "pagination": "History pages",
+    "newer": "Newer entries",
+    "older": "Older entries",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "loading_page": "Loading history page {{page}}…",
+    "unavailable_page": "History page {{page}} is unavailable",
+    "trend_window": "Trend shows only this page: {{from}} – {{to}} (period end dates).",
+    "no_window": "No period dates on this page.",
+    "comparison_window": "Comparison choices are limited to this page. Use Newer entries or Older entries to compare other periods.",
+    "denied_page": "Access denied to history page {{page}}"
   },
   "register": {
     "filters": {
@@ -283,5 +293,17 @@
     "reason_label": "Deletion reason",
     "reason_placeholder": "Explain why this KRI should be deleted...",
     "confirm": "Delete KRI"
+  },
+  "restore": {
+    "pending": "Restoring…",
+    "success": "KRI restored.",
+    "rejected": "Restore was rejected. Review the record and retry if appropriate.",
+    "unknown": "The restore outcome is unknown. Refresh the record to check its current state before trying again.",
+    "denied": "Restore was not authorized or the record is no longer available. Refresh to check your current access.",
+    "archived": "The refreshed record is still archived. You can retry restore if it is available.",
+    "retry": "Retry restore",
+    "refresh": "Refresh record",
+    "refreshing": "Refreshing record…",
+    "refresh_failed": "The record could not be refreshed. Retry the refresh to check its current state."
   }
 }

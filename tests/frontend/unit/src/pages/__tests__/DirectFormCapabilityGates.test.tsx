@@ -1,9 +1,12 @@
 import type { ReactElement } from 'react';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AssetDetailPage } from '@/pages/AssetDetailPage';
+import { ProcessDetailPage } from '@/pages/ProcessDetailPage';
+import { ThreatDetailPage } from '@/pages/ThreatDetailPage';
 import { ControlEditPage } from '@/pages/ControlEditPage';
 import { ControlNewPage } from '@/pages/ControlNewPage';
 import { KRINewPage } from '@/pages/KRINewPage';
@@ -11,6 +14,9 @@ import { RiskEditPage } from '@/pages/RiskEditPage';
 import { RiskNewPage } from '@/pages/RiskNewPage';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 
+const mockGetAssets = vi.fn();
+const mockGetProcesses = vi.fn();
+const mockGetThreats = vi.fn();
 const mockNavigate = vi.fn();
 const mockGetControls = vi.fn();
 const mockGetControl = vi.fn();
@@ -21,6 +27,14 @@ const mockGetVendors = vi.fn();
 const mockGetVendor = vi.fn();
 let mockParams: Record<string, string> = {};
 let mockSearchParams = new URLSearchParams();
+
+
+vi.mock('@/services/assetApi', () => ({ assetApi: { getAssets: (...args: unknown[]) => mockGetAssets(...args) } }));
+vi.mock('@/services/processApi', () => ({ processApi: { getProcesses: (...args: unknown[]) => mockGetProcesses(...args) } }));
+vi.mock('@/services/threatApi', () => ({ threatApi: { getThreats: (...args: unknown[]) => mockGetThreats(...args) } }));
+vi.mock('@/pages/assets/AssetForm', () => ({ AssetForm: () => <div data-testid="asset-form" /> }));
+vi.mock('@/pages/processes/ProcessForm', () => ({ ProcessForm: () => <div data-testid="process-form" /> }));
+vi.mock('@/pages/threats/ThreatForm', () => ({ ThreatForm: () => <div data-testid="threat-form" /> }));
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -145,6 +159,9 @@ function renderWithQueryClient(ui: ReactElement) {
 describe('direct create/edit form capability gates', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGetAssets.mockResolvedValue(listResponse(true));
+        mockGetProcesses.mockResolvedValue(listResponse(true));
+        mockGetThreats.mockResolvedValue(listResponse(true));
         mockParams = {};
         mockSearchParams = new URLSearchParams();
         mockGetControls.mockResolvedValue(listResponse(true));
@@ -154,6 +171,24 @@ describe('direct create/edit form capability gates', () => {
         mockGetRisk.mockResolvedValue(riskDetail(true));
         mockGetVendors.mockResolvedValue(listResponse(true));
         mockGetVendor.mockResolvedValue(vendorDetail({ can_update: true }));
+    });
+
+    it.each([
+        ['risk', () => <RiskNewPage />, mockGetRisks, 'risk-form'],
+        ['control', () => <ControlNewPage />, mockGetControls, 'control-form'],
+        ['kri', () => <KRINewPage />, mockGetKRIs, 'kri-form'],
+        ['vendor', () => <VendorDetailPage mode="new" />, mockGetVendors, 'vendor-form-new'],
+        ['asset', () => <AssetDetailPage mode="new" />, mockGetAssets, 'asset-form'],
+        ['process', () => <ProcessDetailPage mode="new" />, mockGetProcesses, 'process-form'],
+        ['threat', () => <ThreatDetailPage mode="new" />, mockGetThreats, 'threat-form'],
+    ] as const)('%s creation distinguishes an outage from denial and supports retry', async (_name, page, load, formId) => {
+        load.mockRejectedValueOnce(new TypeError('offline'));
+        renderWithQueryClient(page());
+        expect(await screen.findByRole('alert')).toHaveTextContent('Could not check access. Please try again.');
+        expect(screen.queryByTestId(formId)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(await screen.findByTestId(formId)).toBeInTheDocument();
+        expect(load).toHaveBeenCalledTimes(2);
     });
 
     it('hides direct risk create when collection can_create is missing or false', async () => {

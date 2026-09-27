@@ -91,6 +91,7 @@ export function useDetailQuery<T>({
         isRetrying: detailQuery.isFetching && !detailQuery.isLoading,
         loadOutcome,
         refetch,
+        refetchOutcome: detailQuery.refetch,
         resource,
         resourceId,
         setResource,
