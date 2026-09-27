@@ -146,7 +146,7 @@ export function HistoryComparisonPanel({
 
     if (sortedEntries.length < 2) {
         return (
-            <div className={cn('text-center py-8 text-slate-500 text-sm', className)}>
+            <div className={cn('text-center py-8 text-muted-foreground text-sm', className)}>
                 {t('comparison.need_two_entries', { ns: 'kris' })}
             </div>
         );
@@ -158,15 +158,15 @@ export function HistoryComparisonPanel({
             <div className="flex items-center justify-between gap-6 flex-wrap">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-accent/10 rounded-lg">
-                        <ArrowRight className="h-4 w-4 text-accent rotate-45" />
+                        <ArrowRight className="h-4 w-4 text-accent-text rotate-45" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">{t('comparison.compare_records', { ns: 'kris' })}</h4>
-                        <p className="text-[10px] text-slate-500 font-medium">{t('comparison.analyze_changes', { ns: 'kris' })}</p>
+                        <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">{t('comparison.compare_records', { ns: 'kris' })}</h4>
+                        <p className="text-[10px] text-muted-foreground font-medium">{t('comparison.analyze_changes', { ns: 'kris' })}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-xl border border-white/10 ml-auto">
+                <div className="flex items-center gap-3 bg-secondary p-1.5 rounded-xl border border-border ml-auto">
                     {/* Left selector (previous/baseline) */}
                     <ThemedSelect
                         value={leftId?.toString() ?? ''}
@@ -175,7 +175,7 @@ export function HistoryComparisonPanel({
                         options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
                     />
 
-                    <div className="w-px h-4 bg-white/10" />
+                    <div className="w-px h-4 bg-secondary" />
 
                     {/* Right selector (current/target) */}
                     <ThemedSelect
@@ -189,7 +189,7 @@ export function HistoryComparisonPanel({
 
             {/* Warning if same selection */}
             {isSameSelection && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/[0.03] border border-amber-500/10 rounded-xl text-amber-500/80 text-xs font-medium backdrop-blur-sm animate-pulse">
+                <div className="flex items-center gap-3 px-4 py-3 bg-warning/10 border border-warning/20 rounded-xl text-warning-text text-xs font-medium backdrop-blur-sm">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     <span>{t('comparison.distinct_periods_required', { ns: 'kris' })}</span>
                 </div>

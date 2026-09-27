@@ -72,7 +72,7 @@ export function RiskFormOwnershipStep({
           label={t('common:labels.department')}
           required
           error={fieldErrors.department_id || undefined}
-          labelClassName="block text-[10px] font-black text-slate-500 uppercase tracking-widest"
+          labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
         >
           {(field) => (
             <ThemedSelect
@@ -82,7 +82,7 @@ export function RiskFormOwnershipStep({
               placeholder={t('form.placeholders.select_department')}
               allowEmpty
               emptyLabel={t('form.placeholders.select_department')}
-              className={fieldErrors.department_id ? 'border-rose-500' : ''}
+              className={fieldErrors.department_id ? 'border-destructive' : ''}
               options={departments.map((d) => ({ value: d.id.toString(), label: `${d.name} (${d.code})` }))}
             />
           )}
@@ -92,7 +92,7 @@ export function RiskFormOwnershipStep({
             label={t('risks:form.owner_search.label')}
             help={t('risks:form.owner_search.help')}
             error={ownerError}
-            labelClassName="block text-[10px] font-black text-slate-500 uppercase tracking-widest"
+            labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
           >
             {(field) => (
               <>
@@ -103,7 +103,7 @@ export function RiskFormOwnershipStep({
                     aria-pressed={!roleFilter}
                     className={`px-2.5 py-1 text-xs rounded-lg transition-all ${!roleFilter
                       ? 'bg-accent text-accent-foreground'
-                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      : 'bg-secondary text-muted-foreground hover:bg-secondary'
                       }`}
                   >
                     {t('common:labels.all')}
@@ -116,7 +116,7 @@ export function RiskFormOwnershipStep({
                       aria-pressed={roleFilter === role}
                       className={`px-2.5 py-1 text-xs rounded-lg transition-all capitalize ${roleFilter === role
                         ? 'bg-accent text-accent-foreground'
-                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                        : 'bg-secondary text-muted-foreground hover:bg-secondary'
                         }`}
                     >
                       {role}
@@ -125,13 +125,13 @@ export function RiskFormOwnershipStep({
                 </div>
 
                 {formData.owner_id ? (
-                  <div className={`flex items-center justify-between bg-accent/10 border rounded-xl px-4 py-3 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-accent/30'
+                  <div className={`flex items-center justify-between bg-accent/10 border rounded-xl px-4 py-3 ${fieldErrors.owner_id ? 'border-destructive' : 'border-accent/30'
                     }`}>
                     <div>
-                      <p className="text-sm font-medium text-white">
+                      <p className="text-sm font-medium text-foreground">
                         {selectedName}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-muted-foreground">
                         {t('risks:form.owner_search.selected')}
                       </p>
                     </div>
@@ -142,7 +142,7 @@ export function RiskFormOwnershipStep({
                         handleInputChange('owner_id', null);
                         searchRef.current?.focus();
                       }}
-                      className="text-slate-400 hover:text-white p-1"
+                      className="text-muted-foreground hover:text-foreground p-1"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -158,13 +158,13 @@ export function RiskFormOwnershipStep({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') event.preventDefault();
                   }}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all"
+                  className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
                 />
               </>
             )}
           </Field>
           <div className="space-y-2 mt-3">
-            <div aria-busy={ownerLookupStatus === 'loading'} className={`max-h-40 overflow-y-auto rounded-xl border divide-y divide-white/5 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-white/10'
+            <div aria-busy={ownerLookupStatus === 'loading'} className={`max-h-40 overflow-y-auto rounded-xl border divide-y divide-border ${fieldErrors.owner_id ? 'border-destructive' : 'border-border'
               }`}>
               {ownerLookupStatus === 'loading' ? (
                 <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{t('risks:form.owner_search.loading')}</p>
@@ -193,10 +193,10 @@ export function RiskFormOwnershipStep({
                       selectOwner(u);
                       searchRef.current?.focus();
                     }}
-                    className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors"
+                    className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-secondary transition-colors"
                   >
-                    <span className="text-sm text-white">{u.name}</span>
-                    <span className="text-xs text-slate-500 capitalize">{u.role_name}</span>
+                    <span className="text-sm text-foreground">{u.name}</span>
+                    <span className="text-xs text-muted-foreground capitalize">{u.role_name}</span>
                   </button>
                 ))
               )}
@@ -210,18 +210,18 @@ export function RiskFormOwnershipStep({
       </div>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-3 cursor-pointer group">
-          <div className={`relative w-12 h-6 rounded-full transition-all ${formData.is_priority ? 'bg-accent' : 'bg-white/10'}`}>
+          <div className={`relative w-12 h-6 rounded-full transition-all ${formData.is_priority ? 'bg-accent' : 'bg-input'}`}>
             <input
               type="checkbox"
               className="sr-only"
               checked={formData.is_priority}
               onChange={(e) => handleInputChange('is_priority', e.target.checked)}
             />
-            <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${formData.is_priority ? 'translate-x-6' : 'translate-x-0'}`} />
+            <div className={`absolute top-1 left-1 w-4 h-4 bg-background rounded-full transition-transform ${formData.is_priority ? 'translate-x-6' : 'translate-x-0'}`} />
           </div>
           <div className="flex items-center gap-1.5">
-            <Star className={`h-4 w-4 ${formData.is_priority ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">{t('risks:fields.is_priority')}</span>
+            <Star className={`h-4 w-4 ${formData.is_priority ? 'text-warning-text fill-warning-text' : 'text-muted-foreground'}`} />
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-foreground transition-colors">{t('risks:fields.is_priority')}</span>
           </div>
         </label>
       </div>

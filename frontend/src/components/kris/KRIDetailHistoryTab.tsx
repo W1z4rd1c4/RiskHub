@@ -122,8 +122,8 @@ export function KRIDetailHistoryTab({
                 animate={{ opacity: 1, y: 0 }}
                 className="glass-card"
             >
-                <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-accent" /> {t('history_tab.value_trend', { ns: 'kris' })}
+                <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-accent-text" /> {t('history_tab.value_trend', { ns: 'kris' })}
                 </h3>
                 <HistoryTrendChart
                     data={historyChartData}
@@ -142,9 +142,9 @@ export function KRIDetailHistoryTab({
                 transition={{ delay: 0.1 }}
                 className="glass-card"
             >
-                <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <History className="h-4 w-4 text-accent" /> {t('history_tab.record_timeline', { ns: 'kris' })}
-                    {historyTotal > 0 && <span className="text-slate-500 font-normal">({t('history_tab.entries_count', { ns: 'kris', count: historyTotal })})</span>}
+                <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <History className="h-4 w-4 text-accent-text" /> {t('history_tab.record_timeline', { ns: 'kris' })}
+                    {historyTotal > 0 && <span className="text-muted-foreground font-normal">({t('history_tab.entries_count', { ns: 'kris', count: historyTotal })})</span>}
                 </h3>
                 <HistoryTimeline
                     items={timelineItems}
@@ -165,8 +165,8 @@ export function KRIDetailHistoryTab({
                 transition={{ delay: 0.2 }}
                 className="glass-card"
             >
-                <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-accent" /> {t('history_tab.compare_periods', { ns: 'kris' })}
+                <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-accent-text" /> {t('history_tab.compare_periods', { ns: 'kris' })}
                 </h3>
                 {history.length >= 2 ? (
                     <HistoryComparisonPanel
@@ -174,7 +174,7 @@ export function KRIDetailHistoryTab({
                         formatValue={(val) => formatNumber(val, i18n.language)}
                     />
                 ) : (
-                    <div className="text-center py-8 text-slate-500 text-sm">
+                    <div className="text-center py-8 text-muted-foreground text-sm">
                         {t('history_tab.need_two_entries_compare', { ns: 'kris' })}
                     </div>
                 )}

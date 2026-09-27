@@ -71,14 +71,14 @@ export function ApprovalResolutionDialog({
             contentClassName="relative max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto glass rounded-2xl shadow-2xl"
         >
                         <div className="p-6" aria-busy={isSubmitting}>
-                            <h3 id={titleId} className="text-xl font-bold text-white mb-2">
+                            <h3 id={titleId} className="text-xl font-bold text-foreground mb-2">
                                 {dialogMode === 'approve'
                                     ? t('dialogs.approve_title')
                                     : t('dialogs.reject_title')}
                             </h3>
-                            <p id={descriptionId} className="mb-4 text-sm text-slate-400">{t('dialogs.resolution_required')}</p>
+                            <p id={descriptionId} className="mb-4 text-sm text-muted-foreground">{t('dialogs.resolution_required')}</p>
 
-                            <dl className="grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
+                            <dl className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-secondary p-4 text-sm">
                                 <div className="col-span-2">
                                     <dt className="text-xs font-bold uppercase text-muted-foreground">
                                         {t('approvals:fields.entity_name')}
@@ -110,7 +110,7 @@ export function ApprovalResolutionDialog({
                             </dl>
 
                             {showChanges && (
-                                <section className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                                <section className="mt-4 rounded-xl border border-border bg-nested p-4">
                                     <h4 className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">
                                         {t('approvals:labels.proposed_changes')}
                                     </h4>
@@ -142,7 +142,7 @@ export function ApprovalResolutionDialog({
                                 disabled={isSubmitting}
                                 aria-labelledby={descriptionId}
                                 placeholder={t('dialogs.resolution_placeholder')}
-                                className="mt-4 h-32 w-full resize-none rounded-xl border border-white/10 bg-white/5 p-4 text-white outline-none placeholder:text-slate-600 focus:border-accent/50 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="mt-4 h-32 w-full resize-none rounded-xl border border-input bg-background p-4 text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:border-dashed"
                             />
 
                             {errorText && (
@@ -159,7 +159,7 @@ export function ApprovalResolutionDialog({
                                     type="button"
                                     onClick={onClose}
                                     disabled={isSubmitting}
-                                    className="px-4 py-2 text-sm font-bold text-slate-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="px-4 py-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground border border-transparent disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:border-input disabled:border-dashed"
                                 >
                                     {t('common:actions.close')}
                                 </button>
@@ -171,10 +171,10 @@ export function ApprovalResolutionDialog({
                                     }}
                                     disabled={isSubmitting}
                                     className={cn(
-                                        'px-6 py-2 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50',
+                                        'px-6 py-2 rounded-xl text-sm font-bold transition-all border border-transparent disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:border-input disabled:border-dashed',
                                         dialogMode === 'approve'
-                                            ? 'bg-emerald-500 hover:bg-emerald-600'
-                                            : 'bg-rose-500 hover:bg-rose-600',
+                                            ? 'bg-success text-success-foreground hover:bg-success/90'
+                                            : 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
                                     )}
                                 >
                                     {isSubmitting
