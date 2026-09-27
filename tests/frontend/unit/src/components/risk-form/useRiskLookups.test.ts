@@ -8,14 +8,12 @@ import { useRiskLookups } from '@/components/risk-form/useRiskLookups';
 import i18n from '@/i18n';
 import type { Risk } from '@/types/risk';
 
-const getRiskOwnersMock = vi.fn();
 const getDepartmentsMock = vi.fn();
 const getRiskFiltersMock = vi.fn();
 const getRisksMock = vi.fn();
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getRiskOwners: (...args: unknown[]) => getRiskOwnersMock(...args),
         getDepartments: (...args: unknown[]) => getDepartmentsMock(...args),
         getRiskFilters: (...args: unknown[]) => getRiskFiltersMock(...args),
     },
@@ -52,7 +50,6 @@ function LookupBackedIdentityStep() {
 describe('useRiskLookups', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getRiskOwnersMock.mockResolvedValue([{ id: 7, name: 'Alice Owner' }]);
         getDepartmentsMock.mockResolvedValue([{ id: 3, name: 'Operations', code: 'OPS' }]);
         getRiskFiltersMock.mockResolvedValue({
             processes: ['Claims', 'Underwriting'],
@@ -77,13 +74,12 @@ describe('useRiskLookups', () => {
         expect(getRisksMock).not.toHaveBeenCalled();
     });
 
-    it('keeps owner and Department choices when optional Risk suggestions fail', async () => {
+    it('keeps Department choices when optional Risk suggestions fail', async () => {
         getRiskFiltersMock.mockRejectedValueOnce(new Error('suggestions unavailable'));
 
         const { result } = renderHook(() => useRiskLookups());
 
-        await waitFor(() => expect(result.current.users).toEqual([{ id: 7, name: 'Alice Owner' }]));
-        expect(result.current.departments).toEqual([{ id: 3, name: 'Operations', code: 'OPS' }]);
+        await waitFor(() => expect(result.current.departments).toEqual([{ id: 3, name: 'Operations', code: 'OPS' }]));
         expect(result.current.existingProcesses).toEqual([]);
         expect(result.current.existingCategories).toEqual([]);
         expect(result.current.subprocessesByProcess).toEqual({});
@@ -106,23 +102,17 @@ describe('useRiskLookups', () => {
         expect(getRisksMock).not.toHaveBeenCalled();
     });
 
-    it('aborts all three lookup requests when the Risk form unmounts', async () => {
-        getRiskOwnersMock.mockReturnValue(new Promise(() => undefined));
+    it('aborts both suggestion and Department requests when the Risk form unmounts', async () => {
         getDepartmentsMock.mockReturnValue(new Promise(() => undefined));
         getRiskFiltersMock.mockReturnValue(new Promise(() => undefined));
 
         const { unmount } = renderHook(() => useRiskLookups());
 
         await waitFor(() => {
-            expect(getRiskOwnersMock).toHaveBeenCalledWith(
-                { limit: 200 },
-                { signal: expect.any(AbortSignal) },
-            );
             expect(getDepartmentsMock).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
             expect(getRiskFiltersMock).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
         });
         const signals = [
-            getRiskOwnersMock.mock.calls[0]?.[1]?.signal,
             getDepartmentsMock.mock.calls[0]?.[0]?.signal,
             getRiskFiltersMock.mock.calls[0]?.[0]?.signal,
         ] as AbortSignal[];

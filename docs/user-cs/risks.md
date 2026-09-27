@@ -95,6 +95,8 @@ Po uložení nebo odeslání ověřte výsledek. Seznam má ukázat nový stav, 
 
 Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
+V kroku **Detaily a vlastník** hledejte podle jména nebo e-mailu ve vybraném oddělení. Seznam zobrazí nejvýše 50 odpovídajících způsobilých vlastníků; při výzvě hledání upřesněte. Tlačítka rolí pouze filtrují výsledky, vlastníka nevybírají ani nemažou. Vybraný vlastník zůstává viditelný i během hledání a při selhání je dostupná akce **Zkusit znovu**. Vlastníka změníte výslovným výběrem osoby; tím se také doplní její oddělení, pokud je dostupné. Akce **Zrušit výběr vlastníka [jméno]** odstraní pouze vlastníka. Hledání ani filtry rolí přiřazení nemění.
+
 ## Schvalování a notifikace
 
 Změny governance, ownership, scoringu nebo archivace mohou čekat na review. Pokud změna čeká, sledujte ji ve Schvalování nebo Notifikacích místo vytváření druhé úpravy.

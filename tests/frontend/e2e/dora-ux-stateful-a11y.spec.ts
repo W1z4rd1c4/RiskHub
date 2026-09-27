@@ -86,6 +86,7 @@ interface Ux157JourneyConfig {
         directoryAdd: string;
         directorySearch: string;
         directorySetupGuidance: RegExp;
+        department: string;
         departmentPlaceholder: string;
         grossImpact: string;
         grossMatrix: string;
@@ -100,7 +101,7 @@ interface Ux157JourneyConfig {
         netProbability: string;
         notificationBell: string;
         notificationFailure: string;
-        ownerSearchPlaceholder: string;
+        ownerSearch: string;
         refresh: string;
         retryGuidance: string;
         sessionsTab: string;
@@ -135,6 +136,7 @@ const UX157_EN_LABELS: Ux157JourneyConfig['labels'] = {
     directoryAdd: 'Add from AD',
     directorySearch: 'Search by name or email',
     directorySetupGuidance: /Directory provider is not configured.*Configure ENTRA_TENANT_ID.*retry\./,
+    department: 'Department',
     departmentPlaceholder: 'Select Department',
     grossImpact: 'Gross impact',
     grossMatrix: 'Gross Risk',
@@ -149,7 +151,7 @@ const UX157_EN_LABELS: Ux157JourneyConfig['labels'] = {
     netProbability: 'Net probability',
     notificationBell: 'Notifications',
     notificationFailure: 'Could not update this notification. Try again.',
-    ownerSearchPlaceholder: 'Search by name...',
+    ownerSearch: 'Risk Owner (required selection)',
     refresh: 'Refresh',
     retryGuidance: 'Try again.',
     sessionsTab: 'Active Sessions',
@@ -194,6 +196,7 @@ const UX157_JOURNEYS: Ux157JourneyConfig[] = [
             directoryAdd: 'Přidat z AD',
             directorySearch: 'Hledat podle jména nebo e-mailu',
             directorySetupGuidance: /Poskytovatel adresáře není nakonfigurován.*Nakonfigurujte ENTRA_TENANT_ID.*zkuste to znovu\./,
+            department: 'Oddělení',
             departmentPlaceholder: 'Vyberte oddělení',
             grossImpact: 'Hrubý dopad',
             grossMatrix: 'Hrubé riziko',
@@ -208,7 +211,7 @@ const UX157_JOURNEYS: Ux157JourneyConfig[] = [
             netProbability: 'Čistá pravděpodobnost',
             notificationBell: 'Oznámení',
             notificationFailure: 'Oznámení se nepodařilo aktualizovat. Zkuste to znovu.',
-            ownerSearchPlaceholder: 'Hledat podle názvu...',
+            ownerSearch: 'Vlastník rizika (povinný výběr)',
             refresh: 'Obnovit',
             retryGuidance: 'Zkuste to znovu.',
             sessionsTab: 'Aktivní relace',
@@ -414,9 +417,9 @@ async function driveUx157RiskAuthoring(page: Page, config: Ux157JourneyConfig): 
     await expect(page.getByRole('listbox')).toHaveCount(0);
 
     await page.getByTestId('risk-form-next-button').click();
-    const department = page.getByRole('combobox', { name: config.labels.departmentPlaceholder });
+    const department = page.getByRole('combobox', { name: config.labels.department, exact: true });
     await expect(department).toBeVisible();
-    const ownerSearch = page.getByPlaceholder(config.labels.ownerSearchPlaceholder);
+    const ownerSearch = page.getByRole('textbox', { name: config.labels.ownerSearch, exact: true });
     await ownerSearch.fill('Petra');
     // Selecting the owner through the public result list also selects her
     // authoritative Department; choosing an unrelated Department first would

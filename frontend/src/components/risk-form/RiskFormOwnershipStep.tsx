@@ -1,5 +1,8 @@
-import { AlertCircle, Star, X } from 'lucide-react';
+import { useRef } from 'react';
 
+import { Star, X } from 'lucide-react';
+
+import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk } from '@/types/risk';
@@ -21,7 +24,11 @@ interface RiskFormOwnershipStepProps {
   formData: Partial<Risk>;
   fieldErrors: Record<string, string>;
   departments: DepartmentLookup[];
-  users: UserLookupItem[];
+  ownerLookupStatus: 'loading' | 'ready' | 'error';
+  ownerResultsLimited: boolean;
+  ownerResultsHiddenByRole: boolean;
+  retryOwnerSearch: () => void;
+  selectOwner: (owner: UserLookupItem) => void;
   filteredUsers: UserLookupItem[];
   uniqueRoles: string[];
   ownerSearch: string;
@@ -36,7 +43,11 @@ export function RiskFormOwnershipStep({
   formData,
   fieldErrors,
   departments,
-  users,
+  ownerLookupStatus,
+  ownerResultsLimited,
+  ownerResultsHiddenByRole,
+  retryOwnerSearch,
+  selectOwner,
   filteredUsers,
   uniqueRoles,
   ownerSearch,
@@ -45,123 +56,156 @@ export function RiskFormOwnershipStep({
   setRoleFilter,
   handleInputChange,
 }: RiskFormOwnershipStepProps) {
+  const searchRef = useRef<HTMLInputElement>(null);
+  const selectedOwner = formData.owner?.id === formData.owner_id ? formData.owner : undefined;
+  const selectedName = selectedOwner?.name || t('risks:form.owner_search.unknown_owner');
+  const ownerError = (fieldErrors.owner_id || ownerLookupStatus === 'error') ? (
+    <>
+      {fieldErrors.owner_id && <span>{fieldErrors.owner_id} </span>}
+      {ownerLookupStatus === 'error' && <span role="alert">{t('risks:form.owner_search.failed')}</span>}
+    </>
+  ) : undefined;
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-            {t('common:labels.department')} <span className="text-rose-400">*</span>
-          </label>
-          <ThemedSelect
-            value={formData.department_id?.toString() ?? ''}
-            onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v, 10) : null)}
-            placeholder={t('form.placeholders.select_department')}
-            allowEmpty
-            emptyLabel={t('form.placeholders.select_department')}
-            className={fieldErrors.department_id ? 'border-rose-500' : ''}
-            options={departments.map((d) => ({ value: d.id.toString(), label: `${d.name} (${d.code})` }))}
-          />
-          {fieldErrors.department_id && (
-            <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" /> {fieldErrors.department_id}
-            </p>
+        <Field
+          label={t('common:labels.department')}
+          required
+          error={fieldErrors.department_id || undefined}
+          labelClassName="block text-[10px] font-black text-slate-500 uppercase tracking-widest"
+        >
+          {(field) => (
+            <ThemedSelect
+              {...field}
+              value={formData.department_id?.toString() ?? ''}
+              onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v, 10) : null)}
+              placeholder={t('form.placeholders.select_department')}
+              allowEmpty
+              emptyLabel={t('form.placeholders.select_department')}
+              className={fieldErrors.department_id ? 'border-rose-500' : ''}
+              options={departments.map((d) => ({ value: d.id.toString(), label: `${d.name} (${d.code})` }))}
+            />
           )}
-        </div>
+        </Field>
         <div>
-          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-            {t('risks:fields.owner')} <span className="text-rose-400">*</span>
-          </label>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            <button
-              type="button"
-              onClick={() => {
-                setRoleFilter('');
-                handleInputChange('owner_id', null);
-              }}
-              className={`px-2.5 py-1 text-xs rounded-lg transition-all ${!roleFilter
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                }`}
-            >
-              All
-            </button>
-            {uniqueRoles.map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => {
-                  setRoleFilter(role);
-                  const usersWithRole = users.filter((u) => u.role_name === role);
-                  if (usersWithRole.length === 1) {
-                    handleInputChange('owner_id', usersWithRole[0].id);
-                  } else {
-                    handleInputChange('owner_id', null);
-                    handleInputChange('department_id', null);
-                  }
-                }}
-                className={`px-2.5 py-1 text-xs rounded-lg transition-all capitalize ${roleFilter === role
-                  ? 'bg-accent text-accent-foreground'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                  }`}
-              >
-                {role}
-              </button>
-            ))}
+          <Field
+            label={t('risks:form.owner_search.label')}
+            help={t('risks:form.owner_search.help')}
+            error={ownerError}
+            labelClassName="block text-[10px] font-black text-slate-500 uppercase tracking-widest"
+          >
+            {(field) => (
+              <>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setRoleFilter('')}
+                    aria-pressed={!roleFilter}
+                    className={`px-2.5 py-1 text-xs rounded-lg transition-all ${!roleFilter
+                      ? 'bg-accent text-accent-foreground'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                  >
+                    {t('common:labels.all')}
+                  </button>
+                  {uniqueRoles.map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setRoleFilter(role)}
+                      aria-pressed={roleFilter === role}
+                      className={`px-2.5 py-1 text-xs rounded-lg transition-all capitalize ${roleFilter === role
+                        ? 'bg-accent text-accent-foreground'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                        }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+
+                {formData.owner_id ? (
+                  <div className={`flex items-center justify-between bg-accent/10 border rounded-xl px-4 py-3 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-accent/30'
+                    }`}>
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        {selectedName}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {t('risks:form.owner_search.selected')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={t('risks:form.owner_search.clear', { name: selectedName })}
+                      onClick={() => {
+                        handleInputChange('owner_id', null);
+                        searchRef.current?.focus();
+                      }}
+                      className="text-slate-400 hover:text-white p-1"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : null}
+                <input
+                  ref={searchRef}
+                  {...field}
+                  type="text"
+                  placeholder={t('form.placeholders.search_by_name')}
+                  value={ownerSearch}
+                  onChange={(e) => setOwnerSearch(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.preventDefault();
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all"
+                />
+              </>
+            )}
+          </Field>
+          <div className="space-y-2 mt-3">
+            <div aria-busy={ownerLookupStatus === 'loading'} className={`max-h-40 overflow-y-auto rounded-xl border divide-y divide-white/5 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-white/10'
+              }`}>
+              {ownerLookupStatus === 'loading' ? (
+                <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{t('risks:form.owner_search.loading')}</p>
+              ) : ownerLookupStatus === 'error' ? (
+                <div className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      retryOwnerSearch();
+                      searchRef.current?.focus();
+                    }}
+                    className="btn-secondary mt-2"
+                  >
+                    {t('common:actions.retry')}
+                  </button>
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{ownerResultsLimited || ownerResultsHiddenByRole ? t('risks:form.owner_search.no_visible_matches') : t('common:empty.no_users_found')}</p>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    aria-pressed={formData.owner_id === u.id}
+                    onClick={() => {
+                      selectOwner(u);
+                      searchRef.current?.focus();
+                    }}
+                    className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors"
+                  >
+                    <span className="text-sm text-white">{u.name}</span>
+                    <span className="text-xs text-slate-500 capitalize">{u.role_name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+            {ownerLookupStatus === 'ready' && ownerResultsLimited && (
+              <p role="status" className="text-xs text-muted-foreground">{t('risks:form.owner_search.refine')}</p>
+            )}
           </div>
 
-          {formData.owner_id ? (
-            <div className={`flex items-center justify-between bg-accent/10 border rounded-xl px-4 py-3 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-accent/30'
-              }`}>
-              <div>
-                <p className="text-sm font-medium text-white">
-                  {users.find((u) => u.id === formData.owner_id)?.name}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {users.find((u) => u.id === formData.owner_id)?.role_name}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleInputChange('owner_id', null)}
-                className="text-slate-400 hover:text-white p-1"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <input
-                type="text"
-                placeholder={t('form.placeholders.search_by_name')}
-                value={ownerSearch}
-                onChange={(e) => setOwnerSearch(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all"
-              />
-              <div className={`max-h-40 overflow-y-auto rounded-xl border divide-y divide-white/5 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-white/10'
-                }`}>
-                {filteredUsers.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-slate-500">{t('common:empty.no_users_found')}</p>
-                ) : (
-                  filteredUsers.slice(0, 8).map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => handleInputChange('owner_id', u.id)}
-                      className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors"
-                    >
-                      <span className="text-sm text-white">{u.name}</span>
-                      <span className="text-xs text-slate-500 capitalize">{u.role_name}</span>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-          {fieldErrors.owner_id && (
-            <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" /> {fieldErrors.owner_id}
-            </p>
-          )}
         </div>
       </div>
       <div className="flex items-center gap-3">

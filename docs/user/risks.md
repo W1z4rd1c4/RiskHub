@@ -95,6 +95,8 @@ After saving or submitting, verify the result. The list should show the new stat
 
 When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
+In **Details & Owner**, search by name or email within the selected Department. The list shows up to 50 matching eligible owners; refine your search when prompted. Role buttons filter these results without clearing or selecting an owner. The selected owner stays visible while you search, and a failed search has a local **Retry** action. Choose a person explicitly to change ownership; this also fills their Department when available. Use **Clear owner [name]** to remove only the owner. Search and role filters never change your assignment.
+
 ## Approvals and Notifications
 
 Edits that affect governance, ownership, scoring, or archive state may be sent for review. If a change is waiting, use Approvals or Notifications to follow it instead of creating a second competing edit.

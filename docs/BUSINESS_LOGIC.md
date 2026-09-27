@@ -192,6 +192,8 @@ Rules:
 **Who Can Own a Risk:**
 - Any user can be assigned as Risk Owner regardless of their department
 - The assigned owner is typically someone in the same department, but this is not enforced
+- In the Risk form, owner search queries the assignment-specific, actor-scoped lookup with a maximum of 50 candidates per query. Text and role filters only change displayed candidates; they never change the draft owner or department. Refine the name/email query when the result cap is reached.
+- Explicit owner selection sets the owner and, when available, that user's department in the visible Department field. Explicit clear removes only the owner. The existing owner remains readable while searching, including in edit mode; failed searches offer Retry without changing the assignment.
 - Changing `owner_id` is a **sensitive field change** requiring approval
 
 ### 2.2 Control
