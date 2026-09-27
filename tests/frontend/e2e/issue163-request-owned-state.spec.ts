@@ -2,8 +2,10 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Browser, type Page, type Route } from '@playwright/test';
 
 import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from './helpers/axeBaseline';
+import { renderedContrast } from './helpers/renderedContrast';
 
 type Locale = 'en' | 'cs';
+type Theme = 'riskhub' | 'light' | 'dark';
 
 const JOURNEYS = [
     { locale: 'en' as const, viewport: { width: 1024, height: 768 } },
@@ -60,13 +62,16 @@ async function json(route: Route, body: unknown, status = 200) {
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
-function user() {
+function user(role: 'admin' | 'cro' = 'admin') {
     const permissions = ['risks:read', 'controls:read', 'users:read'];
+    if (role === 'cro') {
+        permissions.push('issues:read', 'assets:read', 'threats:read', 'processes:read', 'vendors:read', 'ict_committee:read');
+    }
     return {
         id: 163,
         email: 'issue163@example.test',
         name: 'Issue 163 Administrator',
-        role: 'admin',
+        role,
         role_display_name: 'Platform Administrator',
         department_id: null,
         department_name: null,
@@ -188,7 +193,7 @@ function auditEntries() {
     };
 }
 
-async function installMockApi(page: Page, locale: Locale, state: JourneyState) {
+async function installMockApi(page: Page, locale: Locale, state: JourneyState, theme: Theme = 'riskhub', role: 'admin' | 'cro' = 'admin') {
     await page.route('**/api/v1/**', async (route) => {
         const request = route.request();
         const url = new URL(request.url());
@@ -224,13 +229,13 @@ async function installMockApi(page: Page, locale: Locale, state: JourneyState) {
             await json(route, {
                 access_token: 'issue163-token',
                 token_type: 'bearer',
-                post_login_redirect_to: '/admin',
-                user: user(),
+                post_login_redirect_to: role === 'admin' ? '/admin' : '/risks',
+                user: user(role),
             });
             return;
         }
         if (pathname === '/api/v1/auth/me') {
-            await json(route, user());
+            await json(route, user(role));
             return;
         }
         if (pathname === '/api/v1/auth/csrf') {
@@ -238,7 +243,7 @@ async function installMockApi(page: Page, locale: Locale, state: JourneyState) {
             return;
         }
         if (pathname === '/api/v1/preferences') {
-            await json(route, { theme: 'riskhub', language: locale });
+            await json(route, { theme, language: locale });
             return;
         }
         if (pathname === '/api/v1/users/me/shell-summary') {
@@ -459,18 +464,18 @@ async function navigateSpa(page: Page, target: string) {
     }, target);
 }
 
-async function openJourney(browser: Browser, journey: typeof JOURNEYS[number]) {
+async function openJourney(browser: Browser, journey: typeof JOURNEYS[number], theme: Theme = 'riskhub', role: 'admin' | 'cro' = 'admin') {
     const context = await browser.newContext({ viewport: journey.viewport, timezoneId: 'Europe/Prague' });
-    await context.addInitScript((locale) => {
+    await context.addInitScript(({ locale, theme }) => {
         localStorage.setItem('riskhub-language', locale);
-        localStorage.setItem('riskhub-theme', 'riskhub');
-    }, journey.locale);
+        localStorage.setItem('riskhub-theme', theme);
+    }, { locale: journey.locale, theme });
     const page = await context.newPage();
     const state = createState();
-    await installMockApi(page, journey.locale, state);
+    await installMockApi(page, journey.locale, state, theme, role);
     await page.goto('/login');
     await page.getByRole('button', { name: /Issue 163 Administrator/ }).click();
-    await expect(page).toHaveURL(/\/admin/);
+    await expect(page).toHaveURL(role === 'admin' ? /\/admin/ : /\/risks/);
     return { context, page, state };
 }
 
@@ -583,6 +588,62 @@ test.describe('Issue #163 request-owned desktop states', () => {
                 );
                 await assertDesktopState(page, `${journey.locale} Directory error`);
             } finally {
+                await context.close();
+            }
+        });
+    }
+});
+
+test.describe('Issue #227 loading text contrast', () => {
+    for (const theme of ['riskhub', 'light', 'dark'] as const) {
+        test(`loading labels remain readable at the pulse minimum in ${theme}`, async ({ browser }) => {
+            const { context, page } = await openJourney(browser, JOURNEYS[0]!, theme, 'cro');
+            const pending = deferred();
+            try {
+                // Hold the resource requests so the real loading branches stay rendered.
+                const holdRequest = async (route: Route) => {
+                    await pending.promise;
+                    await route.abort();
+                };
+                await page.route(/\/api\/v1\/(controls|issues|assets|threats|processes)\/227(?:\?.*)?$/, holdRequest);
+                await page.route('**/api/v1/ict-register/dq*', holdRequest);
+                await page.route('**/api/v1/ict-register/committee', holdRequest);
+                const surfaces = [
+                    { route: '/risks/163', label: 'Loading Risk Data' },
+                    { route: '/controls/227', label: 'Loading Control Data' },
+                    { route: '/issues/227', label: 'Loading issue data' },
+                    { route: '/assets/227', label: 'Loading...' },
+                    { route: '/threats/227', label: 'Loading...' },
+                    { route: '/processes/227', label: 'Loading...' },
+                    { route: '/ict-register/data-quality', label: 'Loading…' },
+                    { route: '/?view=ict-committee', label: 'Loading…' },
+                ];
+                for (const surface of surfaces) {
+                    await navigateSpa(page, surface.route);
+                    const label = page.locator('main').getByText(surface.label, { exact: true });
+                    await expect(label).toBeVisible();
+                    await page.locator('main').evaluate(async (element) => {
+                        const animations = element.getAnimations({ subtree: true });
+                        await Promise.all(animations.filter((animation) => (
+                            animation.effect?.getComputedTiming().iterations !== Infinity
+                        )).map((animation) => animation.finished.catch(() => undefined)));
+                        for (const animation of element.getAnimations({ subtree: true })) {
+                            if (animation.effect?.getComputedTiming().iterations === Infinity) {
+                                animation.pause();
+                                animation.currentTime = 1000;
+                            }
+                        }
+                    });
+                    const analysis = await new AxeBuilder({ page }).withRules(['color-contrast']).include('main').analyze();
+                    await test.info().attach(`${theme}-${surface.route.replaceAll('/', '_')}-contrast`, {
+                        body: JSON.stringify({ violations: analysis.violations, passes: analysis.passes }),
+                        contentType: 'application/json',
+                    });
+                    assertZeroAxeFindings(toFindings(analysis.violations), `${theme} ${surface.route} pulse minimum`);
+                    expect(await renderedContrast(label), `${theme} ${surface.route} label contrast`).toBeGreaterThanOrEqual(4.5);
+                }
+            } finally {
+                pending.release();
                 await context.close();
             }
         });

@@ -100,7 +100,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4" aria-busy="true" data-loading="true">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.risk_data')}</p>
+                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">{t('loading.risk_data')}</p>
             </div>
         );
     }
