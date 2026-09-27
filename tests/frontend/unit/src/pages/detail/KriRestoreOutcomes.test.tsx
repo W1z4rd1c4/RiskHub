@@ -130,7 +130,7 @@ describe('KRI restore outcomes', () => {
         expect(await screen.findByRole('status')).toHaveTextContent('KRI restored');
         fireEvent.click(screen.getByRole('tab', { name: /History/ }));
         expect(await screen.findByTestId('kri-history-load-state')).toBeInTheDocument();
-        expect(screen.getByRole('status')).toHaveTextContent('KRI restored');
+        expect(screen.getByText('KRI restored.')).toHaveAttribute('role', 'status');
         expect(screen.queryByRole('button', { name: 'Retry restore' })).not.toBeInTheDocument();
         expect(getKri).toHaveBeenCalledTimes(1);
     });

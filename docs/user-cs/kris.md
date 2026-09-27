@@ -124,6 +124,8 @@ Dialog Export má dva odlišné režimy evidence:
 - **Aktuální pohled** stáhne všechny řádky odpovídající aktuálnímu hledání, filtrům, řazení, pohledu a vybrané skupině. Stránkování seznamu se nepoužije. CSV obsahuje metriku, popis, navázané riziko a oddělení, hodnoty a limity, breach kód i popisek, frekvenci, monitoring, termín a prodlení, reporting ownera, poslední report a lifecycle.
 - **Historický snapshot** používá zvolené datum a reports službu. Použijte ho, když důkaz musí reprodukovat stav známý k minulému datu; nejde o export živého registru.
 
+Záložka Historie načítá nejvýše 50 záznamů na stránku. Tlačítka **Starší záznamy** a **Novější záznamy** zpřístupní zbývající dostupné záznamy; rozsah (například `51–75 z 75`) ukazuje načtenou část. Trend uvádí data konce období na dané stránce a výběr pro porovnání je omezen na stejnou stránku. Pro porovnání starších období nebo povolenou opravu přejděte na odpovídající stránku. Vybraná stránka historie je v URL detailu, takže obnovení a navigace Zpět/Vpřed ji zachovají. Při selhání načtení se zobrazí chyba s možností opakování místo nesprávně označených dat z předchozí stránky; oprávnění k opravám se nemění.
+
 Pro evidenci historie hodnot použijte záložku Historie v detailu KRI nebo stránku **Záznam aktivit**; samostatný export detailu nebo historie neexistuje.
 
 Pro spolehlivý výsledek filtrujte v tomto pořadí:

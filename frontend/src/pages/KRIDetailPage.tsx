@@ -43,6 +43,9 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
         handleSave,
         history,
         historyOutcome,
+        historyAccessDenied,
+        historyPage,
+        setHistoryPage,
         historyTotal,
         isDeleteDialogOpen,
         isDeleting,
@@ -267,7 +270,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                         : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
-                    <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')} ({historyTotal})
+                    <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')}{['content', 'empty', 'stale-with-error'].includes(historyOutcome.kind) ? ` (${historyTotal})` : ''}
                 </button>
             </div>
 
@@ -287,6 +290,8 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 {activeTab === 'history' && <KRIDetailHistoryTab
                     history={history}
                     historyTotal={historyTotal}
+                    page={historyPage}
+                    onPageChange={setHistoryPage}
                     isLoadingHistory={isLoadingHistory}
                     lowerLimit={kri.lower_limit}
                     upperLimit={kri.upper_limit}
@@ -294,6 +299,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     onSelectEntry={setSelectedHistoryEntry}
                     canRequestCorrection={canRequestHistoryCorrection}
                     outcome={historyOutcome}
+                    accessDenied={historyAccessDenied}
                     onRetry={() => kriId !== null && void refreshHistory(kriId)}
                 />}
             </div>

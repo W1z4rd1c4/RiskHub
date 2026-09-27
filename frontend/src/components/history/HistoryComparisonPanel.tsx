@@ -3,6 +3,7 @@
  * Shows deltas, breach status changes, and formatted diffs.
  */
 import { useState, useMemo } from 'react';
+import { formatKriPeriodDate } from '@/lib/kriHistory';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { HistoryChangeCard } from './HistoryChangeCard';
@@ -10,7 +11,7 @@ import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue, formatNumberValue } from '@/i18n/formatters';
+import { formatNumberValue } from '@/i18n/formatters';
 
 interface HistoryComparisonPanelProps {
     entries: KRIHistoryEntry[];
@@ -67,7 +68,7 @@ export function HistoryComparisonPanel({
     const comparisonFields = useMemo<HistoryComparisonField[]>(() => {
         if (!leftEntry || !rightEntry || isSameSelection) return [];
 
-        const formatDate = (d: string) => formatDateValue(d, i18n.language);
+        const formatDate = (d: string) => formatKriPeriodDate(d, i18n.language);
 
         // Determine tone based on breach status change
         const getBreachTone = (): HistoryStatus => {
@@ -140,7 +141,7 @@ export function HistoryComparisonPanel({
 
     // Format option label
     const formatOptionLabel = (entry: KRIHistoryEntry) => {
-        const date = formatDateValue(entry.period_end, i18n.language);
+        const date = formatKriPeriodDate(entry.period_end, i18n.language);
         return `${date} (${resolvedFormatValue(entry.value)} ${entry.unit})`;
     };
 

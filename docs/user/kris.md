@@ -124,6 +124,8 @@ The Export dialog has two different evidence modes:
 - **Current view** downloads all rows matching the current normalized search, filters, sort, view, and selected group. List pagination is not applied. Its CSV includes the metric, description, linked risk and department, values and limits, breach code and label, frequency code and label, monitoring code and label, due/overdue data, reporting owner, last report time, and lifecycle code and label.
 - **Historical snapshot** uses the selected as-of date and the reports service. Use it when the evidence must reproduce what was known at a past date; it is not the same as exporting the live register.
 
+The History tab loads at most 50 entries per page. **Older entries** and **Newer entries** reach the remaining authorized records; the displayed range (for example, `51–75 of 75`) tells you which subset is loaded. The trend names the period-end date range for that page, and comparison choices are limited to the same page. Choose a different page to compare older periods or request an eligible correction. The selected history page is in the detail URL, so reload and Back/Forward restore it. A failed page request shows an error with Retry instead of relabeling the previous page; correction permissions remain unchanged.
+
 For value history evidence, use the KRI detail history tab or Activity Log; there is no separate detail/history export action.
 
 For reliable results, filter in this order:

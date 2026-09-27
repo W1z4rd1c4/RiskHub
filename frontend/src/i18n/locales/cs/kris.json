@@ -255,7 +255,17 @@
     "record_timeline": "Časová osa záznamů",
     "entries_count": "{{count}} záznamů",
     "compare_periods": "Porovnat období",
-    "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy."
+    "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy.",
+    "pagination": "Stránky historie",
+    "newer": "Novější záznamy",
+    "older": "Starší záznamy",
+    "range": "{{from}}–{{to}} z {{total}}",
+    "loading_page": "Načítání stránky historie {{page}}…",
+    "unavailable_page": "Stránka historie {{page}} není dostupná",
+    "trend_window": "Trend zobrazuje pouze tuto stránku: {{from}} – {{to}} (data konce období).",
+    "no_window": "Na této stránce nejsou žádná data období.",
+    "comparison_window": "Výběr pro porovnání je omezen na tuto stránku. Pro porovnání jiných období použijte Novější záznamy nebo Starší záznamy.",
+    "denied_page": "Přístup ke stránce historie {{page}} byl odepřen"
   },
   "register": {
     "filters": {

@@ -56,6 +56,8 @@ describe('KRI detail visuals', () => {
     it('preserves below-limit history statuses in trend data', () => {
         render(
             <KRIDetailHistoryTab
+                page={1}
+                onPageChange={vi.fn()}
                 history={[
                     {
                         id: 1,
@@ -90,6 +92,8 @@ describe('KRI detail visuals', () => {
 
     it('uses history capabilities to hide or show correction actions', () => {
         const baseProps = {
+            page: 1,
+            onPageChange: vi.fn(),
             history: [
                 {
                     id: 1,

@@ -255,7 +255,17 @@
     "record_timeline": "Record Timeline",
     "entries_count": "{{count}} entries",
     "compare_periods": "Compare Periods",
-    "need_two_entries_compare": "Select at least two entries to compare."
+    "need_two_entries_compare": "Select at least two entries to compare.",
+    "pagination": "History pages",
+    "newer": "Newer entries",
+    "older": "Older entries",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "loading_page": "Loading history page {{page}}…",
+    "unavailable_page": "History page {{page}} is unavailable",
+    "trend_window": "Trend shows only this page: {{from}} – {{to}} (period end dates).",
+    "no_window": "No period dates on this page.",
+    "comparison_window": "Comparison choices are limited to this page. Use Newer entries or Older entries to compare other periods.",
+    "denied_page": "Access denied to history page {{page}}"
   },
   "register": {
     "filters": {

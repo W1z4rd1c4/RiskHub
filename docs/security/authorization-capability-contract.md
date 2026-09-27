@@ -481,6 +481,7 @@ oversight surface, not a register-end detail view.
 | `backend/app/core/permissions.py` and `backend/app/core/_permissions/` | Shared role, scope, ownership, sensitive-change, issue, and entity visibility policy. |
 | `backend/app/services/_access_workflow/policy.py` | Access-user backend capability metadata. |
 | `backend/app/services/_control_execution/capabilities.py` | Control execution capability metadata. |
+| `frontend/src/pages/detail/useKriDetailState.ts`, `frontend/src/components/kris/KRIDetailHistoryTab.tsx` | #177 adds bounded, page-owned history continuation and truthful subset/date/comparison windows. Backend read visibility, history correction capabilities and eligibility, exact mutation identities, and period algebra are unchanged. |
 | `backend/app/services/_kri_history/workflow.py` | KRI history read, submit, correction, and capability policy. |
 | `backend/app/services/_risk_questionnaires/policy.py` | Questionnaire submit, clarification, and capability policy. |
 | `backend/app/services/notification_visibility.py` | Current-user notification list/count linked-resource filtering policy. |

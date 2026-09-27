@@ -10,6 +10,7 @@ Shared frontend UI helpers and presentation utilities used across pages and comp
 - `executionResult.ts`
 - `monitoringStatus.ts`
 - `utils.ts`
+- `kriHistory.ts` - bounded history page size and calendar-date presentation
 
 ## Notes
 

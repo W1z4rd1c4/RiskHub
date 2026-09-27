@@ -36,7 +36,7 @@ export function LinkSearchResults({
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-400">
                     {listHeading}
                 </span>
                 <span className="text-xs text-slate-300 font-medium">
