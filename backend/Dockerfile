@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build dependencies
 # =============================================================================
-FROM python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a AS builder-base
+FROM python:3.14-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS builder-base
 
 COPY security/apply_cpython_backport.py /tmp/apply_cpython_backport.py
 RUN python /tmp/apply_cpython_backport.py && rm /tmp/apply_cpython_backport.py
@@ -43,7 +43,7 @@ RUN pip install --no-cache-dir --upgrade pip==26.2.1 && \
 # =============================================================================
 # Stage 2: Production runtime
 # =============================================================================
-FROM python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a AS runtime
+FROM python:3.14-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS runtime
 
 WORKDIR /app
 
@@ -96,7 +96,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 # =============================================================================
 # Stage 3: DB tasks runtime
 # =============================================================================
-FROM python:3.13-alpine@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a AS dbtasks
+FROM python:3.14-alpine@sha256:9e9fde4d32eedce0b661d9ab91e826b62dddf28e928c230ec55f1866cac66b01 AS dbtasks
 
 WORKDIR /app
 
