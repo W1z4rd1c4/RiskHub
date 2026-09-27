@@ -158,8 +158,8 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     };
 
     if (mode === 'new') {
-        if (createGateState !== 'allowed') {
-            return <FormCapabilityGateState state={createGateState} />;
+        if (createGateState.state !== 'allowed') {
+            return <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />;
         }
 
         return (

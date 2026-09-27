@@ -572,3 +572,13 @@ See [identity-safe restore](identity-restore.md). Restore quarantine is an indep
 backend eligibility condition. Profile synchronization, ordinary activation and
 break-glass cannot clear it. Protected maintenance review and the existing credential
 recovery protocol remain separate; neither restores obsolete authority automatically.
+
+### Creation access read outcomes (#179)
+
+All shared creation gates require explicit backend capability `true`. A network or
+server failure is a retryable inability to check access, not a backend denial.
+HTTP 401 keeps centralized session handling; HTTP 403/404 share non-leaky denial.
+Required checks compose as denied > loading > error > allowed. Retry repeats only
+failed checks, suppresses overlap and obsolete-route responses, and preserves the
+intended route. This covers Risk/Control/KRI creation, their linked-vendor reads,
+and Asset/Process/Threat/Vendor creation modes without altering authorization.

@@ -1,7 +1,7 @@
 ---
 title: Getting Started with RiskHub
-version: "2.6"
-last_updated: "2026-09-12"
+version: "2.7"
+last_updated: "2026-09-27"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
 summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
@@ -177,6 +177,15 @@ Cards and links appear only when the corresponding authority and backend capabil
 Common mistakes are usually caused by stale filters, unclear ownership, duplicate-looking names, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the visible list, panel, or modal.
 
 ## Troubleshooting
+
+When opening a form to create a Risk, Control, KRI, Asset, Process, Threat or
+Vendor, wait while RiskHub checks access. If you see **Could not check access.
+Please try again.**, select **Retry**. The form stays unavailable until all
+required checks succeed; do not interpret this temporary failure as a permission
+denial. Retry keeps you on the same page, including when you started from a
+Vendor. Wait for the retry to finish before trying again. If access is denied,
+ask your administrator to check your access; the message does not confirm
+whether a protected record exists. If your session ends, sign in again.
 
 If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 

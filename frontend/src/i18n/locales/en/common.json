@@ -277,6 +277,8 @@
     "unknown_group": "Unknown group"
   },
   "access": {
+    "checking": "Checking access…",
+    "check_failed": "Could not check access. Please try again.",
     "denied": "Access Denied",
     "denied_activity_log": "You don't have permission to view the Activity Log.",
     "kri_not_found": "KRI Not Found",

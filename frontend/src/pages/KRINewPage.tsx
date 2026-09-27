@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -6,7 +6,6 @@ import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContai
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { kriApi } from '@/services/kriApi';
-import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
 
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
@@ -29,52 +28,17 @@ export function KRINewPage() {
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
     const kriListReturnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/kris');
-    const [vendorName, setVendorName] = useState<string | undefined>(undefined);
-    const [vendorRequiresApproval, setVendorRequiresApproval] = useState(false);
-    const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
-        isVendorContext ? 'loading' : 'allowed',
-    );
     const createGateState = useCreateCapabilityGate({
         load: useCallback(() => kriApi.getKRIs({ offset: 0, limit: 1 }), []),
         logMessage: 'Failed to load KRI create capabilities.',
     });
 
-    useEffect(() => {
-        if (!vendorId) {
-            setVendorName(undefined);
-            setVendorContextState('allowed');
-            return;
-        }
-
-        let isMounted = true;
-        const loadVendorContext = async () => {
-            setVendorContextState('loading');
-            try {
-                const vendor = await vendorApi.getVendor(vendorId);
-                if (!isMounted) return;
-                setVendorName(vendor.name);
-                setVendorRequiresApproval(
-                    resolveCapabilityFlag(vendor.capabilities, 'protected_change_requires_approval'),
-                );
-                setVendorContextState(
-                    resolveCapabilityFlag(vendor.capabilities, 'can_create_linked_kri') ? 'allowed' : 'denied',
-                );
-            } catch (error) {
-                logError('Failed to load vendor context for KRI create.', error);
-                if (isMounted) {
-                    setVendorName(undefined);
-                    setVendorRequiresApproval(false);
-                    setVendorContextState('denied');
-                }
-            }
-        };
-
-        void loadVendorContext();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [vendorId]);
+    const vendorContextGate = useCreateCapabilityGate({
+        enabled: vendorId !== null,
+        load: useCallback(() => vendorApi.getVendor(vendorId!), [vendorId]),
+        capability: 'can_create_linked_kri',
+        logMessage: 'Failed to load vendor kri-create capabilities.',
+    });
 
     const handleVendorContextCancel = () => {
         if (returnTo) {
@@ -84,7 +48,7 @@ export function KRINewPage() {
         void navigate(kriListReturnTo);
     };
 
-    const gateState = combineCapabilityGateStates([createGateState, vendorContextState]);
+    const gateState = combineCapabilityGateStates([createGateState.state, vendorContextGate.state]);
 
     return (
         <div className="space-y-8">
@@ -112,7 +76,7 @@ export function KRINewPage() {
             </div>
 
             {gateState !== 'allowed' ? (
-                <FormCapabilityGateState state={gateState} />
+                <FormCapabilityGateState state={gateState} onRetry={() => { createGateState.retry(); vendorContextGate.retry(); }} />
             ) : (
                 <KRIForm
                     initialData={preselectedRiskId ? { risk_id: preselectedRiskId } : undefined}
@@ -123,9 +87,9 @@ export function KRINewPage() {
                     firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
                     vendorContext={isVendorContext ? {
                         vendorId,
-                        vendorName,
+                        vendorName: vendorContextGate.data?.name,
                         returnTo,
-                        protectedChangeRequiresApproval: vendorRequiresApproval,
+                        protectedChangeRequiresApproval: resolveCapabilityFlag(vendorContextGate.data?.capabilities, 'protected_change_requires_approval'),
                     } : null}
                 />
             )}

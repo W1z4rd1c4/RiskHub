@@ -1,7 +1,7 @@
 ---
 title: Začínáme s RiskHub
-version: "2.6"
-last_updated: "2026-09-12"
+version: "2.7"
+last_updated: "2026-09-27"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routy"
 summary: "Onboarding manuál pro non-admin uživatele: ověření scope, navigace, workflow připravenost a nejčastější chyby na začátku."
@@ -173,6 +173,15 @@ Karty a odkazy se zobrazí jen tehdy, když je dostupné odpovídající oprávn
 Časté chyby vznikají ze starých filtrů, nejasného ownership, podobných názvů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek ve viditelném seznamu, panelu nebo modálu.
 
 ## Troubleshooting
+
+Při otevírání formuláře pro vytvoření rizika, kontroly, KRI, aktiva, procesu,
+hrozby nebo dodavatele počkejte, než RiskHub ověří přístup. Pokud se zobrazí
+**Přístup se nepodařilo ověřit. Zkuste to znovu.**, vyberte **Zkusit znovu**.
+Formulář zůstane nedostupný, dokud neuspějí všechny potřebné kontroly; tato
+dočasná chyba neznamená zamítnutí oprávnění. Opakování vás ponechá na stejné
+stránce, i když jste začali u dodavatele. Před dalším pokusem počkejte na
+výsledek. Při zamítnutí přístupu požádejte správce o kontrolu oprávnění; zpráva
+nepotvrzuje existenci chráněného záznamu. Pokud relace skončí, znovu se přihlaste.
 
 Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 

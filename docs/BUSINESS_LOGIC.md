@@ -175,6 +175,24 @@ Rules:
 
 ---
 
+### 1.6 Creation access checks
+
+Risk, Control and KRI creation, and Asset, Process, Threat and Vendor creation
+modes, open their forms only after the backend explicitly permits creation.
+Creating a Risk, Control or KRI from a Vendor additionally requires the relevant
+linked-creation permission for that Vendor. A frontend role does not substitute
+for either decision.
+
+A network or server failure while checking access shows a localized inability to
+check access with **Retry**. This does not mean permission was denied. The form
+stays unavailable while a required check is pending or failed. Retry repeats only
+failed checks, prevents overlapping retries, and keeps the intended page and
+return context; results from a previous route cannot admit the current form.
+For combined checks, denial takes precedence over pending, then failure, and only
+all-allowed checks admit the form. Protected forbidden/not-found responses share
+one non-leaky denial; existing sign-in/session-loss behavior is preserved. This
+presentation and recovery contract does not change backend authorization policy.
+
 ## 2. Entity Ownership Rules
 
 ### 2.1 Risk

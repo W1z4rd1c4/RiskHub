@@ -161,8 +161,8 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     };
 
     if (mode === 'new') {
-        if (createGateState !== 'allowed') {
-            return <FormCapabilityGateState state={createGateState} />;
+        if (createGateState.state !== 'allowed') {
+            return <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />;
         }
         return (
             <div className="space-y-8">

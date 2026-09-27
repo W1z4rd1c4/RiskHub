@@ -25,3 +25,11 @@ Save/Close on the composited 3%-black-on-white surface at 1.068:1; white Approve
 on `rgb(16,185,129)` at 2.537:1; and blue Submit on its 20% blue surface at
 2.944:1. The regression asserts actual rendered ratios (4.5:1 text, 3:1 icons),
 not utility class names.
+
+The `access-check.html` harness mounts the real New Risk route for #179, with
+production API client/schema validation and API responses intercepted in
+`creation-access-check.spec.ts`. It covers capability and linked-vendor read
+failures independently, pending/keyboard retries, successful admission, safe
+404 denial, and the same EN/CS × three-theme × two-desktop-width matrix.
+Run with `npx playwright test -c playwright.access-check.config.ts --workers=2`.
+These fixture-backed checks do not replace authenticated live-route acceptance.
