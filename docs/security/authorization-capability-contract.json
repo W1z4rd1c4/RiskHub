@@ -1,8 +1,9 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-09-12",
+ "last_reviewed": "2026-09-27",
  "last_architecture_refactor_reviewed": "2026-09-08",
  "architecture_refactor_notes": [
+  "2026-09-27: Every completed shared session response, including Entra/development login and refresh, carries current MeCapabilities and identity action metadata. Native partial challenges still carry no ordinary session. UI directory controls consume the same backend projection as /auth/me; this adds no role, permission or directory-provider authority.",
   "2026-09-12: Native bootstrap (#203) uses the shared identity lock and restricted enrollment grants for exact initial Admin/CRO principals. Completion permanently closes bootstrap reissue; reruns preserve role/scope, suspension and credentials. Abort revokes unused grants before verified artifact cleanup.",
   "2026-09-12: Recovery-pending resumption is rejected by both user-profile and access-profile PATCH services with RECOVERY_PENDING before mutation or recovery-grant revocation; the real HTTP regression completes the preserved grant afterward.",
   "2026-09-12: #202 gates external-directory/SSO construction, direct work and scheduler registration for native identity. MeCapabilities.identity and AccessUserCapabilities project invitation/reset/recovery and external-directory actions from central profile/actor/target eligibility. Privileged recovery is offline-required; CRO retains business access only. Public diagnostics expose not_applicable without binding; authorized admin health includes persisted binding. No production admission change.",
@@ -242,7 +243,10 @@
   "backend/app/schemas/identity.py",
   "backend/app/services/identity_capabilities.py",
   "backend/app/services/_local_auth/",
-  "backend/app/core/external_identity_policy.py"
+  "backend/app/core/external_identity_policy.py",
+  "frontend/src/services/nativeAdminApi.ts",
+  "frontend/src/pages/users/NativeInviteForm.tsx",
+  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx"
  ],
  "actions": [
   {
@@ -1212,6 +1216,25 @@
    ],
    "status": "authoritative",
    "findings": []
+  },
+  {
+   "id": "AUTHZ-NATIVE-ADMIN-LIFECYCLE",
+   "surface": "Native user administration",
+   "action": "Invite accounts, inspect private lifecycle state, resend/cancel invitations, request reset, suspend/resume and initiate ordinary recovery",
+   "actor_scope": "Eligible native platform Admin; current-user and per-target capabilities are required. Privileged recovery is offline-only. CRO business access and read-only directory access confer no identity lifecycle authority.",
+   "backend_authority": "backend/app/api/v1/endpoints/users/invitations.py applies native context and authenticated actor; backend/app/api/v1/endpoints/access.py applies access mutation authorization.",
+   "service_policy": "backend/app/services/_local_auth/enrollment.py, backend/app/services/_local_auth/admin.py and backend/app/services/_local_auth/recovery.py enforce eligibility and exact target/version/operation proof; backend/app/services/_identity_access_lifecycle/access_scope.py preserves atomic updates, last-Admin protection and redacted reason auditing.",
+   "response_capability": "backend/app/services/identity_capabilities.py projects MeCapabilities.identity.can_invite_users and AccessUserCapabilities invitation/reset/recovery flags, can_resume and field ownership; lifecycle status is a separately authorized nonsecret read.",
+   "frontend_gate": "frontend/src/pages/UserNewPage.tsx and frontend/src/pages/UsersPage.tsx require native configuration and current identity capability; frontend/src/pages/users/NativeInviteForm.tsx and frontend/src/pages/users/NativeUserLifecyclePanel.tsx use backend target flags, owned abortable requests and no-retry identity transport; frontend/src/components/access/accessEditModalLogic.ts excludes directory-owned and verified email from ordinary updates.",
+   "status": "authoritative",
+   "findings": [],
+   "tests": [
+    "tests/backend/pytest/test_access_management.py",
+    "tests/backend/pytest/test_identity_directory_isolation.py",
+    "tests/frontend/unit/src/pages/__tests__/UserNewPage.native.test.tsx",
+    "tests/frontend/unit/src/pages/__tests__/NativeUserLifecyclePanel.test.tsx",
+    "tests/frontend/e2e/native-admin.spec.ts"
+   ]
   }
  ]
 }

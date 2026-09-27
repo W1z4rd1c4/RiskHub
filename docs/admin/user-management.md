@@ -1,6 +1,6 @@
 ---
 title: User and Access Governance Runbook
-version: "2.4"
+version: "2.5"
 last_updated: "2026-09-12"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
@@ -90,7 +90,7 @@ If a user should not have any `/users` entitlement, expect the route to redirect
 1. Open `/users`.
 2. Select the auth-mode-specific CTA shown on `/users`:
    - **Add from AD** in directory-first auth modes (`microsoft_sso`, `hybrid_dev`)
-   - **Add user** in legacy password development mode; see the staged native workflow below
+   - **Add user** in legacy password development mode; **Create account** uses native invitations
 3. Use the creation flow currently available in the UI:
    - import or external-identity flow
    - direct-entry flow
@@ -102,15 +102,14 @@ If creation actions are missing or disabled, first confirm that the current sess
 
 ### Native local account invitations and passwords
 
-The native backend supports admin-created invitations; its full admin UI is tracked
-in #206 and native production admission remains gated by #208. The legacy **Add user**
-form is not the native invitation interface. Use this section as the native operating
-contract and only use controls delivered by your installed version.
+In a native installation, **Add user** opens the invitation form in `/users/new`.
+Native production admission remains gated by #208. The form works for an Admin with
+a password-only session under optional policy or an MFA session under required policy.
 
 Admins choose the account's name, email, role and organization assignments and send
 an invitation. The recipient verifies the invitation and chooses the password; admins
-do not assign or view permanent passwords. Invitation status distinguishes pending,
-sent, failed, expired and cancelled delivery. Pending accounts cannot sign in.
+do not assign or view permanent passwords. Open **Account lifecycle** on the user row to inspect setup and delivery separately.
+Delivery distinguishes pending, sent, failed, expired and cancelled links. Pending accounts cannot sign in.
 
 The installation's MFA policy applies to ordinary users and admins. Required MFA
 adds factor setup to enrollment; optional MFA allows password-only accounts. Users
@@ -123,8 +122,49 @@ factor; the [native recovery procedure](https://github.com/W1z4rd1c4/RiskHub/blo
 independent identity verification and separate offline approval for privileged accounts.
 Recovery-pending accounts stay unable to sign in, and recovery never clears a suspension. Native email
 changes require mailbox verification. See the
-native credential operator guide for API and
-operator details while the screens are being delivered.
+[native credential operator guide](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-local-credentials.md) for API and operator details.
+
+### Native account lifecycle
+
+Open **Account lifecycle** from the account row in `/users`. Confirm the name and
+email before each action. The same dialog contains the authorized access edit;
+identity lifecycle controls are not available to CRO or read-only directory users.
+
+| Action or state | Meaning and operator response |
+| --- | --- |
+| Invited | The recipient still needs to choose a password and complete required MFA. |
+| Password set | Required MFA setup is incomplete; no application session is available. |
+| Setup complete | Enrollment completed; suspension, recovery or other eligibility rules may still prevent sign-in. |
+| Delivery pending / sent / failed | Mail status is separate from successful account creation. Refresh status; investigate SMTP/outbox health before reissuing. |
+| Resend invitation | Invalidates earlier invitation links and creates a new one. |
+| Cancel invitation | Invalidates the pending invitation link without deleting the account. |
+| Send password reset link | Requests the governed email reset; the recipient chooses the password. Existing MFA remains required. |
+| Suspend account | Revokes sessions and records suspension. Review flagged owned items and manager relationships separately. |
+| Resume account | Removes local suspension; it does not bypass enrollment, directory or recovery requirements. |
+| Start assisted recovery | Ordinary accounts only. Record the incident, verification method, reason and operation, then authenticate as the acting Admin. |
+| Privileged recovery | Follow the [offline two-operator procedure](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-recovery.md). No web override exists. |
+
+A successful invitation or mutation stays reported as completed when the optional
+list/status reload or mail delivery fails. **Refresh account status** retries the
+read. A timeout or unrecognized response may follow a committed write: inspect the
+account and audit record before starting another action; do not repeat blindly.
+
+For assisted recovery, verify identity using the approved procedure; possession of
+a mailbox alone is insufficient. Do not paste identity documents into the form.
+The recent-auth proof binds the target, authority version, chosen operation and any
+proposed email. It stays in memory and is discarded after submission. Recovery
+revokes sessions and blocks sign-in until completion; existing suspension survives.
+
+A last-eligible-Admin conflict refreshes capability/status data and retains the
+operator's reason for correction. Enroll a replacement eligible Admin first. The
+reason field follows the existing audit redaction policy: free text is redacted in
+activity/SIEM surfaces. Keep the full incident rationale in the approved incident
+system. Permission denial never grants a CRO an Admin lifecycle operation.
+
+Entra profile fields are visibly read-only. Native email is also read-only in the
+access edit: users change it in **Account security**, or an authorized Admin starts
+verified-address recovery after independent identity verification. RiskHub-owned
+business assignments continue through the CRO access workflow.
 
 ### Update profile
 
@@ -137,7 +177,7 @@ operator details while the screens are being delivered.
 
 Identity fields are an Admin-only lifecycle action. CRO or other privileged reviewers should stay in the access-management scope of the modal and should not expect separate lifecycle/detail endpoints. If an identity validation fails, treat the save as unapplied and fix the validation issue before retrying.
 
-The access row returned by the backend can include action capabilities for the target user. The UI should obey those flags first, then fall back to local role checks only for older responses. If a locally privileged session cannot see identity, business-access, or role controls for a row, refresh the row and inspect the backend capability flags before escalating.
+The access row returned by the backend can include action capabilities for the target user. The UI requires those flags. Missing configuration or capabilities disables the corresponding action and offers a reload; it does not grant permission from a local role guess. If a locally privileged session cannot see identity, business-access, or role controls for a row, refresh the row and inspect the backend capability flags before escalating.
 
 ### Edit access
 

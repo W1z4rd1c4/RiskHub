@@ -22,10 +22,13 @@ function resolveAdminTranslation(key: string): string | undefined {
 }
 
 
+function translateAdmin(key: string, opts?: { defaultValue?: string }) {
+    return resolveAdminTranslation(key) ?? opts?.defaultValue ?? key;
+}
+
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, opts?: { defaultValue?: string }) =>
-            resolveAdminTranslation(key) ?? opts?.defaultValue ?? key,
+        t: translateAdmin,
         i18n: { language: 'en' },
     }),
 }));

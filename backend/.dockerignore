@@ -31,3 +31,8 @@ pip-audit-report.json
 README.md
 docs/
 security/
+
+# Verified upstream security backports used during image construction.
+!security/
+!security/apply_cpython_backport.py
+!security/verify_runtime_backports.py

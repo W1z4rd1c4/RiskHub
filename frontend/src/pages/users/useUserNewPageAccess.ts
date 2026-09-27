@@ -10,6 +10,7 @@ import type { UserDirectoryCapabilities } from '@/types/user';
 type Translate = (key: string, options?: { ns?: string }) => string;
 
 export function useUserNewPageAccess(t: Translate) {
+    const [retry, setRetry] = useState(0);
     const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
     const [isAuthConfigLoading, setIsAuthConfigLoading] = useState(true);
     const [directoryCapabilities, setDirectoryCapabilities] = useState<UserDirectoryCapabilities | null>(null);
@@ -18,15 +19,18 @@ export function useUserNewPageAccess(t: Translate) {
 
     useEffect(() => {
         let cancelled = false;
+        const controller = new AbortController();
+        setIsAuthConfigLoading(true); setAuthConfigError(null);
 
         async function run(): Promise<void> {
             try {
                 const config = await getAuthConfig();
                 if (cancelled) return;
                 setAuthConfig(config);
+                if (config.identity?.mode === 'native') return;
 
                 try {
-                    const directoryResponse = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 });
+                    const directoryResponse = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 }, { signal: controller.signal });
                     if (!cancelled) {
                         setDirectoryCapabilities(directoryResponse.capabilities ?? null);
                     }
@@ -34,6 +38,7 @@ export function useUserNewPageAccess(t: Translate) {
                     logError('Failed to load user directory capabilities:', directoryError);
                     if (!cancelled) {
                         setDirectoryCapabilities(null);
+                        setAuthConfigError(t('user_new.auth_mode_load_failed', { ns: 'admin' }));
                     }
                 }
             } catch (error) {
@@ -55,10 +60,12 @@ export function useUserNewPageAccess(t: Translate) {
 
         return () => {
             cancelled = true;
+            controller.abort();
         };
-    }, [t]);
+    }, [t, retry]);
 
     return {
+        retryAccess: () => setRetry((value) => value + 1),
         authConfig,
         authConfigError,
         directoryCapabilities,

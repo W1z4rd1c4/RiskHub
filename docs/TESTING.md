@@ -435,3 +435,30 @@ journeys. Explicit screenshots are taken before entering secrets. Handoffs and
 fixture configuration stay mode 0600 and must not be uploaded. This is component
 verification with a debug server; it does not open native production admission or
 replace #208's real Entra, managed-target, verified delivery and restore matrix.
+
+### Native administration browser fixture
+
+`tests/frontend/e2e/native-admin.spec.ts` runs real Admin invitation, resend/cancel,
+recipient enrollment, access edit, suspension/resumption, reset request, ordinary
+recovery and privileged offline escalation. It checks EN/CS desktop focus and axe at
+1024x768 and 1440x900. Prepare a fresh fixture with `native_fixture.py` as above;
+use `--public-url http://localhost:15176` and either MFA policy. Serve its backend on
+18003, then run Vite with `VITE_DEV_API_TARGET=http://localhost:18003` on port 15176.
+
+From `frontend`, with Node 24 and the backend interpreter:
+
+```bash
+NATIVE_E2E_ROOT=/private/tmp/riskhub-native-admin-<unique-run> \
+NATIVE_E2E_PYTHON=/path/to/backend/python \
+FRONTEND_URL=http://localhost:15176 BACKEND_URL=http://localhost:18003 \
+npm run test:e2e -- --config playwright.native.config.ts \
+  ../tests/frontend/e2e/native-admin.spec.ts --project=ci --workers=1 --retries=0
+```
+
+The fixture mailbox helper decrypts only an active invitation from the owned,
+loopback `riskhub_native_e2e_*` database into an exclusive 0600 handoff. It does not
+send mail, change grants, print credentials or substitute fake auth. The recipient
+redeems that invitation through the real API. SMTP delivery remains separately
+covered by the backend TLS/outbox suite; final managed deployment/tenant acceptance
+remains #208. Use a fresh database/root per complete run. Traces, video and automatic
+screenshots are disabled; explicit screenshots precede credential entry.

@@ -13,7 +13,7 @@ import type {
     RecoveryStartRequest, ResetCompleteRequest, ResetRequest,
 } from '@/types/localAuth.generated';
 
-export type NativeErrorKind = 'invalid' | 'limited' | 'unavailable' | 'uncertain' | 'forbidden';
+export type NativeErrorKind = 'invalid' | 'limited' | 'unavailable' | 'uncertain' | 'forbidden' | 'conflict';
 export class NativeAuthError extends Error {
     readonly kind: NativeErrorKind;
     constructor(kind: NativeErrorKind) {
@@ -30,6 +30,7 @@ function sanitizedError(error: unknown): NativeAuthError {
     if (error instanceof AuthRequestError && error.status) {
         if (error.status === 429) return new NativeAuthError('limited');
         if (error.status >= 500) return new NativeAuthError('unavailable');
+        if (error.status === 409) return new NativeAuthError('conflict');
         if (error.status === 403) return new NativeAuthError('forbidden');
         return new NativeAuthError('invalid');
     }
@@ -37,16 +38,16 @@ function sanitizedError(error: unknown): NativeAuthError {
 }
 
 interface RequestOptions { token?: string; signal?: AbortSignal }
-async function post<S extends z.ZodType>(
-    path: string, body: unknown, schema: S, options: RequestOptions = {}, expectedStatus = 200,
+export async function nativeIdentityPost<S extends z.ZodType>(
+    path: string, body: unknown, schema: S, options: RequestOptions = {}, expectedStatus = 200, method: 'POST' | 'PATCH' = 'POST',
 ): Promise<z.output<S>> {
     try {
         if (!getCsrfToken()) await authApi.ensureCsrf();
         if (options.signal?.aborted) throw new NativeAuthError('uncertain');
         const headers = new Headers({ 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() ?? '' });
         if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
-        const response = await fetchAuthResponse(`/api/v1/auth/local${path}`, {
-            method: 'POST', headers, body: JSON.stringify(body), credentials: 'include',
+        const response = await fetchAuthResponse(`/api/v1${path}`, {
+            method, headers, body: JSON.stringify(body), credentials: 'include',
             cache: 'no-store', signal: options.signal,
         });
         if (!response.ok) throw new AuthRequestError({ code: 'AUTH_REQUEST_FAILED', message: 'Native request failed', status: response.status });
@@ -59,16 +60,26 @@ async function post<S extends z.ZodType>(
     }
 }
 
+export async function nativeIdentityGet<S extends z.ZodType>(path: string, schema: S, options: RequestOptions): Promise<z.output<S>> {
+    try {
+        const headers = new Headers();
+        if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
+        const response = await fetchAuthResponse(`/api/v1${path}`, {
+            headers, credentials: 'include', cache: 'no-store', signal: options.signal,
+        });
+        if (!response.ok) throw new AuthRequestError({ code: 'AUTH_REQUEST_FAILED', message: 'Identity unavailable', status: response.status });
+        if (response.status !== 200) throw new NativeAuthError('uncertain');
+        return schema.parse(await response.json());
+    } catch (error) { throw sanitizedError(error); }
+}
+
+// Local credential callers retain their domain prefix; admin identity mutations
+// share the same no-retry, status-checked and sanitized transport.
+const post = <S extends z.ZodType>(path: string, body: unknown, schema: S, options?: RequestOptions, status = 200) =>
+    nativeIdentityPost(`/auth/local${path}`, body, schema, options, status);
+
 export const nativeAuthApi = {
-    async account(token: string, signal?: AbortSignal) {
-        try {
-            const response = await fetchAuthResponse('/api/v1/auth/local/account', {
-                headers: { Authorization: `Bearer ${token}` }, credentials: 'include', cache: 'no-store', signal,
-            });
-            if (!response.ok) throw new AuthRequestError({ code: 'AUTH_REQUEST_FAILED', message: 'Account unavailable', status: response.status });
-            return accountSecuritySchema.parse(await response.json());
-        } catch (error) { throw sanitizedError(error); }
-    },
+    account: (token: string, signal?: AbortSignal) => nativeIdentityGet('/auth/local/account', accountSecuritySchema, { token, signal }),
     async login(body: LoginRequest, signal?: AbortSignal) {
         try { return await authApi.login(body, signal); } catch (error) { throw sanitizedError(error); }
     },

@@ -45,7 +45,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 250 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/pages/` - 252 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
 - `frontend/src/components/` - 325 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
@@ -55,7 +55,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-12.
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 82 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - 83 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 

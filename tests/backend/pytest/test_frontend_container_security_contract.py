@@ -732,6 +732,29 @@ def test_contract_validator_rejects_pre_scan_trivy_injection(
 @pytest.mark.parametrize(
     ("needle", "replacement"),
     [
+        ("      - name: Validate Grype policy and expiry\n",
+         "      - name: Validate Grype policy and expiry\n        if: false\n"),
+        ("      - name: Validate Grype policy and expiry\n",
+         "      - name: Validate Grype policy and expiry\n        continue-on-error: true\n"),
+        ("python3 scripts/security/prod_readiness_audit/grype_policy.py --policy",
+         "echo python3 scripts/security/prod_readiness_audit/grype_policy.py --policy"),
+        ("python3 -m pip install PyYAML==6.0.3", "python3 -m pip install PyYAML"),
+        ("      - name: Set up policy validator Python\n",
+         "      - name: Set up policy validator Python\n        if: false\n"),
+    ],
+)
+def test_contract_validator_keeps_policy_expiry_gate_blocking(
+    tmp_path: Path, needle: str, replacement: str,
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    assert needle in workflow
+    errors = _validate_workflow_text(tmp_path, workflow.replace(needle, replacement, 1))
+    assert any("pre-scan" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    ("needle", "replacement"),
+    [
         (
             "          python3 scripts/security/frontend_trivy_status.py record \\\n",
             "          echo python3 scripts/security/frontend_trivy_status.py record \\\n",

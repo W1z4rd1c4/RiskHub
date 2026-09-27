@@ -251,6 +251,17 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Set up policy validator Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Validate Grype policy and expiry
+        run: |
+          set -euo pipefail
+          python3 -m pip install PyYAML==6.0.3
+          python3 scripts/security/prod_readiness_audit/grype_policy.py --policy backend/security/grype-ignore.yaml
+
       - name: Build Backend Image
         run: docker build -t riskhub-backend:scan -f backend/Dockerfile backend/
 

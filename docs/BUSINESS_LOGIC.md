@@ -1279,3 +1279,17 @@ voluntarily enables one. Thereafter the factor remains enforced under either pol
 Public credential pages retain display-once codes through their own session clearing;
 protected principal caches are still disposed on ownership changes. Final native
 production release remains gated by #208.
+
+### Native account administration
+
+Native Admins invite users through `/users/new` without choosing permanent passwords.
+Both password-only optional-MFA and MFA sessions use the same capability-gated flow.
+`/users` provides authorized setup/delivery status, invitation resend/cancel, reset
+requests, suspension/resumption and ordinary assisted recovery in the existing access
+dialog. Recovery requires exact-target recent proof and independent identity
+verification; privileged recovery remains offline with two operators. CRO business
+access authority does not confer identity lifecycle authority. Verified native email
+and Entra-owned profile fields cannot be changed through ordinary access PATCHes.
+Account-creation success, delivery degradation, failed reload and unknown mutation
+outcome are separate states. The access update accepts an optional bounded reason
+as audit metadata, redacted by the existing free-text audit policy.
