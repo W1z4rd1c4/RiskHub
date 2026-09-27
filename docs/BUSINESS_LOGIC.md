@@ -985,6 +985,8 @@ Exported data is always scoped to what the requesting user can access under RBAC
 
 ### 10.4 Dashboard Visibility
 
+- The Dashboard summary CSV action belongs only to Overview and requires its backend `can_export_or_report` capability. Committee views never fetch Overview merely to enable an export. Activation captures normalized Overview filters (department, Risk Level, Control Status, Control Form); delayed completion and Retry retain that context across filter or tab changes. Failure recovery appears only in Overview while export remains permitted. The canonical actor-scoped read model and independent export generation time are unchanged.
+
 - Unfiltered dashboard summaries, risk distributions, risk drilldowns, risk trends, KRI breach trends, control trends, and vendor metrics aggregate rows visible to the actor rather than department rows alone.
 - Dashboard explicit `department_id` filters remain strict. Ownership/reporting exceptions do not include rows outside the requested department.
 - Department filter UI is backend-capability driven through `DashboardOverviewCapabilities.can_use_department_filter`.

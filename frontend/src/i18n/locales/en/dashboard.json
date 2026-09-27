@@ -37,7 +37,7 @@
     "vendors": "Vendors"
   },
   "actions": {
-    "export_summary_excel": "Export Summary CSV"
+    "export_overview_csv": "Export Overview summary (CSV)"
   },
   "risk_distribution_matrix": {
     "axis": {
@@ -185,6 +185,7 @@
     "breakdown": "Control breakdown"
   },
   "errors": {
+    "export_summary_failed": "Overview summary CSV export failed. Retry uses the filters from when you started the export.",
     "connection_interrupted": "Connection Interrupted",
     "load_failed": "Failed to load dashboard data. Please check your connection.",
     "retry": "Retry Connection"

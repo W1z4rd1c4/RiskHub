@@ -37,7 +37,7 @@
     "vendors": "Dodavatelé"
   },
   "actions": {
-    "export_summary_excel": "Exportovat souhrn do CSV"
+    "export_overview_csv": "Exportovat souhrn přehledu (CSV)"
   },
   "risk_distribution_matrix": {
     "axis": {
@@ -185,6 +185,7 @@
     "breakdown": "Rozpad kontrol"
   },
   "errors": {
+    "export_summary_failed": "Export souhrnu přehledu do CSV selhal. Opakování použije filtry platné při zahájení exportu.",
     "connection_interrupted": "Připojení přerušeno",
     "load_failed": "Nepodařilo se načíst data přehledu. Zkontrolujte připojení.",
     "retry": "Zkusit znovu"

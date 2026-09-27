@@ -51,16 +51,18 @@ export function DashboardHeader({
                 <h2 className="text-3xl font-black text-foreground mb-2">{title}</h2>
                 <p className="text-muted-foreground font-medium">{subtitle}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
                 {canExport ? (
                     <button
                         onClick={onExport}
                         disabled={isExporting}
                         aria-busy={isExporting}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
+                        type="button"
+                        className="inline-flex items-center gap-2 p-2.5 glass rounded-xl text-foreground hover:text-accent-text hover:bg-accent/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         title={exportLabel}
                     >
-                        <FileText className="h-5 w-5" />
+                        <FileText aria-hidden="true" className="h-5 w-5 shrink-0" />
+                        <span className="text-sm font-medium">{exportLabel}</span>
                     </button>
                 ) : null}
                 {showFreshness && (generatedAt || isUpdating) ? (
