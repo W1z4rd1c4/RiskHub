@@ -90,6 +90,7 @@ def access_user_capabilities(
         current_is_admin
         and target_user.external_id
         and has_auto_deprovision_reason(target_user)
+        and not target_user.restore_quarantined
         and not target_user.has_active_break_glass(now=utc_now())
         and not hidden_from_current
     )
@@ -98,12 +99,15 @@ def access_user_capabilities(
         can_change_active_status
         and not target_user.is_active
         and not target_user.local_recovery_pending
+        and not target_user.restore_quarantined
         and upstream_and_enrollment_allow_access(target_user, settings=settings)
     )
     block_reason = None
     if current_is_admin:
         if last_admin:
             block_reason = "LAST_PLATFORM_ADMIN"
+        elif target_user.restore_quarantined:
+            block_reason = "RESTORE_QUARANTINED"
         elif not target_user.is_active and not can_resume:
             block_reason = "UPSTREAM_OR_ENROLLMENT_REQUIRED"
     can_change_active_status = bool(

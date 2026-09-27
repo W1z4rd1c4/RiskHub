@@ -192,7 +192,7 @@ linux_identity_preflight() {
     run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$candidate_dir" || exit $?
     linux_run_release_command "${release_dir}/backend" \
       "Check candidate identity, schema and keys before replacing services" \
-      "export PYTHONPATH=$(printf '%q' "${release_dir}/backend:${release_dir}/backend_db"); export REDIS_URL_FILE=$(printf '%q' "${candidate_dir}/redis_url"); $(printf '%q' "${release_dir}/db-venv/bin/python") -m scripts.identity_preflight" \
+      "export PYTHONPATH=$(printf '%q' "${release_dir}/backend:${release_dir}/backend_db"); export REDIS_URL_FILE=$(printf '%q' "${candidate_dir}/redis_url"); $(printf '%q' "${release_dir}/db-venv/bin/python") -m scripts.identity_preflight --restore-contract 1" \
       "${candidate_dir}/backend.env"
   ) || rc=$?
   cleanup_runtime_dir "$candidate_dir"

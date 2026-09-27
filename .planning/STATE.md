@@ -80,3 +80,11 @@ lifecycle metadata, keeps verified/directory-owned email out of access PATCHes,
 and binds assisted recovery to recent authentication. Status, delivery and committed
 changes remain distinct. English/Czech guides and component/browser regression
 evidence accompany the delivery; GitHub remains authoritative for closure.
+
+### Identity restore implementation snapshot — 2026-09-26
+
+#207 adds protected backup manifests, current security checkpoints, quarantine and
+restartable signing cutover through installed maintenance commands. The source native
+production guard stays closed pending #208. The owner explicitly excluded real Entra
+and Linux environment journeys from the remaining release acceptance; live #208
+records that scope amendment. GitHub remains authoritative for delivery/merge status.

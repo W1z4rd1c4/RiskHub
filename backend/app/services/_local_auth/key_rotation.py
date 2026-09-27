@@ -1,6 +1,7 @@
 """Bounded, User-locked re-encryption of native secrets and key-reference inventory."""
 
 from copy import deepcopy
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,15 +14,15 @@ from .common import NativeContext, audit_local, commit_local
 from .keys import LocalKeyring
 
 
-def active_grants():
+def active_grants(*, as_of: datetime | None = None):
     return (
         LocalAuthGrant.consumed_at.is_(None),
         LocalAuthGrant.revoked_at.is_(None),
-        LocalAuthGrant.expires_at > utc_now(),
+        LocalAuthGrant.expires_at > (as_of if as_of is not None else utc_now()),
     )
 
 
-async def reference_counts(db: AsyncSession) -> dict[str, dict[str, int]]:
+async def reference_counts(db: AsyncSession, *, as_of: datetime | None = None) -> dict[str, dict[str, int]]:
     counts: dict[str, dict[str, int]] = {purpose: {} for purpose in ("totp", "delivery", "action")}
 
     def add(purpose: str, key: str) -> None:
@@ -33,7 +34,7 @@ async def reference_counts(db: AsyncSession) -> dict[str, dict[str, int]]:
         await db.scalars(select(LocalAuthDelivery.key_id).where(LocalAuthDelivery.ciphertext.is_not(None)))
     ).all():
         add("delivery", key)
-    for context in (await db.scalars(select(LocalAuthGrant.context).where(*active_grants()))).all():
+    for context in (await db.scalars(select(LocalAuthGrant.context).where(*active_grants(as_of=as_of)))).all():
         for field, purpose in (("pending_factor", "totp"), ("pending_password", "delivery")):
             if field in context:
                 add(purpose, context[field]["key_id"])
@@ -112,7 +113,7 @@ async def reencrypt_batch(db: AsyncSession, ctx: NativeContext, *, after_user_id
 
 
 async def verify_key_material(
-    db: AsyncSession, *, installation_id: str, keys: LocalKeyring
+    db: AsyncSession, *, installation_id: str, keys: LocalKeyring, as_of: datetime | None = None
 ) -> dict[str, dict[str, int]]:
     """Exercise actual decrypt capability; a matching key ID alone proves nothing."""
     for factor in (await db.scalars(select(LocalAuthFactor))).all():
@@ -127,7 +128,7 @@ async def verify_key_material(
                 row.ciphertext,
                 [installation_id, str(row.user_id), row.id, row.grant_id or "notice"],
             )
-    for grant in (await db.scalars(select(LocalAuthGrant).where(*active_grants()))).all():
+    for grant in (await db.scalars(select(LocalAuthGrant).where(*active_grants(as_of=as_of)))).all():
         pending = grant.context.get("pending_factor")
         if pending:
             keys.decrypt(
@@ -144,4 +145,4 @@ async def verify_key_material(
                 pending["ciphertext"],
                 [installation_id, str(grant.user_id), grant.context["recovery_id"], "recovery-password"],
             )
-    return await reference_counts(db)
+    return await reference_counts(db, as_of=as_of)

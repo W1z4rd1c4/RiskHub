@@ -257,3 +257,12 @@ Balíček pro předání:
 - [Admin onboarding](./getting-started.md)
 - [Admin Console](./console.md)
 - [Reporty a evidence exporty](./reports.md)
+
+## Účty po obnově ze zálohy
+
+Obnovený účet může zůstat v karanténě, dokud provozovatel neověří aktuální oprávnění
+a přihlašovací údaje. Běžná aktivace účtu karanténu neodstraní. Nejprve obnovte přístup
+stávajícího správce schváleným postupem a poté zkontrolujte přístup jednotlivých
+uživatelů. Zastaralé přihlašovací údaje vyžadují nové nastavení v procesu obnovy.
+Nevytvářejte náhradního správce a neopakujte počáteční nastavení. Viz
+[provozní postup obnovy](https://github.com/W1z4rd1c4/RiskHub/blob/main/docs/security/identity-restore.md).

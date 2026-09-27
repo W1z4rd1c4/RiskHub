@@ -1293,3 +1293,16 @@ and Entra-owned profile fields cannot be changed through ordinary access PATCHes
 Account-creation success, delivery degradation, failed reload and unknown mutation
 outcome are separate states. The access update accepts an optional bounded reason
 as audit metadata, redacted by the existing free-text audit policy.
+
+### Identity restore and access freshness
+
+Same-profile restore preserves User IDs and business ownership but cannot establish
+current authority from old data. Protected maintenance validates the dump and decrypt
+keys, captures current security evidence, replaces the sole JWT signing authority,
+and revokes old refresh/purpose artifacts and recovery codes. `restore_quarantined`
+independently blocks login, refresh, API authority and ordinary activation/break-glass.
+Unknown credentials require existing-account recovery; unknown access requires an
+explicit operator review. Recovery alone cannot clear restore quarantine. Entra also
+requires current upstream eligibility. No available platform administrator means
+ordinary access stays quarantined pending existing-admin recovery. See
+[the restore contract](security/identity-restore.md).

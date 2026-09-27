@@ -104,6 +104,7 @@ RUN python -m pip uninstall --yes pip && \
     rm -rf /usr/local/lib/python3.13/ensurepip
 RUN apk upgrade --no-cache && apk add --no-cache \
     libpq \
+    postgresql16-client \
     su-exec
 
 COPY --from=builder-base /usr/local/lib/python3.13/tarfile.py /usr/local/lib/python3.13/tarfile.py
@@ -126,6 +127,7 @@ COPY --chown=riskhub:riskhub scripts/seed_departments.py ./scripts/seed_departme
 COPY --chown=riskhub:riskhub scripts/bootstrap_sso_user.py ./scripts/bootstrap_sso_user.py
 COPY --chown=riskhub:riskhub scripts/bootstrap_local_users.py ./scripts/bootstrap_local_users.py
 COPY --chown=riskhub:riskhub scripts/identity_preflight.py ./scripts/identity_preflight.py
+COPY --chown=riskhub:riskhub scripts/identity_restore.py ./scripts/identity_restore.py
 COPY --chown=riskhub:riskhub scripts/identity_installation.py ./scripts/identity_installation.py
 COPY --chown=riskhub:riskhub scripts/local_recovery.py ./scripts/local_recovery.py
 COPY --chown=riskhub:riskhub scripts/local_auth_keys.py ./scripts/local_auth_keys.py

@@ -318,7 +318,13 @@ async def bootstrap_runtime_services(app: FastAPI) -> None:
 
     if app.state.redis is not None:
         app.state.account_lockout = AccountLockoutService(RedisAccountLockoutBackend(app.state.redis))
-        app.state.sso_challenge_store = RedisSsoChallengeStore(app.state.redis)
+        from app.services._identity_restore.files import fingerprint
+
+        installation_id = getattr(app.state, "installation_id", "development")
+        signing_epoch = fingerprint(settings.secret_key.encode())
+        app.state.sso_challenge_store = RedisSsoChallengeStore(
+            app.state.redis, namespace=f"riskhub:{installation_id}:sso:{signing_epoch}:challenge"
+        )
     else:
         worker_count = resolve_process_worker_count()
         if worker_count > 1:
@@ -349,7 +355,11 @@ async def lifespan(app: FastAPI):
         if not settings.debug:
             from app.services.identity_installation import validate_installation_binding
 
-            await validate_installation_binding(db, settings=settings)
+            binding = await validate_installation_binding(db, settings=settings)
+            app.state.installation_id = binding.installation_id
+            from app.services._identity_restore.admission import validate_restore_admission
+
+            await validate_restore_admission(db, settings=settings)
         await apply_persisted_log_rotation_config(db)
 
     await bootstrap_runtime_services(app)

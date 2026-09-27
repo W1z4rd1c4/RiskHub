@@ -186,3 +186,9 @@ reissue path. An empty installation uses `admin.json` and `cro.json` in the prep
 0700 directory. A successful command still reports pending enrollment until both
 recipients finish. Operator `start`, `status`, `reissue` and `abort` retain their
 explicit maintenance contracts above.
+
+## Restore continuity
+
+Follow [identity-safe restore](identity-restore.md) for signed manifests, current security
+checkpoints, new signing authority, quarantine, explicit access review and compatible
+rollback. Old JWT keys and consumed authentication artifacts must never be reinstated.

@@ -173,3 +173,9 @@ Preserve native admission denial until #208. Use the normal protected-branch rev
 and release process; this guide is not candidate-specific approval evidence.
 
 See [native directory isolation](identity-directory-isolation.md) for external service admission, local-directory continuity, capabilities and diagnostics.
+
+## Restore continuity
+
+Follow [identity-safe restore](identity-restore.md) for signed manifests, current security
+checkpoints, new signing authority, quarantine, explicit access review and compatible
+rollback. Old JWT keys and consumed authentication artifacts must never be reinstated.

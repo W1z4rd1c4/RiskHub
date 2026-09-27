@@ -156,7 +156,7 @@ async def test_identity_preflight_preserves_pending_native_installation(
     )
     env["LOCAL_MFA_POLICY"] = policy
     result = await run_cli(
-        "scripts.identity_preflight", env, "--alembic-config", str(ALEMBIC_CONFIG)
+        "scripts.identity_preflight", env, "--restore-contract", "1", "--alembic-config", str(ALEMBIC_CONFIG)
     )
     assert result[0] == 0, result
     assert json.loads(result[1])["status"] == "compatible"
@@ -242,7 +242,7 @@ async def test_identity_preflight_refuses_unknown_security_state_before_writers_
             bootstrap_context.settings.local_recovery_approvers_file,
         )
         result = await run_cli(
-            "scripts.identity_preflight", env, "--alembic-config", str(ALEMBIC_CONFIG)
+            "scripts.identity_preflight", env, "--restore-contract", "1", "--alembic-config", str(ALEMBIC_CONFIG)
         )
         assert result[0] in {2, 3}, result
         assert "refused" in result[2] or "unavailable" in result[2]

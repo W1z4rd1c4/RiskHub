@@ -12,6 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.user_query_options import user_selectinload_options
 from app.models import LocalAuthGrant, User
 from app.services._auth_session_workflow.authority import lock_session_user
 
@@ -113,7 +114,15 @@ async def read_grant(
         raise invalid_proof()
     if expected_user_id is not None and row.user_id != expected_user_id:
         raise invalid_proof()
-    user = await lock_session_user(db, user_id=row.user_id) if locked else await db.get(User, row.user_id)
+    user = (
+        await lock_session_user(db, user_id=row.user_id)
+        if locked
+        else await db.scalar(
+            select(User)
+            .where(User.id == row.user_id)
+            .options(*user_selectinload_options(include_permissions=True))
+        )
+    )
     if user is None:
         raise invalid_proof()
     if locked:

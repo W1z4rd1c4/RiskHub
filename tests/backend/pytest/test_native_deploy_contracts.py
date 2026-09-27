@@ -595,3 +595,16 @@ def test_human_readable_doctor_repair_preserves_identity_summary(tmp_path, profi
     else:
         assert f"MFA policy: {profile}" in result.stdout
         assert "Microsoft Entra app credentials are required" not in result.stdout
+
+
+def test_restored_signing_marker_is_mounted_with_installed_authority(tmp_path):
+    config, secrets = native_files(tmp_path)
+    marker = secrets / "secret_key.restore-state.json"
+    marker.write_text('{"version":1,"status":"pending"}')
+    marker.chmod(0o600)
+    result = renderer("write-runtime", "--config", config, "--target", "docker",
+                      "--secret-dir", secrets, "--out-dir", tmp_path / "out")
+    assert result.returncode == 0, result.stderr
+    mounts = renderer("secret-mount-paths", "--config", tmp_path / "out" / "backend.env")
+    assert mounts.returncode == 0
+    assert str(marker) in mounts.stdout.splitlines()

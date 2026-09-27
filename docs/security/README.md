@@ -33,3 +33,9 @@ replacement, assisted recovery, dual-approved operator recovery and key rotation
 - [Native directory isolation and capabilities](identity-directory-isolation.md)
 
 - [Initial native Admin/CRO bootstrap](identity-bootstrap.md): protected grants, interruption/resume, completion and operator diagnostics.
+
+## Restore continuity
+
+Follow [identity-safe restore](identity-restore.md) for signed manifests, current security
+checkpoints, new signing authority, quarantine, explicit access review and compatible
+rollback. Old JWT keys and consumed authentication artifacts must never be reinstated.

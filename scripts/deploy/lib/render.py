@@ -1029,6 +1029,10 @@ def main(argv: Iterable[str] | None = None) -> int:
                             "Secret mount paths must be absolute and contain no colon/newline"
                         )
                     print(value)
+                    if field == "SECRET_KEY_FILE":
+                        marker = Path(value + ".restore-state.json")
+                        if marker.exists() or marker.is_symlink():
+                            print(marker)
         elif args.command == "prepare-handoff":
             path = Path(args.path)
             if not path.is_absolute() or ".." in path.parts:

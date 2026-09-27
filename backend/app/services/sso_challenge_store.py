@@ -71,11 +71,12 @@ redis.call('DEL', KEYS[1])
 return value
 """
 
-    def __init__(self, redis) -> None:
+    def __init__(self, redis, *, namespace: str | None = None) -> None:
         self._redis = redis
+        self._prefix = namespace or self.KEY_PREFIX
 
     def _key(self, challenge_id: str) -> str:
-        return f"{self.KEY_PREFIX}:{challenge_id}"
+        return f"{self._prefix}:{challenge_id}"
 
     async def store(self, challenge: SsoChallenge) -> None:
         expires_at = _coerce_required_utc(challenge.expires_at)

@@ -155,3 +155,9 @@ Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na 
 ## Související manuály
 
 Začněte s [Getting Started](./getting-started.md), [Access Management](./access-management.md), [Notifications](./notifications.md), [Záznam aktivit](./activity-log.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.
+
+## Proč se po obnově zálohy nemohu přihlásit?
+
+Provozovatel může nejprve potřebovat ověřit váš aktuální přístup a zaslat nové pokyny
+k obnově. Staré relace, odkazy pro reset hesla a záložní kódy po obnově neplatí.
+Obraťte se na správce a použijte pouze nově vydané pokyny.

@@ -7,6 +7,7 @@ from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.department import Department
 from app.models.global_config import GlobalConfig
 from app.models.governed_mutation import GovernedMutationImpactLock, GovernedMutationProposal
+from app.models.identity_restore import IdentityRestoreCutover
 from app.models.installation_identity import InstallationIdentity
 from app.models.issue import (
     Issue,
@@ -53,6 +54,7 @@ from app.models.vendor_risk_link import VendorRiskLink
 from app.models.vendor_sub_outsourcing import VendorSubOutsourcing
 
 __all__ = [
+    "IdentityRestoreCutover",
     "LocalAuthDelivery",
     "LocalAuthFactor",
     "LocalAuthGrant",

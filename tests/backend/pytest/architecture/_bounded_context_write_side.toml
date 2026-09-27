@@ -3,6 +3,7 @@ expires_at = "2026-11-11"
 packages = [
     "_riskhub_config",
     "_identity_access_lifecycle",
+    "_identity_restore",
     "_vendor_governance",
     "_register_listings", # dual-classed; also read-shape.
     "_approval_execution",

@@ -462,3 +462,16 @@ redeems that invitation through the real API. SMTP delivery remains separately
 covered by the backend TLS/outbox suite; final managed deployment/tenant acceptance
 remains #208. Use a fresh database/root per complete run. Traces, video and automatic
 screenshots are disabled; explicit screenshots precede credential entry.
+
+## Identity restore rehearsal (#207)
+
+`test_identity_restore.py` checks version-collision rejection, signing replacement,
+checkpoint freshness, factor cutover, artifact revocation, admission and Redis isolation.
+`test_identity_restore_cli.py` uses actual custom-format PostgreSQL dumps, separate
+validation/destination databases, protected key files, real CLI subprocesses and Redis.
+It exercises planned/unplanned restore and failure after signing replacement, database
+restore, committed security reconciliation and ready-marker publication. These tests
+run in the native PostgreSQL/Redis CI lane with `TEST_DATABASE_URL` and `TEST_REDIS_URL`;
+their destructive operations are confined to uniquely named disposable drill databases.
+Real Entra tenant and Linux deployment/runtime journeys were explicitly skipped by
+the owner on September 26, 2026. Record them as `SKIPPED_BY_OWNER`, never PASS.
