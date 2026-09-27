@@ -4,7 +4,7 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, render, renderWithoutProviders, screen, userEvent, waitFor, within } from '@test/render';
+import { act, cleanup, render, renderWithoutProviders, screen, userEvent, waitFor, within } from '@test/render';
 import { server } from '@test/mocks/server';
 import { useTranslation } from '@/i18n/hooks';
 import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
@@ -106,6 +106,9 @@ afterEach(async () => {
     await act(async () => {
         await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
+    // Unmount before asserting console output so a failed assertion cannot
+    // leave this dialog's opener in the next matrix case.
+    cleanup();
     const unexpectedOutput = [
         ...consoleErrorSpy.mock.calls.map((args) => `console.error: ${args.map(String).join(' ')}`),
         ...consoleWarnSpy.mock.calls.map((args) => `console.warn: ${args.map(String).join(' ')}`),
@@ -676,6 +679,11 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
     it('[owner.kri-modal] KRIModal', async () => {
         server.use(
             http.get('*/api/v1/vendors', () => HttpResponse.json({ items: [], total: 0, offset: 0, limit: 25 })),
+            http.get('*/api/v1/users/lookup/risk-owners', () => HttpResponse.json([{
+                id: 7,
+                name: 'Matrix KRI Owner',
+                email: 'matrix.kri.owner@example.test',
+            }])),
         );
         await assertDataRouterDialogContract(
             'dialog',
@@ -690,6 +698,14 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
             ),
             async (surface) => {
                 await within(surface).findByText('No vendors found.');
+                // Preserve the initial-focus assertion before interacting with
+                // the owner selector to await its independent lookup.
+                await waitFor(() => expect(surface.contains(document.activeElement)).toBe(true));
+                const user = userEvent.setup();
+                await user.click(within(surface).getByRole('combobox', { name: 'Risk Owner (Default)' }));
+                await screen.findByRole('option', { name: 'Matrix KRI Owner' });
+                await user.keyboard('{Escape}');
+                await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
             },
         );
     });
