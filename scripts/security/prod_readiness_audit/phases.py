@@ -310,7 +310,7 @@ def build_prod_readiness_phases(
                         f"{audit_python} -m pip install "
                         "-c backend/requirements-prod-readiness-audit-constraints.txt "
                         "-r backend/requirements-dev.txt "
-                        "'pip-audit==2.10.0'"
+                        "'pip-audit==2.10.1'"
                     ),
                     timeout_sec=1800,
                 ),

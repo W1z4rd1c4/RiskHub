@@ -169,8 +169,8 @@ def validate() -> list[str]:
         errors.append(
             "development and production-readiness audit locks must be exact mirrors"
         )
-    if locked_versions.get("pip-audit") != "2.10.0":
-        errors.append("combined resolver lock must pin pip-audit==2.10.0")
+    if locked_versions.get("pip-audit") != "2.10.1":
+        errors.append("combined resolver lock must pin pip-audit==2.10.1")
     pip_version = locked_versions.get("pip")
     if pip_version is None:
         errors.append("unsafe pip lock: pip must be pinned at or above 26.1.2")
@@ -198,9 +198,9 @@ def validate() -> list[str]:
     pip_audit_requirement = requested_by_name.get("pip-audit")
     if (
         pip_audit_requirement is None
-        or str(pip_audit_requirement.specifier) != "==2.10.0"
+        or str(pip_audit_requirement.specifier) != "==2.10.1"
     ):
-        errors.append("requirements-dev.in must request pip-audit==2.10.0 exactly")
+        errors.append("requirements-dev.in must request pip-audit==2.10.1 exactly")
     syrupy_requirement = requested_by_name.get("syrupy")
     if (
         syrupy_requirement is None

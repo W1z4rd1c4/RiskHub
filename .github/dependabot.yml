@@ -10,6 +10,12 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Major migrations are tracked separately; security updates remain eligible.
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     groups:
       frontend-dependencies:
         patterns:
@@ -24,6 +30,12 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Major migrations are tracked separately; security updates remain eligible.
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     groups:
       backend-python-dependencies:
         patterns:
@@ -38,6 +50,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Python 3.14 is a runtime migration (#222); retain the 3.13 minor line.
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-patch"
     groups:
       backend-docker-dependencies:
         patterns:
@@ -52,6 +69,12 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Major migrations are tracked separately; security updates remain eligible.
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     groups:
       frontend-docker-dependencies:
         patterns:
@@ -66,6 +89,12 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Major migrations are tracked separately; security updates remain eligible.
+    allow:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
     groups:
       github-actions-dependencies:
         patterns:

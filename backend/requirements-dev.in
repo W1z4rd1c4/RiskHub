@@ -14,11 +14,13 @@ sqlalchemy-utils>=0.41,<0.42
 testcontainers[redis]>=4.8.0
 
 # Security/tooling
+# Keep the existing filelock major until its migration is reviewed (#224).
+filelock>=3.32.4,<4
 ruff==0.6.9
 bandit>=1.7.8
 mypy>=1.18.0
 pre-commit>=3.7.0
-pip-audit==2.10.0
+pip-audit==2.10.1
 
 # Data migration helpers
 openpyxl>=3.1.0
