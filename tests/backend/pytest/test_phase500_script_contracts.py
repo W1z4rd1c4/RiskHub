@@ -790,7 +790,7 @@ def test_prod_readiness_phase_plan_bootstraps_tracked_only_candidate_dependencie
         in backend_bootstrap
     )
     assert "pip install --upgrade pip" not in backend_bootstrap
-    assert "pip-audit==2.10.0" in backend_bootstrap
+    assert "pip-audit==2.10.1" in backend_bootstrap
     assert "pip-audit>=" not in backend_bootstrap
     assert "npm ci --include=dev --legacy-peer-deps" in frontend_bootstrap
     assert command_ids.index("bootstrap_backend_audit_venv") < command_ids.index(
