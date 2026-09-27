@@ -286,7 +286,7 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-        expect(screen.queryByTitle('actions.export_summary_excel')).not.toBeInTheDocument();
+        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
         expect(screen.queryByText('issue summary')).not.toBeInTheDocument();
         expect(screen.getByText('department filter hidden')).toBeInTheDocument();
         expect(screen.getByText('department table focus disabled')).toBeInTheDocument();
@@ -426,7 +426,7 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/?viewMode=department'));
-        fireEvent.click(await screen.findByTitle('actions.export_summary_excel'));
+        fireEvent.click(await screen.findByTitle('actions.export_overview_csv'));
 
         expect(downloadSummaryCsvMock).toHaveBeenCalledWith({
             controlForm: null,
@@ -451,7 +451,7 @@ describe('DashboardPage overview aggregation', () => {
         );
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
-        const exportButton = await screen.findByTitle('actions.export_summary_excel');
+        const exportButton = await screen.findByTitle('actions.export_overview_csv');
         const initialUrl = screen.getByTestId('location').textContent;
         fireEvent.click(exportButton);
 
@@ -460,7 +460,7 @@ describe('DashboardPage overview aggregation', () => {
             firstExport.reject(new Error('dashboard export unavailable'));
         });
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('export.errors.failed');
+        expect(await screen.findByRole('alert')).toHaveTextContent('errors.export_summary_failed');
         expect(screen.getByTestId('location')).toHaveTextContent(initialUrl ?? '');
 
         fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));

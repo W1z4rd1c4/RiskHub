@@ -46,7 +46,7 @@ export function HistoryTrendChart({
 
     if (!data || data.length === 0) {
         return (
-            <div className={cn('flex items-center justify-center h-[280px] text-slate-500 text-sm', className)}>
+            <div className={cn('flex items-center justify-center h-[280px] text-muted-foreground text-sm', className)}>
                 {resolvedEmptyMessage}
             </div>
         );

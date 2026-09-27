@@ -956,12 +956,14 @@
    "backend_authority": "backend/app/api/v1/endpoints/dashboard/",
    "service_policy": "backend/app/core/_permissions/entity_scope_clauses.py, backend/app/core/permission_cache.py, backend/app/services/_dashboard_metrics/committee_projection.py, and dashboard modules including backend/app/services/_dashboard_metrics/departments.py controls:read gating for department control aggregates",
    "response_capability": "backend/app/schemas/dashboard.py DashboardOverviewCapabilities on DashboardOverviewResponse; committee responses expose can_view_vendors and nullable critical_vendors_total so restricted populations have no numeric count; DashboardFilterScope is fixed descriptive applicability metadata and carries no population counts; payloads remain scoped server-side",
-   "frontend_gate": "frontend/src/authz/policy.ts for route/session projection, frontend/src/services/dashboardApi.ts, frontend/src/pages/DashboardPage.tsx, frontend/src/pages/dashboard/DashboardHeader.tsx, and frontend/src/pages/dashboard/useDashboardOverviewState.ts consume backend capability metadata without local issue-permission query-key discriminators; Dashboard consumers render denied populations as restricted rather than zero",
+   "frontend_gate": "frontend/src/authz/policy.ts for route/session projection, frontend/src/services/dashboardApi.ts, frontend/src/pages/DashboardPage.tsx, frontend/src/pages/dashboard/DashboardHeader.tsx, and frontend/src/pages/dashboard/useDashboardOverviewState.ts consume backend capability metadata without local issue-permission query-key discriminators; Dashboard consumers render denied populations as restricted rather than zero; Overview summary CSV export and its captured-filter Retry are available only on Overview with can_export_or_report=true, independent of cached Overview data on committee tabs",
    "tests": [
     "tests/backend/pytest/test_dashboard.py",
     "tests/backend/pytest/test_aggregate_overviews.py",
     "tests/backend/pytest/test_dashboard_committee_vendor_metrics.py",
     "tests/frontend/unit/src/pages/__tests__/DashboardPage.overview.test.tsx",
+    "tests/frontend/unit/src/pages/__tests__/DashboardPage.committeeViews.test.tsx",
+    "tests/frontend/e2e/dashboard-export-ownership.spec.ts",
     "tests/frontend/unit/src/components/dashboard/__tests__/RiskCommitteeSection.test.tsx",
     "tests/frontend/unit/src/components/dashboard/__tests__/QuarterlyComparisonWidget.test.tsx",
     "tests/frontend/e2e/access-scope.spec.ts"

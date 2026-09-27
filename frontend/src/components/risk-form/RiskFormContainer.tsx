@@ -19,12 +19,12 @@ import { RiskFormIdentityStep } from './RiskFormIdentityStep';
 import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
 import { RiskFormScoringStep } from './RiskFormScoringStep';
 import {
-    filterRiskOwners,
     getUniqueRiskOwnerRoles,
     useRiskFormWorkflow,
     useRiskScorePresentation,
 } from './riskFormWorkflow';
 import { useRiskLookups } from './useRiskLookups';
+import { useRiskOwnerSearch } from './useRiskOwnerSearch';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -57,7 +57,6 @@ export function RiskForm({
         existingCategories,
         existingProcesses,
         subprocessesByProcess,
-        users,
     } = useRiskLookups();
     // Owner search/filter
     const [ownerSearch, setOwnerSearch] = useState('');
@@ -72,6 +71,7 @@ export function RiskForm({
         formData,
         isSubmitting,
         handleInputChange,
+        selectOwner,
         nextStep,
         prevStep,
         requestLocalLeave,
@@ -83,7 +83,6 @@ export function RiskForm({
         isEdit,
         onSuccess,
         riskTypes,
-        users,
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -92,8 +91,10 @@ export function RiskForm({
         await submit();
     };
 
-    const filteredUsers = filterRiskOwners(users, ownerSearch, roleFilter, formData.department_id);
-    const uniqueRoles = getUniqueRiskOwnerRoles(users);
+    const ownerLookup = useRiskOwnerSearch(ownerSearch, formData.department_id);
+    const users = ownerLookup.users;
+    const filteredUsers = users.filter((user) => !roleFilter || user.role_name === roleFilter);
+    const uniqueRoles = [...new Set([...getUniqueRiskOwnerRoles(users), ...(roleFilter ? [roleFilter] : [])])];
 
     return (
         <>
@@ -146,8 +147,12 @@ export function RiskForm({
                             formData={formData}
                             fieldErrors={fieldErrors}
                             departments={departments}
-                            users={users}
                             filteredUsers={filteredUsers}
+                            ownerLookupStatus={ownerLookup.status}
+                            ownerResultsLimited={ownerLookup.limited}
+                            ownerResultsHiddenByRole={users.length > 0 && filteredUsers.length === 0}
+                            retryOwnerSearch={ownerLookup.retry}
+                            selectOwner={selectOwner}
                             uniqueRoles={uniqueRoles}
                             ownerSearch={ownerSearch}
                             roleFilter={roleFilter}

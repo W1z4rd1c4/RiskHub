@@ -227,6 +227,17 @@
     "back_to_register": "Zpět do registru"
   },
   "form": {
+    "owner_search": {
+      "label": "Vlastník rizika (povinný výběr)",
+      "unknown_owner": "Neznámý uživatel",
+      "selected": "Vybraný vlastník",
+      "clear": "Zrušit výběr vlastníka {{name}}",
+      "help": "Výběr osoby je povinný; zadání hledaného textu vlastníka nepřiřadí. Hledejte podle jména nebo e-mailu ve vybraném oddělení. Filtry rolí pouze zužují zobrazené výsledky. Výběr vlastníka také nastaví jeho oddělení, pokud je dostupné.",
+      "loading": "Vyhledávání vlastníků…",
+      "failed": "Vyhledávání vlastníků selhalo. Vybraný vlastník zůstává beze změny.",
+      "no_visible_matches": "V této sadě výsledků nejsou odpovídající vlastníci. Upřesněte hledání nebo vyberte všechny role.",
+      "refine": "Zobrazeno nejvýše 50 odpovídajících vlastníků. Další vlastníky najdete upřesněním hledání."
+    },
     "steps": {
       "identity": "Identita",
       "ownership": "Detaily a vlastník",

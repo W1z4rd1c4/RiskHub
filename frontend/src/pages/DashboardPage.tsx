@@ -6,6 +6,7 @@ import { useAuthz } from '@/authz/useAuthz';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
+import type { DashboardFilters } from '@/types/dashboard';
 
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
 import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection';
@@ -43,6 +44,24 @@ function resolveActiveView(
 }
 
 export function DashboardPage() {
+    // URL filter hydration temporarily unmounts the content. Keep the initiating
+    // export snapshot here so a delayed result or Retry survives that transition.
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportError, setExportError] = useState<DashboardFilters | null>(null);
+    const handleExport = async (filters: DashboardFilters) => {
+        const snapshot = { ...filters };
+        setIsExporting(true);
+        setExportError(null);
+        try {
+            await exportDashboardSummary(snapshot);
+        } catch (error) {
+            logError('Failed to export dashboard summary.', error);
+            setExportError(snapshot);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const [searchParams, setSearchParams] = useSearchParams();
     const { filters, replaceSnapshot, viewMode } = useDashboardFilters();
     const { t } = useTranslation('dashboard');
@@ -116,18 +135,22 @@ export function DashboardPage() {
         return <DashboardLoadingState label={t('loading')} />;
     }
 
-    return <DashboardPageContent />;
+    return <DashboardPageContent isExporting={isExporting} exportError={exportError} onExport={handleExport} />;
 }
 
-function DashboardPageContent() {
+interface DashboardPageContentProps {
+    isExporting: boolean;
+    exportError: DashboardFilters | null;
+    onExport: (snapshot: DashboardFilters) => Promise<void>;
+}
+
+function DashboardPageContent({ isExporting, exportError, onExport }: DashboardPageContentProps) {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { filters } = useDashboardFilters();
     const authz = useAuthz();
     const { i18n, t } = useTranslation('dashboard');
     const { t: tCommon } = useTranslation('common');
-    const [isExporting, setIsExporting] = useState(false);
-    const [exportError, setExportError] = useState<typeof filters | null>(null);
 
     const [selectedCell, setSelectedCell] = useState<{
         probability: number;
@@ -198,25 +221,12 @@ function DashboardPageContent() {
     });
     const capabilities = overviewQuery.data?.capabilities;
     const canViewIssueMetrics = resolveCapabilityFlag(capabilities, 'can_view_issue_metrics');
-    const canExport = resolveCapabilityFlag(capabilities, 'can_export_or_report');
+    const canExport = activeView === 'overview' && resolveCapabilityFlag(capabilities, 'can_export_or_report');
     const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
     const exportFilters = useMemo(() => ({
         ...filters,
         departmentId: canUseDepartmentFilter ? filters.departmentId : null,
     }), [canUseDepartmentFilter, filters]);
-
-    const handleExport = async (exportSnapshot: typeof filters) => {
-        setIsExporting(true);
-        setExportError(null);
-        try {
-            await exportDashboardSummary(exportSnapshot);
-        } catch (error) {
-            logError('Failed to export dashboard summary.', error);
-            setExportError(exportSnapshot);
-        } finally {
-            setIsExporting(false);
-        }
-    };
 
     useEffect(() => {
         if (capabilities !== null && capabilities !== undefined && !resolveCapabilityFlag(capabilities, 'can_use_department_filter') && filters.departmentId !== null) {
@@ -254,10 +264,10 @@ function DashboardPageContent() {
                     isExporting={isExporting}
                     isUpdating={overviewQuery.isFetching && Boolean(overviewQuery.data)}
                     locale={i18n.language}
-                    onExport={() => void handleExport(exportFilters)}
+                    onExport={() => void onExport(exportFilters)}
                     subtitle={t('page_subtitle')}
                     title={t('title')}
-                    exportLabel={t('actions.export_summary_excel')}
+                    exportLabel={t('actions.export_overview_csv')}
                     showFreshness={activeView === 'overview'}
                     updateFailed={Boolean(overviewQuery.error && overviewQuery.data)}
                     updatedLabel={t('freshness.updated')}
@@ -265,17 +275,17 @@ function DashboardPageContent() {
                     updateFailedLabel={t('freshness.update_failed')}
                 />
 
-            {exportError ? (
+            {exportError && canExport ? (
                 <div
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                     role="alert"
                 >
-                    <p className="font-medium">{tCommon('export.errors.failed')}</p>
+                    <p className="font-medium">{t('errors.export_summary_failed')}</p>
                     <button
                         type="button"
                         disabled={isExporting}
-                        onClick={() => void handleExport(exportError)}
-                        className="rounded-lg border border-rose-300/30 px-3 py-1.5 font-bold hover:bg-rose-300/10 disabled:opacity-60"
+                        onClick={() => void onExport(exportError)}
+                        className="rounded-lg border border-destructive/30 px-3 py-1.5 font-bold hover:bg-destructive/10 disabled:opacity-60"
                     >
                         {tCommon('actions.retry')}
                     </button>

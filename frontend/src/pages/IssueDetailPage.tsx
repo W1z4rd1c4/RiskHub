@@ -78,7 +78,7 @@ export function IssueDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">
+                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
                     {t('detail.loading')}
                 </p>
             </div>

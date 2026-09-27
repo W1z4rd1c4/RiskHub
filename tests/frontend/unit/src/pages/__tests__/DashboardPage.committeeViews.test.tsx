@@ -1,5 +1,5 @@
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
@@ -13,6 +13,11 @@ import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 // is independent of the overview request (never blocked by its loading/error).
 
 const fetchOverviewMock = vi.fn();
+const downloadSummaryCsvMock = vi.fn();
+
+vi.mock('@/services/reportApi', () => ({
+    reportApi: { downloadSummaryCsv: (...args: unknown[]) => downloadSummaryCsvMock(...args) },
+}));
 let canViewCommitteeMock = false;
 let canViewIctCommitteeMock = false;
 
@@ -60,9 +65,11 @@ function LocationProbe() {
 function BackButton() {
     const navigate = useNavigate();
     return (
-        <button type="button" onClick={() => navigate(-1)}>
-            __back__
-        </button>
+        <>
+            <button type="button" onClick={() => navigate(-1)}>__back__</button>
+            <button type="button" onClick={() => navigate(1)}>__forward__</button>
+            <button type="button" onClick={() => navigate("/?riskLevel=low")}>__change_filters__</button>
+        </>
     );
 }
 
@@ -223,5 +230,59 @@ describe('DashboardPage — ICT Committee tab addressability (#64)', () => {
         expect(await screen.findByText('overview content')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /views\.risk_committee/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /views\.ict_committee/ })).not.toBeInTheDocument();
+    });
+});
+
+
+describe('Overview summary export ownership (#178)', () => {
+    beforeEach(() => {
+        canViewCommitteeMock = true;
+        canViewIctCommitteeMock = true;
+        fetchOverviewMock.mockResolvedValue({
+            ...MINIMAL_OVERVIEW,
+            capabilities: {
+                ...MINIMAL_OVERVIEW.capabilities,
+                can_use_department_filter: true,
+                can_export_or_report: true,
+            },
+        });
+        downloadSummaryCsvMock.mockResolvedValue(undefined);
+    });
+
+    it.each(['risk-committee', 'ict-committee'])('never offers Overview export on cold or warm %s views', async (view) => {
+        renderDashboard([`/?view=${view}`]);
+        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(fetchOverviewMock).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'views.overview' }));
+        expect(await screen.findByTitle('actions.export_overview_csv')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: `views.${view.replace('-', '_')}` }));
+        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: '__back__' }));
+        expect(await screen.findByTitle('actions.export_overview_csv')).toBeInTheDocument();
+        const requests = fetchOverviewMock.mock.calls.length;
+        fireEvent.click(screen.getByRole('button', { name: '__forward__' }));
+        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(fetchOverviewMock).toHaveBeenCalledTimes(requests);
+        expect(downloadSummaryCsvMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps a delayed failure and retry with the initiating filters across URL hydration and committee navigation', async () => {
+        let rejectExport!: (reason: Error) => void;
+        downloadSummaryCsvMock.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectExport = reject; }));
+        renderDashboard(['/?departmentId=7&riskLevel=high&controlStatus=active&controlForm=manual']);
+        fireEvent.click(await screen.findByTitle('actions.export_overview_csv'));
+        fireEvent.click(screen.getByRole('button', { name: '__change_filters__' }));
+        expect(await screen.findByTitle('actions.export_overview_csv')).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'views.risk_committee' }));
+        await act(async () => rejectExport(new Error('export unavailable')));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'actions.retry' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'views.overview' }));
+        expect(await screen.findByRole('alert')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));
+        await waitFor(() => expect(downloadSummaryCsvMock).toHaveBeenCalledTimes(2));
+        for (const [parameters] of downloadSummaryCsvMock.mock.calls) {
+            expect(parameters).toEqual({ departmentId: 7, riskLevel: 'high', controlStatus: 'active', controlForm: 'manual' });
+        }
     });
 });

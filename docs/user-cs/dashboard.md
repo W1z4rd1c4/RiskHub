@@ -116,6 +116,8 @@ Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu zn
 
 ## Vyhledávání, filtrování a evidence
 
+Tlačítko **Exportovat souhrn přehledu (CSV)** je dostupné pouze v Přehledu, pokud máte oprávnění k exportu. Stáhne CSV s filtry zvolenými při zahájení. Změna filtrů ani přepnutí do zobrazení výboru nezmění již probíhající export. Při chybě se vraťte do Přehledu a opakujte export s původními filtry; pro aktuální filtry spusťte nový export. Každý pokus vypočítá aktuální dostupná data a zaznamená vlastní čas vytvoření, nereprodukuje historický snapshot.
+
 Nejdřív nastavte filtry, potom exportujte. Souhrnný export používá stejnou populaci dostupnou uživateli, filtry a nastavené hranice rizik jako obrazovka a zapisuje vlastní čas vytvoření. Metadata uvádějí, že Risk Level platí jen pro metriky rizik, Control Status a Control Form jen pro metriky kontrol a metriky dodavatelů tyto filtry rizik a kontrol neovlivňují. Skryté metriky nevyčísluje.
 
 U probíhajícího aktuálního čtvrtletí se tokové metriky porovnávají ve stejně dlouhých uplynulých oknech; uzavřená čtvrtletí používají celá období. Porovnání ukazuje přesné rozsahy toků a u stavových hodnot čas pozorování i zdroj Živá data, Uložená data, nebo Chybí. Uložená pozorování musí mít stejný typ snapshotu: dvojice z konce čtvrtletí se porovnají, manuální dvojice jen tehdy, když obě vznikly přesně na konci čtvrtletí nebo ve stejné pozici v rámci čtvrtletí. Smíšená manuální pozorování a pozorování z konce čtvrtletí, skutečně rozdílné manuální pozice ani odlišné definice metriky se neporovnávají. Změna z nuly se zobrazí jako **Nové (z 0)** s absolutní změnou a bez procenta. Nepodporovaná nebo chybějící porovnání zůstávají N/A a nenaznačují trend.

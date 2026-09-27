@@ -339,7 +339,7 @@ export function IctRegisterDqPage() {
                 data-testid="dq-loading"
             >
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold animate-pulse uppercase tracking-widest text-xs">
+                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
                     {t('loading')}
                 </p>
             </div>

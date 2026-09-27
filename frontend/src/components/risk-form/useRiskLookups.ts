@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
+import { lookupApi } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 
 export interface RiskDepartmentLookup {
@@ -10,7 +10,6 @@ export interface RiskDepartmentLookup {
 }
 
 export function useRiskLookups() {
-    const [users, setUsers] = useState<UserLookupItem[]>([]);
     const [departments, setDepartments] = useState<RiskDepartmentLookup[]>([]);
     const [existingProcesses, setExistingProcesses] = useState<string[]>([]);
     const [existingCategories, setExistingCategories] = useState<string[]>([]);
@@ -21,9 +20,6 @@ export function useRiskLookups() {
         let cancelled = false;
 
         void Promise.all([
-            lookupApi.getRiskOwners({ limit: 200 }, { signal: controller.signal })
-                .then((items) => { if (!cancelled) setUsers(items); })
-                .catch((error) => { if (!cancelled) logError('Failed to load Risk owners:', error); }),
             lookupApi.getDepartments({ signal: controller.signal })
                 .then((items) => { if (!cancelled) setDepartments(items); })
                 .catch((error) => { if (!cancelled) logError('Failed to load Risk Departments:', error); }),
@@ -48,6 +44,5 @@ export function useRiskLookups() {
         existingCategories,
         existingProcesses,
         subprocessesByProcess,
-        users,
     };
 }

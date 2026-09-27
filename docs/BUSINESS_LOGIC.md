@@ -192,6 +192,8 @@ Rules:
 **Who Can Own a Risk:**
 - Any user can be assigned as Risk Owner regardless of their department
 - The assigned owner is typically someone in the same department, but this is not enforced
+- In the Risk form, owner search queries the assignment-specific, actor-scoped lookup with a maximum of 50 candidates per query. Text and role filters only change displayed candidates; they never change the draft owner or department. Refine the name/email query when the result cap is reached.
+- Explicit owner selection sets the owner and, when available, that user's department in the visible Department field. Explicit clear removes only the owner. The existing owner remains readable while searching, including in edit mode; failed searches offer Retry without changing the assignment.
 - Changing `owner_id` is a **sensitive field change** requiring approval
 
 ### 2.2 Control
@@ -984,6 +986,8 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Legacy/peripheral report exports use the same department-validation context: summary exports count actor-visible risks and controls, issue exports reject out-of-scope explicit departments, and audit-trail exports include visible control executions while filtering linked risk labels through canonical risk visibility.
 
 ### 10.4 Dashboard Visibility
+
+- The Dashboard summary CSV action belongs only to Overview and requires its backend `can_export_or_report` capability. Committee views never fetch Overview merely to enable an export. Activation captures normalized Overview filters (department, Risk Level, Control Status, Control Form); delayed completion and Retry retain that context across filter or tab changes. Failure recovery appears only in Overview while export remains permitted. The canonical actor-scoped read model and independent export generation time are unchanged.
 
 - Unfiltered dashboard summaries, risk distributions, risk drilldowns, risk trends, KRI breach trends, control trends, and vendor metrics aggregate rows visible to the actor rather than department rows alone.
 - Dashboard explicit `department_id` filters remain strict. Ownership/reporting exceptions do not include rows outside the requested department.

@@ -24,7 +24,6 @@ interface UseRiskFormWorkflowArgs {
     isEdit: boolean;
     onSuccess?: (riskId: number, acceptNavigation?: () => void) => void | Promise<void>;
     riskTypes: RiskTypeOption[];
-    users: UserLookupItem[];
 }
 
 export function createRiskFormSnapshot(
@@ -76,23 +75,6 @@ export function createInitialRiskFormData(risk?: Risk): Partial<Risk> {
     };
 }
 
-export function filterRiskOwners(
-    users: UserLookupItem[],
-    search: string,
-    roleFilter: string,
-    departmentId: number | null | undefined,
-): UserLookupItem[] {
-    const normalizedSearch = search.toLowerCase();
-    return users.filter((user) => {
-        const matchesSearch = !search
-            || user.name?.toLowerCase().includes(normalizedSearch)
-            || user.email?.toLowerCase().includes(normalizedSearch);
-        const matchesRole = !roleFilter || user.role_name === roleFilter;
-        const matchesDepartment = !departmentId || user.department_id === departmentId;
-        return matchesSearch && matchesRole && matchesDepartment;
-    });
-}
-
 export function getUniqueRiskOwnerRoles(users: UserLookupItem[]): string[] {
     return [...new Set(users.map((user) => user.role_name).filter((role): role is string => Boolean(role)))];
 }
@@ -132,7 +114,6 @@ export function useRiskFormWorkflow({
     isEdit,
     onSuccess,
     riskTypes,
-    users,
 }: UseRiskFormWorkflowArgs) {
     const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(0);
@@ -183,12 +164,7 @@ export function useRiskFormWorkflow({
         setFormData((prev) => {
             const nextData = { ...prev, [field]: value };
 
-            if (field === 'owner_id' && value) {
-                const selectedUser = users.find((user) => user.id === value);
-                if (selectedUser?.department_id) {
-                    nextData.department_id = selectedUser.department_id;
-                }
-            }
+            if (field === 'owner_id') nextData.owner = null;
 
             return nextData;
         });
@@ -203,6 +179,16 @@ export function useRiskFormWorkflow({
             }
             return nextErrors;
         });
+    };
+
+    const selectOwner = (owner: UserLookupItem) => {
+        setFormData((prev) => ({
+            ...prev,
+            owner_id: owner.id,
+            owner: { id: owner.id, name: owner.name, email: owner.email },
+            department_id: owner.department_id || prev.department_id,
+        }));
+        setFieldErrors((prev) => ({ ...prev, owner_id: '', department_id: '' }));
     };
 
     const validateStep1 = (): boolean => {
@@ -304,6 +290,7 @@ export function useRiskFormWorkflow({
         formData,
         isSubmitting,
         handleInputChange,
+        selectOwner,
         nextStep,
         prevStep,
         requestLocalLeave,

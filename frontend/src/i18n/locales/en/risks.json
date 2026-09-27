@@ -227,6 +227,17 @@
     "back_to_register": "Back to Register"
   },
   "form": {
+    "owner_search": {
+      "label": "Risk Owner (required selection)",
+      "unknown_owner": "Unknown user",
+      "selected": "Selected owner",
+      "clear": "Clear owner {{name}}",
+      "help": "Selecting a person is required; typing a search does not assign an owner. Search by name or email within the selected department. Role filters only narrow the displayed results. Selecting an owner also sets their department when available.",
+      "loading": "Searching owners…",
+      "failed": "Owner search failed. Your selected owner is unchanged.",
+      "no_visible_matches": "No matching owners in this result set. Refine the search or choose All roles.",
+      "refine": "Showing up to 50 matching owners. Refine your search to find other owners."
+    },
     "steps": {
       "identity": "Identity",
       "ownership": "Details & Owner",
