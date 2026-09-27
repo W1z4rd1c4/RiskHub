@@ -13,6 +13,7 @@ import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '
 import type { Risk } from '@/types/risk';
 
 import { useDetailQuery } from './useDetailQuery';
+import { useKriRestore } from './useKriRestore';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { useCollectionDataState } from '@/pages/shared/collectionPageState';
 import { isAbortError } from '@/services/api/requestRuntime';
@@ -78,6 +79,8 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         refetch: fetchKRI,
         resource: kri,
         resourceId: kriId,
+        setResource,
+        refetchOutcome,
     } = useDetailQuery<KeyRiskIndicator>({
         entity: 'kri',
         rawId,
@@ -263,19 +266,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         }
     }, [kri, navigate, returnTo]);
 
-    const handleRestore = useCallback(async () => {
-        if (!kri) return;
-        const ownerId = kri.id;
-        try {
-            await kriApi.restoreKRI(ownerId);
-            if (detailOwnerRef.current === ownerId) {
-                await fetchKRI();
-            }
-        } catch (error) {
-            if (detailOwnerRef.current !== ownerId) return;
-            logError('Failed to restore KRI.', error);
-        }
-    }, [fetchKRI, kri]);
+    const restoreState = useKriRestore({ kri, resourceId: kriId, setResource, refresh: refetchOutcome });
 
     const handleSave = useCallback(async (
         data: Partial<KeyRiskIndicator>,
@@ -339,7 +330,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         dueDate,
         handleDelete,
         handleRecordSuccess,
-        handleRestore,
+        restoreState,
         handleSave,
         history,
         historyOutcome,

@@ -143,6 +143,14 @@ Exports are evidence. Keep them small, label the time period, and avoid sharing 
 
 Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
+## Restoring an Archived KRI
+
+Open the archived KRI and choose **Unarchive** when the action is available. **Restoring…** means the request is still in progress; the action stays disabled until its outcome is known.
+
+A rejected restore keeps the record visible and offers **Retry restore** where appropriate. If the connection is lost, the result may be unknown: choose **Refresh record** before trying the restore again. This reads the current record and checks your current access; it does not submit another restore. If the refresh fails, retry the refresh. If access has changed, the action may disappear.
+
+**KRI restored.** confirms the server returned the restored record. A separate history-loading warning does not undo that result; retry loading history rather than repeating the restore.
+
 ## Troubleshooting
 
 If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.

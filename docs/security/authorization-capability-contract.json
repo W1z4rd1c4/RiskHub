@@ -503,7 +503,7 @@
    "backend_authority": "backend/app/api/v1/endpoints/kris/crud/ and backend/app/api/v1/endpoints/kris/access.py",
    "service_policy": "backend/app/core/_permissions/scoping.py, backend/app/core/approval_helpers.py, backend/app/api/v1/endpoints/kris/access.py, backend/app/api/v1/endpoints/approvals/_delete_authorization.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/, backend/app/services/_kri_history/intake.py, backend/app/services/_kri_history/loading.py, backend/app/services/_kri_history/approval_intake.py, and backend/app/services/_kri_history/direct_application.py for value intake orchestration; backend/app/services/_approval_queue/delete_context.py captures and compares delete approval context before KRI archive side effects; backend/app/services/_entity_mutation_lifecycle/lifecycle.py remains the route-facing Interface while backend/app/services/_entity_mutation_lifecycle/approval_plans.py, backend/app/services/_entity_mutation_lifecycle/policy.py, backend/app/services/_entity_mutation_lifecycle/direct_apply.py, backend/app/services/_entity_mutation_lifecycle/archive_plans.py, and backend/app/services/_entity_mutation_lifecycle/projection.py own approval-vs-direct mutation planning without changing policy",
    "response_capability": "backend/app/schemas/kri.py KRICapabilities.can_update, can_update_sensitive_fields, can_request_update_approval, can_archive_immediately, can_request_archive_approval, can_restore, can_link_vendors, can_unlink_vendors, can_create_issue, and KRIListResponse collection can_create",
-   "frontend_gate": "frontend/src/pages/KRINewPage.tsx, frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/kris/kriColumns.tsx, frontend/src/components/linking/LinkSearchResultItem.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and KRI form/list components use backend capabilities; direct create routes load collection capability metadata before rendering forms; frontend/src/components/linking/linkManagementPresentation.ts only projects backend restore capabilities for link-search rows",
+   "frontend_gate": "frontend/src/pages/KRINewPage.tsx, frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/kris/kriColumns.tsx, frontend/src/components/linking/LinkSearchResultItem.tsx, frontend/src/pages/shared/useCreateCapabilityGate.ts, and KRI form/list components use backend capabilities; direct create routes load collection capability metadata before rendering forms; frontend/src/components/linking/linkManagementPresentation.ts only projects backend restore capabilities for link-search rows; frontend/src/pages/detail/useKriRestore.ts requires backend can_restore and an active session, applies restored response capabilities, and requires authorized read reconciliation after unknown outcomes or denial",
    "tests": [
     "tests/backend/pytest/test_approval_workflow.py",
     "tests/backend/pytest/test_kris_rbac.py",
@@ -512,7 +512,9 @@
     "tests/frontend/unit/src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx",
     "tests/frontend/unit/src/pages/__tests__/KRIForms.vendor-context.test.tsx",
     "tests/frontend/unit/src/pages/__tests__/KRIsPage.monitoring-status.test.tsx",
-    "tests/backend/pytest/test_kri_history_intake_workflow.py"
+    "tests/backend/pytest/test_kri_history_intake_workflow.py",
+    "tests/frontend/unit/src/pages/detail/KriRestoreOutcomes.test.tsx",
+    "tests/frontend/e2e/kri-restore-outcomes.spec.ts"
    ],
    "status": "authoritative",
    "findings": []

@@ -283,5 +283,17 @@
     "reason_label": "Důvod smazání",
     "reason_placeholder": "Vysvětlete, proč má být toto KRI smazáno...",
     "confirm": "Smazat KRI"
+  },
+  "restore": {
+    "pending": "Obnovování…",
+    "success": "KRI byl obnoven.",
+    "rejected": "Obnovení bylo odmítnuto. Zkontrolujte záznam a případně akci opakujte.",
+    "unknown": "Výsledek obnovení není znám. Než akci zopakujete, načtěte aktuální stav záznamu.",
+    "denied": "Obnovení nebylo povoleno nebo záznam již není dostupný. Načtěte záznam znovu a ověřte aktuální přístup.",
+    "archived": "Znovu načtený záznam je stále archivován. Pokud je obnovení dostupné, můžete akci zopakovat.",
+    "retry": "Zkusit obnovení znovu",
+    "refresh": "Načíst záznam znovu",
+    "refreshing": "Načítání záznamu…",
+    "refresh_failed": "Záznam se nepodařilo načíst. Zkuste jej načíst znovu a ověřit aktuální stav."
   }
 }

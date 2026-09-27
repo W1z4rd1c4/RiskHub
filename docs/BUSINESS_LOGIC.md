@@ -836,6 +836,8 @@ Non-privileged users can access resources **outside their department** if they a
 | `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata (`status='active'` alias appears only in tabular CSV exports synthesized at `backend/app/services/_reporting/exports/`, not in REST responses) |
 | `POST /api/v1/vendor-slas/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata |
 
+KRI detail restore uses backend `can_restore` metadata and allows one in-flight action. A successful response supplies the authoritative restored KRI and current capabilities directly; a later history read failure is a separate warning and does not reverse the restore. Definite request rejections remain adjacent to the action. Network/timeout errors, malformed success responses, and server errors are uncertain outcomes: users must refresh the record through its actor/record-owned detail query before another restore is offered. Denials require a fresh authorized read rather than reuse of cached eligibility. Delayed results are discarded after record navigation or a session/principal change; pending, error, and success feedback is localized and announced.
+
 ### 8.4 Approval Action Decision Tree
 
 ```

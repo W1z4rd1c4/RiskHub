@@ -143,6 +143,14 @@ Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílej
 
 Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.
 
+## Obnovení archivovaného KRI
+
+Otevřete archivovaný KRI a zvolte **Obnovit z archivu**, pokud je akce dostupná. Stav **Obnovování…** znamená, že požadavek stále probíhá; akce zůstane zakázaná, dokud není znám výsledek.
+
+Při odmítnutí zůstane záznam viditelný a podle situace je dostupná akce **Zkusit obnovení znovu**. Při ztrátě spojení nemusí být výsledek znám: před dalším obnovením zvolte **Načíst záznam znovu**. Tím ověříte aktuální stav a přístupová práva, aniž by se znovu odeslal požadavek na obnovení. Pokud načtení selže, zopakujte načtení. Po změně oprávnění může akce zmizet.
+
+Zpráva **KRI byl obnoven.** potvrzuje, že server vrátil obnovený záznam. Samostatné upozornění na chybu načítání historie tento výsledek neruší; opakujte načtení historie, nikoli obnovení KRI.
+
 ## Troubleshooting
 
 Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
