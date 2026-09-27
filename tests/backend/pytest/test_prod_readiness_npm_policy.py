@@ -179,9 +179,9 @@ def test_candidate_router_lock_uses_the_fixed_patch_release() -> None:
     packages = package_lock["packages"]
     router_dom = packages["node_modules/react-router-dom"]
     router = packages["node_modules/react-router"]
-    assert router_dom["version"] == "7.18.2"
+    assert router_dom["version"] == "7.18.4"
     assert router_dom["dependencies"]["react-router"] == router["version"]
-    assert router["version"] == "7.18.2"
+    assert router["version"] == "7.18.4"
 
 
 def test_wrong_advisory_id_remains_open_and_cli_fails(tmp_path: Path) -> None:

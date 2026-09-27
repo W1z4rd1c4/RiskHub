@@ -34,7 +34,7 @@ python -m pip install -r requirements-dev.txt
 The dependency files have distinct responsibilities:
 
 - `requirements-dev.in` records human-edited dependency intent and accepted
-  ranges. `pip-audit==2.10.0` is requested exactly, so the canonical install
+  ranges. `pip-audit==2.10.1` is requested exactly, so the canonical install
   resolves the audit tool before the security workflow runs it.
 - `requirements-dev-constraints.txt` records the exact Python 3.13 resolver
   output for the complete development, test, lint, type-check, and audit

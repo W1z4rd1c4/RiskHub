@@ -185,7 +185,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                                                     key={field}
                                                     className="rounded-lg border border-border bg-muted p-2 text-xs"
                                                 >
-                                                    <div className="mb-1 font-bold uppercase tracking-wider text-slate-500">
+                                                    <div className="mb-1 font-bold uppercase tracking-wider text-muted-foreground">
                                                         {field.replace(/_/g, ' ')}
                                                     </div>
                                                     <div className="flex items-center gap-1.5 overflow-hidden">

@@ -1,7 +1,7 @@
 # RiskHub Development Startup
 
-> **Version**: 1.3
-> **Last Updated**: 2026-08-23
+> **Version**: 1.4
+> **Last Updated**: 2026-09-27
 > **Audience**: Engineering, QA
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -177,3 +177,55 @@ transitions, invitation/password journeys and the release boundary. Test both
 `LOCAL_MFA_POLICY=required` and `optional`; a confirmed factor must remain enforced.
 The focused fixture supplies test-only keys/binding. Never use demo seeds as a
 production local-account bootstrap.
+
+## Dependency maintenance
+
+The supported toolchain remains Node 24 and Python 3.13. Monthly Dependabot
+version updates allow minor/patch releases; the backend Docker lane allows only
+patch releases so a Python minor-version migration does not change the runtime
+implicitly. These `allow.update-types` filters do not restrict security updates
+([GitHub option reference](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#update-types-allow)).
+SemVer classification is a first filter, not compatibility evidence: review
+pre-1.0 minor updates, peer dependencies and framework behavior individually.
+
+Deferred migrations from the September dependency backlog are tracked separately:
+
+- [Runtime baselines: Node 26 / Python 3.14](https://github.com/W1z4rd1c4/RiskHub/issues/222).
+- [Frontend framework, styling and tooling migrations](https://github.com/W1z4rd1c4/RiskHub/issues/223).
+- [Backend framework, crypto, test and tooling migrations](https://github.com/W1z4rd1c4/RiskHub/issues/224).
+- [GitHub Actions major upgrades](https://github.com/W1z4rd1c4/RiskHub/issues/225).
+
+For frontend maintenance, update the intended ranges in `frontend/package.json`,
+regenerate `package-lock.json` using Node 24, and verify with a clean `npm ci`.
+Resolve peer conflicts explicitly; do not use `--force` or relax checks merely to
+accept a grouped update.
+
+For Python maintenance, edit the human-maintained runtime/DB requirements and
+`backend/requirements-dev.in`, then run from the repository root with Python 3.13:
+
+```bash
+python3 scripts/tools/refresh_python_dependency_lock.py
+python3 scripts/tools/validate_python_dependency_lock.py
+```
+
+Commit both generated constraint files and the development entrypoint together.
+Do not hand-edit generated locks, and do not merge a lock-only bot update over
+changed input requirements. Keep intentional major-version bounds in the inputs;
+protobuf 6 and filelock 3 are retained pending #224. The existing known-safe
+FastAPI pin and dependency-audit exceptions remain governed by the security
+contracts.
+
+Action updates must retain verified immutable upstream SHAs and their version
+comments. When the reviewed SARIF upload action changes, update its exact identity
+in `scripts/security/validate_frontend_container_gate.py` and the matching
+mutation-test anchors. When `.github/workflows/release.yml` changes, refresh its
+reviewed Git blob identity in `docs/development/ci-gate-contract.json` and run the
+contributor contract check. Preserve workflow permissions, conditions and
+negative security cases.
+
+Before merging a maintenance batch, require clean dependency installs, security
+audits, frontend unit/lint/type/build checks, full backend regression, applicable
+PostgreSQL/Redis and packaging contracts, and all four hosted Playwright shards
+plus their aggregate on the final PR head. Close superseded grouped PRs only when
+the maintenance replacement has merged and each deferred migration has a linked
+issue. Review and remove temporary bounds as those migrations land.
