@@ -2,11 +2,11 @@ import asyncio
 
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.config import Settings, get_settings
-from app.core.exceptions import ValidationError
 from app.core.security import verify_password
 from app.main import app
 from app.models import Department, Permission, Role, RolePermission, User
@@ -350,6 +350,28 @@ async def test_update_user_rejects_self_manager_change(
     assert response.json()["detail"] == "Only CRO can update user business access fields"
 
 
+@pytest.mark.asyncio
+async def test_access_profile_manager_cycle_uses_http_validation_error(
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_employee: User,
+):
+    with pytest.raises(HTTPException) as exc_info:
+        await update_access_profile(
+            db=db_session,
+            settings=Settings(mock_auth_enabled=True, debug=True),
+            current_user=test_user_cro,
+            user_id=test_user_employee.id,
+            user_data=AccessUserUpdate(manager_id=test_user_employee.id),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "User manager hierarchy cannot contain a cycle"
+    await db_session.rollback()
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.manager_id is None
+
+
 @pytest.mark.postgres
 @pytest.mark.asyncio
 async def test_postgres_concurrent_manager_updates_cannot_create_two_user_cycle(
@@ -387,7 +409,8 @@ async def test_postgres_concurrent_manager_updates_cannot_create_two_user_cycle(
                     user_id=user_id,
                     user_data=AccessUserUpdate(manager_id=manager_id),
                 )
-            except ValidationError as exc:
+            except HTTPException as exc:
+                assert exc.status_code == 400
                 await session.rollback()
                 return str(exc.detail)
             return "ok"
