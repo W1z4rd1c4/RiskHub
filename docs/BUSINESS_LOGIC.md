@@ -999,6 +999,7 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Department-scoped users only receive in-scope entities
 - Privileged/global users can export across departments
 - Ownership/reporting-owner exceptions follow the same logic as list/detail views
+- Controls as-of CSV exports expose linked Risk metadata and counts only for Risks the caller can read independently. The first readable linked Risk supplies the displayed name/code; no readable links means blank Risk fields and a zero count without removing the visible Control. Search uses the same redacted context, and historical replay cannot restore hidden linked-Risk metadata.
 - Risks, Controls, KRIs, and Vendors unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
 - Issues exports are fetch-time scoped and do not use as-of replay; their row scope is enforced at fetch time plus explicit issue filters.
 - An Issue export `as_of_date` is an evaluation date for age and overdue calculations over current Issue rows. The export records both the evaluation date and its independent generation time and makes no historical-reconstruction promise. A zero-row result contains one explicitly typed `Export Metadata` record with that context and blank Issue identity fields.

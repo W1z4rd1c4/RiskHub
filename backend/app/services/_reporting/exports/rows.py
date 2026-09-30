@@ -44,8 +44,14 @@ def _risk_to_row(risk: Risk) -> dict[str, Any]:
     }
 
 
-def _control_to_row(control: Control) -> dict[str, Any]:
-    first_risk = control.risk_links[0].risk if control.risk_links else None
+def _control_to_row(control: Control, *, visible_linked_risk_ids: set[int]) -> dict[str, Any]:
+    # Redact before projection so output, counts and search share the same scope.
+    visible_risks = [
+        link.risk
+        for link in control.risk_links or []
+        if link.risk_id in visible_linked_risk_ids and link.risk is not None
+    ]
+    first_risk = visible_risks[0] if visible_risks else None
     monitoring_facts = build_control_monitoring_facts(control)
     return {
         "id": control.id,
@@ -64,7 +70,7 @@ def _control_to_row(control: Control) -> dict[str, Any]:
         "risk_name": first_risk.name if first_risk else None,
         "risk_owner_name": first_risk.owner.name if first_risk and first_risk.owner else None,
         "risk_department_name": first_risk.department.name if first_risk and first_risk.department else None,
-        "linked_risk_count": len(control.risk_links or []),
+        "linked_risk_count": len(visible_risks),
         "latest_execution_result": monitoring_facts.latest_execution_result,
         "latest_executed_at": monitoring_facts.latest_executed_at,
         "execution_log_count": monitoring_facts.execution_log_count,
