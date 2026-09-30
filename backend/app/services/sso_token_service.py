@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 import jwt
-from jwt import PyJWTError
+from jwt import InvalidSignatureError, PyJWTError
 
 from app.core.activity_logger import audit_logger
 from app.core.config import Settings
@@ -70,6 +70,7 @@ def _extract_kid(token: str) -> str | None:
 class EntraTokenVerifier:
     DISCOVERY_TTL_SECONDS = 60 * 60 * 24  # 24h
     JWKS_TTL_SECONDS = 60 * 15  # 15m
+    JWKS_REFRESH_INTERVAL_SECONDS = 60
 
     def __init__(self, *, settings: Settings):
         require_sso(settings)
@@ -92,6 +93,7 @@ class EntraTokenVerifier:
         self._discovery_fetched_at: float = 0.0
         self._jwks: dict[str, Any] | None = None
         self._jwks_fetched_at: float = 0.0
+        self._jwks_refresh_after: float = 0.0
 
     async def _fetch_json(self, url: str) -> dict[str, Any]:
         allow_hosts = [self._discovery_host] if self._discovery_host else None
@@ -116,7 +118,11 @@ class EntraTokenVerifier:
             raise SsoProviderUnavailableError(str(e)) from e
 
     async def _get_discovery(self, *, now: float) -> dict[str, Any]:
+        # Valid cached metadata must not queue behind an unrelated JWKS refresh.
+        if self._discovery and (now - self._discovery_fetched_at) < self.DISCOVERY_TTL_SECONDS:
+            return self._discovery
         async with self._lock:
+            now = asyncio.get_running_loop().time()
             if self._discovery and (now - self._discovery_fetched_at) < self.DISCOVERY_TTL_SECONDS:
                 return self._discovery
             discovery = await self._fetch_json(self._discovery_url)
@@ -142,16 +148,31 @@ class EntraTokenVerifier:
             self._discovery_fetched_at = now
             return discovery
 
-    async def _get_jwks(self, *, jwks_uri: str, now: float, force_refresh: bool = False) -> dict[str, Any]:
+    async def _get_jwks(self, *, jwks_uri: str, force_refresh: bool = False) -> dict[str, Any]:
+        now = asyncio.get_running_loop().time()
+        if not force_refresh and self._jwks is not None and (now - self._jwks_fetched_at) < self.JWKS_TTL_SECONDS:
+            return self._jwks
         async with self._lock:
-            if not force_refresh and self._jwks and (now - self._jwks_fetched_at) < self.JWKS_TTL_SECONDS:
+            now = asyncio.get_running_loop().time()
+            cache_is_fresh = self._jwks is not None and (now - self._jwks_fetched_at) < self.JWKS_TTL_SECONDS
+            if not force_refresh and cache_is_fresh and self._jwks is not None:
                 return self._jwks
-            jwks = await self._fetch_json(jwks_uri)
-            if not isinstance(jwks.get("keys"), list):
-                raise SsoProviderUnavailableError("JWKS payload missing keys")
-            self._jwks = jwks
-            self._jwks_fetched_at = now
-            return jwks
+            # Recheck under the lock: concurrent callers share the completed
+            # refresh, including failed attempts. This also acts as a bounded
+            # negative cache for every unknown kid, without storing attacker IDs.
+            if now < self._jwks_refresh_after:
+                if cache_is_fresh and self._jwks is not None:
+                    return self._jwks
+                raise SsoProviderUnavailableError("JWKS refresh temporarily unavailable; retry later")
+            try:
+                jwks = await self._fetch_json(jwks_uri)
+                if not isinstance(jwks.get("keys"), list):
+                    raise SsoProviderUnavailableError("JWKS payload missing keys")
+                self._jwks = jwks
+                self._jwks_fetched_at = asyncio.get_running_loop().time()
+                return self._jwks
+            finally:
+                self._jwks_refresh_after = asyncio.get_running_loop().time() + self.JWKS_REFRESH_INTERVAL_SECONDS
 
     def _decode_claims(self, *, id_token: str, jwks: dict[str, Any], issuer: str, kid: str | None) -> dict[str, Any]:
         try:
@@ -191,31 +212,33 @@ class EntraTokenVerifier:
         discovery = await self._get_discovery(now=now)
         issuer = str(discovery["issuer"])
         jwks_uri = str(discovery["jwks_uri"])
-        jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now)
+        jwks = await self._get_jwks(jwks_uri=jwks_uri)
 
         kid = _extract_kid(id_token)
 
-        # If we can see the kid and it's not in our JWKS cache, refresh once.
-        if kid and not _jwks_has_kid(jwks, kid):
+        # Unknown keys and signature failures get at most one rate-bounded
+        # fallback. A JWKS fetched by this verification already starts cooldown.
+        unknown_kid = bool(kid and not _jwks_has_kid(jwks, kid))
+        if unknown_kid:
             logger.info(
                 "jwks_unknown_kid_refresh",
                 kid=kid,
                 jwks_uri=jwks_uri,
             )
-            jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
+            jwks = await self._get_jwks(jwks_uri=jwks_uri, force_refresh=True)
 
         try:
             claims = self._decode_claims(id_token=id_token, jwks=jwks, issuer=issuer, kid=kid)
         except PyJWTError as e:
-            # Best-effort refresh on signature-related failures (key rotation).
-            if kid:
+            # Claim/expiry/algorithm errors cannot be fixed by fetching keys.
+            if kid and not unknown_kid and isinstance(e, InvalidSignatureError):
                 logger.warning(
                     "jwks_signature_fail_refresh",
                     kid=kid,
                     jwks_uri=jwks_uri,
                     error_message=str(e),
                 )
-                jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
+                jwks = await self._get_jwks(jwks_uri=jwks_uri, force_refresh=True)
                 try:
                     claims = self._decode_claims(id_token=id_token, jwks=jwks, issuer=issuer, kid=kid)
                 except PyJWTError as refreshed_error:
@@ -298,7 +321,7 @@ class EntraTokenVerifier:
         discovery = await self._get_discovery(now=now)
         issuer = str(discovery["issuer"])
         jwks_uri = str(discovery["jwks_uri"])
-        jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
+        jwks = await self._get_jwks(jwks_uri=jwks_uri, force_refresh=True)
         keys = jwks.get("keys")
         return {
             "issuer": issuer,

@@ -27,6 +27,8 @@ Usage:
 
 Canonical Docker onboarding/appliance path for RiskHub development.
 Public first-run wrapper: ./scripts/install.sh demo
+Default: localhost only. --lan <IPv4> exposes passwordless demo identities
+on all IPv4 host interfaces; use only on a trusted, isolated network.
 EOF
 }
 
@@ -134,11 +136,13 @@ compose_run() {
     cmd+=(--profile "$profile")
   fi
 
+  # Ambient .env/shell values must not silently widen the public wrapper's bind.
+  local bind_host="127.0.0.1"
   if [[ -n "$LAN_IP" ]]; then
-    run env "LAN_HOST=${LAN_IP}" "${cmd[@]}" "$@"
-  else
-    run "${cmd[@]}" "$@"
+    # Retain localhost for the public verify/status/doctor lifecycle probes.
+    bind_host="0.0.0.0"
   fi
+  run env "RISKHUB_DEMO_BIND_HOST=${bind_host}" "LAN_HOST=${LAN_IP:-localhost}" "${cmd[@]}" "$@"
 }
 
 wait_for_db_or_die() {
@@ -278,11 +282,11 @@ start_full_stack() {
   smoke_check_or_die
 
   log "Startup complete"
-  log "  Frontend: http://localhost/"
+  log "  Frontend: http://${LAN_IP:-localhost}/"
   log "  Backend readiness:  http://localhost:8000/api/v1/readyz"
   log "  Backend health:     http://localhost:8000/api/v1/health"
   log "  Database: localhost:5432"
-  log "  Demo login: http://localhost/login"
+  log "  Demo login: http://${LAN_IP:-localhost}/login"
 }
 
 if [[ $# -eq 0 ]]; then
@@ -306,6 +310,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --lan)
       LAN_IP="${2:-}"
+      [[ -n "$LAN_IP" && "$LAN_IP" != --* ]] || die "--lan requires a host IPv4 address"
       shift 2
       ;;
     --no-build)
@@ -353,13 +358,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -n "$LAN_IP" ]]; then
+  [[ "$COMMAND" == "up" && "$PROFILE" == "full" ]] || die "--lan is only supported with up --profile full"
+  [[ "$LAN_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || die "--lan requires a host IPv4 address"
+  IFS=. read -r -a lan_octets <<< "$LAN_IP"
+  for octet in "${lan_octets[@]}"; do
+    (( 10#$octet <= 255 )) || die "--lan requires a host IPv4 address"
+    [[ "$octet" == "0" || "$octet" != 0* ]] || die "--lan requires a canonical host IPv4 address"
+  done
+  [[ "${lan_octets[0]}" != "0" && "${lan_octets[0]}" != "127" && "${lan_octets[0]}" -lt 224 ]] || die "--lan requires a non-loopback unicast host IPv4 address"
+  log "WARNING: --lan exposes passwordless demo login, including administrative identities, on ALL IPv4 host interfaces (0.0.0.0:80). Advertised LAN host: ${LAN_IP}. Use only a trusted, isolated network with synthetic data; never production."
+fi
+
 case "$COMMAND" in
   up)
     [[ "$PROFILE" == "full" || "$PROFILE" == "db-only" ]] || die "--profile must be full or db-only"
-    if [[ -n "$LAN_IP" && "$PROFILE" != "full" ]]; then
-      die "--lan is only supported with --profile full"
-    fi
-
     wait_for_docker
     resolve_compose_cmd
     refuse_if_phase500_prod_present

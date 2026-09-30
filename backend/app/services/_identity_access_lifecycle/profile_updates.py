@@ -10,9 +10,10 @@ from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError
 from app.core.local_session import native_identity_selected
 from app.core.security import get_password_hash, verify_password
 from app.core.user_query_options import user_selectinload_options
-from app.models import Role, User
+from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserUpdate
+from app.services._access_workflow import authorize_access_update_fields
 from app.services._identity_authority_lock import lock_identity_transition
 from app.services._org_chart import (
     acquire_org_chart_lock,
@@ -137,6 +138,12 @@ async def update_user_profile(
 
     update_data = user_data.model_dump(exclude_unset=True)
     update_data.pop("password", None)
+    new_role = await authorize_access_update_fields(
+        db=db,
+        current_user=current_user,
+        target_user=user,
+        update_data=update_data,
+    )
 
     ensure_sso_local_field_update_allowed(
         settings=settings,
@@ -147,25 +154,12 @@ async def update_user_profile(
     ensure_directory_reenable_allowed(user=user, update_data=update_data)
 
     removes_ciso_stewardship = False
-    new_role = None
-    if "role_id" in update_data:
-        new_role_id = update_data["role_id"]
-        if new_role_id != user.role_id:
-            new_role = (
-                await db.execute(
-                    select(Role).where(
-                        Role.id == new_role_id,
-                        Role.is_active.is_(True),
-                    )
-                )
-            ).scalar_one_or_none()
-            if not new_role:
-                raise ValidationError("Invalid role_id")
-            removes_ciso_stewardship = await role_change_removes_ciso_stewardship(
-                db,
-                user=user,
-                new_role=new_role,
-            )
+    if new_role is not None:
+        removes_ciso_stewardship = await role_change_removes_ciso_stewardship(
+            db,
+            user=user,
+            new_role=new_role,
+        )
 
     prepare_manual_activity_update(user=user, update_data=update_data, settings=settings)
     await ensure_platform_admin_survives(db, user=user, update_data=update_data, settings=settings)

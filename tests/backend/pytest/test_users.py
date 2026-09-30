@@ -2,16 +2,16 @@ import asyncio
 
 import pytest
 import pytest_asyncio
-from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.config import Settings, get_settings
+from app.core.exceptions import ValidationError
 from app.core.security import verify_password
 from app.main import app
 from app.models import Department, Permission, Role, RolePermission, User
-from app.schemas import UserUpdate
-from app.services._identity_access_lifecycle.profile_updates import update_user_profile
+from app.schemas.access import AccessUserUpdate
+from app.services._identity_access_lifecycle.access_scope import update_access_profile
 
 
 @pytest_asyncio.fixture
@@ -317,7 +317,7 @@ async def test_update_user_ignores_entra_business_role_payload(
 
 
 @pytest.mark.asyncio
-async def test_update_user_rejects_manager_cycle(
+async def test_update_user_rejects_manager_change_before_cycle_validation(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_user: User,
@@ -332,12 +332,12 @@ async def test_update_user_rejects_manager_cycle(
         json={"manager_id": test_user_employee.id},
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "User manager hierarchy cannot contain a cycle"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can update user business access fields"
 
 
 @pytest.mark.asyncio
-async def test_update_user_rejects_self_manager_cycle(
+async def test_update_user_rejects_self_manager_change(
     auth_client: AsyncClient,
     test_user: User,
 ):
@@ -346,8 +346,8 @@ async def test_update_user_rejects_self_manager_cycle(
         json={"manager_id": test_user.id},
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "User manager hierarchy cannot contain a cycle"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can update user business access fields"
 
 
 @pytest.mark.postgres
@@ -355,7 +355,7 @@ async def test_update_user_rejects_self_manager_cycle(
 async def test_postgres_concurrent_manager_updates_cannot_create_two_user_cycle(
     async_engine: AsyncEngine,
     db_session: AsyncSession,
-    test_user: User,
+    test_user_cro: User,
     test_user_employee: User,
 ):
     if async_engine.dialect.name != "postgresql":
@@ -378,16 +378,16 @@ async def test_postgres_concurrent_manager_updates_cannot_create_two_user_cycle(
 
     async def assign_manager(user_id: int, manager_id: int) -> str:
         async with session_maker() as session:
-            actor = await session.get(User, test_user.id)
+            actor = await session.get(User, test_user_cro.id)
             try:
-                await update_user_profile(
+                await update_access_profile(
                     db=session,
                     settings=settings,
                     current_user=actor,
                     user_id=user_id,
-                    user_data=UserUpdate(manager_id=manager_id),
+                    user_data=AccessUserUpdate(manager_id=manager_id),
                 )
-            except HTTPException as exc:
+            except ValidationError as exc:
                 await session.rollback()
                 return str(exc.detail)
             return "ok"
@@ -407,7 +407,7 @@ async def test_postgres_concurrent_manager_updates_cannot_create_two_user_cycle(
 
 
 @pytest.mark.asyncio
-async def test_update_user_rejects_department_change_when_user_manages_current_department(
+async def test_update_user_rejects_department_change_before_manager_validation(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_user_employee: User,
@@ -426,8 +426,8 @@ async def test_update_user_rejects_department_change_when_user_manages_current_d
         json={"department_id": target_dept.id},
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Clear the department manager before moving this user"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can update user business access fields"
 
 
 @pytest.mark.asyncio
@@ -579,15 +579,15 @@ async def test_update_user_email_conflict(auth_client: AsyncClient, test_user: U
 
 
 @pytest.mark.asyncio
-async def test_update_user_rejects_self_privileged_role_demotion(
+async def test_update_user_rejects_self_business_role_assignment(
     auth_client: AsyncClient,
     test_user: User,
     test_user_employee: User,
 ):
     response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json={"role_id": test_user_employee.role_id})
 
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "LAST_PLATFORM_ADMIN"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can assign business roles"
 
 
 @pytest.mark.asyncio
