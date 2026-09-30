@@ -36,7 +36,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-27.
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 525 tracked test files (487 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 526 tracked test files (488 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
