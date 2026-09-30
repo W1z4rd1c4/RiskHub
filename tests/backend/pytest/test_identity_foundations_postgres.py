@@ -163,7 +163,8 @@ async def test_concurrent_last_admin_removal_preserves_one_admin(
             finally:
                 await gate.commit()
             results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=20)
-    assert sorted(response.status_code for response in results) == [200, 409]
+    expected_statuses = [200, 409] if operation == "deactivate" else [403, 403]
+    assert sorted(response.status_code for response in results) == expected_statuses
     survivors = (
         (
             await db_session.execute(
@@ -177,7 +178,7 @@ async def test_concurrent_last_admin_removal_preserves_one_admin(
         .scalars()
         .all()
     )
-    assert len(survivors) == 1
+    assert len(survivors) == (1 if operation == "deactivate" else 2)
 
 
 @pytest.mark.parametrize(

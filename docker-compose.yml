@@ -10,6 +10,7 @@
 #
 # This file is the local demo/dev topology used by `./scripts/install.sh demo`
 # and `./scripts/compose.sh`. It is not the production deployment contract.
+# Passwordless demo access is loopback-only unless explicitly opted into LAN.
 #
 # ==============================================================================
 
@@ -134,7 +135,7 @@ services:
       dockerfile: Dockerfile
     container_name: riskhub-frontend
     ports:
-      - "80:80"
+      - "${RISKHUB_DEMO_BIND_HOST:-127.0.0.1}:80:80"
     depends_on:
       backend:
         condition: service_healthy

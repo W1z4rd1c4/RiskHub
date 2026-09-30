@@ -3,6 +3,7 @@ from datetime import date
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import visible_risk_ids
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services._monitoring_status import get_control_monitoring_config
@@ -34,7 +35,16 @@ async def _export_controls(
 ) -> StreamingResponse:
     fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
     models = await _fetch_controls_for_export(db, current_user=current_user, department_id=fetch_department_id)
-    rows = [_control_to_row(control) for control in models]
+    candidate_risk_ids = {link.risk_id for control in models for link in control.risk_links}
+    visible_linked_risk_ids = await visible_risk_ids(db, current_user, candidate_risk_ids)
+    rows = [_control_to_row(control, visible_linked_risk_ids=visible_linked_risk_ids) for control in models]
+    linked_risk_context = {
+        row["id"]: {
+            field: row[field]
+            for field in ("risk_name", "risk_id_code", "risk_owner_name", "risk_department_name", "linked_risk_count")
+        }
+        for row in rows
+    }
 
     async def apply_monitoring(current_rows: list[ExportRow]) -> list[ExportRow]:
         control_monitoring_config = await get_control_monitoring_config(db)
@@ -68,6 +78,8 @@ async def _export_controls(
                 entity_type=ActivityEntityType.CONTROL,
                 as_of_date=as_of_date,
             ),
+            # Historical control changes cannot restore unreadable linked-risk context.
+            lambda current_rows: [{**row, **linked_risk_context[row["id"]]} for row in current_rows],
             lambda current_rows: _rehydrate_user_names(
                 db,
                 current_rows,
