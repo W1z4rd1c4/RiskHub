@@ -50,14 +50,14 @@ export function IssueNewPage() {
     if (isLoadingCapability) {
         return (
             <div className="glass-card p-8" aria-busy="true">
-                <div className="h-5 w-40 rounded bg-white/10 animate-pulse" />
+                <div className="h-5 w-40 rounded bg-tint/10 animate-pulse" />
             </div>
         );
     }
 
     if (!canCreate) {
         return (
-            <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
+            <div className="glass-card p-8 flex items-center gap-3 text-warning-text">
                 <AlertTriangle className="h-5 w-5" />
                 <span>{t('permissions.create_denied')}</span>
             </div>
@@ -71,8 +71,8 @@ export function IssueNewPage() {
                     <Plus className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter">{t('new_page.title')}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
+                    <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('new_page.title')}</h2>
+                    <p className="text-muted-foreground font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
                         {t('new_page.breadcrumb')}
                     </p>
                 </div>

@@ -30,7 +30,7 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
 
     if (data.length === 0) {
         return (
-            <div className="flex items-center justify-center h-48 text-slate-500 text-sm italic font-medium">
+            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm italic font-medium">
                 {resolvedEmptyMessage}
             </div>
         );

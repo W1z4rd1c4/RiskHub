@@ -275,7 +275,7 @@ export function UsersPage() {
             {authModeStatus === 'error' && authModeError && (
                 <div
                     role="alert"
-                    className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                    className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-text"
                 >
                     {authModeError}
                     <button type="button" className="ml-3 underline" onClick={retryAuthConfig}>{t('native_users.retry')}</button>
@@ -329,17 +329,17 @@ export function UsersPage() {
                 />
 
                 {loadErrorKey && !isLoading ? (
-                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-6 text-sm text-rose-100">
+                    <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-5 py-6 text-sm text-destructive">
                         <p className="font-medium">
                             {t(loadErrorKey, { ns: 'errorKeys' })}
                         </p>
-                        <p className="mt-2 text-rose-100/80">
+                        <p className="mt-2 text-destructive">
                             {t('users.load_failed_help', { ns: 'admin' })}
                         </p>
                         <button
                             type="button"
                             onClick={() => void fetchUsers()}
-                            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-50 transition hover:bg-rose-500/20"
+                            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/20"
                         >
                             <RefreshCw className="h-4 w-4" />
                             {t('actions.retry', { ns: 'common' })}

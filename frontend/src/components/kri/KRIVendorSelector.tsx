@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { Building2, Search, X } from 'lucide-react';
 
+import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/hooks';
 
 export interface KRIVendorOption {
@@ -32,6 +33,7 @@ export function KRIVendorSelector({
     emptyStateLabel,
 }: KRIVendorSelectorProps) {
     const { t } = useTranslation(['kris', 'vendors']);
+    const labelId = useId();
 
     const selectedVendors = useMemo(
         () => (selectedVendorOptions ?? vendors.filter((vendor) => selectedVendorIds.includes(vendor.id))),
@@ -62,24 +64,22 @@ export function KRIVendorSelector({
     return (
         <div className="space-y-4">
             <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                <p id={labelId} className="mb-2 text-eyebrow">
                     {t('kris:vendor_assignment.label')}
-                </label>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                     {t('kris:vendor_assignment.help')}
                 </p>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
-                <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(event) => onSearchChange(event.target.value)}
-                    placeholder={t('kris:vendor_assignment.search_placeholder')}
-                    className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
-                />
-            </div>
+            <Input
+                type="text"
+                leadingIcon={Search}
+                aria-labelledby={labelId}
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={t('kris:vendor_assignment.search_placeholder')}
+            />
 
             {selectedVendors.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
@@ -88,7 +88,7 @@ export function KRIVendorSelector({
                             key={vendor.id}
                             type="button"
                             onClick={() => toggleVendor(vendor.id)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-accent"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-eyebrow text-accent-text"
                         >
                             {vendor.name}
                             <X className="h-3 w-3" />
@@ -97,13 +97,13 @@ export function KRIVendorSelector({
                 </div>
             ) : null}
 
-            <div className="max-h-56 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5 custom-scrollbar">
+            <div className="max-h-56 overflow-y-auto rounded-xl border border-border divide-y divide-border custom-scrollbar">
                 {isLoading ? (
-                    <div className="p-6 text-center text-sm text-slate-500">
+                    <div className="p-6 text-center text-sm text-muted-foreground">
                         {t('common:loading.generic')}
                     </div>
                 ) : sortedVendors.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-slate-500">
+                    <div className="p-6 text-center text-sm text-muted-foreground">
                         {emptyStateLabel ?? t('kris:vendor_assignment.empty')}
                     </div>
                 ) : (
@@ -112,23 +112,23 @@ export function KRIVendorSelector({
                         return (
                             <label
                                 key={vendor.id}
-                                className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                                className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-tint/5 transition-colors"
                             >
                                 <input
                                     type="checkbox"
                                     checked={checked}
                                     onChange={() => toggleVendor(vendor.id)}
                                     aria-label={vendor.name}
-                                    className="h-4 w-4 rounded border-white/20 bg-slate-950 text-accent focus:ring-accent/40"
+                                    className="h-4 w-4 rounded border-input bg-input/40 text-accent focus:ring-accent/40"
                                 />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <Building2 className="h-3.5 w-3.5 text-slate-500" />
-                                        <span className="truncate text-sm font-medium text-white">
+                                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="truncate text-sm font-medium text-foreground">
                                             {vendor.name}
                                         </span>
                                     </div>
-                                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                                    <p className="mt-1 text-eyebrow">
                                         {vendor.is_archived
                                             ? t('vendors:status.inactive')
                                             : t('vendors:status.active')}

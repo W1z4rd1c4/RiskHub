@@ -73,7 +73,7 @@ export function DashboardRiskSections({
                     className="glass-card flex flex-col lg:col-span-2"
                 >
                     <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-accent" />
                             {controlExecutionTitle}
                         </h3>
@@ -82,7 +82,7 @@ export function DashboardRiskSections({
                         {trends.length > 0 ? (
                             <ControlTrendChart data={trends} />
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-600 border-t border-white/5">
+                            <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-t border-border">
                                 <p className="text-sm font-medium">{noExecutionHistoryLabel}</p>
                             </div>
                         )}
@@ -114,8 +114,8 @@ export function DashboardRiskSections({
                     transition={{ delay: 0.7 }}
                     className="glass-card flex flex-col"
                 >
-                    <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-orange-400" />
+                    <h3 className="text-lg font-bold text-foreground mb-8 flex items-center gap-2">
+                        <ShieldAlert className="h-5 w-5 text-severity-high-text" />
                         {grossMatrixTitle}
                     </h3>
                     <div className="flex-1 flex items-center justify-center pb-4">
@@ -131,8 +131,8 @@ export function DashboardRiskSections({
                     transition={{ delay: 0.75 }}
                     className="glass-card flex flex-col"
                 >
-                    <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-purple-400" />
+                    <h3 className="text-lg font-bold text-foreground mb-8 flex items-center gap-2">
+                        <ShieldAlert className="h-5 w-5 text-chart-2" />
                         {netMatrixTitle}
                     </h3>
                     <div className="flex-1 flex items-center justify-center pb-4">
@@ -146,11 +146,11 @@ export function DashboardRiskSections({
 
             <div className="space-y-6">
                 <div className="flex items-center gap-3 px-2">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-tint/5 to-transparent" />
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] whitespace-nowrap">
                         {historicalTitle}
                     </h3>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-tint/5 to-transparent" />
                 </div>
 
                 <div className="grid gap-8 lg:grid-cols-2">
@@ -160,7 +160,7 @@ export function DashboardRiskSections({
                         transition={{ delay: 0.75 }}
                         className="glass-card group overflow-hidden"
                     >
-                        <h3 className="text-xs font-black text-white mb-8 flex items-center gap-2 uppercase tracking-widest">
+                        <h3 className="text-xs font-black text-foreground mb-8 flex items-center gap-2 uppercase tracking-widest">
                             <TrendingUp className="h-4 w-4 text-accent" />
                             {riskCreationTitle}
                         </h3>
@@ -173,8 +173,8 @@ export function DashboardRiskSections({
                         transition={{ delay: 0.8 }}
                         className="glass-card group overflow-hidden"
                     >
-                        <h3 className="text-xs font-black text-white mb-8 flex items-center gap-2 uppercase tracking-widest">
-                            <AlertTriangle className="h-4 w-4 text-orange-400" />
+                        <h3 className="text-xs font-black text-foreground mb-8 flex items-center gap-2 uppercase tracking-widest">
+                            <AlertTriangle className="h-4 w-4 text-severity-high-text" />
                             {breachHistoryTitle}
                         </h3>
                         <KRIBreachHistoryChart data={breachTrends} />
@@ -188,9 +188,9 @@ export function DashboardRiskSections({
                 transition={{ delay: 0.85 }}
                 className="glass-card !p-0 overflow-hidden"
             >
-                <div className="p-6 border-b border-white/5 bg-white/[0.01]">
-                    <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-widest">
-                        <Building2 className="h-4 w-4 text-emerald-400" />
+                <div className="p-6 border-b border-border bg-tint/[0.01]">
+                    <h3 className="text-xs font-black text-foreground flex items-center gap-2 uppercase tracking-widest">
+                        <Building2 className="h-4 w-4 text-success-text" />
                         {departmentVisibilityTitle}
                     </h3>
                 </div>

@@ -92,11 +92,13 @@ assertUnique(implementations.map((entry) => entry.id), 'implementation id');
 assertUnique(renderSites.map((entry) => entry.id), 'render-site id');
 assertUnique(nonDialogs.map((entry) => entry.id), 'non-dialog id');
 
-// DialogShell v2 lives in `components/ui/dialog.tsx`; the old path is a
-// re-export-only shim until Phase 4 (audit 2026-09-30 §4.11, O8).
+// DialogShell v2 lives in `components/ui/dialog.tsx` (audit 2026-09-30 §4.11,
+// O8). The legacy `components/DialogShell.tsx` re-export shim was removed once
+// its last consumer migrated (W6); an optional `primitive.legacyShim` is still
+// validated as re-export-only if one is ever declared again.
 const primitive = manifest.primitive;
-if (!primitive?.file || !primitive?.legacyShim) fail('manifest must declare primitive.file and primitive.legacyShim');
-for (const path of [primitive.file, primitive.legacyShim]) {
+if (!primitive?.file) fail('manifest must declare primitive.file');
+for (const path of [primitive.file, primitive.legacyShim].filter(Boolean)) {
     if (!existsSync(resolve(repoRoot, path))) fail(`primitive references missing file ${path}`);
 }
 
@@ -181,19 +183,21 @@ if (dialogShellDefinitions.length !== 1 || dialogShellDefinitions[0] !== primiti
     fail(`DialogShell must be defined once, in ${primitive.file}; found: ${dialogShellDefinitions.join(', ') || 'none'}`);
 }
 
-const shimPath = resolve(repoRoot, primitive.legacyShim);
-const shimSource = ts.createSourceFile(shimPath, readFileSync(shimPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const primitiveModule = resolve(repoRoot, primitive.file).replace(/\.tsx?$/, '');
-for (const statement of shimSource.statements) {
-    const specifier = ts.isExportDeclaration(statement) && statement.moduleSpecifier
-        && ts.isStringLiteral(statement.moduleSpecifier)
-        ? statement.moduleSpecifier.text
-        : null;
-    const target = specifier?.startsWith('@/')
-        ? resolve(sourceRoot, specifier.slice(2))
-        : specifier ? resolve(dirname(shimPath), specifier) : null;
-    if (target !== primitiveModule) {
-        fail(`${primitive.legacyShim} may only re-export ${primitive.file}`);
+if (primitive.legacyShim) {
+    const shimPath = resolve(repoRoot, primitive.legacyShim);
+    const shimSource = ts.createSourceFile(shimPath, readFileSync(shimPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const primitiveModule = resolve(repoRoot, primitive.file).replace(/\.tsx?$/, '');
+    for (const statement of shimSource.statements) {
+        const specifier = ts.isExportDeclaration(statement) && statement.moduleSpecifier
+            && ts.isStringLiteral(statement.moduleSpecifier)
+            ? statement.moduleSpecifier.text
+            : null;
+        const target = specifier?.startsWith('@/')
+            ? resolve(sourceRoot, specifier.slice(2))
+            : specifier ? resolve(dirname(shimPath), specifier) : null;
+        if (target !== primitiveModule) {
+            fail(`${primitive.legacyShim} may only re-export ${primitive.file}`);
+        }
     }
 }
 

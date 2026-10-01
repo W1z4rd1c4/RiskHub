@@ -47,18 +47,18 @@ export function UsersFilterBar({
             {/* Row 1: Search + Role + Scope */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <input
                         type="text"
                         placeholder={t('access.search_placeholder')}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 transition-[border-color,box-shadow]"
+                        className="w-full bg-tint/5 border border-input rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 transition-[border-color,box-shadow]"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10 pointer-events-none" />
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                         <ThemedSelect
                             value={roleFilter}
                             onValueChange={setRoleFilter}
@@ -71,7 +71,7 @@ export function UsersFilterBar({
                     </div>
                     {isAccessMode && (
                         <div className="relative">
-                            <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10 pointer-events-none" />
+                            <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                             <ThemedSelect
                                 value={scopeFilter}
                                 onValueChange={setScopeFilter}
@@ -101,7 +101,7 @@ export function UsersFilterBar({
                         value={permResourceFilter}
                         onValueChange={setPermResourceFilter}
                         className={cn(
-                            permResourceFilter !== 'all' && "border-purple-500/50"
+                            permResourceFilter !== 'all' && "border-chart-2/50"
                         )}
                         options={permissionResources.map(r => ({ value: r.value, label: t(r.labelKey) }))}
                     />
@@ -109,14 +109,14 @@ export function UsersFilterBar({
                         value={permActionFilter}
                         onValueChange={setPermActionFilter}
                         className={cn(
-                            permActionFilter !== 'all' && "border-emerald-500/50"
+                            permActionFilter !== 'all' && "border-success/50"
                         )}
                         options={permissionActions.map(a => ({ value: a.value, label: t(a.labelKey) }))}
                     />
                     {hasPermFilters && (
                         <button
                             onClick={resetPermissionFilters}
-                            className="text-xs text-slate-500 hover:text-white underline transition-colors"
+                            className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
                         >
                             {t('access.clear')}
                         </button>

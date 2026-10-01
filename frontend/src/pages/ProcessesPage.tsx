@@ -137,7 +137,7 @@ export function ProcessesPage() {
                         <div
                             role="alert"
                             aria-atomic="true"
-                            className="rounded-xl border border-rose-400/30 bg-rose-400/5 px-4 py-3 text-sm font-medium text-rose-300"
+                            className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive"
                         >
                             {t('pending_creation.cancel_failed')}
                         </div>

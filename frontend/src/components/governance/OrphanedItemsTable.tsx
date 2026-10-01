@@ -66,13 +66,13 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
 
     return (
         <div data-testid="governance-orphaned-table" className="glass-card !p-0 overflow-hidden">
-            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+            <div className="p-4 border-b border-border flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-warning-text" />
                     {t('governance.orphaned_items')} ({filteredItems.length})
                 </h3>
                 <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-slate-500" />
+                    <Filter className="h-4 w-4 text-muted-foreground" />
                     <ThemedSelect
                         value={filter}
                         onValueChange={setFilter}
@@ -93,7 +93,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-white/5">
+                        <tr className="border-b border-border">
                             <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_type')}</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_name')}</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_description')}</th>
@@ -103,7 +103,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_actions')}</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-border">
                         {filteredItems.map((item) => {
                             const Icon = typeIcons[item.item_type] || AlertTriangle;
                             const old = isOld(item.orphaned_at);
@@ -113,11 +113,11 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             return (
                                 <tr
                                     key={item.id}
-                                    className={`group hover:bg-white/5 transition-all relative ${old ? 'bg-amber-500/5' : ''}`}
+                                    className={`group hover:bg-tint/5 transition-all relative ${old ? 'bg-warning/5' : ''}`}
                                 >
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
-                                            <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${item.item_type === 'risk' ? 'bg-rose-500/10 text-rose-400' : 'bg-accent/10 text-accent'}`}>
+                                            <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${item.item_type === 'risk' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent-text'}`}>
                                                 <Icon className="h-4 w-4" />
                                             </div>
                                             <span className="text-sm font-medium text-foreground">
@@ -148,8 +148,8 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-                                                <UserCheck className="h-3 w-3 text-slate-500" />
+                                            <div className="w-6 h-6 rounded-full bg-tint/5 flex items-center justify-center border border-border">
+                                                <UserCheck className="h-3 w-3 text-muted-foreground" />
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-foreground">{item.previous_owner_name}</p>
@@ -169,7 +169,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                                     type="button"
                                                     onClick={() => onView(item)}
                                                     aria-label={`${t('common:actions.view')} ${item.item_name}`}
-                                                    className="inline-flex items-center justify-center p-2 bg-white/5 hover:bg-accent-hover text-muted-foreground hover:text-accent-foreground rounded-xl transition-all border border-white/10 hover:border-accent/50 shadow-sm active:scale-95"
+                                                    className="inline-flex items-center justify-center p-2 bg-tint/5 hover:bg-accent-hover text-muted-foreground hover:text-accent-foreground rounded-xl transition-all border border-border hover:border-accent/50 shadow-sm active:scale-95"
                                                 >
                                                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                                 </button>
@@ -178,7 +178,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                                 <button
                                                     type="button"
                                                     onClick={() => onResolve(item)}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent-hover text-foreground hover:text-accent-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-tint/5 hover:bg-accent-hover text-foreground hover:text-accent-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-border group-hover:border-accent/50 shadow-sm active:scale-95"
                                                 >
                                                     <UserCheck className="h-3.5 w-3.5" />
                                                     {t('governance.resolve')}

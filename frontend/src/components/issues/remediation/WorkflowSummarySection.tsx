@@ -51,7 +51,7 @@ export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySecti
             </div>
 
             {errorKey && (
-                <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {translateUiMessage(t, errorKey)}
                 </div>
             )}
@@ -86,7 +86,7 @@ export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySecti
                     value={formatDateTime(remediation?.completed_at)}
                 />
             </div>
-            <p className="text-sm text-slate-400">{nextStepLabel}</p>
+            <p className="text-sm text-muted-foreground">{nextStepLabel}</p>
         </section>
     );
 }

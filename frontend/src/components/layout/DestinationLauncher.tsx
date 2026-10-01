@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { FileText, Search, X } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { DialogShell } from '@/components/DialogShell';
+import { DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -191,26 +191,14 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                 titleId={titleId}
                 descriptionIds={[descriptionId]}
                 initialFocusRef={searchRef}
-                contentClassName="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden glass-card !p-0 shadow-2xl"
+                size="lg"
             >
-                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
-                    <div>
-                        <h2 id={titleId} className="text-xl font-semibold text-foreground">
-                            {t('go_to.title')}
-                        </h2>
-                        <p id={descriptionId} className="mt-1 text-sm text-muted-foreground">
-                            {t('go_to.description')}
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={close}
-                        aria-label={t('go_to.close')}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                        <X aria-hidden="true" className="h-5 w-5" />
-                    </button>
-                </div>
+                <DialogHeader
+                    title={t('go_to.title')}
+                    description={t('go_to.description')}
+                    descriptionId={descriptionId}
+                    closeLabel={t('go_to.close')}
+                />
 
                 <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
                     <label htmlFor={`${listboxId}-search`} className="sr-only">

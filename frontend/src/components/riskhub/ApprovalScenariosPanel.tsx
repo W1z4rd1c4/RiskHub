@@ -11,6 +11,7 @@ import {
     type ApprovalScenarioFixedPolicyDefinition,
     type ApprovalScenarioUpdate,
 } from '@/services/riskHubApi';
+import { DialogBody } from '@/components/ui/dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Switch } from '@/components/ui/switch';
 import { useState, useMemo, useEffect, useId } from 'react';
@@ -103,10 +104,11 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     if (!isOpen || !scenario) return null;
 
     return (
-        <RiskHubModalFrame onClose={onClose} title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
-                <form onSubmit={handleSubmit} className="space-y-6">
+        <RiskHubModalFrame onClose={onClose} isBusy={saving} title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <DialogBody className="space-y-6">
                     <div className="flex items-center justify-between">
-                        <span id={requiresApprovalLabelId} className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>
+                        <span id={requiresApprovalLabelId} className="text-foreground">{t('admin:approval_scenarios.requires_approval')}</span>
                         <Switch
                             checked={requiresApproval}
                             onCheckedChange={setRequiresApproval}
@@ -116,7 +118,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
                     {fixedPolicyDefinition ? (
                         <div
-                            className="rounded-xl border border-white/10 bg-white/5 p-4"
+                            className="rounded-xl border border-border bg-tint/5 p-4"
                             data-testid={
                                 scenario.key === 'accountability_reassignment'
                                     ? 'accountability-reassignment-fixed-policy'
@@ -125,36 +127,36 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                         : 'protected-process-fixed-policy'
                             }
                         >
-                            <h3 className="text-sm font-bold text-white">
+                            <h3 className="text-sm font-bold text-foreground">
                                 {t('admin:approval_scenarios.fixed_policy.title')}
                             </h3>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-xs text-muted-foreground">
                                 {t('admin:approval_scenarios.fixed_policy.immutable_help')}
                             </p>
                             <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                                 <div>
-                                    <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                         {t('admin:approval_scenarios.fixed_policy.threshold')}
                                     </dt>
-                                    <dd className="mt-1 text-slate-200">
+                                    <dd className="mt-1 text-foreground">
                                         {t(`admin:approval_scenarios.fixed_policy.triggers.${fixedPolicyDefinition.threshold}`)}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                         {t('admin:approval_scenarios.fixed_policy.actions')}
                                     </dt>
-                                    <dd className="mt-1 text-slate-200">
+                                    <dd className="mt-1 text-foreground">
                                         {fixedPolicyDefinition.covered_actions
                                             .map((action) => t(`admin:approval_scenarios.fixed_policy.covered_action_values.${action}`))
                                             .join(', ')}
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                         {t('admin:approval_scenarios.fixed_policy.separation')}
                                     </dt>
-                                    <dd className="mt-1 text-slate-200">
+                                    <dd className="mt-1 text-foreground">
                                         {t(`admin:approval_scenarios.fixed_policy.self_approval.${String(fixedPolicyDefinition.allow_self_approval)}`)}
                                     </dd>
                                 </div>
@@ -164,14 +166,10 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
                     {requiresApproval && (
                         <div className="space-y-2">
-                            <span id={approverRolesLabelId} className="block text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
+                            <span id={approverRolesLabelId} className="block text-foreground font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
                             {rolesLoading ? (
-                                <div className="text-slate-400 text-sm py-2">{t('common:loading.roles')}</div>
+                                <div className="text-muted-foreground text-sm py-2">{t('common:loading.roles')}</div>
                             ) : (
-                                // Pending W6 (D5, NEW-V1-01): RiskHubModalFrame is still a dark
-                                // surface in every theme, so the trigger and chips use dark-surface
-                                // colours until the frame moves to the themed surface (white chip
-                                // text: the former `text-accent` chip was 3.7:1, below AA).
                                 <MultiSelect
                                     aria-labelledby={approverRolesLabelId}
                                     options={selectableRoles}
@@ -179,20 +177,19 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                     onChange={setSelectedRoles}
                                     placeholder={t('admin:approval_scenarios.modal.select_roles')}
                                     formatSummary={(count) => t('admin:approval_scenarios.modal.roles_selected', { count })}
-                                    className="border-white/10 bg-white/5 text-slate-300"
-                                    chipClassName="border-transparent bg-accent/20 text-white"
                                 />
                             )}
                         </div>
                     )}
 
                     <RiskHubFieldError errorKey={errorKey} />
-                    <RiskHubModalActions
-                        disableSave={rolesLoading || (requiresApproval && selectedRoles.length === 0)}
-                        onCancel={onClose}
-                        saving={saving}
-                    />
-                </form>
+                </DialogBody>
+                <RiskHubModalActions
+                    disableSave={rolesLoading || (requiresApproval && selectedRoles.length === 0)}
+                    onCancel={onClose}
+                    saving={saving}
+                />
+            </form>
         </RiskHubModalFrame>
     );
 }
@@ -258,60 +255,60 @@ export function ApprovalScenariosPanel() {
     };
 
     if (scenariosResource.isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.scenarios')}</div>;
+        return <div className="text-muted-foreground text-center py-8">{t('common:loading.scenarios')}</div>;
     }
 
     if (scenariosResource.error) {
-        return <div className="text-red-400 text-center py-8">{t('admin:errors.failed_to_load_approval_scenarios')}</div>;
+        return <div className="text-destructive text-center py-8">{t('admin:errors.failed_to_load_approval_scenarios')}</div>;
     }
 
     return (
         <div className="space-y-4">
             <div className="flex items-center gap-3">
                 <ShieldCheck className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold text-white">{t('admin:approval_scenarios.title')}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t('admin:approval_scenarios.title')}</h3>
             </div>
 
-            <p className="text-slate-400 text-sm">
+            <p className="text-muted-foreground text-sm">
                 {t('admin:approval_scenarios.subtitle')}
             </p>
 
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:approval_scenarios.columns.scenario')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.description')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:approval_scenarios.columns.approvers')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
+                        <tr className="border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:approval_scenarios.columns.scenario')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.description')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.status')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:approval_scenarios.columns.approvers')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {scenariosResource.items.map((scenario) => (
                             <tr
                                 key={scenario.key}
-                                className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                                className="border-b border-border hover:bg-tint/5 transition-colors"
                             >
                                 <td className="py-3 px-4">
-                                    <span className="text-white font-medium">{scenario.display_name}</span>
+                                    <span className="text-foreground font-medium">{scenario.display_name}</span>
                                 </td>
-                                <td className="py-3 px-4 text-slate-400 text-sm max-w-xs">
+                                <td className="py-3 px-4 text-muted-foreground text-sm max-w-xs">
                                     {scenario.description}
                                     {fixedPolicySummary(scenario) ? (
-                                        <p className="mt-1 text-xs text-slate-500">
+                                        <p className="mt-1 text-xs text-muted-foreground">
                                             {fixedPolicySummary(scenario)}
                                         </p>
                                     ) : null}
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                     {scenario.requires_approval ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs">
                                             <Check className="h-3 w-3" />
                                             {t('admin:approval_scenarios.enabled')}
                                         </span>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded-full text-xs">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs">
                                             <X className="h-3 w-3" />
                                             {t('admin:approval_scenarios.disabled')}
                                         </span>
@@ -322,7 +319,7 @@ export function ApprovalScenariosPanel() {
                                         {scenario.approver_roles.map(role => (
                                             <span
                                                 key={role}
-                                                className="px-2 py-0.5 bg-white/10 text-slate-300 text-xs rounded-full"
+                                                className="px-2 py-0.5 bg-tint/10 text-foreground text-xs rounded-full"
                                             >
                                                 {getRoleLabel(role)}
                                             </span>

@@ -1,5 +1,7 @@
 import type { RiskQuestionnaireQuestion } from '../riskQuestionnaireQuestions';
 import type { TranslateFn } from './questionnairePresentation';
+import { Field } from '@/components/ui/field';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 interface ClarificationRequestPanelProps {
@@ -26,19 +28,20 @@ export function ClarificationRequestPanel({
     t,
 }: ClarificationRequestPanelProps) {
     return (
-        <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
-            <p className="text-xs font-bold text-slate-300">
-                {t('risks:questionnaire.clarification_request_label')}
-            </p>
-            <textarea
-                value={requestMessage}
-                onChange={(event) => onRequestMessageChange(event.target.value)}
-                rows={3}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-accent/50 transition-all resize-none"
-                placeholder={t('risks:questionnaire.clarification_request_placeholder')}
-            />
+        <div className="p-4 rounded-xl border border-border bg-tint/5 space-y-3">
+            <Field label={t('risks:questionnaire.clarification_request_label')} labelClassName="text-xs font-bold">
+                {(field) => (
+                    <Textarea
+                        {...field}
+                        value={requestMessage}
+                        onChange={(event) => onRequestMessageChange(event.target.value)}
+                        rows={3}
+                        placeholder={t('risks:questionnaire.clarification_request_placeholder')}
+                    />
+                )}
+            </Field>
             <div className="space-y-2">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                     {t('risks:questionnaire.clarification_optional_questions')}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -46,7 +49,7 @@ export function ClarificationRequestPanel({
                         const label = t(`risks:questionnaire.questions.${question.key}`, question.key);
                         const checked = requestQuestionKeys.includes(question.key);
                         return (
-                            <label key={question.key} className="flex items-start gap-2 text-xs text-slate-300">
+                            <label key={question.key} className="flex items-start gap-2 text-xs text-foreground">
                                 <input
                                     type="checkbox"
                                     checked={checked}
@@ -67,7 +70,7 @@ export function ClarificationRequestPanel({
                 <button
                     onClick={onCancel}
                     disabled={pending}
-                    className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 rounded-xl border border-border bg-tint/5 text-foreground text-[10px] font-black uppercase tracking-widest hover:bg-tint/10 transition-all"
                 >
                     {t('common:actions.cancel')}
                 </button>
@@ -76,7 +79,7 @@ export function ClarificationRequestPanel({
                     disabled={pending || requestMessage.trim() === ''}
                     className={cn(
                         'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all',
-                        'bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50',
+                        'bg-accent/20 border-accent/30 text-accent-text hover:bg-accent/30 hover:border-accent/50',
                         (pending || requestMessage.trim() === '') && 'opacity-50 cursor-not-allowed',
                     )}
                 >

@@ -20,20 +20,20 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
         <div className="overflow-x-auto">
             <table className="w-full">
                 <thead>
-                    <tr className="border-b border-white/10">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">
+                    <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                             {t('admin:roles_panel.columns.role_name')}
                         </th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                             {t('admin:roles_panel.columns.permissions')}
                         </th>
-                        <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">
+                        <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">
                             {t('admin:roles_panel.columns.users')}
                         </th>
-                        <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">
+                        <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">
                             {t('common:labels.status')}
                         </th>
-                        <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">
+                        <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">
                             {t('common:labels.actions')}
                         </th>
                     </tr>
@@ -45,15 +45,15 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
                             <tr
                                 key={role.id}
                                 className={cn(
-                                    'border-b border-white/5 hover:bg-white/5 transition-colors',
+                                    'border-b border-border hover:bg-tint/5 transition-colors',
                                     !role.is_active && 'opacity-50',
                                 )}
                             >
                                 <td className="py-3 px-4">
-                                    <div className="font-medium text-white">{role.display_name}</div>
-                                    <code className="text-xs text-slate-500 font-mono">{role.name}</code>
+                                    <div className="font-medium text-foreground">{role.display_name}</div>
+                                    <code className="text-xs text-muted-foreground font-mono">{role.name}</code>
                                     {role.description && (
-                                        <div className="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{role.description}</div>
+                                        <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">{role.description}</div>
                                     )}
                                 </td>
                                 <td className="py-3 px-4">
@@ -62,9 +62,9 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full inline-flex">
-                                        <Users className="h-3 w-3 text-slate-400" />
-                                        <span className="text-xs text-slate-300">{role.user_count}</span>
+                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-tint/5 rounded-full inline-flex">
+                                        <Users className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-xs text-foreground">{role.user_count}</span>
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-center">
@@ -77,8 +77,8 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
                                             className={cn(
                                                 'p-1.5 rounded transition-colors',
                                                 !actions.canUpdate
-                                                    ? 'text-slate-600 cursor-not-allowed'
-                                                    : 'text-slate-400 hover:text-white hover:bg-white/10',
+                                                    ? 'text-muted-foreground opacity-50 cursor-not-allowed'
+                                                    : 'text-muted-foreground hover:text-foreground hover:bg-tint/10',
                                             )}
                                             disabled={!actions.canUpdate}
                                             title={!actions.canUpdate
@@ -94,7 +94,7 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
                                         {actions.canDelete && (
                                             <button
                                                 onClick={() => onDelete(role)}
-                                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
                                                 aria-label={t('common:actions.delete')}
                                             >
@@ -105,7 +105,7 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
                                         {actions.canRestore && (
                                             <button
                                                 onClick={() => onRestore(role)}
-                                                className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-success-text hover:bg-success/10 rounded transition-colors"
                                                 title={t('admin:roles_panel.actions.restore')}
                                                 aria-label={t('admin:roles_panel.actions.restore')}
                                             >
@@ -126,7 +126,7 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
 function renderPermissions(role: RoleHubRead, t: (key: string) => string) {
     if (role.name === 'admin') {
         return (
-            <span className="px-1.5 py-0.5 bg-blue-500/20 rounded text-xs text-blue-400 border border-blue-500/20 font-bold">
+            <span className="px-1.5 py-0.5 bg-info/20 rounded text-xs text-accent-text border border-info/20 font-bold">
                 {t('admin:roles_panel.badges.admin_permissions')}
             </span>
         );
@@ -134,18 +134,18 @@ function renderPermissions(role: RoleHubRead, t: (key: string) => string) {
 
     if (role.permissions.includes('*:*')) {
         return (
-            <span className="px-1.5 py-0.5 bg-accent/20 rounded text-xs text-accent border border-accent/20 font-bold">
+            <span className="px-1.5 py-0.5 bg-accent/20 rounded text-xs text-accent-text border border-accent/20 font-bold">
                 {t('admin:roles_panel.badges.full_access')}
             </span>
         );
     }
 
     if (role.permissions.length === 0) {
-        return <span className="text-xs text-slate-500 italic">{t('labels.no_permissions')}</span>;
+        return <span className="text-xs text-muted-foreground italic">{t('labels.no_permissions')}</span>;
     }
 
     return role.permissions.map((permission) => (
-        <span key={permission} className="px-1.5 py-0.5 bg-white/10 rounded text-xs text-slate-300 border border-white/5">
+        <span key={permission} className="px-1.5 py-0.5 bg-tint/10 rounded text-xs text-foreground border border-border">
             {permission}
         </span>
     ));
@@ -154,7 +154,7 @@ function renderPermissions(role: RoleHubRead, t: (key: string) => string) {
 function renderStatus(role: RoleHubRead, t: (key: string) => string) {
     if (role.is_system) {
         return (
-            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-xs border border-blue-500/20">
+            <span className="px-2 py-0.5 bg-info/10 text-accent-text rounded-full text-xs border border-info/20">
                 {t('admin:roles_panel.badges.system')}
             </span>
         );
@@ -162,14 +162,14 @@ function renderStatus(role: RoleHubRead, t: (key: string) => string) {
 
     if (role.is_active) {
         return (
-            <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs border border-emerald-500/20">
+            <span className="px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs border border-success/20">
                 {t('admin:roles_panel.badges.active')}
             </span>
         );
     }
 
     return (
-        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/20">
+        <span className="px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs border border-destructive/20">
             {t('admin:roles_panel.badges.deleted')}
         </span>
     );

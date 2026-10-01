@@ -182,8 +182,8 @@ text below AA (4.5:1, or 3:1 for large text), below 3:1, below 1.5:1 and white
 text on a light background, and fails when any count rises above
 `tests/frontend/e2e/rendered-contrast-baseline.json`. Targeted probes require
 4.5:1 for the typed title and selected severity in the issue quick-create dialog
-(the selected severity has a temporary 2:1 floor in light until the Phase 2.1
-dialog-surface fix, NEW-V1-01 / DS-07, raises it to 4.5:1), check that `/login`
+in every theme (the temporary 2:1 light floor was raised to 4.5:1 when the
+Phase 2.1 dialog-surface fix, NEW-V1-01 / DS-07, landed), check that `/login`
 at 1024×600 and 1280×600 keeps the `h1` unclipped and the language switch
 clickable (RS-02), and that `<html lang>` follows the login-page language switch.
 It runs in the `ci` project of `e2e.yml` and needs no backend locally:

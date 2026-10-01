@@ -200,7 +200,7 @@ export function HistoryComparisonPanel({
             {!isSameSelection && comparisonFields.length > 0 && (
                 <div className="relative">
                     {/* Decorative line connecting selectors to card */}
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-px h-8 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-px h-8 bg-gradient-to-b from-tint/10 to-transparent pointer-events-none" />
 
                     <HistoryChangeCard
                         title={t('comparison.delta_analysis', { ns: 'kris' })}

@@ -250,7 +250,6 @@ describe('severity consistency — legacy adapter ratchet (roadmap 2.11)', () =>
      * when its consumers move onto `lib/severity.ts`; never add one.
      */
     const PENDING_MIGRATION = [
-        'VendorTierPill',
         'issueUi.issueSeverityClass',
         'riskScoreTheme.riskScoreClass',
         'useChartTheme.issueSeverity',

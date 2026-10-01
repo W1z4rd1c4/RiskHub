@@ -448,7 +448,7 @@ describe('UsersPage mode selection', () => {
 
         const user = userEvent.setup();
         await user.click(await screen.findByRole('button', { name: /Break-glass/i }));
-        await user.type(screen.getByLabelText('Reason'), 'Emergency owner handoff');
+        await user.type(screen.getByRole('textbox', { name: 'Reason' }), 'Emergency owner handoff');
         await user.clear(screen.getByLabelText('Expires in hours'));
         await user.type(screen.getByLabelText('Expires in hours'), '6');
         await user.click(screen.getByRole('button', { name: 'Break-glass enable' }));

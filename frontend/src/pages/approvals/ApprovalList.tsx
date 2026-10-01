@@ -58,10 +58,10 @@ export function ApprovalList({
 
     if (approvals.length === 0) {
         return (
-            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
-                <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
+            <div className="py-20 text-center border-2 border-dashed border-border rounded-2xl bg-tint/[0.01]">
+                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-foreground mb-2">{t('empty_state.all_caught_up')}</h3>
+                <p className="text-muted-foreground max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
             </div>
         );
     }
@@ -127,8 +127,8 @@ export function ApprovalList({
                             </div>
 
                             {(approval.status === 'approved' || approval.status === 'rejected') && approval.resolved_at && (
-                                <div className="mt-3 pt-3 border-t border-white/5">
-                                    <div className="flex items-center gap-4 text-xs text-slate-500 mb-1">
+                                <div className="mt-3 pt-3 border-t border-border">
+                                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-1">
                                         <span
                                             className={
                                                 approval.status === 'approved'
@@ -153,7 +153,7 @@ export function ApprovalList({
                                         )}
                                     </div>
                                     {approval.resolution_notes && (
-                                        <p className="text-xs text-slate-400 italic">"{approval.resolution_notes}"</p>
+                                        <p className="text-xs text-muted-foreground italic">"{approval.resolution_notes}"</p>
                                     )}
                                 </div>
                             )}
@@ -173,7 +173,7 @@ export function ApprovalList({
                                 {canViewPendingChanges && (
                                     <button
                                         onClick={() => onToggleRow(approval.id)}
-                                        className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                        className="p-2 hover:bg-tint/5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
                                         title={t('common:tooltips.view_changes')}
                                         aria-label={t('common:tooltips.view_changes')}
                                     >
@@ -218,7 +218,7 @@ export function ApprovalList({
                                 ) && (
                                         <button
                                             onClick={() => onCancel(approval.id)}
-                                            className="p-2 hover:bg-rose-500/10 hover:text-rose-400 text-slate-500 rounded-lg transition-colors"
+                                            className="p-2 hover:bg-destructive/10 hover:text-destructive text-muted-foreground rounded-lg transition-colors"
                                             title={t('common:tooltips.cancel_request')}
                                             aria-label={t('common:tooltips.cancel_request')}
                                         >
@@ -237,7 +237,7 @@ export function ApprovalList({
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    className="bg-white/[0.02] border-t border-white/5 px-6 py-4"
+                                    className="bg-tint/[0.03] border-t border-border px-6 py-4"
                                 >
                                     <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">
                                         {t('labels.proposed_changes')}

@@ -38,13 +38,13 @@ export function KriDetailsStep({
 
     return (
         <section className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <h3 className="mb-4 text-[10px] font-black uppercase tracking-widest text-white">
+            <h3 className="mb-4 text-[10px] font-black uppercase tracking-widest text-foreground">
                 {t('kris:fields.name')} {t('common:labels.details')}
             </h3>
 
             <div className="space-y-6">
                 <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                         {t('kris:fields.name')} *
                     </label>
                     <input
@@ -52,13 +52,13 @@ export function KriDetailsStep({
                         required
                         value={formData.metric_name}
                         onChange={(event) => onInputChange('metric_name', event.target.value)}
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all focus:border-accent/50"
+                        className="w-full rounded-xl border border-input bg-tint/5 px-4 py-3 text-foreground outline-none transition-all focus:border-accent/50"
                         placeholder={t('kris:form.placeholders.metric_name')}
                     />
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                         {t('common:labels.description')} *
                     </label>
                     <textarea
@@ -66,14 +66,14 @@ export function KriDetailsStep({
                         rows={3}
                         value={formData.description}
                         onChange={(event) => onInputChange('description', event.target.value)}
-                        className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all focus:border-accent/50"
+                        className="w-full resize-none rounded-xl border border-input bg-tint/5 px-4 py-3 text-foreground outline-none transition-all focus:border-accent/50"
                         placeholder={t('kris:form.placeholders.description')}
                     />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
                     <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             {t('kris:fields.current_value')} *
                         </label>
                         <input
@@ -84,11 +84,11 @@ export function KriDetailsStep({
                             onChange={(event) =>
                                 onInputChange('current_value', parseFloat(event.target.value) || 0)
                             }
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all focus:border-accent/50"
+                            className="w-full rounded-xl border border-input bg-tint/5 px-4 py-3 text-foreground outline-none transition-all focus:border-accent/50"
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-emerald-500">
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-success-text">
                             {t('kris:fields.lower_limit')}
                         </label>
                         <input
@@ -98,11 +98,11 @@ export function KriDetailsStep({
                             onChange={(event) =>
                                 onInputChange('lower_limit', parseFloat(event.target.value) || 0)
                             }
-                            className="w-full rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-emerald-400 outline-none transition-all focus:border-emerald-500/50"
+                            className="w-full rounded-xl border border-success/20 bg-success/5 px-4 py-3 text-success-text outline-none transition-all focus:border-success/50"
                         />
                     </div>
                     <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-rose-500">
+                        <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-destructive">
                             {t('kris:fields.upper_limit')}
                         </label>
                         <input
@@ -112,13 +112,13 @@ export function KriDetailsStep({
                             onChange={(event) =>
                                 onInputChange('upper_limit', parseFloat(event.target.value) || 0)
                             }
-                            className="w-full rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-rose-400 outline-none transition-all focus:border-rose-500/50"
+                            className="w-full rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-destructive outline-none transition-all focus:border-destructive/50"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                         {t('kris:fields.unit')}
                     </label>
                     <ThemedSelect
@@ -137,9 +137,9 @@ export function KriDetailsStep({
                     />
                 </div>
 
-                <div className="grid gap-4 border-t border-white/5 pt-4 md:grid-cols-2">
+                <div className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
                     <div>
-                        <label className="mb-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <label className="mb-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             {t('kris:fields.frequency')}
                         </label>
@@ -161,7 +161,7 @@ export function KriDetailsStep({
                         />
                     </div>
                     <div>
-                        <label className="mb-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <label className="mb-2 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             <User className="h-3 w-3" />
                             {t('kris:fields.owner')}
                         </label>
@@ -179,13 +179,13 @@ export function KriDetailsStep({
                                 label: `${user.name} (${user.email})`,
                             }))}
                         />
-                        <p className="ml-1 mt-1 text-[9px] text-slate-600">
+                        <p className="ml-1 mt-1 text-[9px] text-muted-foreground">
                             {t('kris:form.reporting_owner_hint')}
                         </p>
                     </div>
                 </div>
 
-                <div className="border-t border-white/5 pt-4">
+                <div className="border-t border-border pt-4">
                     <KRIVendorSelector
                         vendors={vendorOptions}
                         selectedVendorIds={selectedVendorIds}
@@ -201,7 +201,7 @@ export function KriDetailsStep({
                         }
                     />
                     {vendorContext ? (
-                        <p className="mt-2 text-[10px] text-slate-500">
+                        <p className="mt-2 text-[10px] text-muted-foreground">
                             {t('kris:vendor_assignment.vendor_context_auto_linked')}
                         </p>
                     ) : null}

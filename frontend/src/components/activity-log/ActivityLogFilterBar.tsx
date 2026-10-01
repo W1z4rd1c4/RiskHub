@@ -84,7 +84,7 @@ export function ActivityLogFilterBar({
     return (
         <>
             {/* View Mode Selector */}
-            <div className="flex flex-wrap items-center gap-4 p-4 glass-card rounded-2xl border border-white/5">
+            <div className="flex flex-wrap items-center gap-4 p-4 glass-card rounded-2xl border border-border">
                 <span className="text-sm font-medium text-muted-foreground">{t('activity_log.view_label', { ns: 'admin' })}</span>
                 <div className="flex items-center gap-1">
                     {viewModes.map(mode => (
@@ -93,7 +93,7 @@ export function ActivityLogFilterBar({
                             onClick={() => onViewModeChange(mode.id)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === mode.id
                                 ? 'bg-accent/10 text-accent-text border border-accent/30'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-tint/5 border border-transparent'
                                 }`}
                         >
                             {mode.label}
@@ -135,16 +135,16 @@ export function ActivityLogFilterBar({
 
             {/* Filters Section */}
             {canViewEntityFilters ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 glass-card rounded-3xl border border-white/5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 glass-card rounded-3xl border border-border">
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                         data-testid="activity-log-search-input"
                         type="text"
                         placeholder={t('filters.search_logs')}
                         value={search}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-[border-color,box-shadow]"
+                        className="w-full bg-nested border border-input rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-[border-color,box-shadow]"
                     />
                 </div>
 

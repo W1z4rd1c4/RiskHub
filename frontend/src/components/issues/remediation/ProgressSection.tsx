@@ -77,8 +77,8 @@ export function ProgressSection({
                     />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                    <details className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                        <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-slate-400">
+                    <details className="rounded-xl border border-border bg-tint/5 px-4 py-3">
+                        <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-muted-foreground">
                             {t('workflow.sections.advanced_progress')}
                         </summary>
                         <div className="mt-3 space-y-3">

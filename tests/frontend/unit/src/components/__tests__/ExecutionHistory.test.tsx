@@ -374,10 +374,10 @@ describe('ExecutionHistory', () => {
             expect(screen.queryByText('common:loading.history')).not.toBeInTheDocument();
         });
 
-        expect(screen.getByText('controls:results.failed')).toHaveClass('text-rose-400');
-        expect(screen.getByText('controls:executions.issues_found')).toHaveClass('text-amber-400');
-        expect(screen.getByText('controls:results.passed')).toHaveClass('text-emerald-400');
-        expect(screen.getByText('controls:results.not_applicable')).toHaveClass('text-slate-400');
+        expect(screen.getByText('controls:results.failed')).toHaveClass('text-destructive');
+        expect(screen.getByText('controls:executions.issues_found')).toHaveClass('text-warning-text');
+        expect(screen.getByText('controls:results.passed')).toHaveClass('text-success-text');
+        expect(screen.getByText('controls:results.not_applicable')).toHaveClass('text-muted-foreground');
 
         const failedCard = screen.getByText('controls:results.failed').closest('.glass-card');
         expect(failedCard).not.toBeNull();
@@ -400,7 +400,7 @@ describe('ExecutionHistory', () => {
 
         await screen.findByText('common:labels.not_available');
         expect(screen.queryByText('controls:results.passed')).not.toBeInTheDocument();
-        expect(screen.getByText('common:labels.not_available')).toHaveClass('text-slate-300');
+        expect(screen.getByText('common:labels.not_available')).toHaveClass('text-foreground');
     });
 
     it('shows execution-specific issue actions only for failed or warning rows when allowed', async () => {

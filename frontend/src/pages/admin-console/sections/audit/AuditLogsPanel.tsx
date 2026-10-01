@@ -107,14 +107,14 @@ export function AuditLogsPanel() {
                 <div className="flex items-center gap-4">
                     <h3 className="admin-title text-lg font-semibold">{t('audit.event_feed')}</h3>
                     <div className="admin-surface-muted flex items-center gap-2 rounded-full border px-3 py-1">
-                        <div className={cn('w-2 h-2 rounded-full', autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500')} />
+                        <div className={cn('w-2 h-2 rounded-full', autoRefresh ? 'bg-success animate-pulse' : 'bg-muted-foreground')} />
                         <span className="admin-muted text-xs">{t('audit.live')}</span>
                         <input
                             type="checkbox"
                             aria-label={t('audit.live')}
                             checked={autoRefresh}
                             onChange={(event) => setAutoRefresh(event.target.checked)}
-                            className="form-checkbox h-3 w-3 text-accent rounded bg-slate-800 border-white/10"
+                            className="form-checkbox h-3 w-3 text-accent rounded bg-nested border-border"
                         />
                     </div>
                 </div>

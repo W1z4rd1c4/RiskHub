@@ -1,5 +1,6 @@
-import { FileText, X } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
+import { DialogHeader } from '@/components/ui/dialog';
 import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 
 import { RiskQuestionnaireMetaBar } from './RiskQuestionnaireMetaBar';
@@ -25,31 +26,22 @@ export function RiskQuestionnaireDetailHeader({
     t,
 }: RiskQuestionnaireDetailHeaderProps) {
     return (
-        <div className="flex items-start justify-between p-6 border-b border-white/5">
-            <div className="min-w-0">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-accent" />
-                    {t('risks:questionnaire.title')}
-                </h3>
-                {questionnaire && (
-                    <RiskQuestionnaireMetaBar
-                        compareMode={compareMode}
-                        isOverdue={isOverdue}
-                        locale={locale}
-                        questionnaire={questionnaire}
-                        setCompareMode={setCompareMode}
-                        t={t}
-                    />
-                )}
-            </div>
-            <button
-                type="button"
-                onClick={onClose}
-                aria-label={t('common:actions.close')}
-                className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
-            >
-                <X className="h-5 w-5" />
-            </button>
-        </div>
+        <DialogHeader
+            title={t('risks:questionnaire.title')}
+            icon={FileText}
+            onClose={onClose}
+            closeLabel={t('common:actions.close')}
+        >
+            {questionnaire && (
+                <RiskQuestionnaireMetaBar
+                    compareMode={compareMode}
+                    isOverdue={isOverdue}
+                    locale={locale}
+                    questionnaire={questionnaire}
+                    setCompareMode={setCompareMode}
+                    t={t}
+                />
+            )}
+        </DialogHeader>
     );
 }

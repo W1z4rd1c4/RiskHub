@@ -29,7 +29,7 @@ function createQuestionnaire(overrides: Partial<RiskQuestionnaireListItem> = {})
 describe('Approvals page presentation helpers', () => {
     it('presents expired approvals as a neutral terminal state', () => {
         expect(getApprovalStatusBadge('expired')).toBe(
-            'text-slate-400 border-slate-400/20 bg-slate-400/5',
+            'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5',
         );
     });
 

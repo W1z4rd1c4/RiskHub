@@ -1,9 +1,9 @@
 import { useId } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Trash2 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 import type { RoleHubRead } from '@/services/riskHubApi';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 
 interface RoleDeleteDialogProps {
     onCancel: () => void;
@@ -14,6 +14,7 @@ interface RoleDeleteDialogProps {
 export function RoleDeleteDialog({ onCancel, onConfirm, role }: RoleDeleteDialogProps) {
     const { t } = useTranslation(['admin', 'common']);
     const titleId = useId();
+    const descriptionId = useId();
 
     if (!role) {
         return null;
@@ -24,38 +25,30 @@ export function RoleDeleteDialog({ onCancel, onConfirm, role }: RoleDeleteDialog
             isOpen
             onClose={onCancel}
             titleId={titleId}
+            descriptionIds={[descriptionId]}
             role="alertdialog"
-            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
+            size="sm"
         >
-                <h3 id={titleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_role')}</h3>
-                <p className="text-slate-400 text-sm mb-4">
+            <DialogHeader title={t('confirmations.delete_role')} icon={Trash2} tone="danger" />
+            <DialogBody className="text-sm text-muted-foreground">
+                <p id={descriptionId}>
                     {t('admin:roles_panel.delete_confirm', { name: role.display_name })}
                 </p>
                 {role.user_count > 0 && (
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400">
-                        <AlertCircle className="h-5 w-5 shrink-0" />
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
+                        <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
                         <span>
                             {t('admin:roles_panel.cannot_delete_assigned', { count: role.user_count })}
                         </span>
                     </div>
                 )}
-                <div className="flex justify-end gap-3">
-                    <button
-                        onClick={onCancel}
-                        className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                    >
-                        {t('common:actions.cancel')}
-                    </button>
-                    {role.user_count === 0 && (
-                        <button
-                            onClick={onConfirm}
-                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                            {t('common:actions.delete')}
-                        </button>
-                    )}
-                </div>
+            </DialogBody>
+            <DialogFooter
+                cancelLabel={t('common:actions.cancel')}
+                intent="destructive"
+                submitLabel={role.user_count === 0 ? t('common:actions.delete') : undefined}
+                onSubmit={onConfirm}
+            />
         </DialogShell>
     );
 }

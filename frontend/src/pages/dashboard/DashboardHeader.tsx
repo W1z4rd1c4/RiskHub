@@ -35,13 +35,13 @@ export function DashboardHeader({
     updateFailedLabel,
 }: DashboardHeaderProps) {
     let freshnessLabel = updatedLabel;
-    let dotClass = 'bg-emerald-500';
+    let dotClass = 'bg-success';
     if (isUpdating) {
         freshnessLabel = updatingLabel;
-        dotClass = 'bg-amber-400 animate-pulse';
+        dotClass = 'bg-warning animate-pulse';
     } else if (updateFailed) {
         freshnessLabel = updateFailedLabel;
-        dotClass = 'bg-rose-400';
+        dotClass = 'bg-destructive';
     }
     const generatedAtLabel = formatDateTimeValue(generatedAt, locale);
 
@@ -68,7 +68,7 @@ export function DashboardHeader({
                 {showFreshness && (generatedAt || isUpdating) ? (
                     <div
                         aria-live="polite"
-                        className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5"
+                        className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-tint/5 px-3 py-1.5 rounded-full border border-border"
                         role="status"
                     >
                         <div aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />

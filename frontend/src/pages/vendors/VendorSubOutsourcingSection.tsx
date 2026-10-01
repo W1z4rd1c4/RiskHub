@@ -452,7 +452,7 @@ export function VendorSubOutsourcingSection({
                             type="button"
                             data-testid="vendor-sub-outsourcing-form-cancel"
                             onClick={closeForm}
-                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-foreground hover:text-foreground hover:bg-glass-hover transition-colors flex items-center gap-2"
+                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-foreground hover:bg-glass-hover transition-colors flex items-center gap-2"
                         >
                             <X className="h-4 w-4" />
                             {t('actions.cancel')}

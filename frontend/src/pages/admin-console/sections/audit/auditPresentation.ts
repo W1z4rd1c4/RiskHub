@@ -5,10 +5,10 @@ export function getAuditEventTypes(entries: RecentLogEntry[]): string[] {
 }
 
 export function getAuditEventClassName(event: string | null): string {
-    if (event?.includes('create')) return 'bg-emerald-500/20 text-emerald-400';
-    if (event?.includes('update')) return 'bg-amber-500/20 text-amber-400';
-    if (event?.includes('delete')) return 'bg-red-500/20 text-red-400';
-    return 'bg-blue-500/20 text-blue-400';
+    if (event?.includes('create')) return 'bg-success/10 text-success-text';
+    if (event?.includes('update')) return 'bg-warning/10 text-warning-text';
+    if (event?.includes('delete')) return 'bg-destructive/10 text-destructive';
+    return 'bg-info/10 text-accent-text';
 }
 
 export function formatAuditEvent(event: string | null, fallback: string): string {

@@ -56,19 +56,19 @@ export function KriRiskSelectionStep({
     return (
         <section className="animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="mb-4 flex items-center justify-between gap-4">
-                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white">
+                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-foreground">
                     <Target className="h-4 w-4 text-accent" />
                     {t('kris:actions.link_risk')}
                 </h3>
                 {vendorContext ? (
-                    <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] p-1">
+                    <div className="flex items-center rounded-lg border border-border bg-tint/[0.03] p-1">
                         <button
                             type="button"
                             onClick={() => onShowOnlyVendorLinkedRisksChange(true)}
                             className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
                                 showOnlyVendorLinkedRisks
-                                    ? 'bg-accent text-slate-950'
-                                    : 'text-slate-500 hover:text-white'
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             {t('kris:vendor_assignment.vendor_risks_only')}
@@ -78,8 +78,8 @@ export function KriRiskSelectionStep({
                             onClick={() => onShowOnlyVendorLinkedRisksChange(false)}
                             className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
                                 !showOnlyVendorLinkedRisks
-                                    ? 'bg-accent text-slate-950'
-                                    : 'text-slate-500 hover:text-white'
+                                    ? 'bg-accent text-accent-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
                             {t('kris:vendor_assignment.all_readable_risks')}
@@ -92,14 +92,14 @@ export function KriRiskSelectionStep({
                 <div className="rounded-xl border border-accent/30 bg-accent/10 p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-bold text-white">{selectedRisk.name}</p>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="text-sm font-bold text-foreground">{selectedRisk.name}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
                                 {selectedRisk.process} • {selectedRisk.category || t('common:labels.unknown')}
                             </p>
-                            <p className="mt-2 text-xs italic text-slate-300">{selectedRisk.description}</p>
+                            <p className="mt-2 text-xs italic text-foreground">{selectedRisk.description}</p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 {selectedRisk.department_name ? (
-                                    <span className="inline-block rounded bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-300">
+                                    <span className="inline-block rounded bg-tint/10 px-2 py-0.5 text-[10px] font-bold uppercase text-foreground">
                                         {selectedRisk.department_name}
                                     </span>
                                 ) : null}
@@ -107,8 +107,8 @@ export function KriRiskSelectionStep({
                                     <span
                                         className={`inline-block rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${
                                             isSelectedRiskLinkedToVendor
-                                                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                                                : 'border-amber-500/20 bg-amber-500/10 text-amber-300'
+                                                ? 'border-success/20 bg-success/10 text-success-text'
+                                                : 'border-warning/20 bg-warning/10 text-warning-text'
                                         }`}
                                     >
                                         {isSelectedRiskLinkedToVendor
@@ -122,9 +122,9 @@ export function KriRiskSelectionStep({
                             type="button"
                             onClick={onClearSelectedRisk}
                             aria-label={t('common:actions.clear_selection_named', { name: selectedRisk.name })}
-                            className="rounded-lg p-2 transition-colors hover:bg-white/10"
+                            className="rounded-lg p-2 transition-colors hover:bg-tint/10"
                         >
-                            <X className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                            <X className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         </button>
                     </div>
                 </div>
@@ -157,25 +157,25 @@ export function KriRiskSelectionStep({
                         />
                     </div>
 
-                    <div className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 transition-all focus-within:border-accent/50">
-                        <Search className="h-4 w-4 text-slate-500 transition-colors group-focus-within:text-accent" />
+                    <div className="group flex items-center gap-3 rounded-xl border border-border bg-tint/5 px-4 py-2.5 transition-all focus-within:border-accent/50">
+                        <Search className="h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-accent" />
                         <input
                             type="text"
                             placeholder={t('kris:form.placeholders.search_risks')}
                             value={riskSearch}
                             onChange={(event) => onRiskSearchChange(event.target.value)}
-                            className="w-full border-none bg-transparent text-sm text-white outline-none placeholder:text-slate-600"
+                            className="w-full border-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                         />
                     </div>
 
-                    <div className="custom-scrollbar max-h-[400px] overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5">
+                    <div className="custom-scrollbar max-h-[400px] overflow-y-auto rounded-xl border border-border divide-y divide-border">
                         {isLoadingRisks ? (
-                            <div className="p-8 text-center text-sm text-slate-500">
+                            <div className="p-8 text-center text-sm text-muted-foreground">
                                 <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
                                 {t('common:loading.risk_data')}
                             </div>
                         ) : filteredRisks.length === 0 ? (
-                            <div className="p-8 text-center text-sm text-slate-500">
+                            <div className="p-8 text-center text-sm text-muted-foreground">
                                 {showOnlyVendorLinkedRisks && vendorContext
                                     ? t('kris:vendor_assignment.no_vendor_risks')
                                     : t('common:labels.no_results')}
@@ -188,23 +188,23 @@ export function KriRiskSelectionStep({
                                     onClick={() => onRiskSelect(risk.id)}
                                     className="group flex w-full items-stretch gap-2 p-2 text-left transition-all hover:brightness-125"
                                 >
-                                    <div className="w-[200px] shrink-0 rounded-lg bg-white/5 p-3 transition-colors group-hover:bg-white/10">
-                                        <p className="truncate text-sm font-bold text-white" title={risk.name}>
+                                    <div className="w-[200px] shrink-0 rounded-lg bg-tint/5 p-3 transition-colors group-hover:bg-tint/10">
+                                        <p className="truncate text-sm font-bold text-foreground" title={risk.name}>
                                             {risk.name}
                                         </p>
-                                        <p className="mt-1 truncate text-[10px] text-slate-500" title={risk.process}>
+                                        <p className="mt-1 truncate text-[10px] text-muted-foreground" title={risk.process}>
                                             {risk.process}
                                         </p>
                                     </div>
-                                    <div className="flex flex-1 items-center rounded-lg bg-white/5 p-3 transition-colors group-hover:bg-white/10">
+                                    <div className="flex flex-1 items-center rounded-lg bg-tint/5 p-3 transition-colors group-hover:bg-tint/10">
                                         {risk.description ? (
-                                            <p className="break-words text-[10px] leading-tight text-slate-400">
+                                            <p className="break-words text-[10px] leading-tight text-muted-foreground">
                                                 {risk.description.length > 120
                                                     ? `${risk.description.slice(0, 120)}...`
                                                     : risk.description}
                                             </p>
                                         ) : (
-                                            <span className="text-[10px] italic text-slate-600">
+                                            <span className="text-[10px] italic text-muted-foreground">
                                                 {t('common:empty.no_description')}
                                             </span>
                                         )}

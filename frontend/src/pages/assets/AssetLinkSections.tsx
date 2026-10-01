@@ -61,9 +61,9 @@ function sectionShell(
 ) {
     return (
         <div className="glass-card space-y-5">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+            <div className="flex items-center gap-3 border-b border-border pb-4">
                 {icon}
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">{title}</h2>
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">{title}</h2>
             </div>
             {children}
         </div>
@@ -440,7 +440,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 && pendingProcessAction === null
                 && pendingAssetAction === null
                 && pendingRemoval === null ? (
-                <div role="alert" className="glass-card border border-rose-400/30 text-rose-300 text-sm font-medium">
+                <div role="alert" className="glass-card border border-destructive/30 text-destructive text-sm font-medium">
                     {linkError}
                 </div>
             ) : null}
@@ -450,7 +450,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 t('links.processes.title'),
                 <div className="space-y-4">
                     {processLinks.length === 0 ? (
-                        <p className="text-xs text-slate-500">{t('links.processes.empty')}</p>
+                        <p className="text-xs text-muted-foreground">{t('links.processes.empty')}</p>
                     ) : (
                         <ul className="space-y-2" data-testid="asset-process-links">
                             {processLinks.map((link) => {
@@ -460,30 +460,30 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 return (
                                 <li
                                     key={link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                    className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
                                 >
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-white truncate">
+                                            <span className="text-sm font-bold text-foreground truncate">
                                                 {link.process_name ?? t('common:fallbacks.unknown_process')}
                                             </span>
                                             {link.is_primary ? (
                                                 <span
                                                     data-testid={`asset-process-link-primary-${link.process_id}`}
-                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-xs font-black uppercase tracking-widest text-amber-300"
+                                                    className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-widest text-warning-text"
                                                 >
                                                     <Star className="h-3 w-3" />
                                                     {t('links.processes.primary')}
                                                 </span>
                                             ) : null}
                                         </div>
-                                        <p className="text-xs text-slate-500">
+                                        <p className="text-xs text-muted-foreground">
                                             {[link.significance, link.spof ? `SPOF: ${link.spof}` : null]
                                                 .filter(Boolean)
                                                 .join(' · ') || t('links.processes.no_metadata')}
                                         </p>
                                         {processActionBlocked ? (
-                                            <p className="mt-1 text-xs font-medium text-amber-300">
+                                            <p className="mt-1 text-xs font-medium text-warning-text">
                                                 {t('processes:pending_change.link_action_blocked')}
                                             </p>
                                         ) : null}
@@ -502,7 +502,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                     title={(processActionBlocked || primarySwapBlocked)
                                                         ? t('processes:pending_change.link_action_blocked')
                                                         : undefined}
-                                                    className="px-3 py-1.5 glass rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="px-3 py-1.5 glass rounded-lg text-xs font-semibold text-foreground hover:bg-tint/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {t('links.processes.set_primary')}
                                                 </button>
@@ -515,7 +515,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                     kind: 'remove',
                                                     processId: link.process_id,
                                                 })}
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                                 title={processActionBlocked
                                                     ? t('processes:pending_change.link_action_blocked')
                                                     : t('links.remove')}
@@ -531,7 +531,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     )}
 
                     {canManageLinks ? (
-                        <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div className="md:col-span-2">
                                 <SearchableEntitySelect
                                     value={processToLink}
@@ -562,7 +562,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 triggerTestId="asset-process-link-spof"
                             />
                             <div className="flex items-center gap-3">
-                                <label htmlFor="asset-process-link-is-primary" className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
+                                <label htmlFor="asset-process-link-is-primary" className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                                     <input
                                         id="asset-process-link-is-primary"
                                         type="checkbox"
@@ -585,7 +585,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 </button>
                             </div>
                             {addProcessBlocked ? (
-                                <p className="md:col-span-5 text-xs font-medium text-amber-300">
+                                <p className="md:col-span-5 text-xs font-medium text-warning-text">
                                     {t('processes:pending_change.link_action_blocked')}
                                 </p>
                             ) : null}
@@ -595,11 +595,11 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             )}
 
             {sectionShell(
-                <Link2 className="h-5 w-5 text-indigo-400" />,
+                <Link2 className="h-5 w-5 text-accent-text" />,
                 t('links.assets.title'),
                 <div className="space-y-4">
                     {assetLinks.length === 0 ? (
-                        <p className="text-xs text-slate-500">{t('links.assets.empty')}</p>
+                        <p className="text-xs text-muted-foreground">{t('links.assets.empty')}</p>
                     ) : (
                         <ul className="space-y-2" data-testid="asset-asset-links">
                             {assetLinks.map((link) => {
@@ -607,23 +607,23 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                 return (
                                     <li
                                         key={link.id}
-                                        className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                        className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
                                     >
                                         <div className="min-w-0">
-                                            <span className="text-sm text-slate-300">
+                                            <span className="text-sm text-foreground">
                                                 {t(
                                                     isDependent
                                                         ? 'links.assets.depends_on'
                                                         : 'links.assets.supports',
                                                 )}{' '}
-                                                <span className="font-bold text-white">
+                                                <span className="font-bold text-foreground">
                                                     {(isDependent
                                                         ? link.supporting_asset_name
                                                         : link.dependent_asset_name) ??
                                                         t('common:fallbacks.unknown_asset')}
                                                 </span>
                                             </span>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-muted-foreground">
                                                 {[link.dependency_type, link.spof ? `SPOF: ${link.spof}` : null]
                                                     .filter(Boolean)
                                                     .join(' · ') || t('links.assets.no_metadata')}
@@ -651,7 +651,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                             : link.dependent_asset_name) ??
                                                         t('common:fallbacks.unknown_asset'),
                                                 })}
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                                 title={t('links.remove')}
                                             >
                                                 <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -664,7 +664,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     )}
 
                     {canManageLinks ? (
-                        <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <ThemedSelect
                                 value={assetLinkDirection}
                                 onValueChange={(value) => setAssetLinkDirection(value as 'depends_on' | 'supports')}
@@ -721,23 +721,23 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             )}
 
             {sectionShell(
-                <Building2 className="h-5 w-5 text-emerald-400" />,
+                <Building2 className="h-5 w-5 text-success-text" />,
                 t('links.vendors.title'),
                 <div className="space-y-4">
                     {vendorLinks.length === 0 ? (
-                        <p className="text-xs text-slate-500">{t('links.vendors.empty')}</p>
+                        <p className="text-xs text-muted-foreground">{t('links.vendors.empty')}</p>
                     ) : (
                         <ul className="space-y-2" data-testid="asset-vendor-links">
                             {vendorLinks.map((link) => (
                                 <li
                                     key={link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                    className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
                                 >
                                     <div className="min-w-0">
-                                        <span className="text-sm font-bold text-white truncate">
+                                        <span className="text-sm font-bold text-foreground truncate">
                                             {assetVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'))}
                                         </span>
-                                        <p className="text-xs text-slate-500">
+                                        <p className="text-xs text-muted-foreground">
                                             {formatAssetVendorLinkMeta(link) || t('links.vendors.no_metadata')}
                                         </p>
                                     </div>
@@ -761,7 +761,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                     t('common:fallbacks.unknown_vendor'),
                                                 ),
                                             })}
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                             title={t('links.remove')}
                                         >
                                             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -773,7 +773,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     )}
 
                     {canManageLinks ? (
-                        <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                             <div className="md:col-span-2">
                                 <SearchableEntitySelect
                                     value={vendorToLink}

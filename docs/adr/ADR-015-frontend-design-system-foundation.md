@@ -126,8 +126,9 @@ before the codemods start, so they have one target.
    Workbook labels stay verbatim; only their colours map onto tokens.
 3. **`tint` token family (D3).** White-alpha utilities (`bg-white/N`, `border-white/N`,
    `divide-white/N` and their state variants) move to a theme-aware `--tint` base used with
-   the same opacity steps (`bg-tint/N`): white in the two dark themes (so they stay
-   pixel-identical) and navy in light. Card edges use `border-border`.
+   the same opacity steps (`bg-tint/N`): white in RiskHub (pixel-identical), a 75% grey in
+   True Dark (it reproduces the `!important` white-alpha remaps that theme used to apply,
+   within ΔE2000 ≤ 2.2 on static surfaces) and navy in light. Card edges use `border-border`.
 4. **Primary CTA (D4).** `Button` gains an `accent` variant
    (`bg-accent text-accent-foreground`), which is **the** primary call to action. The
    existing `default` variant remains only as a deprecated alias. The `.btn-primary` and
@@ -177,7 +178,8 @@ Phase 1 of the audit roadmap adds the tokens (`severity-high`, `tint`, `chart-*`
 Tailwind keys, `lib/severity.ts` and the `Button` `accent` variant; Phases 2–3 migrate
 consumers by codemod and module. Changing the "medium" band from blue to amber changes every
 register badge, so screenshot baselines are refreshed with that change. Dark-theme rendering of
-white-alpha utilities stays pixel-identical under `tint`.
+white-alpha utilities stays visually unchanged under `tint` (the True Dark base is tuned to its
+former remaps).
 
 ### Rollback Strategy
 

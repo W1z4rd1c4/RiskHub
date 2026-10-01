@@ -73,20 +73,20 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds, testIdPre
 
     return (
         <fieldset className="space-y-2" data-testid={`${testIdPrefix}-filter-control-${definition.key}`}>
-            <legend className="text-xs font-bold text-slate-300">{label}</legend>
+            <legend className="text-xs font-bold text-foreground">{label}</legend>
             <input
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t('register.filters.search_options')}
                 aria-label={t('register.filters.search_options_for', { label })}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent/50"
+                className="w-full rounded-lg border border-border bg-tint/5 px-3 py-2 text-sm text-foreground outline-none focus:border-accent/50"
             />
-            <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-white/5 p-2" aria-busy={isLoading}>
+            <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-border p-2" aria-busy={isLoading}>
                 {options.map((option) => {
                     const checked = selectedIds.includes(option.id);
                     return (
-                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1 text-xs text-slate-300 hover:bg-white/5">
+                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-tint/5">
                             <input
                                 type="checkbox"
                                 checked={checked}
@@ -98,12 +98,12 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds, testIdPre
                             />
                             <span className="min-w-0">
                                 <span className="block truncate">{option.label}</span>
-                                {option.secondary_label ? <span className="block truncate text-slate-500">{option.secondary_label}</span> : null}
+                                {option.secondary_label ? <span className="block truncate text-muted-foreground">{option.secondary_label}</span> : null}
                             </span>
                         </label>
                     );
                 })}
-                {!isLoading && options.length === 0 ? <p className="px-2 py-1 text-xs text-slate-500">{t('register.filters.no_options')}</p> : null}
+                {!isLoading && options.length === 0 ? <p className="px-2 py-1 text-xs text-muted-foreground">{t('register.filters.no_options')}</p> : null}
             </div>
         </fieldset>
     );
@@ -121,12 +121,12 @@ interface FacetMultiFilterProps {
 function FacetMultiFilter({ definition, label, onChange, options, selected, testIdPrefix }: FacetMultiFilterProps) {
     return (
         <fieldset className="space-y-2" data-testid={`${testIdPrefix}-filter-control-${definition.key}`}>
-            <legend className="text-xs font-bold text-slate-300">{label}</legend>
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-white/5 p-2">
+            <legend className="text-xs font-bold text-foreground">{label}</legend>
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border p-2">
                 {options.map((option) => {
                     const checked = selected.includes(option.value);
                     return (
-                        <label key={option.value} className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-slate-300 hover:bg-white/5">
+                        <label key={option.value} className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-tint/5">
                             <span className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
@@ -139,7 +139,7 @@ function FacetMultiFilter({ definition, label, onChange, options, selected, test
                                 />
                                 {option.label}
                             </span>
-                            <span className="tabular-nums text-slate-500">{option.count}</span>
+                            <span className="tabular-nums text-muted-foreground">{option.count}</span>
                         </label>
                     );
                 })}
@@ -246,12 +246,12 @@ export function ProcessRegisterFilterBar({
         if (definition.kind === 'boolean') {
             const current = filters[definition.key] as boolean | null;
             return (
-                <label key={definition.key} className="space-y-2 text-xs font-bold text-slate-300" data-testid={`processes-filter-control-${definition.key}`}>
+                <label key={definition.key} className="space-y-2 text-xs font-bold text-foreground" data-testid={`processes-filter-control-${definition.key}`}>
                     <span>{label}</span>
                     <select
                         value={current === null ? '' : String(current)}
                         onChange={(event) => onFilterChange(definition.key, event.target.value === '' ? null : event.target.value === 'true')}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
+                        className="w-full rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground"
                     >
                         <option value="">{t('register.boolean.any')}</option>
                         <option value="true">{t('register.boolean.yes')}</option>
@@ -263,10 +263,10 @@ export function ProcessRegisterFilterBar({
         const range = filters.mtpd;
         return (
             <fieldset key={definition.key} className="space-y-2" data-testid="processes-filter-control-mtpd">
-                <legend className="text-xs font-bold text-slate-300">{label}</legend>
+                <legend className="text-xs font-bold text-foreground">{label}</legend>
                 <div className="flex gap-2">
-                    <input type="number" min="0" value={range.min ?? ''} onChange={(event) => onFilterChange('mtpd', { ...range, min: event.target.value === '' ? undefined : Number(event.target.value) })} aria-label={t('register.filters.minimum', { label })} placeholder={t('register.filters.min')} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white" />
-                    <input type="number" min="0" value={range.max ?? ''} onChange={(event) => onFilterChange('mtpd', { ...range, max: event.target.value === '' ? undefined : Number(event.target.value) })} aria-label={t('register.filters.maximum', { label })} placeholder={t('register.filters.max')} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white" />
+                    <input type="number" min="0" value={range.min ?? ''} onChange={(event) => onFilterChange('mtpd', { ...range, min: event.target.value === '' ? undefined : Number(event.target.value) })} aria-label={t('register.filters.minimum', { label })} placeholder={t('register.filters.min')} className="w-full rounded-lg border border-border bg-tint/5 px-3 py-2 text-sm text-foreground" />
+                    <input type="number" min="0" value={range.max ?? ''} onChange={(event) => onFilterChange('mtpd', { ...range, max: event.target.value === '' ? undefined : Number(event.target.value) })} aria-label={t('register.filters.maximum', { label })} placeholder={t('register.filters.max')} className="w-full rounded-lg border border-border bg-tint/5 px-3 py-2 text-sm text-foreground" />
                 </div>
             </fieldset>
         );
@@ -322,7 +322,7 @@ export function ProcessRegisterFilterBar({
                 const definition = PROCESS_REGISTER_CONFIG.filters.find((candidate) => candidate.key === key);
                 if (!definition) return null;
                 return (
-                    <div key={key} className="relative rounded-xl border border-white/10 bg-white/[0.025] p-3 pr-12">
+                    <div key={key} className="relative rounded-xl border border-border bg-tint/[0.03] p-3 pr-12">
                         <Button variant="secondary" size="iconCompact" onClick={() => removeFilter(key)} aria-label={t('register.filters.remove', { label: labels[key] })} className="absolute right-2 top-2">
                             <X aria-hidden="true" />
                         </Button>

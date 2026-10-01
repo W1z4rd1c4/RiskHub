@@ -32,10 +32,10 @@ export function RiskDetailKriHistoryTab({
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
         >
-            <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+            <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
                 <History className="h-4 w-4 text-accent" />
                 {t('history_tab.aggregated_kri_history', { ns: 'risks' })}
-                {items.length > 0 && <span className="text-slate-500 font-normal">({t('history_tab.entries_count', { ns: 'kris', count: items.length })})</span>}
+                {items.length > 0 && <span className="text-muted-foreground font-normal">({t('history_tab.entries_count', { ns: 'kris', count: items.length })})</span>}
             </h3>
 
             {outcome.kind === 'fatal-error' || outcome.kind === 'denied' ? (

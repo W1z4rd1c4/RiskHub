@@ -2,7 +2,7 @@ import * as axe from 'axe-core';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DialogShell } from '@/components/DialogShell';
+import { DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-select';
 import { render, renderWithoutProviders, screen, userEvent, waitFor, within } from '@test/render';

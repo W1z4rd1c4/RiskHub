@@ -1,6 +1,9 @@
 import { useState, useId, useRef } from 'react';
-import { X, Save, Activity, Calendar, Info, CheckCircle } from 'lucide-react';
-import { DialogShell } from '@/components/DialogShell';
+import { Save, Activity, Calendar } from 'lucide-react';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
 import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
@@ -29,8 +32,6 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
     const titleId = useId();
     const subtitleId = useId();
-    const valueLabelId = useId();
-    const backdateLabelId = useId();
     const valueInputRef = useRef<HTMLInputElement>(null);
 
     const canSubmitBackdatedValue = resolveCapabilityFlag(kri.capabilities, 'can_submit_backdated_value');
@@ -81,139 +82,112 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
             titleId={titleId}
             descriptionIds={[subtitleId]}
             initialFocusRef={valueInputRef}
-            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="w-full max-w-md glass-card !p-0 overflow-hidden shadow-2xl"
+            isBusy={isSaving}
+            size="md"
         >
-            {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-accent/10 rounded-lg">
-                        <Activity className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                        <h3 id={titleId} className="text-xl font-black text-white">{t('value_modal.title', { ns: 'kris' })}</h3>
-                        <p id={subtitleId} className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{kri.metric_name}</p>
-                    </div>
-                </div>
-                <button type="button" onClick={handleClose} aria-label={t('common:actions.close')} className="p-2 text-slate-500 hover:text-white transition-colors">
-                    <X className="h-6 w-6" />
-                </button>
-            </div>
+            <DialogHeader
+                title={t('value_modal.title', { ns: 'kris' })}
+                description={kri.metric_name}
+                descriptionId={subtitleId}
+                icon={Activity}
+                closeLabel={t('common:actions.close')}
+            />
 
-            <div className="p-8 space-y-6">
+            <DialogBody className="space-y-6 p-8">
                 {/* Success State */}
                 {submitResult === 'success' && (
-                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3 text-emerald-400">
-                        <CheckCircle className="h-5 w-5" />
-                        <span className="text-sm font-medium">{t('value_modal.success_recorded', { ns: 'kris' })}</span>
-                    </div>
+                    <InlineMessage tone="success">
+                        {t('value_modal.success_recorded', { ns: 'kris' })}
+                    </InlineMessage>
                 )}
 
                 {/* Pending Approval State */}
                 {submitResult === 'pending_approval' && (
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2">
-                        <div className="flex items-center gap-3 text-amber-400">
-                            <Info className="h-5 w-5" />
-                            <span className="text-sm font-medium">{t('value_modal.submitted_for_approval', { ns: 'kris' })}</span>
-                        </div>
-                        <p className="text-xs text-slate-400 ml-8">
-                            {t('value_modal.submitted_for_approval_help', { ns: 'kris' })}
-                        </p>
-                    </div>
+                    <InlineMessage tone="warning" title={t('value_modal.submitted_for_approval', { ns: 'kris' })}>
+                        {t('value_modal.submitted_for_approval_help', { ns: 'kris' })}
+                    </InlineMessage>
                 )}
 
                 {errorKey && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
+                    <InlineMessage tone="danger">
                         {t(errorKey, { ns: 'errorKeys' })}
-                    </div>
+                    </InlineMessage>
                 )}
 
                 {/* Only show form if not submitted yet */}
                 {!submitResult && (
                     <>
                         {canRequestValueSubmissionApproval && (
-                            <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-start gap-3">
-                                <Info className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-amber-300/70">
-                                    {t('value_modal.approval_notice', { ns: 'kris' })}
-                                </p>
-                            </div>
+                            <InlineMessage tone="warning" live="off" className="p-3 text-xs">
+                                {t('value_modal.approval_notice', { ns: 'kris' })}
+                            </InlineMessage>
                         )}
 
                         {/* Current Context */}
-                        <div className="px-4 py-3 bg-white/[0.02] border border-white/5 rounded-xl">
-                            <div className="flex items-center justify-between text-xs text-slate-500">
+                        <div className="px-4 py-3 bg-tint/[0.03] border border-border rounded-xl">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{t('value_modal.current_value', { ns: 'kris' })}</span>
-                                <span className="font-bold text-white">{kri.current_value} {kri.unit}</span>
+                                <span className="font-bold text-foreground">{kri.current_value} {kri.unit}</span>
                             </div>
-                            <div className="flex items-center justify-between text-xs text-slate-500 mt-1">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                                 <span>{t('common:labels.limits')}</span>
-                                <span className="font-bold text-white">{kri.lower_limit} – {kri.upper_limit}</span>
+                                <span className="font-bold text-foreground">{kri.lower_limit} – {kri.upper_limit}</span>
                             </div>
                             {kri.last_period_end && (
-                                <div className="flex items-center justify-between text-xs text-slate-500 mt-1">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                                     <span>{t('value_modal.last_period_end', { ns: 'kris' })}</span>
-                                    <span className="font-bold text-white">{formatDateValue(kri.last_period_end, i18n.language)}</span>
+                                    <span className="font-bold text-foreground">{formatDateValue(kri.last_period_end, i18n.language)}</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Value Input */}
-                        <div className="space-y-2">
-                            <span id={valueLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                {t('value_modal.new_value_required', { ns: 'kris' })}
-                            </span>
-                            <input
-                                ref={valueInputRef}
-                                aria-labelledby={valueLabelId}
-                                type="number"
-                                step="0.01"
-                                value={formData.value}
-                                onChange={e => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-mono text-lg"
-                            />
-                        </div>
+                        <Field label={t('value_modal.new_value_required', { ns: 'kris' })}>
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    ref={valueInputRef}
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.value}
+                                    onChange={e => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                                    className="font-mono text-lg"
+                                />
+                            )}
+                        </Field>
 
                         {canSubmitBackdatedValue && (
-                            <div className="space-y-2 pt-4 border-t border-white/5">
-                                <span id={backdateLabelId} className="text-[10px] font-black uppercase tracking-widest text-amber-500/50 ml-1 flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {t('value_modal.backdate_optional', { ns: 'kris' })}
-                                </span>
-                                <input
-                                    type="date"
-                                    aria-labelledby={backdateLabelId}
-                                    value={formData.period_end || ''}
-                                    onChange={e => setFormData({ ...formData, period_end: e.target.value || undefined })}
-                                    className="w-full bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3 text-white outline-none focus:border-amber-500/50 transition-all"
-                                />
-                                <p className="text-[9px] text-slate-600 ml-1">
-                                    {t('value_modal.backdate_hint', { ns: 'kris' })}
-                                </p>
-                            </div>
+                            <Field
+                                className="border-t border-border pt-4"
+                                label={(
+                                    <span className="inline-flex items-center gap-1">
+                                        <Calendar aria-hidden="true" className="h-3 w-3" />
+                                        {t('value_modal.backdate_optional', { ns: 'kris' })}
+                                    </span>
+                                )}
+                                help={t('value_modal.backdate_hint', { ns: 'kris' })}
+                            >
+                                {(field) => (
+                                    <Input
+                                        {...field}
+                                        type="date"
+                                        value={formData.period_end || ''}
+                                        onChange={e => setFormData({ ...formData, period_end: e.target.value || undefined })}
+                                    />
+                                )}
+                            </Field>
                         )}
                     </>
                 )}
-            </div>
+            </DialogBody>
 
-            {/* Footer */}
-            <div className="p-6 bg-white/[0.02] border-t border-white/5 flex items-center justify-end gap-3">
-                <button
-                    onClick={handleClose}
-                    className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
-                >
-                    {submitResult ? t('common:actions.close') : t('common:actions.cancel')}
-                </button>
-                {!submitResult && (
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="px-8 py-2.5 bg-accent rounded-xl text-slate-950 text-xs font-black uppercase tracking-widest hover:shadow-lg hover:shadow-accent/35 transition-all flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {isSaving ? t('common:loading.generic') : <><Save className="h-4 w-4" /> {t('value_modal.title', { ns: 'kris' })}</>}
-                    </button>
-                )}
-            </div>
+            <DialogFooter
+                onCancel={handleClose}
+                cancelLabel={submitResult ? t('common:actions.close') : t('common:actions.cancel')}
+                submitLabel={submitResult ? undefined : (isSaving ? t('common:loading.generic') : t('value_modal.title', { ns: 'kris' }))}
+                submitIcon={<Save aria-hidden="true" />}
+                onSubmit={() => void handleSave()}
+            />
         </DialogShell>
     );
 }

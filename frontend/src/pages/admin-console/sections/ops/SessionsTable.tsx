@@ -22,7 +22,7 @@ export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: Session
         <div className="overflow-x-auto">
             <table className="w-full">
                 <thead>
-                    <tr className="border-b border-white/10">
+                    <tr className="border-b border-border">
                         <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.user')}</th>
                         <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.email')}</th>
                         <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.role')}</th>
@@ -37,7 +37,7 @@ export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: Session
                         const presentation = getSessionPresentation(session, now);
 
                         return (
-                            <tr key={session.user_id} className="border-b border-white/5 hover:bg-white/5">
+                            <tr key={session.user_id} className="border-b border-border hover:bg-tint/5">
                                 <td className="admin-title py-3 px-4 font-medium">{session.user_name}</td>
                                 <td className="admin-muted py-3 px-4">{session.user_email}</td>
                                 <td className="py-3 px-4">
@@ -77,7 +77,7 @@ export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: Session
                                         </Button>
                                     )}
                                     {presentation.isRevoked && (
-                                        <span className="text-xs text-red-500 font-medium px-3 py-1.5">{t('sessions.access_revoked')}</span>
+                                        <span className="text-xs text-destructive font-medium px-3 py-1.5">{t('sessions.access_revoked')}</span>
                                     )}
                                 </td>
                             </tr>

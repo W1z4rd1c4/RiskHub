@@ -70,8 +70,8 @@ describe('dashboardStats', () => {
         expect(stats.map((stat) => stat.title)).not.toContain('stats.vendors');
         expect(stats.map((stat) => stat.title)).not.toContain('stats.total_controls');
         expect(stats.find((stat) => stat.title === 'stats.avg_risk_score')).toMatchObject({
-            bg: 'bg-white/5',
-            color: 'text-slate-400',
+            bg: 'bg-tint/5',
+            color: 'text-muted-foreground',
             context: undefined,
         });
     });

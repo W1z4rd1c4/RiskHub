@@ -117,7 +117,7 @@ export function AccessUserRow({
 
     return (
         <Fragment>
-            <tr className="group hover:bg-white/5 transition-colors">
+            <tr className="group hover:bg-tint/5 transition-colors">
                 <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent-text font-bold">
@@ -135,11 +135,11 @@ export function AccessUserRow({
                 <td className="py-4 px-4">
                     <div className="space-y-1">
                         <p className="text-sm text-foreground flex items-center gap-1.5">
-                            <Shield className="h-3.5 w-3.5 text-purple-400" />
+                            <Shield className="h-3.5 w-3.5 text-chart-2" />
                             {presentationModel.roleText}
                         </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                             {user.department_name || t('access.table.no_department')}
                         </p>
                         {user.external_id && (
@@ -214,8 +214,8 @@ export function AccessUserRow({
                                 className={cn(
                                     'p-2 rounded-lg transition-colors',
                                     user.is_active
-                                        ? 'text-rose-400 hover:bg-rose-500/10 hover:text-rose-300'
-                                        : 'text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300',
+                                        ? 'text-destructive hover:bg-destructive/10'
+                                        : 'text-success-text hover:bg-success/10',
                                 )}
                                 title={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                                 aria-label={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}

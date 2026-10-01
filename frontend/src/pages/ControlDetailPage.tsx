@@ -144,7 +144,7 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                 title={control.name}
                 statuses={(
                     <>
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/10 ${getControlStatusColor(displayStatus)}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-border ${getControlStatusColor(displayStatus)}`}>
                             {t(`controls:status.${displayStatus}`)}
                         </span>
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
@@ -208,7 +208,7 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
             />
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10" role="tablist" aria-label={control.name}>
+            <div className="flex items-center gap-2 border-b border-border" role="tablist" aria-label={control.name}>
                 <button
                     {...getTabProps('overview', 0)}
                     className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'overview'
@@ -262,8 +262,8 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >
-                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-border">
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs flex items-center gap-2">
                             <History className="h-4 w-4 text-accent" />
                             {t('controls:detail.execution_audit_trail')}
                         </h3>

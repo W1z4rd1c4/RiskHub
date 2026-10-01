@@ -27,7 +27,7 @@ interface UsersTableProps {
 function LoadingRows({ isAccessMode }: { isAccessMode: boolean }) {
     return Array.from({ length: 5 }).map((_, index) => (
         <tr key={index} className="animate-pulse">
-            <td colSpan={isAccessMode ? 6 : 4} className="py-8 px-4 h-16 bg-white/5 rounded-lg mb-2" />
+            <td colSpan={isAccessMode ? 6 : 4} className="py-8 px-4 h-16 bg-tint/5 rounded-lg mb-2" />
         </tr>
     ));
 }
@@ -56,7 +56,7 @@ export function UsersTable({
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
-                    <tr className="border-b border-white/10">
+                    <tr className="border-b border-border">
                         <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.user')}</th>
                         <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.role_department')}</th>
                         {isAccessMode && (
@@ -69,7 +69,7 @@ export function UsersTable({
                         <th className="py-4 px-4 text-sm font-semibold text-muted-foreground text-right">{t('access.table.actions')}</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-border">
                     {isLoading ? (
                         <LoadingRows isAccessMode={isAccessMode} />
                     ) : isAccessMode && accessUsers.length > 0 ? (
@@ -102,7 +102,7 @@ export function UsersTable({
                         directoryUsers.map((user) => <DirectoryUserRow key={user.id} user={user} />)
                     ) : (
                         <tr>
-                            <td colSpan={columnCount} className="py-12 text-center text-slate-500">
+                            <td colSpan={columnCount} className="py-12 text-center text-muted-foreground">
                                 {t('access.table.no_users_found')}
                             </td>
                         </tr>

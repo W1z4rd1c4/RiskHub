@@ -49,11 +49,11 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
     const { t } = useTranslation(['dashboard', 'common']);
 
     const riskLevels: { value: RiskLevel; label: string; color: string }[] = [
-        { value: 'all', label: t('common:labels.all'), color: 'bg-white/10' },
-        { value: 'critical', label: t('dashboard:risk_levels.critical'), color: 'bg-rose-500/20 text-rose-400' },
-        { value: 'high', label: t('dashboard:issues.severity.high'), color: 'bg-orange-500/20 text-orange-400' },
-        { value: 'medium', label: t('dashboard:issues.severity.medium'), color: 'bg-amber-500/20 text-amber-400' },
-        { value: 'low', label: t('dashboard:issues.severity.low'), color: 'bg-emerald-500/20 text-emerald-400' },
+        { value: 'all', label: t('common:labels.all'), color: 'bg-tint/10' },
+        { value: 'critical', label: t('dashboard:risk_levels.critical'), color: 'bg-rose-500/20 text-destructive' },
+        { value: 'high', label: t('dashboard:issues.severity.high'), color: 'bg-orange-500/20 text-severity-high-text' },
+        { value: 'medium', label: t('dashboard:issues.severity.medium'), color: 'bg-amber-500/20 text-warning-text' },
+        { value: 'low', label: t('dashboard:issues.severity.low'), color: 'bg-emerald-500/20 text-success-text' },
     ];
 
     const controlStatuses = [
@@ -142,7 +142,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                                     initial={{ opacity: 0, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
-                                    className="flex items-center gap-1 px-3 py-1 bg-accent/20 text-accent text-xs font-bold rounded-full whitespace-nowrap"
+                                    className="flex items-center gap-1 px-3 py-1 bg-accent/10 text-accent-text text-xs font-bold rounded-full whitespace-nowrap"
                                 >
                                     {chip.label}
                                     <button
@@ -160,7 +160,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                     {(hasActiveFilters || activeFilterChips.length > 0) && (
                         <button
                             onClick={resetFilters}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-tint/5 rounded-lg transition-all"
                         >
                             <RotateCcw className="h-3 w-3" />
                             {t('dashboard:filters.clear_all')}
@@ -183,10 +183,10 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                         >
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-white/5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-border">
                                 {canUseDepartmentFilter && (
                                     <div className="space-y-2">
-                                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                             <Building2 className="h-3 w-3" />
                                             {t('dashboard:filters.department')}
                                         </label>
@@ -202,7 +202,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                                             <div
                                                 data-testid="department-filter-error"
                                                 role="status"
-                                                className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300"
+                                                className="flex items-center gap-2 rounded-md border border-warning/20 bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-text"
                                             >
                                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                                                 <span>{t('dashboard:filters.department_load_failed')}</span>
@@ -213,7 +213,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
 
                                 {/* Risk Level Toggle */}
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                         <AlertTriangle className="h-3 w-3" />
                                         {t('dashboard:filters.risk_level')}
                                     </label>
@@ -224,8 +224,8 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                                                 onClick={() => setRiskLevel(level.value)}
                                                 className={`px-2 py-1 text-xs font-bold rounded-md transition-all
                                                     ${filters.riskLevel === level.value
-                                                        ? `${level.color} ring-1 ring-white/20`
-                                                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                                        ? `${level.color} ring-1 ring-tint/20`
+                                                        : 'bg-tint/5 text-muted-foreground hover:bg-tint/10'
                                                     }`}
                                             >
                                                 {level.label}
@@ -236,7 +236,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
 
                                 {/* Control Status Dropdown */}
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                         <CheckCircle className="h-3 w-3" />
                                         {t('dashboard:filters.control_status')}
                                     </label>
@@ -252,7 +252,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
 
                                 {/* Control Form Dropdown */}
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                         <Shield className="h-3 w-3" />
                                         {t('dashboard:filters.control_form')}
                                     </label>

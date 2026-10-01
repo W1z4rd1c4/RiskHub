@@ -44,7 +44,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 kind: 'drilldown',
                 href: buildIssuesDrilldownHref(),
                 Icon: AlertCircle,
-                iconClassName: 'text-amber-300',
+                iconClassName: 'text-warning-text',
             },
             {
                 key: 'overdue',
@@ -53,7 +53,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 kind: 'drilldown',
                 href: buildIssuesDrilldownHref({ overdue: 'true' }),
                 Icon: Clock3,
-                iconClassName: 'text-rose-300',
+                iconClassName: 'text-destructive',
             },
             {
                 key: 'high_critical_open',
@@ -62,7 +62,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 kind: 'drilldown',
                 href: buildIssuesDrilldownHref({ severity_group: 'high_critical' }),
                 Icon: AlertTriangle,
-                iconClassName: 'text-orange-300',
+                iconClassName: 'text-severity-high-text',
             },
             {
                 key: 'median_age_days',
@@ -70,7 +70,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 value: issueSummary.median_days_open,
                 kind: 'metric',
                 Icon: CalendarClock,
-                iconClassName: 'text-sky-300',
+                iconClassName: 'text-accent-text',
             },
         ],
         [issueSummary.high_severity_open, issueSummary.median_days_open, issueSummary.open_issues, issueSummary.overdue_issues, t]
@@ -90,14 +90,14 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                                 key={row.key}
                                 type="button"
                                 onClick={() => navigate(href)}
-                                className="w-full rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5 transition-all hover:border-accent/40 hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-0"
+                                className="w-full rounded-xl border border-border bg-tint/[0.03] px-3 py-2.5 transition-all hover:border-accent/40 hover:bg-tint/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-0"
                                 aria-label={`${row.label}: ${row.value}`}
                             >
                                 <span className="flex items-center gap-3">
                                     <row.Icon className={`h-4 w-4 shrink-0 ${row.iconClassName}`} aria-hidden="true" />
                                     <span className="min-w-0 flex-1 text-left text-sm text-foreground">{row.label}</span>
                                     <span className="text-base font-bold text-foreground">{row.value}</span>
-                                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                                 </span>
                             </button>
                         );
@@ -106,7 +106,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                     return (
                         <div
                             key={row.key}
-                            className="w-full rounded-xl border border-white/5 bg-white/[0.01] px-3 py-2.5"
+                            className="w-full rounded-xl border border-border bg-tint/[0.03] px-3 py-2.5"
                             aria-label={`${row.label}: ${row.value}`}
                         >
                             <span className="flex items-center gap-3">

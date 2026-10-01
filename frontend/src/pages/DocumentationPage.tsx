@@ -91,7 +91,7 @@ export function DocumentationPage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-96 text-slate-400">
+            <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
                 <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
                 <p>{t('loading.platform_docs')}</p>
             </div>
@@ -100,9 +100,9 @@ export function DocumentationPage() {
 
     if (docs.length === 0) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center py-24 text-slate-500">
+            <div className="glass-card flex flex-col items-center justify-center py-24 text-muted-foreground">
                 <BookOpen className="h-16 w-16 mb-4 opacity-10" />
-                <h3 className="text-xl font-semibold text-white mb-2">{t('empty.no_documentation')}</h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">{t('empty.no_documentation')}</h3>
                 <p>{t('documentation.no_manuals_seeded')}</p>
             </div>
         );
@@ -113,23 +113,23 @@ export function DocumentationPage() {
             <div ref={docTopRef} className="space-y-6">
                 <button
                     onClick={() => setSelectedDocId(null)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-sm font-medium rounded-xl transition-all border border-white/10"
+                    className="flex items-center gap-2 px-4 py-2 bg-tint/5 hover:bg-tint/10 text-muted-foreground hover:text-foreground text-sm font-medium rounded-xl transition-all border border-border"
                 >
                     <ChevronLeft className="h-4 w-4" />
                     {t('documentation.back_to_library')}
                 </button>
 
                 <div className="docs-reader-surface min-h-[600px] flex flex-col overflow-hidden">
-                    <div className="px-8 py-6 border-b border-white/10 space-y-3">
+                    <div className="px-8 py-6 border-b border-tint/10 space-y-3">
                         <div>
-                            <h2 className="text-2xl font-bold text-white">{activeDoc.title}</h2>
+                            <h2 className="text-2xl font-bold text-foreground">{activeDoc.title}</h2>
                             {activeDoc.summary && (
-                                <p className="text-slate-200 text-base mt-2 max-w-4xl leading-relaxed">{activeDoc.summary}</p>
+                                <p className="text-foreground text-base mt-2 max-w-4xl leading-relaxed">{activeDoc.summary}</p>
                             )}
                         </div>
 
                         <div className="docs-reader-meta mt-1">
-                            <span className="docs-reader-meta-chip bg-blue-500/20 text-blue-200 border border-blue-400/30">
+                            <span className="docs-reader-meta-chip bg-info/20 text-accent-text border border-info/30">
                                 {audienceLabel}
                             </span>
                             {shouldShowRawVersion(activeDoc) && (
@@ -186,8 +186,8 @@ export function DocumentationPage() {
         <div className="space-y-8">
             <header className="glass-card p-8">
                 <div className="flex items-center gap-6">
-                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-2xl shadow-xl">
-                        <BookOpen className="h-10 w-10 text-white" />
+                    <div className="bg-accent p-4 rounded-2xl shadow-xl">
+                        <BookOpen className="h-10 w-10 text-accent-foreground" />
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold text-foreground font-heading">{t('documentation.library_title')}</h1>
@@ -211,7 +211,7 @@ export function DocumentationPage() {
                             'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
                             selectedTag === 'all'
                                 ? 'bg-accent/20 text-accent-text border-accent/50'
-                                : 'bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10',
+                                : 'bg-tint/5 text-muted-foreground border-border hover:bg-tint/10',
                         ].join(' ')}
                     >
                         {t('documentation.filter_all')}
@@ -224,7 +224,7 @@ export function DocumentationPage() {
                                 'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors uppercase tracking-wider',
                                 selectedTag === tag
                                     ? 'bg-accent/20 text-accent-text border-accent/50'
-                                    : 'bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10',
+                                    : 'bg-tint/5 text-muted-foreground border-border hover:bg-tint/10',
                             ].join(' ')}
                         >
                             {tag}
@@ -234,9 +234,9 @@ export function DocumentationPage() {
             )}
 
             {filteredDocs.length === 0 ? (
-                <div className="glass-card flex flex-col items-center justify-center py-24 text-slate-500">
+                <div className="glass-card flex flex-col items-center justify-center py-24 text-muted-foreground">
                     <BookOpen className="h-16 w-16 mb-4 opacity-10" />
-                    <h3 className="text-xl font-semibold text-white mb-2">{t('documentation.no_matches_title')}</h3>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">{t('documentation.no_matches_title')}</h3>
                     <p>{t('documentation.no_matches_subtitle')}</p>
                 </div>
             ) : (
@@ -247,7 +247,7 @@ export function DocumentationPage() {
                             onClick={() => openDoc(doc.id)}
                             className="glass-card p-6 flex flex-col text-left group hover:border-accent/50 hover:bg-accent/5 transition-all duration-300"
                         >
-                            <div className="bg-white/5 p-3 rounded-xl w-fit mb-4 group-hover:bg-accent/20 transition-colors">
+                            <div className="bg-tint/5 p-3 rounded-xl w-fit mb-4 group-hover:bg-accent/20 transition-colors">
                                 <FileText className="h-6 w-6 text-muted-foreground group-hover:text-accent-text transition-colors" />
                             </div>
                             <h3 className="text-xl font-bold text-foreground mb-2 group-hover:text-accent-text transition-colors">{doc.title}</h3>
@@ -258,7 +258,7 @@ export function DocumentationPage() {
                                 {doc.tags.map((tag) => (
                                     <span
                                         key={`${doc.id}-${tag}`}
-                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-muted-foreground"
+                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-tint/5 text-muted-foreground"
                                     >
                                         {formatDocumentationTag(tag)}
                                     </span>

@@ -30,11 +30,11 @@ function DepartmentQuickActions({
                     }}
                     aria-label={t('department_table.actions.view_controls')}
                     title={t('department_table.actions.view_controls')}
-                    className="p-1.5 text-slate-500 hover:text-accent hover:bg-accent/10 rounded-md transition-colors"
+                    className="p-1.5 text-muted-foreground hover:text-accent-text hover:bg-accent/10 rounded-md transition-colors"
                 >
                     <ClipboardList className="h-4 w-4" />
                 </button>
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-popover-foreground bg-popover border border-border rounded shadow-popover opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                     {t('department_table.actions.view_controls')}
                 </span>
             </div>
@@ -46,11 +46,11 @@ function DepartmentQuickActions({
                     }}
                     aria-label={t('department_table.actions.view_risks')}
                     title={t('department_table.actions.view_risks')}
-                    className="p-1.5 text-slate-500 hover:text-orange-400 hover:bg-orange-400/10 rounded-md transition-colors"
+                    className="p-1.5 text-muted-foreground hover:text-severity-high-text hover:bg-severity-high/10 rounded-md transition-colors"
                 >
                     <AlertTriangle className="h-4 w-4" />
                 </button>
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-popover-foreground bg-popover border border-border rounded shadow-popover opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                     {t('department_table.actions.view_risks')}
                 </span>
             </div>
@@ -72,13 +72,13 @@ function DepartmentQuickActions({
                                 : t('department_table.actions.set_focus')
                         }
                         className={`p-1.5 rounded-md transition-colors ${isSelected
-                            ? 'text-accent bg-accent/10'
-                            : 'text-slate-500 hover:text-purple-400 hover:bg-purple-400/10'
+                            ? 'text-accent-text bg-accent/10'
+                            : 'text-muted-foreground hover:text-chart-2 hover:bg-chart-2/10'
                             }`}
                     >
                         <Target className="h-4 w-4" />
                     </button>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-popover-foreground bg-popover border border-border rounded shadow-popover opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                         {isSelected
                             ? t('department_table.actions.remove_focus')
                             : t('department_table.actions.set_focus')}
@@ -90,11 +90,11 @@ function DepartmentQuickActions({
                     onClick={() => navigate(`/risks?department=${departmentId}`)}
                     aria-label={t('department_table.actions.go_to_department')}
                     title={t('department_table.actions.go_to_department')}
-                    className="p-1.5 text-slate-500 group-hover:text-white transition-colors"
+                    className="p-1.5 text-muted-foreground group-hover:text-foreground transition-colors"
                 >
                     <ChevronRight className="h-4 w-4" />
                 </button>
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-popover-foreground bg-popover border border-border rounded shadow-popover opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                     {t('department_table.actions.go_to_department')}
                 </span>
             </div>
@@ -121,7 +121,7 @@ export function DepartmentMetricRow({
         <tr
             className={`group transition-colors ${isSelected
                 ? 'bg-accent/10 border-l-2 border-l-accent'
-                : 'hover:bg-white/[0.02]'
+                : 'hover:bg-tint/[0.03]'
             } ${dept.breaching_kri_count > 0 ? 'border-l-2 border-l-rose-500/50' : ''}`}
         >
             <td className="px-6 py-4">
@@ -130,31 +130,31 @@ export function DepartmentMetricRow({
                         onClick={() => setDepartmentId(dept.department_id)}
                         className="text-left"
                     >
-                        <span className={`text-sm font-bold transition-colors ${isSelected ? 'text-accent' : 'text-white group-hover:text-accent'
+                        <span className={`text-sm font-bold transition-colors ${isSelected ? 'text-accent-text' : 'text-foreground group-hover:text-accent-text'
                             }`}>
                             {dept.department_name}
                         </span>
                         {isSelected && (
-                            <span className="ml-2 text-[9px] font-bold text-accent uppercase tracking-wider">
+                            <span className="ml-2 text-[9px] font-bold text-accent-text uppercase tracking-wider">
                                 {t('department_table.focused')}
                             </span>
                         )}
                     </button>
                 ) : (
-                    <span className={`text-sm font-bold transition-colors ${isSelected ? 'text-accent' : 'text-white group-hover:text-accent'
+                    <span className={`text-sm font-bold transition-colors ${isSelected ? 'text-accent-text' : 'text-foreground group-hover:text-accent-text'
                         }`}>
                         {dept.department_name}
                     </span>
                 )}
             </td>
             <td className="px-6 py-4 text-center">
-                <span className="text-sm font-mono text-slate-300">{dept.control_count}</span>
+                <span className="text-sm font-mono text-foreground">{dept.control_count}</span>
             </td>
             <td className="px-6 py-4 text-center">
                 <div className="flex flex-col items-center">
-                    <span className="text-sm font-mono text-slate-300">{dept.risk_count}</span>
+                    <span className="text-sm font-mono text-foreground">{dept.risk_count}</span>
                     {dept.high_risk_count > 0 && (
-                        <span className="text-[10px] font-black text-rose-400 uppercase tracking-tighter mt-0.5">
+                        <span className="text-[10px] font-black text-destructive uppercase tracking-tighter mt-0.5">
                             {dept.high_risk_count} {t('department_table.high')}
                         </span>
                     )}
@@ -162,20 +162,20 @@ export function DepartmentMetricRow({
             </td>
             <td className="px-6 py-4 text-center">
                 <div className="flex flex-col items-center">
-                    <span className={`text-sm font-mono ${dept.audited_control_count > 0 ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                    <span className={`text-sm font-mono ${dept.audited_control_count > 0 ? 'text-success-text font-bold' : 'text-muted-foreground'}`}>
                         {dept.audited_control_count}/{dept.control_count}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter mt-0.5">
                         {t('department_table.audited')}
                     </span>
                 </div>
             </td>
             <td className="px-6 py-4 text-center">
                 <div className="flex flex-col items-center">
-                    <span className={`text-sm font-mono ${dept.breaching_kri_count > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}`}>
+                    <span className={`text-sm font-mono ${dept.breaching_kri_count > 0 ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
                         {dept.breaching_kri_count}/{dept.total_kri_count}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter mt-0.5">
                         {t('department_table.breached')}
                     </span>
                 </div>

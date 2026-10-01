@@ -195,13 +195,13 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-full hover:bg-white/10 transition-colors"
+                className="relative p-2 rounded-full hover:bg-tint/10 transition-colors"
                 aria-label={t('aria.bell')}
                 data-testid="notification-bell-button"
             >
-                <Bell className="h-5 w-5 text-slate-400 hover:text-white transition-colors" />
+                <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
                 {unreadCount > 0 && (
-                    <span className="notification-count-badge absolute -top-1 -right-1 bg-rose-700 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                    <span className="notification-count-badge absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
@@ -313,7 +313,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                                                 aria-busy={pendingMutation === notification.id}
                                                 aria-disabled={pendingMutation !== null}
                                                 aria-describedby={error ? `notification-${notification.id}-error` : undefined}
-                                                className={`px-0 text-accent-text hover:text-accent-text ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                className={`px-0 text-accent-text ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
                                             >
                                                 {notification.is_read ? t('actions.mark_unread') : t('actions.mark_read')}
                                             </Button>
@@ -341,7 +341,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                                     aria-busy={pendingMutation === 'all'}
                                     aria-disabled={pendingMutation !== null}
                                     aria-describedby={mutationError?.target === 'all' ? 'notification-mark-all-error' : undefined}
-                                    className={`px-0 text-accent-text hover:text-accent-text ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    className={`px-0 text-accent-text ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
                                 >
                                     {tCommon('actions.mark_all_read')}
                                 </Button>

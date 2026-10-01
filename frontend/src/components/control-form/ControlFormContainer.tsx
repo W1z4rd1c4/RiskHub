@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
+import { Card } from '@/components/ui/card';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useFormStepNavigation } from '@/components/forms/FormStepContext';
@@ -51,6 +52,11 @@ interface ControlFormProps {
     firstStepBackLabel?: string;
     allowRiskLinking?: boolean;
     registerCloseRequest?: (requestClose: (() => void) | null) => void;
+    /**
+     * `card` (pages): the step body sits on the glass card surface.
+     * `nested` (inside a dialog): a nested panel, never glass-in-popover (§4.10, §4.11).
+     */
+    surface?: 'card' | 'nested';
 }
 
 export function ControlForm({
@@ -61,6 +67,7 @@ export function ControlForm({
     firstStepBackLabel,
     allowRiskLinking = true,
     registerCloseRequest,
+    surface = 'card',
 }: ControlFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
@@ -228,7 +235,7 @@ export function ControlForm({
                 onStepClick={handleStepClick}
             />
 
-            <div className="glass-card min-h-[400px] flex flex-col">
+            <Card tone={surface === 'nested' ? 'nested' : 'default'} className="min-h-[400px] flex flex-col">
                 {/* Approval-queued banner */}
                 {submitOutcome.approvalQueued && approvalQueued && (
                     <ApprovalQueuedBanner
@@ -241,7 +248,7 @@ export function ControlForm({
                 )}
 
                 {visibleError && (
-                    <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
+                    <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
                         <span>
                             {visibleError.startsWith('errorKeys.') ? t(visibleError, { ns: 'errorKeys' }) : visibleError}
@@ -252,7 +259,7 @@ export function ControlForm({
                                 onClick={() => {
                                     void reloadData();
                                 }}
-                                className="ml-auto text-xs underline hover:text-rose-300 transition-colors"
+                                className="ml-auto text-xs underline hover:text-destructive transition-colors"
                             >
                                 {t('common:actions.retry')}
                             </button>
@@ -303,7 +310,7 @@ export function ControlForm({
                 </fieldset>
 
                 {/* Footer Controls */}
-                <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
+                <div className="mt-12 flex justify-between items-center pt-8 border-t border-border">
                     <button
                         type="button"
                         aria-disabled={isSubmitting}
@@ -315,7 +322,7 @@ export function ControlForm({
                                 prevStep();
                             }
                         }}
-                        className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-widest"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                         {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}
@@ -346,7 +353,7 @@ export function ControlForm({
                         </button>
                     )}
                 </div>
-            </div>
+            </Card>
         </form>
         {confirmationDialog}
         </>

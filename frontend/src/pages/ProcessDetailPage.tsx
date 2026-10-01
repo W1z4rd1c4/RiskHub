@@ -99,7 +99,7 @@ function ProcessOwnershipAlert({
         <div
             role="alert"
             data-testid={testId}
-            className="glass-card flex flex-col items-start gap-4 border border-amber-400/30 text-amber-200 sm:flex-row sm:justify-between"
+            className="glass-card flex flex-col items-start gap-4 border border-warning/30 text-warning-text sm:flex-row sm:justify-between"
         >
             <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
@@ -110,7 +110,7 @@ function ProcessOwnershipAlert({
                     type="button"
                     onClick={onResolve}
                     data-testid="process-orphan-governance"
-                    className="shrink-0 rounded-xl border border-amber-300/30 px-4 py-2 text-sm font-bold text-amber-100 transition-colors hover:bg-amber-300/10"
+                    className="shrink-0 rounded-xl border border-warning/30 px-4 py-2 text-sm font-bold text-warning-text transition-colors hover:bg-warning/10"
                 >
                     {actionLabel}
                 </button>
@@ -214,13 +214,13 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         type="button"
                         onClick={() => navigate(returnTo)}
                         aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-bold text-white">{t('actions.new')}</h1>
-                        <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
+                        <h1 className="text-3xl font-bold text-foreground">{t('actions.new')}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
                     </div>
                 </div>
                 <ProcessForm
@@ -278,17 +278,17 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => navigate(processDetailPath(process.id))}
                             aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                            className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
                         >
                             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">{t('pending_change.edit_blocked_title')}</h1>
-                            <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
+                            <h1 className="text-3xl font-bold text-foreground">{t('pending_change.edit_blocked_title')}</h1>
+                            <p className="text-muted-foreground font-medium mt-1">{process.l1_process}</p>
                         </div>
                     </div>
                     {actionError ? (
-                        <div role="alert" className="glass-card border border-rose-400/30 text-sm text-rose-300">
+                        <div role="alert" className="glass-card border border-destructive/30 text-sm text-destructive">
                             {actionError}
                         </div>
                     ) : null}
@@ -302,7 +302,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                                 : undefined}
                         />
                     ) : (
-                        <div role="status" className="glass-card border border-amber-400/30 text-sm text-amber-200">
+                        <div role="status" className="glass-card border border-warning/30 text-sm text-warning-text">
                             {t('pending_change.business_edits_blocked')}
                         </div>
                     )}
@@ -319,13 +319,13 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => navigate(processDetailPath(process.id))}
                             aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                            className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
                         >
                             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
-                            <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
+                            <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
+                            <p className="text-muted-foreground font-medium mt-1">{process.l1_process}</p>
                         </div>
                     </div>
                     <ProcessOwnershipAlert
@@ -352,13 +352,13 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         type="button"
                         onClick={() => navigate(processDetailPath(process.id))}
                         aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
-                        <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
+                        <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">{process.l1_process}</p>
                     </div>
                 </div>
                 {process.ownership_status === 'legacy_unassigned' ? (
@@ -395,7 +395,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         <div className="space-y-8">
             {staleWarning}
             {actionError ? (
-                <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+                <div className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
@@ -435,7 +435,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         onClick={() => navigate(returnTo)}
                         data-testid="process-detail-back"
                         aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
+                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -461,7 +461,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => void restoreProcess()}
                             data-testid="process-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <ArchiveRestore className="h-4 w-4" />
                             {t('actions.restore')}
@@ -475,7 +475,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             type="button"
                             onClick={() => navigate(appendRegisterReturnTo(`/processes/${process.id}/edit`, returnTo))}
                             data-testid="process-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                         >
                             <Pencil className="h-4 w-4" />
                             {t('actions.edit')}
@@ -605,19 +605,19 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                     </div>
 
                     <div
-                        className="space-y-3 border-t border-white/5 pt-4"
+                        className="space-y-3 border-t border-border pt-4"
                         data-testid="process-derived-transitive"
                     >
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                             {t('derived.transitive.title')}
                         </h3>
                         {process.derived.transitive_vendor_links.length === 0 ? (
-                            <p className="text-sm text-slate-500">{t('derived.transitive.empty')}</p>
+                            <p className="text-sm text-muted-foreground">{t('derived.transitive.empty')}</p>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                        <tr className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                                             <th className="py-2 pr-4">{t('derived.transitive.vendor')}</th>
                                             <th className="py-2">{t('derived.transitive.via_asset')}</th>
                                         </tr>
@@ -626,13 +626,13 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                                         {process.derived.transitive_vendor_links.map((link, index) => (
                                             <tr
                                                 key={`${link.vendor_id}-${link.via_asset_id}-${index}`}
-                                                className="border-t border-white/5 text-sm"
+                                                className="border-t border-border text-sm"
                                                 data-testid={`process-derived-transitive-row-${index}`}
                                             >
-                                                <td className="py-2 pr-4 font-medium text-white">
+                                                <td className="py-2 pr-4 font-medium text-foreground">
                                                     {link.vendor_name}
                                                 </td>
-                                                <td className="py-2 text-slate-300">{link.via_asset_name}</td>
+                                                <td className="py-2 text-foreground">{link.via_asset_name}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -641,8 +641,8 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         )}
                     </div>
 
-                    <div className="space-y-4 border-t border-white/5 pt-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                    <div className="space-y-4 border-t border-border pt-4">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                             {t('derived.inputs.title')}
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -708,19 +708,19 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                                 .map(([key]) => (
                                     <span
                                         key={key}
-                                        className="inline-flex items-center rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-0.5 text-xs font-bold text-rose-300"
+                                        className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2.5 py-0.5 text-xs font-bold text-destructive"
                                     >
                                         {t(`derived.inputs.${key}`)}
                                     </span>
                                 ))}
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
+                    <p className="text-xs text-muted-foreground">{t('detail.derived_fields_note')}</p>
                 </div>
             ) : null}
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.continuity')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -739,7 +739,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.assessment')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -751,8 +751,8 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 </div>
                 {process.notes ? (
                     <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</p>
-                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{process.notes}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('form.notes')}</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{process.notes}</p>
                     </div>
                 ) : null}
             </div>

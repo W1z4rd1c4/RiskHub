@@ -83,7 +83,8 @@
        tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
        --tint (D3): theme-aware base of the former white-alpha utilities, used only
        with an opacity step (bg-tint/5, border-tint/10, divide-tint/10). It is pure
-       white in riskhub and dark, so tint/N renders exactly like white/N there. */
+       white in riskhub, so tint/N renders exactly like white/N there; dark and light
+       set their own base (see those blocks). */
     --tint: 0 0% 100%;
     /* --overlay: dialog backdrop colour and its per-theme alpha (bg-overlay). */
     --overlay: 222 47% 4%;
@@ -309,7 +310,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
+    @apply bg-tint/20 rounded-full hover:bg-tint/30 transition-colors;
   }
 
   /* D6 (amended 2026-10-01): the ONLY uppercase eyebrow / micro-label recipe,
@@ -381,8 +382,14 @@
   --input: 0 0% 38%;
   --ring: 0 0% 80%;
 
-  /* UI-contract token families (audit §4.2) — see :root for rationale. */
-  --tint: 0 0% 100%;
+  /* UI-contract token families (audit §4.2) — see :root for rationale.
+     --tint is a 75% grey, not white: True Dark used to dim the white-alpha
+     utilities with !important remaps (bg-white/5 → 3%, bg-white/10 → 5%,
+     border-white/10 → 8%, border-white/20 → 12%). Those remaps were deleted with
+     the tint codemod (O6); this base reproduces them within ΔE2000 ≤ 2.2 on the
+     background, glass and popover surfaces, while hover tints (never remapped)
+     stay within ΔE2000 ≤ 3.2. */
+  --tint: 0 0% 75%;
   --overlay: 0 0% 0%;
   --overlay-alpha: 0.8;
   --severity-high: 25 95% 53%;
@@ -433,33 +440,6 @@
 .theme-dark nav {
   background-color: rgba(0, 0, 0, 0.95) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* True Dark - Cards */
-.theme-dark .bg-white\/5 {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-.theme-dark .bg-white\/10 {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* True Dark - Borders */
-.theme-dark .border-white\/10 {
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.theme-dark .border-white\/20 {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* True Dark - Table */
-.theme-dark th {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-.theme-dark tr:hover {
-  background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
 .theme-dark .docs-reader-surface {
@@ -593,19 +573,6 @@
    (FR-P5-10 / P4): being `!important` it overrode both the design-system Input
    and the vendor-route field theming in the light theme. */
 
-/* Light theme - Tables */
-.theme-light th {
-  background-color: rgba(241, 245, 249, 0.8) !important;
-}
-
-.theme-light tr {
-  border-color: #e2e8f0 !important;
-}
-
-.theme-light tr:hover {
-  background-color: rgba(241, 245, 249, 0.5) !important;
-}
-
 .theme-light .docs-reader-surface {
   background-color: rgba(255, 255, 255, 0.98) !important;
   border-color: rgba(15, 23, 42, 0.12) !important;
@@ -674,126 +641,6 @@
   background-color: rgba(255, 255, 255, 0.95) !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
 }
-
-/* Light theme - White opacity backgrounds */
-.theme-light .bg-white\/5 {
-  background-color: rgba(0, 0, 0, 0.03) !important;
-}
-
-.theme-light .bg-white\/10 {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-}
-
-.theme-light .bg-white\/20 {
-  background-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Light theme - White opacity borders */
-.theme-light .border-white\/5,
-.theme-light .border-white\/10 {
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-.theme-light .border-white\/20 {
-  border-color: rgba(0, 0, 0, 0.12) !important;
-}
-
-/* Light theme - Hover states */
-.theme-light .hover\:bg-white\/5:hover {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-}
-
-.theme-light .hover\:bg-white\/10:hover {
-  background-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Light theme - Scrollbar */
-.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-}
-
-.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.3) !important;
-}
-
-/* =================================
-   TEMPORARY D2 stop-gap — delete at Phase 2 exit (W6).
-   Light-theme remap of `text-white` (and `/70`), the light-unsafe `text-slate-50…500`
-   shades and `divide-white/*` (docs/audits/2026-09-30-frontend-ui-consistency-audit.md
-   D2, §4.3 R-e, DS-01/DS-02/DS-03/DS-22). Measured by G-RENDER
-   (tests/frontend/e2e/theme-rendered-contrast.spec.ts). The Phase 2 text-token
-   codemod replaces these classes; this whole block goes with it.
-   Mechanism: the colours live in inherited `--d2-*` properties. `.theme-light`
-   sets the remapped values; coloured fills and still-dark surfaces (the DS-07
-   dialogs, login views) restore the original palette for their subtree; a
-   theme-aware light surface nested inside one of those re-enables the remap.
-   The nearest such ancestor wins through inheritance. Classes that index.css
-   itself `@apply`s are matched as attributes so Tailwind does not clone them.
-   ================================= */
-.theme-light,
-.theme-light :where([class~="glass"], [class~="glass-card"], [class~="bg-background"], .bg-card, .bg-popover, .bg-nested, .bg-secondary, .bg-muted) {
-  --d2-text-white: hsl(var(--foreground));
-  --d2-text-white-70: hsl(var(--foreground));
-  --d2-slate-50: hsl(var(--foreground));
-  --d2-slate-100: hsl(var(--foreground));
-  --d2-slate-200: hsl(var(--foreground));
-  --d2-slate-300: hsl(var(--foreground));
-  --d2-slate-400: hsl(var(--muted-foreground));
-  --d2-slate-500: hsl(var(--muted-foreground));
-  --d2-divide-white-5: hsl(var(--border));
-  --d2-divide-white-10: hsl(var(--border));
-}
-
-/* Excluded: still-dark surfaces, gradients and coloured (solid) fills. */
-.theme-light :where(
-  .bg-slate-500, .bg-slate-600, .bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950, .bg-black,
-  .bg-slate-800\/80, .bg-slate-900\/95, .bg-slate-950\/60, .bg-slate-950\/70, .bg-slate-950\/80,
-  .bg-slate-950\/95, .bg-black\/60, .bg-black\/80,
-  [class*="bg-gradient-to-"], [class*="bg-[#"], [class*="bg-[linear-gradient"], [class*="bg-[radial-gradient"],
-  .bg-accent, .bg-primary, .bg-destructive, .bg-success, .bg-info, .bg-warning, .notification-count-badge,
-  .bg-emerald-400, .bg-amber-400, .bg-rose-400, .bg-purple-400,
-  .bg-red-500, .bg-red-600, .bg-red-700, .bg-rose-500, .bg-rose-600, .bg-rose-700,
-  .bg-orange-500, .bg-orange-600, .bg-orange-700, .bg-amber-500, .bg-amber-600, .bg-amber-700,
-  .bg-yellow-500, .bg-yellow-600, .bg-yellow-700, .bg-lime-500, .bg-lime-600, .bg-lime-700,
-  .bg-green-500, .bg-green-600, .bg-green-700, .bg-emerald-500, .bg-emerald-600, .bg-emerald-700,
-  .bg-teal-500, .bg-teal-600, .bg-teal-700, .bg-cyan-500, .bg-cyan-600, .bg-cyan-700,
-  .bg-sky-500, .bg-sky-600, .bg-sky-700, .bg-blue-500, .bg-blue-600, .bg-blue-700,
-  .bg-indigo-500, .bg-indigo-600, .bg-indigo-700, .bg-violet-500, .bg-violet-600, .bg-violet-700,
-  .bg-purple-500, .bg-purple-600, .bg-purple-700, .bg-fuchsia-500, .bg-fuchsia-600, .bg-fuchsia-700,
-  .bg-pink-500, .bg-pink-600, .bg-pink-700
-) {
-  --d2-text-white: theme('colors.white');
-  --d2-text-white-70: rgb(255 255 255 / 0.7);
-  --d2-slate-50: theme('colors.slate.50');
-  --d2-slate-100: theme('colors.slate.100');
-  --d2-slate-200: theme('colors.slate.200');
-  --d2-slate-300: theme('colors.slate.300');
-  --d2-slate-400: theme('colors.slate.400');
-  --d2-slate-500: theme('colors.slate.500');
-  --d2-divide-white-5: rgb(255 255 255 / 0.05);
-  --d2-divide-white-10: rgb(255 255 255 / 0.1);
-}
-
-/* `:where(.theme-light)` keeps each base rule at the specificity of the utility it
-   remaps, so `hover:`/`group-hover:`/responsive colour variants still win. */
-:where(.theme-light) .text-white { color: var(--d2-text-white); }
-:where(.theme-light) .text-white\/70 { color: var(--d2-text-white-70); }
-:where(.theme-light) .text-slate-50 { color: var(--d2-slate-50); }
-:where(.theme-light) .text-slate-100 { color: var(--d2-slate-100); }
-:where(.theme-light) .text-slate-200 { color: var(--d2-slate-200); }
-:where(.theme-light) .text-slate-300 { color: var(--d2-slate-300); }
-:where(.theme-light) .text-slate-400 { color: var(--d2-slate-400); }
-:where(.theme-light) .text-slate-500 { color: var(--d2-slate-500); }
-/* Tailwind emits variant utilities (`hover:`, `group-hover:`) at the end of the
-   stylesheet, after this block, so the hover remaps keep `.theme-light` in the
-   selector (+1 class) to outrank the variant they remap. */
-.theme-light .hover\:text-white:hover { color: var(--d2-text-white); }
-.theme-light .group:hover .group-hover\:text-white { color: var(--d2-text-white); }
-.theme-light .hover\:text-slate-200:hover { color: var(--d2-slate-200); }
-.theme-light .hover\:text-slate-300:hover { color: var(--d2-slate-300); }
-.theme-light .group:hover .group-hover\:text-slate-400 { color: var(--d2-slate-400); }
-:where(.theme-light) .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: var(--d2-divide-white-5); }
-:where(.theme-light) .divide-white\/10 > :not([hidden]) ~ :not([hidden]) { border-color: var(--d2-divide-white-10); }
 
 /* =================================
    THEMED SELECT - All Themes

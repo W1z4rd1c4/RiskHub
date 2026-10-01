@@ -58,8 +58,10 @@ the four counts above plus the deprecated class-prop ratchet total (below).
 DialogShell v2 (audit 2026-09-30 §4.11) adds three checks:
 
 - **Primitive location.** `primitive.file` (`frontend/src/components/ui/dialog.tsx`)
-  is the only definition of `DialogShell`; `primitive.legacyShim`
-  (`frontend/src/components/DialogShell.tsx`) may only re-export it.
+  is the only definition of `DialogShell`. The legacy
+  `frontend/src/components/DialogShell.tsx` re-export was deleted once every
+  owner imported `@/components/ui/dialog` (W6); an optional
+  `primitive.legacyShim`, if declared again, may only re-export the primitive.
 - **Delegates.** An implementation with `kind: "delegate"` renders another
   semantic owner (`delegatesTo`) instead of `DialogShell`, for example
   `ArchiveConfirmDialog` → `ConfirmDialog intent="archive"`. Its own render sites
@@ -68,7 +70,8 @@ DialogShell v2 (audit 2026-09-30 §4.11) adds three checks:
   `containerClassName`, `backdropClassName` and `contentClassName` each owner
   still passes. Adding one fails; dropping one fails until the manifest entry is
   updated, so the count only goes down as dialogs migrate to `size` and
-  `DialogHeader` / `DialogBody` / `DialogFooter`.
+  `DialogHeader` / `DialogBody` / `DialogFooter`. Since W6 (roadmap 2.1) every
+  owner is on the v2 API and the ratchet total is 0, so any new use fails.
 
 ## Verification layers
 

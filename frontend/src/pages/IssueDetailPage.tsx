@@ -106,7 +106,7 @@ export function IssueDetailPage() {
                     <button
                         type="button"
                         onClick={() => navigate(returnTo)}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent transition-colors uppercase tracking-widest"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3.5 w-3.5" />
                         {t('actions.back_to_issues')}
@@ -133,7 +133,7 @@ export function IssueDetailPage() {
                             void refreshHistory();
                         }
                     }}
-                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/40 transition-colors"
+                    className="p-3 bg-tint/5 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-accent/40 transition-colors"
                     title={t('actions.refresh')}
                     aria-label={t('actions.refresh')}
                 >
@@ -141,7 +141,7 @@ export function IssueDetailPage() {
                 </button>
             </div>
 
-            <div className="flex items-center gap-1 border-b border-white/10" role="tablist" aria-label={t('title')}>
+            <div className="flex items-center gap-1 border-b border-tint/10" role="tablist" aria-label={t('title')}>
                 {tabs.map((tab, index) => {
                     const TabIcon = tab.icon;
                     const isActive = activeTab === tab.id;

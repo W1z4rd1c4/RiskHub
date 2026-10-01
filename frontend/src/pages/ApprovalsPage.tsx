@@ -77,13 +77,13 @@ export default function ApprovalsPage() {
             </div>
 
             {filter !== 'risk_assessment' && approvalQueueErrorKey && (
-                <div role="alert" className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-xl flex items-center gap-2 mb-4">
+                <div role="alert" className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl flex items-center gap-2 mb-4">
                     <X className="h-5 w-5" />
                     <span>{translateError(approvalQueueErrorKey)}</span>
                     <button
                         type="button"
                         onClick={refreshActiveView}
-                        className="ml-auto text-sm underline hover:text-rose-300"
+                        className="ml-auto text-sm underline hover:text-destructive"
                     >
                         {t('common:actions.retry')}
                     </button>
@@ -112,7 +112,7 @@ export default function ApprovalsPage() {
                                 value={query}
                                 onChange={(event) => setQuery(event.target.value)}
                                 placeholder={t('workbench.search_placeholder')}
-                                className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                                className="w-full max-w-md rounded-xl border border-border bg-tint/5 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                             />
                         </div>
 
@@ -157,7 +157,7 @@ export default function ApprovalsPage() {
                                         }}
                                         disabled={!loading && approvalSkip === 0}
                                         aria-disabled={loading || approvalSkip === 0}
-                                        className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                                        className="rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                                     >
                                         {t('workbench.previous_page')}
                                     </button>
@@ -170,7 +170,7 @@ export default function ApprovalsPage() {
                                         }}
                                         disabled={!loading && approvalSkip + approvalLimit >= approvalTotal}
                                         aria-disabled={loading || approvalSkip + approvalLimit >= approvalTotal}
-                                        className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                                        className="rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                                     >
                                         {t('workbench.next_page')}
                                     </button>

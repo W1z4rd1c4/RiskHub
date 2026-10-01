@@ -36,8 +36,8 @@ export function QuestionnaireAssessmentSummary({
     } = getLatestQuestionnaireMetrics(latestSubmitted, { totalAssets, t });
 
     return (
-        <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-            <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-3">
+        <div className="p-6 border-b border-border bg-tint/[0.03]">
+            <h4 className="text-[10px] font-black text-foreground uppercase tracking-widest mb-3">
                 {t('risks:questionnaires.assessment_summary_title')}
             </h4>
 
@@ -60,41 +60,41 @@ export function QuestionnaireAssessmentSummary({
                     isRetrying={latestSubmittedLoading}
                 />
             ) : latestSubmittedLoading && !latestSubmitted ? (
-                <div className="text-sm text-slate-400">{t('loading.generic')}</div>
+                <div className="text-sm text-muted-foreground">{t('loading.generic')}</div>
             ) : !latestSubmitted ? (
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-muted-foreground">
                     {t('risks:questionnaires.assessment_summary_empty')}
                 </div>
             ) : (
                 <div data-testid="risk-questionnaire-summary-content" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_submitted_at')}
                         </p>
-                        <p className="text-sm text-white">{formatQuestionnaireDate(latestSubmitted.submitted_at, locale)}</p>
+                        <p className="text-sm text-foreground">{formatQuestionnaireDate(latestSubmitted.submitted_at, locale)}</p>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_changed_count')}
                         </p>
-                        <p className="text-sm text-white">
+                        <p className="text-sm text-foreground">
                             {changedCount === null ? '—' : `${changedCount}`}
                         </p>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_likelihood')}
                         </p>
-                        <p className="text-sm text-white">{latestLikelihood ?? '—'}</p>
+                        <p className="text-sm text-foreground">{latestLikelihood ?? '—'}</p>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                             {t('risks:questionnaires.assessment_summary_worst_case_impact')}
                         </p>
-                        <p className="text-sm text-white">
+                        <p className="text-sm text-foreground">
                             {latestWorstCaseImpact ? `${latestWorstCaseImpact}${worstCaseRange ? ` • ${worstCaseRange}` : ''}` : '—'}
                         </p>
                     </div>

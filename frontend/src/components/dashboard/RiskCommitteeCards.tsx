@@ -9,11 +9,11 @@ import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
 const ACTION_COLORS: Record<string, string> = {
-    create: 'bg-emerald-500/20 text-emerald-400',
-    delete: 'bg-rose-500/20 text-rose-400',
-    archive: 'bg-slate-500/20 text-slate-400',
-    approve: 'bg-blue-500/20 text-blue-400',
-    reject: 'bg-amber-500/20 text-amber-400',
+    create: 'bg-success/10 text-success-text',
+    delete: 'bg-destructive/10 text-destructive',
+    archive: 'bg-muted text-muted-foreground',
+    approve: 'bg-info/10 text-accent-text',
+    reject: 'bg-warning/10 text-warning-text',
 };
 
 function formatTimeAgo(dateStr: string, t: SafeTFunction): string {
@@ -30,9 +30,9 @@ function formatTimeAgo(dateStr: string, t: SafeTFunction): string {
 }
 
 function getVendorRiskColor(score: number): string {
-    if (score >= 4) return 'text-rose-400';
-    if (score >= 3) return 'text-amber-400';
-    return 'text-emerald-400';
+    if (score >= 4) return 'text-destructive';
+    if (score >= 3) return 'text-warning-text';
+    return 'text-success-text';
 }
 
 export function RiskCommitteeLoadingState() {
@@ -42,10 +42,10 @@ export function RiskCommitteeLoadingState() {
             <div className="grid gap-6 lg:grid-cols-3">
                 {Array(3).fill(0).map((_, i) => (
                     <div key={i} className="glass-card animate-pulse">
-                        <div className="h-8 bg-white/5 rounded mb-4 w-1/3" />
+                        <div className="h-8 bg-tint/5 rounded mb-4 w-1/3" />
                         <div className="space-y-3">
                             {Array(3).fill(0).map((_, j) => (
-                                <div key={j} className="h-16 bg-white/5 rounded" />
+                                <div key={j} className="h-16 bg-tint/5 rounded" />
                             ))}
                         </div>
                     </div>
@@ -86,13 +86,13 @@ function CriticalRisksCard({
         >
             <div className="flex items-start justify-between gap-4 mb-6">
                 <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-rose-400" />
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
                     <h3 className="text-lg font-bold text-foreground">{t('risk_committee.critical_risks')}</h3>
                 </div>
                 {summary.critical_risks_total > 0 ? (
                     <button
                         type="button"
-                        className="text-xs font-bold text-accent hover:underline"
+                        className="text-xs font-bold text-accent-text hover:underline"
                         onClick={() => navigate('/risks?net_band=Kritick%C3%A9')}
                     >
                         {t('risk_committee.view_all_critical_risks', { ns: 'dashboard' })}
@@ -114,7 +114,7 @@ function CriticalRisksCard({
                     {summary.critical_risks.map((risk) => (
                         <div
                             key={risk.id}
-                            className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
+                            className="bg-tint/5 rounded-xl p-4 border border-border hover:border-border transition-colors"
                         >
                             <div className="flex items-start justify-between gap-2 mb-2">
                                 <div className="flex flex-col gap-0.5">
@@ -123,7 +123,7 @@ function CriticalRisksCard({
                                             {risk.name}
                                         </span>
                                         {risk.is_priority && (
-                                            <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                                            <Star className="h-3 w-3 text-warning-text fill-warning-text shrink-0" />
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold uppercase tracking-widest">
@@ -141,7 +141,7 @@ function CriticalRisksCard({
                                     <div className="w-1.5 h-1.5 rounded-full bg-accent/50" />
                                     <span>{risk.owner_name}</span>
                                 </div>
-                                <span className="w-px h-2 bg-white/10" />
+                                <span className="w-px h-2 bg-tint/10" />
                                 <span>{risk.department_name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
@@ -173,7 +173,7 @@ function CriticalVendorsCard({
         >
             <div className="flex items-start justify-between gap-4 mb-6">
                 <div className="flex items-center gap-2">
-                    <Handshake className="h-5 w-5 text-blue-400" />
+                    <Handshake className="h-5 w-5 text-accent-text" />
                     <h3 className="text-lg font-bold text-foreground">
                         {t('risk_committee.high_risk_vendors', { ns: 'dashboard' })}
                     </h3>
@@ -181,7 +181,7 @@ function CriticalVendorsCard({
                 {summary.can_view_vendors && (summary.critical_vendors_total ?? 0) > 0 ? (
                     <button
                         type="button"
-                        className="text-xs font-bold text-accent hover:underline"
+                        className="text-xs font-bold text-accent-text hover:underline"
                         onClick={() => navigate('/vendors?risk_scores=4&risk_scores=5')}
                     >
                         {t('risk_committee.view_all_high_risk_vendors', { ns: 'dashboard' })}
@@ -208,7 +208,7 @@ function CriticalVendorsCard({
                         <button
                             key={v.id}
                             onClick={() => navigate(buildVendorDetailPath(v.id, 'assessments', 'schedule'))}
-                            className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
+                            className="w-full text-left bg-tint/5 rounded-xl p-4 border border-border hover:border-border transition-colors"
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <p className="text-sm font-bold text-foreground truncate">{v.name}</p>
@@ -236,7 +236,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
             className="glass-card"
         >
             <div className="flex items-center gap-2 mb-6">
-                <Building2 className="h-5 w-5 text-purple-400" />
+                <Building2 className="h-5 w-5 text-chart-2" />
                 <h3 className="text-lg font-bold text-foreground">{t('sections.risk_exposure_by_dept')}</h3>
             </div>
 
@@ -255,7 +255,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                         return (
                             <div
                                 key={dept.id}
-                                className="bg-white/5 rounded-xl p-4 border border-white/5"
+                                className="bg-tint/5 rounded-xl p-4 border border-border"
                             >
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-bold text-foreground">{dept.name}</span>
@@ -264,7 +264,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-tint/5 rounded-full overflow-hidden">
                                         <motion.div
                                             aria-label={`${dept.name}: ${dept.total_exposure}; ${riskCountLabel}`}
                                             aria-valuemax={maxExposure}
@@ -310,10 +310,10 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
                     {summary.recent_activity.map((activity) => (
                         <div
                             key={activity.id}
-                            className="bg-white/5 rounded-xl p-3 border border-white/5"
+                            className="bg-tint/5 rounded-xl p-3 border border-border"
                         >
                             <div className="flex items-start gap-2">
-                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${ACTION_COLORS[activity.action] || 'bg-slate-500/20 text-slate-400'}`}>
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${ACTION_COLORS[activity.action] || 'bg-muted text-muted-foreground'}`}>
                                     {t(`risk_committee.actions.${activity.action}`, activity.action)}
                                 </span>
                                 <div className="flex-1 min-w-0">

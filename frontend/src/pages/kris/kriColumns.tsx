@@ -54,7 +54,7 @@ export function buildKriColumns({
                         <Icon className="h-3 w-3" aria-hidden="true" />
                         {t(monitoring.labelKey)}
                     </span>
-                    {kri.is_archived ? <span className="rounded-md bg-slate-500/15 px-2 py-0.5 text-xs font-bold uppercase text-slate-300">{t('kris:filters.archived')}</span> : null}
+                    {kri.is_archived ? <span className="rounded-md bg-muted-foreground/15 px-2 py-0.5 text-xs font-bold uppercase text-foreground">{t('kris:filters.archived')}</span> : null}
                 </div>;
             },
         },
@@ -82,7 +82,7 @@ export function buildKriColumns({
                     type="button"
                     onClick={(event) => onRestore(kri.id, event)}
                     data-testid={`kri-unarchive-${kri.id}`}
-                    className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-black uppercase tracking-wider"
+                    className="px-2 py-1 rounded-md border border-success/30 text-success-text hover:bg-success/10 text-xs font-black uppercase tracking-wider"
                 >{t('kris:actions.unarchive')}</button> : null}
             </div>,
         },

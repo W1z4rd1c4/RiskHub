@@ -4,18 +4,18 @@ import type { IssueSeverity, IssueStatus } from '@/types/issue';
 export const ISSUE_CARD = 'glass-card p-6 space-y-5';
 export const ISSUE_SECTION_CARD = 'glass-card p-6 space-y-5';
 export const ISSUE_SECTION_HEADER = 'flex flex-wrap items-center justify-between gap-3';
-export const ISSUE_SECTION_TITLE = 'text-base font-black text-white tracking-tight';
-export const ISSUE_SECTION_SUBTITLE = 'text-xs font-medium text-slate-500';
-export const ISSUE_LABEL = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+export const ISSUE_SECTION_TITLE = 'text-base font-black text-foreground tracking-tight';
+export const ISSUE_SECTION_SUBTITLE = 'text-xs font-medium text-muted-foreground';
+export const ISSUE_LABEL = 'text-xs font-bold uppercase tracking-widest text-muted-foreground';
 export const ISSUE_FIELD =
-    'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50 transition-colors';
+    'w-full bg-tint/5 border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-accent/50 transition-colors';
 export const ISSUE_TEXTAREA = `${ISSUE_FIELD} min-h-[104px] resize-y`;
 export const ISSUE_ACTION_ROW = 'flex flex-wrap items-center gap-2 pt-1';
 
 export const ISSUE_PRIMARY_BUTTON =
     'rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed';
 export const ISSUE_SECONDARY_BUTTON =
-    'rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed';
+    'rounded-xl border border-tint/20 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-tint/5 disabled:opacity-50 disabled:cursor-not-allowed';
 export const ISSUE_WARNING_BUTTON =
     'rounded-xl border border-warning/40 bg-warning/10 px-4 py-2.5 text-sm font-semibold text-warning-text transition-colors hover:bg-warning/20 disabled:opacity-50 disabled:cursor-not-allowed';
 export const ISSUE_SUCCESS_BUTTON =

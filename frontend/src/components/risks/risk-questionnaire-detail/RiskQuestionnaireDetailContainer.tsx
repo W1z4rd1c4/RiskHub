@@ -1,8 +1,8 @@
 import { useId, useMemo } from 'react';
-import { AlertCircle } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogShell } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import type { Risk } from '@/types/risk';
 
@@ -60,10 +60,10 @@ export function RiskQuestionnaireDetail({
             isOpen={isOpen && Boolean(questionnaireId)}
             onClose={workflow.close}
             titleId={titleId}
-            backdropClassName="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            contentClassName="w-full max-w-3xl glass-card !p-0 overflow-hidden shadow-2xl"
+            isBusy={workflow.saving || workflow.submitting}
+            size="xl"
+            className="max-w-3xl"
         >
-            <span id={titleId} className="sr-only">{t('risks:questionnaire.title')}</span>
             <RiskQuestionnaireDetailHeader
                 compareMode={workflow.compareState.compareMode}
                 isOverdue={workflow.isOverdue}
@@ -74,23 +74,17 @@ export function RiskQuestionnaireDetail({
                 t={t}
             />
 
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <DialogBody>
                 {workflow.loading ? (
-                    <div className="text-slate-400">{t('loading.generic')}</div>
+                    <div className="text-muted-foreground">{t('loading.generic')}</div>
                 ) : (
                     <div className="space-y-6">
                         {workflow.errorKey ? (
-                            <div
-                                role="alert"
-                                className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-start gap-2"
-                            >
-                                <AlertCircle className="h-4 w-4 mt-0.5" />
-                                <p className="font-medium">
-                                    {workflow.errorKey.startsWith('errorKeys.')
-                                        ? t(workflow.errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                                        : t(workflow.errorKey)}
-                                </p>
-                            </div>
+                            <InlineMessage tone="danger">
+                                {workflow.errorKey.startsWith('errorKeys.')
+                                    ? t(workflow.errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                                    : t(workflow.errorKey)}
+                            </InlineMessage>
                         ) : null}
 
                         {workflow.questionnaire ? (
@@ -123,7 +117,7 @@ export function RiskQuestionnaireDetail({
                         ) : null}
                     </div>
                 )}
-            </div>
+            </DialogBody>
 
             <RiskQuestionnaireActions
                 canSaveDraft={workflow.capabilities.canSaveDraft}

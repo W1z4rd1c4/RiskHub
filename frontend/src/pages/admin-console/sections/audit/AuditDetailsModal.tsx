@@ -3,7 +3,7 @@ import { Check, Copy } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
 interface AuditDetailsModalProps {
@@ -34,42 +34,24 @@ export function AuditDetailsModal({ extra, onClose }: AuditDetailsModalProps) {
     };
 
     return (
-        <DialogShell
-            isOpen={Boolean(extra)}
-            onClose={onClose}
-            titleId={titleId}
-            backdropClassName="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
-            contentClassName="relative w-full max-w-2xl max-h-[80vh] glass-card !p-0 overflow-hidden shadow-2xl"
-        >
-            <div className="admin-surface-muted flex items-center justify-between border-b px-5 py-4">
-                <h4 id={titleId} className="admin-title text-sm font-bold">{t('audit.details_modal.title')}</h4>
-                <div className="flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="compact"
-                        onClick={copyDetails}
-                    >
+        <DialogShell isOpen={Boolean(extra)} onClose={onClose} titleId={titleId} size="lg">
+            <DialogHeader title={t('audit.details_modal.title')} hideClose />
+            <DialogBody>
+                <pre className="whitespace-pre-wrap break-all rounded-xl border border-border bg-nested p-4 text-xs text-nested-foreground">
+                    {detailsJson}
+                </pre>
+            </DialogBody>
+            <DialogFooter
+                cancelLabel={t('common:actions.close')}
+                extra={(
+                    <Button type="button" variant="outline" size="compact" onClick={() => void copyDetails()}>
                         {copied
                             ? <Check className="h-3.5 w-3.5" aria-hidden="true" />
                             : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
                         {copied ? t('audit.details_modal.copied') : t('audit.details_modal.copy')}
                     </Button>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="compact"
-                        onClick={onClose}
-                    >
-                        {t('common:actions.close')}
-                    </Button>
-                </div>
-            </div>
-            <div className="p-5 max-h-[60vh] overflow-auto">
-                <pre className="admin-text whitespace-pre-wrap break-all rounded-xl border border-white/10 bg-black/20 p-4 text-xs">
-                    {detailsJson}
-                </pre>
-            </div>
+                )}
+            />
         </DialogShell>
     );
 }

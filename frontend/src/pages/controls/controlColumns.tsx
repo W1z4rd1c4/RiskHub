@@ -106,7 +106,7 @@ export function buildControlColumns({
                             type="button"
                             onClick={(event) => onRestore(control.id, event)}
                             data-testid={`control-unarchive-${control.id}`}
-                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                            className="px-2 py-1 rounded-md border border-success/30 text-success-text hover:bg-success/10 text-[10px] font-black uppercase tracking-wider"
                         >
                             {translate('actions.unarchive')}
                         </button>

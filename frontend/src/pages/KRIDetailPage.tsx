@@ -88,8 +88,8 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
     if (loadOutcome === 'loading') {
         return (
             <div className="p-8 animate-pulse" aria-busy="true" data-loading="true">
-                <div className="h-8 w-64 bg-white/5 rounded-lg mb-8" />
-                <div className="h-64 bg-white/5 rounded-2xl" />
+                <div className="h-8 w-64 bg-tint/5 rounded-lg mb-8" />
+                <div className="h-64 bg-tint/5 rounded-2xl" />
             </div>
         );
     }
@@ -124,7 +124,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
             >
-                <button onClick={() => navigate(returnTo)} className="hover:text-white transition-colors flex items-center gap-1">
+                <button onClick={() => navigate(returnTo)} className="hover:text-foreground transition-colors flex items-center gap-1">
                     <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risk_appetite')}
                 </button>
                 <span>/</span>
@@ -229,23 +229,23 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 <motion.div
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 flex items-start justify-between gap-4"
+                    className="mb-6 rounded-2xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning-text flex items-start justify-between gap-4"
                 >
                     <div>
                         <p className="font-semibold">
                             {tErrors('approval_submitted')}
                         </p>
-                        <p className="mt-1 text-amber-200/80">
+                        <p className="mt-1 text-warning-text">
                             {approvalBanner.message}
                         </p>
-                        <p className="mt-1 text-xs text-amber-200/60">
+                        <p className="mt-1 text-xs text-warning-text">
                             {t('kris:detail.approval_banner_help')}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={() => setApprovalBanner(null)}
-                        className="text-xs font-semibold text-amber-200 hover:text-white transition-colors"
+                        className="text-xs font-semibold text-warning-text hover:text-foreground transition-colors"
                     >
                         {t('actions.close')}
                     </button>
@@ -253,7 +253,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
             ) : null}
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10 mb-6" role="tablist" aria-label={kri.metric_name}>
+            <div className="flex items-center gap-2 border-b border-border mb-6" role="tablist" aria-label={kri.metric_name}>
                 <button
                     {...getTabProps('overview', 0)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'

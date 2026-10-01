@@ -22,7 +22,7 @@ function tabClassName(isActive: boolean) {
     return `${TAB_BASE} ${
         isActive
             ? 'bg-accent text-accent-foreground'
-            : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground'
+            : 'bg-tint/5 text-muted-foreground hover:bg-tint/10 hover:text-foreground'
     }`;
 }
 

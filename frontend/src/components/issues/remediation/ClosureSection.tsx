@@ -34,7 +34,7 @@ export function ClosedSection({ issue }: ClosedSectionProps) {
             <div className={ISSUE_SECTION_HEADER}>
                 <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure')}</h4>
             </div>
-            <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-text">
                 {t('workflow.closed_notice')}
             </div>
             <SummaryField

@@ -7,13 +7,13 @@ type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 export function getEffectivenessClassName(effectiveness: string): string {
     switch (effectiveness) {
         case 'high':
-            return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+            return 'text-success-text bg-success/10 border-success/20';
         case 'medium':
-            return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+            return 'text-warning-text bg-warning/10 border-warning/20';
         case 'low':
-            return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+            return 'text-destructive bg-destructive/10 border-destructive/20';
         default:
-            return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+            return 'text-muted-foreground bg-muted border-border';
     }
 }
 

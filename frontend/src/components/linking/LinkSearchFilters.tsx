@@ -1,5 +1,6 @@
 import { Filter, Loader2, RotateCcw, Search } from 'lucide-react';
 
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -55,14 +56,15 @@ export function LinkSearchFilters({
 
     return (
         <div className="space-y-4">
-            <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
+            <div className="relative">
+                <Input
                     type="text"
+                    leadingIcon={Search}
+                    aria-label={getSearchPlaceholder(mode, t)}
                     placeholder={getSearchPlaceholder(mode, t)}
                     value={searchQuery}
                     onChange={(event) => onSearchQueryChange(event.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
+                    className="pr-10"
                 />
                 {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -71,12 +73,12 @@ export function LinkSearchFilters({
                 )}
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-foreground">
                 <Filter className="h-3 w-3" />
                 {t('common:actions.filter')}
                 {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
             </div>
-            <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                 <input
                     type="checkbox"
                     checked={includeArchived}
@@ -87,7 +89,6 @@ export function LinkSearchFilters({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <ThemedSelect
-                    className="border-white/20 bg-slate-800/80 text-slate-100"
                     value={selectedDeptId?.toString() ?? ''}
                     onValueChange={(value) => onDeptIdChange(value ? Number(value) : null)}
                     placeholder={t('filters.all_departments')}
@@ -100,7 +101,6 @@ export function LinkSearchFilters({
                 />
 
                 <ThemedSelect
-                    className="border-white/20 bg-slate-800/80 text-slate-100"
                     value={selectedProcess}
                     onValueChange={onProcessChange}
                     placeholder={t('filters.all_processes')}
@@ -110,7 +110,6 @@ export function LinkSearchFilters({
                 />
 
                 <ThemedSelect
-                    className="border-white/20 bg-slate-800/80 text-slate-100"
                     value={selectedCategory}
                     onValueChange={onCategoryChange}
                     placeholder={t('filters.all_categories')}
@@ -123,7 +122,7 @@ export function LinkSearchFilters({
             {hasActiveFilters && (
                 <button
                     onClick={clearAllFilters}
-                    className="flex items-center gap-2 text-xs text-slate-500 hover:text-accent transition-colors mt-1 ml-1 self-start group"
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-accent-text transition-colors mt-1 ml-1 self-start group"
                 >
                     <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
                     {t('common:actions.clear')}

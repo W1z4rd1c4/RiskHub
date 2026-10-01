@@ -56,7 +56,7 @@ export function SettingsPage() {
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
                                 isActive
                                     ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-tint/5"
                             )}
                         >
                             <tab.icon className="h-4 w-4" />

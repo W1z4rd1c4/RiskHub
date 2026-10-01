@@ -68,7 +68,7 @@ export function KRIStatusWidget() {
 
     const loadingFallback = (
         <div className="glass-card animate-pulse h-[300px] flex items-center justify-center">
-            <Activity className="h-6 w-6 text-slate-700 animate-spin" />
+            <Activity className="h-6 w-6 text-muted-foreground animate-spin" />
         </div>
     );
 
@@ -76,21 +76,21 @@ export function KRIStatusWidget() {
 
     const emptyFallback = (
         <div className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
-                <Clock className="h-6 w-6 text-emerald-500" />
+            <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-4">
+                <Clock className="h-6 w-6 text-success-text" />
             </div>
             <h4 className="text-foreground font-bold mb-1">{t('kri.all_current')}</h4>
-            <p className="text-xs text-slate-500">{t('kri.no_due_soon')}</p>
+            <p className="text-xs text-muted-foreground">{t('kri.no_due_soon')}</p>
         </div>
     );
 
     const errorFallback = (
         <div data-testid="widget-error" className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="h-6 w-6 text-amber-400" />
+            <div className="w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="h-6 w-6 text-warning-text" />
             </div>
             <h4 className="text-foreground font-bold mb-1">{t('kri.status_load_failed')}</h4>
-            <p className="text-xs text-slate-500">{error?.message}</p>
+            <p className="text-xs text-muted-foreground">{error?.message}</p>
         </div>
     );
 
@@ -111,7 +111,7 @@ export function KRIStatusWidget() {
         >
             <div className="glass-card flex flex-col h-full !p-0 overflow-hidden">
                 {/* Header with tabs */}
-                <div className="p-3 border-b border-white/5 bg-white/[0.02]">
+                <div className="p-3 border-b border-border bg-tint/[0.03]">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <CalendarClock className="h-4 w-4 text-accent" />
@@ -132,7 +132,7 @@ export function KRIStatusWidget() {
                     </div>
 
                     {/* Tab buttons */}
-                    <div className="flex gap-1 bg-white/5 rounded-lg p-0.5">
+                    <div className="flex gap-1 bg-tint/5 rounded-lg p-0.5">
                         <button
                             onClick={() => setActiveTab('upcoming')}
                             className={`flex-1 py-1.5 px-3 text-xs font-black uppercase tracking-widest rounded-md transition-colors ${activeTab === 'upcoming'
@@ -157,10 +157,10 @@ export function KRIStatusWidget() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto divide-y divide-white/5">
+                <div className="flex-1 overflow-auto divide-y divide-border">
                     {showUpcomingEmpty && (
                         <div className="p-6 text-center">
-                            <p className="text-xs text-slate-500">{t('kri.no_due_next_7')}</p>
+                            <p className="text-xs text-muted-foreground">{t('kri.no_due_next_7')}</p>
                         </div>
                     )}
                     {showOverdueEmpty && (
@@ -182,7 +182,7 @@ export function KRIStatusWidget() {
                         return (
                             <motion.div
                                 key={kri.kri_id}
-                                className="p-4 cursor-pointer group flex items-center justify-between hover:bg-white/5 transition-colors"
+                                className="p-4 cursor-pointer group flex items-center justify-between hover:bg-tint/5 transition-colors"
                                 onClick={() => navigate(`/kris/${kri.kri_id}`)}
                             >
                                 <div className="flex-1 min-w-0 mr-4">
@@ -202,7 +202,7 @@ export function KRIStatusWidget() {
                                         </span>
                                     </div>
                                 </div>
-                                <ArrowRight className="h-3 w-3 text-slate-600 group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
+                                <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
                             </motion.div>
                         );
                     })}
@@ -212,7 +212,7 @@ export function KRIStatusWidget() {
                     onClick={() => navigate(activeTab === 'overdue'
                         ? '/kris?monitoring_status=not_submitted'
                         : '/kris?timeliness_status=due_soon')}
-                    className="w-full py-3 bg-white/[0.01] hover:bg-white/5 text-xs font-black text-muted-foreground uppercase tracking-widest border-t border-white/5 transition-colors"
+                    className="w-full py-3 bg-tint/[0.03] hover:bg-tint/5 text-xs font-black text-muted-foreground uppercase tracking-widest border-t border-border transition-colors"
                 >
                     {activeTab === 'overdue' ? t('kri.view_all_overdue') : t('kri.view_all')}
                 </button>

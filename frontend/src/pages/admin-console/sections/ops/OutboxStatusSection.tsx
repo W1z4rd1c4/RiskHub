@@ -38,7 +38,7 @@ export function OutboxStatusSection({ outboxStatus }: OutboxStatusSectionProps) 
                     <p className="admin-subtle">{t('health.outbox.dead_letter')}</p>
                     <p className={cn(
                         'mt-1 font-medium',
-                        (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-rose-400' : 'admin-title',
+                        (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-destructive' : 'admin-title',
                     )}>
                         {outboxStatus?.dead_letter_count || 0}
                     </p>
@@ -64,7 +64,7 @@ export function OutboxStatusSection({ outboxStatus }: OutboxStatusSectionProps) 
                         <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? formatDateTimeValue(outboxStatus.last_dispatch_started_at, i18n.language) : t('health.outbox.none')}</p>
                         <p>{t('health.outbox.finished')}: {outboxStatus?.last_dispatch_finished_at ? formatDateTimeValue(outboxStatus.last_dispatch_finished_at, i18n.language) : t('health.outbox.none')}</p>
                         {outboxStatus?.last_dispatch_error && (
-                            <p className="text-rose-300">{outboxStatus.last_dispatch_error}</p>
+                            <p className="text-destructive">{outboxStatus.last_dispatch_error}</p>
                         )}
                     </div>
                 </div>
@@ -79,13 +79,13 @@ export function OutboxStatusSection({ outboxStatus }: OutboxStatusSectionProps) 
                                 <div key={failure.id} className="admin-surface-elevated rounded-lg px-3 py-2">
                                     <div className="flex items-center justify-between gap-3">
                                         <p className="admin-title text-sm font-medium">{failure.event_type}</p>
-                                        <span className="text-xs text-rose-300">{failure.status}</span>
+                                        <span className="text-xs text-destructive">{failure.status}</span>
                                     </div>
                                     <p className="admin-muted mt-1 text-xs">
                                         {t('health.outbox.attempts')}: {failure.attempt_count}
                                     </p>
                                     {failure.last_error && (
-                                        <p className="mt-1 text-xs text-rose-300">{failure.last_error}</p>
+                                        <p className="mt-1 text-xs text-destructive">{failure.last_error}</p>
                                     )}
                                 </div>
                             ))}

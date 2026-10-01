@@ -2,23 +2,23 @@
   "description": "G-RENDER rendered-contrast ratchet (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1, §5.2 item 0.3). Counts of visible text elements per theme and harness surface; belowAA/below3/below1_5/whiteOnLight may only go down. Regenerate with UPDATE_CONTRAST_BASELINE=1 (see theme-rendered-contrast.spec.ts).",
   "totals": {
     "light": {
-      "total": 1006,
-      "belowAA": 40,
-      "below3": 18,
-      "below1_5": 3,
+      "total": 1011,
+      "belowAA": 0,
+      "below3": 0,
+      "below1_5": 0,
       "whiteOnLight": 0
     },
     "riskhub": {
-      "total": 1006,
-      "belowAA": 86,
-      "below3": 14,
+      "total": 1011,
+      "belowAA": 0,
+      "below3": 0,
       "below1_5": 0,
       "whiteOnLight": 0
     },
     "dark": {
-      "total": 1006,
-      "belowAA": 77,
-      "below3": 6,
+      "total": 1011,
+      "belowAA": 0,
+      "below3": 0,
       "below1_5": 0,
       "whiteOnLight": 0
     }
@@ -153,16 +153,16 @@
       },
       "dialog/approval-scenarios-panel/closed": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
-        "below1_5": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/asset-links/closed": {
         "total": 17,
-        "belowAA": 1,
-        "below3": 1,
-        "below1_5": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/confirm.asset-links/open": {
@@ -222,15 +222,15 @@
         "whiteOnLight": 0
       },
       "dialog/control-create.risk-linked-controls/open": {
-        "total": 7,
-        "belowAA": 2,
-        "below3": 2,
-        "below1_5": 1,
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/control-overview/closed": {
         "total": 26,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -244,8 +244,8 @@
       },
       "dialog/departments-panel/closed": {
         "total": 17,
-        "belowAA": 3,
-        "below3": 3,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -258,8 +258,8 @@
       },
       "dialog/execution-history/closed": {
         "total": 6,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -271,14 +271,14 @@
         "whiteOnLight": 0
       },
       "dialog/frame.departments/open": {
-        "total": 10,
-        "belowAA": 2,
-        "below3": 1,
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/frame.risk-types/open": {
-        "total": 11,
+        "total": 12,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -293,64 +293,64 @@
       },
       "dialog/inline.departments-delete/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/inline.risk-types-delete/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/issue.contextual-action/open": {
         "total": 12,
-        "belowAA": 5,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/issue.execution-history/open": {
         "total": 12,
-        "belowAA": 5,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/kri-form/closed": {
         "total": 27,
-        "belowAA": 5,
-        "below3": 3,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link-management/closed": {
         "total": 7,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.control-overview/open": {
         "total": 16,
-        "belowAA": 2,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.risk-linked-controls/open": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.vendor-linked-entities/open": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -391,7 +391,7 @@
       },
       "dialog/risk-questionnaires-tab/closed": {
         "total": 20,
-        "belowAA": 3,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -404,7 +404,7 @@
         "whiteOnLight": 0
       },
       "dialog/risk-view.control-overview/open": {
-        "total": 24,
+        "total": 23,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -412,22 +412,22 @@
       },
       "dialog/role-delete.roles-panel/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/role-modal.roles-panel/open": {
-        "total": 8,
-        "belowAA": 1,
+        "total": 10,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/roles-panel/closed": {
         "total": 14,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -440,7 +440,7 @@
       },
       "dialog/vendor-linked-entities/closed": {
         "total": 7,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -715,8 +715,8 @@
       },
       "dialog/asset-links/closed": {
         "total": 17,
-        "belowAA": 3,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -777,29 +777,29 @@
         "whiteOnLight": 0
       },
       "dialog/control-create.risk-linked-controls/open": {
-        "total": 7,
-        "belowAA": 2,
+        "total": 9,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/control-overview/closed": {
         "total": 26,
-        "belowAA": 2,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/dashboard-risk-sections/closed": {
         "total": 35,
-        "belowAA": 10,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/departments-panel/closed": {
         "total": 17,
-        "belowAA": 3,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -813,8 +813,8 @@
       },
       "dialog/execution-history/closed": {
         "total": 6,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -826,14 +826,14 @@
         "whiteOnLight": 0
       },
       "dialog/frame.departments/open": {
-        "total": 10,
-        "belowAA": 1,
+        "total": 11,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/frame.risk-types/open": {
-        "total": 11,
+        "total": 12,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -848,36 +848,36 @@
       },
       "dialog/inline.departments-delete/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/inline.risk-types-delete/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/issue.contextual-action/open": {
         "total": 12,
-        "belowAA": 4,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/issue.execution-history/open": {
         "total": 12,
-        "belowAA": 4,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/kri-form/closed": {
         "total": 27,
-        "belowAA": 13,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -890,22 +890,22 @@
       },
       "dialog/link.control-overview/open": {
         "total": 16,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.risk-linked-controls/open": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.vendor-linked-entities/open": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -925,28 +925,28 @@
       },
       "dialog/questionnaire.risk-detail-tab/open": {
         "total": 46,
-        "belowAA": 13,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/risk-drilldown.dashboard/open": {
         "total": 10,
-        "belowAA": 4,
-        "below3": 2,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/risk-linked-controls/closed": {
         "total": 13,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/risk-questionnaires-tab/closed": {
         "total": 20,
-        "belowAA": 3,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -959,29 +959,29 @@
         "whiteOnLight": 0
       },
       "dialog/risk-view.control-overview/open": {
-        "total": 24,
-        "belowAA": 12,
-        "below3": 5,
+        "total": 23,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/role-delete.roles-panel/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/role-modal.roles-panel/open": {
-        "total": 8,
-        "belowAA": 1,
+        "total": 10,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/roles-panel/closed": {
         "total": 14,
-        "belowAA": 2,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -995,7 +995,7 @@
       },
       "dialog/vendor-linked-entities/closed": {
         "total": 7,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -1270,7 +1270,7 @@
       },
       "dialog/asset-links/closed": {
         "total": 17,
-        "belowAA": 3,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -1332,29 +1332,29 @@
         "whiteOnLight": 0
       },
       "dialog/control-create.risk-linked-controls/open": {
-        "total": 7,
-        "belowAA": 2,
+        "total": 9,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/control-overview/closed": {
         "total": 26,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/dashboard-risk-sections/closed": {
         "total": 35,
-        "belowAA": 10,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/departments-panel/closed": {
         "total": 17,
-        "belowAA": 2,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -1368,8 +1368,8 @@
       },
       "dialog/execution-history/closed": {
         "total": 6,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -1381,14 +1381,14 @@
         "whiteOnLight": 0
       },
       "dialog/frame.departments/open": {
-        "total": 10,
-        "belowAA": 1,
+        "total": 11,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/frame.risk-types/open": {
-        "total": 11,
+        "total": 12,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -1403,36 +1403,36 @@
       },
       "dialog/inline.departments-delete/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/inline.risk-types-delete/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/issue.contextual-action/open": {
         "total": 12,
-        "belowAA": 4,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/issue.execution-history/open": {
         "total": 12,
-        "belowAA": 4,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/kri-form/closed": {
         "total": 27,
-        "belowAA": 11,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -1445,22 +1445,22 @@
       },
       "dialog/link.control-overview/open": {
         "total": 16,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.risk-linked-controls/open": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/link.vendor-linked-entities/open": {
         "total": 12,
-        "belowAA": 1,
-        "below3": 1,
+        "belowAA": 0,
+        "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
@@ -1480,21 +1480,21 @@
       },
       "dialog/questionnaire.risk-detail-tab/open": {
         "total": 46,
-        "belowAA": 13,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/risk-drilldown.dashboard/open": {
         "total": 10,
-        "belowAA": 4,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/risk-linked-controls/closed": {
         "total": 13,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -1514,29 +1514,29 @@
         "whiteOnLight": 0
       },
       "dialog/risk-view.control-overview/open": {
-        "total": 24,
-        "belowAA": 11,
+        "total": 23,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/role-delete.roles-panel/open": {
         "total": 4,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/role-modal.roles-panel/open": {
-        "total": 8,
-        "belowAA": 1,
+        "total": 10,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
       },
       "dialog/roles-panel/closed": {
         "total": 14,
-        "belowAA": 2,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0

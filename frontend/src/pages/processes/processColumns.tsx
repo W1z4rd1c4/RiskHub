@@ -48,7 +48,7 @@ export function buildProcessColumns({
             className: 'w-[340px] min-w-[240px]',
             render: (process) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">{process.l1_process}</span>
+                    <span className="text-sm font-bold text-foreground">{process.l1_process}</span>
                     {process.l2_subprocess ? (
                         <span className="text-xs text-muted-foreground">{process.l2_subprocess}</span>
                     ) : null}
@@ -126,7 +126,7 @@ export function buildProcessColumns({
                             {process.pending_change ? (
                                 <span
                                     data-testid={`process-pending-change-${process.id}`}
-                                    className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
+                                    className="inline-flex items-center rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-bold text-warning-text"
                                 >
                                     {t('processes:pending_change.badge')}
                                 </span>
@@ -137,7 +137,7 @@ export function buildProcessColumns({
                                 type="button"
                                 data-testid={`process-restore-${process.id}`}
                                 onClick={(event) => void onRestore(process.id, event)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-tint/10 transition-colors"
                                 aria-label={t('processes:actions.restore')}
                                 title={t('processes:actions.restore')}
                             >

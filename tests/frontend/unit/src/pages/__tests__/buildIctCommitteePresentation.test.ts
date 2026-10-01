@@ -252,10 +252,10 @@ describe('buildIctCommitteePresentation', () => {
         expect(presentation.executiveSummary.narratives[0].text).toContain(
             'narratives.a34:{"cif":1,"total":2,"bcm":1}',
         );
-        expect(presentation.executiveSummary.narratives[0].className).toBe('text-slate-300 text-sm');
+        expect(presentation.executiveSummary.narratives[0].className).toBe('text-foreground text-sm');
         expect(presentation.executiveSummary.narratives[4]).toMatchObject({
             key: 'a38',
-            className: 'text-slate-500 text-sm italic',
+            className: 'text-muted-foreground text-sm italic',
         });
     });
 

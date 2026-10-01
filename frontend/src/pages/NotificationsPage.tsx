@@ -304,7 +304,7 @@ export function NotificationsPage() {
                         onClick={() => void handleMarkAllAsRead()}
                         aria-disabled={pendingMutation !== null}
                         aria-describedby={visibleMutationError?.target === 'all' ? 'notifications-mark-all-error' : undefined}
-                        className="rounded-xl bg-accent/10 text-accent hover:bg-accent/20 hover:text-accent"
+                        className="rounded-xl bg-accent/10 text-accent-text hover:bg-accent/20 hover:text-accent-text"
                     >
                         <Check className="h-4 w-4" aria-hidden="true" />
                         {tCommon('actions.mark_all_read')}
@@ -324,7 +324,7 @@ export function NotificationsPage() {
                     disabled={navigationDisabled}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === 'all'
                         ? 'bg-accent text-accent-foreground'
-                        : 'bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10'
+                        : 'bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10'
                         }`}
                 >
                     {t('tabs.all')}
@@ -334,12 +334,12 @@ export function NotificationsPage() {
                     disabled={navigationDisabled}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === 'unread'
                         ? 'bg-accent text-accent-foreground'
-                        : 'bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10'
+                        : 'bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10'
                         }`}
                 >
                     {t('tabs.unread')}
                     {unreadCount !== null && unreadCount > 0 && (
-                        <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                             {unreadCount}
                         </span>
                     )}
@@ -391,7 +391,7 @@ export function NotificationsPage() {
                         </div>
                     )}
                     {(outcome.kind === 'content' || hasStaleData) && notifications.length > 0 && (
-                        <div className="divide-y divide-white/10">
+                        <div className="divide-y divide-border">
                         {notifications.map(notification => {
                             const presentation = buildNotificationPresentation(notification);
                             const content = (
@@ -426,7 +426,7 @@ export function NotificationsPage() {
                                     className={`px-6 py-4 transition-colors ${!notification.is_read ? 'bg-accent/5' : ''}`}
                                 >
                                     {presentation.path ? (
-                                        <Link to={presentation.path} className="block -mx-6 -mt-4 px-6 pt-4 pb-3 hover:bg-white/5">
+                                        <Link to={presentation.path} className="block -mx-6 -mt-4 px-6 pt-4 pb-3 hover:bg-tint/5">
                                             {content}
                                         </Link>
                                     ) : (
@@ -466,7 +466,7 @@ export function NotificationsPage() {
                         onClick={() => setPage(page - 1)}
                         disabled={page === 0 || navigationDisabled}
                         aria-label={tCommon('pagination.previous_page')}
-                        className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 rounded-lg bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                     </button>
@@ -478,7 +478,7 @@ export function NotificationsPage() {
                         onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                         disabled={page >= totalPages - 1 || navigationDisabled}
                         aria-label={tCommon('pagination.next_page')}
-                        className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 rounded-lg bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <ChevronRight className="h-5 w-5" aria-hidden="true" />
                     </button>

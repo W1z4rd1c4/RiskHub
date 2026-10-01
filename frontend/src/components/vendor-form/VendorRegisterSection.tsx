@@ -186,7 +186,7 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
 
             {REGISTER_BLOCKS.map((block) => (
                 <div className="space-y-3" key={block.titleKey}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                         {t(block.titleKey)}
                     </p>
                     <div className="vendor-form-grid">{block.fields.map(renderField)}</div>

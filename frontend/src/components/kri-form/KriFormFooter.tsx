@@ -24,7 +24,7 @@ export function KriFormFooter({
     const { t } = useTranslation(['common', 'kris']);
 
     return (
-        <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-8">
+        <div className="mt-8 flex items-center justify-between border-t border-border pt-8">
             {currentStep === 0 ? (
                 <>
                     <button
@@ -33,7 +33,7 @@ export function KriFormFooter({
                         onClick={() => {
                             if (!isSubmitting) onCancel();
                         }}
-                        className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 transition-colors hover:text-white"
+                        className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
                     >
                         <X className="h-4 w-4" />
                         {cancelLabel}
@@ -57,7 +57,7 @@ export function KriFormFooter({
                         onClick={() => {
                             if (!isSubmitting) onBack();
                         }}
-                        className="text-sm font-bold text-slate-400 transition-colors hover:text-white"
+                        className="text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
                     >
                         {t('common:actions.back')}
                     </button>

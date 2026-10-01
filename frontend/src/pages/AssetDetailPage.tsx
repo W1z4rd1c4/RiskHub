@@ -180,8 +180,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-bold text-white">{t('actions.new')}</h1>
-                        <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
+                        <h1 className="text-3xl font-bold text-foreground">{t('actions.new')}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
                     </div>
                 </div>
                 <AssetForm
@@ -266,9 +266,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                     >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </Button>
-                    <div role="alert" data-testid="asset-orphan-edit-blocked" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
+                    <div role="alert" data-testid="asset-orphan-edit-blocked" className="glass-card flex items-center justify-between gap-4 border border-warning/30 text-warning-text">
                         <p className="text-sm font-medium">{t('detail.ownership_pending')}</p>
-                        {authz.canViewGovernance ? <button type="button" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-amber-400/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
+                        {authz.canViewGovernance ? <button type="button" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-warning/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
                     </div>
                 </div>
             );
@@ -291,8 +291,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
-                        <p className="text-slate-500 font-medium mt-1">{asset.name}</p>
+                        <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
+                        <p className="text-muted-foreground font-medium mt-1">{asset.name}</p>
                     </div>
                 </div>
                 <AssetForm
@@ -315,7 +315,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         <div className="space-y-8">
             {staleWarning}
             {actionError ? (
-                <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+                <div className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionError}</p>
                 </div>
@@ -329,9 +329,9 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 />
             ) : null}
             {asset.ownership_status === 'pending_governance' ? (
-                <div role="alert" className="glass-card flex items-center justify-between gap-4 border border-amber-400/30 text-amber-200">
+                <div role="alert" className="glass-card flex items-center justify-between gap-4 border border-warning/30 text-warning-text">
                     <p className="text-sm font-medium">{t('detail.ownership_pending')}</p>
-                    {authz.canViewGovernance ? <button type="button" data-testid="asset-orphan-governance" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-amber-400/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
+                    {authz.canViewGovernance ? <button type="button" data-testid="asset-orphan-governance" onClick={() => navigate('/governance?type=asset')} className="rounded-xl bg-warning/10 px-4 py-2 text-sm font-bold">{t('detail.resolve_in_governance')}</button> : null}
                 </div>
             ) : null}
 
@@ -455,7 +455,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
 
             {asset.derived ? (
                 <div className="glass-card space-y-5" data-testid="asset-derived-section">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('derived.title')}
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -517,7 +517,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-5 border-t border-white/5 pt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-5 border-t border-border pt-4">
                         <DetailField
                             label={t('derived.primary_process_name')}
                             value={asset.derived.primary_process_name}
@@ -561,8 +561,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         />
                     </div>
 
-                    <div className="space-y-4 border-t border-white/5 pt-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                    <div className="space-y-4 border-t border-border pt-4">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                             {t('derived.inputs.title')}
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -608,12 +608,12 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                             />
                         </div>
                     </div>
-                    <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
+                    <p className="text-xs text-muted-foreground">{t('detail.derived_fields_note')}</p>
                 </div>
             ) : null}
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.impact_dependencies')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -627,7 +627,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
             </div>
 
             <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.lifecycle')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -640,8 +640,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 </div>
                 {asset.notes ? (
                     <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</p>
-                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{asset.notes}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('form.notes')}</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{asset.notes}</p>
                     </div>
                 ) : null}
             </div>

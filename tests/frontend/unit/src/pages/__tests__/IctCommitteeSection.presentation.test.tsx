@@ -358,8 +358,8 @@ describe('IctCommitteeSection', () => {
             'CIF functions: 79 of 148 processes; with BCM evidence: 76',
         );
         expect(screen.getByTestId('committee-narrative-a38')).toHaveTextContent('P_Tolerance = 39');
-        expect(screen.getByTestId('committee-narrative-a34')).toHaveClass('text-slate-300', 'text-sm');
-        expect(screen.getByTestId('committee-narrative-a38')).toHaveClass('text-slate-500', 'text-sm', 'italic');
+        expect(screen.getByTestId('committee-narrative-a34')).toHaveClass('text-foreground', 'text-sm');
+        expect(screen.getByTestId('committee-narrative-a38')).toHaveClass('text-muted-foreground', 'text-sm', 'italic');
 
         // The two aggregate charts are staged.
         expect(screen.getByTestId('committee-chart-assets')).toBeInTheDocument();

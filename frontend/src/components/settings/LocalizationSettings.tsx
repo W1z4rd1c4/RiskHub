@@ -41,7 +41,7 @@ export function LocalizationSettings() {
                     <Globe className="h-5 w-5 text-accent" />
                     {t('localization.language')}
                 </h3>
-                <p className="text-slate-400 text-sm mb-6">
+                <p className="text-muted-foreground text-sm mb-6">
                     {t('localization.language_description')}
                 </p>
 
@@ -58,7 +58,7 @@ export function LocalizationSettings() {
                                     "relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
                                     isSelected
                                         ? "border-accent bg-accent/10"
-                                        : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                                        : "border-border bg-tint/5 hover:border-tint/20 hover:bg-tint/10"
                                 )}
                             >
                                 {/* Flag */}
@@ -68,11 +68,11 @@ export function LocalizationSettings() {
                                 <div className="flex-1">
                                     <span className={cn(
                                         "font-semibold block",
-                                        isSelected ? "text-accent" : "text-slate-300"
+                                        isSelected ? "text-accent-text" : "text-foreground"
                                     )}>
                                         {lang.name}
                                     </span>
-                                    <span className="text-sm text-slate-500">
+                                    <span className="text-sm text-muted-foreground">
                                         {lang.nativeName}
                                     </span>
                                 </div>
@@ -80,7 +80,7 @@ export function LocalizationSettings() {
                                 {/* Selected Indicator */}
                                 {isSelected && (
                                     <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center">
-                                        <Check className="h-4 w-4 text-white" />
+                                        <Check className="h-4 w-4 text-accent-foreground" />
                                     </div>
                                 )}
                             </button>
@@ -90,14 +90,14 @@ export function LocalizationSettings() {
             </section>
 
             {/* Active Translation Notice */}
-            <section className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+            <section className="bg-success/10 border border-success/20 rounded-xl p-4">
                 <div className="flex gap-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="h-5 w-5 text-success-text flex-shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="font-semibold text-emerald-400 mb-1">
+                        <h4 className="font-semibold text-success-text mb-1">
                             {t('localization.active_translation')}
                         </h4>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-muted-foreground">
                             {t('localization.active_translation_message')}
                         </p>
                     </div>
@@ -105,18 +105,18 @@ export function LocalizationSettings() {
             </section>
 
             {/* Current Selection Confirmation */}
-            <section className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <section className="bg-tint/5 border border-border rounded-xl p-4">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl">{selectedLang.flag}</span>
                     <div>
-                        <p className="text-sm text-slate-400">{t('localization.current_preference')}</p>
+                        <p className="text-sm text-muted-foreground">{t('localization.current_preference')}</p>
                         <p className="font-semibold">{selectedLang.name} ({selectedLang.nativeName})</p>
                     </div>
                 </div>
             </section>
 
             {/* Note */}
-            <p className="text-xs text-slate-500 italic">
+            <p className="text-xs text-muted-foreground italic">
                 {t('localization.preference_persistence_note')}
             </p>
             <PreferenceSyncStatus

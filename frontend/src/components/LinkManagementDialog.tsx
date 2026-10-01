@@ -10,14 +10,13 @@
  */
 
 import { useId } from 'react';
-import { X, Link as LinkIcon } from 'lucide-react';
+import { Link as LinkIcon } from 'lucide-react';
 import type { ControlEffectiveness } from '@/types/risk';
 import { LinkSearchPanel } from './linking/LinkSearchPanel';
 import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
 import { useTranslation } from '@/i18n/hooks';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { DialogShell } from '@/components/DialogShell';
-import { Button } from '@/components/ui/button';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { getLinkDialogTitle } from './linking/linkModes';
 import type { LinkMode } from './linking/linkTypes';
 import { useLinkManagementWorkflow } from './linking/useLinkManagementWorkflow';
@@ -78,32 +77,11 @@ export function LinkManagementDialog({
                 onClose={onClose}
                 titleId={titleId}
                 dataTestId="link-management-dialog"
-                backdropClassName="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-                contentClassName="w-full max-w-2xl max-h-[90vh] bg-slate-900/95 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-white/10"
+                size="lg"
             >
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/5">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-accent/20 p-2 rounded-lg">
-                            <LinkIcon className="h-5 w-5 text-accent" />
-                        </div>
-                        <h2 id={titleId} className="text-xl font-black text-white uppercase tracking-tight">
-                            {getLinkDialogTitle(mode, t, { title, showSearch })}
-                        </h2>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="iconCompact"
-                        onClick={onClose}
-                        title={t('common:actions.close')}
-                        aria-label={t('common:actions.close')}
-                    >
-                        <X className="h-5 w-5" aria-hidden="true" />
-                    </Button>
-                </div>
+                <DialogHeader title={getLinkDialogTitle(mode, t, { title, showSearch })} icon={LinkIcon} />
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                <DialogBody className="space-y-8">
                     {/* Search Panel */}
                     {showSearch && (
                         <LinkSearchPanel
@@ -142,19 +120,9 @@ export function LinkManagementDialog({
                             showMetadataBadge={showLinkMetadataBadge}
                         />
                     )}
-                </div>
+                </DialogBody>
 
-                {/* Footer */}
-                <div className="p-6 border-t border-white/5 bg-white/[0.02]">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={onClose}
-                        className="w-full text-xs font-black uppercase tracking-widest"
-                    >
-                        {t('common:actions.close')}
-                    </Button>
-                </div>
+                <DialogFooter cancelLabel={t('common:actions.close')} />
             </DialogShell>
             <ConfirmDialog
                 isOpen={workflow.unlinkTargetId !== null}

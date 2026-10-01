@@ -72,7 +72,7 @@ function HeatmapLegend({
                         <span
                             aria-hidden="true"
                             style={stop.fill ? { backgroundColor: stop.fill } : undefined}
-                            className={`h-3 w-3 rounded ${stop.fill ? '' : 'bg-white/5'}`}
+                            className={`h-3 w-3 rounded ${stop.fill ? '' : 'bg-tint/5'}`}
                         />
                         <span className="text-[10px] text-muted-foreground tabular-nums">{stop.label}</span>
                     </span>
@@ -100,7 +100,7 @@ function MatrixCell({ fill, count, testId }: { fill: string | null; count: numbe
             data-testid={testId}
             style={fill ? { backgroundColor: fill, color: '#0F172A' } : undefined}
             className={`h-10 min-w-10 flex items-center justify-center rounded-lg text-sm font-bold tabular-nums ${
-                fill ? '' : 'bg-white/5 text-muted-foreground'
+                fill ? '' : 'bg-tint/5 text-muted-foreground'
             }`}
         >
             {count}
@@ -128,33 +128,33 @@ function TopRisksTable({ presentation }: { presentation: ExecutivePresentation }
                 </thead>
                 <tbody>
                     {presentation.topRisks.map((risk) => (
-                        <tr key={risk.rank} data-testid={`committee-top-risk-${risk.rank}`} className="border-t border-white/5">
+                        <tr key={risk.rank} data-testid={`committee-top-risk-${risk.rank}`} className="border-t border-border">
                             <td className="py-2 pr-3 text-muted-foreground font-bold">{risk.rank}</td>
                             <td className="py-2 pr-3">
                                 <Link
                                     to={risk.href}
-                                    className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                    className="text-foreground font-semibold hover:text-accent-text underline decoration-tint/20 hover:decoration-accent"
                                 >
                                     {risk.label}
                                 </Link>
                             </td>
-                            <td className="py-2 pr-3 text-slate-300">{risk.subjectLabel}</td>
-                            <td className="py-2 pr-3 text-slate-300">{risk.threatLabel}</td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{risk.grossScore}</td>
-                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-white">{risk.netScore}</td>
+                            <td className="py-2 pr-3 text-foreground">{risk.subjectLabel}</td>
+                            <td className="py-2 pr-3 text-foreground">{risk.threatLabel}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums text-foreground">{risk.grossScore}</td>
+                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-foreground">{risk.netScore}</td>
                             <td className="py-2 pr-3">
                                 <CellPill value={risk.netBand} style={risk.netBandStyle} />
                             </td>
                             <td className="py-2 pr-3">
                                 <CellPill value={risk.tolerance} style={risk.toleranceStyle} />
                             </td>
-                            <td className="py-2 text-slate-300">{risk.statusLabel}</td>
+                            <td className="py-2 text-foreground">{risk.statusLabel}</td>
                         </tr>
                     ))}
                     {presentation.emptyRiskRanks.map((rank) => (
-                        <tr key={rank} data-testid={`committee-top-risk-empty-${rank}`} className="border-t border-white/5">
-                            <td className="py-2 pr-3 text-slate-600 font-bold">{rank}</td>
-                            <td className="py-2 text-slate-600" colSpan={8} aria-hidden="true" />
+                        <tr key={rank} data-testid={`committee-top-risk-empty-${rank}`} className="border-t border-border">
+                            <td className="py-2 pr-3 text-muted-foreground font-bold">{rank}</td>
+                            <td className="py-2 text-muted-foreground" colSpan={8} aria-hidden="true" />
                         </tr>
                     ))}
                 </tbody>
@@ -178,17 +178,17 @@ function TopVendorsTable({ presentation }: { presentation: ExecutivePresentation
                 </thead>
                 <tbody>
                     {presentation.topVendors.map((vendor) => (
-                        <tr key={vendor.rank} data-testid={`committee-top-vendor-${vendor.rank}`} className="border-t border-white/5">
+                        <tr key={vendor.rank} data-testid={`committee-top-vendor-${vendor.rank}`} className="border-t border-border">
                             <td className="py-2 pr-3 text-muted-foreground font-bold">{vendor.rank}</td>
                             <td className="py-2 pr-3">
                                 <Link
                                     to={vendor.href}
-                                    className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                    className="text-foreground font-semibold hover:text-accent-text underline decoration-tint/20 hover:decoration-accent"
                                 >
                                     {vendor.name}
                                 </Link>
                             </td>
-                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-white">
+                            <td className="py-2 pr-3 text-right tabular-nums font-bold text-foreground">
                                 {vendor.cifProcessCount}
                             </td>
                             <td className="py-2">
@@ -197,9 +197,9 @@ function TopVendorsTable({ presentation }: { presentation: ExecutivePresentation
                         </tr>
                     ))}
                     {presentation.emptyVendorRanks.map((rank) => (
-                        <tr key={rank} data-testid={`committee-top-vendor-empty-${rank}`} className="border-t border-white/5">
-                            <td className="py-2 pr-3 text-slate-600 font-bold">{rank}</td>
-                            <td className="py-2 text-slate-600" colSpan={3} aria-hidden="true" />
+                        <tr key={rank} data-testid={`committee-top-vendor-empty-${rank}`} className="border-t border-border">
+                            <td className="py-2 pr-3 text-muted-foreground font-bold">{rank}</td>
+                            <td className="py-2 text-muted-foreground" colSpan={3} aria-hidden="true" />
                         </tr>
                     ))}
                 </tbody>
@@ -213,7 +213,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
 
     return (
         <section id="cro" className="space-y-4" data-testid="committee-cro">
-            <h2 className="text-xl font-bold text-white">{presentation.title}</h2>
+            <h2 className="text-xl font-bold text-foreground">{presentation.title}</h2>
 
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                 {presentation.kpis.map((kpi) => {
@@ -222,7 +222,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                             <p className="text-muted-foreground text-xs font-bold text-center min-h-8">{kpi.label}</p>
                             {kpi.inert ? (
                                 <>
-                                    <p className="text-3xl font-bold text-slate-600 text-center mt-1">{kpi.displayValue}</p>
+                                    <p className="text-3xl font-bold text-muted-foreground text-center mt-1">{kpi.displayValue}</p>
                                     <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground text-center mt-1">
                                         {kpi.inertLabel}
                                     </p>
@@ -235,7 +235,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                         </div>
                     );
                     return kpi.href ? (
-                        <Link key={kpi.key} to={kpi.href} className="glass-card block hover:bg-white/5 transition-colors">
+                        <Link key={kpi.key} to={kpi.href} className="glass-card block hover:bg-tint/5 transition-colors">
                             {content}
                         </Link>
                     ) : (
@@ -248,7 +248,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <div className="glass-card" data-testid="committee-heatmap">
-                    <h3 className="text-white font-bold">{presentation.heatmap.title}</h3>
+                    <h3 className="text-foreground font-bold">{presentation.heatmap.title}</h3>
                     <p className="text-muted-foreground text-xs font-medium mt-1">{presentation.heatmap.axis}</p>
                     <div className="mt-3 space-y-1.5 overflow-x-auto">
                         {presentation.heatmap.rows.map((row) => (
@@ -289,7 +289,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                 </div>
 
                 <div className="glass-card" data-testid="committee-migration">
-                    <h3 className="text-white font-bold">{presentation.migration.title}</h3>
+                    <h3 className="text-foreground font-bold">{presentation.migration.title}</h3>
                     <p className="text-muted-foreground text-xs font-medium mt-1">{presentation.migration.axis}</p>
                     <div className="mt-3 space-y-1.5 overflow-x-auto">
                         {presentation.migration.rows.map((row) => (
@@ -334,17 +334,17 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <div className="glass-card">
-                    <h3 className="text-white font-bold mb-3">{presentation.topRisksTitle}</h3>
+                    <h3 className="text-foreground font-bold mb-3">{presentation.topRisksTitle}</h3>
                     <TopRisksTable presentation={presentation} />
                 </div>
                 <div className="glass-card">
-                    <h3 className="text-white font-bold mb-3">{presentation.topVendorsTitle}</h3>
+                    <h3 className="text-foreground font-bold mb-3">{presentation.topVendorsTitle}</h3>
                     <TopVendorsTable presentation={presentation} />
                 </div>
             </div>
 
             <div className="glass-card space-y-2" data-testid="committee-narratives">
-                <h3 className="text-white font-bold">{presentation.narrativesTitle}</h3>
+                <h3 className="text-foreground font-bold">{presentation.narrativesTitle}</h3>
                 {presentation.narratives.map((narrative) => (
                     <p
                         key={narrative.key}
@@ -358,7 +358,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <div className="glass-card" data-testid="committee-chart-assets">
-                    <h3 className="text-white font-bold mb-3">{presentation.assetChartTitle}</h3>
+                    <h3 className="text-foreground font-bold mb-3">{presentation.assetChartTitle}</h3>
                     <ResponsiveContainer width="100%" height={240} initialDimension={{ width: 1, height: 240 }}>
                         <BarChart data={presentation.assetChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
@@ -402,7 +402,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                 key={entry.band}
                                 to={entry.href}
                                 data-testid={`committee-asset-bar-${entry.band}`}
-                                className="rounded-lg bg-white/5 px-2 py-1 text-xs text-slate-300 hover:text-accent"
+                                className="rounded-lg bg-tint/5 px-2 py-1 text-xs text-foreground hover:text-accent-text"
                             >
                                 {entry.label}: {entry.count}
                             </Link>
@@ -411,7 +411,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                 </div>
 
                 <div className="glass-card" data-testid="committee-chart-risk-bands">
-                    <h3 className="text-white font-bold mb-3">{presentation.riskBandChartTitle}</h3>
+                    <h3 className="text-foreground font-bold mb-3">{presentation.riskBandChartTitle}</h3>
                     <ResponsiveContainer width="100%" height={240} initialDimension={{ width: 1, height: 240 }}>
                         <BarChart data={presentation.riskBandChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} />
@@ -472,7 +472,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                         key={`${entry.band}-${score}`}
                                         to={score === 'gross' ? entry.grossHref : entry.netHref}
                                         data-testid={`committee-risk-bar-${score}-${entry.band}`}
-                                        className="rounded-lg bg-white/5 px-2 py-1 text-xs text-slate-300 hover:text-accent"
+                                        className="rounded-lg bg-tint/5 px-2 py-1 text-xs text-foreground hover:text-accent-text"
                                     >
                                         {entry.label} · {presentation.riskBandChartLabels[score]}: {entry[score]}
                                     </Link>

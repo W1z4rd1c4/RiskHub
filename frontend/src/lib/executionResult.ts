@@ -20,29 +20,29 @@ type ExecutionResultMeta = {
 const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
     passed: {
         status: 'passed',
-        badgeClassName: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-        iconClassName: 'text-emerald-400',
+        badgeClassName: 'text-success-text bg-success/10 border-success/20',
+        iconClassName: 'text-success-text',
         icon: CheckCircle,
         labelKey: 'controls:results.passed',
     },
     failed: {
         status: 'failed',
-        badgeClassName: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-        iconClassName: 'text-rose-400',
+        badgeClassName: 'text-destructive bg-destructive/10 border-destructive/20',
+        iconClassName: 'text-destructive',
         icon: XCircle,
         labelKey: 'controls:results.failed',
     },
     warning: {
         status: 'warning',
-        badgeClassName: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-        iconClassName: 'text-amber-400',
+        badgeClassName: 'text-warning-text bg-warning/10 border-warning/20',
+        iconClassName: 'text-warning-text',
         icon: AlertTriangle,
         labelKey: 'controls:executions.issues_found',
     },
     not_applicable: {
         status: 'not_applicable',
-        badgeClassName: 'text-slate-400 bg-slate-400/10 border-slate-400/20',
-        iconClassName: 'text-slate-400',
+        badgeClassName: 'text-muted-foreground bg-muted-foreground/10 border-muted-foreground/20',
+        iconClassName: 'text-muted-foreground',
         icon: MinusCircle,
         labelKey: 'controls:results.not_applicable',
     },
@@ -50,8 +50,8 @@ const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
 
 const UNKNOWN_EXECUTION_RESULT_META: ExecutionResultMeta = {
     status: 'unknown',
-    badgeClassName: 'text-slate-300 bg-white/5 border-white/10',
-    iconClassName: 'text-slate-300',
+    badgeClassName: 'text-foreground bg-tint/5 border-border',
+    iconClassName: 'text-foreground',
     icon: HelpCircle,
     labelKey: 'common:labels.not_available',
 };

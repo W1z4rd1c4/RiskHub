@@ -54,7 +54,7 @@ export function LogsPanel() {
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
                     <thead className="admin-table-head sticky top-0">
-                        <tr className="border-b border-white/10">
+                        <tr className="border-b border-border">
                             <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.time')}</th>
                             <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.level')}</th>
                             <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.event')}</th>
@@ -64,16 +64,16 @@ export function LogsPanel() {
                     </thead>
                     <tbody>
                         {logs?.map((log) => (
-                            <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
+                            <tr key={log.id} className="border-b border-border hover:bg-tint/5">
                                 <td className="admin-subtle whitespace-nowrap py-2 px-3">
                                     {formatDateTimeValue(log.timestamp, i18n.language)}
                                 </td>
                                 <td className="py-2 px-3">
                                     <span className={cn(
                                         'px-2 py-0.5 rounded text-xs font-medium',
-                                        log.level === 'INFO' && 'bg-blue-500/20 text-blue-400',
-                                        log.level === 'WARNING' && 'bg-amber-500/20 text-amber-400',
-                                        log.level === 'ERROR' && 'bg-red-500/20 text-red-400',
+                                        log.level === 'INFO' && 'bg-info/10 text-accent-text',
+                                        log.level === 'WARNING' && 'bg-warning/10 text-warning-text',
+                                        log.level === 'ERROR' && 'bg-destructive/10 text-destructive',
                                     )}>
                                         {log.level}
                                     </span>

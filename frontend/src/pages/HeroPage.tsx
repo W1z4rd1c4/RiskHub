@@ -32,11 +32,11 @@ export function HeroPage() {
                     </div>
                 </div>
 
-                <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight text-white mb-6">
+                <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight text-foreground mb-6">
                     <BrandWordmark accentClassName="text-accent-text underline decoration-4 underline-offset-8" />
                 </h1>
 
-                <p className="text-xl md:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
                     {t('hero.tagline')}
                     {' '}{t('hero.subtitle')}
                 </p>
@@ -50,9 +50,9 @@ export function HeroPage() {
                         <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </button>
 
-                    <div className="flex items-center gap-6 mt-8 sm:mt-0 px-8 py-3 glass rounded-full text-sm font-medium text-slate-300">
+                    <div className="flex items-center gap-6 mt-8 sm:mt-0 px-8 py-3 glass rounded-full text-sm font-medium text-foreground">
                         <span className="flex items-center gap-2">
-                            <Lock className="h-4 w-4 text-emerald-400" />
+                            <Lock className="h-4 w-4 text-success-text" />
                             {t('hero.secure_access')}
                         </span>
                     </div>
@@ -67,26 +67,26 @@ export function HeroPage() {
                 className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl"
             >
                 <div className="glass-card flex flex-col items-center text-center">
-                    <Zap className="h-8 w-8 text-amber-400 mb-4" />
+                    <Zap className="h-8 w-8 text-warning-text mb-4" />
                     <h3 className="text-lg font-bold mb-2">{t('hero.feature_analytics_title')}</h3>
-                    <p className="text-sm text-slate-400">{t('hero.feature_analytics_desc')}</p>
+                    <p className="text-sm text-muted-foreground">{t('hero.feature_analytics_desc')}</p>
                 </div>
 
                 <div className="glass-card flex flex-col items-center text-center">
                     <BarChart3 className="h-8 w-8 text-accent mb-4" />
                     <h3 className="text-lg font-bold mb-2">{t('hero.feature_sii_title')}</h3>
-                    <p className="text-sm text-slate-400">{t('hero.feature_sii_desc')}</p>
+                    <p className="text-sm text-muted-foreground">{t('hero.feature_sii_desc')}</p>
                 </div>
 
                 <div className="glass-card flex flex-col items-center text-center">
-                    <Shield className="h-8 w-8 text-emerald-400 mb-4" />
+                    <Shield className="h-8 w-8 text-success-text mb-4" />
                     <h3 className="text-lg font-bold mb-2">{t('hero.feature_rbac_title')}</h3>
-                    <p className="text-sm text-slate-400">{t('hero.feature_rbac_desc')}</p>
+                    <p className="text-sm text-muted-foreground">{t('hero.feature_rbac_desc')}</p>
                 </div>
             </motion.div>
 
             {/* Footer Branding */}
-            <div className="absolute bottom-10 text-slate-500 text-xs tracking-widest uppercase font-bold">
+            <div className="absolute bottom-10 text-muted-foreground text-xs tracking-widest uppercase font-bold">
                 {t('hero.footer')}
             </div>
         </main>

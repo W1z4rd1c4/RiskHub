@@ -11,7 +11,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
     const { t, i18n } = useTranslation('admin');
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <div className="rounded-2xl border border-border bg-tint/5 p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <h4 className="admin-title text-base font-semibold">{t('health.scheduler.title')}</h4>
@@ -56,7 +56,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                                 <div key={job.run_id} className="admin-surface-muted rounded-lg px-3 py-2">
                                     <div className="flex items-center justify-between gap-3">
                                         <p className="admin-title text-sm font-medium">{job.job_name}</p>
-                                        <span className="text-xs text-sky-300">{job.status}</span>
+                                        <span className="text-xs text-accent-text">{job.status}</span>
                                     </div>
                                     <p className="admin-muted mt-1 text-xs">
                                         {formatDateTimeValue(job.started_at, i18n.language)}
@@ -83,7 +83,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                                         'text-xs',
                                         job.status === 'succeeded' && 'text-success-text',
                                         job.status === 'failed' && 'text-destructive',
-                                        job.status !== 'succeeded' && job.status !== 'failed' && 'text-slate-300',
+                                        job.status !== 'succeeded' && job.status !== 'failed' && 'text-foreground',
                                     )}>
                                         {job.status}
                                     </span>
@@ -93,7 +93,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                                     <span>{job.duration_ms ? `${job.duration_ms}ms` : 'n/a'}</span>
                                 </div>
                                 {job.error_message && (
-                                    <p className="mt-1 text-xs text-rose-300">{job.error_message}</p>
+                                    <p className="mt-1 text-xs text-destructive">{job.error_message}</p>
                                 )}
                             </div>
                         )) : <p className="admin-subtle text-sm">{t('health.scheduler.no_runs')}</p>}

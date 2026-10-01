@@ -105,13 +105,13 @@ export function ControlNewPage() {
             <div className="flex flex-col gap-2">
                 <button
                     onClick={() => navigate(isVendorContext ? returnTo! : controlListReturnTo)}
-                    className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-2"
+                    className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-2"
                 >
                     <ArrowLeft className="h-3 w-3" />
                     {isVendorContext ? t('vendors:links.actions.back_to_vendor') : `${t('common:actions.back')} ${t('controls:title')}`}
                 </button>
-                <h2 className="text-3xl font-black text-white tracking-tighter">{t('controls:new_control')}</h2>
-                <p className="text-slate-500 font-medium tracking-tight">{t('controls:page_subtitle')}</p>
+                <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('controls:new_control')}</h2>
+                <p className="text-muted-foreground font-medium tracking-tight">{t('controls:page_subtitle')}</p>
             </div>
 
             {gateState !== 'allowed' ? (

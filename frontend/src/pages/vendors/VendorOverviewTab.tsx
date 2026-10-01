@@ -270,7 +270,7 @@ export function VendorOverviewTab({
 
                     <div className="space-y-5">
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent-text text-xs font-bold">
                                 {ownerName[0] || 'U'}
                             </div>
                             <div>

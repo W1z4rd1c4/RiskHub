@@ -18,9 +18,9 @@ export function RiskAssessmentSection({ risk }: RiskAssessmentSectionProps) {
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
         >
-            <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
+            <div className="flex items-center gap-3 border-b border-border pb-4 mb-6">
                 <ShieldAlert className="h-5 w-5 text-accent" />
-                <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('scores_heading', { ns: 'risks' })}</h3>
+                <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('scores_heading', { ns: 'risks' })}</h3>
             </div>
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24 py-4">
@@ -31,8 +31,8 @@ export function RiskAssessmentSection({ risk }: RiskAssessmentSectionProps) {
                     size="medium"
                 />
 
-                <div className="hidden md:block w-px h-32 bg-white/10" />
-                <div className="md:hidden w-32 h-px bg-white/10" />
+                <div className="hidden md:block w-px h-32 bg-tint/10" />
+                <div className="md:hidden w-32 h-px bg-tint/10" />
 
                 <RiskScoreMatrix
                     probability={risk.net_probability}

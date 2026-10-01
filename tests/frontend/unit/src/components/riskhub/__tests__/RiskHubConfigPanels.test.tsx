@@ -317,16 +317,14 @@ describe('Risk Hub config panels', () => {
 
         await screen.findByText('Operational');
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.delete' }));
-        const modalTitle = await screen.findByText('confirmations.delete_risk_type');
-        const modal = modalTitle.closest('div');
-        expect(modal).not.toBeNull();
+        const modal = await screen.findByRole('alertdialog', { name: 'confirmations.delete_risk_type' });
 
         fireEvent.click(screen.getAllByRole('button', { name: 'common:actions.delete' }).at(-1)!);
 
         await waitFor(() => {
-            expect(within(modal as HTMLElement).getByText('errors.failed')).toBeInTheDocument();
+            expect(within(modal).getByText('errors.failed')).toBeInTheDocument();
         });
-        expect(within(modal as HTMLElement).getByText('confirmations.delete_risk_type')).toBeInTheDocument();
+        expect(within(modal).getByText('confirmations.delete_risk_type')).toBeInTheDocument();
     });
 
     it('keeps approval scenario modal open and shows an error when save fails', async () => {

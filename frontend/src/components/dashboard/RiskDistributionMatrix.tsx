@@ -48,7 +48,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             <div className="flex gap-2">
                 {/* Y-axis label */}
                 <div className="flex flex-col items-center justify-center mr-2">
-                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] -rotate-90 whitespace-nowrap">
+                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] -rotate-90 whitespace-nowrap">
                         {t('risk_distribution_matrix.axis.probability')}
                     </span>
                 </div>
@@ -61,12 +61,12 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                 const isClickable = count > 0 && !!onCellClick;
                                 const cellContent = count > 0 ? (
                                     <>
-                                        <span className="text-white font-black text-2xl leading-none">{count}</span>
-                                        <span className="text-[9px] text-white/70 font-bold uppercase mt-1">{t('risk_distribution_matrix.risks')}</span>
+                                        <span className="text-foreground font-black text-2xl leading-none">{count}</span>
+                                        <span className="text-[9px] text-foreground font-bold uppercase mt-1">{t('risk_distribution_matrix.risks')}</span>
                                     </>
                                 ) : null;
                                 const cellClassName = cn(
-                                    'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-white/10 backdrop-blur-xl transition-all duration-300',
+                                    'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-border backdrop-blur-xl transition-all duration-300',
                                     getCellClasses(p, i),
                                     count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95',
                                     isClickable && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent hover:opacity-80',
@@ -108,7 +108,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             </div>
 
             {/* X-axis label */}
-            <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-4">
+            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-4">
                 {t('risk_distribution_matrix.axis.impact')}
             </span>
 
@@ -116,19 +116,19 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             <div className="flex gap-4 mt-8">
                 <div className="flex items-center gap-2">
                     <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.low.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.low')}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.low')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.medium.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.medium')}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.medium')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.high.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.high')}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.high')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.critical.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.critical')}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.critical')}</span>
                 </div>
             </div>
 

@@ -8,19 +8,19 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
     return (
         <section className="space-y-4" data-testid="committee-dashboard">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                <h2 className="text-xl font-bold text-white">{presentation.title}</h2>
+                <h2 className="text-xl font-bold text-foreground">{presentation.title}</h2>
                 <div className="flex gap-4 text-sm font-semibold">
                     <Link
                         to={presentation.navigation.dqHref}
                         data-testid="committee-nav-dq"
-                        className="text-slate-400 hover:text-accent transition-colors"
+                        className="text-muted-foreground hover:text-accent-text transition-colors"
                     >
                         {presentation.navigation.dqLabel}
                     </Link>
                     <a
                         href={presentation.navigation.croHref}
                         data-testid="committee-nav-cro"
-                        className="text-slate-400 hover:text-accent transition-colors"
+                        className="text-muted-foreground hover:text-accent-text transition-colors"
                     >
                         {presentation.navigation.croLabel}
                     </a>
@@ -32,7 +32,7 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {presentation.stateTiles.map((tile) => (
-                    <Link key={tile.key} to={tile.href} className="glass-card block hover:bg-white/5 transition-colors">
+                    <Link key={tile.key} to={tile.href} className="glass-card block hover:bg-tint/5 transition-colors">
                         <div data-testid={`committee-state-${tile.key}`}>
                             <p className="text-muted-foreground text-xs font-medium min-h-8">{tile.label}</p>
                             <p className={`text-2xl font-bold mt-1 tabular-nums ${tile.countClass}`}>
@@ -62,27 +62,27 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
                             <tr
                                 key={metric.key}
                                 data-testid={`committee-metric-${metric.key}`}
-                                className="border-t border-white/5"
+                                className="border-t border-border"
                             >
-                                <td className="py-2.5 pr-3 text-slate-200 font-semibold">{metric.label}</td>
+                                <td className="py-2.5 pr-3 text-foreground font-semibold">{metric.label}</td>
                                 <td className="py-2.5 pr-3 text-right">
                                     <Link
                                         to={metric.href}
-                                        className={`text-lg font-bold tabular-nums hover:text-accent underline decoration-white/20 hover:decoration-accent ${metric.countClass}`}
+                                        className={`text-lg font-bold tabular-nums hover:text-accent-text underline decoration-tint/20 hover:decoration-accent ${metric.countClass}`}
                                     >
                                         {metric.value}
                                     </Link>
                                 </td>
-                                <td className="py-2.5 pr-3 text-slate-400">{metric.interpretation}</td>
+                                <td className="py-2.5 pr-3 text-muted-foreground">{metric.interpretation}</td>
                                 <td className="py-2.5 pr-3">
                                     <Link
                                         to={metric.href}
-                                        className="text-slate-400 hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                        className="text-muted-foreground hover:text-accent-text underline decoration-tint/20 hover:decoration-accent"
                                     >
                                         {metric.source}
                                     </Link>
                                 </td>
-                                <td className="py-2.5 text-slate-400">{metric.action}</td>
+                                <td className="py-2.5 text-muted-foreground">{metric.action}</td>
                             </tr>
                         ))}
                     </tbody>

@@ -105,7 +105,7 @@ export function PermissionMatrix({
                     : grouped[resource];
 
                 return (
-                    <div key={resource} className="grid md:grid-cols-[180px_1fr] items-center group hover:bg-white/[0.02] rounded-lg transition-colors py-1">
+                    <div key={resource} className="grid md:grid-cols-[180px_1fr] items-center group hover:bg-tint/[0.03] rounded-lg transition-colors py-1">
                         {/* Resource Identity */}
                         <div className="px-4 py-2 flex items-center gap-2.5">
                             <span className="text-base grayscale group-hover:grayscale-0 transition-[filter]">{config.icon}</span>

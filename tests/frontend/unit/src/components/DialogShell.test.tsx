@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogShell } from '@/components/ui/dialog';
 import { renderWithoutProviders, screen, userEvent, waitFor } from '@test/render';
 
 /**

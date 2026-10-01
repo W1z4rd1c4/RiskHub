@@ -195,8 +195,8 @@ export function ExecutionHistory({
 
     if (outcome.kind === 'initial-loading') {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-slate-500 gap-3" role="status">
-                <History className="h-8 w-8 animate-pulse text-slate-600" />
+            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-3" role="status">
+                <History className="h-8 w-8 animate-pulse text-muted-foreground" />
                 <p className="text-sm font-medium">{t('loading.history', { ns: 'common' })}</p>
             </div>
         );
@@ -204,8 +204,8 @@ export function ExecutionHistory({
 
     if (outcome.kind === 'denied') {
         return (
-            <div role="alert" className="flex flex-col items-center justify-center p-12 text-rose-200 border-2 border-dashed border-rose-500/20 rounded-2xl gap-3">
-                <AlertTriangle className="h-8 w-8 text-rose-400" />
+            <div role="alert" className="flex flex-col items-center justify-center p-12 text-destructive border-2 border-dashed border-destructive/20 rounded-2xl gap-3">
+                <AlertTriangle className="h-8 w-8 text-destructive" />
                 <p className="text-sm font-medium">{t('errors.history_access_denied', { ns: 'controls' })}</p>
             </div>
         );
@@ -221,15 +221,15 @@ export function ExecutionHistory({
         isRetrying = outcome.isRetrying;
     }
     const errorState = loadError ? (
-        <div role="alert" className="flex items-center gap-3 p-4 text-rose-200 border border-rose-500/20 bg-rose-500/5 rounded-2xl">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-rose-400" />
+        <div role="alert" className="flex items-center gap-3 p-4 text-destructive border border-destructive/20 bg-destructive/5 rounded-2xl">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
             <p className="text-sm font-medium">{loadError}</p>
             <button
                 type="button"
                 onClick={() => void retryExecutions()}
                 aria-busy={isRetrying}
                 aria-disabled={isRetrying}
-                className="ml-auto px-4 py-2 rounded-xl border border-rose-400/20 bg-rose-400/10 text-xs font-black uppercase tracking-widest text-rose-100 hover:bg-rose-400/20 transition-colors"
+                className="ml-auto px-4 py-2 rounded-xl border border-destructive/20 bg-destructive/10 text-xs font-black uppercase tracking-widest text-destructive hover:bg-destructive/20 transition-colors"
             >
                 {t('errors.try_again', { ns: 'controls' })}
             </button>
@@ -247,7 +247,7 @@ export function ExecutionHistory({
 
     if (outcome.kind === 'empty') {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-slate-600 border-2 border-dashed border-white/5 rounded-2xl gap-2">
+            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground border-2 border-dashed border-border rounded-2xl gap-2">
                 <History className="h-8 w-8 opacity-20" />
                 <p className="text-sm font-medium">{t('empty_state.no_executions', { ns: 'controls' })}</p>
                 <p className="text-xs">{t('executions.log_to_start')}</p>
@@ -287,8 +287,8 @@ export function ExecutionHistory({
                                                 <span className={`text-xs font-black uppercase tracking-widest ${config.iconClassName}`}>
                                                     {t(config.labelKey)}
                                                 </span>
-                                                <span className="text-slate-600">•</span>
-                                                <span className="text-xs font-bold text-white">
+                                                <span className="text-muted-foreground">•</span>
+                                                <span className="text-xs font-bold text-foreground">
                                                     {formatDateTimeValue(exe.executed_at, i18n.language)}
                                                 </span>
                                             </span>
@@ -299,7 +299,7 @@ export function ExecutionHistory({
                                                 </span>
                                                 {exe.next_scheduled && (
                                                     <>
-                                                        <span className="text-slate-700">|</span>
+                                                        <span className="text-muted-foreground">|</span>
                                                         <span className="flex items-center gap-1 text-accent-text">
                                                             <Calendar className="h-3 w-3" />
                                                             {t('executions.next')}: {formatDateValue(exe.next_scheduled, i18n.language)}
@@ -311,11 +311,11 @@ export function ExecutionHistory({
                                     </span>
                                     <span className="flex items-center gap-4 min-w-0">
                                         {exe.findings && !isExpanded && (
-                                            <span className="text-xs text-slate-400 line-clamp-1 max-w-[200px] hidden md:block italic">
+                                            <span className="text-xs text-muted-foreground line-clamp-1 max-w-[200px] hidden md:block italic">
                                                 "{exe.findings}"
                                             </span>
                                         )}
-                                        <span className="p-1.5 hover:bg-white/5 rounded-lg text-slate-500 transition-colors">
+                                        <span className="p-1.5 hover:bg-tint/5 rounded-lg text-muted-foreground transition-colors">
                                             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                         </span>
                                     </span>
@@ -324,7 +324,7 @@ export function ExecutionHistory({
                                     <button
                                         type="button"
                                         onClick={() => setIssueExecution(exe)}
-                                        className="shrink-0 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-xs font-black uppercase tracking-widest text-foreground hover:border-accent/50 hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                                        className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-tint/5 text-xs font-black uppercase tracking-widest text-foreground hover:border-accent/50 hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
                                     >
                                         <span className="inline-flex items-center gap-1.5">
                                             <PlusCircle className="h-3 w-3" />
@@ -335,16 +335,16 @@ export function ExecutionHistory({
                             </div>
 
                             {isExpanded && (
-                                <div id={`execution-details-${exe.id}`} className="px-14 pb-5 pt-2 border-t border-white/5 bg-white/[0.01]">
+                                <div id={`execution-details-${exe.id}`} className="px-14 pb-5 pt-2 border-t border-border bg-tint/[0.03]">
                                     <div className="grid md:grid-cols-2 gap-8 mt-2">
                                         {exe.findings && (
                                             <div className="space-y-2">
                                                 <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('executions.findings_evidence')}</h4>
-                                                <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                                                <p className="text-sm text-foreground leading-relaxed font-medium">
                                                     {exe.findings}
                                                 </p>
                                                 {exe.evidence_reference && (
-                                                    <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10 w-fit mt-3">
+                                                    <div className="flex items-center gap-2 p-2 rounded-lg bg-tint/5 border border-border w-fit mt-3">
                                                         <FileText className="h-3.5 w-3.5 text-accent" />
                                                         <span className="text-xs font-bold text-muted-foreground truncate max-w-[200px]">
                                                             {exe.evidence_reference}
@@ -356,7 +356,7 @@ export function ExecutionHistory({
                                         {exe.notes && (
                                             <div className="space-y-2">
                                                 <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('executions.additional_notes')}</h4>
-                                                <p className="text-sm text-slate-400 leading-relaxed italic">
+                                                <p className="text-sm text-muted-foreground leading-relaxed italic">
                                                     {exe.notes}
                                                 </p>
                                             </div>

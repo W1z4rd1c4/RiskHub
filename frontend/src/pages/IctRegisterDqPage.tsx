@@ -91,7 +91,7 @@ function ViolatingRows({
     const page = detail?.page;
     const showRows = !detail?.isLoading && !detail?.hasError;
     return (
-        <div className="mt-3 border-t border-white/10 pt-3 space-y-1.5">
+        <div className="mt-3 border-t border-tint/10 pt-3 space-y-1.5">
             {detail?.isLoading ? (
                 <p role="status" className="text-muted-foreground text-sm">
                     {t('rows_loading')}
@@ -146,7 +146,7 @@ function ViolatingRows({
                         type="button"
                         disabled={page.offset === 0 || detail?.isLoading}
                         onClick={() => onPage(Math.max(0, page.offset - page.limit))}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-40"
+                        className="px-3 py-1.5 rounded-lg bg-tint/5 disabled:opacity-40"
                     >
                         {t('actions.previous')}
                     </button>
@@ -161,7 +161,7 @@ function ViolatingRows({
                         type="button"
                         disabled={page.offset + page.limit >= page.total || detail?.isLoading}
                         onClick={() => onPage(page.offset + page.limit)}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-40"
+                        className="px-3 py-1.5 rounded-lg bg-tint/5 disabled:opacity-40"
                     >
                         {t('actions.next')}
                     </button>

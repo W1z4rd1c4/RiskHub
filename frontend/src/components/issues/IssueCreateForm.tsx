@@ -161,7 +161,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
     return (
         <section className={cn('space-y-6', className)}>
             {errorKey && (
-                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {translateUiMessage(t, errorKey)}
                 </div>
             )}
@@ -253,13 +253,13 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                 </div>
             </div>
 
-            <div className="mt-10 flex items-center justify-between border-t border-white/5 pt-6">
+            <div className="mt-10 flex items-center justify-between border-t border-border pt-6">
                 {onCancel ? (
                     <button
                         type="button"
                         onClick={onCancel}
                         disabled={isCreating}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <X className="h-4 w-4" />
                         {t('actions.cancel')}

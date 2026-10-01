@@ -27,7 +27,7 @@ function RoiTemplateReadiness({
     return (
         <>
             <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                <div className="flex-1 h-2 rounded-full bg-tint/5 overflow-hidden">
                     <motion.div
                         data-testid={`committee-roi-bar-${template.code}`}
                         className={`h-full rounded-full ${template.readinessBarClass}`}
@@ -36,7 +36,7 @@ function RoiTemplateReadiness({
                         transition={{ duration: 0 }}
                     />
                 </div>
-                <span className="text-white font-bold tabular-nums text-sm w-16 text-right">
+                <span className="text-foreground font-bold tabular-nums text-sm w-16 text-right">
                     {template.readinessLabel}
                 </span>
             </div>
@@ -49,7 +49,7 @@ function RoiTemplateReadiness({
                         aria-expanded={expanded}
                         aria-controls={`committee-roi-gaps-${template.code}`}
                         onClick={onToggle}
-                        className="text-slate-400 hover:text-accent font-bold underline decoration-white/20 hover:decoration-accent"
+                        className="text-muted-foreground hover:text-accent-text font-bold underline decoration-tint/20 hover:decoration-accent"
                     >
                         {expanded ? template.hideGapsLabel : template.showGapsLabel} ({template.gapCountLabel})
                     </button>
@@ -69,7 +69,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
             <div className="flex flex-col lg:flex-row lg:items-center gap-3">
                 <div className="lg:w-2/5">
                     <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-slate-400">{template.code}</span>
+                        <span className="font-mono text-xs font-bold text-muted-foreground">{template.code}</span>
                         <span
                             title={template.coverageHint}
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${template.coverageClass}`}
@@ -77,7 +77,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                             {template.coverageLabel}
                         </span>
                     </div>
-                    <p className={`font-semibold mt-0.5 ${template.documentary ? 'text-slate-400' : 'text-slate-200'}`}>
+                    <p className={`font-semibold mt-0.5 ${template.documentary ? 'text-muted-foreground' : 'text-foreground'}`}>
                         {template.name}
                     </p>
                     <p className="text-muted-foreground text-xs mt-0.5">{template.feedAndGate}</p>
@@ -94,7 +94,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                 <div
                     id={`committee-roi-gaps-${template.code}`}
                     data-testid={`committee-roi-gaps-${template.code}`}
-                    className="mt-3 space-y-2 border-t border-white/5 pt-3"
+                    className="mt-3 space-y-2 border-t border-border pt-3"
                 >
                     {template.truncatedLabel && (
                         <p className="text-muted-foreground text-xs italic">{template.truncatedLabel}</p>
@@ -105,12 +105,12 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                                 {row.href ? (
                                     <Link
                                         to={row.href}
-                                        className="text-slate-200 font-semibold hover:text-accent underline decoration-white/20 hover:decoration-accent"
+                                        className="text-foreground font-semibold hover:text-accent-text underline decoration-tint/20 hover:decoration-accent"
                                     >
                                         {row.label}
                                     </Link>
                                 ) : (
-                                    <span className="text-slate-300 font-semibold">{row.label}</span>
+                                    <span className="text-foreground font-semibold">{row.label}</span>
                                 )}
                             </div>
                             <div className="flex-1 flex flex-wrap items-center gap-1.5">
@@ -119,7 +119,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                                     <span
                                         key={missing.key}
                                         title={missing.title}
-                                        className="px-2 py-0.5 rounded-lg bg-white/5 text-slate-300 text-xs font-semibold font-mono whitespace-nowrap"
+                                        className="px-2 py-0.5 rounded-lg bg-tint/5 text-foreground text-xs font-semibold font-mono whitespace-nowrap"
                                     >
                                         {missing.label}
                                     </span>
@@ -137,20 +137,20 @@ export function IctCommitteeRoiReadinessSection({ presentation }: { presentation
     return (
         <section className="space-y-4" data-testid="committee-roi">
             <div>
-                <h2 className="text-xl font-bold text-white">{presentation.title}</h2>
+                <h2 className="text-xl font-bold text-foreground">{presentation.title}</h2>
                 <p className="text-muted-foreground text-sm font-medium mt-1">{presentation.subtitle}</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="glass-card" data-testid="committee-roi-overall">
                     <p className="text-muted-foreground text-xs font-bold min-h-8">{presentation.overallLabel}</p>
-                    <p className="text-3xl font-bold text-white mt-1 tabular-nums">{presentation.overallValue}</p>
+                    <p className="text-3xl font-bold text-foreground mt-1 tabular-nums">{presentation.overallValue}</p>
                 </div>
                 <div className="glass-card" data-testid="committee-roi-total-gaps">
                     <p className="text-muted-foreground text-xs font-bold min-h-8">{presentation.totalGapsLabel}</p>
-                    <p className="text-3xl font-bold text-white mt-1 tabular-nums">{presentation.totalGapsValue}</p>
+                    <p className="text-3xl font-bold text-foreground mt-1 tabular-nums">{presentation.totalGapsValue}</p>
                 </div>
             </div>
-            <div className="glass-card divide-y divide-white/5">
+            <div className="glass-card divide-y divide-border">
                 {presentation.templates.map((template) => (
                     <RoiTemplateRow key={template.code} template={template} />
                 ))}

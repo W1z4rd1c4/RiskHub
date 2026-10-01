@@ -120,7 +120,7 @@ export function RiskForm({
                 )}
 
                 {error && (
-                    <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
+                    <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
                         {translateUiMessage(t, error)}
                     </div>
@@ -176,7 +176,7 @@ export function RiskForm({
                 </fieldset>
 
                 {/* Footer Controls */}
-                <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
+                <div className="mt-12 flex justify-between items-center pt-8 border-t border-border">
                     <button
                         type="button"
                         aria-disabled={isSubmitting}
@@ -194,7 +194,7 @@ export function RiskForm({
                             }
                             prevStep();
                         }}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-white transition-colors uppercase tracking-widest"
+                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                         {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}

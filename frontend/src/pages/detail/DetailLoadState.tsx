@@ -31,7 +31,7 @@ export function DetailLoadUnavailableState({
             data-testid="detail-load-unavailable"
             role="alert"
         >
-            <div className="rounded-full bg-amber-500/15 p-4 text-amber-300">
+            <div className="rounded-full bg-warning/15 p-4 text-warning-text">
                 <AlertTriangle className="h-8 w-8" aria-hidden="true" />
             </div>
             <div>
@@ -58,12 +58,12 @@ export function DetailStaleWarning({ isRetrying = false, onRetry }: DetailStaleW
 
     return (
         <div
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-text"
             role="alert"
         >
             <div>
                 <p className="font-bold">{t('detail_load.stale_title')}</p>
-                <p className="text-amber-100/80">{t('detail_load.stale_description')}</p>
+                <p>{t('detail_load.stale_description')}</p>
             </div>
             <Button type="button" variant="secondary" onClick={onRetry} disabled={isRetrying}>
                 <RefreshCw className={cn('h-4 w-4', isRetrying && 'animate-spin')} aria-hidden="true" />

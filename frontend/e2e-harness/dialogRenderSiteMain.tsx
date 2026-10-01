@@ -161,7 +161,7 @@ function VendorLinkedOwner() {
       renderCard={(item) => <button key={item.id} type="button">{item.name}</button>}
       onNavigate={() => {}}
       icon={<span aria-hidden="true">K</span>}
-      headerColorClass="text-accent"
+      headerColorClass="text-foreground"
       i18nKeys={{
         tabTitle: 'links.kris.title',
         subtitle: 'links.kris.subtitle',

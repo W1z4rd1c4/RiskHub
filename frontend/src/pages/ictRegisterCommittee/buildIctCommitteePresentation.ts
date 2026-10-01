@@ -321,7 +321,7 @@ const ASSET_CRITICALITY_LABEL_KEYS: Readonly<Record<string, string>> = {
 const COVERAGE_BADGE_CLASSES: Record<string, string> = {
     full: 'bg-success text-success-foreground',
     partial: 'bg-warning text-warning-foreground',
-    documentary: 'bg-white/5 text-slate-400',
+    documentary: 'bg-tint/5 text-muted-foreground',
 };
 
 const SCALE_LOW: [number, number, number] = [0xff, 0xff, 0xff];
@@ -413,7 +413,7 @@ function blockingTone(value: number): PresentationTone {
 function countClass(tone: PresentationTone): string {
     if (tone === 'warning') return 'text-warning-text';
     if (tone === 'success') return 'text-success-text';
-    return 'text-white';
+    return 'text-foreground';
 }
 
 function styleFor(value: string | null, styles: Record<string, CellStyle>): CellStyle | null {
@@ -449,7 +449,7 @@ function normalizeLookupLabel(label: string | null, fallback: string): string {
 }
 
 function readinessBarClass(value: number | null): string {
-    if (value === null) return 'bg-slate-500';
+    if (value === null) return 'bg-muted-foreground';
     if (value >= 80) return 'bg-success';
     if (value >= 50) return 'bg-warning';
     return 'bg-destructive';
@@ -476,7 +476,7 @@ function buildNarratives(
         a38: { tolerance: values.tolerance },
     };
     return (Object.keys(params) as Array<keyof typeof params>).map((key) => ({
-        className: key === 'a38' ? 'text-slate-500 text-sm italic' : 'text-slate-300 text-sm',
+        className: key === 'a38' ? 'text-muted-foreground text-sm italic' : 'text-foreground text-sm',
         key,
         text: translate(`narratives.${key}`, params[key]),
     }));
@@ -491,7 +491,7 @@ function buildRoiTemplates(
     const useCzech = language.toLowerCase().startsWith('cs');
     return snapshot.roi_readiness.templates.map((template) => ({
         code: template.code,
-        coverageClass: COVERAGE_BADGE_CLASSES[template.coverage] ?? 'bg-white/5 text-slate-400',
+        coverageClass: COVERAGE_BADGE_CLASSES[template.coverage] ?? 'bg-tint/5 text-muted-foreground',
         coverageHint: translate(`roi.coverage_hint.${template.coverage}`),
         coverageLabel: translate(`roi.coverage.${template.coverage}`),
         documentary: template.coverage === 'documentary',

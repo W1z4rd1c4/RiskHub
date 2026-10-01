@@ -28,7 +28,7 @@ function LogConfigNumberInput({ label, hint, value, error, onChange }: LogConfig
                     type="number"
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
-                    className="border-white/10 bg-slate-900 text-white focus-visible:ring-accent"
+                    className="border-border bg-popover text-popover-foreground focus-visible:ring-accent"
                     min="1"
                     max="500"
                 />
@@ -208,16 +208,16 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
 
             <div className="mt-4 flex items-center justify-between">
                 <div className="space-y-1">
-                    <p className="text-xs text-amber-500/80 italic">
+                    <p className="text-xs text-warning-text italic">
                         {t('audit.note')}
                     </p>
                     {showSavedNotice && (
-                        <p className="text-xs text-emerald-400 font-medium">
+                        <p className="text-xs text-success-text font-medium">
                             {t('audit.settings_saved_notice')}
                         </p>
                     )}
                     {errorMessage && (
-                        <p className="text-xs text-rose-400 font-medium">
+                        <p className="text-xs text-destructive font-medium">
                             {errorMessage}
                         </p>
                     )}

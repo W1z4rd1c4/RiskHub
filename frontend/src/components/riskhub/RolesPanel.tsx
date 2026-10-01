@@ -15,13 +15,13 @@ export function RolesPanel() {
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.roles, 'can_create');
 
     if (rolesPanel.rolesLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.roles')}</div>;
+        return <div className="text-muted-foreground text-center py-8">{t('common:loading.roles')}</div>;
     }
 
     return (
         <div className="space-y-4">
             {rolesPanel.actionErrorKey && (
-                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                     <AlertCircle className="h-4 w-4" />
                     {t(rolesPanel.actionErrorKey, { ns: 'errorKeys' })}
                 </div>
@@ -30,16 +30,16 @@ export function RolesPanel() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Shield className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">{t('admin:roles_panel.title')}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{t('admin:roles_panel.title')}</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-400">
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
                         <input
                             type="checkbox"
                             checked={rolesPanel.showInactive}
                             onChange={(event) => rolesPanel.setShowInactive(event.target.checked)}
-                            className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
+                            className="rounded border-input bg-tint/5 accent-accent focus:ring-accent"
                         />
                         {t('admin:roles_panel.show_deleted')}
                     </label>

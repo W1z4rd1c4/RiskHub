@@ -15,10 +15,10 @@ interface AuditLogsTableProps {
 
 export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetails }: AuditLogsTableProps) {
     return (
-        <div className="overflow-x-auto border border-white/10 rounded-xl">
+        <div className="overflow-x-auto border border-border rounded-xl">
             <table className="w-full text-sm text-left">
                 <thead className="admin-table-head">
-                    <tr className="border-b border-white/10">
+                    <tr className="border-b border-border">
                         <th className="py-3 px-4 font-medium">{t('audit.columns.timestamp')}</th>
                         <th className="py-3 px-4 font-medium">{t('audit.columns.event')}</th>
                         <th className="py-3 px-4 font-medium">{t('audit.columns.user')}</th>
@@ -26,7 +26,7 @@ export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetai
                         <th className="py-3 px-4 font-medium text-right">{t('audit.columns.details')}</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-border">
                     {logs.length === 0 ? (
                         <tr>
                             <td colSpan={5} className="admin-subtle py-8 text-center">
@@ -35,7 +35,7 @@ export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetai
                         </tr>
                     ) : (
                         logs.map((log, index) => (
-                            <tr key={`${log.timestamp}-${index}`} className="hover:bg-white/5 transition-colors">
+                            <tr key={`${log.timestamp}-${index}`} className="hover:bg-tint/5 transition-colors">
                                 <td className="admin-muted whitespace-nowrap py-3 px-4">
                                     {log.timestamp ? formatDateTimeValue(log.timestamp, language) : t('common:fallbacks.not_available')}
                                 </td>
@@ -63,7 +63,7 @@ export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetai
                                         type="button"
                                         variant="link"
                                         size="compact"
-                                        className="text-accent"
+                                        className="text-accent-text"
                                         onClick={() => onViewDetails(log.extra || {})}
                                     >
                                         {t('audit.view')}

@@ -18,34 +18,34 @@ export function isQuestionnaireOverdue(item: RiskQuestionnaireListItem): boolean
 export function questionnaireStatusBadge(status: string, overdue: boolean, t: TranslateFn) {
     if (overdue) {
         return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-rose-500/10 border-rose-500/20 text-rose-400">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-destructive/10 border-destructive/20 text-destructive">
                 {t('risks:questionnaire.status.overdue')}
             </span>
         );
     }
     if (status === 'sent') {
         return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-amber-500/10 border-amber-500/20 text-amber-400">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-warning/10 border-warning/20 text-warning-text">
                 {t('risks:questionnaire.status.sent')}
             </span>
         );
     }
     if (status === 'in_progress') {
         return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent-text">
                 {t('risks:questionnaire.status.in_progress')}
             </span>
         );
     }
     if (status === 'submitted') {
         return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-success/10 border-success/20 text-success-text">
                 {t('risks:questionnaire.status.submitted')}
             </span>
         );
     }
     return (
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-white/5 border-white/10 text-slate-300">
+        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-tint/5 border-border text-foreground">
             {status}
         </span>
     );

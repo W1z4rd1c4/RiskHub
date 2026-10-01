@@ -1,9 +1,10 @@
-import { Building2, Check, Crown, Loader2, Shield, User, X } from 'lucide-react';
+import { Building2, Check, Crown, Loader2, Shield, User } from 'lucide-react';
 import { useId } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
+import { DialogFooter } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from '@/i18n/hooks';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { AccessUserRead, RoleWithPermissions } from '@/types/access';
 
@@ -18,25 +19,6 @@ function updateSelection(
     setSelection((current) => (current ? { ...current, ...patch } : current));
 }
 
-export function AccessEditModalHeader({ title, userName, onClose }: { title: string; userName: string; onClose: () => void }) {
-    const { t } = useTranslation('common');
-    return (
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-            <div>
-                <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
-                <p className="text-xs text-muted-foreground font-medium">{userName}</p>
-            </div>
-            <button
-                type="button"
-                onClick={onClose}
-                aria-label={t('actions.close')}
-                className="p-2 glass rounded-lg text-muted-foreground hover:text-white transition-colors"
-            >
-                <X className="h-5 w-5" />
-            </button>
-        </div>
-    );
-}
 
 export function AccessEditLoading({ label }: { label: string }) {
     return (
@@ -79,8 +61,8 @@ export function AccessEditRoleSection({
 }) {
     return (
         <div className="space-y-3">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Shield className="h-4 w-4 text-purple-400" />
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <Shield className="h-4 w-4 text-chart-2" />
                 {t('common:labels.role')}
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -89,11 +71,11 @@ export function AccessEditRoleSection({
                         key={role.id}
                         onClick={() => updateSelection(setSelection, { roleId: role.id })}
                         className={`p-3 rounded-xl border text-left transition-all ${selectedRoleId === role.id
-                            ? 'bg-purple-500/10 border-purple-500'
-                            : 'bg-white/5 border-white/5 hover:bg-white/10'
+                            ? 'bg-accent/10 border-accent'
+                            : 'bg-tint/5 border-border hover:bg-tint/10'
                             }`}
                     >
-                        <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-purple-400' : 'text-white'}`}>
+                        <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-accent-text' : 'text-foreground'}`}>
                             {role.display_name}
                         </p>
                         <p className="text-[10px] text-muted-foreground">{t('access.modal.permissions_count', { ns: 'admin', count: role.permissions.length })}</p>
@@ -120,8 +102,8 @@ export function AccessEditBusinessSections({
     return (
         <>
             <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-blue-400" />
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-accent-text" />
                     {t('common:labels.department')}
                 </label>
                 <ThemedSelect
@@ -136,8 +118,8 @@ export function AccessEditBusinessSections({
             </div>
 
             <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <User className="h-4 w-4 text-emerald-400" />
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <User className="h-4 w-4 text-success-text" />
                     {t('access.modal.reports_to', { ns: 'admin' })}
                 </label>
                 <ThemedSelect
@@ -152,8 +134,8 @@ export function AccessEditBusinessSections({
             </div>
 
             <div className="space-y-3">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Crown className="h-4 w-4 text-amber-400" />
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-warning-text" />
                     {t('access.access_scope', { ns: 'admin' })}
                 </label>
                 <div className="space-y-2">
@@ -162,16 +144,16 @@ export function AccessEditBusinessSections({
                             key={option.value}
                             onClick={() => updateSelection(setSelection, { scope: option.value })}
                             className={`w-full p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${selection.scope === option.value
-                                ? 'bg-amber-500/10 border-amber-500'
-                                : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                ? 'bg-warning/10 border-warning'
+                                : 'bg-tint/5 border-border hover:bg-tint/10'
                                 }`}
                         >
-                            <div className={`w-6 h-6 rounded flex items-center justify-center ${selection.scope === option.value ? 'bg-amber-500 text-white' : 'bg-white/10 text-slate-600'
+                            <div className={`w-6 h-6 rounded flex items-center justify-center ${selection.scope === option.value ? 'bg-warning text-warning-foreground' : 'bg-tint/10 text-muted-foreground'
                                 }`}>
                                 {selection.scope === option.value && <Check className="h-4 w-4" />}
                             </div>
                             <div>
-                                <p className={`text-sm font-bold ${selection.scope === option.value ? 'text-amber-400' : 'text-white'}`}>
+                                <p className={`text-sm font-bold ${selection.scope === option.value ? 'text-warning-text' : 'text-foreground'}`}>
                                     {t(option.labelKey)}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground">{t(option.descriptionKey)}</p>
@@ -204,46 +186,32 @@ export function AccessEditFooter({
     t: Translate;
 }) {
     return (
-        <div className="p-6 border-t border-white/5 bg-white/5">
+        <>
             {errorKey && (
-                <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-bold uppercase tracking-wider">
-                    {errorMessage ?? t(errorKey, { ns: 'errorKeys' })}
+                <div className="px-6 pb-4">
+                    <InlineMessage tone="danger">
+                        {errorMessage ?? t(errorKey, { ns: 'errorKeys' })}
+                    </InlineMessage>
                 </div>
             )}
-
-            <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-2">
-                    {hasChanges ? (
-                        <>
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            {t('access.modal.unsaved_changes', { ns: 'admin' })}
-                        </>
-                    ) : (
-                        <>
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                            {t('access.modal.no_changes', { ns: 'admin' })}
-                        </>
-                    )}
-                </span>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={onClose}
-                        disabled={isSubmitting}
-                        className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
-                    >
-                        {t('actions.cancel', { ns: 'common' })}
-                    </button>
-                    <button
-                        onClick={onSubmit}
-                        disabled={!hasChanges || isSubmitting || !isInitialized}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-accent-foreground text-xs font-black uppercase tracking-widest rounded-xl hover:bg-accent-hover transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg active:scale-95"
-                    >
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        {isSubmitting ? t('loading.generic', { ns: 'common' }) : t('actions.save', { ns: 'common' })}
-                    </button>
-                </div>
-            </div>
-        </div>
+            <DialogFooter
+                extra={(
+                    <span className="text-eyebrow flex items-center gap-2">
+                        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${hasChanges ? 'bg-warning' : 'bg-muted-foreground'}`} />
+                        {hasChanges
+                            ? t('access.modal.unsaved_changes', { ns: 'admin' })
+                            : t('access.modal.no_changes', { ns: 'admin' })}
+                    </span>
+                )}
+                onCancel={onClose}
+                cancelLabel={t('actions.cancel', { ns: 'common' })}
+                submitLabel={isSubmitting ? t('loading.generic', { ns: 'common' }) : t('actions.save', { ns: 'common' })}
+                submitIcon={<Check aria-hidden="true" />}
+                onSubmit={onSubmit}
+                submitDisabled={!hasChanges || !isInitialized}
+                isSubmitting={isSubmitting}
+            />
+        </>
     );
 }
 

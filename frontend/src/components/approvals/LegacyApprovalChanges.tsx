@@ -314,7 +314,7 @@ export function LegacyApprovalChanges({
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
         >
             {isKriHistory && (
-                <div className="bg-black/20 rounded-lg p-3 border border-white/5 md:col-span-2">
+                <div className="bg-nested rounded-lg p-3 border border-border md:col-span-2">
                     {validKriHistory ? (
                         <>
                             <h5 className="text-xs text-accent-text font-bold uppercase mb-2">
@@ -369,7 +369,7 @@ export function LegacyApprovalChanges({
                 const spec = LEGACY_FIELDS_BY_RESOURCE[resourceType]?.[field];
                 if (!spec || !isPendingChange(change)) {
                     return (
-                        <div key={field} className="bg-black/20 rounded-lg p-3 border border-white/5">
+                        <div key={field} className="bg-nested rounded-lg p-3 border border-border">
                             <span className="text-xs font-bold text-muted-foreground">
                                 {t('legacy.restricted_change')}
                             </span>
@@ -380,7 +380,7 @@ export function LegacyApprovalChanges({
                 const before = formatValue(change.old, spec);
                 const after = formatValue(change.new, spec);
                 return (
-                    <div key={field} className="bg-black/20 rounded-lg p-3 border border-white/5">
+                    <div key={field} className="bg-nested rounded-lg p-3 border border-border">
                         <span className="block text-xs text-accent-text font-bold uppercase mb-1">
                             {t(spec.labelKey)}
                         </span>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { motion } from 'framer-motion';
-import { X, ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Activity, Database, FileText, Calendar, Workflow } from 'lucide-react';
-import { DialogShell } from '@/components/DialogShell';
+import { ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Activity, Database, FileText, Calendar, Workflow } from 'lucide-react';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import { threatApi } from '@/services/threatApi';
@@ -130,15 +130,16 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
     };
     const Icon = typeIcons[orphan.item_type as keyof typeof typeIcons] || AlertTriangle;
 
-    const typeColors = {
-        risk: 'text-rose-400 bg-rose-500/10',
-        control: 'text-accent bg-accent/10',
-        kri: 'text-amber-400 bg-amber-500/10',
-        threat: 'text-teal-400 bg-teal-500/10',
-        process: 'text-sky-400 bg-sky-500/10',
-        asset: 'text-violet-400 bg-violet-500/10',
+    // Hue on the icon tile only; the type label stays text-foreground (AA in every theme).
+    const typeTones = {
+        risk: { icon: 'text-destructive', tile: 'bg-destructive/10' },
+        control: { icon: 'text-accent', tile: 'bg-accent/10' },
+        kri: { icon: 'text-warning-text', tile: 'bg-warning/10' },
+        threat: { icon: 'text-chart-3', tile: 'bg-chart-3/10' },
+        process: { icon: 'text-accent-text', tile: 'bg-info/10' },
+        asset: { icon: 'text-chart-2', tile: 'bg-chart-2/10' },
     };
-    const colorClass = typeColors[orphan.item_type as keyof typeof typeColors] || 'text-slate-400 bg-slate-400/10';
+    const typeTone = typeTones[orphan.item_type as keyof typeof typeTones] || { icon: 'text-muted-foreground', tile: 'bg-muted' };
 
     return (
         <DialogShell
@@ -146,35 +147,21 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
             onClose={handleClose}
             titleId={titleId}
             descriptionIds={[descriptionId]}
-            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            contentClassName="glass-card !p-0 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
+            size="lg"
         >
-            {/* Header Section - Same as Resolve Modal */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-                <div>
-                    <h3 id={titleId} className="text-xl font-bold text-white tracking-tight">
-                        {t('governance.quick_view.title')}
-                    </h3>
-                    <p id={descriptionId} className="text-xs text-slate-500 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[300px]">
-                        {orphan.item_name}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={handleClose}
-                    aria-label={t('common:actions.close')}
-                    className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
-                >
-                    <X className="h-5 w-5" />
-                </button>
-            </div>
+            <DialogHeader
+                title={t('governance.quick_view.title')}
+                description={<span className="block truncate">{orphan.item_name}</span>}
+                descriptionId={descriptionId}
+                closeLabel={t('common:actions.close')}
+            />
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <DialogBody className="custom-scrollbar">
                 {!isInitialized ? (
                     <div className="py-20 flex flex-col items-center justify-center gap-4">
                         <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                             {t('governance.quick_view.initializing')}
                         </p>
                     </div>
@@ -186,27 +173,27 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                         className="space-y-6"
                     >
                         {/* Item Detail Summary Bubble - Replicated from Resolve Modal */}
-                        <div className="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-5">
-                            <div className={`p-3 rounded-xl ${colorClass.split(' ')[1]} border border-white/5 shrink-0`}>
-                                <Icon className={`h-6 w-6 ${colorClass.split(' ')[0]}`} />
+                        <div className="p-5 rounded-2xl bg-tint/5 border border-border flex items-start gap-5">
+                            <div className={`p-3 rounded-xl ${typeTone.tile} border border-border shrink-0`}>
+                                <Icon aria-hidden="true" className={`h-6 w-6 ${typeTone.icon}`} />
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${colorClass}`}>
+                                    <span className={`text-eyebrow px-2 py-0.5 rounded-md text-foreground ${typeTone.tile}`}>
                                         {typeLabels[orphan.item_type as keyof typeof typeLabels] || orphan.item_type}
                                     </span>
                                 </div>
-                                <h4 className="text-lg font-bold text-white mb-3 truncate">
+                                <h4 className="text-lg font-bold text-foreground mb-3 truncate">
                                     {orphan.item_name}
                                 </h4>
                                 <div className="flex items-center gap-6">
                                     <div className="flex items-center gap-2">
-                                        <User className="h-3.5 w-3.5 text-slate-500" />
-                                        <span className="text-xs text-slate-400 font-medium">{orphan.previous_owner_name}</span>
+                                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground font-medium">{orphan.previous_owner_name}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                                        <span className="text-xs text-slate-400 font-medium">
+                                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground font-medium">
                                             {formatRelativeDateValue(orphan.orphaned_at, i18n.language)}
                                         </span>
                                     </div>
@@ -216,12 +203,12 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
 
                         {/* Detailed Description Panel */}
                         <div className="space-y-3">
-                            <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <h5 className="text-eyebrow flex items-center gap-2">
                                 <FileText className="h-3.5 w-3.5" />
                                 {t('governance.quick_view.business_analysis')}
                             </h5>
-                            <div className="p-5 rounded-2xl bg-white/5 border border-white/5 bg-black/20">
-                                <p className="text-sm text-slate-300 leading-relaxed font-medium">
+                            <div className="p-5 rounded-2xl bg-tint/5 border border-border">
+                                <p className="text-sm text-foreground leading-relaxed font-medium">
                                     {itemDetails?.description || orphan.item_name}
                                 </p>
                             </div>
@@ -231,25 +218,25 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                         <div className="grid grid-cols-2 gap-4">
                             {orphan.item_type === 'control' && itemDetails && (
                                 <>
-                                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Activity className="h-3.5 w-3.5 text-accent" />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                            <p className="text-eyebrow">
                                                 {t('governance.quick_view.methodology')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-white capitalize">
+                                        <p className="text-sm font-bold text-foreground capitalize">
                                             {itemDetails.control_form || t('governance.quick_view.defaults.manual')}
                                         </p>
                                     </div>
-                                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Target className="h-3.5 w-3.5 text-accent" />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                            <p className="text-eyebrow">
                                                 {t('governance.quick_view.frequency')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-white capitalize">
+                                        <p className="text-sm font-bold text-foreground capitalize">
                                             {itemDetails.frequency || t('governance.quick_view.defaults.periodic')}
                                         </p>
                                     </div>
@@ -257,25 +244,25 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                             )}
                             {orphan.item_type === 'risk' && itemDetails && (
                                 <>
-                                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Activity className="h-3.5 w-3.5 text-rose-400" />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                            <Activity className="h-3.5 w-3.5 text-destructive" />
+                                            <p className="text-eyebrow">
                                                 {t('governance.quick_view.rating')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-white capitalize">
+                                        <p className="text-sm font-bold text-foreground capitalize">
                                             {itemDetails.status || t('governance.quick_view.defaults.active')}
                                         </p>
                                     </div>
-                                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Target className="h-3.5 w-3.5 text-rose-400" />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                            <Target className="h-3.5 w-3.5 text-destructive" />
+                                            <p className="text-eyebrow">
                                                 {t('governance.quick_view.category')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-white truncate">
+                                        <p className="text-sm font-bold text-foreground truncate">
                                             {itemDetails.category || t('governance.quick_view.defaults.strategic')}
                                         </p>
                                     </div>
@@ -284,21 +271,17 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                         </div>
                     </motion.div>
                 )}
-            </div>
+            </DialogBody>
 
-            {/* Footer Section */}
-            <div className="p-6 border-t border-white/5 bg-white/5 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
-                    {t('governance.quick_view.audit_view')}
-                </span>
-                <button
-                    onClick={handleClose}
-                    className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 active:scale-95 shadow-sm"
-                >
-                    {t('governance.quick_view.close_preview')}
-                </button>
-            </div>
+            <DialogFooter
+                cancelLabel={t('governance.quick_view.close_preview')}
+                extra={(
+                    <span className="text-eyebrow flex items-center gap-2">
+                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                        {t('governance.quick_view.audit_view')}
+                    </span>
+                )}
+            />
         </DialogShell>
     );
 }

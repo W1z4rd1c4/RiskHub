@@ -30,7 +30,7 @@ export function MetricGaugeSvg({
     valuePct,
     pointerClassName,
     className,
-    trackClassName = 'fill-current text-white/5',
+    trackClassName = 'fill-current text-tint/5',
     zones = [],
     markers = [],
 }: MetricGaugeSvgProps) {
@@ -63,7 +63,7 @@ export function MetricGaugeSvg({
                         x2={clampPercent(marker.positionPct)}
                         y1="4"
                         y2="12"
-                        className={cn('stroke-current', marker.className ?? 'text-white/20')}
+                        className={cn('stroke-current', marker.className ?? 'text-tint/20')}
                         strokeWidth="0.75"
                     />
                 </g>

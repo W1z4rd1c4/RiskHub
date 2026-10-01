@@ -53,8 +53,8 @@ export function RiskEditPage() {
                     <Edit className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter">{t('risks:edit_risk')}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
+                    <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('risks:edit_risk')}</h2>
+                    <p className="text-muted-foreground font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
                         {t('risks:title')} / {t('common:actions.edit')}
                     </p>
                 </div>

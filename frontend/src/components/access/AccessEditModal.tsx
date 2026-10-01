@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 
 import { NativeUserLifecyclePanel } from '@/pages/users/NativeUserLifecyclePanel';
 import { getSessionOwnershipSnapshot, isSessionOwnershipCurrent } from '@/services/session';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient, ApiClientError } from '@/services/apiClient';
 import { accessApi } from '@/services/accessApi';
@@ -24,7 +24,6 @@ import {
     AccessEditFooter,
     AccessEditFormSections,
     AccessEditLoading,
-    AccessEditModalHeader,
 } from './AccessEditModalSections';
 import { useAccessEditModalState } from './useAccessEditModalState';
 
@@ -120,25 +119,18 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
         <DialogShell
             isOpen={isOpen}
             onClose={close}
-            closeDisabled={busy}
+            isBusy={busy}
             titleId={titleId}
-            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="glass-card !p-0 w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
+            size="md"
+            className="max-w-lg"
         >
-            {/*
-              The visible title is rendered inside AccessEditModalHeader (a shared
-              subcomponent we don't own here), so it can't carry the id DialogShell
-              needs for aria-labelledby. This visually-hidden heading provides the
-              dialog's accessible name using the same i18n key.
-            */}
-            <h2 id={titleId} className="sr-only">{t('access.modal.title', { ns: 'admin' })}</h2>
-            <AccessEditModalHeader
+            <DialogHeader
                 title={t('access.modal.title', { ns: 'admin' })}
-                userName={user.name}
-                onClose={close}
+                description={user.name}
+                closeLabel={t('actions.close')}
             />
 
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <DialogBody className="custom-scrollbar space-y-0">
                 {!isInitialized || !selection ? (
                     <AccessEditLoading label={t('loading.generic')} />
                 ) : (
@@ -161,7 +153,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
                     </motion.div>
                 )}
                 {isOpen && nativeLifecycle && <NativeUserLifecyclePanel key={user.id} user={user} onBusy={setLifecycleBusy} blocked={isSubmitting} unresolved={unknownOutcome || lifecycleUnknown} onUnknown={setLifecycleUnknown} onCommitted={onSaved} onRefresh={onRefresh} />}
-            </div>
+            </DialogBody>
 
             {unknownOutcome && <p role="alert" className="p-4">{t('native_users.unknown_action', { ns: 'admin' })}</p>}
             <AccessEditFooter

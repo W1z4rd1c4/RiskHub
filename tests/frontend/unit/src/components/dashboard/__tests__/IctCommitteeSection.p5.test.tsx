@@ -146,23 +146,23 @@ describe('IctCommitteeSection — blocking-count priority (FR-P5-6 / S1)', () =>
         const noGap = screen.getByTestId('committee-state-assets_without_data_classification_count');
         expect(within(noGap).getByText('0').className).toContain('text-success-text');
 
-        // A pure inventory count keeps the neutral white treatment.
+        // A pure inventory count keeps the neutral foreground treatment.
         const processes = screen.getByTestId('committee-state-process_count');
-        expect(within(processes).getByText('148').className).toContain('text-white');
+        expect(within(processes).getByText('148').className).toContain('text-foreground');
 
-        // Key-metrics table: blocking metric warning-token amber, inventory metric white.
+        // Key-metrics table: blocking metric warning-token amber, inventory metric foreground.
         const toleranceMetric = screen.getByTestId('committee-metric-risks_above_tolerance_count');
         expect(within(toleranceMetric).getByText('4').className).toContain('text-warning-text');
         const cifMetric = screen.getByTestId('committee-metric-cif_process_count');
-        expect(within(cifMetric).getByText('79').className).toContain('text-white');
+        expect(within(cifMetric).getByText('79').className).toContain('text-foreground');
 
-        // CRO KPI strip: blocking KPI warning (> 0) / success-text (= 0), inventory white.
+        // CRO KPI strip: blocking KPI warning (> 0) / success-text (= 0), inventory foreground.
         const openDq = screen.getByTestId('committee-kpi-open_dq_finding_count');
         expect(within(openDq).getByText('23').className).toContain('text-warning-text');
         const accepted = screen.getByTestId('committee-kpi-accepted_above_tolerance_count');
         expect(within(accepted).getByText('0').className).toContain('text-success-text');
         const riskCount = screen.getByTestId('committee-kpi-risk_count');
-        expect(within(riskCount).getByText('8').className).toContain('text-white');
+        expect(within(riskCount).getByText('8').className).toContain('text-foreground');
     });
 });
 

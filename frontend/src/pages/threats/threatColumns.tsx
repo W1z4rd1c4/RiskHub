@@ -31,7 +31,7 @@ export function buildThreatColumns({
             className: 'w-[300px] min-w-[220px]',
             render: (threat) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">{threat.name}</span>
+                    <span className="text-sm font-bold text-foreground">{threat.name}</span>
                     {threat.description ? (
                         // P9 (FR-P5-4): truncated cell exposes the full value on
                         // hover via `title`, with `cursor-help` as the hover cue.
@@ -107,7 +107,7 @@ export function buildThreatColumns({
                             {t(`threats:status.${status}`)}
                         </span>
                         {threat.stewardship_status === 'pending_governance' ? (
-                            <span className="inline-flex items-center rounded-full bg-amber-400/10 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                            <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-bold text-warning-text">
                                 {t('threats:status.pending_governance')}
                             </span>
                         ) : null}
@@ -116,7 +116,7 @@ export function buildThreatColumns({
                                 type="button"
                                 data-testid={`threat-restore-${threat.id}`}
                                 onClick={(event) => void onRestore(threat.id, event)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-tint/10 transition-colors"
                                 aria-label={t('threats:actions.restore')}
                                 title={t('threats:actions.restore')}
                             >

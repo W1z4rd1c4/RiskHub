@@ -5,7 +5,10 @@ import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
     getPermissionLabel,
     getPermissionResourceLabel,
@@ -96,88 +99,76 @@ export function RoleModal({
     }
 
     return (
-        <DialogShell
-            isOpen={isOpen}
-            onClose={onClose}
-            titleId={titleId}
-            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
-        >
-                <h2 id={titleId} className="text-xl font-bold text-white mb-4">
-                    {role ? t('admin:roles_panel.modal.edit_title') : t('admin:roles_panel.modal.new_title')}
-                </h2>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
+        <DialogShell isOpen={isOpen} onClose={onClose} titleId={titleId} size="lg" isBusy={saving}>
+            <DialogHeader title={role ? t('admin:roles_panel.modal.edit_title') : t('admin:roles_panel.modal.new_title')} />
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <DialogBody className="custom-scrollbar space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {!role && (
-                            <div>
-                                <label htmlFor="role-name" className="block">
-                                    <span className="block text-sm font-medium text-slate-300 mb-1">
-                                        {t('admin:roles_panel.modal.fields.role_identifier')}
-                                    </span>
-                                    <input
-                                        id="role-name"
+                            <Field
+                                id="role-name"
+                                label={t('admin:roles_panel.modal.fields.role_identifier')}
+                                help={t('admin:roles_panel.modal.hints.role_identifier')}
+                                required
+                            >
+                                {(field) => (
+                                    <Input
+                                        {...field}
                                         type="text"
                                         value={name}
                                         onChange={(event) => setName(normalizeRoleIdentifier(event.target.value))}
-                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
+                                        className="font-mono"
                                         placeholder={t('admin:roles_panel.modal.placeholders.role_identifier')}
                                         required
                                     />
-                                </label>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    {t('admin:roles_panel.modal.hints.role_identifier')}
-                                </p>
-                            </div>
+                                )}
+                            </Field>
                         )}
 
-                        <div className={cn(!role ? '' : 'md:col-span-2')}>
-                            <label htmlFor="role-display-name" className="block">
-                                <span className="block text-sm font-medium text-slate-300 mb-1">
-                                    {t('admin:roles_panel.modal.fields.display_name')}
-                                </span>
-                                <input
-                                    id="role-display-name"
+                        <Field
+                            id="role-display-name"
+                            label={t('admin:roles_panel.modal.fields.display_name')}
+                            required
+                            className={cn(!role ? '' : 'md:col-span-2')}
+                        >
+                            {(field) => (
+                                <Input
+                                    {...field}
                                     type="text"
                                     value={displayName}
                                     onChange={(event) => setDisplayName(event.target.value)}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
                                     placeholder={t('admin:roles_panel.modal.placeholders.display_name')}
                                     required
                                 />
-                            </label>
-                        </div>
+                            )}
+                        </Field>
                     </div>
 
-                    <div>
-                        <label htmlFor="role-description" className="block">
-                            <span className="block text-sm font-medium text-slate-300 mb-1">
-                                {t('common:labels.description')}
-                            </span>
-                            <textarea
-                                id="role-description"
+                    <Field id="role-description" label={t('common:labels.description')}>
+                        {(field) => (
+                            <Textarea
+                                {...field}
                                 value={description}
                                 onChange={(event) => setDescription(event.target.value)}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
                                 placeholder={t('admin:roles_panel.modal.placeholders.description')}
                                 rows={2}
                             />
-                        </label>
-                    </div>
+                        )}
+                    </Field>
 
                     <div>
-                        <span className="block text-sm font-medium text-slate-300 mb-3">
+                        <span className="block text-sm font-medium text-foreground mb-3">
                             {t('admin:roles_panel.modal.fields.permissions')}
                         </span>
                         {permissionsLoading ? (
-                            <div className="text-slate-400 text-sm py-4 text-center">
+                            <div className="text-muted-foreground text-sm py-4 text-center">
                                 {t('admin:roles_panel.modal.loading_permissions')}
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
                                 {Object.entries(permissionsByResource).map(([resource, permissions]) => (
-                                    <div key={resource} className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                        <h4 className="text-xs font-bold text-accent uppercase mb-2 tracking-wider">
+                                    <div key={resource} className="bg-tint/5 rounded-lg p-3 border border-border">
+                                        <h4 className="text-xs font-bold text-accent-text uppercase mb-2 tracking-wider">
                                             {getPermissionResourceLabel(resource, t)}
                                         </h4>
                                         <div className="space-y-2">
@@ -192,10 +183,10 @@ export function RoleModal({
                                                             aria-label={permissionLabel}
                                                             checked={selectedPermissionIds.includes(permission.id)}
                                                             onChange={() => togglePermission(permission.id)}
-                                                            className="mt-0.5 rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
+                                                            className="mt-0.5 rounded border-tint/20 bg-tint/5 text-accent focus:ring-accent"
                                                         />
                                                         <div>
-                                                            <span className="block text-sm text-slate-200 group-hover:text-white transition-colors">
+                                                            <span className="block text-sm text-foreground">
                                                                 {permissionLabel}
                                                             </span>
                                                         </div>
@@ -208,8 +199,8 @@ export function RoleModal({
                             </div>
                         )}
                         {!permissionsLoading && allPermissions.length > 0 && (
-                            <details className="mt-3 border-t border-white/10 pt-3 text-xs text-slate-400">
-                                <summary className="cursor-pointer font-medium text-slate-300">
+                            <details className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                                <summary className="cursor-pointer font-medium text-foreground">
                                     {t('permissions.technical_details', { ns: 'settings' })}
                                 </summary>
                                 <ul className="mt-2 space-y-1">
@@ -223,29 +214,21 @@ export function RoleModal({
                     </div>
 
                     {errorKey && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                            <AlertCircle className="h-4 w-4" />
+                        <div className="flex items-center gap-2 text-destructive text-sm">
+                            <AlertCircle className="h-4 w-4" aria-hidden="true" />
                             {t(errorKey, { ns: 'errorKeys' })}
                         </div>
                     )}
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                        >
-                            {t('common:actions.cancel')}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={saving || permissionsLoading}
-                            className="px-4 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                        >
-                            {saving ? t('admin:roles_panel.modal.saving') : t('admin:roles_panel.modal.save_role')}
-                        </button>
-                    </div>
-                </form>
+                </DialogBody>
+                <DialogFooter
+                    onCancel={onClose}
+                    cancelLabel={t('common:actions.cancel')}
+                    submitType="submit"
+                    submitDisabled={permissionsLoading}
+                    isSubmitting={saving}
+                    submitLabel={saving ? t('admin:roles_panel.modal.saving') : t('admin:roles_panel.modal.save_role')}
+                />
+            </form>
         </DialogShell>
     );
 }

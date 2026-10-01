@@ -20,16 +20,16 @@ export function ApprovalQueuedBanner({
         <div
             data-testid="approval-queued-banner"
             role="status"
-            className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2"
+            className="mb-6 p-4 bg-warning/10 border border-warning/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2"
         >
-            <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <Clock className="h-5 w-5 text-warning-text flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-                <p className="text-amber-200 text-sm font-medium">{title}</p>
-                <p className="text-amber-400/80 text-xs mt-1">{message}</p>
+                <p className="text-warning-text text-sm font-medium">{title}</p>
+                <p className="text-warning-text text-xs mt-1">{message}</p>
                 <div className="mt-3 flex gap-3">
                     <Link
                         to="/approvals"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-warning-text transition-colors"
                     >
                         <CheckCircle className="h-3.5 w-3.5" />
                         {viewApprovalsLabel}
@@ -37,7 +37,7 @@ export function ApprovalQueuedBanner({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
                         {closeLabel}
                     </button>

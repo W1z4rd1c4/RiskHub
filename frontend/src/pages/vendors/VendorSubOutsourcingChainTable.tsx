@@ -94,7 +94,7 @@ export function VendorSubOutsourcingChainTable({ groups, columns }: VendorSubOut
                                         </th>
                                     </tr>
                                 </tbody>
-                                <tbody id={panelId} className="divide-y divide-white/5 border-b border-border">
+                                <tbody id={panelId} className="divide-y divide-border border-b border-border">
                                     {isExpanded
                                         ? group.rows.map((row, index) => (
                                               <tr

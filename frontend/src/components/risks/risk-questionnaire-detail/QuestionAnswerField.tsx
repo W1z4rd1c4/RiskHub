@@ -1,6 +1,8 @@
 import { useId } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 
@@ -61,16 +63,16 @@ export function QuestionAnswerField({
         return (
             <div className={cn('space-y-1', spanFullWidth && 'md:col-span-2')}>
                 <QuestionLabel changed={changed} label={label} missing={missing} required={question.required} t={t} />
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white">
+                <div className="p-3 rounded-xl bg-tint/5 border border-border text-sm text-foreground">
                     {renderAnswer(question.key, value)}
                 </div>
                 {changed && (
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                         {t('risks:questionnaire.previous')}: {renderAnswer(question.key, getPreviousAnswer(question.key))}
                     </div>
                 )}
                 {helperText && (
-                    <div className="text-xs text-slate-500">{helperText}</div>
+                    <div className="text-xs text-muted-foreground">{helperText}</div>
                 )}
             </div>
         );
@@ -92,7 +94,7 @@ export function QuestionAnswerField({
             />
 
             {helperText && (
-                <div id={helperId} className="text-xs text-slate-500">{helperText}</div>
+                <div id={helperId} className="text-xs text-muted-foreground">{helperText}</div>
             )}
 
             {(question.key === likelihoodQuestionKey || question.key === worstCaseImpactQuestionKey) && (
@@ -109,7 +111,7 @@ export function QuestionAnswerField({
                     allowEmpty
                     emptyLabel={t('common:labels.none')}
                     className={cn(
-                        missing && 'border-rose-500/40 focus:border-rose-500/60 focus:ring-rose-500/30',
+                        missing && 'border-destructive/40 focus:border-destructive/60 focus:ring-destructive/30',
                     )}
                     options={question.key === likelihoodQuestionKey ? likelihoodOptions : worstCaseImpactOptions}
                 />
@@ -149,19 +151,15 @@ export function QuestionAnswerField({
             )}
 
             {question.type === 'text' && (
-                <input
+                <Input
                     {...controlA11y}
                     value={typeof value === 'string' ? value : ''}
                     onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
-                    className={cn(
-                        'w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all',
-                        missing ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/10 focus:border-accent/50',
-                    )}
                 />
             )}
 
             {question.type === 'number' && question.key !== likelihoodQuestionKey && question.key !== worstCaseImpactQuestionKey && (
-                <input
+                <Input
                     {...controlA11y}
                     type="number"
                     min={1}
@@ -175,33 +173,25 @@ export function QuestionAnswerField({
                             [question.key]: raw === '' ? undefined : Number.parseInt(raw, 10),
                         }));
                     }}
-                    className={cn(
-                        'w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all',
-                        missing ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/10 focus:border-accent/50',
-                    )}
                 />
             )}
 
             {question.type === 'textarea' && (
-                <textarea
+                <Textarea
                     {...controlA11y}
                     value={typeof value === 'string' ? value : ''}
                     onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
                     rows={3}
-                    className={cn(
-                        'w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all resize-none',
-                        missing ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/10 focus:border-accent/50',
-                    )}
                 />
             )}
 
             {changed && (
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-muted-foreground">
                     {t('risks:questionnaire.previous')}: {renderAnswer(question.key, getPreviousAnswer(question.key))}
                 </div>
             )}
             {missing ? (
-                <p id={errorId} className="text-xs font-medium text-rose-400">
+                <p id={errorId} className="text-xs font-medium text-destructive">
                     {t('risks:questionnaire.validation_required')}
                 </p>
             ) : null}
@@ -232,22 +222,22 @@ function QuestionLabel({
                 <label
                     id={labelId}
                     htmlFor={controlId}
-                    className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}
+                    className={cn('text-xs font-bold', missing ? 'text-destructive' : 'text-foreground')}
                 >
                     {label}
                 </label>
             ) : (
-                <p className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}>
+                <p className={cn('text-xs font-bold', missing ? 'text-destructive' : 'text-foreground')}>
                     {label}
                 </p>
             )}
             {changed && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent-text">
                     {t('risks:questionnaire.changed')}
                 </span>
             )}
             {required && (
-                <span className={cn('text-[10px] font-black uppercase tracking-widest', missing ? 'text-rose-400' : 'text-slate-500')}>
+                <span className={cn('text-[10px] font-black uppercase tracking-widest', missing ? 'text-destructive' : 'text-muted-foreground')}>
                     {t('risks:questionnaire.required')}
                 </span>
             )}

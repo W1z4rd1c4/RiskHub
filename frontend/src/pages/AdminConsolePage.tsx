@@ -49,8 +49,8 @@ export function AdminConsolePage() {
         <div className="admin-console-route space-y-6">
             <header className="glass-card p-6">
                 <div className="flex items-center gap-4">
-                    <div className="bg-gradient-to-br from-slate-600 to-slate-800 p-3 rounded-xl shadow-lg">
-                        <Server className="h-8 w-8 text-white" />
+                    <div className="bg-nested border border-border p-3 rounded-xl shadow-lg">
+                        <Server className="h-8 w-8 text-foreground" />
                     </div>
                     <div>
                         <h1 className="admin-title text-2xl font-bold font-heading">{t('console.title')}</h1>
@@ -72,7 +72,7 @@ export function AdminConsolePage() {
                             {...getTabProps(tab.id, index)}
                             className={cn(
                                 'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap',
-                                isActive ? 'bg-slate-700 text-slate-50 shadow-lg' : 'admin-tab-inactive hover:bg-white/10',
+                                isActive ? 'bg-accent text-accent-foreground shadow-lg' : 'admin-tab-inactive hover:bg-tint/10',
                             )}
                         >
                             <tab.icon className="h-4 w-4" aria-hidden="true" />

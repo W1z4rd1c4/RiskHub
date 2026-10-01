@@ -708,7 +708,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
                 // the owner selector to await its independent lookup.
                 await waitFor(() => expect(surface.contains(document.activeElement)).toBe(true));
                 const user = userEvent.setup();
-                await user.click(within(surface).getByRole('combobox', { name: 'Risk Owner (Default)' }));
+                await user.click(within(surface).getByRole('combobox', { name: 'KRI Owner' }));
                 await screen.findByRole('option', { name: 'Matrix KRI Owner' });
                 await user.keyboard('{Escape}');
                 await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());

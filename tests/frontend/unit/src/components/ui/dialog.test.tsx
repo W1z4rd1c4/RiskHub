@@ -1,7 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DialogShell as LegacyPathDialogShell } from '@/components/DialogShell';
 import {
     DialogBody,
     DialogFooter,
@@ -120,8 +119,7 @@ describe('DialogShell v2 — themed surface and sizes', () => {
         expect(backdrop().parentElement).toHaveClass('p-8');
     });
 
-    it('re-exports the same primitive from the legacy path', () => {
-        expect(LegacyPathDialogShell).toBe(DialogShell);
+    it('attaches the sub-components to the primitive', () => {
         expect(DialogShell.Header).toBe(DialogHeader);
         expect(DialogShell.Body).toBe(DialogBody);
         expect(DialogShell.Footer).toBe(DialogFooter);

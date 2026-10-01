@@ -202,7 +202,7 @@ export function Sidebar() {
                                                 'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200',
                                                 isActive
                                                     ? 'sidebar-nav-link--active'
-                                                    : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                                                    : 'text-muted-foreground hover:bg-tint/5 hover:text-foreground'
                                             )}
                                         >
                                             <div className="sidebar-nav-content flex items-center gap-3">
@@ -231,7 +231,7 @@ export function Sidebar() {
                     ) : null}
                 </div>
 
-                <div className="mt-4 shrink-0 space-y-4 border-t border-white/10 pt-4">
+                <div className="mt-4 shrink-0 space-y-4 border-t border-border pt-4">
                     {user && (
                         <div className="flex items-center gap-3 px-2">
                             <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
@@ -253,7 +253,7 @@ export function Sidebar() {
                         {t('user_menu.logout')}
                     </button>
                     {logoutErrorKey && (
-                        <p className="px-3 text-xs text-rose-300">{tErrors(logoutErrorKey)}</p>
+                        <p className="px-3 text-xs text-destructive">{tErrors(logoutErrorKey)}</p>
                     )}
                 </div>
             </div>

@@ -19,11 +19,11 @@ describe('auditPresentation', () => {
     });
 
     it.each([
-        ['risk_create', 'bg-emerald-500/20 text-emerald-400'],
-        ['risk_update', 'bg-amber-500/20 text-amber-400'],
-        ['risk_delete', 'bg-red-500/20 text-red-400'],
-        ['risk_archive', 'bg-blue-500/20 text-blue-400'],
-        [null, 'bg-blue-500/20 text-blue-400'],
+        ['risk_create', 'bg-success/10 text-success-text'],
+        ['risk_update', 'bg-warning/10 text-warning-text'],
+        ['risk_delete', 'bg-destructive/10 text-destructive'],
+        ['risk_archive', 'bg-info/10 text-accent-text'],
+        [null, 'bg-info/10 text-accent-text'],
     ])('maps audit event %s to a badge class', (event, expected) => {
         expect(getAuditEventClassName(event)).toBe(expected);
     });

@@ -85,7 +85,7 @@ export function RiskScoreMatrix({
                                     rounded-sm flex items-center justify-center font-bold
                                     transition-[background-color,border-color,box-shadow,transform] duration-200
                                     ${selected
-                                        ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110 z-10'
+                                        ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background scale-110 z-10'
                                         : 'opacity-60'
                                     }
                                 `;

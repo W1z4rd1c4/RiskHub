@@ -23,7 +23,7 @@ export function ControlRiskLoadingOverlay({ isVisible }: ControlRiskLoadingOverl
                 >
                     <div className="glass-card !p-6 shadow-2xl flex flex-col items-center gap-4">
                         <div aria-hidden="true" className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
                             {t('detail.fetching_risk_details')}
                         </p>
                     </div>

@@ -32,19 +32,19 @@ export function UserNewLocalForm({
         <form onSubmit={onSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="glass-card p-6 space-y-4">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
                         <UserIcon className="h-5 w-5 text-accent" />
                         {t('user_new.personal_information', { ns: 'admin' })}
                     </h2>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.full_name', { ns: 'admin' })}</label>
+                        <label className="text-sm font-medium text-foreground">{t('user_new.full_name', { ns: 'admin' })}</label>
                         <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <input
                                 required
                                 type="text"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                className="w-full bg-tint/5 border border-border rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
                                 placeholder={t('form.placeholders.name')}
                                 value={formData.name}
                                 onChange={(event) => setFormData({ ...formData, name: event.target.value })}
@@ -53,13 +53,13 @@ export function UserNewLocalForm({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.email_address', { ns: 'admin' })}</label>
+                        <label className="text-sm font-medium text-foreground">{t('user_new.email_address', { ns: 'admin' })}</label>
                         <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <input
                                 required
                                 type="email"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                className="w-full bg-tint/5 border border-border rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
                                 placeholder={t('form.placeholders.email')}
                                 value={formData.email}
                                 onChange={(event) => setFormData({ ...formData, email: event.target.value })}
@@ -68,13 +68,13 @@ export function UserNewLocalForm({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.password', { ns: 'admin' })}</label>
+                        <label className="text-sm font-medium text-foreground">{t('user_new.password', { ns: 'admin' })}</label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <input
                                 required
                                 type="password"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                className="w-full bg-tint/5 border border-border rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
                                 placeholder={t('form.placeholders.password')}
                                 value={formData.password}
                                 onChange={(event) => setFormData({ ...formData, password: event.target.value })}
@@ -84,15 +84,15 @@ export function UserNewLocalForm({
                 </div>
 
                 <div className="glass-card p-6 space-y-4">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
                         <Shield className="h-5 w-5 text-accent" />
                         {t('user_new.role_access', { ns: 'admin' })}
                     </h2>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.platform_role', { ns: 'admin' })}</label>
+                        <label className="text-sm font-medium text-foreground">{t('user_new.platform_role', { ns: 'admin' })}</label>
                         <div className="relative">
-                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
                             <ThemedSelect
                                 value={formData.role_id.toString()}
                                 onValueChange={(value) => setFormData({ ...formData, role_id: Number(value) })}
@@ -103,9 +103,9 @@ export function UserNewLocalForm({
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('common:labels.department')}</label>
+                        <label className="text-sm font-medium text-foreground">{t('common:labels.department')}</label>
                         <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
                             <ThemedSelect
                                 value={formData.department_id?.toString() ?? ''}
                                 onValueChange={(value) => setFormData({ ...formData, department_id: value ? Number(value) : null })}
@@ -122,11 +122,11 @@ export function UserNewLocalForm({
                         <input
                             type="checkbox"
                             id="is_active"
-                            className="w-5 h-5 rounded border-white/10 bg-white/5 text-accent focus:ring-accent/50 focus:ring-offset-0"
+                            className="w-5 h-5 rounded border-border bg-tint/5 text-accent-text focus:ring-accent/50 focus:ring-offset-0"
                             checked={formData.is_active}
                             onChange={(event) => setFormData({ ...formData, is_active: event.target.checked })}
                         />
-                        <label htmlFor="is_active" className="text-sm font-medium text-slate-300">
+                        <label htmlFor="is_active" className="text-sm font-medium text-foreground">
                             {t('user_new.active_immediately', { ns: 'admin' })}
                         </label>
                     </div>
@@ -137,7 +137,7 @@ export function UserNewLocalForm({
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="px-6 py-2 rounded-xl text-slate-300 hover:bg-white/5 transition-all"
+                    className="px-6 py-2 rounded-xl text-foreground hover:bg-tint/5 transition-all"
                 >
                     {t('actions.cancel', { ns: 'common' })}
                 </button>
@@ -146,7 +146,7 @@ export function UserNewLocalForm({
                     className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-foreground px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                 >
                     {isLoading ? (
-                        <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="h-5 w-5 border-2 border-accent-foreground/30 border-t-accent-foreground rounded-full animate-spin" />
                     ) : <Save className="h-5 w-5" />}
                     {t('users.create_user', { ns: 'admin' })}
                 </button>

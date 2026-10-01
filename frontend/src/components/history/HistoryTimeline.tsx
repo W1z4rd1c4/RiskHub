@@ -93,7 +93,7 @@ export function HistoryTimeline({
 
                             {/* Content */}
                             <div className={cn(
-                                "flex-1 glass-card p-4 transition-colors group-hover:bg-white/[0.03]",
+                                "flex-1 glass-card p-4 transition-colors group-hover:bg-tint/[0.03]",
                                 statusBorderColors[status]
                             )}>
                                 <div className="flex items-start justify-between gap-4">
@@ -101,7 +101,7 @@ export function HistoryTimeline({
                                         <div className="flex items-center gap-2">
                                             <h4 className="text-sm font-bold text-foreground truncate">{item.title}</h4>
                                             {item.badge && (
-                                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-accent/20 text-accent-text border border-accent/30">
+                                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-accent/10 text-accent-text border border-accent/30">
                                                     {item.badge}
                                                 </span>
                                             )}

@@ -16,10 +16,10 @@ interface ToggleItemProps {
 
 function ToggleItem({ label, description, checked, onChange, loading }: ToggleItemProps) {
     return (
-        <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+        <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
             <div className="flex-1 pr-4">
-                <p className="text-slate-200 font-medium">{label}</p>
-                <p className="text-slate-500 text-sm">{description}</p>
+                <p className="text-foreground font-medium">{label}</p>
+                <p className="text-muted-foreground text-sm">{description}</p>
             </div>
             <button
                 type="button"
@@ -93,15 +93,15 @@ export function NotificationSettings() {
     if (loading) {
         return (
             <div className="space-y-8 animate-pulse">
-                <div className="h-6 w-48 bg-white/10 rounded" />
+                <div className="h-6 w-48 bg-tint/10 rounded" />
                 <div className="space-y-4">
                     {[1, 2, 3, 4, 5].map(i => (
                         <div key={i} className="flex justify-between items-center">
                             <div className="space-y-2 flex-1">
-                                <div className="h-4 w-32 bg-white/10 rounded" />
-                                <div className="h-3 w-64 bg-white/5 rounded" />
+                                <div className="h-4 w-32 bg-tint/10 rounded" />
+                                <div className="h-3 w-64 bg-tint/5 rounded" />
                             </div>
-                            <div className="w-12 h-6 bg-white/10 rounded-full" />
+                            <div className="w-12 h-6 bg-tint/10 rounded-full" />
                         </div>
                     ))}
                 </div>
@@ -112,11 +112,11 @@ export function NotificationSettings() {
     if (errorKey) {
         return (
             <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                <p className="text-slate-400 mb-4">{t(errorKey)}</p>
+                <AlertTriangle className="h-12 w-12 text-warning-text mx-auto mb-4" />
+                <p className="text-muted-foreground mb-4">{t(errorKey)}</p>
                 <button
                     onClick={loadPreferences}
-                    className="flex items-center gap-2 mx-auto px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-colors"
+                    className="flex items-center gap-2 mx-auto px-4 py-2 bg-accent/10 text-accent-text rounded-lg hover:bg-accent/20 transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
                     {t('common:actions.retry')}
@@ -155,18 +155,18 @@ export function NotificationSettings() {
         <div className="space-y-8">
             <div>
                 <h3 className="text-lg font-semibold mb-2">{t('notifications.title')}</h3>
-                <p className="text-slate-400 text-sm">
+                <p className="text-muted-foreground text-sm">
                     {t('notifications.subtitle')}
                 </p>
             </div>
 
             {/* Approval Notifications Section */}
-            <section className="bg-white/5 rounded-xl p-6">
+            <section className="bg-tint/5 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
                         <Bell className="h-4 w-4 text-accent" />
                     </div>
-                    <h4 className="text-md font-semibold text-slate-200">
+                    <h4 className="text-md font-semibold text-foreground">
                         {t('notifications.section_approval')}
                     </h4>
                 </div>
@@ -185,12 +185,12 @@ export function NotificationSettings() {
             </section>
 
             {/* KRI Notifications Section */}
-            <section className="bg-white/5 rounded-xl p-6">
+            <section className="bg-tint/5 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                    <div className="w-8 h-8 rounded-lg bg-warning/20 flex items-center justify-center">
+                        <AlertTriangle className="h-4 w-4 text-warning-text" />
                     </div>
-                    <h4 className="text-md font-semibold text-slate-200">
+                    <h4 className="text-md font-semibold text-foreground">
                         {t('notifications.section_kri')}
                     </h4>
                 </div>
@@ -209,12 +209,12 @@ export function NotificationSettings() {
             </section>
 
             {/* Questionnaire Notifications Section */}
-            <section className="bg-white/5 rounded-xl p-6">
+            <section className="bg-tint/5 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                        <Bell className="h-4 w-4 text-emerald-400" />
+                    <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
+                        <Bell className="h-4 w-4 text-success-text" />
                     </div>
-                    <h4 className="text-md font-semibold text-slate-200">
+                    <h4 className="text-md font-semibold text-foreground">
                         {t('notifications.section_questionnaires')}
                     </h4>
                 </div>
@@ -233,7 +233,7 @@ export function NotificationSettings() {
             </section>
 
             {/* Note */}
-            <p className="text-xs text-slate-500 italic">
+            <p className="text-xs text-muted-foreground italic">
                 {t('notifications.persistence_note')}
             </p>
         </div>

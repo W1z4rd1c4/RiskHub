@@ -33,9 +33,9 @@ export function QuarterPeriodSelector({
     yearOptions,
 }: QuarterPeriodSelectorProps) {
     return (
-        <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-white/5">
+        <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-border">
             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     {t('quarterly.current_period')}
                 </span>
                 <ThemedSelect
@@ -58,10 +58,10 @@ export function QuarterPeriodSelector({
                 />
             </div>
 
-            <span className="text-xs text-slate-400 font-bold">{t('quarterly.vs')}</span>
+            <span className="text-xs text-muted-foreground font-bold">{t('quarterly.vs')}</span>
 
             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     {t('quarterly.compare_period')}
                 </span>
                 <ThemedSelect

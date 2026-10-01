@@ -31,7 +31,7 @@ export function getSessionPresentation(session: ActiveSession, now: Date): Sessi
             durationText: '',
             isRevoked,
             lastActivityDate,
-            statusColor: 'bg-red-500',
+            statusColor: 'bg-destructive',
             statusKey: 'sessions.revoked',
         };
     }
@@ -45,7 +45,7 @@ export function getSessionPresentation(session: ActiveSession, now: Date): Sessi
             durationText: onlineMinutes != null ? formatDuration(onlineMinutes) : '',
             isRevoked,
             lastActivityDate,
-            statusColor: 'bg-emerald-500',
+            statusColor: 'bg-success',
             statusKey: 'sessions.online',
         };
     }
@@ -54,7 +54,7 @@ export function getSessionPresentation(session: ActiveSession, now: Date): Sessi
         durationText: formatDuration(minutesSinceActivity),
         isRevoked,
         lastActivityDate,
-        statusColor: 'bg-slate-500',
+        statusColor: 'bg-muted-foreground',
         statusKey: 'sessions.offline',
     };
 }

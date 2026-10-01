@@ -66,7 +66,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                 {Array.from({ length: 5 }).map((_, index) => (
                     <div
                         key={index}
-                        className="h-24 w-full animate-pulse rounded-2xl border border-white/5 bg-white/5"
+                        className="h-24 w-full animate-pulse rounded-2xl border border-border bg-tint/5"
                     />
                 ))}
             </div>
@@ -75,10 +75,10 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
 
     if (outcome.kind === 'denied') {
         return (
-            <div role="alert" className="flex flex-col items-center justify-center rounded-3xl border border-rose-500/20 bg-rose-500/5 py-20 text-rose-400">
+            <div role="alert" className="flex flex-col items-center justify-center rounded-3xl border border-destructive/20 bg-destructive/5 py-20 text-destructive">
                 <ShieldX className="mb-4 h-12 w-12" />
                 <p className="font-semibold">{t('access.denied')}</p>
-                <p className="mt-1 text-sm text-slate-500">{t('access.denied_activity_log')}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t('access.denied_activity_log')}</p>
             </div>
         );
     }
@@ -87,14 +87,14 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
     const isLoadFailure = outcome.kind === 'fatal-error' || isStale;
     const isRetrying = isLoadFailure ? outcome.isRetrying : false;
     const errorState = isLoadFailure ? (
-            <div role="alert" className={`flex ${isStale ? 'items-center' : 'flex-col items-center justify-center py-20'} rounded-3xl border border-amber-500/20 bg-amber-500/5 p-4 text-amber-400`}>
+            <div role="alert" className={`flex ${isStale ? 'items-center' : 'flex-col items-center justify-center py-20'} rounded-3xl border border-warning/20 bg-warning/5 p-4 text-warning-text`}>
                 <AlertCircle className="mb-4 h-12 w-12" />
                 <div className={isStale ? 'mr-4' : 'text-center'}>
                     <p className="font-semibold">
                         {t(isStale ? 'activity_log.may_be_out_of_date' : 'activity_log.failed_to_load')}
                     </p>
                     {!isStale ? (
-                        <p className="mt-1 text-sm text-slate-500">{t('activity_log.failed_to_load_help')}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{t('activity_log.failed_to_load_help')}</p>
                     ) : null}
                 </div>
                 <button
@@ -102,7 +102,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                     onClick={onRetry}
                     aria-busy={isRetrying}
                     aria-disabled={isRetrying}
-                    className={`${isStale ? 'ml-auto' : 'mt-4'} rounded-xl bg-amber-500/20 px-4 py-2 text-sm transition-colors hover:bg-amber-500/30`}
+                    className={`${isStale ? 'ml-auto' : 'mt-4'} rounded-xl bg-warning/20 px-4 py-2 text-sm transition-colors hover:bg-warning/30`}
                 >
                     {t('actions.retry')}
                 </button>
@@ -118,10 +118,10 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
 
     if (outcome.kind === 'empty') {
         return (
-            <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/5 py-20 text-slate-400">
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-tint/5 py-20 text-muted-foreground">
                 <Activity className="mb-4 h-12 w-12 opacity-20" />
                 <p>{needsRiskSelection ? t('activity_log.select_risk') : t('empty.no_activity_logs')}</p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                     {needsRiskSelection ? t('activity_log.select_risk_hint') : t('activity_log.try_adjusting_filters')}
                 </p>
             </div>
@@ -142,7 +142,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="relative overflow-hidden rounded-2xl border border-white/5 p-5 glass-card"
+                        className="relative overflow-hidden rounded-2xl border border-border p-5 glass-card"
                     >
                         {(() => {
                             const entityTypeLabel = getActivityEntityLabel(entry.entity_type);
@@ -150,7 +150,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
 
                             return (
                         <div className="flex items-start gap-4">
-                            <div className={`shrink-0 rounded-xl p-2 ${ACTION_COLORS[entry.action] || 'bg-white/10 text-slate-400'}`}>
+                            <div className={`shrink-0 rounded-xl p-2 ${ACTION_COLORS[entry.action] || 'bg-tint/10 text-muted-foreground'}`}>
                                 {getActionIcon(entry.action)}
                             </div>
 
@@ -195,7 +195,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                                                         >
                                                             {oldValue}
                                                         </span>
-                                                        <ArrowRight className="h-2.5 w-2.5 shrink-0 text-slate-600" />
+                                                        <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
                                                         <span className="truncate text-success-text" title={newValue}>
                                                             {newValue}
                                                         </span>

@@ -92,7 +92,7 @@ export function ExceptionSection({
                 )}
             </div>
             {canApprove && !requestedExceptionId && (
-                <p className="text-sm text-slate-500">{t('workflow.messages.no_requested_exception')}</p>
+                <p className="text-sm text-muted-foreground">{t('workflow.messages.no_requested_exception')}</p>
             )}
         </section>
     );

@@ -25,9 +25,9 @@ export function RiskKriSection({
 
     return (
         <motion.div variants={item} className="glass-card flex flex-col gap-6 md:col-span-2 lg:col-span-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between border-b border-border pb-4">
                 <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-amber-400" />
+                    <FileText className="h-5 w-5 text-warning-text" />
                     <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.risk_appetite_indicators', { ns: 'risks' })}</h3>
                 </div>
                 {canCreateKri && (
@@ -56,9 +56,9 @@ export function RiskKriSection({
                     })}
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                    <p className="text-slate-600 text-sm font-medium mb-2">{t('common:empty.no_kris_configured')}</p>
-                    <p className="text-xs text-slate-700 max-w-xs mx-auto">{t('overview.kris_help_text', { ns: 'risks' })}</p>
+                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-2xl">
+                    <p className="text-muted-foreground text-sm font-medium mb-2">{t('common:empty.no_kris_configured')}</p>
+                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">{t('overview.kris_help_text', { ns: 'risks' })}</p>
                 </div>
             )}
         </motion.div>

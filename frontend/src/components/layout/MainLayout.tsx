@@ -26,7 +26,7 @@ export function MainLayout() {
                 </a>
                 {/* Subtle Background Glows */}
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-chart-2/5 rounded-full blur-[100px] pointer-events-none" />
 
                 <Sidebar />
                 <div className="flex-1 flex flex-col lg:pl-72 overflow-hidden">

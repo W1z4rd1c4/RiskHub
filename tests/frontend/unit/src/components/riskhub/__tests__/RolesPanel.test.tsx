@@ -185,7 +185,7 @@ describe('RolesPanel', () => {
         expect(row).not.toBeNull();
         fireEvent.click(within(row as HTMLTableRowElement).getByLabelText(/delete/i));
 
-        const dialog = (await screen.findByText('Delete Role?')).parentElement as HTMLElement;
+        const dialog = await screen.findByRole('alertdialog', { name: 'Delete Role?' });
         expect(within(dialog).getByText(/Assigned Custom/)).toBeInTheDocument();
         expect(within(dialog).getByText(/Cannot delete: 2 users/i)).toBeInTheDocument();
         expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
@@ -199,7 +199,7 @@ describe('RolesPanel', () => {
         const row = screen.getByText('Risk Owner').closest('tr');
         expect(row).not.toBeNull();
         fireEvent.click(within(row as HTMLTableRowElement).getByLabelText(/delete/i));
-        const dialog = screen.getByText('Delete Role?').parentElement as HTMLElement;
+        const dialog = screen.getByRole('alertdialog', { name: 'Delete Role?' });
         fireEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
         expect(await screen.findByText(/Something went wrong/i)).toBeInTheDocument();

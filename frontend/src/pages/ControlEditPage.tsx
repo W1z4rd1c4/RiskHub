@@ -52,12 +52,12 @@ export function ControlEditPage() {
             <div className="flex flex-col gap-2">
                 <button
                     onClick={() => navigate(detailPath)}
-                    className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-2"
+                    className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-2"
                 >
                     <ArrowLeft className="h-3 w-3" /> {t('common:actions.back')} {t('common:labels.details')}
                 </button>
-                <h2 className="text-3xl font-black text-white tracking-tighter">{t('controls:edit_control')}</h2>
-                <p className="text-slate-500 font-medium tracking-tight">{t('controls:view_control')}: {control.name}</p>
+                <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('controls:edit_control')}</h2>
+                <p className="text-muted-foreground font-medium tracking-tight">{t('controls:view_control')}: {control.name}</p>
             </div>
 
             <motion.div

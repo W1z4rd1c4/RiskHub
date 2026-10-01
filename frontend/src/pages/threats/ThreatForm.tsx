@@ -200,7 +200,7 @@ export function ThreatForm({
         }
     };
 
-    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-muted-foreground';
 
     const textAreaField = (
         field: keyof FormFields,
@@ -227,7 +227,7 @@ export function ThreatForm({
     return (
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
             {error || hasFieldErrors ? (
-                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+                <div role="alert" className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
                 </div>
@@ -236,7 +236,7 @@ export function ThreatForm({
             {cisoQuery.isError ? (
                 <div
                     role="status"
-                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
+                    className="glass-card flex items-center justify-between gap-3 border border-warning/30 text-warning-text"
                 >
                     <div className="flex items-start gap-3">
                         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -245,7 +245,7 @@ export function ThreatForm({
                     <button
                         type="button"
                         onClick={() => void cisoQuery.refetch()}
-                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
+                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-warning-text transition-colors hover:bg-tint/10"
                     >
                         {t('actions.retry')}
                     </button>
@@ -253,7 +253,7 @@ export function ThreatForm({
             ) : null}
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.identity')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -322,7 +322,7 @@ export function ThreatForm({
             </section>
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.details')}
                 </h2>
                 <div className="grid grid-cols-1 gap-5">
@@ -359,7 +359,7 @@ export function ThreatForm({
                         onClick={() => requestLocalLeave(onCancel)}
                         disabled={isSubmitting}
                         data-testid="threat-form-cancel"
-                        className="px-5 py-2.5 glass rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-semibold flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="px-5 py-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors text-sm font-semibold flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <X className="h-4 w-4" />
                         {t('actions.cancel')}

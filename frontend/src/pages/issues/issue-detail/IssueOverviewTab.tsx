@@ -46,20 +46,20 @@ export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProp
 
             <section className="glass-card p-6 space-y-5">
                 <div className="space-y-3">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('detail.sections.linked_entities')}
                     </h3>
                     {issue.links.length === 0 ? (
-                        <p className="text-sm text-slate-400">{t('detail.messages.no_linked_entities')}</p>
+                        <p className="text-sm text-muted-foreground">{t('detail.messages.no_linked_entities')}</p>
                     ) : (
                         <ul className="space-y-2">
                             {issue.links.map((link) => (
                                 <li
                                     key={link.id}
-                                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                                    className="rounded-xl border border-border bg-tint/5 px-4 py-3"
                                 >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <p className="text-sm text-slate-300">
+                                        <p className="text-sm text-foreground">
                                             {link.linked_entity_name ||
                                                 (link.linked_entity_type
                                                     ? t(
@@ -81,11 +81,11 @@ export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProp
                 </div>
 
                 <div className="space-y-3">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                         {t('detail.sections.exceptions')}
                     </h3>
                     {issue.exceptions.length === 0 ? (
-                        <p className="text-sm text-slate-400">{t('detail.messages.no_exceptions')}</p>
+                        <p className="text-sm text-muted-foreground">{t('detail.messages.no_exceptions')}</p>
                     ) : (
                         <ul className="space-y-2">
                             {issue.exceptions
@@ -97,19 +97,19 @@ export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProp
                                 .map((exception) => (
                                     <li
                                         key={exception.id}
-                                        className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 space-y-1.5"
+                                        className="rounded-xl border border-border bg-tint/5 px-4 py-3 space-y-1.5"
                                     >
                                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <span className="text-sm font-semibold text-slate-300">
+                                            <span className="text-sm font-semibold text-foreground">
                                                 {t(`exception_status.${exception.status}`, exception.status)}
                                             </span>
-                                            <span className="text-xs text-slate-500">
+                                            <span className="text-xs text-muted-foreground">
                                                 {t('detail.messages.expires')}:{' '}
                                                 {formatDateTime(exception.expires_at)}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-slate-300">{exception.reason}</p>
-                                        <p className="text-xs text-slate-500">
+                                        <p className="text-sm text-foreground">{exception.reason}</p>
+                                        <p className="text-xs text-muted-foreground">
                                             {exceptionActorName(
                                                 exception.requested_by_name,
                                                 exception.approved_by_name,

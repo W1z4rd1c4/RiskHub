@@ -94,7 +94,7 @@ export function DocumentationSettings() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                 <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
                 <p>{t('documentation.loading')}</p>
             </div>
@@ -106,24 +106,24 @@ export function DocumentationSettings() {
             <div ref={docTopRef} className="space-y-6">
                 <button
                     onClick={() => setSelectedDocId(null)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-sm font-medium rounded-xl transition-all border border-white/10"
+                    className="flex items-center gap-2 px-4 py-2 bg-tint/5 hover:bg-tint/10 text-muted-foreground hover:text-foreground text-sm font-medium rounded-xl transition-all border border-border"
                 >
                     <ChevronLeft className="h-4 w-4" />
                     {t('documentation.back')}
                 </button>
 
                 <div className="docs-reader-surface min-h-[500px] flex flex-col overflow-hidden">
-                    <div className="px-8 py-6 border-b border-white/10 space-y-3">
+                    <div className="px-8 py-6 border-b border-border space-y-3">
                         <div>
-                            <h2 className="text-2xl font-bold text-white">{activeDoc.title}</h2>
+                            <h2 className="text-2xl font-bold text-foreground">{activeDoc.title}</h2>
                             {activeDoc.summary && (
-                                <p className="text-slate-200 text-base mt-2 max-w-4xl leading-relaxed">{activeDoc.summary}</p>
+                                <p className="text-foreground text-base mt-2 max-w-4xl leading-relaxed">{activeDoc.summary}</p>
                             )}
                         </div>
 
                         <div className="docs-reader-meta">
                             <span
-                                className="docs-reader-meta-chip bg-blue-500/20 text-blue-200 border border-blue-400/30"
+                                className="docs-reader-meta-chip bg-info/20 text-accent-text border border-info/30"
                                 data-testid="settings-docs-audience"
                             >
                                 {audienceLabel}
@@ -185,11 +185,11 @@ export function DocumentationSettings() {
                     <BookOpen className="h-5 w-5 text-accent" />
                     {t('documentation.title')}
                 </h3>
-                <p className="text-slate-400 text-sm mb-6">
+                <p className="text-muted-foreground text-sm mb-6">
                     {t('documentation.subtitle', { role: user?.role_display_name || 'User' })}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-500/20 text-blue-300" data-testid="settings-docs-audience">
+                    <span className="px-2 py-1 rounded-md text-xs font-semibold bg-info/20 text-accent-text" data-testid="settings-docs-audience">
                         {audienceLabel}
                     </span>
                 </div>
@@ -203,8 +203,8 @@ export function DocumentationSettings() {
                         className={[
                             'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
                             selectedTag === 'all'
-                                ? 'bg-accent/20 text-accent border-accent/50'
-                                : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10',
+                                ? 'bg-accent/20 text-accent-text border-accent/50'
+                                : 'bg-tint/5 text-foreground border-border hover:bg-tint/10',
                         ].join(' ')}
                     >
                         {t('documentation.filter_all')}
@@ -217,8 +217,8 @@ export function DocumentationSettings() {
                             className={[
                                 'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors uppercase tracking-wider',
                                 selectedTag === tag
-                                    ? 'bg-accent/20 text-accent border-accent/50'
-                                    : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10',
+                                    ? 'bg-accent/20 text-accent-text border-accent/50'
+                                    : 'bg-tint/5 text-foreground border-border hover:bg-tint/10',
                             ].join(' ')}
                         >
                             {tag}
@@ -228,9 +228,9 @@ export function DocumentationSettings() {
             )}
 
             {filteredDocs.length === 0 ? (
-                <div className="glass-card flex flex-col items-center justify-center py-16 text-slate-500">
+                <div className="glass-card flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <BookOpen className="h-12 w-12 mb-4 opacity-10" />
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
                         {docs.length === 0 ? t('documentation.empty_title') : t('documentation.no_matches_title')}
                     </h3>
                     <p className="text-sm">
@@ -246,15 +246,15 @@ export function DocumentationSettings() {
                             data-testid={`settings-doc-card-${doc.id}`}
                             className="glass-card p-6 flex flex-col text-left group hover:border-accent/50 hover:bg-accent/5 transition-all duration-300"
                         >
-                            <div className="bg-white/5 p-3 rounded-xl w-fit mb-4 group-hover:bg-accent/20 transition-colors">
-                                <FileText className="h-6 w-6 text-slate-400 group-hover:text-accent transition-colors" />
+                            <div className="bg-tint/5 p-3 rounded-xl w-fit mb-4 group-hover:bg-accent/20 transition-colors">
+                                <FileText className="h-6 w-6 text-muted-foreground group-hover:text-accent transition-colors" />
                             </div>
 
-                            <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors">
+                            <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-accent-text transition-colors">
                                 {doc.title}
                             </h3>
 
-                            <p className="text-sm text-slate-500 mb-5 flex-1 line-clamp-3">
+                            <p className="text-sm text-muted-foreground mb-5 flex-1 line-clamp-3">
                                 {(doc.summary || doc.content.replace(/[#*`]/g, '').slice(0, 120)).trim()}...
                             </p>
 
@@ -263,14 +263,14 @@ export function DocumentationSettings() {
                                     <span
                                         key={`${doc.id}-${tag}`}
                                         data-testid={`settings-doc-tag-${doc.id}-${sanitizeTag(tag)}`}
-                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-slate-300"
+                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-tint/5 text-foreground"
                                     >
                                         {formatDocumentationTag(tag)}
                                     </span>
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2 text-accent text-sm font-semibold mt-auto">
+                            <div className="flex items-center gap-2 text-accent-text text-sm font-semibold mt-auto">
                                 {t('documentation.view_manual')}
                                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                             </div>
@@ -280,7 +280,7 @@ export function DocumentationSettings() {
             )}
 
             <section className="text-center">
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                     {t('documentation.library_footer')}
                 </p>
             </section>

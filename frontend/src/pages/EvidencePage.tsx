@@ -46,7 +46,7 @@ function EvidenceCard({ icon: Icon, linkLabel, question, retry, state, title, to
                 </p>
             ) : (
                 <div role="alert" className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-rose-300">{t('availability.unavailable')}</span>
+                    <span className="text-sm font-semibold text-destructive">{t('availability.unavailable')}</span>
                     <button
                         type="button"
                         onClick={retry}

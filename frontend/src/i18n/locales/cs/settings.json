@@ -30,8 +30,6 @@
     "theme": "Motiv",
     "theme_light": "Světlý",
     "theme_light_desc": "Čistý a jasný pro denní používání",
-    "theme_light_beta_note": "Některé obrazovky se světlému motivu teprve přizpůsobují.",
-    "beta_badge": "Beta",
     "theme_dark": "Tmavý",
     "theme_dark_desc": "Skutečný tmavý režim pro OLED displeje",
     "theme_riskhub": "RiskHub motiv",

@@ -121,7 +121,7 @@ export function SessionsPanel() {
                 </div>
             )}
             {revokeError && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                     {revokeError}
                 </div>
             )}

@@ -9,7 +9,7 @@ export function NotFoundPage() {
 
     return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
-            <div className="rounded-2xl bg-white/5 p-4">
+            <div className="rounded-2xl bg-tint/5 p-4">
                 <SearchX className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="space-y-2">

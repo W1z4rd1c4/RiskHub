@@ -26,7 +26,7 @@ export function KriVendorSection({
     vendorSearch,
 }: KriVendorSectionProps) {
     return (
-        <div className="pt-6 border-t border-white/5">
+        <div className="pt-6 border-t border-border">
             <KRIVendorSelector
                 vendors={vendorOptions}
                 selectedVendorIds={selectedVendorIds}

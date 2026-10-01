@@ -35,8 +35,8 @@ export function ActivityLogPage() {
     if (state.outcome.kind === 'denied' || readDenied) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <div className="p-4 bg-rose-500/10 rounded-2xl">
-                    <ShieldX className="h-12 w-12 text-rose-400" />
+                <div className="p-4 bg-destructive/10 rounded-2xl">
+                    <ShieldX className="h-12 w-12 text-destructive" />
                 </div>
                 <h2 className="text-2xl font-bold text-foreground">{t('access.denied')}</h2>
                 <p className="text-muted-foreground text-center max-w-md">
@@ -71,7 +71,7 @@ export function ActivityLogPage() {
                     <button
                         onClick={() => state.refresh()}
                         disabled={state.isSearchSettling}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-60"
+                        className="p-2 bg-tint/5 hover:bg-tint/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-60"
                         title={t('tooltips.refresh_log')}
                         aria-label={t('tooltips.refresh_log')}
                     >

@@ -49,8 +49,8 @@ export function RiskSummaryCards({
             className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
             <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                    <Tag className="h-5 w-5 text-purple-400" />
+                <div className="flex items-center gap-3 border-b border-border pb-4">
+                    <Tag className="h-5 w-5 text-chart-2" />
                     <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.classification', { ns: 'risks' })}</h3>
                 </div>
 
@@ -83,7 +83,7 @@ export function RiskSummaryCards({
             </motion.div>
 
             <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                <div className="flex items-center gap-3 border-b border-border pb-4">
                     <User className="h-5 w-5 text-accent" />
                     <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.ownership', { ns: 'risks' })}</h3>
                 </div>
@@ -100,7 +100,7 @@ export function RiskSummaryCards({
                         </div>
                     </div>
                     <div className="flex gap-3 items-start">
-                        <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground">
+                        <div className="w-8 h-8 rounded-full bg-tint/5 border border-border flex items-center justify-center text-muted-foreground">
                             <Building2 className="h-4 w-4" />
                         </div>
                         <div>
@@ -113,8 +113,8 @@ export function RiskSummaryCards({
             </motion.div>
 
             <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                    <LinkIcon className="h-5 w-5 text-indigo-400" />
+                <div className="flex items-center gap-3 border-b border-border pb-4">
+                    <LinkIcon className="h-5 w-5 text-chart-2" />
                     <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.connections', { ns: 'risks' })}</h3>
                 </div>
 

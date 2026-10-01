@@ -196,7 +196,7 @@ export function RiskFormScoringStep({
       {/* ICT Register acceptance governance (issue #47) — entered fields; the
           required-together rule above tolerance is a DQ finding, never a
           client-side block. */}
-      <section className="space-y-4 border-t border-white/10 pt-6" data-testid="risk-acceptance-section">
+      <section className="space-y-4 border-t border-border pt-6" data-testid="risk-acceptance-section">
         <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
           {t('risks:acceptance.title')}
         </h4>

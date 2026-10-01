@@ -73,7 +73,7 @@ export function RiskQuestionnaireSectionList({
             {template.map((section) => (
                 <section key={section.titleKey} className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
-                        <h4 className="text-xs font-black text-white uppercase tracking-widest">
+                        <h4 className="text-xs font-black text-foreground uppercase tracking-widest">
                             {t(`risks:${section.titleKey}`, section.titleKey)}
                         </h4>
                         {canRequestClarification && questionnaireStatus === 'submitted' && (
@@ -83,7 +83,7 @@ export function RiskQuestionnaireSectionList({
                                     clarificationState.setRequestMessage('');
                                     clarificationState.setRequestQuestionKeys([]);
                                 }}
-                                className="text-[10px] font-black uppercase tracking-widest text-accent hover:text-accent/80"
+                                className="text-[10px] font-black uppercase tracking-widest text-accent-text hover:text-accent-text/80"
                             >
                                 {t('risks:questionnaire.request_clarification')}
                             </button>

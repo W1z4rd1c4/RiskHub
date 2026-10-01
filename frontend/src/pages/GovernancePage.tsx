@@ -95,7 +95,7 @@ function GovernancePageInner() {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
                     <RefreshCw className="h-8 w-8 text-accent animate-spin" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
+                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
                 </div>
             </div>
         );
@@ -107,9 +107,9 @@ function GovernancePageInner() {
                 role="alert"
                 className="glass-card mx-auto flex min-h-[18rem] max-w-2xl flex-col items-center justify-center gap-4 p-8 text-center"
             >
-                <ShieldAlert className="h-10 w-10 text-rose-400" aria-hidden="true" />
-                <h2 className="text-lg font-bold text-white">{t('governance.load_failed')}</h2>
-                <p className="text-sm text-slate-400">{t('governance.load_failed_help')}</p>
+                <ShieldAlert className="h-10 w-10 text-destructive" aria-hidden="true" />
+                <h2 className="text-lg font-bold text-foreground">{t('governance.load_failed')}</h2>
+                <p className="text-sm text-muted-foreground">{t('governance.load_failed_help')}</p>
                 <button
                     type="button"
                     onClick={() => { void overviewQuery.refresh(); }}
@@ -136,8 +136,8 @@ function GovernancePageInner() {
             subtitle: t('governance.risks'),
             value: stats?.risk_count ?? 0,
             icon: Scale,
-            color: 'text-amber-400',
-            bg: 'bg-amber-400/10',
+            color: 'text-warning-text',
+            bg: 'bg-warning/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -147,8 +147,8 @@ function GovernancePageInner() {
             subtitle: t('governance.controls'),
             value: stats?.control_count ?? 0,
             icon: ClipboardList,
-            color: 'text-rose-400',
-            bg: 'bg-rose-400/10',
+            color: 'text-destructive',
+            bg: 'bg-destructive/10',
             trend: t('governance.critical'),
             clickable: true,
         },
@@ -169,8 +169,8 @@ function GovernancePageInner() {
             subtitle: t('governance.threats'),
             value: stats?.threat_count ?? 0,
             icon: ShieldAlert,
-            color: 'text-teal-400',
-            bg: 'bg-teal-400/10',
+            color: 'text-chart-3',
+            bg: 'bg-chart-3/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -180,8 +180,8 @@ function GovernancePageInner() {
             subtitle: t('governance.processes'),
             value: stats?.process_count ?? 0,
             icon: Workflow,
-            color: 'text-sky-400',
-            bg: 'bg-sky-400/10',
+            color: 'text-accent-text',
+            bg: 'bg-info/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -191,8 +191,8 @@ function GovernancePageInner() {
             subtitle: t('governance.assets'),
             value: stats?.asset_count ?? 0,
             icon: Database,
-            color: 'text-violet-400',
-            bg: 'bg-violet-400/10',
+            color: 'text-chart-2',
+            bg: 'bg-chart-2/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -202,8 +202,8 @@ function GovernancePageInner() {
             subtitle: t('governance.vendors'),
             value: stats?.vendor_count ?? 0,
             icon: Truck,
-            color: 'text-orange-400',
-            bg: 'bg-orange-400/10',
+            color: 'text-severity-high-text',
+            bg: 'bg-severity-high/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -213,8 +213,8 @@ function GovernancePageInner() {
             subtitle: t('governance.total'),
             value: stats?.total_count ?? 0,
             icon: Building2,
-            color: 'text-slate-400',
-            bg: 'bg-slate-400/10',
+            color: 'text-muted-foreground',
+            bg: 'bg-muted-foreground/10',
             trend: t('governance.grand_total'),
             clickable: false,
         },
@@ -252,7 +252,7 @@ function GovernancePageInner() {
                     <h2 className="text-3xl font-black text-foreground mb-2">{t('governance.title')}</h2>
                     <p className="text-muted-foreground font-medium">{t('governance.subtitle')}</p>
                     {(lastScanAt || scanStatus) && (
-                        <p className="text-xs text-slate-500 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                             {scanStatus ? `${scanStatus}` : ''}
                             {lastScanAt ? ` • ${formatDateTimeValue(lastScanAt, i18n.language)}` : ''}
                         </p>
@@ -261,14 +261,14 @@ function GovernancePageInner() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => { void overviewQuery.refresh(); }}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
+                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-accent-text hover:bg-accent/10 transition-colors"
                         title={t('governance.refresh')}
                         aria-label={t('governance.refresh')}
                     >
                         <RefreshCw className="h-5 w-5" aria-hidden="true" />
                     </button>
-                    <div className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <div className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest bg-tint/5 px-3 py-1.5 rounded-full border border-border">
+                        <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                         {t('governance.live_status')}
                     </div>
                 </div>
@@ -317,7 +317,7 @@ function GovernancePageInner() {
                 key={activeTab} // Animate on tab swap
             >
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-tint/10 to-transparent" />
                     <span className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">
                         {activeTab === 'risk'
                             ? t('governance.orphaned_risks_section')
@@ -333,7 +333,7 @@ function GovernancePageInner() {
                                                 ? t('governance.orphaned_assets_section')
                                                 : t('governance.orphaned_vendors_section')}
                     </span>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-tint/10 to-transparent" />
                 </div>
                 <OrphanedItemsTable
                     items={filteredOrphans}

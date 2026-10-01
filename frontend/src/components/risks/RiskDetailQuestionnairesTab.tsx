@@ -64,7 +64,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
     return (
         <div className="glass-card !p-0 overflow-hidden">
             {message && (
-                <div className="p-4 border-b border-white/5 text-sm text-amber-400 bg-amber-500/5">
+                <div className="p-4 border-b border-border text-sm text-warning-text bg-warning/5">
                     {message}
                 </div>
             )}
@@ -80,7 +80,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
             ) : null}
 
             {errorKey && loadOutcome === 'content' && (
-                <div className="p-4 border-b border-rose-500/20 text-sm text-rose-400 bg-rose-500/10 flex items-center gap-2">
+                <div className="p-4 border-b border-destructive/20 text-sm text-destructive bg-destructive/10 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
                     {errorKey.startsWith('errorKeys.')
                         ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
@@ -88,25 +88,25 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 </div>
             )}
 
-            <div className="p-6 border-b border-white/5 flex items-start justify-between gap-4">
+            <div className="p-6 border-b border-border flex items-start justify-between gap-4">
                 <div>
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-accent" />
                         {t('risks:questionnaires.title')}
                     </h3>
-                    <p className="text-slate-400 text-sm">
+                    <p className="text-muted-foreground text-sm">
                         {t('risks:questionnaires.subtitle')}
                     </p>
 
                     {openItem && (
                         <div className="mt-3 flex items-center gap-3">
                             {questionnaireStatusBadge(openItem.status, isQuestionnaireOverdue(openItem), t)}
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-muted-foreground">
                                 {t('risks:questionnaires.current_due')}: {formatQuestionnaireDate(openItem.due_at, i18n.language)}
                             </span>
                             <button
                                 onClick={() => setSelectedId(openItem.id)}
-                                className="text-xs text-accent hover:text-accent/80 font-bold"
+                                className="text-xs text-accent-text hover:text-accent-text/80 font-bold"
                             >
                                 {t('risks:questionnaires.open')}
                             </button>
@@ -121,7 +121,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                             disabled={sending || !risk.owner_id}
                             className={cn(
                                 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all',
-                                'bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50',
+                                'bg-accent/20 border-accent/30 text-accent-text hover:bg-accent/30 hover:border-accent/50',
                                 (sending || !risk.owner_id) && 'opacity-50 cursor-not-allowed',
                             )}
                             title={!risk.owner_id ? t('risks:questionnaires.send_requires_owner') : undefined}
@@ -130,7 +130,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                             {t('risks:questionnaires.send')}
                         </button>
                         {!risk.owner_id && (
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                                 {t('risks:questionnaires.owner_required')}
                             </p>
                         )}

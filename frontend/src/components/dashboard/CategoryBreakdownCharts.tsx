@@ -47,9 +47,9 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
     if (total === 0) {
         return (
             <div className="flex flex-col items-center">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
-                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center">
-                    <span className="text-xs text-slate-600">{t('common:empty.no_data')}</span>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">{title}</h4>
+                <div className="w-24 h-24 rounded-full bg-tint/5 flex items-center justify-center">
+                    <span className="text-xs text-muted-foreground">{t('common:empty.no_data')}</span>
                 </div>
             </div>
         );
@@ -57,7 +57,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
 
     return (
         <div className="flex flex-col items-center">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">{title}</h4>
             <div className="w-44 h-44 relative">
                 <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 176 }}>
                     <PieChart>
@@ -99,7 +99,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-black text-white">{total}</span>
+                    <span className="text-2xl font-black text-foreground">{total}</span>
                 </div>
             </div>
 
@@ -109,7 +109,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                     <button
                         key={entry.key}
                         onClick={() => onSegmentClick?.(entry.key)}
-                        className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white transition-colors"
+                        className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <ColorSwatch className="h-2 w-2" color={colors[entry.key] || chartTheme.series.neutral} />
                         {entry.name}

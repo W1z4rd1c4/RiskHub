@@ -10,7 +10,9 @@ import { riskHubKeys, usersKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ErrorState, LoadingState } from '@/components/ui/state';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
@@ -25,9 +27,6 @@ interface DepartmentModalProps {
 
 function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModalProps) {
     const { t } = useTranslation(['admin', 'common']);
-    const nameLabelId = useId();
-    const codeLabelId = useId();
-    const ownerLabelId = useId();
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [managerId, setManagerId] = useState<number | undefined>(undefined);
@@ -83,58 +82,64 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
     if (!isOpen) return null;
 
     return (
-        <RiskHubModalFrame onClose={onClose} title={department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <span id={nameLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.department_name')}</span>
-                        <input
-                            type="text"
-                            aria-labelledby={nameLabelId}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:departments_panel.modal.placeholders.department_name')}
-                            required
-                        />
-                    </div>
+        <RiskHubModalFrame onClose={onClose} isBusy={saving} title={department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}>
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <DialogBody>
+                    <Field label={t('admin:departments_panel.modal.fields.department_name')} required>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder={t('admin:departments_panel.modal.placeholders.department_name')}
+                                required
+                            />
+                        )}
+                    </Field>
 
-                    <div>
-                        <span id={codeLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.code_optional')}</span>
-                        <input
-                            type="text"
-                            aria-labelledby={codeLabelId}
-                            value={code}
-                            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
-                            placeholder={t('admin:departments_panel.modal.placeholders.code')}
-                        />
-                        <p className="text-xs text-slate-500 mt-1">{t('admin:departments_panel.modal.hints.code')}</p>
-                    </div>
+                    <Field
+                        label={t('admin:departments_panel.modal.fields.code_optional')}
+                        help={t('admin:departments_panel.modal.hints.code')}
+                    >
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="text"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
+                                className="font-mono"
+                                placeholder={t('admin:departments_panel.modal.placeholders.code')}
+                            />
+                        )}
+                    </Field>
 
                     {department && (
-                        <div>
-                            <span id={ownerLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</span>
-                            <ThemedSelect
-                                aria-labelledby={ownerLabelId}
-                                value={managerId?.toString() ?? ''}
-                                onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
-                                placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
-                                allowEmpty
-                                emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
-                                className="w-full"
-                                options={managerOptions}
-                            />
-                        </div>
+                        <Field label={t('common:labels.owner')}>
+                            {(field) => (
+                                <ThemedSelect
+                                    {...field}
+                                    value={managerId?.toString() ?? ''}
+                                    onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
+                                    placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
+                                    allowEmpty
+                                    emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
+                                    className="w-full"
+                                    options={managerOptions}
+                                />
+                            )}
+                        </Field>
                     )}
 
                     <RiskHubFieldError errorKey={errorKey} />
-                    <RiskHubModalActions
-                        onCancel={onClose}
-                        saveLabel={t('admin:departments_panel.modal.save_department')}
-                        saving={saving}
-                        savingLabel={t('admin:departments_panel.modal.saving')}
-                    />
-                </form>
+                </DialogBody>
+                <RiskHubModalActions
+                    onCancel={onClose}
+                    saveLabel={t('admin:departments_panel.modal.save_department')}
+                    saving={saving}
+                    savingLabel={t('admin:departments_panel.modal.saving')}
+                />
+            </form>
         </RiskHubModalFrame>
     );
 }
@@ -142,6 +147,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 export function DepartmentsPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const deleteTitleId = useId();
+    const deleteDescriptionId = useId();
     const showInactiveId = useId();
     const panel = useRiskHubConfigResource<DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate>({
         queryKey: riskHubKeys.departments(),
@@ -164,13 +170,22 @@ export function DepartmentsPanel() {
         return <ErrorState onRetry={panel.retry} isRetrying={panel.isFetching} />;
     }
 
+    const deleteBlocked = Boolean(panel.deleteConfirm && (
+        panel.deleteConfirm.user_count > 0
+        || panel.deleteConfirm.risk_count > 0
+        || panel.deleteConfirm.control_count > 0
+        || panel.deleteConfirm.kri_count > 0
+        || panel.deleteConfirm.vendor_count > 0
+        || panel.deleteConfirm.pending_orphan_count > 0
+    ));
+
     return (
         <div className="space-y-4">
             {panel.error ? (
                 <ErrorState variant="banner" onRetry={panel.retry} isRetrying={panel.isFetching} />
             ) : null}
             {panel.actionErrorKey && (
-                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                     <AlertCircle className="h-4 w-4" />
                     {t(panel.actionErrorKey, { ns: 'errorKeys' })}
                 </div>
@@ -178,17 +193,17 @@ export function DepartmentsPanel() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Building className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">{t('admin:departments_panel.title')}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{t('admin:departments_panel.title')}</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <label htmlFor={showInactiveId} className="flex items-center gap-2 text-sm text-slate-400">
+                    <label htmlFor={showInactiveId} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <input
                             id={showInactiveId}
                             type="checkbox"
                             checked={panel.showInactive}
                             onChange={(e) => panel.setShowInactive(e.target.checked)}
-                            className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
+                            className="rounded border-tint/20 bg-tint/5 text-accent focus:ring-accent"
                         />
                         {t('admin:departments_panel.show_deleted')}
                     </label>
@@ -208,14 +223,14 @@ export function DepartmentsPanel() {
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.name_code')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.manager')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.users')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.risks')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.controls')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
+                        <tr className="border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:departments_panel.columns.name_code')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:departments_panel.columns.manager')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:departments_panel.columns.users')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:departments_panel.columns.risks')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:departments_panel.columns.controls')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.status')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -227,48 +242,48 @@ export function DepartmentsPanel() {
                             <tr
                                 key={dept.id}
                                 className={cn(
-                                    "border-b border-white/5 hover:bg-white/5 transition-colors",
+                                    "border-b border-border hover:bg-tint/5 transition-colors",
                                     !dept.is_active && "opacity-50"
                                 )}
                             >
                                 <td className="py-3 px-4">
-                                    <div className="font-medium text-white">{dept.name}</div>
+                                    <div className="font-medium text-foreground">{dept.name}</div>
                                     {dept.code && (
-                                        <code className="text-xs text-slate-500 font-mono">{dept.code}</code>
+                                        <code className="text-xs text-muted-foreground font-mono">{dept.code}</code>
                                     )}
                                 </td>
                                 <td className="py-3 px-4">
                                     {dept.manager_name ? (
-                                        <div className="text-sm text-slate-300">{dept.manager_name}</div>
+                                        <div className="text-sm text-foreground">{dept.manager_name}</div>
                                     ) : (
-                                        <span className="text-xs text-slate-500 italic">{t('labels.no_manager')}</span>
+                                        <span className="text-xs text-muted-foreground italic">{t('labels.no_manager')}</span>
                                     )}
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full inline-flex">
-                                        <Users className="h-3 w-3 text-slate-400" />
-                                        <span className="text-xs text-slate-300">{dept.user_count}</span>
+                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-tint/5 rounded-full inline-flex">
+                                        <Users className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-xs text-foreground">{dept.user_count}</span>
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-amber-500/10 rounded-full inline-flex">
-                                        <Activity className="h-3 w-3 text-amber-500/50" />
-                                        <span className="text-xs text-amber-500/80">{dept.risk_count}</span>
+                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-warning/10 rounded-full inline-flex">
+                                        <Activity className="h-3 w-3 text-warning-text" aria-hidden="true" />
+                                        <span className="text-xs text-warning-text">{dept.risk_count}</span>
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 rounded-full inline-flex">
-                                        <Shield className="h-3 w-3 text-emerald-500/50" />
-                                        <span className="text-xs text-emerald-500/80">{dept.control_count}</span>
+                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-success/10 rounded-full inline-flex">
+                                        <Shield className="h-3 w-3 text-success-text" aria-hidden="true" />
+                                        <span className="text-xs text-success-text">{dept.control_count}</span>
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-center">
                                     {dept.is_active ? (
-                                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs border border-emerald-500/20">
+                                        <span className="px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs border border-success/20">
                                             {t('admin:departments_panel.badges.active')}
                                         </span>
                                     ) : (
-                                        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/20">
+                                        <span className="px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs border border-destructive/20">
                                             {t('admin:departments_panel.badges.deleted')}
                                         </span>
                                     )}
@@ -280,8 +295,8 @@ export function DepartmentsPanel() {
                                             className={cn(
                                                 "p-1.5 rounded transition-colors",
                                                 canUpdate
-                                                    ? "text-slate-400 hover:text-white hover:bg-white/10"
-                                                    : "text-slate-600 cursor-not-allowed"
+                                                    ? "text-muted-foreground hover:text-foreground hover:bg-tint/10"
+                                                    : "text-muted-foreground opacity-50 cursor-not-allowed"
                                             )}
                                             disabled={!canUpdate}
                                             title={t('common:actions.edit')}
@@ -293,7 +308,7 @@ export function DepartmentsPanel() {
                                         {canDelete && (
                                             <button
                                                 onClick={() => panel.requestDelete(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
                                                 aria-label={t('common:actions.delete')}
                                             >
@@ -304,7 +319,7 @@ export function DepartmentsPanel() {
                                         {canRestore && (
                                             <button
                                                 onClick={() => panel.handleRestore(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
+                                                className="p-1.5 text-muted-foreground hover:text-success-text hover:bg-success/10 rounded transition-colors"
                                                 title={t('admin:departments_panel.actions.restore')}
                                                 aria-label={t('admin:departments_panel.actions.restore')}
                                             >
@@ -334,56 +349,38 @@ export function DepartmentsPanel() {
                     isOpen
                     onClose={panel.closeDelete}
                     titleId={deleteTitleId}
+                    descriptionIds={[deleteDescriptionId]}
                     role="alertdialog"
-                    backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                    contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
+                    size="sm"
                 >
-                        <h3 id={deleteTitleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_department')}</h3>
-                        <div className="text-slate-400 text-sm mb-4">
+                    <DialogHeader title={t('confirmations.delete_department')} icon={Trash2} tone="danger" />
+                    <DialogBody className="text-sm text-muted-foreground">
+                        <p id={deleteDescriptionId}>
                             {t('admin:departments_panel.delete_confirm', { name: panel.deleteConfirm.name })}
-                            {(panel.deleteConfirm.user_count > 0
-                                || panel.deleteConfirm.risk_count > 0
-                                || panel.deleteConfirm.control_count > 0
-                                || panel.deleteConfirm.kri_count > 0
-                                || panel.deleteConfirm.vendor_count > 0
-                                || panel.deleteConfirm.pending_orphan_count > 0) && (
-                                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg space-y-1 text-red-400 text-xs">
-                                    <div className="flex items-center gap-2 font-bold">
-                                        <AlertCircle className="h-4 w-4" />
-                                        {t('admin:departments_panel.delete_blocked_title')}
-                                    </div>
-                                    <ul className="list-disc list-inside ml-1">
-                                        {panel.deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: panel.deleteConfirm.user_count })}</li>}
-                                        {panel.deleteConfirm.risk_count > 0 && <li>{t('admin:departments_panel.linked_counts.risks', { count: panel.deleteConfirm.risk_count })}</li>}
-                                        {panel.deleteConfirm.control_count > 0 && <li>{t('admin:departments_panel.linked_counts.controls', { count: panel.deleteConfirm.control_count })}</li>}
-                                        {panel.deleteConfirm.kri_count > 0 && <li>{t('admin:departments_panel.linked_counts.kris', { count: panel.deleteConfirm.kri_count })}</li>}
-                                        {panel.deleteConfirm.vendor_count > 0 && <li>{t('admin:departments_panel.linked_counts.vendors', { count: panel.deleteConfirm.vendor_count })}</li>}
-                                        {panel.deleteConfirm.pending_orphan_count > 0 && <li>{t('admin:departments_panel.linked_counts.pending_orphans', { count: panel.deleteConfirm.pending_orphan_count })}</li>}
-                                    </ul>
+                        </p>
+                        {deleteBlocked && (
+                            <div className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+                                <div className="flex items-center gap-2 font-bold">
+                                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                                    {t('admin:departments_panel.delete_blocked_title')}
                                 </div>
-                            )}
-                        </div>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={panel.closeDelete}
-                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                            >
-                                {t('common:actions.cancel')}
-                            </button>
-                            {panel.deleteConfirm.user_count === 0
-                                && panel.deleteConfirm.risk_count === 0
-                                && panel.deleteConfirm.control_count === 0
-                                && panel.deleteConfirm.kri_count === 0
-                                && panel.deleteConfirm.vendor_count === 0
-                                && panel.deleteConfirm.pending_orphan_count === 0 && (
-                                <button
-                                    onClick={() => void panel.handleDelete()}
-                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                >
-                                    {t('common:actions.delete')}
-                                </button>
-                            )}
-                        </div>
+                                <ul className="ml-1 list-inside list-disc">
+                                    {panel.deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: panel.deleteConfirm.user_count })}</li>}
+                                    {panel.deleteConfirm.risk_count > 0 && <li>{t('admin:departments_panel.linked_counts.risks', { count: panel.deleteConfirm.risk_count })}</li>}
+                                    {panel.deleteConfirm.control_count > 0 && <li>{t('admin:departments_panel.linked_counts.controls', { count: panel.deleteConfirm.control_count })}</li>}
+                                    {panel.deleteConfirm.kri_count > 0 && <li>{t('admin:departments_panel.linked_counts.kris', { count: panel.deleteConfirm.kri_count })}</li>}
+                                    {panel.deleteConfirm.vendor_count > 0 && <li>{t('admin:departments_panel.linked_counts.vendors', { count: panel.deleteConfirm.vendor_count })}</li>}
+                                    {panel.deleteConfirm.pending_orphan_count > 0 && <li>{t('admin:departments_panel.linked_counts.pending_orphans', { count: panel.deleteConfirm.pending_orphan_count })}</li>}
+                                </ul>
+                            </div>
+                        )}
+                    </DialogBody>
+                    <DialogFooter
+                        cancelLabel={t('common:actions.cancel')}
+                        intent="destructive"
+                        submitLabel={deleteBlocked ? undefined : t('common:actions.delete')}
+                        onSubmit={() => void panel.handleDelete()}
+                    />
                 </DialogShell>
             )}
         </div>

@@ -56,10 +56,10 @@ export function QuestionnaireInboxList({
 
     if (outcome.kind === 'empty') {
         return (
-            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
-                <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_questionnaires')}</p>
+            <div className="py-20 text-center border-2 border-dashed border-border rounded-2xl bg-tint/[0.01]">
+                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-foreground mb-2">{t('empty_state.all_caught_up')}</h3>
+                <p className="text-muted-foreground max-w-sm mx-auto">{t('empty_state.no_questionnaires')}</p>
             </div>
         );
     }
@@ -98,23 +98,23 @@ export function QuestionnaireInboxList({
                             >
                                 {getQuestionnaireStatusLabel(questionnaire, t)}
                             </span>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-muted-foreground">
                                 {t('risks:questionnaire.meta.due')} {formatDateValue(questionnaire.due_at, locale)}
                             </div>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-bold text-white mb-1 truncate">
+                            <h3 className="text-base font-bold text-foreground mb-1 truncate">
                                 {questionnaire.risk_name ?? t('common:fallbacks.unknown_risk')}
                             </h3>
-                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
                                     {t('risks:questionnaire.meta.sent')} {formatDateValue(questionnaire.sent_at, locale)}
                                 </span>
                                 <span>
                                     by{' '}
-                                    <span className="text-accent">
+                                    <span className="text-accent-text">
                                         {questionnaire.sent_by_user_name ?? t('common:fallbacks.unknown_user')}
                                     </span>
                                 </span>
@@ -124,7 +124,7 @@ export function QuestionnaireInboxList({
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => onOpenRisk(questionnaire.risk_id)}
-                                className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 hover:border-white/20 transition-all text-sm"
+                                className="px-3 py-2 rounded-xl bg-tint/5 border border-border text-foreground hover:bg-tint/10 hover:border-tint/20 transition-all text-sm"
                             >
                                 {t('risks:questionnaires.open')}
                             </button>

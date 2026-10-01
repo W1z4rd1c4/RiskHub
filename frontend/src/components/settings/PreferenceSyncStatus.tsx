@@ -21,7 +21,7 @@ export function PreferenceSyncStatus({
             <span>{t(`sync.${status}`)}</span>
             {status === 'unsynced' ? (
                 <>
-                    <button type="button" className="font-medium text-accent hover:underline" onClick={onRetry}>
+                    <button type="button" className="font-medium text-accent-text hover:underline" onClick={onRetry}>
                         {t('sync.retry')}
                     </button>
                     <button type="button" className="font-medium text-muted-foreground hover:underline" onClick={onRevert}>

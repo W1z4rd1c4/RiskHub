@@ -90,10 +90,10 @@ export function KRIsPage() {
                 unknownRiskType: t('common:fallbacks.unknown_type'),
                 unknownRisk: t('common:fallbacks.unknown_risk'),
             }),
-            renderGroupBody: state.viewMode === 'risk' ? (group) => <div className="grid grid-cols-2 gap-y-2 pb-2 border-b border-white/5">
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><Shield className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_type || '') || t('common:fallbacks.unknown_type')}</span></div>
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><Building2 className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_department_name || '') || t('common:fallbacks.unassigned')}</span></div>
-                <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><User className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_owner_name || '') || t('common:fallbacks.no_owner')}</span></div>
+            renderGroupBody: state.viewMode === 'risk' ? (group) => <div className="grid grid-cols-2 gap-y-2 pb-2 border-b border-border">
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest truncate"><Shield className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_type || '') || t('common:fallbacks.unknown_type')}</span></div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest truncate"><Building2 className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_department_name || '') || t('common:fallbacks.unassigned')}</span></div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest truncate"><User className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_owner_name || '') || t('common:fallbacks.no_owner')}</span></div>
             </div> : undefined,
         }}
         testIdPrefix="kris"

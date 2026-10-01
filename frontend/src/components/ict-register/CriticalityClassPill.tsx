@@ -9,6 +9,8 @@
  * so the react-refresh rule stays satisfied.
  */
 
+import { VENDOR_TIERS, vendorTierClass } from '@/lib/severity';
+
 // Semantic status tokens (ADR-015): each pill pairs a token background with its
 // contract-tested foreground (statusTokenContrast.test.ts), matching the
 // committee pill migration (FR-P5-1). The four bands collapse onto the
@@ -29,12 +31,11 @@ const CRITICALITY_PILLS: Record<string, string> = {
     critical: FILL_DESTRUCTIVE,
 };
 
-// TierDod, verbatim workbook labels (never translated).
-const VENDOR_TIER_PILLS: Record<string, string> = {
-    critical: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    significant: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    standard: 'text-slate-300 bg-slate-400/10 border-slate-400/20',
-};
+// TierDod tiers take their badge tone from the severity SSOT (lib/severity.ts,
+// D1 + PM-3: critical → danger, significant → the medium band, standard → neutral).
+const VENDOR_TIER_PILLS: Record<string, string> = Object.fromEntries(
+    VENDOR_TIERS.map((tier) => [tier, vendorTierClass('badge', tier) ?? '']),
+);
 
 function Pill({
     displayValue,
@@ -48,13 +49,13 @@ function Pill({
     testId?: string;
 }) {
     if (!value) {
-        return <span className="text-sm text-slate-500">—</span>;
+        return <span className="text-sm text-muted-foreground">—</span>;
     }
     return (
         <span
             data-testid={testId}
             className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                palette[value] ?? 'text-slate-300 bg-slate-400/10 border-slate-400/20'
+                palette[value] ?? 'bg-muted text-muted-foreground border-border'
             }`}
         >
             {displayValue ?? value}

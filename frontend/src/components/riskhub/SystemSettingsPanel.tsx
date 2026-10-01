@@ -91,7 +91,7 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                         const cleaned = e.target.value.replace(/[^0-9]/g, '');
                         setValue(cleaned);
                     }}
-                    className="w-24 md:w-32 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                    className="w-24 md:w-32 px-3 py-1.5 bg-tint/5 border border-input rounded-lg text-foreground text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                     disabled={isReadOnly}
                 />
             );
@@ -104,25 +104,25 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                 aria-describedby={descriptionId}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                className="flex-1 px-3 py-1.5 bg-tint/5 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
                 disabled={isReadOnly}
             />
         );
     };
 
     return (
-        <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+        <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
             <div className="flex-1">
                 <div className="flex items-center gap-2">
-                    <span id={nameId} className="text-white font-medium">{config.display_name}</span>
+                    <span id={nameId} className="text-foreground font-medium">{config.display_name}</span>
                     {config.min_value !== null && config.max_value !== null && (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                             ({config.min_value} - {config.max_value})
                         </span>
                     )}
                 </div>
                 {config.description && (
-                    <p id={descriptionId} className="text-sm text-slate-500 mt-0.5">{config.description}</p>
+                    <p id={descriptionId} className="text-sm text-muted-foreground mt-0.5">{config.description}</p>
                 )}
             </div>
 
@@ -147,13 +147,13 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                 )}
 
                 {saved && (
-                    <span role="status" className="flex items-center gap-1 text-green-400 text-sm">
+                    <span role="status" className="flex items-center gap-1 text-success-text text-sm">
                         <Check className="h-4 w-4" aria-hidden="true" /> {t('admin:system_settings.saved')}
                     </span>
                 )}
 
                 {errorKey && (
-                    <span role="alert" className="flex items-center gap-1 text-red-400 text-sm">
+                    <span role="alert" className="flex items-center gap-1 text-destructive text-sm">
                         <AlertCircle className="h-4 w-4" aria-hidden="true" /> {t(errorKey, { ns: 'errorKeys' })}
                     </span>
                 )}
@@ -183,11 +183,11 @@ export function SystemSettingsPanel() {
     };
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.settings')}</div>;
+        return <div className="text-muted-foreground text-center py-8">{t('common:loading.settings')}</div>;
     }
 
     if (error) {
-        return <div className="text-red-400 text-center py-8">{t('admin:errors.failed_to_load_settings')}</div>;
+        return <div className="text-destructive text-center py-8">{t('admin:errors.failed_to_load_settings')}</div>;
     }
 
     const categories = Object.keys(configs || {});
@@ -196,7 +196,7 @@ export function SystemSettingsPanel() {
         <div className="space-y-6">
             <div className="flex items-center gap-3">
                 <Settings2 className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold text-white">{t('admin:system_settings.title')}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t('admin:system_settings.title')}</h3>
             </div>
 
             {categories.map((category) => {
@@ -204,12 +204,12 @@ export function SystemSettingsPanel() {
                 const categoryConfigs = configs?.[category] || [];
 
                 return (
-                    <div key={category} className="bg-white/5 rounded-xl p-4">
+                    <div key={category} className="bg-tint/5 rounded-xl p-4">
                         <div className="mb-4">
-                            <h4 className="text-white font-medium">
+                            <h4 className="text-foreground font-medium">
                                 {categoryInfo ? t(categoryInfo.labelKey) : category}
                             </h4>
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm text-muted-foreground">
                                 {categoryInfo ? t(categoryInfo.descriptionKey) : ''}
                             </p>
                         </div>

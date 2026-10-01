@@ -12,7 +12,7 @@ export function KriFormErrorAlert({ error }: KriFormErrorAlertProps) {
     return (
         <div
             role="alert"
-            className="mb-6 flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm font-medium text-rose-400 animate-in fade-in slide-in-from-top-2"
+            className="mb-6 flex items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm font-medium text-destructive animate-in fade-in slide-in-from-top-2"
         >
             <AlertCircle className="h-5 w-5" />
             {translateUiMessage(t, error)}

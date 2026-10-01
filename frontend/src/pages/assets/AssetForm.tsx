@@ -358,7 +358,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         }
     };
 
-    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
+    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-muted-foreground';
 
     const selectField = (
         field: keyof FormFields,
@@ -413,7 +413,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error || hasFieldErrors ? (
-                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
+                <div role="alert" className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
                 </div>
@@ -422,7 +422,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             {closedListsQuery.isError || businessOwnerQuery.isError || ictOwnerQuery.isError || departmentQuery.isError ? (
                 <div
                     role="status"
-                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
+                    className="glass-card flex items-center justify-between gap-3 border border-warning/30 text-warning-text"
                 >
                     <div className="flex items-start gap-3">
                         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
@@ -436,7 +436,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                             void ictOwnerQuery.refetch();
                             void departmentQuery.refetch();
                         }}
-                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
+                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-warning-text transition-colors hover:bg-tint/10"
                     >
                         {t('actions.retry')}
                     </button>
@@ -444,7 +444,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             ) : null}
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.identity')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -470,7 +470,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             </section>
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.ownership')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -490,7 +490,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             </section>
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.ratings')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -500,11 +500,11 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                         </div>
                     ))}
                 </div>
-                <p className="text-xs text-slate-500">{t('form.ratings_note')}</p>
+                <p className="text-xs text-muted-foreground">{t('form.ratings_note')}</p>
             </section>
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.impact_dependencies')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -518,7 +518,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             </section>
 
             <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.lifecycle')}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
@@ -567,7 +567,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     <button
                         type="button"
                         onClick={() => requestLocalLeave(onCancel)}
-                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                        className="px-4 py-2.5 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                     >
                         <X className="h-4 w-4" />
                         {t('actions.cancel')}

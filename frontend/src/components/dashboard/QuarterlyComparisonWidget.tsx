@@ -72,7 +72,7 @@ export function QuarterlyComparisonWidget() {
     if (error && !data) {
         return (
             <QuarterlyComparisonFrame title={t('sections.quarterly_comparison')}>
-                <p className="text-slate-500 text-sm">{error || t('quarterly.no_data_available')}</p>
+                <p className="text-muted-foreground text-sm">{error || t('quarterly.no_data_available')}</p>
             </QuarterlyComparisonFrame>
         );
     }
@@ -95,10 +95,10 @@ export function QuarterlyComparisonWidget() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison')}</h3>
+                    <h3 className="text-lg font-bold text-foreground">{t('sections.quarterly_comparison')}</h3>
                 </div>
                 {isLoading && (
-                    <RefreshCw className="h-4 w-4 text-slate-400 animate-spin" />
+                    <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />
                 )}
             </div>
 
@@ -129,14 +129,14 @@ export function QuarterlyComparisonWidget() {
                 <>
                     <div
                         aria-label={t('quarterly.observation_evidence')}
-                        className="mb-4 break-words rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3 text-xs text-slate-400"
+                        className="mb-4 break-words rounded-xl border border-border bg-tint/[0.03] px-4 py-3 text-xs text-muted-foreground"
                     >
                         <p>
-                            <span className="font-bold text-slate-300">{data.snapshot_info?.current_quarter} · {sourceLabel(currentSource)}</span>
+                            <span className="font-bold text-foreground">{data.snapshot_info?.current_quarter} · {sourceLabel(currentSource)}</span>
                             {' '}{data.period.this_start} – {data.period.this_end}
                         </p>
                         <p>
-                            <span className="font-bold text-slate-300">{data.snapshot_info?.last_quarter} · {sourceLabel(compareSource)}</span>
+                            <span className="font-bold text-foreground">{data.snapshot_info?.last_quarter} · {sourceLabel(compareSource)}</span>
                             {' '}{data.period.last_start} – {data.period.last_end}
                         </p>
                     </div>

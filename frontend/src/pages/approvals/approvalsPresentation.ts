@@ -13,10 +13,10 @@ export function getApprovalStatusBadge(status: ApprovalStatus): string {
         case 'rejected':
             return 'text-destructive border-destructive/20 bg-destructive/10';
         case 'expired':
-            return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+            return 'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5';
         case 'cancelled':
         default:
-            return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+            return 'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5';
     }
 }
 
@@ -30,7 +30,7 @@ export function getApprovalActionBadge(action: ApprovalActionType): string {
         case 'edit':
             return 'text-accent-text bg-info/10 border-info/20';
         default:
-            return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+            return 'text-muted-foreground bg-muted-foreground/10 border-muted-foreground/20';
     }
 }
 
@@ -84,15 +84,15 @@ export function isQuestionnaireOverdue(questionnaire: RiskQuestionnaireListItem,
 
 export function getQuestionnaireStatusBadge(questionnaire: RiskQuestionnaireListItem, now = Date.now()): string {
     if (isQuestionnaireOverdue(questionnaire, now)) {
-        return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
+        return 'text-destructive border-destructive/20 bg-destructive/5';
     }
     if (questionnaire.status === 'sent') {
-        return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
+        return 'text-warning-text border-warning/20 bg-warning/5';
     }
     if (questionnaire.status === 'in_progress') {
-        return 'text-accent border-accent/20 bg-accent/5';
+        return 'text-accent-text border-accent/20 bg-accent/5';
     }
-    return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+    return 'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5';
 }
 
 export function getQuestionnaireStatusLabel(

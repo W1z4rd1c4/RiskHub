@@ -142,7 +142,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
 
             {/* Link Error Message */}
             {linkErrorKey && (
-                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" aria-hidden="true" />
                     {t(linkErrorKey, { ns: 'errorKeys' })}
                     <Button
@@ -172,7 +172,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                 identifier={risk.risk_id_code}
                 identifierSeparatorLabel={t('detail_header.identifier_separator')}
                 title={risk.name}
-                titleAdornment={risk.is_priority ? <Star className="h-5 w-5 text-amber-400 fill-amber-400" /> : undefined}
+                titleAdornment={risk.is_priority ? <Star className="h-5 w-5 text-warning-text fill-warning" /> : undefined}
                 statuses={(
                     <>
                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
@@ -242,7 +242,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
             />
 
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10" role="tablist" aria-label={risk.name}>
+            <div className="flex items-center gap-2 border-b border-border" role="tablist" aria-label={risk.name}>
                 <button
                     {...getTabProps('overview', 0)}
                     className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'

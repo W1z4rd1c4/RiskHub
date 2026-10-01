@@ -93,22 +93,22 @@ export function QuarterMetricCard({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             aria-label={label || keyName}
-            className={`bg-white/5 rounded-xl p-4 border ${showUncertainty ? 'border-amber-500/20' : 'border-white/5'}`}
+            className={`bg-tint/5 rounded-xl p-4 border ${showUncertainty ? 'border-warning/20' : 'border-border'}`}
             role="group"
         >
             <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     {label || keyName}
                 </p>
                 {showUncertainty && (
                     <span title={uncertaintyHint}>
-                        <HelpCircle className="h-3 w-3 text-amber-400" />
+                        <HelpCircle className="h-3 w-3 text-warning-text" />
                     </span>
                 )}
             </div>
             <div className="flex items-end gap-2 mb-1">
-                <span className="text-2xl font-black text-white">{displayThisValue}</span>
-                <span className="text-xs text-slate-400 pb-1">vs {displayLastValue}</span>
+                <span className="text-2xl font-black text-foreground">{displayThisValue}</span>
+                <span className="text-xs text-muted-foreground pb-1">vs {displayLastValue}</span>
             </div>
             <div className={`flex items-center gap-1 text-xs font-bold ${colorClass}`}>
                 {direction === 'up' && <TrendingUp className="h-3 w-3" />}
@@ -120,7 +120,7 @@ export function QuarterMetricCard({
             {stockObservation && currentQuarter && compareQuarter ? (
                 <div
                     aria-label={t('quarterly.stock_observations', { ns: 'dashboard' })}
-                    className="mt-3 break-words border-t border-white/5 pt-2 text-[10px] leading-4 text-slate-400"
+                    className="mt-3 break-words border-t border-border pt-2 text-[10px] leading-4 text-muted-foreground"
                 >
                     <p>
                         {currentQuarter} · {t(`quarterly.source.${stockObservation.current.source}`)}{' '}

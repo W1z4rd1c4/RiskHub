@@ -82,7 +82,7 @@ export function HealthPanel() {
 
                 <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <Clock className="h-5 w-5 text-blue-400" />
+                        <Clock className="h-5 w-5 text-accent-text" />
                         <span className="admin-muted text-sm">{t('health.uptime')}</span>
                     </div>
                     <p className="admin-title text-xl font-bold">
@@ -95,7 +95,7 @@ export function HealthPanel() {
 
                 <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <MemoryStick className="h-5 w-5 text-purple-400" />
+                        <MemoryStick className="h-5 w-5 text-chart-2" />
                         <span className="admin-muted text-sm">{t('health.memory')}</span>
                     </div>
                     <p className="admin-title text-xl font-bold">
@@ -108,7 +108,7 @@ export function HealthPanel() {
 
                 <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
-                        <Users className="h-5 w-5 text-amber-400" />
+                        <Users className="h-5 w-5 text-warning-text" />
                         <span className="admin-muted text-sm">{t('health.active_users')}</span>
                     </div>
                     <p className="admin-title text-xl font-bold">

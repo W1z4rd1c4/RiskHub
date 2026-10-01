@@ -77,9 +77,9 @@ export function ControlDetailOverviewTab({
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
                         <BarChart3 className="h-5 w-5 text-accent" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.standard_configuration')}</h3>
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('controls:detail.standard_configuration')}</h3>
                     </div>
 
                     <div className="space-y-4">
@@ -91,42 +91,42 @@ export function ControlDetailOverviewTab({
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('common:labels.frequency')}</span>
-                            <div className="flex items-center gap-2 text-foreground font-bold text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                            <div className="flex items-center gap-2 text-foreground font-bold text-sm bg-tint/5 px-3 py-1 rounded-lg border border-border">
                                 <Calendar className="h-3.5 w-3.5 text-accent" />
                                 <span className="capitalize">{control.frequency}</span>
                             </div>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('controls:detail.control_form')}</span>
-                            <span className="text-white font-bold text-sm capitalize">{control.control_form}</span>
+                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('controls:detail.control_form')}</span>
+                            <span className="text-foreground font-bold text-sm capitalize">{control.control_form}</span>
                         </div>
                     </div>
                 </motion.div>
 
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <User className="h-5 w-5 text-purple-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.ownership_responsibility')}</h3>
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
+                        <User className="h-5 w-5 text-chart-2" />
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('controls:detail.ownership_responsibility')}</h3>
                     </div>
 
                     <div className="space-y-5">
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent-text text-xs font-bold">
                                 {control.control_owner?.name?.[0] || 'U'}
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('controls:fields.owner')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{control.control_owner?.name || t('controls:detail.unassigned')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{control.control_owner?.name || t('controls:detail.unassigned')}</p>
                                 <p className="text-xs text-muted-foreground">{control.control_owner?.email || ''}</p>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                            <div className="w-8 h-8 rounded-full bg-tint/5 border border-border flex items-center justify-center text-muted-foreground">
                                 <Building2 className="h-4 w-4" />
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('controls:detail.department_position')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{control.department?.name || t('controls:detail.no_department')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{control.department?.name || t('controls:detail.no_department')}</p>
                                 <p
                                     className="text-xs text-muted-foreground italic uppercase tracking-tighter font-bold mt-0.5"
                                 >
@@ -138,21 +138,21 @@ export function ControlDetailOverviewTab({
                 </motion.div>
 
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
                         <BookOpen className="h-5 w-5 text-warning-text" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.methodology_source')}</h3>
+                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('controls:detail.methodology_source')}</h3>
                     </div>
 
                     <div className="space-y-4">
                         <div>
                             <p className="text-xs text-muted-foreground font-black uppercase tracking-widest mb-1">{t('controls:detail.methodology_ref')}</p>
-                            <p className="text-sm font-medium text-slate-300 bg-white/5 p-2 rounded-lg border border-white/5 font-mono truncate">
+                            <p className="text-sm font-medium text-foreground bg-tint/5 p-2 rounded-lg border border-border font-mono truncate">
                                 {control.methodology_reference || t('controls:detail.not_available')}
                             </p>
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground font-black uppercase tracking-widest mb-1">{t('controls:detail.data_source')}</p>
-                            <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-accent/30 pl-3">
+                            <p className="text-xs text-muted-foreground leading-relaxed italic border-l-2 border-accent/30 pl-3">
                                 {control.data_source || t('controls:detail.not_specified')}
                             </p>
                         </div>
@@ -167,7 +167,7 @@ export function ControlDetailOverviewTab({
                 className="glass-card"
             >
                 <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
+                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs flex items-center gap-2">
                         <ShieldAlert className="h-4 w-4 text-success-text" />
                         {t('controls:detail.mitigated_risks')}
                     </h3>
@@ -219,8 +219,8 @@ export function ControlDetailOverviewTab({
                 ) : (
                     <div className="space-y-6">
                         {activeLinkedRisks.length === 0 && archivedLinkedRisks.length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
-                                <p className="text-xs text-slate-600 font-medium">{t('controls:empty_state.no_linked_risks')}</p>
+                            <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl col-span-full">
+                                <p className="text-xs text-muted-foreground font-medium">{t('controls:empty_state.no_linked_risks')}</p>
                             </div>
                         ) : (
                             <>
@@ -231,11 +231,11 @@ export function ControlDetailOverviewTab({
                                                 type="button"
                                                 key={link.id}
                                                 onClick={(e) => onRiskClick(link.risk_id, e)}
-                                                className="group w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer relative"
+                                                className="group w-full p-4 bg-tint/[0.03] border border-border rounded-2xl text-left hover:bg-tint/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer relative"
                                             >
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div>
-                                                        <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
+                                                        <span className="text-xs font-bold text-foreground line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
                                                         {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
                                                     </div>
                                                     <span
@@ -265,11 +265,11 @@ export function ControlDetailOverviewTab({
                                                     type="button"
                                                     key={link.id}
                                                     onClick={(e) => onRiskClick(link.risk_id, e)}
-                                                    className="group w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer relative"
+                                                    className="group w-full p-4 bg-tint/[0.03] border border-border rounded-2xl text-left hover:bg-tint/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer relative"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
-                                                            <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
+                                                            <span className="text-xs font-bold text-foreground line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
                                                             {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
                                                         </div>
                                                         <span
@@ -298,7 +298,7 @@ export function ControlDetailOverviewTab({
                     <button
                         type="button"
                         onClick={onOpenLinkDialog}
-                        className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-white/5 transition-colors"
+                        className="w-full mt-4 py-3 border border-dashed border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-tint/5 transition-colors"
                     >
                         {t('controls:detail.manage_risk_linkage')}
                     </button>

@@ -126,7 +126,7 @@ export function VendorReportsPage() {
         );
     } else if (capabilitiesUnavailable) {
         reportContent = (
-            <div role="alert" className="glass-card p-6 flex flex-wrap items-center justify-between gap-4 border-rose-500/30">
+            <div role="alert" className="glass-card p-6 flex flex-wrap items-center justify-between gap-4 border-destructive/30">
                 <p className="text-foreground font-medium">{t('reports.unavailable')}</p>
                 <button
                     type="button"
@@ -191,12 +191,12 @@ export function VendorReportsPage() {
                         ) : null}
                     </div>
                     {annualError ? (
-                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
-                            <p className="text-sm font-semibold text-rose-200">{tCommon('export.errors.failed')}</p>
+                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+                            <p className="text-sm font-semibold text-destructive">{tCommon('export.errors.failed')}</p>
                             <button
                                 type="button"
                                 onClick={() => void downloadAnnual(annualError)}
-                                className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-xs font-bold text-foreground hover:bg-white/15"
+                                className="px-3 py-1.5 rounded-lg bg-tint/10 border border-border text-xs font-bold text-foreground hover:bg-tint/15"
                             >
                                 {tCommon('actions.retry')}
                             </button>
@@ -226,12 +226,12 @@ export function VendorReportsPage() {
                         </button>
                     ) : null}
                     {doraError ? (
-                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
-                            <p className="text-sm font-semibold text-rose-200">{tCommon('export.errors.failed')}</p>
+                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+                            <p className="text-sm font-semibold text-destructive">{tCommon('export.errors.failed')}</p>
                             <button
                                 type="button"
                                 onClick={() => void downloadDora(doraError)}
-                                className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-xs font-bold text-foreground hover:bg-white/15"
+                                className="px-3 py-1.5 rounded-lg bg-tint/10 border border-border text-xs font-bold text-foreground hover:bg-tint/15"
                             >
                                 {tCommon('actions.retry')}
                             </button>

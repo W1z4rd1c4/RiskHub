@@ -1,7 +1,10 @@
 import { useState, useEffect, useId } from 'react';
 import { Palette, Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
@@ -22,11 +25,6 @@ interface RiskTypeModalProps {
 
 function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps) {
     const { t } = useTranslation(['admin', 'common']);
-    const codeLabelId = useId();
-    const displayNameLabelId = useId();
-    const descriptionLabelId = useId();
-    const colorLabelId = useId();
-    const sortOrderLabelId = useId();
     const [code, setCode] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
@@ -69,90 +67,96 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
     if (!isOpen) return null;
 
     return (
-        <RiskHubModalFrame onClose={onClose} title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
-                <form onSubmit={handleSubmit} className="space-y-4">
+        <RiskHubModalFrame onClose={onClose} isBusy={saving} title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <DialogBody>
                     {!riskType && (
-                        <div>
-                            <span id={codeLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.code')}</span>
-                            <input
-                                type="text"
-                                aria-labelledby={codeLabelId}
-                                value={code}
-                                onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                                placeholder={t('admin:risk_types_panel.modal.placeholders.code')}
-                                required
-                            />
-                            <p className="text-xs text-slate-500 mt-1">{t('admin:risk_types_panel.modal.hints.code')}</p>
-                        </div>
+                        <Field
+                            label={t('admin:risk_types_panel.modal.fields.code')}
+                            help={t('admin:risk_types_panel.modal.hints.code')}
+                            required
+                        >
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    type="text"
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                    placeholder={t('admin:risk_types_panel.modal.placeholders.code')}
+                                    required
+                                />
+                            )}
+                        </Field>
                     )}
 
-                    <div>
-                        <span id={displayNameLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.display_name')}</span>
-                        <input
-                            type="text"
-                            aria-labelledby={displayNameLabelId}
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:risk_types_panel.modal.placeholders.display_name')}
-                            required
-                        />
-                    </div>
+                    <Field label={t('admin:risk_types_panel.modal.fields.display_name')} required>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="text"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                placeholder={t('admin:risk_types_panel.modal.placeholders.display_name')}
+                                required
+                            />
+                        )}
+                    </Field>
 
-                    <div>
-                        <span id={descriptionLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.description')}</span>
-                        <textarea
-                            aria-labelledby={descriptionLabelId}
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:risk_types_panel.modal.placeholders.description')}
-                            rows={3}
-                        />
-                    </div>
+                    <Field label={t('common:labels.description')}>
+                        {(field) => (
+                            <Textarea
+                                {...field}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder={t('admin:risk_types_panel.modal.placeholders.description')}
+                                rows={3}
+                            />
+                        )}
+                    </Field>
 
                     <div className="flex gap-4">
-                        <div className="flex-1">
-                            <span id={colorLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.color')}</span>
-                            <div className="flex items-center gap-2" role="group" aria-labelledby={colorLabelId}>
-                                <input
-                                    type="color"
-                                    aria-labelledby={colorLabelId}
-                                    value={color}
-                                    onChange={(e) => setColor(e.target.value)}
-                                    className="w-10 h-10 rounded cursor-pointer"
-                                />
-                                <input
-                                    type="text"
-                                    aria-labelledby={colorLabelId}
-                                    value={color}
-                                    onChange={(e) => setColor(e.target.value)}
-                                    className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                                    pattern="^#[0-9a-fA-F]{6}$"
-                                />
-                            </div>
-                        </div>
+                        <Field label={t('admin:risk_types_panel.modal.fields.color')} group className="flex-1">
+                            {(field) => (
+                                <div className="flex items-center gap-2" role="group" aria-labelledby={field['aria-labelledby']}>
+                                    <input
+                                        type="color"
+                                        aria-labelledby={field['aria-labelledby']}
+                                        value={color}
+                                        onChange={(e) => setColor(e.target.value)}
+                                        className="h-10 w-10 cursor-pointer rounded"
+                                    />
+                                    <Input
+                                        type="text"
+                                        aria-labelledby={field['aria-labelledby']}
+                                        value={color}
+                                        onChange={(e) => setColor(e.target.value)}
+                                        className="flex-1 font-mono"
+                                        pattern="^#[0-9a-fA-F]{6}$"
+                                    />
+                                </div>
+                            )}
+                        </Field>
 
-                        <div className="w-24">
-                            <span id={sortOrderLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.sort_order')}</span>
-                            <input
-                                type="number"
-                                aria-labelledby={sortOrderLabelId}
-                                value={sortOrder}
-                                onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                            />
-                        </div>
+                        <Field label={t('admin:risk_types_panel.modal.fields.sort_order')} className="w-24">
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    value={sortOrder}
+                                    onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
+                                />
+                            )}
+                        </Field>
                     </div>
 
                     <RiskHubFieldError errorKey={errorKey} />
-                    <RiskHubModalActions
-                        onCancel={onClose}
-                        saving={saving}
-                        savingLabel={t('admin:risk_types_panel.modal.saving')}
-                    />
-                </form>
+                </DialogBody>
+                <RiskHubModalActions
+                    onCancel={onClose}
+                    saving={saving}
+                    savingLabel={t('admin:risk_types_panel.modal.saving')}
+                />
+            </form>
         </RiskHubModalFrame>
     );
 }
@@ -160,6 +164,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 export function RiskTypesPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const deleteTitleId = useId();
+    const deleteDescriptionId = useId();
     const showDeletedId = useId();
     const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
         queryKey: riskHubKeys.riskTypes(),
@@ -328,34 +333,28 @@ export function RiskTypesPanel() {
                     isOpen
                     onClose={panel.closeDelete}
                     titleId={deleteTitleId}
+                    descriptionIds={[deleteDescriptionId]}
                     role="alertdialog"
-                    backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                    contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
+                    size="sm"
                 >
-                        <h3 id={deleteTitleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
-                        <p className="text-slate-400 text-sm mb-4">
+                    <DialogHeader title={t('confirmations.delete_risk_type')} icon={Trash2} tone="danger" />
+                    <DialogBody className="text-sm text-muted-foreground">
+                        <p id={deleteDescriptionId}>
                             {t('admin:risk_types_panel.delete_confirm', { name: panel.deleteConfirm.display_name })}
                             {panel.deleteConfirm.risk_count > 0 && (
-                                <span className="block mt-2 text-amber-400">
+                                <span className="mt-2 block text-warning-text">
                                     {t('admin:risk_types_panel.delete_warning', { count: panel.deleteConfirm.risk_count })}
                                 </span>
                             )}
                         </p>
                         <RiskHubFieldError errorKey={panel.actionErrorKey} />
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={panel.closeDelete}
-                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                            >
-                                {t('common:actions.cancel')}
-                            </button>
-                            <button
-                                onClick={() => void panel.handleDelete()}
-                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                            >
-                                {t('common:actions.delete')}
-                            </button>
-                        </div>
+                    </DialogBody>
+                    <DialogFooter
+                        cancelLabel={t('common:actions.cancel')}
+                        intent="destructive"
+                        submitLabel={t('common:actions.delete')}
+                        onSubmit={() => void panel.handleDelete()}
+                    />
                 </DialogShell>
             )}
         </div>

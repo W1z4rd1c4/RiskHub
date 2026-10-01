@@ -252,7 +252,7 @@ describe('UX-157 Appearance theme choice', () => {
         expect(document.documentElement).toHaveClass('theme-dark');
     });
 
-    it('labels only Light as Beta and announces it through the radio description (D2)', () => {
+    it('no longer labels Light as Beta once the D2 exit criterion is met (Phase 2.3)', () => {
         render(
             <AuthProvider>
                 <ThemeProvider>
@@ -261,14 +261,13 @@ describe('UX-157 Appearance theme choice', () => {
             </AuthProvider>,
         );
 
+        // G-RENDER measures 0 light text elements below 3:1 on every harness surface, so the
+        // D2 stop-gap and its "Beta" fallback label are gone; each radio is described only by
+        // its own description.
         const group = screen.getByRole('group', { name: 'Theme' });
-        const light = within(group).getByRole('radio', { name: 'Light' });
-        expect(screen.getByTestId('theme-light-beta')).toHaveTextContent('Beta');
-        expect(light).toHaveAccessibleDescription(
-            'Clean and bright for daytime use Beta Some screens are still being adapted to the light theme.',
-        );
-        expect(screen.queryByTestId('theme-dark-beta')).not.toBeInTheDocument();
-        expect(screen.queryByTestId('theme-riskhub-beta')).not.toBeInTheDocument();
+        expect(within(group).queryByText('Beta')).not.toBeInTheDocument();
+        expect(within(group).getByRole('radio', { name: 'Light' })).toHaveAccessibleDescription('Clean and bright for daytime use');
         expect(within(group).getByRole('radio', { name: 'Dark' })).toHaveAccessibleDescription('True dark mode for OLED displays');
+        expect(within(group).getByRole('radio', { name: 'RiskHub Theme' })).toHaveAccessibleDescription('Premium signature theme');
     });
 });

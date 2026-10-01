@@ -193,18 +193,18 @@ function LinkBlock({
         <div className="space-y-4" data-testid={`${testIdPrefix}-block`}>
             <div className="flex items-center gap-2">
                 <Icon className={`h-4 w-4 ${iconClass}`} />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{title}</h3>
             </div>
             {rows.length === 0 ? (
-                <p className="text-xs text-slate-500">{emptyLabel}</p>
+                <p className="text-xs text-muted-foreground">{emptyLabel}</p>
             ) : (
                 <ul className="space-y-2" data-testid={`${testIdPrefix}-rows`}>
                     {rows.map((row) => (
                         <li
                             key={row.id}
-                            className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
+                            className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-2.5"
                         >
-                            <span className="text-sm font-bold text-white truncate">{row.name}</span>
+                            <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
                             {row.processEditBlocked && processBlockedLabel ? (
                                 <p className="text-xs font-medium text-warning-text">{processBlockedLabel}</p>
                             ) : null}
@@ -215,7 +215,7 @@ function LinkBlock({
                                     data-testid={`${testIdPrefix}-remove-${row.id}`}
                                     onClick={() => onRemove(row.id)}
                                     aria-label={t('common:links.remove_named', { name: row.name })}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                     title={row.processEditBlocked && processBlockedLabel
                                         ? processBlockedLabel
                                         : removeLabel}
@@ -472,8 +472,8 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
 
     return (
         <div className="glass-card space-y-6" data-testid="risk-register-links-section">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+            <div className="flex items-center gap-3 border-b border-border pb-4">
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('register_links.title')}
                 </h2>
             </div>
@@ -491,7 +491,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             >
             <LinkBlock
                 icon={Flame}
-                iconClass="text-amber-400"
+                iconClass="text-warning-text"
                 title={t('register_links.threats.title')}
                 emptyLabel={t('register_links.threats.empty')}
                 selectPlaceholder={t('register_links.threats.select_placeholder')}
@@ -527,7 +527,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             >
             <LinkBlock
                 icon={Workflow}
-                iconClass="text-sky-400"
+                iconClass="text-accent-text"
                 title={t('register_links.processes.title')}
                 emptyLabel={t('register_links.processes.empty')}
                 selectPlaceholder={t('register_links.processes.select_placeholder')}
@@ -574,7 +574,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             >
             <LinkBlock
                 icon={Server}
-                iconClass="text-emerald-400"
+                iconClass="text-success-text"
                 title={t('register_links.assets.title')}
                 emptyLabel={t('register_links.assets.empty')}
                 selectPlaceholder={t('register_links.assets.select_placeholder')}

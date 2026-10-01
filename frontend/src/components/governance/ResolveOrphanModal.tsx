@@ -1,10 +1,11 @@
 import { useId } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { useTranslation } from '@/i18n/hooks';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
+import { Textarea } from '@/components/ui/textarea';
 import type { ApprovalCreatedResponse } from '@/types/approval';
 
 import { ResolveOrphanDepartmentSelection } from './ResolveOrphanDepartmentSelection';
@@ -21,9 +22,6 @@ interface ResolveOrphanModalProps {
     onApprovalQueued?: (response: ApprovalCreatedResponse) => void;
     onResolved: () => void;
 }
-
-const REASON_TEXTAREA_CLASS =
-    'flex min-h-[4.5rem] w-full resize-y rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive';
 
 export function ResolveOrphanModal({
     isOpen,
@@ -60,38 +58,26 @@ export function ResolveOrphanModal({
             onClose={onClose}
             titleId={titleId}
             descriptionIds={[descriptionId]}
-            backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            contentClassName="glass-card !p-0 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
+            isBusy={workflow.isSubmitting}
+            size="xl"
+            className="max-w-3xl"
         >
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-                <div>
-                    <h3 id={titleId} className="text-xl font-bold text-white tracking-tight">
-                        {isKri
-                            ? tAdmin('governance.resolve_modal.link_to_risk')
-                            : tAdmin('governance.resolve_modal.resolve_orphaned_item')}
-                    </h3>
-                    <p id={descriptionId} className="text-xs text-slate-500 font-medium">
-                        {(orphan.item_type === 'asset' || orphan.item_type === 'vendor') && orphan.responsibility_role
-                            ? tAdmin(`governance.resolve_modal.${orphan.item_type}_${orphan.responsibility_role}`)
-                            : tAdmin('governance.resolve_modal.configure_ownership')}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label={tAdmin('common:actions.close')}
-                    className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
-                >
-                    <X className="h-5 w-5" />
-                </button>
-            </div>
+            <DialogHeader
+                title={isKri
+                    ? tAdmin('governance.resolve_modal.link_to_risk')
+                    : tAdmin('governance.resolve_modal.resolve_orphaned_item')}
+                description={(orphan.item_type === 'asset' || orphan.item_type === 'vendor') && orphan.responsibility_role
+                    ? tAdmin(`governance.resolve_modal.${orphan.item_type}_${orphan.responsibility_role}`)
+                    : tAdmin('governance.resolve_modal.configure_ownership')}
+                descriptionId={descriptionId}
+                closeLabel={tAdmin('common:actions.close')}
+            />
 
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-
+            <DialogBody className="custom-scrollbar">
                 {!workflow.isInitialized && (
                     <div className="py-20 flex flex-col items-center justify-center gap-4">
                         <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                             {tAdmin('governance.resolve_modal.initializing')}
                         </p>
                     </div>
@@ -153,14 +139,14 @@ export function ResolveOrphanModal({
                                         : undefined}
                                 >
                                     {(control) => (
-                                        <textarea
+                                        <Textarea
                                             {...control}
                                             ref={workflow.requestReasonRef}
                                             data-testid="resolve-orphan-request-reason"
                                             value={workflow.requestReason}
                                             onChange={(event) => workflow.handleRequestReasonChange(event.target.value)}
                                             rows={3}
-                                            className={REASON_TEXTAREA_CLASS}
+                                            className="min-h-[4.5rem]"
                                         />
                                     )}
                                 </Field>
@@ -168,7 +154,7 @@ export function ResolveOrphanModal({
                         </div>
                     </motion.div>
                 )}
-            </div>
+            </DialogBody>
 
             <ResolveOrphanFooter
                 canSubmit={workflow.canSubmit}

@@ -62,7 +62,7 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
                     return (
                         <div key={index} className="group transition-all">
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-muted-foreground transition-colors">
+                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-foreground transition-colors">
                                     {field.label}
                                 </span>
                                 {field.delta && isChanged && (

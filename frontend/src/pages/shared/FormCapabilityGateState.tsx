@@ -25,7 +25,7 @@ export function FormCapabilityGateState({ state, onRetry }: FormCapabilityGateSt
             <div className="flex items-center gap-3">
                 <ShieldAlert aria-hidden="true" className="h-5 w-5 shrink-0" />
                 <span>{t(state === 'error' ? 'access.check_failed' : 'access.denied')}</span>
-                {state === 'error' && <Button variant="outline" className="text-foreground hover:bg-muted hover:text-foreground" onClick={onRetry}>{t('actions.retry')}</Button>}
+                {state === 'error' && <Button variant="outline" className="text-foreground hover:bg-muted" onClick={onRetry}>{t('actions.retry')}</Button>}
             </div>
         </div>
     );

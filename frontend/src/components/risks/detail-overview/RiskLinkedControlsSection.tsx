@@ -63,10 +63,10 @@ export function RiskLinkedControlsSection({
             transition={{ delay: 0.5 }}
             className="glass-card"
         >
-            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
                 <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.mitigating_controls', { ns: 'risks' })}</h3>
+                    <CheckCircle2 className="h-5 w-5 text-success-text" />
+                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.mitigating_controls', { ns: 'risks' })}</h3>
                 </div>
                 {canLinkControls && (
                     <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
@@ -97,24 +97,24 @@ export function RiskLinkedControlsSection({
             {controlFlash && (
                 <div
                     role="status"
-                    className="mb-6 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100"
+                    className="mb-6 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning-text"
                 >
-                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning-text" aria-hidden="true" />
                     <span>{controlFlash.message}</span>
                 </div>
             )}
 
             {!hasControls ? (
-                <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                    <p className="text-xs text-slate-600 font-medium">{t('overview.no_controls_linked', { ns: 'risks' })}</p>
+                <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
+                    <p className="text-xs text-muted-foreground font-medium">{t('overview.no_controls_linked', { ns: 'risks' })}</p>
                 </div>
             ) : (
                 <>
                     <ControlGroup links={activeControls} onNavigateToControl={onNavigateToControl} gapClassName="gap-6" />
                     {draftControls.length > 0 && (
                         <div className="mt-8">
-                            <h4 className="text-xs font-black text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-amber-500/50" />
+                            <h4 className="text-xs font-black text-warning-text uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-warning/50" />
                                 {t('overview.draft_controls', { ns: 'risks', count: draftControls.length })}
                             </h4>
                             <ControlGroup
@@ -123,12 +123,12 @@ export function RiskLinkedControlsSection({
                                 gapClassName="gap-4"
                                 className="opacity-60"
                             />
-                            <p className="text-xs text-slate-600 italic mt-3">{t('overview.draft_controls_help', { ns: 'risks' })}</p>
+                            <p className="text-xs text-muted-foreground italic mt-3">{t('overview.draft_controls_help', { ns: 'risks' })}</p>
                         </div>
                     )}
                     {archivedControls.length > 0 && (
                         <div className="mt-8">
-                            <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-slate-600" />
                                 {t('overview.archived_controls', { ns: 'risks', count: archivedControls.length })}
                             </h4>
@@ -149,7 +149,7 @@ export function RiskLinkedControlsSection({
                         setDialogMode('links-only');
                         setIsLinkDialogOpen(true);
                     }}
-                    className="w-full mt-6 py-3 border border-dashed border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-colors"
+                    className="w-full mt-6 py-3 border border-dashed border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-tint/5 transition-colors"
                 >
                     {t('overview.manage_existing_links', { ns: 'risks' })}
                 </button>

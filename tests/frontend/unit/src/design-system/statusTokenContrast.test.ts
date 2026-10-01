@@ -334,10 +334,12 @@ describe('UI-contract token families — audit 2026-09-30 §4.2 / ADR-015 Addend
     expect(tailwindConfig).toContain('hsl(var(--overlay) / var(--overlay-alpha))');
   });
 
-  it('keeps --tint pure white in both dark themes, so tint/N stays pixel-identical to white/N (D3)', () => {
-    for (const selector of [':root', '\\.theme-dark']) {
-      expect(readHsl(themeBlock(indexCss, selector), 'tint'), selector).toEqual([0, 0, 100]);
-    }
+  it('keeps --tint pure white in riskhub and a neutral 75% grey in True Dark (D3 parity)', () => {
+    // riskhub never remapped the white-alpha utilities, so tint/N must stay white/N there.
+    expect(readHsl(themeBlock(indexCss, ':root'), 'tint'), ':root').toEqual([0, 0, 100]);
+    // True Dark dimmed them with !important remaps (bg-white/5 → 3%, /10 → 5%); the remaps
+    // were deleted at Phase 2.3 (O6) and the grey base reproduces their rendered colour.
+    expect(readHsl(themeBlock(indexCss, '\\.theme-dark'), 'tint'), '.theme-dark').toEqual([0, 0, 75]);
     const light = themeBlock(indexCss, '\\.theme-light');
     expect(readHsl(light, 'tint'), 'light tint = navy foreground').toEqual(readHsl(light, 'foreground'));
   });

@@ -50,7 +50,7 @@ export function buildRiskColumns({
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-foreground">{risk.name}</span>
-                        {risk.is_priority && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                        {risk.is_priority && <Star className="h-3.5 w-3.5 text-warning-text fill-warning" />}
                         {(resolveCapabilityFlag(risk.capabilities, 'has_pending_delete_approval')
                             || resolveCapabilityFlag(risk.capabilities, 'has_pending_update_approval')) && (
                             <div
@@ -82,7 +82,7 @@ export function buildRiskColumns({
                 return (
                     <div className="relative group/desc">
                         <span
-                            className="text-xs text-muted-foreground cursor-help border-b border-dotted border-slate-600 hover:border-slate-400 transition-colors"
+                            className="text-xs text-muted-foreground cursor-help border-b border-dotted border-border hover:border-muted-foreground transition-colors"
                             title={text}
                         >
                             {isLong ? `${text.slice(0, 20)}...` : text}
@@ -156,7 +156,7 @@ export function buildRiskColumns({
             className: 'text-center',
             render: (risk) => {
                 const count = risk.control_count || 0;
-                if (count === 0) return <span className="text-slate-600 text-[10px]">—</span>;
+                if (count === 0) return <span className="text-muted-foreground text-[10px]">—</span>;
                 return (
                     <div className="flex justify-center">
                         <div className="px-2 py-0.5 rounded-md text-[10px] font-bold text-accent-text bg-info/10">
@@ -175,7 +175,7 @@ export function buildRiskColumns({
                 const count = risk.kri_count || 0;
                 const hasBreach = risk.has_breach || false;
 
-                if (count === 0) return <span className="text-slate-600 text-[10px]">—</span>;
+                if (count === 0) return <span className="text-muted-foreground text-[10px]">—</span>;
 
                 return (
                     <div className="flex justify-center">

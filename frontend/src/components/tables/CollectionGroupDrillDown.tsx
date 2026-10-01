@@ -68,14 +68,14 @@ export function CollectionGroupDrillDown<T>({
                     <button
                         type="button"
                         onClick={onBack}
-                        className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-tint/10 transition-colors"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         {t('actions.back')}
                     </button>
                     <div className="flex items-center gap-3">
                         <h3 className="text-xl font-bold text-foreground">{label}</h3>
-                        <span className="px-2 py-1 rounded-full bg-accent/20 text-accent-text text-xs font-bold">
+                        <span className="px-2 py-1 rounded-full bg-accent/10 text-accent-text text-xs font-bold">
                             {t('tables.items_count', { count: totalCount })}
                         </span>
                     </div>
@@ -124,7 +124,7 @@ export function CollectionGroupDrillDown<T>({
                             <h3 className="text-lg font-bold text-foreground group-hover:text-accent-text transition-colors">
                                 {card.label}
                             </h3>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
+                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
                         </div>
 
                         {renderGroupBody && <div className="mb-4">{renderGroupBody(card.group)}</div>}
@@ -133,18 +133,18 @@ export function CollectionGroupDrillDown<T>({
                             <div className="flex items-center gap-6">
                                 <div>
                                     <p className="text-3xl font-black text-foreground">{card.count}</p>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.items')}</p>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('tables.items')}</p>
                                 </div>
                                 {card.showActive && (
                                     <div>
-                                        <p className="text-xl font-bold text-emerald-400">{card.activeCount}</p>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.active')}</p>
+                                        <p className="text-xl font-bold text-success-text">{card.activeCount}</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('tables.active')}</p>
                                     </div>
                                 )}
                                 {card.showHighlighted && (
                                     <div>
-                                        <p className="text-xl font-bold text-rose-400">{card.highlightedCount}</p>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider">
+                                        <p className="text-xl font-bold text-destructive">{card.highlightedCount}</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">
                                             {t('tables.high_risk')}
                                         </p>
                                     </div>

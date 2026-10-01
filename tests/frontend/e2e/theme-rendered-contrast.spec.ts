@@ -301,7 +301,7 @@ test.describe('G-RENDER rendered contrast baseline', () => {
 
           if (site === 'issue.contextual-action') {
             // Targeted probes: the typed issue title and the selected severity stay readable on
-            // the (still dark) quick-create surface.
+            // the themed quick-create surface in every theme.
             const title = surface.getByRole('textbox').first();
             await title.fill('Rendered contrast probe');
             expect(await renderedContrast(title), `${theme} quick-create typed title`).toBeGreaterThanOrEqual(4.5);
@@ -311,12 +311,10 @@ test.describe('G-RENDER rendered contrast baseline', () => {
             await expect(severity).toHaveText('High');
             await page.mouse.move(0, 0);
             const selectedSeverity = severity.getByText('High', { exact: true });
-            // Known NEW-V1-01 (DS-07): this dialog surface is still dark in light while ThemedSelect
-            // is theme-aware, so the selected value measures 2.03:1 in light. Phase 2.1 (W6) moves the
-            // surface and its inner text together; raise the light floor to 4.5 then.
-            const severityFloor = theme === 'light' ? 2 : 4.5;
+            // NEW-V1-01 (DS-07) fixed in Phase 2.1 (W6): the dialog surface and its inner text are
+            // tokenised together, so the selected value meets AA in light as in the dark themes.
             expect(await renderedContrast(selectedSeverity), `${theme} quick-create selected severity`)
-              .toBeGreaterThanOrEqual(severityFloor);
+              .toBeGreaterThanOrEqual(4.5);
           }
         }
         expect(unexpectedNetwork, 'dialog-contract API mock covers every request').toEqual([]);

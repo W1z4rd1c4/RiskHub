@@ -36,10 +36,11 @@ import { cn } from '@/lib/utils';
  *   `dirtyGuard` routes every close request through `useDirtyTaskGuard`.
  *
  * The raw class props (`containerClassName`, `backdropClassName`,
- * `contentClassName`) are deprecated and kept only so the existing call sites
- * render unchanged until they migrate (W6/W7): a passed class string replaces
- * the v2 recipe for that layer exactly as in v1. The dialog-inventory contract
- * ratchets their use down (`frontend/scripts/a11y/validate-dialog-inventory.mjs`).
+ * `contentClassName`) are deprecated: every owner migrated to `size` +
+ * Header/Body/Footer in W6 (roadmap 2.1), and the dialog-inventory contract
+ * (`frontend/scripts/a11y/validate-dialog-inventory.mjs`) holds their use at 0.
+ * A passed class string still replaces the v2 recipe for that layer exactly as
+ * in v1 until the props are deleted in Phase 4 (roadmap 4.3).
  */
 
 export type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -383,8 +384,7 @@ function DialogShellRoot({
     if (!isOpen || typeof document === 'undefined') return null;
 
     // A deprecated class prop replaces that layer's v2 recipe exactly as in v1
-    // (O4: the hard-coded dark dialogs keep their surface until W6 tokenises
-    // surface + inner text together).
+    // (no production caller passes one since W6; removed in Phase 4).
     const surfaceClassName = contentClassName === undefined
         ? cn(DIALOG_SURFACE, DIALOG_SIZES[size ?? 'md'], className)
         : cn('relative', contentClassName);

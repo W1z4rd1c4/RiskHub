@@ -54,7 +54,7 @@ export function StepIndicator({
                                     ? 'bg-accent border-accent text-accent-foreground shadow-lg shadow-accent/25'
                                     : isCompleted
                                         ? 'bg-success border-success text-success-foreground'
-                                        : 'bg-white/5 border-white/10 text-icon-muted'
+                                        : 'bg-tint/5 border-border text-icon-muted'
                                 }`}
                         >
                             {isCompleted ? (

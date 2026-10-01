@@ -222,7 +222,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             />
                         ) : null}
                         {pendingCancellationDialog}
-                        <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent">
+                        <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent-text">
                             {t('actions.back_to_register')}
                         </button>
                     </div>
@@ -235,7 +235,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     <div className="vendor-page space-y-6">
                         {staleWarning}
                         <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
-                        <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent">
+                        <button type="button" onClick={() => navigate(vendorDetailPath(vendor.id))} className="text-sm font-bold text-accent-text">
                             {t('actions.back_to_register')}
                         </button>
                     </div>

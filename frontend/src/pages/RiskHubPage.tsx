@@ -53,8 +53,8 @@ export function RiskHubPage() {
             {/* Header */}
             <header className="glass-card p-6">
                 <div className="flex items-center gap-4">
-                    <div className="bg-gradient-to-br from-accent to-purple-600 p-3 rounded-xl shadow-lg shadow-accent/20">
-                        <Command className="h-8 w-8 text-white" />
+                    <div className="bg-accent p-3 rounded-xl shadow-lg shadow-accent/20">
+                        <Command className="h-8 w-8 text-accent-foreground" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-foreground font-heading">{t('riskhub.title')}</h1>

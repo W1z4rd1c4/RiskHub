@@ -115,34 +115,34 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
 
     return (
         <div className="glass-card space-y-5" data-testid="process-vendor-links-section">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                <Building2 className="h-5 w-5 text-emerald-400" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
+            <div className="flex items-center gap-3 border-b border-border pb-4">
+                <Building2 className="h-5 w-5 text-success-text" />
+                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('links.vendors.title')}
                 </h2>
             </div>
 
             {linkError && pendingAction === null ? (
-                <div className="border border-rose-400/30 rounded-xl px-4 py-3 text-rose-300 text-sm font-medium">
+                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
                     {linkError}
                 </div>
             ) : null}
 
             <div className="space-y-4">
                 {vendorLinks.length === 0 ? (
-                    <p className="text-xs text-slate-500">{t('links.vendors.empty')}</p>
+                    <p className="text-xs text-muted-foreground">{t('links.vendors.empty')}</p>
                 ) : (
                     <ul className="space-y-2" data-testid="process-vendor-links">
                         {vendorLinks.map((link) => (
                             <li
                                 key={link.id}
-                                className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                                className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
                             >
                                 <div className="min-w-0">
-                                    <span className="text-sm font-bold text-white truncate">
+                                    <span className="text-sm font-bold text-foreground truncate">
                                         {processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'))}
                                     </span>
-                                    <p className="text-xs text-slate-500">
+                                    <p className="text-xs text-muted-foreground">
                                         {formatProcessVendorLinkMeta(link) || t('links.vendors.no_metadata')}
                                     </p>
                                 </div>
@@ -157,7 +157,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                                         aria-label={t('common:links.remove_named', {
                                             name: processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor')),
                                         })}
-                                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                         title={t('links.remove')}
                                     >
                                         <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -169,7 +169,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                 )}
 
                 {canManageLinks ? (
-                    <div className="border-t border-white/5 pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                    <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                         <div className="md:col-span-2">
                             <SearchableEntitySelect
                                 value={vendorToLink}
@@ -188,7 +188,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                                 value={serviceDescription}
                                 onChange={(event) => setServiceDescription(event.target.value)}
                                 placeholder={t('links.vendors.description')}
-                                className="w-full glass rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 bg-white/5 border border-white/10 focus:outline-none focus:border-accent/50"
+                                className="w-full glass rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground bg-tint/5 border border-border focus:outline-none focus:border-accent/50"
                             />
                         </div>
                         <button

@@ -120,7 +120,8 @@ per file under **Contents**) plus the rules for using and extending it.
   `dirtyGuard` (`useDirtyTaskGuard`). `DialogHeader` (h2 title on the shell's
   `titleId`, tone icon, close), `DialogBody`, `DialogFooter` (Cancel then the
   primary action, right-aligned), also as `DialogShell.Header/Body/Footer`.
-  The class props are deprecated; `components/DialogShell.tsx` re-exports it.
+  The class props are deprecated and unused (dialog-inventory ratchet at 0);
+  import from `@/components/ui/dialog`.
 - `state.tsx` — page and region states (§4.15, DS-17, GAP-C-11): `layout`
   `page` / `section` / `inline`, no card surface of their own. `Spinner`
   (decorative, or announced with `label`), `Skeleton` (`bg-tint/10`,

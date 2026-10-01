@@ -49,7 +49,7 @@ const STATUS_THEMES: Record<Theme, StatusTheme> = {
       breachGauge: 'bg-rose-500 shadow-lg shadow-rose-500/35',
     },
     matrix: {
-      emptyCell: 'bg-white/[0.02]',
+      emptyCell: 'bg-tint/[0.03]',
       low: 'bg-emerald-500/40',
       medium: 'bg-amber-500/40',
       high: 'bg-orange-500/40',
@@ -78,7 +78,7 @@ const STATUS_THEMES: Record<Theme, StatusTheme> = {
       breachGauge: 'bg-rose-400 shadow-lg shadow-rose-400/40',
     },
     matrix: {
-      emptyCell: 'bg-white/[0.03]',
+      emptyCell: 'bg-tint/[0.03]',
       low: 'bg-emerald-400/45',
       medium: 'bg-amber-400/45',
       high: 'bg-orange-400/45',

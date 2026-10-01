@@ -56,7 +56,7 @@ export function UserNewPage() {
                     onClick={() => {
                         void navigate('/users');
                     }}
-                    className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+                    className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
                     {t('user_new.back_to_users', { ns: 'admin' })}
@@ -68,24 +68,24 @@ export function UserNewPage() {
                     <UserPlus className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                    <h1 className="text-3xl font-bold text-white">{t('user_new.title', { ns: 'admin' })}</h1>
-                    <p className="text-slate-400">{t('user_new.subtitle', { ns: 'admin' })}</p>
+                    <h1 className="text-3xl font-bold text-foreground">{t('user_new.title', { ns: 'admin' })}</h1>
+                    <p className="text-muted-foreground">{t('user_new.subtitle', { ns: 'admin' })}</p>
                 </div>
             </div>
 
             {localUserWorkflow.errorKey && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-xl flex items-center gap-3">
                     <Shield className="h-5 w-5 shrink-0" />
                     <p>{t(localUserWorkflow.errorKey, { ns: 'errorKeys' })}</p>
                 </div>
             )}
 
             {isAuthConfigLoading ? (
-                <div className="glass-card p-6 text-slate-300">
+                <div className="glass-card p-6 text-foreground">
                     {t('user_new.loading_auth_mode', { ns: 'admin' })}
                 </div>
             ) : authConfigError ? (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-xl flex items-center gap-3">
                     <Shield className="h-5 w-5 shrink-0" />
                     <p>
                         {t('user_new.auth_mode_load_failed', { ns: 'admin' })}
@@ -114,7 +114,7 @@ export function UserNewPage() {
                     setFormData={localUserWorkflow.setFormData}
                 />
             ) : (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-xl flex items-center gap-3">
                     <Shield className="h-5 w-5 shrink-0" />
                     <p>{t('access.denied', { ns: 'common' })}</p>
                 </div>

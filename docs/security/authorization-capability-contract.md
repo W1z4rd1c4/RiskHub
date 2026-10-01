@@ -20,6 +20,14 @@ Native bootstrap (#203) seeds only canonical references and distinct pending Adm
 
 ## UI-consistency remediation (presentation only) — 2026-10-01
 
+Wave W6 (roadmap 2.1–2.3) moves the 27 `DialogShell` owners onto the v2
+header/body/footer API and swaps colour classes for design tokens elsewhere. Every
+action keeps its gate: `isEditable && canSaveDraft` / `canSubmitQuestionnaire` in
+`RiskQuestionnaireActions.tsx`, `authz.canViewGovernance` on the asset detail page,
+the break-glass reason/hours checks, and the role/department save and delete guards.
+The busy state still disables submit and every close path. Navigation projection,
+route gates, capability fallbacks and backend authority are unchanged.
+
 Wave W5 of the 2026-09-30 frontend UI audit (§4.14, §4.20) changes markup only:
 `frontend/src/components/layout/Sidebar.tsx` renders the shared `BrandWordmark`;
 `frontend/src/pages/detail/EntityDetailHeader.tsx` and
