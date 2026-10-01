@@ -1,4 +1,4 @@
-import { ControlStatus } from '@/types/control';
+import type { ControlStatus } from '@/types/control';
 import type { CollectionGroup } from '@/types/collection';
 
 export const CONTROL_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
@@ -26,16 +26,12 @@ export function getControlStatusColor(status: ControlDisplayStatus): string {
     switch (status) {
         case ARCHIVED_CONTROL_FILTER:
             return ARCHIVED_CONTROL_BADGE_CLASS_NAME;
-        case ControlStatus.ACTIVE:
-            return 'text-success-text bg-success/10';
-        case ControlStatus.DRAFT:
-            return 'text-muted-foreground bg-muted';
-        case ControlStatus.INACTIVE:
-            return 'text-destructive bg-destructive/10';
         case 'active':
+            return 'text-success-text bg-success/10';
         case 'draft':
-        case 'inactive':
             return 'text-muted-foreground bg-muted';
+        case 'inactive':
+            return 'text-destructive bg-destructive/10';
         default:
             return 'text-muted-foreground bg-muted';
     }

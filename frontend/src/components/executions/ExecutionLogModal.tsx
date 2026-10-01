@@ -68,7 +68,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
             titleId={titleId}
             descriptionIds={[descriptionId]}
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="glass-card w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+            contentClassName="glass-card !p-0 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
         >
             {/* Header */}
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">

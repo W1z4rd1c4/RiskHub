@@ -272,6 +272,57 @@ describe('Vendor sub-outsourcing section presentation helpers', () => {
         expect(onRestore.mock.calls[0][0]).toEqual(expect.objectContaining({ id: 12 }));
     });
 
+    it('names icon-only row actions after the sub-provider (AX-01)', () => {
+        const columns = buildVendorSubOutsourcingColumns({
+            t: (key: string, options?: Record<string, unknown>) =>
+                typeof options?.name === 'string' ? `${key}:${options.name}` : key,
+            getContractLabel: () => '\u2014',
+            onEdit: () => undefined,
+            onArchive: () => undefined,
+            onRestore: () => undefined,
+        });
+        const actionsColumn = columns.find((column) => column.key === 'actions');
+
+        render(
+            actionsColumn?.render?.(
+                {
+                    entry: sampleEntry({
+                        id: 9,
+                        capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: true },
+                    }),
+                    depth: 0,
+                },
+                0
+            ) as ReactElement
+        );
+        const edit = screen.getByTestId('vendor-sub-outsourcing-edit-9');
+        expect(edit).toHaveAccessibleName('vendors:sub_outsourcing.actions.edit_named:CLOUD OPS s.r.o.');
+        expect(screen.getByTestId('vendor-sub-outsourcing-archive-9')).toHaveAccessibleName(
+            'vendors:sub_outsourcing.actions.archive_named:CLOUD OPS s.r.o.',
+        );
+        expect(screen.getByTestId('vendor-sub-outsourcing-restore-9')).toHaveAccessibleName(
+            'vendors:sub_outsourcing.actions.restore_named:CLOUD OPS s.r.o.',
+        );
+        expect(edit.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+
+        render(
+            actionsColumn?.render?.(
+                {
+                    entry: sampleEntry({
+                        id: 10,
+                        sub_provider_name: null,
+                        capabilities: { can_read: true, can_update: true, can_archive: false, can_restore: false },
+                    }),
+                    depth: 0,
+                },
+                0
+            ) as ReactElement
+        );
+        expect(screen.getByTestId('vendor-sub-outsourcing-edit-10')).toHaveAccessibleName(
+            'vendors:sub_outsourcing.actions.edit_named:common:fallbacks.unknown_vendor',
+        );
+    });
+
     it('formats the authoritative engine rank with the workbook \u201c?\u201d sentinel', () => {
         expect(formatSubOutsourcingRank(sampleEntry({ derived: sampleDerived({ rank: 2 }) }))).toBe('2');
         expect(formatSubOutsourcingRank(sampleEntry({ derived: sampleDerived({ rank: 4 }) }))).toBe('4');

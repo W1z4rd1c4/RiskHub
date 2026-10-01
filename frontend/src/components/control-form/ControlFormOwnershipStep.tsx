@@ -132,9 +132,13 @@ export function ControlFormOwnershipStep({
             <button
               type="button"
               onClick={() => handleInputChange('control_owner_id', undefined)}
+              aria-label={t('common:actions.clear_selection_named', {
+                name: users.find((u) => u.id === formData.control_owner_id)?.name
+                  ?? t('common:fallbacks.unknown_user'),
+              })}
               className="p-1 hover:bg-white/5 rounded-lg text-slate-500 hover:text-white transition-colors"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         ) : (

@@ -121,9 +121,10 @@ export function KriRiskSelectionStep({
                         <button
                             type="button"
                             onClick={onClearSelectedRisk}
+                            aria-label={t('common:actions.clear_selection_named', { name: selectedRisk.name })}
                             className="rounded-lg p-2 transition-colors hover:bg-white/10"
                         >
-                            <X className="h-4 w-4 text-slate-400" />
+                            <X className="h-4 w-4 text-slate-400" aria-hidden="true" />
                         </button>
                     </div>
                 </div>

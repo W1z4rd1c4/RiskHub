@@ -426,7 +426,7 @@ disposition is **resolved** at the target-phase checkpoint unless noted.
 | S2 | 🟡 | 5 | FR-P5-8 | **re-scoped** (export exists; discoverability + capability gate) |
 | S3 | 🟡 | 4 | FR-P4-2 | resolved |
 | S4 | 🟡 | 4 | FR-P4-1, FR-P4-4, FR-P4-5, FR-P4-9…12 | resolved |
-| S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | resolved |
+| S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | **partially resolved** — tokens landed (FR-P1-1..3); the FR-P5-1 palette migration is incomplete (raw palette still outnumbers status tokens, audit DS-06). Stays partial until the UI-consistency ratchet `raw-palette` reaches 0; see [ADR-015 Addendum 1](../adr/ADR-015-frontend-design-system-foundation.md#addendum-1--severity-scale-tokens-and-ui-contract-defaults-2026-10-01) |
 | S6 | 🟡 | 2a | FR-P2a-3 | resolved |
 | S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — validated manifest: 26 implementation owners, 48 application render sites, 5 non-dialog surfaces; 29 unit contract cases + 48 browser render-site drivers, 0 skipped |
 | S8 | 🟡 | 5 | FR-P5-9 | resolved |

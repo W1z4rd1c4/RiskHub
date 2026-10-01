@@ -7,13 +7,9 @@ UI components for `tables` area.
 ## Contents
 
 - `__tests__/`
-- `CategoryDrillDown.tsx`
-- `GroupedView.tsx`
 - `index.ts`
-- `MiniHeatmap.tsx`
 - `Pagination.tsx`
 - `SortableTable.tsx`
-- `ViewSwitcher.tsx`
 
 ## Notes
 

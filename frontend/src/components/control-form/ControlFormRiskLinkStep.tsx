@@ -64,9 +64,10 @@ export function ControlFormRiskLinkStep({
               <button
                 type="button"
                 onClick={() => setSelectedRiskId(undefined)}
+                aria-label={t('common:actions.clear_selection_named', { name: selectedRisk.name })}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X className="h-4 w-4 text-slate-400" />
+                <X className="h-4 w-4 text-slate-400" aria-hidden="true" />
               </button>
             </div>
           </div>

@@ -327,7 +327,7 @@ export function SortableTable<T extends object>({
     if (!hasData) {
         return (
             <div className="glass-card text-center py-12">
-                <p className="text-slate-400">{resolvedEmptyMessage}</p>
+                <p className="text-muted-foreground">{resolvedEmptyMessage}</p>
             </div>
         );
     }

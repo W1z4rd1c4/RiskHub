@@ -459,7 +459,10 @@
       "create": "Create entry",
       "edit": "Edit entry",
       "archive": "Archive entry",
-      "restore": "Restore entry"
+      "restore": "Restore entry",
+      "edit_named": "Edit entry {{name}}",
+      "archive_named": "Archive entry {{name}}",
+      "restore_named": "Restore entry {{name}}"
     },
     "form": {
       "not_set": "Not set",

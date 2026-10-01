@@ -64,6 +64,7 @@
   "questionnaires": {
     "title": "Assessment questionnaires",
     "subtitle": "Questionnaire history and current status for this risk.",
+    "open_row": "Open questionnaire sent {{date}}",
     "assessment_summary_title": "Assessment Summary",
     "assessment_summary_empty": "No submitted assessment yet.",
     "assessment_summary_submitted_at": "Submitted",

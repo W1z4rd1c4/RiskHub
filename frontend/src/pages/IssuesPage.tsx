@@ -1,4 +1,3 @@
-import { AlertTriangle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
@@ -13,6 +12,7 @@ import { ISSUE_REGISTER_CONFIG, type IssueRegisterView } from './issues/issueReg
 import { IssuesFilterBar } from './issues/IssuesFilterBar';
 import { formatIssueGroupLabel } from './issues/issuesPagePresentation';
 import { useIssuesPageState } from './issues/useIssuesPageState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 export function IssuesPage() {
@@ -26,7 +26,7 @@ export function IssuesPage() {
     const views = ISSUE_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));
 
     return <RegisterListShell<IssueSummary, IssueRegisterView>
-        accessDeniedState={<div className="glass-card p-8 flex items-center gap-3 text-amber-200"><AlertTriangle className="h-5 w-5" aria-hidden="true" /><span>{t('permissions.view_denied')}</span></div>}
+        accessDeniedState={<ReadAccessDeniedState descriptionKey="issues:permissions.view_denied" />}
         allView="all"
         title={t('title')}
         subtitle={t('page_subtitle')}

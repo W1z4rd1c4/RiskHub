@@ -516,4 +516,23 @@ describe('AuditTrailPage execution status rendering', () => {
         });
         expect(await screen.findByText('Recovered Review Control')).toBeInTheDocument();
     });
+
+    it('opens the control from the named row chevron with the keyboard (AX-01/AX-02)', async () => {
+        getExecutionsMock.mockResolvedValue(executionResponse());
+        const user = userEvent.setup();
+
+        render(
+            <MemoryRouter initialEntries={['/audit-trail']}>
+                <AuditTrailPage />
+                <LocationProbe />
+            </MemoryRouter>,
+        );
+
+        const chevron = await screen.findByRole('button', { name: 'audit_trail.open_control' });
+        expect(chevron).toHaveAttribute('type', 'button');
+        chevron.focus();
+        await user.keyboard('{Enter}');
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/controls/9');
+    });
 });

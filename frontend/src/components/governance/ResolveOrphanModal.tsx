@@ -61,7 +61,7 @@ export function ResolveOrphanModal({
             titleId={titleId}
             descriptionIds={[descriptionId]}
             backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            contentClassName="glass-card w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
+            contentClassName="glass-card !p-0 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
         >
             <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
                 <div>

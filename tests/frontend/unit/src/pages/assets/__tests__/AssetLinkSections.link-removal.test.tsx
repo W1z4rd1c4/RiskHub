@@ -189,6 +189,25 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         expect(within(screen.getByRole('alertdialog')).queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    it('names the icon-only Asset-link remove button after the linked asset (AX-01)', async () => {
+        (assetApi.getAssetLinks as ReturnType<typeof vi.fn>).mockResolvedValue([{
+            id: 20,
+            dependent_asset_id: 1,
+            dependent_asset_name: 'Current asset',
+            supporting_asset_id: 2,
+            supporting_asset_name: 'Payments platform',
+            dependency_type: null,
+            spof: null,
+        }]);
+        renderSection();
+
+        const remove = await screen.findByTestId('asset-asset-link-remove-20');
+        expect(remove).toHaveAccessibleName(
+            i18n.t('common:links.remove_named', { name: 'Payments platform' }),
+        );
+        expect(remove.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    });
+
     it('announces a rejected Asset-link removal only inside its retained dialog', async () => {
         mockRemoveAssetLink.mockRejectedValueOnce(Object.assign(new Error('reason rejected'), { status: 422 }));
         (assetApi.getAssetLinks as ReturnType<typeof vi.fn>).mockResolvedValue([{

@@ -308,7 +308,6 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
             {
                 kri && isEditModalOpen && (
                     <KRIModal
-                        risk_id={kri.risk_id}
                         kri={kri}
                         isOpen={isEditModalOpen}
                         onClose={() => setIsEditModalOpen(false)}

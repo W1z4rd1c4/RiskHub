@@ -52,6 +52,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         serializeLocalApplication: true,
     });
 
+    // AX-09 / WCAG 3.1.1: `<html lang>` follows the in-app language on every
+    // route (signed-in and public), so assistive tech uses the right voice.
+    useEffect(() => {
+        document.documentElement.lang = language;
+    }, [language]);
+
     useEffect(() => {
         const handleStorage = (event: StorageEvent) => {
             if (event.key === STORAGE_KEY && (event.newValue === 'en' || event.newValue === 'cs')) {

@@ -123,7 +123,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
             closeDisabled={busy}
             titleId={titleId}
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="glass-card w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
+            contentClassName="glass-card !p-0 w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-white/5"
         >
             {/*
               The visible title is rendered inside AccessEditModalHeader (a shared

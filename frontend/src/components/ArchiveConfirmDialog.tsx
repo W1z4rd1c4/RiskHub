@@ -73,20 +73,20 @@ export function ArchiveConfirmDialog({
             closeDisabled={isSubmitting}
             role="alertdialog"
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="glass-card w-full max-w-md overflow-hidden"
+            contentClassName="glass-card !p-0 w-full max-w-md overflow-hidden"
         >
             {/* Header */}
             <div className="p-6 border-b border-white/5 bg-rose-500/5">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                            <Trash2 className="h-5 w-5 text-rose-400" />
+                            <Trash2 className="h-5 w-5 text-destructive" aria-hidden="true" />
                         </div>
                         <div>
-                            <h3 id={titleId} className="text-lg font-bold text-white">
+                            <h3 id={titleId} className="text-lg font-bold text-foreground">
                                 {t('confirmation.archive_title', { type: resourceType === 'control' ? t('labels.control') : t('labels.risk') })}
                             </h3>
-                            <p id={descriptionId} className="text-sm text-slate-500 font-medium mt-0.5">
+                            <p id={descriptionId} className="text-sm text-muted-foreground font-medium mt-0.5">
                                 {t('confirmation.archive_reversible')}
                             </p>
                         </div>
@@ -109,24 +109,24 @@ export function ArchiveConfirmDialog({
                 {/* Content */}
                 <div className="p-6 space-y-5">
                     <div id={resourceDescriptionId} className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('labels.archiving')}</p>
-                        <p className="text-white font-bold truncate">{resourceName}</p>
+                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">{t('labels.archiving')}</p>
+                        <p className="text-foreground font-bold truncate">{resourceName}</p>
                     </div>
 
                     {error && (
                         <div
                             id={errorId}
-                            className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-medium flex gap-3"
+                            className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-destructive text-sm font-medium flex gap-3"
                         >
-                            <AlertTriangle className="h-5 w-5 shrink-0" />
+                            <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
                             {error}
                         </div>
                     )}
 
                     <div className="space-y-2">
                         <label htmlFor={reasonId} className="block">
-                            <span className="block mb-2 text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
-                                {t('labels.archive_reason')} <span className="text-rose-400">*</span>
+                            <span className="block mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
+                                {t('labels.archive_reason')} <span className="text-destructive">*</span>
                             </span>
                             <textarea
                                 id={reasonId}
@@ -134,7 +134,7 @@ export function ArchiveConfirmDialog({
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
                                 placeholder={t('labels.archive_reason_placeholder')}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-400/50 min-h-[100px] transition-all resize-none"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-rose-400/50 min-h-[100px] transition-all resize-none"
                                 disabled={isSubmitting}
                             />
                         </label>

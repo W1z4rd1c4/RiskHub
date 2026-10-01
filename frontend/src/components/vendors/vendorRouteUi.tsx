@@ -28,13 +28,6 @@ interface VendorBadgeProps extends HTMLAttributes<HTMLSpanElement> {
     tone?: VendorBadgeTone;
 }
 
-interface VendorEmptyStateProps {
-    action?: ReactNode;
-    description?: ReactNode;
-    icon?: ReactNode;
-    title: ReactNode;
-}
-
 interface VendorInlineMessageProps extends HTMLAttributes<HTMLDivElement> {
     tone?: VendorMessageTone;
 }
@@ -104,17 +97,6 @@ export function VendorBadge({ children, className, tone = 'neutral', ...props }:
         >
             {children}
         </span>
-    );
-}
-
-export function VendorEmptyState({ action, description, icon, title }: VendorEmptyStateProps) {
-    return (
-        <div className="vendor-empty-state">
-            {icon ? <div className="vendor-muted">{icon}</div> : null}
-            <div className="vendor-empty-state__title">{title}</div>
-            {description ? <p className="vendor-empty-state__description">{description}</p> : null}
-            {action}
-        </div>
     );
 }
 

@@ -465,9 +465,10 @@ export function NotificationsPage() {
                         type="button"
                         onClick={() => setPage(page - 1)}
                         disabled={page === 0 || navigationDisabled}
+                        aria-label={tCommon('pagination.previous_page')}
                         className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <ChevronLeft className="h-5 w-5" />
+                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                     </button>
                     <span className="text-sm text-muted-foreground">
                         {t('pagination.page_of', { page: page + 1, total: totalPages })}
@@ -476,9 +477,10 @@ export function NotificationsPage() {
                         type="button"
                         onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                         disabled={page >= totalPages - 1 || navigationDisabled}
+                        aria-label={tCommon('pagination.next_page')}
                         className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <ChevronRight className="h-5 w-5" />
+                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
                     </button>
                 </div>
             )}

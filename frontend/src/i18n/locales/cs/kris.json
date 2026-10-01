@@ -5,7 +5,6 @@
   "create_kri": "Vytvořit KRI",
   "edit_kri": "Upravit KRI",
   "view_kri": "Zobrazit KRI",
-  "delete_kri": "Smazat KRI",
   "fields": {
     "name": "Název KRI",
     "description": "Popis",
@@ -205,9 +204,7 @@
     "unit_examples": "Jednotka (%, EUR apod.)",
     "lower_limit_breach": "Dolní limit (překročení)",
     "upper_limit_breach": "Horní limit (překročení)",
-    "last_updated": "Naposledy aktualizováno",
-    "create_indicator": "Vytvořit indikátor",
-    "delete_confirm": "Opravdu chcete smazat \"{{name}}\"? Tuto akci nelze vrátit zpět."
+    "last_updated": "Naposledy aktualizováno"
   },
   "detail": {
     "approval_banner_help": "Dokud se schválení nevyřeší, zůstane KRI i jeho vazby na dodavatele beze změny."

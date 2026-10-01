@@ -20,14 +20,14 @@ export default function ProdLoginPreviewPage() {
   }, [content.html_title, language]);
 
   return (
-    <main className="h-screen overflow-hidden bg-[#07111b] text-slate-100">
+    <main className="relative min-h-screen overflow-y-auto bg-[#07111b] text-slate-100">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(14,116,144,0.12),transparent_26%),linear-gradient(180deg,#07111b_0%,#091521_100%)]" />
         <div className="absolute inset-y-0 left-[16%] w-px bg-gradient-to-b from-transparent via-sky-400/12 to-transparent" />
       </div>
 
-      <div className="relative mx-auto flex h-screen w-full max-w-[1320px] flex-col px-6 py-5 sm:px-8 lg:px-12">
-        <header className="flex items-center justify-between py-3">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[1320px] flex-col px-6 py-5 sm:px-8 lg:px-12">
+        <header className="relative z-10 flex items-center justify-between py-3">
           <div className="inline-flex items-center gap-4 text-slate-100">
             <span className="flex h-12 w-12 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sky-300 shadow-[0_12px_28px_rgba(14,165,233,0.12)]">
               <Shield className="h-5 w-5" />
@@ -64,7 +64,7 @@ export default function ProdLoginPreviewPage() {
           </div>
         </header>
 
-        <section className="flex min-h-0 flex-1 items-center justify-center">
+        <section className="flex flex-1 items-center justify-center">
           <div className="grid w-full max-w-[1180px] gap-12 py-6 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-20">
             <div className="flex max-w-2xl flex-col justify-center">
               <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/80">

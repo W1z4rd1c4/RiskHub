@@ -47,4 +47,23 @@ describe('Pagination', () => {
 
         expect(container).toHaveTextContent('Showing 11 to 20 of 25 results');
     });
+
+    it('renders non-submitting buttons with theme text tokens only (DS-01, DS-03)', () => {
+        const { container } = render(
+            <form>
+                <Pagination
+                    currentPage={1}
+                    totalPages={3}
+                    totalItems={25}
+                    itemsPerPage={10}
+                    onPageChange={vi.fn()}
+                />
+            </form>
+        );
+
+        const buttons = screen.getAllByRole('button');
+        expect(buttons).toHaveLength(5);
+        buttons.forEach((button) => expect(button).toHaveAttribute('type', 'button'));
+        expect(container.innerHTML).not.toMatch(/\btext-(white|slate-\d+)\b/);
+    });
 });

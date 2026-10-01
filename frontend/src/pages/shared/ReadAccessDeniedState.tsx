@@ -13,11 +13,11 @@ export function ReadAccessDeniedState({
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
-            <div className="p-4 bg-rose-500/10 rounded-2xl">
-                <ShieldX className="h-12 w-12 text-rose-400" />
+            <div className="p-4 bg-destructive/10 rounded-2xl">
+                <ShieldX className="h-12 w-12 text-destructive" aria-hidden="true" />
             </div>
-            <h2 className="text-2xl font-bold text-white">{t('access.denied')}</h2>
-            <p className="text-slate-400 max-w-md">{t(descriptionKey)}</p>
+            <h2 className="text-2xl font-bold text-foreground">{t('access.denied')}</h2>
+            <p className="text-muted-foreground max-w-md">{t(descriptionKey)}</p>
         </div>
     );
 }

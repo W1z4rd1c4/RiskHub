@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Settings2, Save, Check, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -36,6 +36,10 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const fieldId = useId();
+    const nameId = `${fieldId}-name`;
+    const descriptionId = config.description ? `${fieldId}-description` : undefined;
+    const isReadOnly = !config.is_editable || !canUpdate;
 
     const hasChanged = value !== config.value;
 
@@ -56,24 +60,31 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
 
     const renderInput = () => {
         if (config.value_type === 'bool') {
+            const checked = value.toLowerCase() === 'true';
             return (
                 <button
+                    type="button"
+                    role="switch"
+                    aria-checked={checked}
+                    aria-labelledby={nameId}
+                    aria-describedby={descriptionId}
                     onClick={() => {
-                        if (!config.is_editable || !canUpdate) return;
-                        const newVal = value.toLowerCase() === 'true' ? 'false' : 'true';
-                        setValue(newVal);
+                        if (isReadOnly) return;
+                        setValue(checked ? 'false' : 'true');
                     }}
-                    disabled={!config.is_editable || !canUpdate}
+                    disabled={isReadOnly}
                     className={cn(
                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        value.toLowerCase() === 'true' ? "bg-accent" : "bg-white/20",
-                        (!config.is_editable || !canUpdate) && "opacity-50 cursor-not-allowed"
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        checked ? "bg-accent" : "bg-white/20",
+                        isReadOnly && "opacity-50 cursor-not-allowed"
                     )}
                 >
                     <span
+                        aria-hidden="true"
                         className={cn(
                             "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                            value.toLowerCase() === 'true' ? "translate-x-6" : "translate-x-1"
+                            checked ? "translate-x-6" : "translate-x-1"
                         )}
                     />
                 </button>
@@ -89,6 +100,8 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                 <input
                     type="text"
                     inputMode="numeric"
+                    aria-labelledby={nameId}
+                    aria-describedby={descriptionId}
                     value={displayValue}
                     onChange={(e) => {
                         // Strip spaces and non-numeric chars, store raw number
@@ -96,7 +109,7 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                         setValue(cleaned);
                     }}
                     className="w-24 md:w-32 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                    disabled={!config.is_editable || !canUpdate}
+                    disabled={isReadOnly}
                 />
             );
         }
@@ -104,10 +117,12 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         return (
             <input
                 type="text"
+                aria-labelledby={nameId}
+                aria-describedby={descriptionId}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={!config.is_editable || !canUpdate}
+                disabled={isReadOnly}
             />
         );
     };
@@ -116,7 +131,7 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
             <div className="flex-1">
                 <div className="flex items-center gap-2">
-                    <span className="text-white font-medium">{config.display_name}</span>
+                    <span id={nameId} className="text-white font-medium">{config.display_name}</span>
                     {config.min_value !== null && config.max_value !== null && (
                         <span className="text-xs text-slate-500">
                             ({config.min_value} - {config.max_value})
@@ -124,7 +139,7 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                     )}
                 </div>
                 {config.description && (
-                    <p className="text-sm text-slate-500 mt-0.5">{config.description}</p>
+                    <p id={descriptionId} className="text-sm text-slate-500 mt-0.5">{config.description}</p>
                 )}
             </div>
 
@@ -133,28 +148,30 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
 
                 {hasChanged && canUpdate && config.is_editable && (
                     <button
-                        onClick={handleSave}
+                        type="button"
+                        onClick={() => void handleSave()}
                         disabled={saving}
+                        aria-label={t('admin:system_settings.save_named', { name: config.display_name })}
                         className="flex items-center gap-1 px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
                     >
                         {saving ? (
-                            <span className="animate-spin">⏳</span>
+                            <span className="animate-spin" aria-hidden="true">⏳</span>
                         ) : (
-                            <Save className="h-3.5 w-3.5" />
+                            <Save className="h-3.5 w-3.5" aria-hidden="true" />
                         )}
                         {t('common:actions.save')}
                     </button>
                 )}
 
                 {saved && (
-                    <span className="flex items-center gap-1 text-green-400 text-sm">
-                        <Check className="h-4 w-4" /> {t('admin:system_settings.saved')}
+                    <span role="status" className="flex items-center gap-1 text-green-400 text-sm">
+                        <Check className="h-4 w-4" aria-hidden="true" /> {t('admin:system_settings.saved')}
                     </span>
                 )}
 
                 {errorKey && (
-                    <span className="flex items-center gap-1 text-red-400 text-sm">
-                        <AlertCircle className="h-4 w-4" /> {t(errorKey, { ns: 'errorKeys' })}
+                    <span role="alert" className="flex items-center gap-1 text-red-400 text-sm">
+                        <AlertCircle className="h-4 w-4" aria-hidden="true" /> {t(errorKey, { ns: 'errorKeys' })}
                     </span>
                 )}
             </div>

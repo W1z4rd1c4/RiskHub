@@ -111,6 +111,8 @@ describe('IssuesPage layout parity', () => {
         render(<MemoryRouter><IssuesPage /></MemoryRouter>);
 
         await screen.findByText('You do not have permission to view issues.');
+        // DS-17: Issues uses the shared ReadAccessDeniedState like the other registers.
+        expect(screen.getByRole('heading', { level: 2, name: 'Access Denied' })).toBeInTheDocument();
         expect(screen.queryByText('Issues')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();

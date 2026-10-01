@@ -154,10 +154,13 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                                             setLinkError(null);
                                             setPendingAction({ kind: 'remove', linkId: link.id });
                                         }}
+                                        aria-label={t('common:links.remove_named', {
+                                            name: processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor')),
+                                        })}
                                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
                                         title={t('links.remove')}
                                     >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                                     </button>
                                 ) : null}
                             </li>

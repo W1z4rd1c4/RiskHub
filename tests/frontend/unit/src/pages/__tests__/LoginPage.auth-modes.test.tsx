@@ -99,6 +99,10 @@ describe('LoginPage auth modes', () => {
 
         await screen.findByRole('button', { name: /microsoft/i });
         expect(screen.queryByRole('button', { name: /system admin/i })).not.toBeInTheDocument();
+        // GAP-B-01: preview-only copy belongs to the preview route, never the live SSO login.
+        const previewCopy = englishResources.auth.login_sso_prod;
+        expect(screen.queryByText(previewCopy.button_hint)).not.toBeInTheDocument();
+        expect(screen.queryByText(previewCopy.preview_note)).not.toBeInTheDocument();
     });
 
     it('keeps the confirmed production-login language after a chunk failure and lets the user retry', async () => {

@@ -64,6 +64,7 @@
   "questionnaires": {
     "title": "Hodnoticí dotazníky",
     "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
+    "open_row": "Otevřít dotazník odeslaný {{date}}",
     "assessment_summary_title": "Souhrn hodnocení",
     "assessment_summary_empty": "Zatím žádné odevzdané hodnocení.",
     "assessment_summary_submitted_at": "Odevzdáno",

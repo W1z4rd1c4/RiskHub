@@ -10,7 +10,6 @@ import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
-import { KRIModal } from '@/components/kri/KRIModal';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
 import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
@@ -32,7 +31,6 @@ import { DashboardRiskSections } from '@/pages/dashboard/DashboardRiskSections';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import type { Asset } from '@/types/asset';
 import type { Control, ControlRiskLink } from '@/types/control';
-import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk, RiskControlLink } from '@/types/risk';
 
 const queryClient = new QueryClient({
@@ -59,19 +57,6 @@ const riskFixture = {
     can_send_questionnaire: true,
   },
 } as unknown as Risk;
-
-const kriFixture = {
-  id: 1,
-  risk_id: 1,
-  metric_name: 'System uptime',
-  description: 'Uptime KRI',
-  current_value: 99,
-  lower_limit: 90,
-  upper_limit: 100,
-  unit: '%',
-  last_period_end: null,
-  capabilities: null,
-} as unknown as KeyRiskIndicator;
 
 const controlFixture = {
   id: 1,
@@ -122,19 +107,6 @@ function LinkManagementOwner() {
       onLink={async () => {}}
       onUnlink={async () => {}}
       showSearch={false}
-    />
-  );
-}
-
-function KriModalOwner() {
-  return (
-    <KRIModal
-      risk_id={1}
-      kri={kriFixture}
-      isOpen
-      onClose={() => {}}
-      onDelete={async () => {}}
-      onSave={async () => ({ kind: 'updated' })}
     />
   );
 }
@@ -340,7 +312,6 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'confirm.link-management': return <LinkManagementOwner />;
     case 'issue.execution-history': return <ExecutionHistory controlId={1} controlName="Access Control Review" canCreateIssue />;
     case 'mismatch.kri-form': return <KRIFormContainer initialData={{ risk_id: 1, metric_name: 'Uptime', description: 'Availability', current_value: 99, lower_limit: 90, upper_limit: 100, unit: '%', frequency: 'monthly' }} vendorContext={{ vendorId: 1, vendorName: 'Cloud Vendor', returnTo: '/vendors/1' }} />;
-    case 'confirm.kri-modal': return <KriModalOwner />;
     case 'role-modal.roles-panel':
     case 'role-delete.roles-panel': return <RolesPanel />;
     case 'questionnaire.risk-detail-tab': return <RiskDetailQuestionnairesTab risk={riskFixture} />;

@@ -5,7 +5,6 @@ import type { KriModalFormData, KriModalTranslate } from './kriModalTypes';
 interface KriMetricFieldsProps {
     clearError: () => void;
     formData: KriModalFormData;
-    isCreate: boolean;
     t: KriModalTranslate;
     updateFormData: (update: KriModalFormData) => void;
 }
@@ -13,7 +12,6 @@ interface KriMetricFieldsProps {
 export function KriMetricFields({
     clearError,
     formData,
-    isCreate,
     t,
     updateFormData,
 }: KriMetricFieldsProps) {
@@ -60,16 +58,13 @@ export function KriMetricFields({
             <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <label htmlFor={currentValueId} className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                        {isCreate
-                            ? t('fields.current_value', { ns: 'kris' })
-                            : t('modal.current_value_readonly', { ns: 'kris' })}
+                        {t('modal.current_value_readonly', { ns: 'kris' })}
                     </label>
                     <input
                         id={currentValueId}
                         type="number"
                         value={formData.current_value}
-                        onChange={(event) => updateFormData({ current_value: Number.parseFloat(event.target.value) })}
-                        disabled={!isCreate}
+                        disabled
                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-mono disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>

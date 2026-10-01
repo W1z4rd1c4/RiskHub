@@ -30,22 +30,27 @@ export function ActivityLogPagination({ page, setPage, limit, total, isLoading }
             </div>
             <div className="flex items-center gap-2">
                 <button
+                    type="button"
                     onClick={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
                     disabled={page === 0 || isLoading}
+                    aria-label={t('pagination.previous_page')}
                     className="rounded-xl bg-white/5 p-2 transition-all hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5"
                 >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                 </button>
                 <div className="flex items-center gap-1">
                     {pageWindow.map((item, index) =>
                         item === 'ellipsis' ? (
-                            <span key={`ellipsis-${index}`} className="px-1 text-slate-600">
+                            <span key={`ellipsis-${index}`} className="px-1 text-slate-600" aria-hidden="true">
                                 ...
                             </span>
                         ) : (
                             <button
                                 key={item}
+                                type="button"
                                 onClick={() => setPage(item)}
+                                aria-label={t('pagination.go_to_page', { page: item + 1 })}
+                                aria-current={page === item ? 'page' : undefined}
                                 className={`h-9 w-9 rounded-xl text-sm transition-all ${
                                     page === item ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20' : 'hover:bg-white/10'
                                 }`}
@@ -56,11 +61,13 @@ export function ActivityLogPagination({ page, setPage, limit, total, isLoading }
                     )}
                 </div>
                 <button
+                    type="button"
                     onClick={() => setPage((currentPage) => currentPage + 1)}
                     disabled={(page + 1) * limit >= total || isLoading}
+                    aria-label={t('pagination.next_page')}
                     className="rounded-xl bg-white/5 p-2 transition-all hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5"
                 >
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
                 </button>
             </div>
         </div>

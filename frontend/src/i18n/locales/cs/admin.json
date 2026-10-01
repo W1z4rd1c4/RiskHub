@@ -758,6 +758,7 @@
   "system_settings": {
     "title": "Nastavení systému",
     "saved": "Uloženo",
+    "save_named": "Uložit nastavení {{name}}",
     "errors": {
       "save_failed": "Uložení se nezdařilo"
     },

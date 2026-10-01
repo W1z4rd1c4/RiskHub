@@ -122,6 +122,7 @@
   "audit_trail": {
     "title": "Historie provedení kontrol",
     "subtitle": "Globální přehled všech exekucí kontrol a kontroly shody.",
+    "open_control": "Otevřít kontrolu {{name}}",
     "all_results": "Všechny výsledky",
     "total_records": "{{count}} celkem záznamů",
     "columns": {

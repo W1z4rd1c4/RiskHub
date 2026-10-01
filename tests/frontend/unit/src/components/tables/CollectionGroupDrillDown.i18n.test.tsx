@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { CollectionGroupDrillDown } from '@/components/tables/CollectionGroupDrillDown';
-import { CategoryDrillDown } from '@/components/tables/CategoryDrillDown';
 import i18n from '@/i18n';
 
 const localizedGroupLabel = (group: { value: string; label: string }) => {
@@ -75,11 +74,11 @@ describe('CollectionGroupDrillDown localization', () => {
         expect(screen.getByText('Active')).toBeInTheDocument();
     });
 
-    it('keeps both drill-down card variants as native, activatable buttons', async () => {
+    it('keeps drill-down cards as native, activatable buttons', async () => {
         await i18n.changeLanguage('en');
         const user = userEvent.setup();
         const onSelectGroup = vi.fn();
-        const { unmount } = render(
+        render(
             <CollectionGroupDrillDown
                 currentPage={1}
                 groups={[{ value: 'owner:1', label: 'Owner', count: 3 }]}
@@ -99,20 +98,6 @@ describe('CollectionGroupDrillDown localization', () => {
         expect(collectionCard).toHaveAttribute('type', 'button');
         await user.click(collectionCard);
         expect(onSelectGroup).toHaveBeenCalledWith('owner:1', 'Owner');
-        unmount();
-
-        render(
-            <CategoryDrillDown
-                data={[{ id: 1, group: 'Operations', name: 'Item' }]}
-                groupBy="group"
-                keyExtractor={(item) => item.id}
-                renderItem={(item) => <span>{item.name}</span>}
-            />,
-        );
-        const categoryCard = screen.getByRole('button', { name: /Operations/ });
-        expect(categoryCard).toHaveAttribute('type', 'button');
-        await user.click(categoryCard);
-        expect(screen.getByText('Item')).toBeVisible();
     });
 
     it('renders group counters in Czech', async () => {

@@ -36,6 +36,40 @@ const jsxA11yBaselineRules = Object.fromEntries(
   ]),
 );
 
+const RAW_ID_LABEL_RESTRICTION = {
+  selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
+  message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
+};
+
+// ADR-008 (PG-02): risk-score bands come only from useRiskThresholds(). A
+// relational comparison (either operand order) between a risk-score operand
+// (identifier or non-computed member property) and an integer literal is a
+// hard-coded threshold:
+// - `net_score` / `gross_score` / `risk_score`: any positive integer;
+// - generic `score` / `level`: integers 6+ only, i.e. above the 1-5 axis, so
+//   1-5 vendor scores and 1-4 control levels stay legal.
+// `> 0` presence guards are never flagged.
+// Matches on `raw` because esquery regex attributes only test string values.
+const RISK_SCORE_NAMES = "/^(net_score|gross_score|risk_score)$/";
+const GENERIC_SCORE_NAMES = "/^(score|level)$/";
+const POSITIVE_INTEGER = "/^[1-9]\\d*$/";
+const MATRIX_RANGE_INTEGER = "/^([6-9]|[1-9]\\d+)$/";
+const scoreOperand = (side, names) =>
+  `:matches([${side}.type='Identifier'][${side}.name=${names}], ` +
+  `[${side}.type='MemberExpression'][${side}.computed=false][${side}.property.name=${names}])`;
+const integerOperand = (side, pattern) => `[${side}.type='Literal'][${side}.raw=${pattern}]`;
+const relationalComparison = (names, pattern) => [
+  `BinaryExpression[operator=/^[<>]=?$/]${scoreOperand("left", names)}${integerOperand("right", pattern)}`,
+  `BinaryExpression[operator=/^[<>]=?$/]${integerOperand("left", pattern)}${scoreOperand("right", names)}`,
+];
+const ADR008_THRESHOLD_RESTRICTIONS = [
+  ...relationalComparison(RISK_SCORE_NAMES, POSITIVE_INTEGER),
+  ...relationalComparison(GENERIC_SCORE_NAMES, MATRIX_RANGE_INTEGER),
+].map((selector) => ({
+  selector,
+  message: "Do not hardcode risk-score thresholds (ADR-008); use useRiskThresholds() with riskScoreVariantClass().",
+}));
+
 const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
   "src/components/vendor-form/**/*.{ts,tsx}",
@@ -106,14 +140,8 @@ export default defineConfig([
       "react-hooks/set-state-in-effect": "off",
       "no-restricted-syntax": [
         "error",
-        {
-          selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
-          message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
-        },
-        {
-          selector: "BinaryExpression[operator='>='][left.property.name=/^(net_score|gross_score)$/][right.value=/^(5|10|15|16)$/]",
-          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
-        },
+        RAW_ID_LABEL_RESTRICTION,
+        ...ADR008_THRESHOLD_RESTRICTIONS,
       ],
     },
   },
@@ -124,31 +152,6 @@ export default defineConfig([
     files: ["src/**/*.{ts,tsx}"],
     plugins: { "jsx-a11y": jsxA11y },
     rules: jsxA11yBaselineRules,
-  },
-  {
-    files: [
-      "src/components/dashboard/**/*.{ts,tsx}",
-      "src/components/tables/MiniHeatmap.tsx",
-      "src/pages/departments/**/*.{ts,tsx}",
-      "src/pages/risks/**/*.{ts,tsx}",
-    ],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
-          message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
-        },
-        {
-          selector: "BinaryExpression[operator='>='][left.property.name=/^(net_score|gross_score)$/][right.value=/^(5|10|15|16)$/]",
-          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
-        },
-        {
-          selector: "BinaryExpression[operator='>='][left.name='score'][right.value=/^(5|10|15|16)$/]",
-          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
-        },
-      ],
-    },
   },
   {
     files: [

@@ -1,19 +1,18 @@
-import type { KRICreate, KRIUpdate, KeyRiskIndicator } from '@/types/kri';
+import type { KRIUpdate, KeyRiskIndicator } from '@/types/kri';
 
 export type KRIModalSaveResult =
     | { kind: 'updated' }
     | { kind: 'approval'; approvalId: number; message: string };
 
+/** Edit-only modal: KRIs are created through the KRI form page, never here. */
 export interface KRIModalProps {
-    risk_id: number;
-    kri?: KeyRiskIndicator | null;
+    kri: KeyRiskIndicator;
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: KRICreate | KRIUpdate, vendorIds: number[]) => Promise<KRIModalSaveResult>;
-    onDelete?: (id: number) => Promise<void>;
+    onSave: (data: KRIUpdate, vendorIds: number[]) => Promise<KRIModalSaveResult>;
 }
 
-export type KriModalFormData = Partial<KRICreate & KRIUpdate>;
+export type KriModalFormData = Partial<KRIUpdate>;
 
 export type KriModalTranslate = (
     key: string,

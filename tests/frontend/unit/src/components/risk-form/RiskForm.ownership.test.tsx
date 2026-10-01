@@ -153,8 +153,12 @@ describe('Risk owner assignment search', () => {
         expect(screen.getByRole('textbox', { name: /^Risk Owner/ })).toHaveAccessibleDescription(/Owner search failed/);
         expect(screen.queryByText('No users found')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Clear owner Existing Owner' })).toBeVisible();
+        const retry = screen.getByRole('button', { name: 'Retry' });
+        // GAP-D-05: a styled secondary Button, not the undefined `.btn-secondary` class.
+        expect(retry).toHaveClass('bg-secondary', 'text-secondary-foreground');
+        expect(retry).not.toHaveClass('btn-secondary');
         fail = false;
-        await user.click(screen.getByRole('button', { name: 'Retry' }));
+        await user.click(retry);
         expect(screen.getByRole('textbox', { name: /^Risk Owner/ })).toHaveFocus();
         expect(await screen.findByText('No users found')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Clear owner Existing Owner' })).toBeVisible();

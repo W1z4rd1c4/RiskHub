@@ -295,10 +295,11 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                                     linkId: row.link.id,
                                                 });
                                             }}
+                                            aria-label={t('common:links.remove_named', { name: row.name })}
                                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                             title={t('register_links.remove')}
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                                         </button>
                                     ) : null}
                                 </li>
@@ -384,12 +385,13 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                                     linkId: row.link.id,
                                                 });
                                             }}
+                                            aria-label={t('common:links.remove_named', { name: row.name })}
                                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                             title={row.processEditBlocked
                                                 ? t('processes:pending_change.link_action_blocked')
                                                 : t('register_links.remove')}
                                         >
-                                            <Trash2 className="h-4 w-4" />
+                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                                         </button>
                                     ) : null}
                                 </li>

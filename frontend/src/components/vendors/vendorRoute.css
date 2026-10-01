@@ -454,33 +454,6 @@
   background: hsl(var(--glass-hover) / 0.88);
 }
 
-.vendor-empty-state {
-  align-items: center;
-  background: hsl(var(--nested));
-  border: 1px dashed hsl(var(--border));
-  border-radius: var(--radius);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  justify-content: center;
-  min-height: 180px;
-  padding: 24px;
-  text-align: center;
-}
-
-.vendor-empty-state__title {
-  color: hsl(var(--foreground));
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.vendor-empty-state__description {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.875rem;
-  line-height: 1.5;
-  max-width: 52ch;
-}
-
 .vendor-inline-message {
   align-items: flex-start;
   background: hsl(var(--nested));

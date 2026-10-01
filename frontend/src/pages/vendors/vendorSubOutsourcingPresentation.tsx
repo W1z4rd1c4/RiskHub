@@ -178,6 +178,11 @@ type BuildVendorSubOutsourcingColumnsParams = {
 
 const DEPTH_INDENT_PX = 20;
 
+/** AX-01: icon-only row actions name the sub-provider they act on, not just the verb. */
+function subProviderLabel(entry: VendorSubOutsourcing, t: TranslateFn): string {
+    return entry.sub_provider_name || t('common:fallbacks.unknown_vendor');
+}
+
 export function buildVendorSubOutsourcingColumns({
     t,
     getContractLabel,
@@ -304,8 +309,9 @@ export function buildVendorSubOutsourcingColumns({
                             onClick={(event) => onEdit(entry, event)}
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
                             title={t('vendors:sub_outsourcing.actions.edit')}
+                            aria-label={t('vendors:sub_outsourcing.actions.edit_named', { name: subProviderLabel(entry, t) })}
                         >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
                         </button>
                     ) : null}
                     {resolveCapabilityFlag(entry.capabilities, 'can_archive') ? (
@@ -315,8 +321,9 @@ export function buildVendorSubOutsourcingColumns({
                             onClick={(event) => void onArchive(entry, event)}
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             title={t('vendors:sub_outsourcing.actions.archive')}
+                            aria-label={t('vendors:sub_outsourcing.actions.archive_named', { name: subProviderLabel(entry, t) })}
                         >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                     ) : null}
                     {resolveCapabilityFlag(entry.capabilities, 'can_restore') ? (
@@ -326,8 +333,9 @@ export function buildVendorSubOutsourcingColumns({
                             onClick={(event) => void onRestore(entry, event)}
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
                             title={t('vendors:sub_outsourcing.actions.restore')}
+                            aria-label={t('vendors:sub_outsourcing.actions.restore_named', { name: subProviderLabel(entry, t) })}
                         >
-                            <ArchiveRestore className="h-4 w-4" />
+                            <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
                         </button>
                     ) : null}
                 </div>

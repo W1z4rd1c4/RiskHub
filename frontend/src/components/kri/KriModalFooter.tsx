@@ -1,48 +1,28 @@
-import { Save, Trash2 } from 'lucide-react';
+import { Save } from 'lucide-react';
 
 import type { KriModalTranslate } from './kriModalTypes';
 
 interface KriModalFooterProps {
-    isCreate: boolean;
-    isDeleting: boolean;
     isSaving: boolean;
     onClose: () => void;
-    onDeleteClick: () => void;
     onSave: () => void;
-    showDelete: boolean;
     t: KriModalTranslate;
     validationErrorKey: string | null;
 }
 
 export function KriModalFooter({
-    isCreate,
-    isDeleting,
     isSaving,
     onClose,
-    onDeleteClick,
     onSave,
-    showDelete,
     t,
     validationErrorKey,
 }: KriModalFooterProps) {
     return (
-        <div className="p-6 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
-            <div>
-                {showDelete ? (
-                    <button
-                        onClick={onDeleteClick}
-                        disabled={isDeleting || isSaving}
-                        className="p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
-                        title={t('delete_kri', { ns: 'kris' })}
-                    >
-                        <Trash2 className="h-5 w-5" />
-                    </button>
-                ) : null}
-            </div>
+        <div className="p-6 bg-white/[0.02] border-t border-white/5 flex items-center justify-end">
             <div className="flex items-center gap-3">
                 <button
                     onClick={onClose}
-                    disabled={isDeleting || isSaving}
+                    disabled={isSaving}
                     className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors disabled:cursor-wait disabled:opacity-50"
                 >
                     {t('actions.cancel', { ns: 'common' })}
@@ -57,9 +37,7 @@ export function KriModalFooter({
                     ) : (
                         <>
                             <Save className="h-4 w-4" />
-                            {isCreate
-                                ? t('modal.create_indicator', { ns: 'kris' })
-                                : t('actions.save', { ns: 'common' })}
+                            {t('actions.save', { ns: 'common' })}
                         </>
                     )}
                 </button>

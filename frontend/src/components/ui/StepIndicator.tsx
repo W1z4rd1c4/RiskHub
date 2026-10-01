@@ -54,7 +54,7 @@ export function StepIndicator({
                                     ? 'bg-accent border-accent text-accent-foreground shadow-lg shadow-accent/25'
                                     : isCompleted
                                         ? 'bg-success border-success text-success-foreground'
-                                        : 'bg-white/5 border-white/10 text-slate-500'
+                                        : 'bg-white/5 border-white/10 text-icon-muted'
                                 }`}
                         >
                             {isCompleted ? (
@@ -65,10 +65,10 @@ export function StepIndicator({
                         </div>
                         <span
                             className={`text-[10px] font-black uppercase tracking-widest ${isActive
-                                    ? 'text-white'
+                                    ? 'text-foreground'
                                     : isClickable
-                                        ? 'text-slate-400 group-hover:text-slate-200'
-                                        : 'text-slate-500'
+                                        ? 'text-muted-foreground group-hover:text-foreground'
+                                        : 'text-muted-foreground'
                                 }`}
                         >
                             {step.title}

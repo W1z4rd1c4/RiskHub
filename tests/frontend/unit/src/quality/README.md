@@ -7,6 +7,7 @@ Folder for `tests/frontend/unit/src/quality` implementation assets.
 ## Contents
 
 - `__tests__/`
+- `eslintAdr008Thresholds.test.ts` (ADR-008 hard-coded risk-threshold lint selectors, PG-02)
 
 ## Notes
 

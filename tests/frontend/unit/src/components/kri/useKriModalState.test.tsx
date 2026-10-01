@@ -45,7 +45,6 @@ describe('useKriModalState', () => {
             kri: kri(),
             onClose: vi.fn(),
             onSave: vi.fn(),
-            risk_id: 3,
         };
 
         const { result, rerender } = renderHook(

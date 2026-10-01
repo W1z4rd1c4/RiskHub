@@ -758,6 +758,7 @@
   "system_settings": {
     "title": "System Settings",
     "saved": "Saved",
+    "save_named": "Save {{name}}",
     "errors": {
       "save_failed": "Failed to save"
     },

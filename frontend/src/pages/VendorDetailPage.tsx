@@ -288,9 +288,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         <button
                             type="button"
                             onClick={dismissActionMessage}
+                            aria-label={tCommon('actions.dismiss_message')}
                             className="opacity-60 transition-opacity hover:opacity-100"
                         >
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-4 w-4" aria-hidden="true" />
                         </button>
                     </div>
                 </VendorInlineMessage>

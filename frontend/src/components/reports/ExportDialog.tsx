@@ -135,7 +135,7 @@ export function ExportDialog({
                                 checked={purpose === 'current_view'}
                                 onChange={() => { setPurpose('current_view'); setSubmitFailed(false); }}
                                 data-testid="export-purpose-current-view"
-                                className="mt-1 accent-[var(--color-accent)]"
+                                className="mt-1 accent-accent"
                             />
                             <span>
                                 <span className="block font-bold text-white">{t('export.purpose.current_view.title')}</span>
@@ -157,7 +157,7 @@ export function ExportDialog({
                                 data-testid={datedPurpose === 'evaluation'
                                     ? 'export-purpose-evaluation'
                                     : 'export-purpose-point-in-time'}
-                                className="mt-1 accent-[var(--color-accent)]"
+                                className="mt-1 accent-accent"
                             />
                             <span>
                                 <span className="block font-bold text-white">{t(`export.purpose.${datePurposeKey}.title`)}</span>

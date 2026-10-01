@@ -367,8 +367,18 @@ export function AuditTrailPage() {
                                                 </p>
                                             </td>
                                             <td className="px-6 py-5 text-right">
-                                                <button className="p-2 text-slate-600 group-hover:text-white transition-colors">
-                                                    <ChevronRight className="h-4 w-4" />
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        void navigate(`/controls/${exec.control_id}`);
+                                                    }}
+                                                    aria-label={t('audit_trail.open_control', {
+                                                        name: exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control'),
+                                                    })}
+                                                    className="p-2 text-slate-600 group-hover:text-white transition-colors"
+                                                >
+                                                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
                                                 </button>
                                             </td>
                                         </tr>

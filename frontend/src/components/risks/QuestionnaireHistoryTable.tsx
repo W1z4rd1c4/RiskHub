@@ -68,7 +68,22 @@ export function QuestionnaireHistoryTable({
                                 onClick={() => onSelect(questionnaire.id)}
                             >
                                 <td className="px-4 py-3">
-                                    {questionnaireStatusBadge(questionnaire.status, isQuestionnaireOverdue(questionnaire), t)}
+                                    {/* AX-02: the named first-cell button is the keyboard path; the row click is a mouse convenience. */}
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onSelect(questionnaire.id);
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        {questionnaireStatusBadge(questionnaire.status, isQuestionnaireOverdue(questionnaire), t)}
+                                        <span className="sr-only">
+                                            {t('risks:questionnaires.open_row', {
+                                                date: formatQuestionnaireDate(questionnaire.sent_at, locale),
+                                            })}
+                                        </span>
+                                    </button>
                                 </td>
                                 <td className="px-4 py-3 text-sm text-slate-300">
                                     {formatQuestionnaireDate(questionnaire.sent_at, locale)}

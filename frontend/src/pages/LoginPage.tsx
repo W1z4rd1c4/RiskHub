@@ -169,7 +169,6 @@ export default function LoginPage() {
 
     useProdLoginMetadata({
         enabled: authConfig?.auth_mode === 'microsoft_sso',
-        language: prodLanguage,
         title: prodAuthTranslate('login_sso_prod.html_title'),
     });
 

@@ -34,7 +34,12 @@
     "deleting": "Mazání...",
     "retry": "Zkusit znovu",
     "stay": "Zůstat",
-    "leave": "Odejít"
+    "leave": "Odejít",
+    "dismiss_message": "Zavřít zprávu",
+    "clear_selection_named": "Zrušit výběr: {{name}}"
+  },
+  "links": {
+    "remove_named": "Odebrat vazbu: {{name}}"
   },
   "brand": {
     "name": "RiskHub"
@@ -190,7 +195,9 @@
     "entries": "záznamů",
     "per_page": "na stránku",
     "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů",
-    "go_to_page": "Přejít na stránku {{page}}"
+    "go_to_page": "Přejít na stránku {{page}}",
+    "previous_page": "Předchozí stránka",
+    "next_page": "Další stránka"
   },
   "date": {
     "today": "Dnes",
@@ -431,7 +438,6 @@
     "active": "Aktivní",
     "items_count": "{{count}} položek",
     "high_risk": "Vysoké riziko",
-    "inherited_risk_heatmap": "Heatmapa zděděného rizika",
     "error": {
       "message": "Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.",
       "retry": "Zkusit znovu"

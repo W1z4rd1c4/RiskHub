@@ -182,6 +182,7 @@ function LinkBlock({
     isAddPending,
     processBlockedLabel,
 }: LinkBlockProps) {
+    const { t } = useTranslation('common');
     const [targetToLink, setTargetToLink] = useState('');
     const targetId = parseRegisterLinkTargetId(targetToLink);
     const selectedTargetBlocked = options.some(
@@ -213,12 +214,13 @@ function LinkBlock({
                                     disabled={row.processEditBlocked}
                                     data-testid={`${testIdPrefix}-remove-${row.id}`}
                                     onClick={() => onRemove(row.id)}
+                                    aria-label={t('common:links.remove_named', { name: row.name })}
                                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                     title={row.processEditBlocked && processBlockedLabel
                                         ? processBlockedLabel
                                         : removeLabel}
                                 >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                                 </button>
                             ) : null}
                         </li>

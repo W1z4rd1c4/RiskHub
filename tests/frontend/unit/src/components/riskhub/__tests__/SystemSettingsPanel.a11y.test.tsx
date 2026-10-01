@@ -1,0 +1,137 @@
+import { QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, userEvent, waitFor } from '@test/render';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { SystemSettingsPanel } from '@/components/riskhub/SystemSettingsPanel';
+import type { GlobalConfig } from '@/services/riskHubApi';
+import { riskHubApi } from '@/services/riskHubApi';
+import { createTestQueryClient } from '@test/queryClient';
+
+/**
+ * DS-04 / NEW-V1-04 (Phase 0): the boolean setting is a named `switch` with
+ * state, value inputs are labelled by their setting name, and each Save button
+ * says which setting it saves.
+ */
+
+vi.mock('@/i18n/hooks', () => ({
+    useTranslation: () => ({
+        t: (key: string, options?: { name?: string }) => (options?.name ? `${key}:${options.name}` : key),
+    }),
+}));
+
+vi.mock('@/services/riskHubApi', () => ({
+    riskHubApi: {
+        getAllConfig: vi.fn(),
+        getCapabilities: vi.fn(),
+        updateConfig: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/apiClient', () => ({
+    apiClient: { toUiMessageKey: () => 'unknown' },
+}));
+
+function config(overrides: Partial<GlobalConfig>): GlobalConfig {
+    return {
+        id: 1,
+        key: 'k',
+        value: '',
+        value_type: 'str',
+        category: 'approvals',
+        display_name: 'Setting',
+        description: null,
+        min_value: null,
+        max_value: null,
+        is_editable: true,
+        updated_at: '2026-09-01T00:00:00Z',
+        updated_by_name: null,
+        ...overrides,
+    };
+}
+
+function renderPanel({ canUpdate = true } = {}) {
+    vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({
+        system_settings: { can_update: canUpdate },
+    } as never);
+    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({
+        approvals: [
+            config({
+                id: 1,
+                key: 'require_dual_approval',
+                value: 'false',
+                value_type: 'bool',
+                display_name: 'Require dual approval',
+                description: 'Two approvers for privileged changes.',
+            }),
+            config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days' }),
+            config({ id: 3, key: 'approval_mailbox', value: 'risk@example.test', display_name: 'Approval mailbox' }),
+        ],
+    } as never);
+    const queryClient = createTestQueryClient();
+    render(
+        <QueryClientProvider client={queryClient}>
+            <SystemSettingsPanel />
+        </QueryClientProvider>,
+    );
+}
+
+describe('SystemSettingsPanel accessibility (DS-04)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('renders the boolean setting as a named switch with on/off state', async () => {
+        const user = userEvent.setup();
+        renderPanel();
+
+        const toggle = await screen.findByRole('switch', { name: 'Require dual approval' });
+        expect(toggle).toHaveAttribute('type', 'button');
+        expect(toggle).toHaveAttribute('aria-checked', 'false');
+        expect(toggle).toHaveAccessibleDescription('Two approvers for privileged changes.');
+        expect(toggle.className).toContain('focus-visible:ring-2');
+
+        toggle.focus();
+        await user.keyboard(' ');
+        expect(toggle).toHaveAttribute('aria-checked', 'true');
+        await user.keyboard('{Enter}');
+        expect(toggle).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('labels value inputs with their setting names', async () => {
+        renderPanel();
+
+        expect(await screen.findByRole('textbox', { name: 'Approval SLA days' })).toHaveValue('5');
+        expect(screen.getByRole('textbox', { name: 'Approval mailbox' })).toHaveValue('risk@example.test');
+    });
+
+    it('names each Save button after its setting and saves that setting', async () => {
+        const user = userEvent.setup();
+        vi.mocked(riskHubApi.updateConfig).mockResolvedValue({} as never);
+        renderPanel();
+
+        await user.click(await screen.findByRole('switch', { name: 'Require dual approval' }));
+        const mailbox = screen.getByRole('textbox', { name: 'Approval mailbox' });
+        await user.clear(mailbox);
+        await user.type(mailbox, 'ops@example.test');
+
+        const saveToggle = screen.getByRole('button', { name: 'admin:system_settings.save_named:Require dual approval' });
+        expect(screen.getByRole('button', { name: 'admin:system_settings.save_named:Approval mailbox' })).toHaveAttribute('type', 'button');
+        await user.click(saveToggle);
+
+        await waitFor(() => {
+            expect(riskHubApi.updateConfig).toHaveBeenCalledWith('require_dual_approval', 'true');
+        });
+        expect(await screen.findByRole('status')).toHaveTextContent('admin:system_settings.saved');
+    });
+
+    it('keeps the switch disabled without update capability', async () => {
+        renderPanel({ canUpdate: false });
+
+        const toggle = await screen.findByRole('switch', { name: 'Require dual approval' });
+        await waitFor(() => {
+            expect(riskHubApi.getCapabilities).toHaveBeenCalled();
+        });
+        expect(toggle).toBeDisabled();
+        expect(toggle).toHaveAttribute('aria-checked', 'false');
+    });
+});

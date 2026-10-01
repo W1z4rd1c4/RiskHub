@@ -459,7 +459,10 @@
       "create": "Vytvořit subdodávku",
       "edit": "Upravit subdodávku",
       "archive": "Archivovat subdodávku",
-      "restore": "Obnovit subdodávku"
+      "restore": "Obnovit subdodávku",
+      "edit_named": "Upravit subdodávku {{name}}",
+      "archive_named": "Archivovat subdodávku {{name}}",
+      "restore_named": "Obnovit subdodávku {{name}}"
     },
     "form": {
       "not_set": "Nenastaveno",

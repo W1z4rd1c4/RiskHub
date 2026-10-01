@@ -291,7 +291,7 @@ function GovernancePageInner() {
                             aria-pressed={isActive}
                             data-testid={`governance-filter-card-${bar.id}`}
                             className={`glass-card interactive-card group flex flex-col justify-between relative overflow-hidden cursor-pointer text-left ${isActive
-                                ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
+                                ? 'ring-2 ring-accent shadow-[0_0_20px_hsl(var(--accent)/0.2)]'
                                 : 'grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
                             }`}
                         >

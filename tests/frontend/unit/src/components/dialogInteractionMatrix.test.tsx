@@ -689,8 +689,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
             'dialog',
             (onClose) => (
                 <KRIModal
-                    risk_id={1}
-                    kri={null}
+                    kri={kriFixture}
                     isOpen
                     onClose={onClose}
                     onSave={async () => ({ kind: 'updated' })}

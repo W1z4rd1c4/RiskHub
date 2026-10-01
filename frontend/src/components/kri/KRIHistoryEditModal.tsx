@@ -69,7 +69,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
             titleId={titleId}
             descriptionIds={[descriptionId]}
             backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="glass-card w-full max-w-md"
+            contentClassName="glass-card !p-0 w-full max-w-md"
         >
             <div className="flex items-center justify-between p-6 border-b border-white/5">
                 <div className="flex items-center gap-3">

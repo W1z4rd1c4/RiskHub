@@ -2,6 +2,7 @@ import { useRef } from 'react';
 
 import { Star, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { UserLookupItem } from '@/services/lookupApi';
@@ -170,16 +171,18 @@ export function RiskFormOwnershipStep({
                 <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{t('risks:form.owner_search.loading')}</p>
               ) : ownerLookupStatus === 'error' ? (
                 <div className="px-4 py-3">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="compact"
                     onClick={() => {
                       retryOwnerSearch();
                       searchRef.current?.focus();
                     }}
-                    className="btn-secondary mt-2"
+                    className="mt-2"
                   >
                     {t('common:actions.retry')}
-                  </button>
+                  </Button>
                 </div>
               ) : filteredUsers.length === 0 ? (
                 <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{ownerResultsLimited || ownerResultsHiddenByRole ? t('risks:form.owner_search.no_visible_matches') : t('common:empty.no_users_found')}</p>

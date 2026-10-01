@@ -31,27 +31,28 @@ export function Pagination({
 
     return (
         <div className={cn('flex items-center justify-between', className)}>
-            <div className="text-sm text-slate-400">
+            <div className="text-sm text-muted-foreground">
                 {totalItems !== undefined ? (
                     hasItems ? (
                         <>
-                            {t('pagination.showing')} <span className="font-medium text-white">{startItem}</span> {t('pagination.to')}{' '}
-                            <span className="font-medium text-white">{endItem}</span> {t('pagination.of')}{' '}
-                            <span className="font-medium text-white">{totalItems}</span> {t('labels.results')}
+                            {t('pagination.showing')} <span className="font-medium text-foreground">{startItem}</span> {t('pagination.to')}{' '}
+                            <span className="font-medium text-foreground">{endItem}</span> {t('pagination.of')}{' '}
+                            <span className="font-medium text-foreground">{totalItems}</span> {t('labels.results')}
                         </>
                     ) : (
                         <>{t('labels.no_results')}</>
                     )
                 ) : (
                     <>
-                        {t('pagination.page')} <span className="font-medium text-white">{currentPage}</span> {t('pagination.of')}{' '}
-                        <span className="font-medium text-white">{totalPages}</span>
+                        {t('pagination.page')} <span className="font-medium text-foreground">{currentPage}</span> {t('pagination.of')}{' '}
+                        <span className="font-medium text-foreground">{totalPages}</span>
                     </>
                 )}
             </div>
 
             <div className="flex items-center gap-2">
                 <button
+                    type="button"
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={!canGoPrev}
                     aria-label={t('actions.previous')}
@@ -59,8 +60,8 @@ export function Pagination({
                     className={cn(
                         'p-2 rounded-lg transition-all duration-200',
                         canGoPrev
-                            ? 'glass hover:bg-white/10 text-white'
-                            : 'text-slate-600 cursor-not-allowed'
+                            ? 'glass hover:bg-white/10 text-foreground'
+                            : 'text-muted-foreground opacity-50 cursor-not-allowed'
                     )}
                 >
                     <ChevronLeft className="h-5 w-5" />
@@ -82,6 +83,7 @@ export function Pagination({
                         return (
                             <button
                                 key={pageNum}
+                                type="button"
                                 onClick={() => onPageChange(pageNum)}
                                 aria-label={t('pagination.go_to_page', { page: pageNum })}
                                 aria-current={currentPage === pageNum ? 'page' : undefined}
@@ -89,7 +91,7 @@ export function Pagination({
                                     'w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200',
                                     currentPage === pageNum
                                         ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/20'
-                                        : 'glass hover:bg-white/10 text-slate-400 hover:text-white'
+                                        : 'glass hover:bg-white/10 text-muted-foreground hover:text-foreground'
                                 )}
                             >
                                 {pageNum}
@@ -99,6 +101,7 @@ export function Pagination({
                 </div>
 
                 <button
+                    type="button"
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={!canGoNext}
                     aria-label={t('actions.next')}
@@ -106,8 +109,8 @@ export function Pagination({
                     className={cn(
                         'p-2 rounded-lg transition-all duration-200',
                         canGoNext
-                            ? 'glass hover:bg-white/10 text-white'
-                            : 'text-slate-600 cursor-not-allowed'
+                            ? 'glass hover:bg-white/10 text-foreground'
+                            : 'text-muted-foreground opacity-50 cursor-not-allowed'
                     )}
                 >
                     <ChevronRight className="h-5 w-5" />
