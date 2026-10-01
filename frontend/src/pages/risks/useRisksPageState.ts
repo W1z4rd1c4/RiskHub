@@ -5,8 +5,10 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import type { SupportedLanguage } from '@/i18n';
+import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
@@ -48,6 +50,8 @@ export function useRisksPageState(
 ) {
     const departmentScope = useDepartmentRegisterScope();
     const { thresholds } = useRiskThresholds();
+    const { t } = useTranslation('risks');
+    const feedback = useFeedback();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
@@ -71,8 +75,7 @@ export function useRisksPageState(
     const [isExporting, setIsExporting] = useState(false);
     const {
         applyFailure, applySuccess, beginQuery, commitQueryIdentity, forQuery,
-        isLoading: collectionIsLoading, isQueryCurrent,
-        setErrorKey, setIsLoading,
+        isLoading: collectionIsLoading, isQueryCurrent, setIsLoading,
     } = useCollectionDataState<RiskSummary, RiskListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
@@ -176,15 +179,20 @@ export function useRisksPageState(
         () => writeUrl({ filters: EMPTY_RISK_REGISTER_FILTERS, group: null }),
         [writeUrl],
     );
+    // D9 / FB-01: the outcome of a row restore is a toast. A failure never puts
+    // the register into its error state (the rows stay usable), and the user is
+    // told even when they have already moved to another page of the register.
     const restoreRisk = useCallback(async (riskId: number) => {
         const restoreQueryIdentity = queryIdentity;
         try {
             await riskApi.restoreRisk(riskId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchRisks();
         } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
+            feedback.error({ title: t('messages.restore_failed'), messageKey: apiClient.toUiMessageKey(error) });
+            return;
         }
-    }, [fetchRisks, isQueryCurrent, queryIdentity, setErrorKey]);
+        feedback.success({ title: t('messages.restore_success') });
+        if (isQueryCurrent(restoreQueryIdentity)) await fetchRisks();
+    }, [feedback, fetchRisks, isQueryCurrent, queryIdentity, t]);
     const exportCurrentRisks = useCallback(async () => {
         setIsExporting(true);
         try {

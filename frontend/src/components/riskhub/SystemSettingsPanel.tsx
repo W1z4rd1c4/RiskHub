@@ -6,7 +6,7 @@ import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { riskHubKeys } from '@/lib/queryKeys';
 import { Switch } from '@/components/ui/switch';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string }> = {
@@ -32,6 +32,7 @@ interface ConfigInputProps {
 
 function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const format = useFormat();
     const [value, setValue] = useState(config.value);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -73,9 +74,10 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         }
 
         if (config.value_type === 'int') {
-            // Format display value with space thousands separators (e.g., "10 000 000 000")
+            // PG-38: group digits in the UI language ("10,000,000" en / "10 000 000" cs);
+            // the change handler strips every separator back to the raw number.
             const numValue = parseInt(value) || 0;
-            const displayValue = numValue.toLocaleString('cs-CZ').replace(/\u00a0/g, ' ');
+            const displayValue = format.number(numValue);
 
             return (
                 <input

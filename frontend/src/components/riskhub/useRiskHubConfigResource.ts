@@ -42,7 +42,8 @@ export function useRiskHubConfigResource<TItem, TCreate, TUpdate>(definition: Ri
     return {
         actionErrorKey: panel.actionErrorKey, closeDelete: panel.closeDelete, closeModal: panel.closeModal,
         deleteConfirm: panel.deleteConfirm, editingItem: panel.editingItem, error: query.error,
-        handleDelete, handleRestore, handleSave, isLoading: query.isLoading, items: query.items,
+        handleDelete, handleRestore, handleSave, hasData: query.hasData, isFetching: query.isFetching,
+        isLoading: query.isLoading, items: query.items, retry: () => { void query.refetch(); },
         modalOpen: panel.modalOpen, openCreate: panel.openCreate, openEdit: panel.openEdit,
         requestDelete: panel.requestDelete, setActionErrorKey: panel.setActionErrorKey,
         setDeleteConfirm: panel.setDeleteConfirm, setShowInactive: panel.setShowInactive, showInactive: panel.showInactive,

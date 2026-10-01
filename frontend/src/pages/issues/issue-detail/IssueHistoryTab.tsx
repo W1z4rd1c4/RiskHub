@@ -1,13 +1,10 @@
-import type { SafeTFunction } from '@/i18n/hooks';
+import { useFormat, type SafeTFunction } from '@/i18n/hooks';
 import type { ActivityLogEntry } from '@/types/activityLog';
-
-import { formatDateTime } from './issueDetail.formatters';
 
 interface IssueHistoryTabProps {
     canViewActivityHistory: boolean;
     historyItems: ActivityLogEntry[];
     isHistoryLoading: boolean;
-    locale: string;
     t: SafeTFunction;
 }
 
@@ -15,9 +12,9 @@ export function IssueHistoryTab({
     canViewActivityHistory,
     historyItems,
     isHistoryLoading,
-    locale,
     t,
 }: IssueHistoryTabProps) {
+    const format = useFormat();
     return (
         <section className="glass-card p-6 space-y-4" data-testid="issue-history-panel">
             {!canViewActivityHistory ? (
@@ -37,7 +34,7 @@ export function IssueHistoryTab({
                                     {entry.action.replaceAll('_', ' ')}
                                 </p>
                                 <p className="text-xs text-slate-500">
-                                    {formatDateTime(entry.created_at, locale, t('fallbacks.not_set'))}
+                                    {format.dateTime(entry.created_at) || t('fallbacks.not_set')}
                                 </p>
                             </div>
                             <p className="text-sm text-slate-300 mt-1">{entry.description}</p>

@@ -4,6 +4,7 @@ import { useLayoutEffect, type ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { useAssetsPageState } from '@/pages/assets/useAssetsPageState';
 import { useControlsPageState } from '@/pages/controls/useControlsPageState';
 import { useIssuesPageState } from '@/pages/issues/useIssuesPageState';
@@ -129,6 +130,11 @@ const RESTORABLE_REGISTERS = [
     { fetchMock: apiMocks.getVendors, name: 'Vendor', path: '/vendors', restoreMock: apiMocks.restoreVendor, useCollectionState: useVendorCollectionState },
 ] as const;
 
+/** Registers whose row restore reports through `useFeedback()` toasts (D9, FB-01); the rest migrate in W7. */
+const TOAST_RESTORE_REGISTER_NAMES: ReadonlySet<string> = new Set(['Risk']);
+const TOAST_RESTORE_REGISTERS = RESTORABLE_REGISTERS.filter(({ name }) => TOAST_RESTORE_REGISTER_NAMES.has(name));
+const REGISTER_ERROR_RESTORE_REGISTERS = RESTORABLE_REGISTERS.filter(({ name }) => !TOAST_RESTORE_REGISTER_NAMES.has(name));
+
 const populatedPage = {
     capabilities: { can_create: true, can_export: true, can_view_risk_contexts: true, can_view_vendor_contexts: true },
     facets: {
@@ -201,7 +207,9 @@ function routeWrapper(path: string) {
     return function Wrapper({ children }: { children: ReactNode }) {
         return (
             <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={[`${path}?source=review`]}>{children}</MemoryRouter>
+                <MemoryRouter initialEntries={[`${path}?source=review`]}>
+                    <FeedbackProvider>{children}</FeedbackProvider>
+                </MemoryRouter>
             </QueryClientProvider>
         );
     };
@@ -284,7 +292,7 @@ describe('eight-register collection query identity', () => {
         },
     );
 
-    it.each(RESTORABLE_REGISTERS)(
+    it.each(REGISTER_ERROR_RESTORE_REGISTERS)(
         '$name applies a same-query restore failure without clearing safe rows',
         async ({ path, restoreMock, useCollectionState }) => {
             restoreMock.mockRejectedValueOnce(new ApiClientError({ status: 500, messageKey: 'errors.server' }));
@@ -295,6 +303,38 @@ describe('eight-register collection query identity', () => {
 
             expect(result.current.items).toHaveLength(1);
             expect(result.current.errorKey).not.toBeNull();
+        },
+    );
+
+    it.each(TOAST_RESTORE_REGISTERS)(
+        '$name reports a restore failure as an error toast and keeps the register usable',
+        async ({ fetchMock, path, restoreMock, useCollectionState }) => {
+            restoreMock.mockRejectedValueOnce(new ApiClientError({ status: 500, messageKey: 'errorKeys.server' }));
+            const { result } = renderHook(() => useCollectionState(), { wrapper: routeWrapper(path) });
+            await waitFor(() => expect(result.current.items).toHaveLength(1));
+            const fetchesBeforeRestore = fetchMock.mock.calls.length;
+
+            await act(async () => { await result.current.restore?.(1); });
+
+            expect(result.current.items).toHaveLength(1);
+            expect(result.current.errorKey).toBeNull();
+            expect(fetchMock.mock.calls).toHaveLength(fetchesBeforeRestore);
+            const toast = (await screen.findByText('The risk could not be restored.')).closest('li');
+            expect(toast).toHaveAttribute('data-tone', 'danger');
+            expect(toast).toHaveTextContent('Server error. Please try again later.');
+        },
+    );
+
+    it.each(TOAST_RESTORE_REGISTERS)(
+        '$name confirms a successful restore with a success toast',
+        async ({ path, useCollectionState }) => {
+            const { result } = renderHook(() => useCollectionState(), { wrapper: routeWrapper(path) });
+            await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+            await act(async () => { await result.current.restore?.(1); });
+
+            const toast = (await screen.findByText('Risk restored successfully.')).closest('li');
+            expect(toast).toHaveAttribute('data-tone', 'success');
         },
     );
 

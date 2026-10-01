@@ -189,6 +189,25 @@ describe('Risk Hub config panels', () => {
         });
     });
 
+    it('renders a department load failure as an error with retry, never as an empty list (GAP-C-11)', async () => {
+        const departments = await riskHubApi.getDepartments(false);
+        vi.mocked(riskHubApi.getDepartments)
+            .mockReset()
+            .mockRejectedValueOnce(new Error('network down'))
+            .mockResolvedValueOnce(departments);
+        renderWithQueryClient(<DepartmentsPanel />);
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('errors.load_failed');
+        expect(screen.queryByRole('table')).not.toBeInTheDocument();
+        expect(screen.queryByText('admin:departments_panel.title')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));
+        expect(await screen.findByText('Operations')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(riskHubApi.getDepartments).toHaveBeenCalledTimes(2);
+    });
+
     it('creates departments without manager assignment', async () => {
         renderWithQueryClient(<DepartmentsPanel />);
 

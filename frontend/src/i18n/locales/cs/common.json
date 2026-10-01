@@ -41,13 +41,24 @@
     "dismiss_message": "Zavřít zprávu",
     "clear_selection_named": "Zrušit výběr: {{name}}",
     "remove": "Odebrat",
-    "remove_named": "Odebrat {{name}}"
+    "remove_named": "Odebrat {{name}}",
+    "back_to_detail": "Zpět na {{name}}"
   },
   "links": {
     "remove_named": "Odebrat vazbu: {{name}}"
   },
   "brand": {
     "name": "RiskHub"
+  },
+  "page_title": {
+    "template": "{{page}} · RiskHub"
+  },
+  "breadcrumbs": {
+    "label": "Drobečková navigace"
+  },
+  "edit_blocked": {
+    "title": "Úpravy jsou dočasně uzamčeny",
+    "description": "Před úpravou tohoto záznamu je nutné vyřešit čekající řízenou změnu."
   },
   "not_found_page": {
     "title": "Stránka nebyla nalezena",
@@ -181,6 +192,17 @@
     "deleted": "Úspěšně smazáno.",
     "submitted": "Úspěšně odesláno."
   },
+  "feedback": {
+    "region_label": "Oznámení ({hotkey})",
+    "announce_label": "Oznámení",
+    "dismiss": "Zavřít oznámení",
+    "default_title": {
+      "success": "Hotovo",
+      "info": "Pro informaci",
+      "warning": "Zkontrolujte prosím",
+      "danger": "Něco se pokazilo"
+    }
+  },
   "confirmation": {
     "delete_title": "Potvrdit smazání",
     "delete_message": "Opravdu chcete smazat tuto položku? Tuto akci nelze vrátit zpět.",
@@ -307,7 +329,8 @@
     "risk_data": "Načítání dat rizika...",
     "control_data": "Načítání dat kontroly...",
     "history": "Načítání historie...",
-    "activity_log": "Načítání logu aktivit..."
+    "activity_log": "Načítání logu aktivit...",
+    "named": "Načítání: {{name}}…"
   },
   "empty": {
     "no_data": "Žádná data",
@@ -443,6 +466,7 @@
     "entity_tabs_label": "Aktivita podle typu entity"
   },
   "department_detail": {
+    "back_to_departments": "Zpět na oddělení",
     "tabs": {
       "label": "Pracovní prostor oddělení",
       "overview": "Přehled",

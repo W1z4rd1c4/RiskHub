@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '@/services/apiClient';
@@ -99,7 +99,9 @@ describe('KRI bounded history pagination', () => {
         getHistory.mockRejectedValueOnce(new Error('offline'));
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         const unavailable = await screen.findByText('History page 2 is unavailable');
-        expect(unavailable).toHaveFocus();
+        // The summary takes focus in a passive effect after the failed page commits;
+        // under full-suite load that effect can run after findByText resolves.
+        await waitFor(() => expect(unavailable).toHaveFocus());
         expect(screen.queryByText('75 units', { selector: 'h4' })).not.toBeInTheDocument();
         expect(screen.queryByText('51–75 of 75')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Retry/i }));

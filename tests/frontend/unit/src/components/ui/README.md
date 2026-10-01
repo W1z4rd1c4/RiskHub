@@ -24,3 +24,16 @@ forwarded refs, `displayName`, `cn` class merging and the shared
 (MultiSelect: combobox naming, count summary, keyboard, search, chip removal,
 DialogShell layering, open-state axe). `formPrimitives.test.tsx` also covers
 the `Input` sizes and the `Field` optional / visually hidden / inline layouts.
+
+State primitives (roadmap 1.11, §4.15): `state.test.tsx` covers `Spinner`,
+`Skeleton`, `LoadingState` (polite status never busy nor inside a busy element,
+busy spinner/skeleton placeholder, skeleton label), `EmptyState`
+(kinds, icons, action), `ErrorState` (alert, translated defaults en/cs,
+`messageKey`, retry, banner, actions), `AccessDeniedState` (heading level,
+`descriptionKey` + `ns`, the `ReadAccessDeniedState` alias) and an axe pass.
+
+Feedback (roadmap 1.12, §4.16): `feedbackToast.test.tsx` covers
+`FeedbackProvider` / `useFeedback` — the named viewport, popover surface and
+tone icons, polite vs assertive announcements, `errorKeys` translation,
+translated en/cs default titles, 5 s / 8 s / action durations, the 3-toast cap,
+id replacement, `dismiss`, a stable API and the no-provider fallback.

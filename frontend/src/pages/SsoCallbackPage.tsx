@@ -46,7 +46,7 @@ export default function SsoCallbackPage() {
     }, [navigate]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
+        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
             <div className="w-full max-w-md text-center">
                 {errorKey ? (
                     <>
@@ -66,6 +66,6 @@ export default function SsoCallbackPage() {
                     </>
                 )}
             </div>
-        </div>
+        </main>
     );
 }

@@ -217,4 +217,52 @@ describe('DepartmentDetailPage operational workspace', () => {
 
         expect(screen.getByTestId('location')).toHaveTextContent('/controls/123');
     });
+
+    it('renders the department as the page h1 with a labelled back link that honours return_to (DS-15, NAV-02, AX-06)', () => {
+        renderPage('/departments/7?tab=overview&return_to=%2Fdepartments%3Fq%3Dops');
+
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Compliance');
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute(
+            'href',
+            '/departments?q=ops',
+        );
+        const trail = screen.getByRole('navigation', { name: 'breadcrumbs.label' });
+        expect(trail).toHaveTextContent('sidebar.departments');
+        expect(screen.getByText('Compliance', { selector: '[aria-current="page"]' })).toBeInTheDocument();
+    });
+
+    it('ignores an unsafe return_to and falls back to the department register', () => {
+        renderPage('/departments/7?tab=overview&return_to=https%3A%2F%2Fevil.example');
+
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute('href', '/departments');
+    });
+
+    it('announces loading and renders a load failure as an error with retry (DS-17)', async () => {
+        const user = userEvent.setup();
+        const refresh = vi.fn();
+        useDepartmentDetailMock.mockReturnValue({ department: null, isLoading: true, isAccessDenied: false, error: null, refresh });
+        const { unmount } = renderPage('/departments/7');
+        // The location probe is an <output> (implicit status role), so pick the loading live region.
+        const loading = screen.getAllByRole('status').find((element) => element.getAttribute('aria-live') === 'polite');
+        expect(loading).toBeDefined();
+        expect(loading).toHaveTextContent('loading.data');
+        // Announced: the live region is not inside a busy element; the skeleton placeholder is busy.
+        expect(loading?.closest('[aria-busy="true"]')).toBeNull();
+        expect(document.querySelector('[data-loading-placeholder][aria-busy="true"] .animate-pulse')).not.toBeNull();
+        unmount();
+
+        useDepartmentDetailMock.mockReturnValue({
+            department: null,
+            isLoading: false,
+            isAccessDenied: false,
+            error: 'errors.load_department_detail_failed',
+            refresh,
+        });
+        renderPage('/departments/7');
+        expect(screen.getByRole('alert')).toHaveTextContent('errors.load_department_detail_failed');
+        await user.click(screen.getByRole('button', { name: 'actions.retry' }));
+        expect(refresh).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute('href', '/departments');
+    });
 });

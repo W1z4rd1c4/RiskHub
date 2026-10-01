@@ -172,9 +172,11 @@ npx playwright test -c playwright.config.ts ../tests/frontend/e2e/entity-ownersh
 ## Rendered Contrast Gate (G-RENDER)
 
 `theme-rendered-contrast.spec.ts` measures every visible text element on the
-`frontend/workflow-contrast.html` families and on every
+`frontend/workflow-contrast.html` families, on every
 `frontend/dialog-contract.html` owner (closed, then each of its dialogs opened)
-in the light, riskhub and dark themes, with the compositing algorithm of
+and on the `frontend/design-system.html` harness (one surface per shared
+primitive family, each opened `DialogShell` / `ConfirmDialog` intent, and the
+public `AuthFrame` both on the OS scheme and on a stored app theme) in the light, riskhub and dark themes, with the compositing algorithm of
 `tests/frontend/e2e/helpers/renderedContrast.ts`. Per theme and surface it counts
 text below AA (4.5:1, or 3:1 for large text), below 3:1, below 1.5:1 and white
 text on a light background, and fails when any count rises above

@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Shield, Sparkles } from 'lucide-react';
 
+import { BrandWordmark } from '@/components/layout/BrandWordmark';
+import { LanguageSwitch } from '@/components/layout/LanguageSwitch';
+import type { SupportedLanguage } from '@/i18n';
 import { resources } from '@/i18n/allResources';
 
-type PreviewLanguage = 'cs' | 'en';
-
-const languageLabels: Record<PreviewLanguage, string> = {
-  cs: 'CZ',
-  en: 'EN',
-};
-
 export default function ProdLoginPreviewPage() {
-  const [language, setLanguage] = useState<PreviewLanguage>('cs');
+  const [language, setLanguage] = useState<SupportedLanguage>('cs');
   const content = resources[language].auth.login_sso_prod;
 
   useEffect(() => {
@@ -20,7 +16,7 @@ export default function ProdLoginPreviewPage() {
   }, [content.html_title, language]);
 
   return (
-    <main className="relative min-h-screen overflow-y-auto bg-[#07111b] text-slate-100">
+    <main className="theme-riskhub relative min-h-screen overflow-y-auto bg-[#07111b] text-slate-100">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(14,116,144,0.12),transparent_26%),linear-gradient(180deg,#07111b_0%,#091521_100%)]" />
         <div className="absolute inset-y-0 left-[16%] w-px bg-gradient-to-b from-transparent via-sky-400/12 to-transparent" />
@@ -32,36 +28,10 @@ export default function ProdLoginPreviewPage() {
             <span className="flex h-12 w-12 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sky-300 shadow-[0_12px_28px_rgba(14,165,233,0.12)]">
               <Shield className="h-5 w-5" />
             </span>
-            <span className="text-lg font-semibold tracking-[0.34em] uppercase">
-              Risk<span className="text-sky-300">Hub</span>
-            </span>
+            <BrandWordmark className="text-lg font-semibold tracking-[0.34em] uppercase" accentClassName="text-sky-300" />
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500 sm:inline">
-              {content.switch_label}
-            </span>
-            <div className="inline-flex rounded-full border border-white/10 bg-slate-950/60 p-1">
-              {(['cs', 'en'] as const).map((lang) => {
-                const active = lang === language;
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setLanguage(lang)}
-                    aria-pressed={active}
-                    className={`min-w-12 rounded-full px-3 py-1.5 text-xs font-semibold tracking-[0.2em] transition-colors ${
-                      active
-                        ? 'bg-slate-100 text-slate-950'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {languageLabels[lang]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <LanguageSwitch label={content.switch_label} showLabel value={language} onChange={setLanguage} />
         </header>
 
         <section className="flex flex-1 items-center justify-center">

@@ -1,17 +1,18 @@
-import type { SafeTFunction } from '@/i18n/hooks';
+import { useFormat, type SafeTFunction } from '@/i18n/hooks';
 import type { Issue } from '@/types/issue';
 
 import { IssueMetaBlock } from './IssueMetaBlock';
-import { exceptionActorName, formatDateTime } from './issueDetail.formatters';
+import { exceptionActorName } from './issueDetail.formatters';
 
 interface IssueOverviewTabProps {
     issue: Issue;
-    locale: string;
     sourceLabel: (sourceType: string) => string;
     t: SafeTFunction;
 }
 
-export function IssueOverviewTab({ issue, locale, sourceLabel, t }: IssueOverviewTabProps) {
+export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProps) {
+    const format = useFormat();
+    const formatDateTime = (value: string | null) => format.dateTime(value) || t('fallbacks.not_set');
     return (
         <section className="space-y-5" data-testid="issue-overview-panel">
             <section className="glass-card p-6 space-y-4">
@@ -30,11 +31,11 @@ export function IssueOverviewTab({ issue, locale, sourceLabel, t }: IssueOvervie
                     />
                     <IssueMetaBlock
                         label={t('detail.fields.opened')}
-                        value={formatDateTime(issue.opened_at, locale, t('fallbacks.not_set'))}
+                        value={formatDateTime(issue.opened_at)}
                     />
                     <IssueMetaBlock
                         label={t('detail.fields.due')}
-                        value={formatDateTime(issue.due_at, locale, t('fallbacks.not_set'))}
+                        value={formatDateTime(issue.due_at)}
                     />
                     <IssueMetaBlock
                         label={t('detail.fields.created_by')}
@@ -104,11 +105,7 @@ export function IssueOverviewTab({ issue, locale, sourceLabel, t }: IssueOvervie
                                             </span>
                                             <span className="text-xs text-slate-500">
                                                 {t('detail.messages.expires')}:{' '}
-                                                {formatDateTime(
-                                                    exception.expires_at,
-                                                    locale,
-                                                    t('fallbacks.not_set'),
-                                                )}
+                                                {formatDateTime(exception.expires_at)}
                                             </span>
                                         </div>
                                         <p className="text-sm text-slate-300">{exception.reason}</p>

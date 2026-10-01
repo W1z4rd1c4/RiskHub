@@ -15,6 +15,7 @@ import { dashboardKeys } from '@/lib/queryKeys';
 import { getGroupedSidebarNav, resolveActiveSidebarHref } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { BrandWordmark } from '@/components/layout/BrandWordmark';
 import { DestinationLauncher } from '@/components/layout/DestinationLauncher';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
 import './sidebar.css';
@@ -26,7 +27,6 @@ export function Sidebar() {
     const authz = useAuthz();
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
-    const { t: tCommon } = useTranslation('common');
     const { t: tErrors } = useTranslation('errorKeys');
 
     // Badge polling gates:
@@ -153,11 +153,6 @@ export function Sidebar() {
         measureNavigationOverflow();
     };
 
-    const brandName = tCommon('brand.name');
-    const brandAccentSuffix = 'Hub';
-    const hasAccentSuffix = brandName.endsWith(brandAccentSuffix);
-    const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
-
     return (
         <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 min-h-0 flex-col p-6">
             <div className="glass-card h-full min-h-0 flex flex-col p-4">
@@ -166,16 +161,7 @@ export function Sidebar() {
                         <div className="bg-accent p-2 rounded-xl">
                             <Shield className="h-6 w-6 text-accent-foreground" />
                         </div>
-                        <span className="text-xl font-bold tracking-tight text-foreground font-heading">
-                            {hasAccentSuffix ? (
-                                <>
-                                    {brandPrefix}
-                                    <span className="text-accent-text">{brandAccentSuffix}</span>
-                                </>
-                            ) : (
-                                brandName
-                            )}
-                        </span>
+                        <BrandWordmark className="text-xl font-bold tracking-tight text-foreground font-heading" />
                     </div>
                     <NotificationBell
                         unreadCount={displayedUnreadNotificationCount}

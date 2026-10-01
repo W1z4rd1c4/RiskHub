@@ -12,7 +12,9 @@ import { approvalsApi } from '@/services/approvalsApi';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
+import { DetailField, DetailFieldList } from './detail/DetailField';
 import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { EditBlockedState } from './detail/EditBlockedState';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ThreatForm } from './threats/ThreatForm';
@@ -25,25 +27,6 @@ import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/regist
 
 interface ThreatDetailPageProps {
     mode?: ThreatDetailMode;
-}
-
-function DetailField({
-    label,
-    value,
-    testId,
-}: {
-    label: string;
-    value: string | null | undefined;
-    testId?: string;
-}) {
-    return (
-        <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-            <p className="text-sm text-foreground whitespace-pre-wrap" data-testid={testId}>
-                {value === null || value === undefined || value === '' ? '—' : value}
-            </p>
-        </div>
-    );
 }
 
 function StewardshipAlert({
@@ -225,28 +208,35 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     if (mode === 'edit') {
         if (resolveCapabilityFlag(threat.capabilities, 'business_edit_blocked')) {
             return (
-                <div className="space-y-8">
-                    {staleWarning}
-                    <button
-                        type="button"
-                        onClick={() => navigate(threatDetailPath(threat.id))}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white"
+                <>
+                    <EditBlockedState
+                        notice={staleWarning}
+                        entityName={threat.name}
+                        documentTitle={threat.name}
+                        back={{
+                            label: tCommon('actions.back_to_detail', { name: threat.name }),
+                            to: threatDetailPath(threat.id),
+                        }}
+                        breadcrumbs={[
+                            { label: t('title'), to: returnTo },
+                            { label: threat.name, to: threatDetailPath(threat.id) },
+                            { label: t('actions.edit') },
+                        ]}
+                        testId="threat-edit-blocked"
                     >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    {threat.pending_change ? (
-                        <ThreatPendingChangePanel
-                            pendingChange={threat.pending_change}
-                            locale={i18n.language}
-                            cancelling={isCancellingPendingChange}
-                            onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
-                                ? openPendingChangeCancellation
-                                : undefined}
-                        />
-                    ) : null}
+                        {threat.pending_change ? (
+                            <ThreatPendingChangePanel
+                                pendingChange={threat.pending_change}
+                                locale={i18n.language}
+                                cancelling={isCancellingPendingChange}
+                                onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
+                                    ? openPendingChangeCancellation
+                                    : undefined}
+                            />
+                        ) : null}
+                    </EditBlockedState>
                     {pendingCancellationDialog}
-                </div>
+                </>
             );
         }
         if (threat.stewardship_status === 'pending_governance') {
@@ -436,7 +426,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     {t('form.sections.details')}
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <DetailFieldList>
                     <DetailField label={t('form.category')} value={threatCategoryLabel(t, threat.category)} testId="threat-detail-category" />
                     <DetailField
                         label={t('form.steward')}
@@ -448,13 +438,10 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <DetailField label={t('form.relevant_subject')} value={threat.relevant_subject} />
                     <DetailField label={t('form.description')} value={threat.description} />
                     <DetailField label={t('form.typical_weaknesses')} value={threat.typical_weaknesses} />
-                </div>
-                {threat.notes ? (
-                    <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</p>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{threat.notes}</p>
-                    </div>
-                ) : null}
+                    {threat.notes ? (
+                        <DetailField label={t('form.notes')} value={threat.notes} className="md:col-span-2" />
+                    ) : null}
+                </DetailFieldList>
             </div>
 
             <ThreatRiskLinksSection

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import type { Issue, IssueStatus } from '@/types/issue';
 
 import {
@@ -12,7 +12,6 @@ import {
     issueStatusClass,
 } from '../issueUi';
 import { SummaryField } from './SummaryField';
-import { formatWorkflowDate } from './remediationPresentation';
 
 interface WorkflowSummarySectionProps {
     errorKey: string | null;
@@ -20,7 +19,9 @@ interface WorkflowSummarySectionProps {
 }
 
 export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySectionProps) {
-    const { t, i18n } = useTranslation('issues');
+    const { t } = useTranslation('issues');
+    const format = useFormat();
+    const formatDateTime = (value: string | null | undefined) => format.dateTime(value) || t('fallbacks.not_set');
     const remediation = issue.remediation_plan;
     const issueStatusLabel = (status: IssueStatus): string => t(`status.${status}`, status.replaceAll('_', ' '));
     const nextStepLabel = useMemo(() => {
@@ -51,9 +52,7 @@ export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySecti
 
             {errorKey && (
                 <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
+                    {translateUiMessage(t, errorKey)}
                 </div>
             )}
 
@@ -67,7 +66,7 @@ export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySecti
                 />
                 <SummaryField
                     label={t('workflow.fields.due_at')}
-                    value={formatWorkflowDate(issue.due_at, i18n.language, t('fallbacks.not_set'))}
+                    value={formatDateTime(issue.due_at)}
                 />
                 <SummaryField
                     label={t('workflow.fields.remediation_status')}
@@ -80,11 +79,11 @@ export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySecti
                 <SummaryField label={t('workflow.fields.progress')} value={`${remediation?.progress_percent ?? 0}%`} />
                 <SummaryField
                     label={t('workflow.fields.target_date')}
-                    value={formatWorkflowDate(remediation?.target_date, i18n.language, t('fallbacks.not_set'))}
+                    value={formatDateTime(remediation?.target_date)}
                 />
                 <SummaryField
                     label={t('workflow.fields.completed_at')}
-                    value={formatWorkflowDate(remediation?.completed_at, i18n.language, t('fallbacks.not_set'))}
+                    value={formatDateTime(remediation?.completed_at)}
                 />
             </div>
             <p className="text-sm text-slate-400">{nextStepLabel}</p>

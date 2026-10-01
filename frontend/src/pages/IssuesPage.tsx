@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SupportedLanguage } from '@/i18n';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { IssueSummary } from '@/types/issue';
 
@@ -22,7 +22,8 @@ export function IssuesPage() {
     const { t, i18n } = useTranslation(['issues', 'common']);
     const language = i18n.language as SupportedLanguage;
     const state = useIssuesPageState(language);
-    const columns = buildIssueColumns({ language, t });
+    const format = useFormat();
+    const columns = buildIssueColumns({ format, t });
     const views = ISSUE_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));
 
     return <RegisterListShell<IssueSummary, IssueRegisterView>

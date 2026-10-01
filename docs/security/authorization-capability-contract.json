@@ -1,8 +1,9 @@
 {
  "version": "1.0",
- "last_reviewed": "2026-09-27",
+ "last_reviewed": "2026-10-01",
  "last_architecture_refactor_reviewed": "2026-09-08",
  "architecture_refactor_notes": [
+  "2026-10-01: UI-consistency remediation W5 (audit 2026-09-30 sections 4.14 and 4.20) is presentation-only. frontend/src/components/layout/Sidebar.tsx renders the shared BrandWordmark; frontend/src/pages/detail/EntityDetailHeader.tsx and frontend/src/pages/departments/DepartmentDetailHeader.tsx gain labelled back/breadcrumb navigation and the per-route document title; frontend/src/pages/ThreatDetailPage.tsx moves its business_edit_blocked view onto EditBlockedState with the same resolveCapabilityFlag(threat.capabilities, 'business_edit_blocked') and pending_change.capabilities.can_cancel gates. Navigation projection, route gates, capability fallbacks and backend authority are unchanged.",
   "2026-09-27: #179 distinguishes retryable creation-capability read failures from authoritative denial. All seven shared-gate consumers and three linked-vendor creation checks require explicit backend true. HTTP 401 keeps central session recovery; 403/404 remain non-leaky denial. Failed-only retries, pending locks and obsolete-route suppression add no permissions or policy.",
   "2026-09-27: #177 adds bounded KRI detail history pagination and page-owned loading/error results. Existing backend KRI read visibility, can_request_correction metadata, correction eligibility, exact KRI/history mutation identity, and period algebra remain unchanged; no new authority or API capability fields are introduced.",
   "2026-09-27: Every completed shared session response, including Entra/development login and refresh, carries current MeCapabilities and identity action metadata. Native partial challenges still carry no ordinary session. UI directory controls consume the same backend projection as /auth/me; this adds no role, permission or directory-provider authority.",

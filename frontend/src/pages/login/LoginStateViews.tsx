@@ -23,12 +23,12 @@ interface LoginNotConfiguredViewProps {
 
 export function LoadingLoginView({ message }: LoadingLoginViewProps) {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
             <div className="flex items-center gap-2 text-sm text-slate-300">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {message}
             </div>
-        </div>
+        </main>
     );
 }
 
@@ -44,7 +44,7 @@ export function AuthConfigErrorView({
     onRecoveryAction,
 }: AuthConfigErrorViewProps) {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
+        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
             <div className="w-full max-w-md text-center space-y-4">
                 <h1 className="text-xl font-bold mb-2">{title}</h1>
                 <p className="text-sm text-slate-300">{message}</p>
@@ -71,17 +71,17 @@ export function AuthConfigErrorView({
                     </div>
                 ) : null}
             </div>
-        </div>
+        </main>
     );
 }
 
 export function LoginNotConfiguredView({ title, description }: LoginNotConfiguredViewProps) {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
+        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
             <div className="w-full max-w-md text-center">
                 <h1 className="text-xl font-bold mb-2">{title}</h1>
                 <p className="text-sm text-slate-300">{description}</p>
             </div>
-        </div>
+        </main>
     );
 }

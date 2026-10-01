@@ -12,7 +12,6 @@ Focused sections and workflow helpers for the issue remediation plan card.
 - `ProgressSection.tsx`
 - `SummaryField.tsx`
 - `WorkflowSummarySection.tsx`
-- `remediationPresentation.tsx`
 - `useRemediationPlanWorkflow.ts`
 
 ## Notes

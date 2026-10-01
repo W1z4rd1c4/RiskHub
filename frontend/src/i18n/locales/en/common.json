@@ -41,13 +41,24 @@
     "dismiss_message": "Dismiss message",
     "clear_selection_named": "Clear selection: {{name}}",
     "remove": "Remove",
-    "remove_named": "Remove {{name}}"
+    "remove_named": "Remove {{name}}",
+    "back_to_detail": "Back to {{name}}"
   },
   "links": {
     "remove_named": "Remove link: {{name}}"
   },
   "brand": {
     "name": "RiskHub"
+  },
+  "page_title": {
+    "template": "{{page}} · RiskHub"
+  },
+  "breadcrumbs": {
+    "label": "Breadcrumb"
+  },
+  "edit_blocked": {
+    "title": "Editing is temporarily locked",
+    "description": "A pending governed change must be resolved before this record can be edited."
   },
   "not_found_page": {
     "title": "Page not found",
@@ -181,6 +192,17 @@
     "deleted": "Successfully deleted.",
     "submitted": "Successfully submitted."
   },
+  "feedback": {
+    "region_label": "Notifications ({hotkey})",
+    "announce_label": "Notification",
+    "dismiss": "Dismiss notification",
+    "default_title": {
+      "success": "Done",
+      "info": "For your information",
+      "warning": "Please check",
+      "danger": "Something went wrong"
+    }
+  },
   "confirmation": {
     "delete_title": "Confirm Delete",
     "delete_message": "Are you sure you want to delete this item? This action cannot be undone.",
@@ -307,7 +329,8 @@
     "risk_data": "Loading Risk Data",
     "control_data": "Loading Control Data",
     "history": "Loading history...",
-    "activity_log": "Loading activity log..."
+    "activity_log": "Loading activity log...",
+    "named": "Loading {{name}}…"
   },
   "empty": {
     "no_data": "No data",
@@ -443,6 +466,7 @@
     "entity_tabs_label": "Activity by entity type"
   },
   "department_detail": {
+    "back_to_departments": "Back to Departments",
     "tabs": {
       "label": "Department workspace",
       "overview": "Overview",

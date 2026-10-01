@@ -9,6 +9,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys, usersKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 import { DialogShell } from '@/components/DialogShell';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
@@ -156,11 +157,18 @@ export function DepartmentsPanel() {
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.departments, 'can_create');
 
     if (panel.isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.departments')}</div>;
+        return <LoadingState label={t('common:loading.departments')} />;
+    }
+    // GAP-C-11: a failed load never renders as an empty department list.
+    if (panel.error && !panel.hasData) {
+        return <ErrorState onRetry={panel.retry} isRetrying={panel.isFetching} />;
     }
 
     return (
         <div className="space-y-4">
+            {panel.error ? (
+                <ErrorState variant="banner" onRetry={panel.retry} isRetrying={panel.isFetching} />
+            ) : null}
             {panel.actionErrorKey && (
                 <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
                     <AlertCircle className="h-4 w-4" />

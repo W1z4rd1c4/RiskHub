@@ -25,7 +25,7 @@ export function IssueDetailPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/issues');
-    const { t, i18n } = useTranslation('issues');
+    const { t } = useTranslation('issues');
 
     const [activeTab, setActiveTab] = useContentTabQuery<IssueDetailTab>({
         tabs: issueDetailTabs,
@@ -166,7 +166,6 @@ export function IssueDetailPage() {
                     {tab === 'overview' && activeTab === tab ? (
                         <IssueOverviewTab
                             issue={issue}
-                            locale={i18n.language}
                             sourceLabel={sourceLabel}
                             t={t}
                         />
@@ -177,7 +176,6 @@ export function IssueDetailPage() {
                             canViewActivityHistory={canViewActivityHistory}
                             historyItems={historyItems}
                             isHistoryLoading={isHistoryLoading}
-                            locale={i18n.language}
                             t={t}
                         />
                     ) : null}

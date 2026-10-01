@@ -21,14 +21,9 @@
   ],
   "scopedExceptions": [
     {
-      "path": "src/pages/login/SsoOnlyView.tsx",
+      "path": "src/components/layout/BrandWordmark.tsx",
       "text": "Risk",
-      "reason": "Brand wordmark: 'Risk' + styled 'Hub' span render the untranslated product name RiskHub."
-    },
-    {
-      "path": "src/pages/ProdLoginPreviewPage.tsx",
-      "text": "Risk",
-      "reason": "Brand wordmark: 'Risk' + styled 'Hub' span render the untranslated product name RiskHub."
+      "reason": "Brand wordmark (the single implementation, NAV-07): 'Risk' + styled 'Hub' span render the untranslated product name RiskHub."
     }
   ]
 }

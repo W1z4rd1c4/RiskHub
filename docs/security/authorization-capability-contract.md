@@ -18,6 +18,18 @@ Native bootstrap (#203) seeds only canonical references and distinct pending Adm
 
 2026-09-06: Architecture exception review routes RiskHub configuration and Vendor archive/restore commits through the shared rollback boundary. Mutation plus audit remain atomic; authorization guards, row visibility, capability exports, and permission semantics are unchanged. The existing four-module auth baseline and 27 public capability exports were reviewed and renewed through 2026-12-05.
 
+## UI-consistency remediation (presentation only) — 2026-10-01
+
+Wave W5 of the 2026-09-30 frontend UI audit (§4.14, §4.20) changes markup only:
+`frontend/src/components/layout/Sidebar.tsx` renders the shared `BrandWordmark`;
+`frontend/src/pages/detail/EntityDetailHeader.tsx` and
+`frontend/src/pages/departments/DepartmentDetailHeader.tsx` add labelled back and
+breadcrumb navigation plus the per-route document title; the Threat
+`business_edit_blocked` edit view renders through `EditBlockedState` with the same
+`resolveCapabilityFlag` gates (including `pending_change.capabilities.can_cancel`).
+Navigation projection, route gates, capability fallbacks and backend authority are
+unchanged.
+
 ## Completed session capability projection — 2026-09-27
 
 Every completed shared session response, including Entra/development login and

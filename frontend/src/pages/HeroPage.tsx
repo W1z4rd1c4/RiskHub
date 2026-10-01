@@ -1,15 +1,12 @@
 import { motion } from 'framer-motion';
 import { Shield, ArrowRight, Zap, BarChart3, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { BrandWordmark } from '@/components/layout/BrandWordmark';
 import { useTranslation } from '@/i18n/hooks';
 
 export function HeroPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('common');
-    const brandName = t('brand.name');
-    const brandAccentSuffix = 'Hub';
-    const hasAccentSuffix = brandName.endsWith(brandAccentSuffix);
-    const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
 
     const handleLogin = () => {
         // Mock login as admin (ID 1 from seed)
@@ -18,7 +15,7 @@ export function HeroPage() {
     };
 
     return (
-        <div className="relative min-h-screen w-full mesh-gradient overflow-hidden flex flex-col items-center justify-center px-6">
+        <main className="relative min-h-screen w-full mesh-gradient overflow-hidden flex flex-col items-center justify-center px-6">
             {/* Background Decorative Elements */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 rounded-full blur-[120px]" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px]" />
@@ -36,14 +33,7 @@ export function HeroPage() {
                 </div>
 
                 <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight text-white mb-6">
-                    {hasAccentSuffix ? (
-                        <>
-                            {brandPrefix}
-                            <span className="text-accent underline decoration-4 underline-offset-8">{brandAccentSuffix}</span>
-                        </>
-                    ) : (
-                        brandName
-                    )}
+                    <BrandWordmark accentClassName="text-accent-text underline decoration-4 underline-offset-8" />
                 </h1>
 
                 <p className="text-xl md:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
@@ -99,7 +89,7 @@ export function HeroPage() {
             <div className="absolute bottom-10 text-slate-500 text-xs tracking-widest uppercase font-bold">
                 {t('hero.footer')}
             </div>
-        </div>
+        </main>
     );
 }
 

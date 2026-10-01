@@ -2,7 +2,43 @@
 
 ## Purpose
 
-UI components for `ui` area.
+The shared primitive layer of the UI contract (audit 2026-09-30 §4): every
+button, control, badge, card, message, dialog, tab set, table, page state and
+toast in feature code comes from here. This README is the inventory (one entry
+per file under **Contents**) plus the rules for using and extending it.
+
+## Usage rules
+
+- **Use the primitive, don't restyle it.** Feature code picks a named
+  `variant` / `size` / `tone` instead of overriding height, radius or colour
+  with local classes. Colour meaning comes from `lib/tones.ts` and
+  `lib/severity.ts` (D1); no raw palette classes, hex literals, white-alpha
+  classes or `dark:` variants (D3, D14) — the ratchet in
+  `frontend/scripts/quality/ui-consistency-ratchet.mjs` only lets counts go down.
+- **One channel per message** (§4.15–4.16, D9):
+
+  | Situation | Use |
+  | --- | --- |
+  | Outcome of a user action (save, archive, restore, send, copy) | `useFeedback().success` toast |
+  | A row-level action failed in a list | `useFeedback().error({ messageKey })`; never the list's error state |
+  | Blocking error scoped to a region | `InlineMessage tone="danger"` (`role="alert"`) in that region |
+  | Persistent page state (pending approval, stale data, archived) | `InlineMessage` |
+  | Field validation | `Field error` + one form-top `InlineMessage` |
+  | Error inside an open dialog | the dialog's `errorText` |
+  | Query-backed region | exactly one of the `state.tsx` states, or its data |
+  | Approval queued after submit (D12) | back to the entity page + pending `InlineMessage` linking to `/approvals` + success toast |
+
+- **Text and numbers:** every visible string goes through `t()`; render
+  `errorKeys.*` / namespaced keys with `translateUiMessage(t, key)`; format
+  dates, numbers, percentages, currency and counts with `useFormat()` from
+  `@/i18n/hooks` — never `toLocaleString(` or `new Intl.*(` outside
+  `src/i18n/` (see `docs/LOCALIZATION.md`, "Formatting and plurals").
+- **Adding a primitive:** tokens only, `cn` class merging, forwarded ref and a
+  `displayName` equal to the export name, translated defaults from `common`,
+  an accessible name enforced at the type level where the control is
+  icon-only, a contract test in `tests/frontend/unit/src/components/ui/`, at
+  least one production consumer in the same change (the `cleanup:deadcode`
+  gate), and an entry in **Contents** below.
 
 ## Contents
 
@@ -52,7 +88,9 @@ UI components for `ui` area.
   (Checkbox/Switch rows), `group` (text label for `RadioGroup`).
 - `label.tsx` — `Label` on `@radix-ui/react-label` with the required `*`.
 - `select.tsx` — Radix select primitives with the same 40px default geometry.
-- `StepIndicator.tsx`
+- `StepIndicator.tsx` — step list for the multi-step Risk and Control forms;
+  marks the current step, and steps for which `isStepClickable` is true can be
+  revisited through `onStepClick`.
 - `ThemedSelect.tsx` — closed-list convenience API built on `select.tsx`. Name
   it with `Field` (`aria-labelledby`) or `triggerAriaLabel`; the unnamed
   overload is `@deprecated` (AX-04) and goes once Phase 3 migrates its callers.
@@ -83,6 +121,43 @@ UI components for `ui` area.
   `titleId`, tone icon, close), `DialogBody`, `DialogFooter` (Cancel then the
   primary action, right-aligned), also as `DialogShell.Header/Body/Footer`.
   The class props are deprecated; `components/DialogShell.tsx` re-exports it.
+- `state.tsx` — page and region states (§4.15, DS-17, GAP-C-11): `layout`
+  `page` / `section` / `inline`, no card surface of their own. `Spinner`
+  (decorative, or announced with `label`), `Skeleton` (`bg-tint/10`,
+  hidden), `LoadingState` (the label in a polite `role="status"` live region
+  that never carries `aria-busy` and never sits inside a busy element, so it is
+  announced; `aria-busy="true"` goes on the spinner/`skeleton` placeholder that
+  stands in for the loading content, `data-loading-placeholder`; a region that
+  keeps its content mounted while refetching sets `aria-busy` on that content
+  container and keeps status text outside it), `EmptyState` (`kind` `no-data`/`no-results`, `action`),
+  `ErrorState` (`role="alert"`, `variant` `block` or `banner` above stale data,
+  `message`/`messageKey`, `onRetry` + `isRetrying`, extra `actions`) and
+  `AccessDeniedState` (`descriptionKey` + `ns`, `headingLevel`). Every
+  query-backed region renders exactly one of them or its data; an error never
+  falls through to an empty state. `TableErrorState` and
+  `pages/shared/ReadAccessDeniedState` are thin adapters/aliases over them.
+- `toast.tsx` — toast primitives on `@radix-ui/react-toast` (§4.16, D9):
+  bottom-right `ToastViewport` (`z-toast`, F8 jumps to it), `Toast` on the
+  `bg-popover` / `shadow-popover` surface with a tone icon
+  (success/info/warning/danger), `ToastTitle`, `ToastDescription`,
+  `ToastAction`, named `ToastClose`. `danger` is announced assertively, other
+  tones politely. Feature code never renders these: it calls
+  `useFeedback()` (`hooks/useFeedback.ts`) and `FeedbackProvider`
+  (`contexts/FeedbackContext.tsx`, mounted once in `App.tsx`) renders the
+  queue — default 5 s, `danger` 8 s, no auto-dismiss with an action, at most 3
+  open.
+- `ColorSwatch.tsx` — small square swatch for configurable colours (risk
+  types); accepts only a `#rrggbb` value, otherwise paints `toneClassName`;
+  decorative unless given a `title`.
+- `RiskTypeBadge.tsx` — risk-type label with its configured `ColorSwatch`.
+- `MetricGaugeSvg.tsx` — decorative (`aria-hidden`) linear gauge with a value
+  pointer, zones and markers, behind the KRI and control gauge cards; the card
+  renders the accessible value text.
+- `CreatableCombobox.tsx` — `role="combobox"` text input with a suggestion
+  listbox that also accepts a new free-text value; spread `Field`'s
+  render-prop onto it.
+- `SearchableEntitySelect.tsx` — link picker with a server-driven search box
+  for large entity directories (link sections, ownership pickers).
 
 ## Control geometry
 

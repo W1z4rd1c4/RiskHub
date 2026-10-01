@@ -349,6 +349,7 @@
   "messages": {
     "archive_submitted_for_approval": "Archive request submitted for approval. The risk has not been archived yet.",
     "restore_success": "Risk restored successfully.",
+    "restore_failed": "The risk could not be restored.",
     "view_pending_approvals_prefix": "View pending approvals in the",
     "view_pending_approvals_suffix": "section."
   },

@@ -1,6 +1,6 @@
 # RiskHub Localization Guide
 
-> **Version**: 1.3
+> **Version**: 1.4
 > **Last Updated**: 2026-10-01
 > **Audience**: Engineering, QA, Documentation Owners
 > **Source of Truth**: `frontend/src/i18n/`, `backend/app/i18n/`, `backend/app/api/v1/endpoints/admin/docs.py`
@@ -49,6 +49,58 @@ npm run i18n:validate:usage
 npm run i18n:validate:plurals
 npm run i18n:scan
 ```
+
+- Scanner scope (`i18n:scan`, `frontend/scripts/i18n/scan-hardcoded-ui.mjs`): it reads
+  `frontend/src/**` except tests, `__tests__/`, `test/`, `*.d.ts` and the locale files, and flags
+  literal JSX text, literals in JSX expressions and in `||` / `??` fallbacks, the UI attributes
+  `label`, `placeholder`, `title`, `aria-label`, `aria-placeholder`, `alt`, `description`,
+  `caption`, `helperText`, `emptyMessage`, `emptyLabel`, `actionLabel`, the same names as object
+  keys (plus `subtitle`, `text`, `empty`, `emptyText`, `tooltip`) and as destructured parameter
+  defaults. It does **not** see strings assigned to a variable before rendering, other prop or
+  attribute names (`aria-description`, `aria-valuetext`, custom `*Label` props), template literals
+  with substitutions, string concatenation, `document.title`, thrown `Error` messages or text
+  built from `.toUpperCase()` — review those by hand.
+
+## Formatting and plurals
+
+Source of truth: `frontend/src/i18n/formatters.ts` (pure functions) and `frontend/src/i18n/hooks.ts`
+(audit 2026-09-30 §4.17–4.18).
+
+- **Locale:** formatting follows the active UI language (`en` / `cs`, normalised exactly like
+  `LanguageProvider`). Never hard-code `cs-CZ` or `en-US`, and never call `toLocaleString(`,
+  `toLocaleDateString(`, `toLocaleTimeString(` or `new Intl.*(` outside `frontend/src/i18n/`.
+- **Components use `useFormat()`:** `date`, `dateTime`, `time`, `relative`, `number`, `metric`
+  (optional Intl unit such as `day`), `percent` (the value is a ratio: `0.42` → "42%" / "42 %"),
+  `currency` (whole units, `CZK` by default) and `count`. Empty, null or invalid input (an
+  unparseable or impossible date, `NaN`) returns `''`,
+  so the caller supplies the fallback: `format.dateTime(issue.due_at) || t('fallbacks.not_set')`.
+  Builders that are not components (column factories, presentation helpers) receive the `format`
+  object (or the plain functions from `formatters.ts` plus the language) from their caller.
+  `useFormattedDate` / `useFormattedNumber` are deprecated aliases.
+- **Default styles:** dates `{ year: 'numeric', month: 'short', day: 'numeric' }`; date-times add
+  `hour` / `minute` (`2-digit`). Do not add private `Intl.DateTimeFormat` helpers per module.
+- **Numbers in tables** use `tabular-nums`; currency is right-aligned. Inputs that show grouped
+  digits strip every separator before saving (see `SystemSettingsPanel`).
+- **Plurals:** any string with `{{count}}` is a plural family rendered with `t(key, { count })`
+  or `format.count(count, 'ns:key')`; i18next picks the form (`cs`: 1 → `_one`, 2–4 → `_few`,
+  0 and 5+ → `_other`; `en`: `_one` / `_other`). Czech fractions (`1.5`) select `_many`, and a
+  family without `_many` then renders its raw key, so counts must be whole numbers (round first)
+  or the family must add `_many`. Never choose the form in code (`count === 1 ? … : …`) and never
+  build the phrase by concatenation.
+- **Calendar dates:** a date-only value (`YYYY-MM-DD`) formats as that calendar day in every
+  timezone (it is parsed as local midnight, not UTC midnight); timestamps with a time part keep
+  their instant semantics.
+- **Whole phrases:** interpolate (`"back_to_register": "Back to {{name}}"`) instead of joining
+  translated fragments with `+` or `' — '`, and let CSS (`uppercase`) change case instead of
+  `.toUpperCase()` on translated text.
+- **Messages and error keys:** render anything that may be an `errorKeys.*` key (from
+  `apiClient.toUiMessageKey()`), a namespaced key (`kris:errors.save_failed`), a key in the
+  caller's namespace or already-translated text with `translateUiMessage(t, keyOrMessage)`.
+  Unknown `errorKeys.*` keys fall back to `errorKeys.unknown`.
+- **Document language:** `LanguageProvider` keeps `<html lang>` in sync with the UI language on
+  every route (AX-09); pages rendered inside it must not set `document.documentElement.lang`
+  themselves. The standalone production-login preview entry (`prod-login-preview.tsx`) has no
+  `LanguageProvider` and is the only page that sets it locally.
 
 ## Backend Rules
 
@@ -100,14 +152,15 @@ Docs endpoint behavior (`GET /api/v1/admin/docs`) is strict:
 
 ## Verification
 
+Run from the repository root:
+
 ```bash
-cd ""
 python3 scripts/check_docs_contract.py
 
 cd backend
-venv/bin/pytest tests/test_admin_docs.py -q
+venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
 
 cd ../frontend
-npm run i18n:validate:strict
-npx tsc --noEmit
+npm run i18n:test
+npx tsc -b
 ```

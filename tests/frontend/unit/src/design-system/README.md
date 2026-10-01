@@ -10,7 +10,8 @@ ReadAccessDeniedState, ArchiveConfirmDialog, SortableTable empty text) against r
 `text-white` / `text-slate-*` text colours (DS-01, DS-03).
 `cssVarsDeclared.test.ts` asserts every `var(--x)` used in `frontend/src` (and
 `tailwind.config.js`) is declared in a stylesheet under `frontend/src`, with a
-justified allowlist for library runtime variables (DS-18).
+justified allowlist for library runtime variables (DS-18); each allowlist entry
+names its package and the test proves that package's installed build sets it.
 `severityConsistency.test.tsx` asserts every severity mapping derives from
 `lib/severity.ts` + `lib/tones.ts` on one token family per band (D1), that
 risk-score bands follow the configured thresholds (ADR-008), that legacy theme

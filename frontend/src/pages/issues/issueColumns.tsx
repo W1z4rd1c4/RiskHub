@@ -1,17 +1,16 @@
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import type { Column } from '@/components/tables';
-import type { SafeTFunction } from '@/i18n/hooks';
+import type { FormatApi, SafeTFunction } from '@/i18n/hooks';
 import type { IssueSummary } from '@/types/issue';
 
-import { formatIssueDateTime } from './issuesPagePresentation';
-
 export function buildIssueColumns({
-    language,
+    format,
     t,
 }: {
-    language: string;
+    format: Pick<FormatApi, 'dateTime'>;
     t: SafeTFunction;
 }): Column<IssueSummary>[] {
+    const formatDateTime = (value: string | null) => format.dateTime(value) || t('issues:fallbacks.not_set');
     return [
         {
             key: 'title',
@@ -50,13 +49,13 @@ export function buildIssueColumns({
             key: 'due_at',
             label: t('issues:columns.due'),
             sortable: true,
-            render: (issue) => <span className="text-sm text-foreground">{formatIssueDateTime(issue.due_at, language, t('issues:fallbacks.not_set'))}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{formatDateTime(issue.due_at)}</span>,
         },
         {
             key: 'opened_at',
             label: t('issues:columns.opened'),
             sortable: true,
-            render: (issue) => <span className="text-sm text-foreground">{formatIssueDateTime(issue.opened_at, language, t('issues:fallbacks.not_set'))}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{formatDateTime(issue.opened_at)}</span>,
         },
     ];
 }

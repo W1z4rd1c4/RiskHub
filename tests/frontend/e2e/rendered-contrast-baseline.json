@@ -2,21 +2,21 @@
   "description": "G-RENDER rendered-contrast ratchet (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1, §5.2 item 0.3). Counts of visible text elements per theme and harness surface; belowAA/below3/below1_5/whiteOnLight may only go down. Regenerate with UPDATE_CONTRAST_BASELINE=1 (see theme-rendered-contrast.spec.ts).",
   "totals": {
     "light": {
-      "total": 720,
+      "total": 1006,
       "belowAA": 40,
       "below3": 18,
       "below1_5": 3,
       "whiteOnLight": 0
     },
     "riskhub": {
-      "total": 720,
+      "total": 1006,
       "belowAA": 86,
       "below3": 14,
       "below1_5": 0,
       "whiteOnLight": 0
     },
     "dark": {
-      "total": 720,
+      "total": 1006,
       "belowAA": 77,
       "below3": 6,
       "below1_5": 0,
@@ -25,6 +25,132 @@
   },
   "surfaces": {
     "light": {
+      "design-system/badges": {
+        "total": 40,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/buttons": {
+        "total": 19,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-archive/open": {
+        "total": 8,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-delete/open": {
+        "total": 7,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-discard/open": {
+        "total": 6,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-generic/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-send/open": {
+        "total": 6,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-unlink/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/shell/open": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/feedback": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/forms": {
+        "total": 42,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/navigation": {
+        "total": 14,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/page-header": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/states": {
+        "total": 15,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/surfaces": {
+        "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/tables": {
+        "total": 39,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/view/auth-frame": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/view/auth-frame-app-theme": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/approval-scenarios-panel/closed": {
         "total": 12,
         "belowAA": 1,
@@ -454,6 +580,132 @@
       }
     },
     "riskhub": {
+      "design-system/badges": {
+        "total": 40,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/buttons": {
+        "total": 19,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-archive/open": {
+        "total": 8,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-delete/open": {
+        "total": 7,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-discard/open": {
+        "total": 6,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-generic/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-send/open": {
+        "total": 6,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-unlink/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/shell/open": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/feedback": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/forms": {
+        "total": 42,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/navigation": {
+        "total": 14,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/page-header": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/states": {
+        "total": 15,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/surfaces": {
+        "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/tables": {
+        "total": 39,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/view/auth-frame": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/view/auth-frame-app-theme": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/approval-scenarios-panel/closed": {
         "total": 12,
         "belowAA": 0,
@@ -883,6 +1135,132 @@
       }
     },
     "dark": {
+      "design-system/badges": {
+        "total": 40,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/buttons": {
+        "total": 19,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-archive/open": {
+        "total": 8,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-delete/open": {
+        "total": 7,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-discard/open": {
+        "total": 6,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-generic/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-send/open": {
+        "total": 6,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/confirm-unlink/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/dialog/shell/open": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/feedback": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/forms": {
+        "total": 42,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/navigation": {
+        "total": 14,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/page-header": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/states": {
+        "total": 15,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/surfaces": {
+        "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/tables": {
+        "total": 39,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/view/auth-frame": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "design-system/view/auth-frame-app-theme": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/approval-scenarios-panel/closed": {
         "total": 12,
         "belowAA": 0,

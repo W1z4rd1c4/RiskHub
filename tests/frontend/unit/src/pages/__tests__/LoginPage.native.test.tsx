@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -282,7 +282,10 @@ describe('Native login authority', () => {
         vi.spyOn(preferencesApi, 'get').mockReturnValueOnce(deferred);
         const hydration = syncPreferencesFromServer();
         render(<I18nextProvider i18n={i18n}><NativeFrame title="Account"><p>Account</p></NativeFrame></I18nextProvider>);
-        await userEvent.setup().selectOptions(screen.getByLabelText(/language/i), 'cs');
+        const user = userEvent.setup();
+        const languages = screen.getByRole('group', { name: 'Language' });
+        expect(within(languages).getByRole('button', { name: 'EN' })).toHaveAttribute('aria-pressed', 'true');
+        await user.click(within(languages).getByRole('button', { name: 'CS' }));
         await waitFor(() => expect(i18n.language).toBe('cs'));
         await act(async () => { finish({ theme: 'dark', language: 'en' }); await hydration; });
         expect(i18n.language).toBe('cs');

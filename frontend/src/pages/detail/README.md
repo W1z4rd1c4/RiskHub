@@ -4,6 +4,18 @@ Shared primitives for route-level detail pages.
 
 Use this directory for layout and interaction pieces that are reused across entity detail screens, such as page shells, section composition, and common loading/error handling.
 
+Header and state primitives (audit 2026-09-30 §4.14, D7, D14):
+
+- `EntityDetailHeader.tsx` — canonical entity detail header: the page `h1` on the shared
+  `PAGE_TITLE_CLASS` recipe, a destination-labelled `back` (`BackButton`), `breadcrumbs`, and
+  `document.title` via `usePageTitle` (`documentTitle`, else a string `title`). `backAction` (custom
+  node) and an explicit `identifierSeparatorLabel` remain for existing callers.
+- `EditBlockedState.tsx` — the edit route of a record whose business edits are blocked: `PageHeader`
+  (one `h1`, labelled back, breadcrumbs), a warning `InlineMessage` reason and the module's
+  pending-change panel as children (SM-05). Used by Threat; Process/Asset/Vendor migrate in Phase 3d.
+- `DetailField.tsx` — `DetailFieldList` (`dl` grid) and `DetailField` (`dt` with `.text-eyebrow`,
+  `dd` value; empty values show a hidden dash announced as `common:fallbacks.not_set`).
+
 Keep domain behavior in the owning page or service layer. These primitives should not decide RBAC, workflow transitions, or approval policy.
 
 `useKriDetailState` owns KRI detail presentation. Its `useKriRestore` helper keeps

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PlusCircle, X } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { issuesApi } from '@/services/issuesApi';
@@ -162,9 +162,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
         <section className={cn('space-y-6', className)}>
             {errorKey && (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
+                    {translateUiMessage(t, errorKey)}
                 </div>
             )}
 

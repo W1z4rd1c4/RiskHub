@@ -50,7 +50,10 @@ export function useResourcePanelQuery<TItem, TCreate, TUpdate>(
         handleDelete,
         handleRestore,
         handleSave,
+        hasData: itemsQuery.data !== undefined,
+        isFetching: itemsQuery.isFetching,
         isLoading: itemsQuery.isLoading,
         items: itemsQuery.data ?? [],
+        refetch: itemsQuery.refetch,
     };
 }

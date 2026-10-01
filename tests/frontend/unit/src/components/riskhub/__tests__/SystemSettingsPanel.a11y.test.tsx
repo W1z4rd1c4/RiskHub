@@ -13,7 +13,9 @@ import { createTestQueryClient } from '@test/queryClient';
  * says which setting it saves.
  */
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real: PG-38 number grouping follows the UI language (en in tests).
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string, options?: { name?: string }) => (options?.name ? `${key}:${options.name}` : key),
     }),
@@ -64,6 +66,7 @@ function renderPanel({ canUpdate = true } = {}) {
                 description: 'Two approvers for privileged changes.',
             }),
             config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days' }),
+            config({ id: 4, key: 'approval_amount_limit', value: '10000000', value_type: 'int', display_name: 'Approval amount limit' }),
             config({ id: 3, key: 'approval_mailbox', value: 'risk@example.test', display_name: 'Approval mailbox' }),
         ],
     } as never);
@@ -102,6 +105,22 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
 
         expect(await screen.findByRole('textbox', { name: 'Approval SLA days' })).toHaveValue('5');
         expect(screen.getByRole('textbox', { name: 'Approval mailbox' })).toHaveValue('risk@example.test');
+    });
+
+    it('groups integer digits in the UI language and saves the raw number (PG-38)', async () => {
+        const user = userEvent.setup();
+        vi.mocked(riskHubApi.updateConfig).mockResolvedValue({} as never);
+        renderPanel();
+
+        const limit = await screen.findByRole('textbox', { name: 'Approval amount limit' });
+        expect(limit).toHaveValue('10,000,000');
+        await user.type(limit, '0');
+        expect(limit).toHaveValue('100,000,000');
+        await user.click(screen.getByRole('button', { name: 'admin:system_settings.save_named:Approval amount limit' }));
+
+        await waitFor(() => {
+            expect(riskHubApi.updateConfig).toHaveBeenCalledWith('approval_amount_limit', '100000000');
+        });
     });
 
     it('names each Save button after its setting and saves that setting', async () => {

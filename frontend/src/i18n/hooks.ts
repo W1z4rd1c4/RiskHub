@@ -2,11 +2,16 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation as useI18nextTranslation } from 'react-i18next';
 import type { Namespace } from './types';
 import { useLanguageContext } from '@/contexts/LanguageContext';
+import { normalizeSupportedLanguage, type SupportedLanguage } from '@/i18n';
 import {
+    formatCurrencyValue,
     formatDateTimeValue,
     formatDateValue,
+    formatMetricNumberValue,
     formatNumberValue,
+    formatPercentValue,
     formatRelativeDateValue,
+    formatTimeValue,
 } from './formatters';
 
 /**
@@ -17,7 +22,7 @@ export function useTypedTranslation<NS extends Namespace = 'common'>(ns?: NS) {
     return useI18nextTranslation(ns);
 }
 
-type TranslationOptions = Record<string, unknown> & {
+export type TranslationOptions = Record<string, unknown> & {
     defaultValue?: string;
     ns?: string | string[];
 };
@@ -81,9 +86,100 @@ export function useTranslation<NS extends Namespace = 'common'>(
     return { ...result, t };
 }
 
+const ERROR_KEYS_PREFIX = 'errorKeys.';
+/** `ns:key.path` (for example `kris:errors.load_failed`). */
+const NAMESPACED_KEY_PATTERN = /^[A-Za-z][\w-]*:[\w-]+(?:\.[\w-]+)*$/;
+/** `segment.segment` key in the caller's default namespace (no whitespace). */
+const DOTTED_KEY_PATTERN = /^[a-z][\w-]*(?:\.[\w-]+)+$/;
+
+/** Any `t` shape: the repo wrapper (`SafeTFunction`) or a raw i18next `t`. */
+export type UiMessageTranslator = (key: string, options?: TranslationOptions) => string;
+
+/**
+ * The one way to render a UI message (audit 2026-09-30 §4.18, PG-36).
+ *
+ * `keyOrMessage` may be:
+ * - an `errorKeys.*` key from `apiClient.toUiMessageKey()` → translated in the
+ *   `errorKeys` namespace, falling back to `errorKeys.unknown` when missing;
+ * - a namespaced key (`kris:errors.save_failed`) or a dotted key in the
+ *   caller's namespace (`errors.load_failed`) → translated through `t`;
+ * - already human-readable text → returned unchanged.
+ *
+ * Null or empty input returns `''`, so callers can render it conditionally.
+ */
+export function translateUiMessage(
+    t: UiMessageTranslator,
+    keyOrMessage: string | null | undefined,
+    options?: TranslationOptions,
+): string {
+    if (!keyOrMessage) return '';
+    if (keyOrMessage.startsWith(ERROR_KEYS_PREFIX)) {
+        return t(keyOrMessage.slice(ERROR_KEYS_PREFIX.length), {
+            ...(options ?? {}),
+            ns: 'errorKeys',
+            defaultValue: t('unknown', { ns: 'errorKeys' }),
+        });
+    }
+    if (NAMESPACED_KEY_PATTERN.test(keyOrMessage) || DOTTED_KEY_PATTERN.test(keyOrMessage)) {
+        return t(keyOrMessage, options);
+    }
+    return keyOrMessage;
+}
+
+type DateInput = Date | string | null | undefined;
+type NumberInput = number | null | undefined;
+
+export interface FormatApi {
+    /** Active UI language (`en` / `cs`), the same value `useLanguage()` reports. */
+    locale: SupportedLanguage;
+    /** Date; default style `{ year: 'numeric', month: 'short', day: 'numeric' }`. */
+    date: (value: DateInput, options?: Intl.DateTimeFormatOptions) => string;
+    /** Date + hours:minutes, same month style as `date`. */
+    dateTime: (value: DateInput, options?: Intl.DateTimeFormatOptions) => string;
+    time: (value: DateInput, options?: Intl.DateTimeFormatOptions) => string;
+    /** "3 days ago" / "před 3 dny", relative to now. */
+    relative: (value: DateInput) => string;
+    number: (value: NumberInput, options?: Intl.NumberFormatOptions) => string;
+    /** Magnitude-aware precision; `unit` is an Intl unit id (`day`, `percent`, …). */
+    metric: (value: NumberInput, unit?: string) => string;
+    /** `value` is a ratio: `0.42` → "42%" / "42 %". */
+    percent: (value: NumberInput, fractionDigits?: number) => string;
+    currency: (value: NumberInput, currency?: string) => string;
+    /** Plural-aware phrase: `t(key, { count })`; `key` must be a plural family. */
+    count: (count: number, key: string, options?: TranslationOptions) => string;
+}
+
+/**
+ * Locale-aware formatting for every surface (audit 2026-09-30 §4.17, I18N-03).
+ *
+ * The locale is the active UI language (normalised exactly like
+ * `LanguageProvider`), never a hard-coded `cs-CZ`. Empty, null or invalid
+ * values format to `''` so callers choose their own fallback
+ * (`format.date(value) || t('fallbacks.not_set')`).
+ */
+export function useFormat(): FormatApi {
+    const { t, i18n: i18nInstance } = useTranslation('common');
+    const locale = normalizeSupportedLanguage(i18nInstance.language);
+
+    return useMemo<FormatApi>(() => ({
+        locale,
+        date: (value, options) => formatDateValue(value, locale, options),
+        dateTime: (value, options) => formatDateTimeValue(value, locale, options),
+        time: (value, options) => formatTimeValue(value, locale, options),
+        relative: (value) => formatRelativeDateValue(value, locale),
+        number: (value, options) => formatNumberValue(value, locale, options),
+        metric: (value, unit) => formatMetricNumberValue(value, locale, unit),
+        percent: (value, fractionDigits) => formatPercentValue(value, locale, fractionDigits),
+        currency: (value, currency) => formatCurrencyValue(value, locale, currency),
+        count: (count, key, options) => t(key, { ...(options ?? {}), count }),
+    }), [locale, t]);
+}
+
 /**
  * Hook for locale-aware date formatting.
  * Uses the current i18n language for Intl.DateTimeFormat.
+ *
+ * @deprecated Use `useFormat()` (`date`, `dateTime`, `relative`).
  */
 export function useFormattedDate() {
     const { i18n: i18nInstance } = useI18nextTranslation();
@@ -119,6 +215,8 @@ export function useFormattedDate() {
 /**
  * Hook for locale-aware number formatting.
  * Handles different decimal separators (e.g., "," in Czech vs "." in English).
+ *
+ * @deprecated Use `useFormat()` (`number`, `percent`, `currency`).
  */
 export function useFormattedNumber() {
     const { i18n: i18nInstance } = useI18nextTranslation();
@@ -132,29 +230,12 @@ export function useFormattedNumber() {
     );
 
     const formatCurrency = useCallback(
-        (value: number | null | undefined, currency = 'CZK') => {
-            if (value === null || value === undefined) return '';
-
-            return new Intl.NumberFormat(locale, {
-                style: 'currency',
-                currency,
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-            }).format(value);
-        },
+        (value: number | null | undefined, currency = 'CZK') => formatCurrencyValue(value, locale, currency),
         [locale]
     );
 
     const formatPercent = useCallback(
-        (value: number | null | undefined, decimals = 0) => {
-            if (value === null || value === undefined) return '';
-
-            return new Intl.NumberFormat(locale, {
-                style: 'percent',
-                minimumFractionDigits: decimals,
-                maximumFractionDigits: decimals,
-            }).format(value);
-        },
+        (value: number | null | undefined, decimals = 0) => formatPercentValue(value, locale, decimals),
         [locale]
     );
 

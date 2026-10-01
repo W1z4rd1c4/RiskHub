@@ -87,6 +87,19 @@ const DIALOG_OWNERS: ReadonlyArray<{ owner: string; sites: readonly string[] }> 
   { owner: 'approval-scenarios-panel', sites: ['frame.approval-scenarios'] },
 ];
 
+/**
+ * `frontend/design-system.html` (audit §5.3 exit criterion): one `data-ds-section` per primitive
+ * family, the opened modal surfaces (`?dialog=`), and the public `AuthFrame` (`?view=`).
+ */
+const DESIGN_SYSTEM_SECTIONS = [
+  'page-header', 'buttons', 'forms', 'badges', 'surfaces', 'navigation', 'tables', 'states', 'feedback',
+] as const;
+const DESIGN_SYSTEM_DIALOGS = [
+  'shell', 'confirm-archive', 'confirm-delete', 'confirm-unlink', 'confirm-send', 'confirm-discard', 'confirm-generic',
+] as const;
+/** `auth-frame`: signed out, no stored theme → OS scheme; `auth-frame-app-theme`: stored theme kept → `<html>` theme. */
+const DESIGN_SYSTEM_VIEWS = ['auth-frame', 'auth-frame-app-theme'] as const;
+
 function expectedSurfaceKeys(): string[] {
   return [
     ...Object.entries(WORKFLOW_STATES).flatMap(([family, states]) => states.map((state) => `workflow/${family}/${state}`)),
@@ -94,6 +107,9 @@ function expectedSurfaceKeys(): string[] {
       `dialog/${owner}/closed`,
       ...sites.map((site) => `dialog/${site}/open`),
     ]),
+    ...DESIGN_SYSTEM_SECTIONS.map((section) => `design-system/${section}`),
+    ...DESIGN_SYSTEM_DIALOGS.map((dialog) => `design-system/dialog/${dialog}/open`),
+    ...DESIGN_SYSTEM_VIEWS.map((view) => `design-system/view/${view}`),
   ].sort();
 }
 
@@ -307,6 +323,60 @@ test.describe('G-RENDER rendered contrast baseline', () => {
         await enforceBaseline(testInfo, theme, measured);
       });
     }
+
+    test(`${theme}: design-system primitives, dialogs and public frame`, async ({ page }, testInfo) => {
+      test.setTimeout(120_000);
+      const requests: string[] = [];
+      await page.route('**/api/v1/**', (route) => {
+        requests.push(route.request().url());
+        return route.fulfill({ status: 404, json: { detail: 'Not found' } });
+      });
+      await seedHarness(page, theme);
+      // Without an app theme AuthFrame follows the OS scheme (D14): dark → RiskHub tokens, light → Light tokens.
+      await page.emulateMedia({ colorScheme: theme === 'light' ? 'light' : 'dark' });
+      const measured = new Map<string, RenderedContrastAudit>();
+
+      await page.goto(`/design-system.html?theme=${theme}&locale=en`);
+      await expectTheme(page, theme);
+      await expect(page.getByTestId('design-system-ready')).toBeVisible();
+      for (const section of DESIGN_SYSTEM_SECTIONS) {
+        const scope = page.locator(`[data-ds-section="${section}"]`);
+        await expect(scope).toBeVisible();
+        await settle(page, scope);
+        measured.set(`design-system/${section}`, await auditRenderedContrast(scope));
+      }
+
+      for (const dialog of DESIGN_SYSTEM_DIALOGS) {
+        await page.goto(`/design-system.html?theme=${theme}&locale=en&dialog=${dialog}`);
+        await expectTheme(page, theme);
+        const surface = page.locator('[role="dialog"], [role="alertdialog"]');
+        await expect(surface).toHaveCount(1);
+        await expect(surface).toBeVisible();
+        await settle(page, surface);
+        measured.set(`design-system/dialog/${dialog}/open`, await auditRenderedContrast(surface));
+      }
+
+      for (const view of DESIGN_SYSTEM_VIEWS) {
+        await page.goto(`/design-system.html?theme=${theme}&locale=en&view=${view}`);
+        const main = page.getByRole('main');
+        if (view === 'auth-frame') {
+          await expect(main).toHaveAttribute('data-theme-source', 'system');
+          await expect(main).toHaveClass(new RegExp(`(^|\\s)theme-${theme === 'light' ? 'light' : 'riskhub'}(\\s|$)`));
+        } else {
+          // A stored (signed-in) app theme wins over the OS scheme: the frame inherits <html>.
+          await expect(main).toHaveAttribute('data-theme-source', 'app');
+          await expect(main).not.toHaveClass(/(^|\s)theme-/);
+          await expectTheme(page, theme);
+        }
+        // The fixture renders a blocking error, which takes focus over the h1.
+        await expect(page.getByRole('alert')).toBeFocused();
+        await settle(page, main);
+        measured.set(`design-system/view/${view}`, await auditRenderedContrast(main));
+      }
+
+      expect(requests, 'the design-system harness makes no API requests').toEqual([]);
+      await enforceBaseline(testInfo, theme, measured);
+    });
   }
 });
 

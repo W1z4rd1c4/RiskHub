@@ -349,6 +349,7 @@
   "messages": {
     "archive_submitted_for_approval": "Požadavek na archivaci byl odeslán ke schválení. Riziko zatím nebylo archivováno.",
     "restore_success": "Riziko bylo úspěšně obnoveno.",
+    "restore_failed": "Riziko se nepodařilo obnovit.",
     "view_pending_approvals_prefix": "Zobrazit čekající schválení v sekci",
     "view_pending_approvals_suffix": "."
   },

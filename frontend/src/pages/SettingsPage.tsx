@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { User, Palette, Globe, BookOpen, Bell } from 'lucide-react';
+import { User, Palette, Globe, BookOpen, Bell, Settings } from 'lucide-react';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -34,21 +36,8 @@ export function SettingsPage() {
     ];
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <header className="glass-card p-6">
-                <div className="flex items-center gap-4">
-                    <div className="bg-gradient-to-br from-accent to-purple-600 p-3 rounded-xl shadow-lg shadow-accent/20">
-                        <User className="h-8 w-8 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">{t('title')}</h1>
-                        <p className="text-muted-foreground">
-                            {t('page_subtitle')}
-                        </p>
-                    </div>
-                </div>
-            </header>
+        <PageContainer>
+            <PageHeader icon={Settings} title={t('title')} description={t('page_subtitle')} />
 
             {resolveCapabilityFlag(user?.me_capabilities?.identity, 'can_manage_own_credentials') && (
                 <Link className="inline-flex rounded-lg border px-4 py-2 text-foreground underline" to="/auth/local/security">{t('auth:native.security_title')}</Link>
@@ -87,7 +76,7 @@ export function SettingsPage() {
                     {activeTab === tab && tab === 'documentation' ? <DocumentationSettings /> : null}
                 </div>
             ))}
-        </div>
+        </PageContainer>
     );
 }
 

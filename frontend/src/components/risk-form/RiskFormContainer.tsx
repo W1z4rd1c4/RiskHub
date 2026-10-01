@@ -10,7 +10,7 @@ import {
     User,
     Activity,
 } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import type { Risk } from '@/types/risk';
@@ -112,7 +112,7 @@ export function RiskForm({
                 {approvalQueued && (
                     <ApprovalQueuedBanner
                         closeLabel={t('common:actions.close')}
-                        message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
+                        message={translateUiMessage(t, approvalQueued.message)}
                         onClose={() => setApprovalQueued(null)}
                         title={t('approval_submitted', { ns: 'errorKeys' })}
                         viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
@@ -122,7 +122,7 @@ export function RiskForm({
                 {error && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
-                        {error.startsWith('errorKeys.') ? t(error, { ns: 'errorKeys' }) : error}
+                        {translateUiMessage(t, error)}
                     </div>
                 )}
 

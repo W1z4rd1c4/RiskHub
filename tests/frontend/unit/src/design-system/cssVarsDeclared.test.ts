@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,16 +26,24 @@ const srcRoot = resolve(frontendRoot, 'src');
 
 /**
  * Variables set at runtime by a third-party library, never by our stylesheets.
- * Every entry needs a justification; keep this list as short as possible.
+ * Every entry names the package that writes it (verified below against the
+ * installed build, so a typo or a library rename cannot hide behind the
+ * allowlist) and the consumer that reads it. Keep this list as short as possible.
  */
-const RUNTIME_PROVIDED_VARS: Record<string, string> = {
+const RUNTIME_PROVIDED_VARS: Record<string, { pkg: string; reason: string }> = {
   // Radix Select (popper positioning) sets these on the content wrapper;
   // consumed by frontend/src/components/ui/select.tsx.
-  '--radix-select-trigger-height': 'set at runtime by @radix-ui/react-select',
-  '--radix-select-trigger-width': 'set at runtime by @radix-ui/react-select',
+  '--radix-select-trigger-height': { pkg: '@radix-ui/react-select', reason: 'popper content wrapper' },
+  '--radix-select-trigger-width': { pkg: '@radix-ui/react-select', reason: 'popper content wrapper' },
   // Radix Popover sets this on the popper wrapper; consumed by
   // frontend/src/components/ui/multi-select.tsx (panel matches trigger width).
-  '--radix-popover-trigger-width': 'set at runtime by @radix-ui/react-popover',
+  '--radix-popover-trigger-width': { pkg: '@radix-ui/react-popover', reason: 'popper content wrapper' },
+  // Radix Toast writes this inline on the toast while it is swiped; consumed by
+  // frontend/src/components/ui/toast.tsx (`data-[swipe=move]:translate-x-…`, the
+  // toast follows the pointer). It is a pointer delta, so no stylesheet can own it.
+  '--radix-toast-swipe-move-x': { pkg: '@radix-ui/react-toast', reason: 'inline style during a swipe gesture' },
+  // …and this one when a swipe passes the dismiss threshold (the toast fades out where it was released).
+  '--radix-toast-swipe-end-x': { pkg: '@radix-ui/react-toast', reason: 'inline style after a dismissing swipe' },
 };
 
 const SCANNED_EXTENSIONS = new Set(['.css', '.ts', '.tsx']);
@@ -99,6 +108,14 @@ describe('CSS custom properties (DS-18)', () => {
     for (const name of Object.keys(RUNTIME_PROVIDED_VARS)) {
       expect(usages.has(name), `${name} is no longer used; drop it from the allowlist`).toBe(true);
       expect(declared.has(name), `${name} is declared in a stylesheet; drop it from the allowlist`).toBe(false);
+    }
+  });
+
+  it('only allowlists variables the named library actually sets', () => {
+    const requireFromFrontend = createRequire(resolve(frontendRoot, 'package.json'));
+    for (const [name, { pkg }] of Object.entries(RUNTIME_PROVIDED_VARS)) {
+      const build = readFileSync(requireFromFrontend.resolve(pkg), 'utf8');
+      expect(build.includes(name), `${pkg} does not set ${name}; fix the allowlist entry`).toBe(true);
     }
   });
 });

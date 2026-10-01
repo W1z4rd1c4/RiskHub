@@ -1,4 +1,6 @@
 import { ArrowRight, Loader2, Shield } from 'lucide-react';
+import { BrandWordmark } from '@/components/layout/BrandWordmark';
+import { LanguageSwitch } from '@/components/layout/LanguageSwitch';
 import type { ProdAuthCopy, ProdLanguage } from './loginPageTypes';
 
 interface SsoOnlyViewProps {
@@ -35,7 +37,10 @@ export function SsoOnlyView({
     return (
         // RS-02: the frame grows with its content and the page scrolls on short
         // viewports instead of clipping the headline and occluding the language switch.
-        <div className="relative min-h-screen overflow-y-auto bg-[#07111b] text-slate-100">
+        // `theme-riskhub` pins the token scope to this view's bespoke dark palette until
+        // the login moves onto AuthFrame (audit §5.5 3i), which follows the OS scheme when no app
+        // theme is stored (D14).
+        <main className="theme-riskhub relative min-h-screen overflow-y-auto bg-[#07111b] text-slate-100">
             <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(56,189,248,0.16),transparent_26%),radial-gradient(circle_at_84%_18%,rgba(8,145,178,0.12),transparent_22%),linear-gradient(180deg,#07111b_0%,#09131f_100%)]"
@@ -47,34 +52,15 @@ export function SsoOnlyView({
                         <span className="flex h-12 w-12 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sky-300 shadow-[0_12px_28px_rgba(14,165,233,0.12)]">
                             <Shield className="h-5 w-5" />
                         </span>
-                        <span className="text-lg font-semibold tracking-[0.34em] uppercase">
-                            Risk<span className="text-sky-300">Hub</span>
-                        </span>
+                        <BrandWordmark className="text-lg font-semibold tracking-[0.34em] uppercase" accentClassName="text-sky-300" />
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <span className="hidden text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500 sm:inline">
-                            {prodCopy.switch_label}
-                        </span>
-                        <div className="inline-flex rounded-full border border-white/10 bg-slate-950/60 p-1">
-                            {(['cs', 'en'] as const).map((language) => {
-                                const active = language === prodLanguage;
-                                return (
-                                    <button
-                                        key={language}
-                                        type="button"
-                                        onClick={() => onChangeLanguage(language)}
-                                        aria-pressed={active}
-                                        className={`min-w-12 rounded-full px-3 py-1.5 text-xs font-semibold tracking-[0.2em] transition-colors ${
-                                            active ? 'bg-slate-100 text-slate-950' : 'text-slate-400 hover:text-slate-200'
-                                        }`}
-                                    >
-                                        {language.toUpperCase()}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    <LanguageSwitch
+                        label={prodCopy.switch_label}
+                        showLabel
+                        value={prodLanguage}
+                        onChange={onChangeLanguage}
+                    />
                 </header>
 
                 <section className="flex flex-1 items-center justify-center">
@@ -163,6 +149,6 @@ export function SsoOnlyView({
                     </div>
                 </section>
             </div>
-        </div>
+        </main>
     );
 }

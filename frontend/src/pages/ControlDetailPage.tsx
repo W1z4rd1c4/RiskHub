@@ -17,7 +17,7 @@ import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
@@ -109,13 +109,7 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
     const canLinkRisk = resolveCapabilityFlag(control.capabilities, 'can_link_risk');
     const canUnlinkRisk = resolveCapabilityFlag(control.capabilities, 'can_unlink_risk');
     const canCreateIssue = resolveCapabilityFlag(control.capabilities, 'can_create_issue');
-    const actionMessageText = (key: string) => (
-        key.startsWith('errorKeys.')
-            ? t(key, { ns: 'errorKeys' })
-            : key.includes(':')
-                ? t(key)
-                : key
-    );
+    const actionMessageText = (key: string) => translateUiMessage(t, key);
 
     return (
         <div className="space-y-8">

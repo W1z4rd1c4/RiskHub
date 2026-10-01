@@ -53,6 +53,11 @@ describe('production SSO login (GAP-B-01, RS-02)', () => {
         const column = frame.querySelector('header')?.parentElement as HTMLElement;
 
         expect(frame).toHaveClass('min-h-screen', 'overflow-y-auto');
+        // AX-15: the view is the page's main landmark; its tokens stay on the dark RiskHub
+        // scope that matches the bespoke palette until the login moves onto AuthFrame (3i).
+        expect(screen.getByRole('main')).toBe(frame);
+        expect(frame).toHaveClass('theme-riskhub');
+        expect(screen.getByRole('group', { name: 'Language' })).toBeInTheDocument();
         expect(frame).not.toHaveClass('h-screen', 'overflow-hidden');
         expect(column).toHaveClass('min-h-screen');
         expect(column).not.toHaveClass('h-screen');

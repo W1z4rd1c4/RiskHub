@@ -37,7 +37,7 @@ export function DemoLoginView({
         ...demoAccounts.employees,
     ];
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 p-4">
+        <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 p-4">
             <div className="w-full max-w-7xl">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-white tracking-tight mb-2">
@@ -102,6 +102,6 @@ export function DemoLoginView({
                     {translate('login_demo.footer_note')}
                 </p>
             </div>
-        </div>
+        </main>
     );
 }
