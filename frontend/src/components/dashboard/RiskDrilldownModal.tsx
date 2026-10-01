@@ -9,7 +9,7 @@ import { DialogShell } from '@/components/DialogShell';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
 import { useDashboardFilterSelector } from '../../contexts/DashboardFilterContext';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { classifyRiskScore, riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { logError } from '@/services/logger';
 
 interface RiskInCell {
@@ -63,7 +63,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
 
     const score = probability * impact;
     const getSeverityColor = () => {
-        return riskScoreVariantClass('text', score, thresholds);
+        return legacyRiskScoreVariantClass('text', score, thresholds);
     };
 
     const getSeverityLabel = () => {
@@ -88,7 +88,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-white/5">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${riskScoreVariantClass('card', score, thresholds)}`}>
+                    <div className={`p-2 rounded-lg ${legacyRiskScoreVariantClass('card', score, thresholds)}`}>
                         <AlertTriangle className={`h-5 w-5 ${getSeverityColor()}`} />
                     </div>
                     <div>
@@ -163,7 +163,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                     <div className="flex flex-col items-end gap-1 shrink-0">
                                         <div className="flex items-center gap-2">
                                             <span
-                                                className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                                className={`text-sm font-bold ${legacyRiskScoreVariantClass('text', risk.net_score, thresholds)}`}
                                             >
                                                 {t('risk_drilldown.score_value', { score: risk.net_score })}
                                             </span>

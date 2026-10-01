@@ -1,10 +1,24 @@
-export interface RiskScoreThresholds {
-    critical: number;
-    high: number;
-    medium: number;
-}
+/**
+ * DEPRECATED legacy risk-score palette, kept only until roadmap item 2.11
+ * (wave W7) moves its consumers onto `@/lib/severity`. New code imports
+ * `riskScoreVariantClass` / `severityClass` from `@/lib/severity` (audit
+ * 2026-09-30 D1, ADR-008) and never from this module.
+ *
+ * Band classification and the threshold shape are owned by `lib/severity.ts`
+ * and re-exported here unchanged. The class map below still renders the pre-D1
+ * colours (medium = info blue, high = warning amber). The score helper is named
+ * `legacyRiskScoreVariantClass` so it cannot be confused with the D1
+ * `riskScoreVariantClass`; a test keeps every name shared with
+ * `lib/severity.ts` bound to the identical value. 2.11 swaps the consumers
+ * together with the announced screenshot refresh, then deletes this module.
+ */
+import { classifyRiskScore, type RiskScoreThresholds, type SeverityBand } from '@/lib/severity';
 
-export type RiskScoreBand = 'critical' | 'high' | 'medium' | 'low';
+export { classifyRiskScore };
+export type { RiskScoreThresholds };
+
+export type RiskScoreBand = SeverityBand;
+/** @deprecated Use `SeverityVariant` from `@/lib/severity` (roadmap 2.11, W7). */
 export type RiskScoreThemeVariant = 'badge' | 'matrix-cell' | 'card' | 'text' | 'slider';
 
 const BAND_CLASS_MAP: Record<RiskScoreThemeVariant, Record<RiskScoreBand, string>> = {
@@ -40,18 +54,16 @@ const BAND_CLASS_MAP: Record<RiskScoreThemeVariant, Record<RiskScoreBand, string
     },
 };
 
-export function classifyRiskScore(score: number, thresholds: RiskScoreThresholds): RiskScoreBand {
-    if (score >= thresholds.critical) return 'critical';
-    if (score >= thresholds.high) return 'high';
-    if (score >= thresholds.medium) return 'medium';
-    return 'low';
-}
-
+/** @deprecated Pre-D1 palette. Use `severityClass` from `@/lib/severity` (roadmap 2.11, W7). */
 export function riskScoreClass(variant: RiskScoreThemeVariant, band: RiskScoreBand): string {
     return BAND_CLASS_MAP[variant][band];
 }
 
-export function riskScoreVariantClass(
+/**
+ * @deprecated Pre-D1 palette (medium = blue). Not the D1 helper: use
+ * `riskScoreVariantClass` from `@/lib/severity` (roadmap 2.11, W7).
+ */
+export function legacyRiskScoreVariantClass(
     variant: RiskScoreThemeVariant,
     score: number,
     thresholds: RiskScoreThresholds,

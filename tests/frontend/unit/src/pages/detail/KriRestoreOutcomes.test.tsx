@@ -191,7 +191,10 @@ describe('KRI restore outcomes', () => {
         await waitFor(() => expect(getKri).toHaveBeenCalledTimes(2));
         await act(async () => request.resolve(record(1, false)));
         expect(screen.queryByText('KRI restored.')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Unarchive' })).toBeEnabled();
+        // The principal change also refetches the record; wait for that reload
+        // instead of racing it (flaked under full-suite load).
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Unarchive' })).toBeEnabled());
+        expect(screen.queryByText('KRI restored.')).not.toBeInTheDocument();
     });
 
     it.each(['replacement-token', 'session-7'])('ignores the API session-changed rejection after same-principal replacement (%s)', async (token) => {

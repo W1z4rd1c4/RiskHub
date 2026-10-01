@@ -1,66 +1,15 @@
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock3,
-    type LucideIcon,
-    ShieldQuestion,
-    Sparkles,
-} from 'lucide-react';
-
+import { BADGE_TONES, type BadgeTone } from '@/lib/tones';
 import type { ControlMonitoringStatus } from '@/types/control';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 
-type BadgeTone = {
-    badgeClassName: string;
-    textClassName: string;
-    gaugeToneClassName: string;
-    gaugeZoneClassName: string;
-    icon: LucideIcon;
-};
+// Status tones live in `lib/tones.ts` (audit 2026-09-30 §4.4 A); the
+// monitoring metas below are built on them.
 
 type MonitoringMeta<TStatus extends string> = BadgeTone & {
     labelKey: string;
     sortPriority: number;
     status: TStatus;
 };
-
-const BADGE_TONES = {
-    success: {
-        badgeClassName: 'bg-success/10 text-success-text border border-success/20',
-        textClassName: 'text-success-text',
-        gaugeToneClassName: 'text-success-text',
-        gaugeZoneClassName: 'text-success/20',
-        icon: CheckCircle2,
-    },
-    warning: {
-        badgeClassName: 'bg-warning/10 text-warning-text border border-warning/20',
-        textClassName: 'text-warning-text',
-        gaugeToneClassName: 'text-warning-text',
-        gaugeZoneClassName: 'text-warning/20',
-        icon: Clock3,
-    },
-    danger: {
-        badgeClassName: 'bg-destructive/10 text-destructive border border-destructive/20',
-        textClassName: 'text-destructive',
-        gaugeToneClassName: 'text-destructive',
-        gaugeZoneClassName: 'text-destructive/20',
-        icon: AlertTriangle,
-    },
-    info: {
-        badgeClassName: 'bg-info/10 text-accent-text border border-info/20',
-        textClassName: 'text-accent-text',
-        gaugeToneClassName: 'text-accent-text',
-        gaugeZoneClassName: 'text-info/20',
-        icon: Sparkles,
-    },
-    neutral: {
-        badgeClassName: 'bg-muted text-muted-foreground border border-border',
-        textClassName: 'text-muted-foreground',
-        gaugeToneClassName: 'text-muted-foreground',
-        gaugeZoneClassName: 'text-muted-foreground/20',
-        icon: ShieldQuestion,
-    },
-} as const;
 
 const CONTROL_MONITORING_META: Record<ControlMonitoringStatus, MonitoringMeta<ControlMonitoringStatus>> = {
     new: {

@@ -5,8 +5,12 @@
 @tailwind utilities;
 
 @layer base {
+  /* RiskHub theme (default) - Dark blue. Also selected by the explicit
+     `.theme-riskhub` root class (audit 2026-09-30 §4.2), so a subtree can opt
+     back into it; `:root` stays last in the selector list because the token
+     parsers in the contrast tests key on `:root {`. */
+  .theme-riskhub,
   :root {
-    /* RiskHub Theme (default) - Dark blue */
     --background: 222 47% 11%;
     --foreground: 213 31% 91%;
 
@@ -27,6 +31,9 @@
     --glass-hover: 222 35% 20%;
     --glass-hover-border: 215 20% 48%;
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+    /* shadow-popover (audit §4.6). A var() so Tailwind's colour-named shadow
+       utility (`shadow-popover` also matches colors.popover) cannot recolour it. */
+    --popover-shadow: 0 10px 38px -10px hsl(var(--foreground) / 0.25);
     --icon-muted: 215 20% 70%;
 
     --primary: 210 40% 98%;
@@ -71,6 +78,56 @@
     --input: 215 20% 48%;
     --ring: 212.7 26.8% 83.9%;
 
+    /* UI-contract token families (audit 2026-09-30 §4.2, ADR-015 Addendum 1).
+       Every family is declared in all three theme blocks and contrast-tested in
+       tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
+       --tint (D3): theme-aware base of the former white-alpha utilities, used only
+       with an opacity step (bg-tint/5, border-tint/10, divide-tint/10). It is pure
+       white in riskhub and dark, so tint/N renders exactly like white/N there. */
+    --tint: 0 0% 100%;
+    /* --overlay: dialog backdrop colour and its per-theme alpha (bg-overlay). */
+    --overlay: 222 47% 4%;
+    --overlay-alpha: 0.7;
+    /* --severity-high (D1): the orange "high" band of the 4-step severity scale
+       (low success, medium warning, high severity-high, critical destructive).
+       Fill + paired foreground, and a standalone text variant. */
+    --severity-high: 25 95% 53%;
+    --severity-high-foreground: 26 84% 6%;
+    --severity-high-text: 25 95% 68%;
+    /* --chart-1..8: categorical chart series (reverses FR-P1-8). Severity-coded
+       series use the severity tokens, never these. Each clears 3:1 against
+       --background and --glass. Order: accent, violet, teal, amber, pink, sky,
+       lime, neutral. */
+    --chart-1: 210 100% 60%;
+    --chart-2: 262 83% 66%;
+    --chart-3: 173 80% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 330 81% 65%;
+    --chart-6: 199 89% 60%;
+    --chart-7: 84 70% 50%;
+    --chart-8: 215 16% 55%;
+    /* --heat-0..4: sequential count heatmap, surface (heat-0 = --nested) to
+       --destructive (heat-4), monotonic in luminance. Each step has an AA
+       foreground for the in-cell count. */
+    --heat-0: 222 40% 17%;
+    --heat-0-foreground: 213 31% 91%;
+    --heat-1: 0 45% 24%;
+    --heat-1-foreground: 213 31% 91%;
+    --heat-2: 0 60% 33%;
+    --heat-2-foreground: 213 31% 91%;
+    --heat-3: 0 72% 44%;
+    --heat-3-foreground: 213 31% 91%;
+    --heat-4: 0 91% 71%;
+    --heat-4-foreground: 222 47% 11%;
+    /* --nav-active: active sidebar item fill. Static HSL of the hex values it
+       replaces in components/layout/sidebar.css (#1d4ed8 / #f8fafc). */
+    --nav-active: 224 76% 48%;
+    --nav-active-foreground: 210 40% 98%;
+    /* --badge-count: notification count badge. Static HSL of #be123c / #f8fafc,
+       the values it replaces below; the same in every theme. */
+    --badge-count: 345 83% 41%;
+    --badge-count-foreground: 210 40% 98%;
+
     /* UX-24 semantic radius scale: compact controls use md, ordinary controls
        use lg, cards/dialogs use 2xl, and pills use Tailwind's full shape. */
     --radius-sm: 0.5rem;
@@ -87,9 +144,9 @@
     @apply border-border;
   }
 
+  /* `font-sans` / `font-heading` resolve to tailwind.config.js `fontFamily`. */
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter Variable', sans-serif;
   }
 
   h1,
@@ -98,7 +155,15 @@
   h4,
   h5,
   h6 {
-    font-family: 'Outfit Variable', sans-serif;
+    font-family: theme('fontFamily.heading');
+  }
+
+  /* Global keyboard-focus fallback (audit §4.6, DS-26): any focusable element
+     without its own indicator still shows a ring-coloured outline. Primitives
+     use the `.focus-ring` utility below; `outline-none` utilities still win. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
@@ -246,6 +311,20 @@
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
   }
+
+  /* D6 (amended 2026-10-01): the ONLY uppercase eyebrow / micro-label recipe,
+     11px / 600 / tracking-wide. Nothing may render below 11px (G-RATCHET
+     `micro-font` tracks the remaining text-[≤10px] sites). */
+  .text-eyebrow {
+    @apply text-2xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+}
+
+@layer utilities {
+  /* Audit §4.6 / DS-26: the one keyboard-focus recipe every primitive uses. */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
 }
 
 /* =================================
@@ -268,6 +347,7 @@
   --glass-hover: 0 0% 12%;
   --glass-hover-border: 0 0% 24%;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --popover-shadow: 0 10px 38px -10px hsl(var(--foreground) / 0.25);
   --icon-muted: 0 0% 70%;
 
   --primary: 0 0% 95%;
@@ -300,6 +380,36 @@
   --border: 0 0% 15%;
   --input: 0 0% 38%;
   --ring: 0 0% 80%;
+
+  /* UI-contract token families (audit §4.2) — see :root for rationale. */
+  --tint: 0 0% 100%;
+  --overlay: 0 0% 0%;
+  --overlay-alpha: 0.8;
+  --severity-high: 25 95% 53%;
+  --severity-high-foreground: 26 84% 6%;
+  --severity-high-text: 25 95% 68%;
+  --chart-1: 210 100% 60%;
+  --chart-2: 262 83% 66%;
+  --chart-3: 173 80% 45%;
+  --chart-4: 38 92% 50%;
+  --chart-5: 330 81% 65%;
+  --chart-6: 199 89% 60%;
+  --chart-7: 84 70% 50%;
+  --chart-8: 215 16% 55%;
+  --heat-0: 0 0% 9%;
+  --heat-0-foreground: 0 0% 95%;
+  --heat-1: 0 45% 20%;
+  --heat-1-foreground: 0 0% 95%;
+  --heat-2: 0 60% 31%;
+  --heat-2-foreground: 0 0% 95%;
+  --heat-3: 0 72% 43%;
+  --heat-3-foreground: 0 0% 95%;
+  --heat-4: 0 91% 71%;
+  --heat-4-foreground: 222 47% 11%;
+  --nav-active: 224 76% 48%;
+  --nav-active-foreground: 210 40% 98%;
+  --badge-count: 345 83% 41%;
+  --badge-count-foreground: 210 40% 98%;
 }
 
 /* True Dark - Base */
@@ -383,6 +493,7 @@
   --glass-hover: 220 14% 96%;
   --glass-hover-border: 215 20% 55%;
   --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --popover-shadow: 0 10px 38px -10px hsl(var(--foreground) / 0.25);
   --icon-muted: 215 25% 35%;
 
   --primary: 222 47% 11%;
@@ -421,6 +532,39 @@
   --border: 220 13% 85%;
   --input: 215 20% 55%;
   --ring: 222 47% 11%;
+
+  /* UI-contract token families (audit §4.2) — see :root for rationale.
+     --tint is the navy foreground, so tint/N gives light surfaces a navy alpha.
+     --severity-high-text is a darkened orange (the fill fails as text here).
+     --chart-1..8 are the :root seeds at lightness minus 15. */
+  --tint: 222 47% 11%;
+  --overlay: 222 47% 11%;
+  --overlay-alpha: 0.4;
+  --severity-high: 25 95% 53%;
+  --severity-high-foreground: 26 84% 6%;
+  --severity-high-text: 22 90% 34%;
+  --chart-1: 210 100% 45%;
+  --chart-2: 262 83% 51%;
+  --chart-3: 173 80% 30%;
+  --chart-4: 38 92% 35%;
+  --chart-5: 330 81% 50%;
+  --chart-6: 199 89% 45%;
+  --chart-7: 84 70% 35%;
+  --chart-8: 215 16% 40%;
+  --heat-0: 220 14% 94%;
+  --heat-0-foreground: 222 47% 11%;
+  --heat-1: 0 85% 90%;
+  --heat-1-foreground: 222 47% 11%;
+  --heat-2: 0 78% 83%;
+  --heat-2-foreground: 222 47% 11%;
+  --heat-3: 0 72% 70%;
+  --heat-3-foreground: 222 47% 11%;
+  --heat-4: 0 74% 42%;
+  --heat-4-foreground: 0 0% 100%;
+  --nav-active: 222 47% 11%;
+  --nav-active-foreground: 210 40% 98%;
+  --badge-count: 345 83% 41%;
+  --badge-count-foreground: 210 40% 98%;
 }
 
 .notification-count-badge,

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { isApprovalCreatedResponse, parseUpdateResult } from '@/lib/approvalUi';
-import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { ApiClientError } from '@/services/apiClient';
 import { riskApi } from '@/services/riskApi';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -99,11 +99,11 @@ export function useRiskScorePresentation() {
     const { thresholds } = useRiskThresholds();
 
     const getScoreTextColor = (score: number) => {
-        return riskScoreVariantClass('text', score, thresholds);
+        return legacyRiskScoreVariantClass('text', score, thresholds);
     };
 
     const getSliderAccent = (score: number) => {
-        return riskScoreVariantClass('slider', score, thresholds);
+        return legacyRiskScoreVariantClass('slider', score, thresholds);
     };
 
     return { getScoreTextColor, getSliderAccent };

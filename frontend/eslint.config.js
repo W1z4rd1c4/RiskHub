@@ -67,7 +67,7 @@ const ADR008_THRESHOLD_RESTRICTIONS = [
   ...relationalComparison(GENERIC_SCORE_NAMES, MATRIX_RANGE_INTEGER),
 ].map((selector) => ({
   selector,
-  message: "Do not hardcode risk-score thresholds (ADR-008); use useRiskThresholds() with riskScoreVariantClass().",
+  message: "Do not hardcode risk-score thresholds (ADR-008); use useRiskThresholds() with riskScoreVariantClass() from @/lib/severity.",
 }));
 
 const maintainedModulePaths = [

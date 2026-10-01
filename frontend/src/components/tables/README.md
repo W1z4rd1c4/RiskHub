@@ -9,6 +9,9 @@ UI components for `tables` area.
 - `__tests__/`
 - `index.ts`
 - `Pagination.tsx`
+- `RowActionButton.tsx` — icon-only row action: required `label` (accessible
+  name + tooltip), optional `disabledReason` (inert via `aria-disabled`, reason
+  as tooltip/description), never bubbles to row activation.
 - `SortableTable.tsx`
 
 ## Notes

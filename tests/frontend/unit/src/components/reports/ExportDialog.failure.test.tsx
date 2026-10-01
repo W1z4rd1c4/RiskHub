@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import { render, screen, userEvent } from '@test/render';
+import { render, screen, userEvent, waitFor } from '@test/render';
 
 describe('ExportDialog failure handling', () => {
     it('restores focus to the export action after a failed busy submission', async () => {
@@ -42,8 +42,10 @@ describe('ExportDialog failure handling', () => {
         rejectExport(new Error('download failed'));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Export failed. Try again.');
+        // Focus is restored after the busy state clears; wait for it rather than
+        // racing that update (flaked under full-suite load).
+        await waitFor(() => expect(submit).toHaveFocus());
         expect(submit).toBeEnabled();
-        expect(submit).toHaveFocus();
     });
 
     it('defaults a dual-purpose dialog to current-view export without a date field', async () => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Users, ShieldAlert, AlertCircle, RefreshCw, ClipboardList, Activity, TrendingUp } from 'lucide-react';
+import { Building2, Users, ShieldAlert, AlertCircle, ClipboardList, Activity, TrendingUp } from 'lucide-react';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 import { useTranslation } from '@/i18n/hooks';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import { isForbiddenApiError } from '@/services/apiClient';
@@ -49,14 +50,11 @@ export function DepartmentsPage() {
                     <p className="text-muted-foreground font-medium">{t('dashboard:department_exposure.subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={fetchDepartments}
-                        className="px-4 py-2 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
-                        disabled={isLoading}
-                        title={t('common:actions.refresh')}
-                    >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-                    </button>
+                    <RefreshButton
+                        iconOnly
+                        onRefresh={() => void fetchDepartments()}
+                        isFetching={isLoading}
+                    />
                 </div>
             </div>
 

@@ -7,8 +7,16 @@ UI components for `ui` area.
 ## Contents
 
 - `button.tsx` — shared action primitive; 40px default/icon and the only named
-  compact exception (32px compact/iconCompact), safe native `type="button"`,
-  and disabled + `aria-busy` loading behavior.
+  compact exception (32px compact/iconCompact), plus 44px `lg`; safe native
+  `type="button"`, and disabled + `aria-busy` loading behavior. Variants:
+  `accent` is THE primary CTA (D4); `default` is a deprecated alias; `secondary`,
+  `outline`, `ghost`, `destructive`, `warning`, `success`, `link` (`secondary`
+  and `link` keep their pre-§4.7 looks until their callers migrate in W7).
+  Icon-only sizes require `aria-label` or `aria-labelledby` at the type level.
+- `BackButton.tsx` — labelled back navigation; `label` names the destination
+  (D14). `to` renders a router link, `onClick` renders a button.
+- `RefreshButton.tsx` — refresh affordance (`size`, `iconOnly`); spinning icon + `aria-busy` while
+  `isFetching`, translated default name (`common:actions.refresh`).
 - `input.tsx` — shared text/number/date input with the 40px default geometry.
 - `field.tsx` — visible label, help, required, invalid, and error association.
 - `select.tsx` — Radix select primitives with the same 40px default geometry.

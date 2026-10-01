@@ -1,5 +1,6 @@
-import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -46,10 +47,7 @@ export function DetailLoadUnavailableState({
                         {t('actions.retry')}
                     </Button>
                 ) : null}
-                <Button type="button" variant="secondary" onClick={onBack}>
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    {backLabel}
-                </Button>
+                <BackButton label={backLabel} onClick={onBack} />
             </div>
         </div>
     );

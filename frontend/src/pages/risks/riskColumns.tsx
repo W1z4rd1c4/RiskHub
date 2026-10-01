@@ -1,7 +1,8 @@
 import type { MouseEvent } from 'react';
-import { AlertCircle, Lock, Star } from 'lucide-react';
+import { AlertCircle, ArchiveRestore, Lock, Star } from 'lucide-react';
 
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
+import { RowActionButton } from '@/components/tables/RowActionButton';
 import type { Column } from '@/components/tables/SortableTable';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { RiskSummary } from '@/types/risk';
@@ -197,13 +198,12 @@ export function buildRiskColumns({
                 <div className="text-right flex items-center justify-end gap-2">
                     {risk.is_archived &&
                         resolveCapabilityFlag(risk.capabilities, 'can_restore') && (
-                        <button
+                        <RowActionButton
+                            icon={ArchiveRestore}
+                            label={t('actions.unarchive')}
                             onClick={(e) => handleRestoreRisk(risk.id, e)}
                             data-testid={`risk-unarchive-${risk.id}`}
-                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
-                        >
-                            {t('actions.unarchive')}
-                        </button>
+                        />
                     )}
                 </div>
             ),

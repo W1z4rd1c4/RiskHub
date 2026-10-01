@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useId } from 'react';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
-import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
 
 interface RiskScoreMatrixProps {
     probability: number;  // 1-5
@@ -60,7 +60,7 @@ export function RiskScoreMatrix({
     return (
         <fieldset className="m-0 flex min-w-0 flex-col items-center border-0 p-0">
             {/* Type label - color matches score threshold */}
-            <legend className={`${labelClass} mx-auto mb-3 w-auto p-0 font-black uppercase tracking-widest ${riskScoreVariantClass('text', score, thresholds)}`}>
+            <legend className={`${labelClass} mx-auto mb-3 w-auto p-0 font-black uppercase tracking-widest ${legacyRiskScoreVariantClass('text', score, thresholds)}`}>
                 {matrixLabel}
             </legend>
 
@@ -81,7 +81,7 @@ export function RiskScoreMatrix({
                                 const selected = isSelected(p, i);
                                 const cellTitle = t('matrix.cell_title', { probability: p, impact: i, score: cellScore });
                                 const cellClasses = `
-                                    ${cellClass} ${riskScoreVariantClass('matrix-cell', cellScore, thresholds)}
+                                    ${cellClass} ${legacyRiskScoreVariantClass('matrix-cell', cellScore, thresholds)}
                                     rounded-sm flex items-center justify-center font-bold
                                     transition-[background-color,border-color,box-shadow,transform] duration-200
                                     ${selected
@@ -138,7 +138,7 @@ export function RiskScoreMatrix({
             </span>
 
             {/* Score display */}
-            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${riskScoreVariantClass('card', score, thresholds)}`}>
+            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${legacyRiskScoreVariantClass('card', score, thresholds)}`}>
                 {t('matrix.score_label', { score })}
             </div>
         </fieldset>

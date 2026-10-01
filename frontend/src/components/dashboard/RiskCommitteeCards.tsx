@@ -5,7 +5,7 @@ import type { DashboardCommitteeSummary } from '@/services/dashboardApi';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -131,7 +131,7 @@ function CriticalRisksCard({
                                     </div>
                                 </div>
                                 <span
-                                    className={`text-sm font-black shrink-0 ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                    className={`text-sm font-black shrink-0 ${legacyRiskScoreVariantClass('text', risk.net_score, thresholds)}`}
                                 >
                                     {risk.net_score}
                                 </span>

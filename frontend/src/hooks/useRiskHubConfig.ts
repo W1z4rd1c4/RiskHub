@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { riskHubKeys } from '@/lib/queryKeys';
-import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, type SeverityBand } from '@/lib/severity';
 import { riskHubApi, type PublicRiskType } from '@/services/riskHubApi';
 
 // Internal type that matches what the rest of the app expects
@@ -149,20 +150,26 @@ export function useRiskThresholds() {
         thresholds: query.data || DEFAULT_THRESHOLDS,
         isLoading: query.isLoading,
         error: query.error,
+        // D1 severity band for a score under the configured thresholds (ADR-008);
+        // pair with `severityClass()` from `@/lib/severity`.
+        getSeverityBand: (score: number): SeverityBand => {
+            const t = query.data || DEFAULT_THRESHOLDS;
+            return classifyRiskScore(score, t);
+        },
         // Helper to get score color class based on thresholds
         getScoreColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            return riskScoreVariantClass('badge', score, t);
+            return legacyRiskScoreVariantClass('badge', score, t);
         },
         // Helper to get score color for matrix cells
         getMatrixCellColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            return riskScoreVariantClass('matrix-cell', score, t);
+            return legacyRiskScoreVariantClass('matrix-cell', score, t);
         },
         // Helper to get score badge color
         getScoreBadgeColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            return riskScoreVariantClass('card', score, t);
+            return legacyRiskScoreVariantClass('card', score, t);
         },
     };
 }
