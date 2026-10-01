@@ -1,7 +1,7 @@
 /**
  * KRIBreachHistoryChart - Area chart showing KRI breach trends over time.
  * Refined with smoother curves, premium tooltips, and vibrant accents.
- * Uses theme-aware colors via useChartTheme hook.
+ * Colours come from the theme tokens via useChartTheme (severity-coded series use the D1 band tokens).
  */
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import type { KRIBreachTrendPoint } from '@/types/dashboard';
@@ -20,7 +20,6 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
     const resolvedEmptyMessage = emptyMessage ?? t('charts.no_kri_breach_data');
     const tooltipProps = getChartTooltipProps(chartTheme, {
         contentStyle: {
-            borderRadius: '12px',
             backdropFilter: 'blur(12px)',
             padding: '12px 16px',
         },
@@ -46,8 +45,8 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                             <stop offset="95%" stopColor={chartTheme.series.primary} stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="breachGradientNew" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={chartTheme.series.tertiary} stopOpacity={0.2} />
-                            <stop offset="95%" stopColor={chartTheme.series.tertiary} stopOpacity={0} />
+                            <stop offset="5%" stopColor={chartTheme.series.danger} stopOpacity={0.2} />
+                            <stop offset="95%" stopColor={chartTheme.series.danger} stopOpacity={0} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} opacity={0.5} />
@@ -80,8 +79,9 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                             fontWeight: 800,
                             textTransform: 'uppercase',
                             letterSpacing: '0.05em',
-                            color: chartTheme.tooltipTextSecondary
+                            color: chartTheme.legendText
                         }}
+                        labelStyle={{ color: chartTheme.legendText }}
                     />
                     <Area
                         type="monotone"
@@ -97,11 +97,11 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                         type="monotone"
                         dataKey="breached_entries"
                         name={t('charts.breaches')}
-                        stroke={chartTheme.series.tertiary}
+                        stroke={chartTheme.series.danger}
                         fill="url(#breachGradientNew)"
                         strokeWidth={2.5}
                         animationDuration={1500}
-                        activeDot={{ r: 6, stroke: chartTheme.series.tertiary, strokeWidth: 2, fill: chartTheme.activeDotFill }}
+                        activeDot={{ r: 6, stroke: chartTheme.series.danger, strokeWidth: 2, fill: chartTheme.activeDotFill }}
                     />
                 </AreaChart>
             </ResponsiveContainer>

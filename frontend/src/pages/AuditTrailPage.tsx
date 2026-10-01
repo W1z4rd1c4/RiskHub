@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthz } from '@/authz/useAuthz';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import {
     ClipboardCheck,
     Filter,
@@ -10,16 +10,17 @@ import {
     History,
     Sheet,
     Shield,
-    ShieldX,
     Target,
-    RefreshCw
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } from '@/types/execution';
 import { Pagination } from '@/components/tables';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 import { logError } from '@/services/logger';
@@ -32,7 +33,8 @@ import {
 const AUDIT_TRAIL_SKELETON_ROWS = 5;
 
 export function AuditTrailPage() {
-    const { t, i18n } = useTranslation(['controls', 'common']);
+    const { t } = useTranslation(['controls', 'common']);
+    const format = useFormat();
     const authz = useAuthz();
     const navigate = useNavigate();
 
@@ -121,111 +123,84 @@ export function AuditTrailPage() {
         void fetchExecutions();
     }, [beginQuery, fetchExecutions, queryKey]);
 
+    // D7: the page title is the route's `h1` and `document.title` in every state.
     if (outcome.kind === 'denied') {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <div className="p-4 bg-destructive/10 rounded-2xl">
-                    <ShieldX className="h-12 w-12 text-destructive" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground">{t('access.denied')}</h2>
-                <p className="text-muted-foreground text-center max-w-md">
-                    {t('access.denied_control_execution_history')}
-                </p>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('audit_trail.title')} />
+                <AccessDeniedState descriptionKey="access.denied_control_execution_history" />
+            </PageContainer>
         );
     }
 
     if (outcome.kind === 'fatal-error') {
         return (
-            <div className="space-y-8">
-                <div>
-                    <h2 className="text-3xl font-black text-foreground mb-2">{t('audit_trail.title')}</h2>
-                    <p className="text-muted-foreground font-medium">{t('audit_trail.subtitle')}</p>
-                </div>
-                <div role="alert" className="glass-card flex flex-wrap items-center justify-between gap-4 border-destructive/30">
-                    <p className="text-sm font-semibold text-destructive">{t(outcome.errorKey)}</p>
-                    <button
-                        type="button"
-                        aria-busy={outcome.isRetrying}
-                        disabled={outcome.isRetrying}
-                        onClick={() => void fetchExecutions()}
-                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-foreground bg-tint/10 rounded-lg border border-border hover:bg-tint/15 disabled:cursor-wait disabled:opacity-60"
-                    >
-                        {t('common:actions.retry')}
-                    </button>
-                </div>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('audit_trail.title')} description={t('audit_trail.subtitle')} />
+                <ErrorState
+                    message={translateUiMessage(t, outcome.errorKey)}
+                    onRetry={() => void fetchExecutions()}
+                    retryLabel={t('common:actions.retry')}
+                    isRetrying={outcome.isRetrying}
+                />
+            </PageContainer>
         );
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-foreground mb-2">{t('audit_trail.title')}</h2>
-                    <p className="text-muted-foreground font-medium">{t('audit_trail.subtitle')}</p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    {authz.canViewActivityLog ? (
-                        <Link
-                            to="/activity-log"
-                            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
-                        >
-                            {t('admin:activity_log.title')}
-                        </Link>
-                    ) : null}
-                    <button
-                        type="button"
-                        aria-label={t('common:actions.refresh')}
-                        onClick={() => void fetchExecutions()}
-                        disabled={isLoading}
-                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-tint/5 rounded-lg border border-border flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20 disabled:cursor-wait disabled:opacity-60"
-                    >
-                        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                        {t('common:actions.refresh')}
-                    </button>
-                    {resolveCapabilityFlag(capabilities, 'can_export_csv') ? (
-                        <button
-                            type="button"
-                            aria-busy={isCsvExporting}
-                            disabled={isCsvExporting}
-                            onClick={() => void downloadCsv(resultFilter || undefined)}
-                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-tint/5 rounded-lg border border-border flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20 disabled:cursor-wait disabled:opacity-60"
-                        >
-                            <Sheet className="h-3.5 w-3.5" />
-                            CSV
-                        </button>
-                    ) : null}
-                </div>
-            </div>
+        <PageContainer>
+            <PageHeader
+                title={t('audit_trail.title')}
+                description={t('audit_trail.subtitle')}
+                actions={(
+                    <>
+                        {authz.canViewActivityLog ? (
+                            <Link
+                                to="/activity-log"
+                                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
+                            >
+                                {t('admin:activity_log.title')}
+                            </Link>
+                        ) : null}
+                        <RefreshButton
+                            variant="outline"
+                            label={t('common:actions.refresh')}
+                            onRefresh={() => void fetchExecutions()}
+                            isFetching={isLoading}
+                        />
+                        {resolveCapabilityFlag(capabilities, 'can_export_csv') ? (
+                            <button
+                                type="button"
+                                aria-busy={isCsvExporting}
+                                disabled={isCsvExporting}
+                                onClick={() => void downloadCsv(resultFilter || undefined)}
+                                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-tint/5 rounded-lg border border-border flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                <Sheet className="h-3.5 w-3.5" />
+                                CSV
+                            </button>
+                        ) : null}
+                    </>
+                )}
+            />
 
             {outcome.kind === 'stale-with-error' ? (
-                <div role="alert" className="glass-card flex flex-wrap items-center justify-between gap-4 border-warning/30">
-                    <p className="text-sm font-semibold text-warning-text">{t(outcome.errorKey)}</p>
-                    <button
-                        type="button"
-                        aria-busy={outcome.isRetrying}
-                        disabled={outcome.isRetrying}
-                        onClick={() => void fetchExecutions()}
-                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-foreground bg-tint/10 rounded-lg border border-border hover:bg-tint/15 disabled:cursor-wait disabled:opacity-60"
-                    >
-                        {t('common:actions.retry')}
-                    </button>
-                </div>
+                <ErrorState
+                    variant="banner"
+                    message={translateUiMessage(t, outcome.errorKey)}
+                    onRetry={() => void fetchExecutions()}
+                    retryLabel={t('common:actions.retry')}
+                    isRetrying={outcome.isRetrying}
+                />
             ) : null}
 
             {csvError ? (
-                <div role="alert" className="glass-card flex flex-wrap items-center justify-between gap-4 border-destructive/30">
-                    <p className="text-sm font-semibold text-destructive">{t('common:export.errors.failed')}</p>
-                    <button
-                        type="button"
-                        onClick={() => void downloadCsv(csvError.result)}
-                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-foreground bg-tint/10 rounded-lg border border-border hover:bg-tint/15"
-                    >
-                        {t('common:actions.retry')}
-                    </button>
-                </div>
+                <ErrorState
+                    variant="banner"
+                    message={t('common:export.errors.failed')}
+                    onRetry={() => void downloadCsv(csvError.result)}
+                    retryLabel={t('common:actions.retry')}
+                />
             ) : null}
 
             <div className="flex flex-col md:flex-row gap-4">
@@ -276,26 +251,32 @@ export function AuditTrailPage() {
                             key={resultFilter}
                         >
                             {isLoading ? (
-                                Array.from({ length: AUDIT_TRAIL_SKELETON_ROWS }, (_, i) => (
-                                    <tr key={`skeleton-${i}`} className="border-b border-border animate-pulse">
-                                        <td className="px-6 py-6"><div className="h-4 w-32 bg-tint/5 rounded" /></td>
-                                        <td className="px-6 py-6"><div className="h-4 w-48 bg-tint/5 rounded" /></td>
-                                        <td className="px-6 py-6"><div className="h-4 w-32 bg-tint/5 rounded" /></td>
-                                        <td className="px-6 py-6"><div className="h-4 w-32 bg-tint/5 rounded" /></td>
-                                        <td className="px-6 py-6"><div className="h-5 w-24 bg-tint/5 rounded-full" /></td>
-                                        <td className="px-6 py-6 flex justify-center"><div className="h-6 w-16 bg-tint/5 rounded-md" /></td>
-                                        <td className="px-6 py-6"><div className="h-4 w-40 bg-tint/5 rounded" /></td>
-                                        <td className="px-6 py-6"><div className="h-4 w-10 bg-tint/5 rounded ml-auto" /></td>
-                                    </tr>
-                                ))
+                                <tr>
+                                    <td colSpan={8} className="p-0">
+                                        <LoadingState
+                                            label={t('common:loading.data')}
+                                            skeleton={(
+                                                <div className="divide-y divide-border">
+                                                    {Array.from({ length: AUDIT_TRAIL_SKELETON_ROWS }, (_, i) => (
+                                                        <div key={`skeleton-${i}`} className="px-6 py-6">
+                                                            <Skeleton className="h-4 w-full max-w-3xl" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        />
+                                    </td>
+                                </tr>
                             ) : outcome.kind === 'empty' ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-24 text-center">
-                                        <div className="bg-tint/5 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                            <History className="h-8 w-8 text-muted-foreground" />
-                                        </div>
-                                        <p className="text-foreground font-bold text-lg">{t('common:empty.no_executions')}</p>
-                                        <p className="text-muted-foreground max-w-xs mx-auto mt-2 font-medium">{t('audit_trail.no_records_help')}</p>
+                                    <td colSpan={8} className="p-0">
+                                        <EmptyState
+                                            layout="section"
+                                            kind={resultFilter ? 'no-results' : 'no-data'}
+                                            icon={History}
+                                            title={t('common:empty.no_executions')}
+                                            description={t('audit_trail.no_records_help')}
+                                        />
                                     </td>
                                 </tr>
                             ) : (
@@ -311,10 +292,10 @@ export function AuditTrailPage() {
                                             <td className="px-6 py-5">
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-bold text-foreground mb-0.5">
-                                                        {formatDateValue(exec.executed_at, i18n.language)}
+                                                        {format.date(exec.executed_at)}
                                                     </span>
                                                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
-                                                        {formatTimeValue(exec.executed_at, i18n.language)}
+                                                        {format.time(exec.executed_at)}
                                                     </span>
                                                 </div>
                                             </td>
@@ -398,7 +379,7 @@ export function AuditTrailPage() {
                 itemsPerPage={limit}
                 onPageChange={setCurrentPage}
             />
-        </div>
+        </PageContainer>
     );
 }
 

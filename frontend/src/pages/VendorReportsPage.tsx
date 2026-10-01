@@ -6,7 +6,10 @@ import { departmentApi, type DepartmentSummary } from '@/services/departmentApi'
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { parseBoundedInteger } from '@/lib/boundedInteger';
 import { Field } from '@/components/ui/field';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
+import { AccessDeniedState, ErrorState, LoadingState } from '@/components/ui/state';
 import { logError } from '@/services/logger';
 import { useVendorReportCapabilities } from '@/hooks/useVendorReportCapabilities';
 
@@ -119,38 +122,33 @@ export function VendorReportsPage() {
 
     let reportContent: ReactNode;
     if (isCapabilitiesLoading) {
-        reportContent = (
-            <div className="glass-card p-6">
-                <p className="text-foreground font-medium">{t('labels.loading')}</p>
-            </div>
-        );
+        reportContent = <LoadingState layout="section" label={t('labels.loading')} className="glass-card" />;
     } else if (capabilitiesUnavailable) {
         reportContent = (
-            <div role="alert" className="glass-card p-6 flex flex-wrap items-center justify-between gap-4 border-destructive/30">
-                <p className="text-foreground font-medium">{t('reports.unavailable')}</p>
-                <button
-                    type="button"
-                    onClick={vendorCapability.retry}
-                    className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors"
-                >
-                    {tCommon('actions.retry')}
-                </button>
-            </div>
+            <ErrorState
+                layout="section"
+                message={t('reports.unavailable')}
+                onRetry={vendorCapability.retry}
+                className="glass-card"
+            />
         );
     } else if (!canReadReports) {
         reportContent = (
-            <div className="glass-card p-6">
-                <p className="text-foreground font-medium">{t('reports.not_authorized')}</p>
-            </div>
+            <AccessDeniedState
+                layout="section"
+                descriptionKey="reports.not_authorized"
+                ns="vendors"
+                className="glass-card"
+            />
         );
     } else {
         reportContent = (
             <div className="grid gap-6 lg:grid-cols-2">
                 <section className="glass-card p-6 space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                         <Download className="h-4 w-4" />
                         {t('reports.annual.title')}
-                    </h3>
+                    </h2>
 
                     <Field
                         id="vendor-report-year"
@@ -191,24 +189,19 @@ export function VendorReportsPage() {
                         ) : null}
                     </div>
                     {annualError ? (
-                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-                            <p className="text-sm font-semibold text-destructive">{tCommon('export.errors.failed')}</p>
-                            <button
-                                type="button"
-                                onClick={() => void downloadAnnual(annualError)}
-                                className="px-3 py-1.5 rounded-lg bg-tint/10 border border-border text-xs font-bold text-foreground hover:bg-tint/15"
-                            >
-                                {tCommon('actions.retry')}
-                            </button>
-                        </div>
+                        <ErrorState
+                            variant="banner"
+                            message={tCommon('export.errors.failed')}
+                            onRetry={() => void downloadAnnual(annualError)}
+                        />
                     ) : null}
                 </section>
 
                 <section className="glass-card p-6 space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                         <FileSpreadsheet className="h-4 w-4" />
                         {t('reports.dora.title')}
-                    </h3>
+                    </h2>
                     <p className="text-sm text-foreground font-medium">
                         {t('reports.dora.subtitle')}
                     </p>
@@ -226,16 +219,11 @@ export function VendorReportsPage() {
                         </button>
                     ) : null}
                     {doraError ? (
-                        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-                            <p className="text-sm font-semibold text-destructive">{tCommon('export.errors.failed')}</p>
-                            <button
-                                type="button"
-                                onClick={() => void downloadDora(doraError)}
-                                className="px-3 py-1.5 rounded-lg bg-tint/10 border border-border text-xs font-bold text-foreground hover:bg-tint/15"
-                            >
-                                {tCommon('actions.retry')}
-                            </button>
-                        </div>
+                        <ErrorState
+                            variant="banner"
+                            message={tCommon('export.errors.failed')}
+                            onRetry={() => void downloadDora(doraError)}
+                        />
                     ) : null}
                 </section>
             </div>
@@ -243,14 +231,11 @@ export function VendorReportsPage() {
     }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">{t('reports.title')}</h1>
-                <p className="text-muted-foreground font-medium">{t('reports.subtitle')}</p>
-            </div>
+        <PageContainer>
+            <PageHeader title={t('reports.title')} description={t('reports.subtitle')} />
 
             {reportContent}
-        </div>
+        </PageContainer>
     );
 }
 

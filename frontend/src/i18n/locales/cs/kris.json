@@ -99,6 +99,7 @@
     "ok": "OK"
   },
   "actions": {
+    "back_to_register": "Zpět na KRI",
     "link_risk": "Propojit riziko",
     "add_kri": "Přidat KRI",
     "unarchive": "Obnovit z archivu",
@@ -206,9 +207,6 @@
     "lower_limit_breach": "Dolní limit (překročení)",
     "upper_limit_breach": "Horní limit (překročení)",
     "last_updated": "Naposledy aktualizováno"
-  },
-  "detail": {
-    "approval_banner_help": "Dokud se schválení nevyřeší, zůstane KRI i jeho vazby na dodavatele beze změny."
   },
   "value_modal": {
     "title": "Zaznamenat hodnotu",

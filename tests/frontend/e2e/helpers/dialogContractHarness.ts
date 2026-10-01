@@ -89,7 +89,7 @@ export async function installDialogContractApi(
           roles: panelCapabilities,
           approval_scenarios: panelCapabilities,
           system_settings: panelCapabilities,
-          questionnaires: panelCapabilities,
+          questionnaires: { ...panelCapabilities, can_batch_send: true },
         }); return;
       case '/api/v1/riskhub/departments':
         await fulfillJson(route, [dialogContractDepartment]); return;
@@ -212,6 +212,23 @@ export async function installDialogContractApi(
       case '/api/v1/assets/1/vendor-links':
       case '/api/v1/vendors/1/linked-risks':
         await fulfillJson(route, []); return;
+      case '/api/v1/threats/1/risk-links':
+      case '/api/v1/risks/1/threat-links':
+        await fulfillJson(route, [{
+          id: 1,
+          threat_id: 1,
+          risk_id: 1,
+          threat_name: 'Credential Stuffing',
+          risk_id_code: 'R-0001',
+          risk_name: 'Authentication Drift',
+          capabilities: { can_delete: true },
+          created_at: '2026-01-01T00:00:00Z',
+        }]); return;
+      case '/api/v1/risks/1/process-links':
+      case '/api/v1/risks/1/asset-links':
+        await fulfillJson(route, []); return;
+      case '/api/v1/threats':
+        await fulfillJson(route, { items: [], total: 0, offset: 0, limit: 25 }); return;
       case '/api/v1/vendors/1/contracts':
         await fulfillJson(route, [{
           id: 1,
@@ -332,11 +349,18 @@ export const DIALOG_CONTRACT_PARENT_SITE_IDS: ReadonlySet<string> = new Set([
   'frame.departments',
   'frame.risk-types',
   'frame.approval-scenarios',
+  'confirm.threat-risk-links',
+  'confirm.risk-register-links',
+  'send.risk-questionnaires-panel',
 ]);
 
 export async function arrangeDialogContractSite(page: Page, siteId: string) {
   await page.goto(`/dialog-contract.html?site=${encodeURIComponent(siteId)}`);
   await expect(page.getByTestId('dialog-owner-ready')).toHaveAttribute('data-render-site', siteId);
+  if (siteId === 'send.risk-questionnaires-panel') {
+    // The batch send is enabled once risks are selected (GAP-B-05 confirmation).
+    await page.getByRole('checkbox', { name: /select all listed risks/i }).check();
+  }
   if (siteId === 'mismatch.kri-form') {
     const next = page.getByRole('button', { name: /next/i });
     await next.evaluate((button: HTMLButtonElement) => button.click());
@@ -346,11 +370,11 @@ export async function arrangeDialogContractSite(page: Page, siteId: string) {
 }
 
 export const dialogContractOpeners: Readonly<Record<string, (page: Page) => Locator>> = {
-  'confirm.link-management': (page) => page.getByRole('dialog').getByRole('button', { name: /unlink/i }).first(),
+  'confirm.link-management': (page) => page.getByRole('dialog').getByRole('button', { name: /remove link/i }).first(),
   'issue.execution-history': (page) => page.getByRole('button', { name: /new issue/i }).first(),
   'mismatch.kri-form': (page) => page.getByRole('button', { name: /create kri/i }).first(),
   'role-modal.roles-panel': (page) => page.getByRole('button', { name: /add role/i }).first(),
-  'role-delete.roles-panel': (page) => page.getByRole('button', { name: /delete/i }).first(),
+  'role-delete.roles-panel': (page) => page.getByRole('button', { name: /archive/i }).first(),
   'questionnaire.risk-detail-tab': (page) => page.getByRole('button', { name: /open/i }).first(),
   'link.risk-linked-controls': (page) => page.getByRole('button', { name: /link existing/i }).first(),
   'control-create.risk-linked-controls': (page) => page.getByRole('button', { name: /add control/i }).first(),
@@ -358,6 +382,9 @@ export const dialogContractOpeners: Readonly<Record<string, (page: Page) => Loca
   'confirm.asset-links': (page) => page.getByTestId('asset-process-link-remove-1'),
   'confirm.vendor-contracts': (page) => page.getByTestId('vendor-contract-archive-1'),
   'confirm.vendor-sub-outsourcing': (page) => page.getByTestId('vendor-sub-outsourcing-archive-1'),
+  'confirm.threat-risk-links': (page) => page.getByTestId('threat-risk-link-remove-1'),
+  'confirm.risk-register-links': (page) => page.getByTestId('risk-threat-link-remove-1'),
+  'send.risk-questionnaires-panel': (page) => page.getByRole('button', { name: /send questionnaires/i }),
   'confirm.governed-mutation-reason': (page) => page.getByRole('button', { name: /open governed mutation reason/i }),
   'confirm.pending-change-cancellation': (page) => page.getByRole('button', { name: /open pending cancellation/i }),
   'confirm.dirty-task-guard': (page) => page.getByRole('button', { name: /leave dirty task/i }),
@@ -365,8 +392,8 @@ export const dialogContractOpeners: Readonly<Record<string, (page: Page) => Loca
   'risk-view.control-overview': (page) => page.getByRole('button', { name: /authentication drift/i }).first(),
   'risk-drilldown.dashboard': (page) => page.getByRole('button', { name: /1.*probability.*4.*impact.*4/i }).first(),
   'issue.contextual-action': (page) => page.getByRole('button', { name: /new issue/i }).first(),
-  'inline.departments-delete': (page) => page.getByRole('button', { name: /delete/i }).first(),
-  'inline.risk-types-delete': (page) => page.getByRole('button', { name: /delete/i }).first(),
+  'inline.departments-delete': (page) => page.getByRole('button', { name: /archive/i }).first(),
+  'inline.risk-types-delete': (page) => page.getByRole('button', { name: /archive/i }).first(),
   'frame.departments': (page) => page.getByRole('button', { name: /edit/i }).first(),
   'frame.risk-types': (page) => page.getByRole('button', { name: /edit/i }).first(),
   'frame.approval-scenarios': (page) => page.getByRole('button', { name: /configure/i }).first(),

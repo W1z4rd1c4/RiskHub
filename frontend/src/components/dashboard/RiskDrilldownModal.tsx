@@ -9,8 +9,9 @@ import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/component
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
 import { useDashboardFilterSelector } from '../../contexts/DashboardFilterContext';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { classifyRiskScore, legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, riskScoreVariantClass } from '@/lib/severity';
 import { logError } from '@/services/logger';
+import { ErrorState } from '@/components/ui/state';
 
 interface RiskInCell {
     id: number;
@@ -63,11 +64,11 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
 
     const score = probability * impact;
     const getSeverityColor = () => {
-        return legacyRiskScoreVariantClass('text', score, thresholds);
+        return riskScoreVariantClass('text', score, thresholds);
     };
 
     const getSeverityLabel = () => {
-        return t(`issues.severity.${classifyRiskScore(score, thresholds)}`);
+        return t(`risk_levels.${classifyRiskScore(score, thresholds)}`);
     };
 
     const handleRiskClick = (riskId: number) => {
@@ -107,20 +108,8 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                     error={error ? new Error(error) : null}
                     isEmpty={risks.length === 0}
                     emptyLabel={t('risk_drilldown.no_risks_at_position')}
-                    loadingFallback={(
-                        <div className="flex items-center justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    )}
                     errorFallback={(
-                        <div className="text-center py-8 text-destructive">
-                            {error}
-                        </div>
-                    )}
-                    emptyFallback={(
-                        <div className="text-center py-8 text-muted-foreground">
-                            {t('risk_drilldown.no_risks_at_position')}
-                        </div>
+                        <ErrorState message={error} onRetry={() => { void fetchRisks(); }} />
                     )}
                 >
                     <div className="space-y-2">
@@ -148,7 +137,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                     <div className="flex flex-col items-end gap-1 shrink-0">
                                         <div className="flex items-center gap-2">
                                             <span
-                                                className={`text-sm font-bold ${legacyRiskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                                className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
                                             >
                                                 {t('risk_drilldown.score_value', { score: risk.net_score })}
                                             </span>

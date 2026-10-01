@@ -142,7 +142,7 @@ export function PermissionMatrix({
                                     >
                                         <div className={cn(
                                             "w-3.5 h-3.5 rounded-sm flex items-center justify-center border",
-                                            enabled ? `border-current` : "border-slate-800"
+                                            enabled ? `border-current` : "border-border"
                                         )}>
                                             {enabled && <Check className="h-2.5 w-2.5" />}
                                         </div>

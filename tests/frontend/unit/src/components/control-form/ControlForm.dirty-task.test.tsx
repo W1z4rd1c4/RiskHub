@@ -4,7 +4,9 @@ import { HttpResponse, http } from 'msw';
 import { Link, RouterProvider, createMemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import i18n from '@/i18n';
 import type { Control } from '@/types/control';
 import { renderWithoutProviders as render } from '@test/render';
@@ -37,19 +39,22 @@ function ControlEditHarness({ control = initialControl, isEdit = true }: { contr
                 initialData={control}
                 isEdit={isEdit}
                 onCancel={() => navigate('/done')}
-                onSuccess={(_controlId, locationState) => navigate('/done', { state: locationState })}
+                onSuccess={() => navigate('/done')}
             />
         </>
     );
 }
 
 function Destination() {
+    return <p>Destination reached</p>;
+}
+
+function ControlDetailDestination() {
     const location = useLocation();
-    const state = location.state as { controlFlash?: { message: string } } | null;
     return (
         <>
-            <p>Destination reached</p>
-            {state?.controlFlash ? <p>{state.controlFlash.message}</p> : null}
+            <ApprovalQueuedNotice />
+            <p>Control detail {location.pathname}</p>
         </>
     );
 }
@@ -58,8 +63,9 @@ function renderControlEdit(control?: Control, isEdit = true) {
     const router = createMemoryRouter([
         { path: '/edit', element: <ControlEditHarness control={control} isEdit={isEdit} /> },
         { path: '/done', element: <Destination /> },
+        { path: '/controls/31', element: <ControlDetailDestination /> },
     ], { initialEntries: ['/edit'] });
-    render(<RouterProvider router={router} />);
+    render(<FeedbackProvider><RouterProvider router={router} /></FeedbackProvider>);
     return router;
 }
 
@@ -230,7 +236,7 @@ describe('ControlForm dirty-task protection', () => {
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
     });
 
-    it('accepts the saved entity and preserves warning flash when Risk linking fails', async () => {
+    it('accepts the saved entity and raises a warning toast when Risk linking fails (D9)', async () => {
         server.use(
             http.patch('*/api/v1/controls/31', async ({ request }) => {
                 const body = await request.json() as Record<string, unknown>;
@@ -250,7 +256,8 @@ describe('ControlForm dirty-task protection', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Edit Control' }));
 
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
-        expect(screen.getByText('Control updated, but linking the selected risk failed.')).toBeInTheDocument();
+        const toast = screen.getByText('Control updated, but linking the selected risk failed.').closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'warning');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
@@ -275,7 +282,8 @@ describe('ControlForm dirty-task protection', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Create Control' }));
 
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
-        expect(screen.getByText('Control created, but linking the selected risk failed.')).toBeInTheDocument();
+        const toast = screen.getByText('Control created, but linking the selected risk failed.').closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'warning');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
@@ -291,7 +299,7 @@ describe('ControlForm dirty-task protection', () => {
             .toBe('Kontrola byla aktualizována, ale propojení s vybraným rizikem se nezdařilo.');
     });
 
-    it('accepts a queued save before a later route navigation', async () => {
+    it('accepts a queued save and returns to the control with the pending notice (D12 / PM-2)', async () => {
         server.use(
             http.patch('*/api/v1/controls/31', () => HttpResponse.json({
                 status: 'approval_required',
@@ -304,9 +312,11 @@ describe('ControlForm dirty-task protection', () => {
         renderControlEdit();
         await screen.findByTestId('control-form-lookups-ready');
         await submitChangedControl();
-        expect(await screen.findByText('Control update queued for approval.')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('link', { name: 'Leave route' }));
-        expect(await screen.findByText('Destination reached')).toBeInTheDocument();
+        // The dirty guard accepted the queued snapshot, so the return is not blocked.
+        expect(await screen.findByText('Control detail /controls/31')).toBeInTheDocument();
+        const notice = screen.getByTestId('approval-queued-notice');
+        expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=91');
+        expect((await screen.findByText('Submitted for approval')).closest('li')).toHaveAttribute('data-tone', 'success');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 

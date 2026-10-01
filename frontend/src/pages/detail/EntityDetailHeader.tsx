@@ -10,8 +10,6 @@ interface EntityDetailHeaderProps {
     actions?: ReactNode;
     /** Labelled back navigation (D14); renders the shared `BackButton`. */
     back?: PageBackTarget;
-    /** @deprecated Custom back node kept for existing callers; prefer `back`. */
-    backAction?: ReactNode;
     /** Breadcrumb trail (D14, NAV-02); the last item is the current record. */
     breadcrumbs?: readonly BreadcrumbItem[];
     description?: ReactNode;
@@ -35,7 +33,6 @@ interface EntityDetailHeaderProps {
 export function EntityDetailHeader({
     actions,
     back,
-    backAction,
     breadcrumbs,
     description,
     documentTitle,
@@ -57,11 +54,6 @@ export function EntityDetailHeader({
                 {back || breadcrumbs?.length ? (
                     <div className="mb-4">
                         <PageHeaderNavigation back={back} breadcrumbs={breadcrumbs} />
-                    </div>
-                ) : null}
-                {backAction ? (
-                    <div className="mb-4 min-w-0 [&>*]:max-w-full [&>*]:break-words [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
-                        {backAction}
                     </div>
                 ) : null}
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">

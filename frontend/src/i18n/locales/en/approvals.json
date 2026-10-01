@@ -101,8 +101,6 @@
         "range": "Showing {{start}}–{{end}} of {{total}} requests",
         "range_incomplete": "Page positions {{start}}–{{end}} of {{total}} matching requests",
         "page_loading": "Loading approval page.",
-        "previous_page": "Previous page",
-        "next_page": "Next page",
         "incomplete": "Some matching requests could not be displayed. Results are incomplete ({{count}} skipped).",
         "linked_title": "Linked request",
         "linked_description": "Linked requests are shown outside this queue page.",

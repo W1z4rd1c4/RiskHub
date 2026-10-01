@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { DialogBody, DialogShell } from '@/components/ui/dialog';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
@@ -18,6 +18,7 @@ import { RiskQuestionnaireCompareNotice } from './RiskQuestionnaireCompareNotice
 import { RiskQuestionnaireDetailHeader } from './RiskQuestionnaireDetailHeader';
 import { RiskQuestionnaireSectionList } from './RiskQuestionnaireSectionList';
 import { useRiskQuestionnaireDetailWorkflow } from './useRiskQuestionnaireDetailWorkflow';
+import { LoadingState } from '@/components/ui/state';
 
 interface RiskQuestionnaireDetailProps {
     isOpen: boolean;
@@ -34,7 +35,8 @@ export function RiskQuestionnaireDetail({
     risk,
     onChanged,
 }: RiskQuestionnaireDetailProps) {
-    const { t, i18n } = useTranslation(['common', 'risks']);
+    const { t } = useTranslation(['common', 'risks']);
+    const format = useFormat();
     const titleId = useId();
     const { totalAssets } = useTotalAssetsValue();
     const workflow = useRiskQuestionnaireDetailWorkflow({
@@ -67,7 +69,7 @@ export function RiskQuestionnaireDetail({
             <RiskQuestionnaireDetailHeader
                 compareMode={workflow.compareState.compareMode}
                 isOverdue={workflow.isOverdue}
-                locale={i18n.language}
+                locale={format.locale}
                 onClose={workflow.close}
                 questionnaire={workflow.questionnaire}
                 setCompareMode={workflow.compareState.setCompareMode}
@@ -76,7 +78,7 @@ export function RiskQuestionnaireDetail({
 
             <DialogBody>
                 {workflow.loading ? (
-                    <div className="text-muted-foreground">{t('loading.generic')}</div>
+                    <LoadingState label={t('loading.generic')} />
                 ) : (
                     <div className="space-y-6">
                         {workflow.errorKey ? (
@@ -101,7 +103,7 @@ export function RiskQuestionnaireDetail({
                                     canRequestClarification={workflow.capabilities.canRequestClarification}
                                     clarificationState={workflow.clarificationState}
                                     isRiskOwner={workflow.capabilities.isRiskOwner}
-                                    locale={i18n.language}
+                                    locale={format.locale}
                                     questionnaireStatus={workflow.questionnaire.status}
                                     questionOptions={{
                                         likelihoodOptions,

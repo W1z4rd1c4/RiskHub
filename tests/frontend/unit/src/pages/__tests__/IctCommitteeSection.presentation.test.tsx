@@ -269,7 +269,7 @@ describe('IctCommitteeSection', () => {
             getCommittee.mockResolvedValue(samplePayload());
             renderSection();
 
-            expect(await screen.findByRole('heading', { level: 1, name: canonicalHeading })).toBeInTheDocument();
+            expect(await screen.findByRole('heading', { level: 2, name: canonicalHeading })).toBeInTheDocument();
             expect(screen.queryByText('ICT Risk Committee')).not.toBeInTheDocument();
         } finally {
             await i18n.changeLanguage('en');

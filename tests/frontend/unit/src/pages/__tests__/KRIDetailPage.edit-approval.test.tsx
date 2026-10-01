@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
-import { renderWithQueryClient as render } from '@test/render';
+import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetKRI = vi.fn();
@@ -18,6 +19,8 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '21' }),
         useNavigate: () => mockNavigate,
+        // D12: the approval-queued notice reads router state.
+        useLocation: () => ({ pathname: '/kris/21', search: '', hash: '', state: null, key: 'test' }),
         useSearchParams: () => [mockSearchParams],
     };
 });
@@ -147,8 +150,8 @@ describe('KRIDetailPage approval-aware edit flow', () => {
         mockDeleteKRI.mockResolvedValue(undefined);
     });
 
-    it('shows an approval banner and keeps the record unchanged until approval is granted', async () => {
-        render(<KRIDetailPage />);
+    it('keeps the user on the KRI with the pending notice and a toast; the record stays unchanged (D12)', async () => {
+        render(<FeedbackProvider><KRIDetailPage /></FeedbackProvider>);
 
         await screen.findAllByText('Claims Leakage Ratio');
         await waitFor(() => {
@@ -172,13 +175,18 @@ describe('KRIDetailPage approval-aware edit flow', () => {
             }));
         });
 
-        await screen.findByText(/KRI update submitted for approval\./i);
+        const toast = (await screen.findByText('Submitted for approval')).closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'success');
+        expect(mockNavigate).toHaveBeenCalledWith(
+            { pathname: '/kris/21', search: '', hash: '' },
+            { replace: true, state: { approvalQueued: { approvalId: 88 } } },
+        );
         expect(screen.queryByRole('button', { name: 'trigger-kri-save' })).not.toBeInTheDocument();
         expect(screen.getAllByText('Claims Leakage Ratio').length).toBeGreaterThan(0);
         expect(mockGetKRI).toHaveBeenCalledTimes(1);
     });
 
-    it('shows an approval banner and stays on the detail page when delete requires approval', async () => {
+    it('stays on the detail page with the pending notice and a toast when archive requires approval (D12)', async () => {
         mockDeleteKRI.mockResolvedValue({
             status: 'approval_required',
             approval_id: 89,
@@ -187,7 +195,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
             pending_fields: [],
         });
 
-        render(<KRIDetailPage />);
+        render(<FeedbackProvider><KRIDetailPage /></FeedbackProvider>);
 
         await screen.findAllByText('Claims Leakage Ratio');
         fireEvent.click(screen.getByRole('button', { name: /^(Archive|Archivovat)$/i }));
@@ -197,7 +205,11 @@ describe('KRIDetailPage approval-aware edit flow', () => {
             expect(mockDeleteKRI).toHaveBeenCalledWith(21, 'Delete because threshold is obsolete');
         });
 
-        await screen.findByText(/Deletion request submitted for approval/i);
+        await screen.findByText('Submitted for approval');
+        expect(mockNavigate).toHaveBeenCalledWith(
+            { pathname: '/kris/21', search: '', hash: '' },
+            { replace: true, state: { approvalQueued: { approvalId: 89 } } },
+        );
         expect(screen.getAllByText('Claims Leakage Ratio').length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: 'confirm-kri-delete' })).not.toBeInTheDocument();
         expect(mockNavigate).not.toHaveBeenCalledWith('/kris');

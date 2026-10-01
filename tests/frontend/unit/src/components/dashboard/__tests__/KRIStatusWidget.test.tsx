@@ -130,6 +130,31 @@ describe('KRIStatusWidget drilldown', () => {
         });
     });
 
+    it('switches the upcoming and overdue panels through an accessible tablist', async () => {
+        render(
+            <MemoryRouter>
+                <KRIStatusWidget />
+            </MemoryRouter>,
+        );
+
+        await screen.findByText('Due Soon KRI');
+        expect(screen.getByRole('tablist', { name: 'kri.status_views_label' })).toBeInTheDocument();
+        const upcomingTab = screen.getByRole('tab', { name: 'kri.upcoming' });
+        const overdueTab = screen.getByRole('tab', { name: 'kri.overdue' });
+        expect(upcomingTab).toHaveAttribute('aria-selected', 'true');
+        expect(overdueTab).toHaveAttribute('aria-selected', 'false');
+        expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', upcomingTab.id);
+
+        const ui = userEvent.setup();
+        await ui.click(overdueTab);
+
+        expect(overdueTab).toHaveAttribute('aria-selected', 'true');
+        expect(upcomingTab).toHaveAttribute('aria-selected', 'false');
+        expect(await screen.findByText('Overdue KRI')).toBeInTheDocument();
+        expect(screen.queryByText('Due Soon KRI')).not.toBeInTheDocument();
+        expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', overdueTab.id);
+    });
+
     it('keeps the exact total while showing only the first five upcoming KRIs', async () => {
         getDueSoonMock.mockResolvedValue(
             Array.from({ length: 6 }, (_, index) => ({

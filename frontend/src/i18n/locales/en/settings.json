@@ -78,7 +78,8 @@
     "questionnaire_clarification_requested": "Clarification requested",
     "questionnaire_clarification_requested_desc": "When someone requests clarification on your questionnaire responses",
     "persistence_note": "Your preferences are saved automatically and synced across devices.",
-    "load_failed": "Failed to load notification preferences."
+    "load_failed": "Failed to load notification preferences.",
+    "save_failed": "The notification preference could not be saved. The previous setting was kept."
   },
   "localization": {
     "title": "Localization Settings",

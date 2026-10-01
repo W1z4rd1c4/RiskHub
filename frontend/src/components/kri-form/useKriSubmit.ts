@@ -1,8 +1,9 @@
 import { type FormEvent, useCallback } from "react";
 import type { NavigateFunction } from "react-router-dom";
 
+import { useApprovalQueued } from "@/hooks/useApprovalQueued";
 import { parseUpdateResult } from "@/lib/approvalUi";
-import { navigateToApprovalRequest } from "@/pages/approvals/approvalNavigation";
+import { useVendorContextOutcome } from "@/pages/vendors/useVendorContextOutcome";
 import { ApiClientError } from "@/services/apiClient";
 import { kriApi } from "@/services/kriApi";
 import { logError } from "@/services/logger";
@@ -38,11 +39,13 @@ interface KriCreateOptions {
   requestReason?: string;
 }
 
+interface ParentRiskLinkApproval { approvalId: number; returnTo: string }
+
 async function submitProtectedParentRiskLink(
   vendorContext: KRIFormVendorContext | null,
   riskId: number | null | undefined,
   options: KriCreateOptions,
-): Promise<number | null> {
+): Promise<ParentRiskLinkApproval | null> {
   if (
     !vendorContext?.protectedChangeRequiresApproval ||
     !options.linkRiskFirst ||
@@ -57,7 +60,7 @@ async function submitProtectedParentRiskLink(
     options.requestReason,
   );
   if (isProcessApprovalQueuedResponse(result)) {
-    return result.approval_id;
+    return { approvalId: result.approval_id, returnTo: vendorContext.returnTo };
   }
   return null;
 }
@@ -80,6 +83,10 @@ export function useKriSubmit({
   vendorContext,
 }: UseKriSubmitArgs) {
   const isProtectedVendorContext = Boolean(vendorContext?.protectedChangeRequiresApproval);
+  // D12 / PM-2: approval-routed outcomes return to the entity page with the
+  // pending notice + toast; D9: vendor-context outcomes are toasts.
+  const announceApprovalQueued = useApprovalQueued();
+  const reportVendorOutcome = useVendorContextOutcome();
 
   const finalizeCreate = useCallback(
     async (options: KriCreateOptions = {}) => {
@@ -90,16 +97,16 @@ export function useKriSubmit({
       // vendor.link.kri.add route after the KRI exists (#100).
       let completionPatch: KriFormStatePatch = {};
       try {
-        setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
-        const parentRiskApprovalId = await submitProtectedParentRiskLink(
+        setStatePatch({ error: null, isSubmitting: true });
+        const parentRiskApproval = await submitProtectedParentRiskLink(
           vendorContext,
           formData.risk_id,
           options,
         );
-        if (parentRiskApprovalId !== null) {
+        if (parentRiskApproval !== null) {
           completionPatch = { pendingGovernedCreate: null };
           acceptCurrentSnapshot(submittedSnapshot);
-          navigateToApprovalRequest(navigate, parentRiskApprovalId);
+          announceApprovalQueued({ approvalId: parentRiskApproval.approvalId, to: parentRiskApproval.returnTo });
           return;
         }
         const newKRI = await kriApi.createKRI({
@@ -127,7 +134,7 @@ export function useKriSubmit({
               );
               if (isProcessApprovalQueuedResponse(result)) {
                 acceptCurrentSnapshot(submittedSnapshot);
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id, to: vendorContext.returnTo });
                 return;
               }
             } catch (error) {
@@ -136,18 +143,13 @@ export function useKriSubmit({
             }
           }
           acceptCurrentSnapshot(submittedSnapshot);
-          void navigate(vendorContext.returnTo, {
-            state: {
-              vendorFlash: {
-                tone: linkedDirectly ? "success" : "warn",
-                message: linkedDirectly
-                  ? t("vendors:links.kris.created_and_linked")
-                  : t("vendors:links.kris.created_but_not_linked"),
-                ctaHref: `/kris/${newKRI.id}`,
-                ctaLabel: t("vendors:links.actions.open_kri"),
-              },
-            },
+          reportVendorOutcome({
+            tone: linkedDirectly ? "success" : "warn",
+            message: linkedDirectly ? t("vendors:links.kris.created_and_linked") : t("vendors:links.kris.created_but_not_linked"),
+            ctaHref: `/kris/${newKRI.id}`,
+            ctaLabel: t("vendors:links.actions.open_kri"),
           });
+          void navigate(vendorContext.returnTo);
           return;
         }
 
@@ -172,10 +174,12 @@ export function useKriSubmit({
     [
       effectiveVendorIds,
       acceptCurrentSnapshot,
+      announceApprovalQueued,
       formData,
       isProtectedVendorContext,
       navigate,
       onSuccess,
+      reportVendorOutcome,
       setStatePatch,
       submittedSnapshot,
       t,
@@ -214,7 +218,7 @@ export function useKriSubmit({
       }
 
       try {
-        setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
+        setStatePatch({ error: null, isSubmitting: true });
 
         if (kriId) {
           const { current_value: _currentValue, ...updatePayload } = formData;
@@ -225,7 +229,8 @@ export function useKriSubmit({
           const parsed = parseUpdateResult(result);
           if (parsed.kind === "approval") {
             acceptCurrentSnapshot(submittedSnapshot);
-            setStatePatch({ approvalQueued: { message: parsed.message }, isSubmitting: false });
+            setStatePatch({ isSubmitting: false });
+            announceApprovalQueued({ approvalId: parsed.approvalId, to: `/kris/${kriId}` });
             return;
           }
         }
@@ -247,6 +252,7 @@ export function useKriSubmit({
     [
       effectiveVendorIds,
       acceptCurrentSnapshot,
+      announceApprovalQueued,
       beginCreate,
       formData,
       isEdit,

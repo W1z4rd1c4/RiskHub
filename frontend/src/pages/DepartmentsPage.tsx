@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Users, ShieldAlert, AlertCircle, ClipboardList, Activity, TrendingUp } from 'lucide-react';
+import { Building2, Users, ShieldAlert, ClipboardList, Activity, TrendingUp } from 'lucide-react';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { RefreshButton } from '@/components/ui/RefreshButton';
-import { useTranslation } from '@/i18n/hooks';
+import { EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import { isForbiddenApiError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
@@ -39,54 +42,58 @@ export function DepartmentsPage() {
     }, []);
 
     if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                <PageHeader title={t('dashboard:department_exposure.title')} />
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-black text-foreground mb-2">{t('dashboard:department_exposure.title')}</h2>
-                    <p className="text-muted-foreground font-medium">{t('dashboard:department_exposure.subtitle')}</p>
-                </div>
-                <div className="flex items-center gap-3">
+        <PageContainer>
+            <PageHeader
+                title={t('dashboard:department_exposure.title')}
+                description={t('dashboard:department_exposure.subtitle')}
+                actions={(
                     <RefreshButton
                         iconOnly
                         onRefresh={() => void fetchDepartments()}
                         isFetching={isLoading}
                     />
-                </div>
-            </div>
-
-            {errorKey && (
-                <div className="glass-card border-destructive/50 bg-destructive/10">
-                    <div className="flex items-center gap-3 text-destructive">
-                        <AlertCircle className="h-5 w-5" />
-                        <p className="font-medium">{t(errorKey, { ns: 'errorKeys' })}</p>
-                    </div>
-                </div>
-            )}
+                )}
+            />
 
             {isLoading ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="glass-card animate-pulse">
-                            <div className="h-6 w-32 bg-tint/10 rounded mb-6" />
-                            <div className="flex items-center gap-6">
-                                <div className="h-12 w-12 bg-tint/10 rounded" />
-                                <div className="h-12 w-12 bg-tint/10 rounded" />
-                                <div className="h-12 w-12 bg-tint/10 rounded" />
-                            </div>
+                <LoadingState
+                    skeleton={(
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="glass-card">
+                                    <Skeleton className="mb-6 h-6 w-32" />
+                                    <div className="flex items-center gap-6">
+                                        <Skeleton className="h-12 w-12" />
+                                        <Skeleton className="h-12 w-12" />
+                                        <Skeleton className="h-12 w-12" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    )}
+                />
+            ) : errorKey ? (
+                // GAP-C-11: a load failure is an error with retry, never "no departments".
+                <ErrorState
+                    className="glass-card"
+                    message={translateUiMessage(t, errorKey)}
+                    onRetry={() => void fetchDepartments()}
+                />
             ) : departments.length === 0 ? (
-                <div className="glass-card p-12 flex flex-col items-center justify-center text-center">
-                    <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-sm font-medium text-muted-foreground max-w-sm">
-                        {t('dashboard:department_exposure.empty')}
-                    </p>
-                </div>
+                <EmptyState
+                    icon={Building2}
+                    title={t('dashboard:department_exposure.empty')}
+                    className="glass-card p-12"
+                />
             ) : (
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {departments.map((dept) => (
@@ -109,13 +116,13 @@ export function DepartmentsPage() {
                                 </div>
                                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                                     {dept.breaching_kri_count > 0 && (
-                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-warning/10 text-warning-text text-xs font-black [overflow-wrap:anywhere]">
-                                            {dept.breaching_kri_count} {t('kris:status.breached').toUpperCase()}
+                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-warning/10 text-warning-text text-xs font-black uppercase [overflow-wrap:anywhere]">
+                                            {dept.breaching_kri_count} {t('kris:status.breached')}
                                         </div>
                                     )}
                                     {dept.high_risk_count > 0 && (
-                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-destructive/5 text-destructive text-xs font-black [overflow-wrap:anywhere]">
-                                            {dept.high_risk_count} {t('dashboard:risk_levels.critical').toUpperCase()}
+                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-destructive/5 text-destructive text-xs font-black uppercase [overflow-wrap:anywhere]">
+                                            {dept.high_risk_count} {t('dashboard:risk_levels.critical')}
                                         </div>
                                     )}
                                 </div>
@@ -153,7 +160,7 @@ export function DepartmentsPage() {
                     ))}
                 </div>
             )}
-        </div>
+        </PageContainer>
     );
 }
 

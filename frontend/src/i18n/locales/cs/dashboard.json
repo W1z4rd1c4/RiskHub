@@ -70,6 +70,7 @@
     }
   },
   "views": {
+    "label": "Pohledy přehledu",
     "overview": "Přehled",
     "risk_committee": "Výbor pro řízení rizik",
     "ict_committee": "Výbor pro řízení rizik ICT"
@@ -138,6 +139,7 @@
     "appetite_maintained": "Rizikový apetit dodržen",
     "no_breaches_org": "V organizaci aktuálně nejsou překročeny žádné KRI.",
     "status_title": "Stav KRI",
+    "status_views_label": "Zobrazení stavu KRI",
     "upcoming_count": "{{count}} nadcházejících",
     "overdue_count": "{{count}} po termínu",
     "upcoming": "Nadcházející",
@@ -244,11 +246,6 @@
     "risk_count_few": "{{count}} rizika",
     "risk_count_other": "{{count}} rizik",
     "no_recent_significant_activity": "Žádná nedávná významná aktivita",
-    "today": "Dnes",
-    "yesterday": "Včera",
-    "days_ago": "před {{count}} dny",
-    "weeks_ago": "před {{count}} týdny",
-    "months_ago": "před {{count}} měsíci",
     "actions": {
       "create": "Vytvoření",
       "delete": "Smazání",

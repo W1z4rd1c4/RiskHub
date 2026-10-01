@@ -6,23 +6,24 @@ import { dashboardApi, type DashboardCommitteeSummary } from '@/services/dashboa
 
 const mockNavigate = vi.fn();
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { count?: number; shown?: number; total?: number } | string) => {
-            if (key === 'risk_committee.days_ago' && typeof options === 'object') {
-                return `${options.count} days ago`;
-            }
-            if (key === 'risk_committee.top_of_total' && typeof options === 'object') {
-                return `Top ${options.shown} of ${options.total}`;
-            }
-            if (key === 'sections.risk_exposure_by_dept') return 'Sum of net Risk scores';
-            if (key === 'risk_committee.risk_count' && typeof options === 'object') {
-                return `${options.count} Risks`;
-            }
-            return key;
-        },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const { formatRelativeDateValue } = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    return {
+        useFormat: () => ({ relative: (value: string) => formatRelativeDateValue(value, 'en') }),
+        useTranslation: () => ({
+            t: (key: string, options?: { count?: number; shown?: number; total?: number } | string) => {
+                if (key === 'risk_committee.top_of_total' && typeof options === 'object') {
+                    return `Top ${options.shown} of ${options.total}`;
+                }
+                if (key === 'sections.risk_exposure_by_dept') return 'Sum of net Risk scores';
+                if (key === 'risk_committee.risk_count' && typeof options === 'object') {
+                    return `${options.count} Risks`;
+                }
+                return key;
+            },
+        }),
+    };
+});
 
 vi.mock('@/components/dashboard/QuarterlyComparisonWidget', () => ({
     QuarterlyComparisonWidget: () => <div>quarterly comparison</div>,

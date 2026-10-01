@@ -418,6 +418,9 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             ));
             await riskManagerPage.getByTestId('vendor-contract-form-save').click();
             expect((await queued).status()).toBe(202);
+            // D12 / PM-2: the requester stays on the entity page with the pending
+            // notice; its link opens the queued request.
+            await riskManagerPage.getByTestId('approval-queued-notice-link').click();
             await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
 
             expect((await getContractByReference(vendorId, contractReference))!.note).toBe(originalNote);
@@ -456,6 +459,9 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             ));
             await archiveDialog.getByRole('button', { name: /Archive contract|Archivovat smlouvu/ }).click();
             expect((await archiveQueued).status()).toBe(202);
+            // D12 / PM-2: the requester stays on the entity page with the pending
+            // notice; its link opens the queued request.
+            await riskManagerPage.getByTestId('approval-queued-notice-link').click();
             await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
             expect((await getContractByReference(vendorId, contractReference))!.is_archived).toBe(false);
 

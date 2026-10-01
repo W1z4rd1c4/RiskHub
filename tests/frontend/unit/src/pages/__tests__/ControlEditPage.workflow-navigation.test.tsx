@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { RouterProvider, createMemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { ControlEditPage } from '@/pages/ControlEditPage';
 import { ApiClientError } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
@@ -36,13 +37,7 @@ const control: Control = {
 
 function DetailProbe() {
     const location = useLocation();
-    const flash = (location.state as { controlFlash?: { message: string } } | null)?.controlFlash;
-    return (
-        <>
-            <output data-testid="location">{`${location.pathname}${location.search}${location.hash}`}</output>
-            <output data-testid="control-flash">{flash?.message ?? 'no flash'}</output>
-        </>
-    );
+    return <output data-testid="location">{`${location.pathname}${location.search}${location.hash}`}</output>;
 }
 
 describe('ControlEditPage workflow navigation', () => {
@@ -76,7 +71,7 @@ describe('ControlEditPage workflow navigation', () => {
         vi.restoreAllMocks();
     });
 
-    it('keeps the partial-link warning and exact list context after a direct edit save', async () => {
+    it('raises the partial-link warning toast and keeps the exact list context after a direct edit save', async () => {
         const returnTo = '/controls?q=payments&page=3#group-heading';
         const router = createMemoryRouter([
             { path: '/controls/:id/edit', element: <ControlEditPage /> },
@@ -84,7 +79,9 @@ describe('ControlEditPage workflow navigation', () => {
         ], { initialEntries: [`/controls/10/edit?return_to=${encodeURIComponent(returnTo)}`] });
         render(
             <QueryClientProvider client={createTestQueryClient()}>
-                <RouterProvider router={router} />
+                <FeedbackProvider>
+                    <RouterProvider router={router} />
+                </FeedbackProvider>
             </QueryClientProvider>,
         );
 
@@ -97,9 +94,9 @@ describe('ControlEditPage workflow navigation', () => {
         expect(await screen.findByTestId('location')).toHaveTextContent(
             `/controls/10?return_to=${encodeURIComponent(returnTo)}`,
         );
-        expect(screen.getByTestId('control-flash')).toHaveTextContent(
-            'Control updated, but linking the selected risk failed.',
-        );
+        // D9 / FB-01: the partial outcome is a warning toast, not a router-state flash.
+        const toast = screen.getByText('Control updated, but linking the selected risk failed.').closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'warning');
     });
 
     it('keeps a failed edit load on its exact URL and retries only that record', async () => {
@@ -154,7 +151,7 @@ describe('ControlEditPage workflow navigation', () => {
         );
 
         await screen.findByRole('heading', { name: /record unavailable/i });
-        await userEvent.click(screen.getByRole('button', { name: 'Control Catalog' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Back to Catalog' }));
 
         expect(await screen.findByTestId('location')).toHaveTextContent(returnTo);
     });
@@ -176,7 +173,7 @@ describe('ControlEditPage workflow navigation', () => {
         expect(controlApi.getControl).not.toHaveBeenCalled();
         expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
 
-        await userEvent.click(screen.getByRole('button', { name: 'Control Catalog' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Back to Catalog' }));
         expect(await screen.findByTestId('location')).toHaveTextContent(returnTo);
     });
 });

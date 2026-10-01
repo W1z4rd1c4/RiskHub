@@ -8,6 +8,7 @@ Vitest coverage for shared frontend library helpers.
 
 - `capabilities.test.ts`
 - `severity.test.ts`, `tones.test.ts`, `cssTokens.test.ts` - severity scale, tone recipes and runtime token reads
+- `questionnaireStatus.test.ts` - questionnaire status → tone/label map and overdue derivation
 - `cn.test.ts` - `cn()` conflict resolution for the named token scales (shadow, z, duration, max-w, eyebrow)
 
 ## Notes

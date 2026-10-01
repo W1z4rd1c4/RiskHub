@@ -2,6 +2,7 @@ import { Plus, Search, User, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { LoadingState } from '@/components/ui/state';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Control } from '@/types/control';
@@ -48,7 +49,7 @@ export function ControlFormOwnershipStep({
   handleInputChange,
 }: ControlFormOwnershipStepProps) {
   if (isLoadingLookups) {
-    return <div className="text-muted-foreground text-sm">{t('loading.generic', { ns: 'common' })}</div>;
+    return <LoadingState layout="inline" label={t('loading.generic', { ns: 'common' })} />;
   }
 
   return (

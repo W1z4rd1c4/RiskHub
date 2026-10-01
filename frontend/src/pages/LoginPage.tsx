@@ -10,6 +10,7 @@ import { type DemoAccountGroups, type ProdLanguage } from '@/pages/login/loginPa
 import { getProdAuthCopy } from '@/pages/login/prodAuthCopy';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { useLoginActions } from '@/pages/login/useLoginActions';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
 import { logError } from '@/services/logger';
 import { applyAuthenticatedSession, clearExplicitLogoutSuppressed, useSessionSnapshot } from '@/services/session';
@@ -22,6 +23,8 @@ function stripErrorKeyPrefix(errorKey: string): string {
 
 export default function LoginPage() {
     const { t, i18n } = useTranslation(['auth', 'errorKeys', 'common']);
+    // NAV-01: a translated tab title; the production SSO view overrides it below.
+    usePageTitle(t('login.title'));
     const location = useLocation();
     const navigate = useNavigate();
     const session = useSessionSnapshot();

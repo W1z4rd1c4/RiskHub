@@ -127,7 +127,7 @@ describe('RolesPanel', () => {
         expect(within(adminRow as HTMLTableRowElement).getByRole('button', {
             name: /admin role cannot be edited/i,
         })).toBeDisabled();
-        expect(within(adminRow as HTMLTableRowElement).queryByLabelText(/delete/i)).not.toBeInTheDocument();
+        expect(within(adminRow as HTMLTableRowElement).queryByLabelText(/archive/i)).not.toBeInTheDocument();
 
         const archivedRow = screen.getByText('Archived Role').closest('tr');
         expect(archivedRow).not.toBeNull();
@@ -177,32 +177,75 @@ describe('RolesPanel', () => {
         });
     });
 
-    it('blocks deleting assigned roles in the confirmation dialog', async () => {
+    it('blocks archiving assigned roles in the confirmation dialog', async () => {
         renderRolesPanel();
         await waitForRoles();
 
         const row = screen.getByText('Assigned Custom').closest('tr');
         expect(row).not.toBeNull();
-        fireEvent.click(within(row as HTMLTableRowElement).getByLabelText(/delete/i));
+        // D10: a role is soft-deleted and restorable, so the row action is a named Archive.
+        const archiveButton = within(row as HTMLTableRowElement).getByRole('button', { name: 'Archive Assigned Custom' });
+        expect(archiveButton.querySelector('svg.lucide-archive')).not.toBeNull();
+        expect(archiveButton.querySelector('svg.lucide-trash-2')).toBeNull();
+        fireEvent.click(archiveButton);
 
-        const dialog = await screen.findByRole('alertdialog', { name: 'Delete Role?' });
+        const dialog = await screen.findByRole('alertdialog', { name: 'Archive role?' });
         expect(within(dialog).getByText(/Assigned Custom/)).toBeInTheDocument();
-        expect(within(dialog).getByText(/Cannot delete: 2 users/i)).toBeInTheDocument();
-        expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
+        expect(within(dialog).getByText(/Cannot archive: 2 users/i)).toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: /^archive$/i })).not.toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
     });
 
-    it('renders delete errors without closing the confirmation dialog', async () => {
+    it('renders archive errors inside the open confirmation dialog', async () => {
         mockDeleteRole.mockRejectedValue(new Error('delete failed'));
         renderRolesPanel();
         await waitForRoles();
 
         const row = screen.getByText('Risk Owner').closest('tr');
         expect(row).not.toBeNull();
-        fireEvent.click(within(row as HTMLTableRowElement).getByLabelText(/delete/i));
-        const dialog = screen.getByRole('alertdialog', { name: 'Delete Role?' });
-        fireEvent.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+        fireEvent.click(within(row as HTMLTableRowElement).getByRole('button', { name: 'Archive Risk Owner' }));
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive role?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: /^archive$/i }));
 
-        expect(await screen.findByText(/Something went wrong/i)).toBeInTheDocument();
-        expect(screen.getAllByText(/Risk Owner/).length).toBeGreaterThan(0);
+        const alert = await within(dialog).findByRole('alert');
+        expect(alert).toHaveTextContent(/Something went wrong/i);
+        expect(screen.getByRole('alertdialog', { name: 'Archive role?' })).toBeInTheDocument();
+    });
+
+    it('keeps the archive dialog busy while the request is in flight', async () => {
+        let resolveArchive: (value: unknown) => void = () => undefined;
+        mockDeleteRole.mockImplementation(() => new Promise((resolve) => { resolveArchive = resolve; }));
+        renderRolesPanel();
+        await waitForRoles();
+
+        const row = screen.getByText('Risk Owner').closest('tr');
+        fireEvent.click(within(row as HTMLTableRowElement).getByRole('button', { name: 'Archive Risk Owner' }));
+        const dialog = screen.getByRole('alertdialog', { name: 'Archive role?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: /^archive$/i }));
+
+        await waitFor(() => expect(dialog).toHaveAttribute('aria-busy', 'true'));
+        fireEvent.keyDown(dialog, { key: 'Escape' });
+        expect(screen.getByRole('alertdialog', { name: 'Archive role?' })).toBeInTheDocument();
+
+        resolveArchive({ status: 'deleted', id: 2 });
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    });
+
+    it('shows a permission catalogue failure as an error with retry and blocks saving (GAP-C-11)', async () => {
+        mockGetPermissions.mockReset();
+        mockGetPermissions.mockRejectedValueOnce(new Error('offline')).mockResolvedValue(permissions);
+        renderRolesPanel();
+        await waitForRoles();
+
+        fireEvent.click(screen.getByRole('button', { name: /add role/i }));
+        const error = await screen.findByTestId('role-modal-permissions-error');
+        expect(error).toHaveAttribute('role', 'alert');
+        expect(screen.getByRole('button', { name: /save role/i })).toBeDisabled();
+
+        fireEvent.click(within(error).getByRole('button', { name: /retry/i }));
+
+        expect(await screen.findByLabelText(/Can manage risks/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('role-modal-permissions-error')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /save role/i })).toBeEnabled();
     });
 });

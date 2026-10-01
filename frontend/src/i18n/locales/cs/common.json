@@ -17,7 +17,6 @@
     "view": "Zobrazit",
     "back": "Zpět",
     "next": "Další",
-    "previous": "Předchozí",
     "select": "Vybrat",
     "clear": "Vymazat",
     "apply": "Použít",
@@ -27,6 +26,7 @@
     "no": "Ne",
     "archive": "Archivovat",
     "remove_link": "Odebrat propojení",
+    "archive_named": "Archivovat {{name}}",
     "send": "Odeslat",
     "discard": "Zahodit",
     "unarchive": "Obnovit z archivu",
@@ -51,7 +51,8 @@
     "name": "RiskHub"
   },
   "page_title": {
-    "template": "{{page}} · RiskHub"
+    "template": "{{page}} · RiskHub",
+    "edit": "Úprava: {{name}}"
   },
   "breadcrumbs": {
     "label": "Drobečková navigace"
@@ -63,7 +64,8 @@
   "not_found_page": {
     "title": "Stránka nebyla nalezena",
     "description": "Tato adresa neodpovídá žádné dostupné stránce.",
-    "dashboard": "Přehled"
+    "dashboard": "Přehled",
+    "back": "Zpět na předchozí stránku"
   },
   "detail_load": {
     "unavailable_title": "Záznam není dostupný",
@@ -126,6 +128,10 @@
     "department": "Oddělení",
     "owner": "Vlastník",
     "process": "Proces",
+    "vendor": "Dodavatel",
+    "asset": "Aktivum",
+    "threat": "Hrozba",
+    "risk_type": "Typ rizika",
     "gross": "Hrubé",
     "net": "Čisté",
     "form": "Forma",
@@ -204,13 +210,11 @@
     }
   },
   "confirmation": {
-    "delete_title": "Potvrdit smazání",
     "delete_message": "Opravdu chcete smazat tuto položku? Tuto akci nelze vrátit zpět.",
     "unsaved_title": "Neuložené změny",
     "unsaved_changes": "Máte neuložené změny. Opravdu chcete odejít?",
     "archive_title": "Archivovat {{type}}",
-    "archive_reversible": "Tuto akci může administrátor vrátit zpět.",
-    "remove_link": "Opravdu chcete odebrat toto propojení?"
+    "archive_reversible": "Tuto akci může administrátor vrátit zpět."
   },
   "confirm": {
     "archive": {
@@ -277,7 +281,6 @@
     "to": "až",
     "entries": "záznamů",
     "per_page": "na stránku",
-    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů",
     "go_to_page": "Přejít na stránku {{page}}",
     "previous_page": "Předchozí stránka",
     "next_page": "Další stránka",
@@ -304,6 +307,7 @@
     "by_flag": "Dle příznaku"
   },
   "hero": {
+    "page_title": "Řízení podnikových rizik",
     "tagline": "Platforma pro řízení podnikových rizik nové generace.",
     "subtitle": "Vytvořeno pro moderní pojišťovny v regulaci Solvency II.",
     "access_platform": "Přístup k platformě",
@@ -446,7 +450,23 @@
     "result_plural": "položek"
   },
   "approval": {
-    "submitted_for_approval": "Odesláno ke schválení"
+    "submitted_for_approval": "Odesláno ke schválení",
+    "queued": {
+      "toast_title": "Odesláno ke schválení",
+      "toast_body": "Změna se projeví po schválení.",
+      "title": "Čeká na schválení",
+      "body": "Vaše žádost byla odeslána ke schválení. Záznam zůstane beze změny, dokud žádost nebude schválena.",
+      "open": "Otevřít ve schvalování"
+    }
+  },
+  "outcome": {
+    "archived": "Archivováno: {{name}}",
+    "archived_generic": "Záznam byl archivován",
+    "restored": "Obnoveno: {{name}}",
+    "restored_generic": "Záznam byl obnoven",
+    "restore_failed": "Záznam se nepodařilo obnovit.",
+    "link_removed": "Vazba byla odebrána",
+    "deleted": "Smazáno: {{name}}"
   },
   "activity_log": {
     "subtitle": "Přehled zaznamenaných akcí uživatelů a systému.",
@@ -658,16 +678,11 @@
   "risk_committee": {
     "critical_risks": "Kritická rizika",
     "critical_vendors": "Kritičtí dodavatelé",
-    "days_ago": "před {{count}} dny",
-    "months_ago": "před {{count}} měsíci",
     "no_critical_risks": "Aktuálně žádná kritická rizika",
     "no_department_exposure_data": "Žádná data o expozici oddělení",
     "no_recent_significant_activity": "Žádná nedávná významná aktivita",
     "no_summary_data": "Souhrnná data nejsou dostupná",
-    "no_vendors_in_scope": "Žádní dodavatelé v rozsahu",
-    "today": "Dnes",
-    "weeks_ago": "před {{count}} týdny",
-    "yesterday": "Včera"
+    "no_vendors_in_scope": "Žádní dodavatelé v rozsahu"
   },
   "sections": {
     "recent_activity": "Nedávná aktivita",

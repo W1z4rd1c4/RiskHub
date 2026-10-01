@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuthz } from '@/authz/useAuthz';
@@ -11,7 +10,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/tables/Pagination';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTranslation } from '@/i18n/hooks';
+import { ErrorState } from '@/components/ui/state';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminApi } from '@/services/adminApi';
 import { logError } from '@/services/logger';
@@ -19,6 +19,8 @@ import type { AccessUserRead } from '@/types/access';
 import type { DirectoryImportResponse } from '@/types/directory';
 import { useDepartmentRegisterScope } from './departments/useDepartmentRegisterScope';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 import { BreakGlassEnableDialog } from './users/BreakGlassEnableDialog';
 import { useUserLifecycleActions } from './users/useUserLifecycleActions';
@@ -224,7 +226,12 @@ export function UsersPage() {
     }, [accessWorkflow.importedUserTransition, navigate, t]);
 
     if (currentUser && pageMode === 'forbidden') {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                <PageHeader title={t('users.title')} />
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
@@ -261,7 +268,7 @@ export function UsersPage() {
     const directoryTotalPages = Math.max(1, Math.ceil(directoryTotal / DIRECTORY_PAGE_SIZE));
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <PageContainer className="animate-in fade-in duration-500">
             <UsersPageHeader
                 allowAuthModeActions={allowAuthModeActions}
                 canRunDirectoryCheck={canCheckDirectory}
@@ -273,19 +280,15 @@ export function UsersPage() {
             />
 
             {authModeStatus === 'error' && authModeError && (
-                <div
-                    role="alert"
-                    className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-text"
-                >
-                    {authModeError}
-                    <button type="button" className="ml-3 underline" onClick={retryAuthConfig}>{t('native_users.retry')}</button>
-                </div>
+                // SM-07: a region-scoped load failure is the shared error banner with retry.
+                <ErrorState
+                    variant="banner"
+                    message={authModeError}
+                    onRetry={retryAuthConfig}
+                    retryLabel={t('native_users.retry')}
+                />
             )}
 
-            {locationState?.nativeInvitation && nativeLifecycle && <div role="status" className="rounded-md border p-4">
-                <p>{t('native_users.created', locationState.nativeInvitation)}</p>
-                <p>{t(`native_users.delivery.${locationState.nativeInvitation.delivery_status}`)}</p>
-            </div>}
             {outcome && (
                 <div
                     role={outcome.kind}
@@ -329,22 +332,13 @@ export function UsersPage() {
                 />
 
                 {loadErrorKey && !isLoading ? (
-                    <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-5 py-6 text-sm text-destructive">
-                        <p className="font-medium">
-                            {t(loadErrorKey, { ns: 'errorKeys' })}
-                        </p>
-                        <p className="mt-2 text-destructive">
-                            {t('users.load_failed_help', { ns: 'admin' })}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => void fetchUsers()}
-                            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/20"
-                        >
-                            <RefreshCw className="h-4 w-4" />
-                            {t('actions.retry', { ns: 'common' })}
-                        </button>
-                    </div>
+                    <ErrorState
+                        className="glass-card"
+                        title={translateUiMessage(t, loadErrorKey)}
+                        message={t('users.load_failed_help', { ns: 'admin' })}
+                        onRetry={() => void fetchUsers()}
+                        retryLabel={t('actions.retry', { ns: 'common' })}
+                    />
                 ) : (
                     <UsersTable
                         actionModelsByUserId={accessWorkflow.actionModelsByUserId}
@@ -417,7 +411,7 @@ export function UsersPage() {
                 onReasonChange={setBreakGlassReason}
                 onSubmit={handleBreakGlassSubmit}
             />
-        </div>
+        </PageContainer>
     );
 }
 

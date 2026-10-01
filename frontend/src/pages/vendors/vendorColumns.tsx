@@ -3,18 +3,11 @@ import { Building2, User } from 'lucide-react';
 import type { Column } from '@/components/tables';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 import type { Vendor } from '@/types/vendor';
 
 import { vendorOwnerDisplayName, vendorOwnerMetadata } from './vendorDetailPresentation';
 import { getVendorDisplayStatus } from './vendorsPagePresentation';
-
-function scorePill(score: number) {
-    if (score >= 5) return 'text-destructive bg-destructive/10 border-destructive/20';
-    if (score >= 4) return 'text-warning-text bg-warning/10 border-warning/20';
-    if (score >= 3) return 'text-accent-text bg-info/10 border-info/20';
-    if (score >= 2) return 'text-muted-foreground bg-muted border-border';
-    return 'text-success-text bg-success/10 border-success/20';
-}
 
 interface BuildVendorColumnsOptions {
     onRestore: (vendorId: number, event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -80,7 +73,7 @@ export function buildVendorColumns({ onRestore, t }: BuildVendorColumnsOptions):
             className: 'text-center',
             render: (vendor) => (
                 <div className="flex justify-center">
-                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${scorePill(vendor.risk_score_1_5)}`}>
+                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${severityClass('badge', ordinalSeverityBand(vendor.risk_score_1_5))}`}>
                         {vendor.risk_score_1_5} / 5
                     </div>
                 </div>

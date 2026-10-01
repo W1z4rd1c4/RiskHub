@@ -22,12 +22,38 @@ const tMock = (key: string) => {
     return key;
 };
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: tMock,
-        i18n: { language: currentLanguage },
-    }),
-}));
+vi.mock('@/i18n/hooks', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/i18n/hooks')>();
+    const formatters = await import('@/i18n/formatters');
+    return {
+        ...actual,
+        useTranslation: () => ({
+            t: tMock,
+            i18n: { language: currentLanguage },
+        }),
+        // Faithful `useFormat`: the real Intl formatters bound to the mocked active language.
+        useFormat: () => ({
+            locale: currentLanguage,
+            date: (value: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) =>
+                formatters.formatDateValue(value, currentLanguage, options),
+            dateTime: (value: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) =>
+                formatters.formatDateTimeValue(value, currentLanguage, options),
+            time: (value: string | Date | null | undefined, options?: Intl.DateTimeFormatOptions) =>
+                formatters.formatTimeValue(value, currentLanguage, options),
+            relative: (value: string | Date | null | undefined) =>
+                formatters.formatRelativeDateValue(value, currentLanguage),
+            number: (value: number | null | undefined, options?: Intl.NumberFormatOptions) =>
+                formatters.formatNumberValue(value, currentLanguage, options),
+            metric: (value: number | null | undefined, unit?: string) =>
+                formatters.formatMetricNumberValue(value, currentLanguage, unit),
+            percent: (value: number | null | undefined, fractionDigits?: number) =>
+                formatters.formatPercentValue(value, currentLanguage, fractionDigits),
+            currency: (value: number | null | undefined, currency?: string) =>
+                formatters.formatCurrencyValue(value, currentLanguage, currency),
+            count: (_count: number, key: string) => tMock(key),
+        }),
+    };
+});
 
 vi.mock('@/hooks/useRiskHubConfig', () => ({
     useTotalAssetsValue: () => ({ totalAssets: 1_000_000 }),

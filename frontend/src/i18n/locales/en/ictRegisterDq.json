@@ -3,9 +3,7 @@
     "subtitle": "The workbook's 52 continuous data-quality checks, computed live over the register",
     "actions": {
         "refresh": "Refresh",
-        "retry_rows": "Retry",
-        "previous": "Previous",
-        "next": "Next"
+        "retry_rows": "Retry"
     },
     "loading": "Loading…",
     "summary": {

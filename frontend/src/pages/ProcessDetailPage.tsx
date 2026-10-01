@@ -1,12 +1,17 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { useAuthz } from '@/authz/useAuthz';
-import { useTranslation } from '@/i18n/hooks';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
+import { useTranslation, useFormat } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { approvalsApi } from '@/services/approvalsApi';
 import { logError } from '@/services/logger';
@@ -14,6 +19,8 @@ import { processApi } from '@/services/processApi';
 import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
 
 import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { EditBlockedState } from './detail/EditBlockedState';
+import { EntityDetailHeader } from './detail/EntityDetailHeader';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
@@ -33,6 +40,7 @@ import {
 import { getProcessStatusColor } from './processes/processColumns';
 import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
+import { LoadingState } from '@/components/ui/state';
 
 interface ProcessDetailPageProps {
     mode?: ProcessDetailMode;
@@ -125,8 +133,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/processes');
     const processDetailPath = (processId: number) => appendRegisterReturnTo(`/processes/${processId}`, returnTo);
     const authz = useAuthz();
-    const { t, i18n } = useTranslation('processes');
+    const { t } = useTranslation('processes');
     const { t: tCommon } = useTranslation('common');
+    const format = useFormat();
+    // D14 / AX-06: every back control names its destination.
+    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
@@ -156,6 +167,9 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         logMessage: 'Failed to load process create capabilities.',
     });
 
+    const feedback = useFeedback();
+    const announceApprovalQueued = useApprovalQueued();
+
     const archiveProcess = async (requestReason?: string) => {
         if (!process) {
             return;
@@ -166,9 +180,12 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             const result = await processApi.archiveProcess(process.id, requestReason?.trim() ?? '');
             setIsArchiveDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
-                void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
+                // D12 / PM-2: stay on the process with the pending notice + toast.
+                announceApprovalQueued({ approvalId: result.approval_id });
+                void fetchProcess();
                 return;
             }
+            feedback.success({ title: tCommon('outcome.archived', { name: process.l1_process }) });
             void navigate(returnTo);
         } catch (archiveError) {
             logError('Failed to archive process:', archiveError);
@@ -204,39 +221,39 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     };
 
     if (mode === 'new') {
+        // D7 / D14: the page title, back control and breadcrumbs stay in place
+        // while the create capability loads or is denied.
+        const newHeader = (
+            <PageHeader
+                title={t('actions.new')}
+                description={t('subtitle')}
+                back={backToRegister}
+                breadcrumbs={[{ label: t('title'), to: returnTo }, { label: t('actions.new') }]}
+            />
+        );
         if (createGateState.state !== 'allowed') {
-            return <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />;
+            return (
+                <PageContainer size="form">
+                    {newHeader}
+                    <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />
+                </PageContainer>
+            );
         }
         return (
-            <div className="space-y-8">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">{t('actions.new')}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
-                    </div>
-                </div>
+            <PageContainer size="form">
+                {newHeader}
                 <ProcessForm
                     onSaved={(saved: Process) => navigate(processDetailPath(saved.id))}
-                    onApprovalQueued={(queued) => {
-                        void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
-                    }}
+                    onApprovalQueued={(queued) => announceApprovalQueued({ approvalId: queued.approval_id, to: returnTo })}
                     onCancel={() => navigate(returnTo)}
                 />
-            </div>
+            </PageContainer>
         );
     }
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="glass-card text-sm text-muted-foreground">{tCommon('loading.generic')}</div>
+            <LoadingState layout="page" label={tCommon('loading.generic')} />
         );
     }
 
@@ -268,66 +285,64 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         />
     );
 
+    const editBack = {
+        label: tCommon('actions.back_to_detail', { name: process.l1_process }),
+        onClick: () => void navigate(processDetailPath(process.id)),
+    };
+    const editBreadcrumbs = [
+        { label: t('title'), to: returnTo },
+        { label: process.l1_process, to: processDetailPath(process.id) },
+        { label: t('actions.edit') },
+    ];
+    const editHeader = (
+        <PageHeader
+            title={t('actions.edit')}
+            description={process.l1_process}
+            documentTitle={tCommon('page_title.edit', { name: process.l1_process })}
+            back={editBack}
+            breadcrumbs={editBreadcrumbs}
+        />
+    );
+
     if (mode === 'edit') {
         if (process.capabilities?.business_edit_blocked || process.pending_change) {
             return (
-                <div className="space-y-8">
-                    {staleWarning}
-                    <div className="flex items-start gap-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(processDetailPath(process.id))}
-                            aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                        >
-                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground">{t('pending_change.edit_blocked_title')}</h1>
-                            <p className="text-muted-foreground font-medium mt-1">{process.l1_process}</p>
-                        </div>
-                    </div>
-                    {actionError ? (
-                        <div role="alert" className="glass-card border border-destructive/30 text-sm text-destructive">
-                            {actionError}
-                        </div>
-                    ) : null}
-                    {process.pending_change ? (
-                        <ProcessPendingChangePanel
-                            pendingChange={process.pending_change}
-                            locale={i18n.language}
-                            cancelling={isCancellingPendingChange}
-                            onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
-                                ? openPendingChangeCancellation
-                                : undefined}
-                        />
-                    ) : (
-                        <div role="status" className="glass-card border border-warning/30 text-sm text-warning-text">
-                            {t('pending_change.business_edits_blocked')}
-                        </div>
-                    )}
+                <>
+                    <EditBlockedState
+                        notice={staleWarning}
+                        title={t('pending_change.edit_blocked_title')}
+                        entityName={process.l1_process}
+                        documentTitle={tCommon('page_title.edit', { name: process.l1_process })}
+                        back={editBack}
+                        breadcrumbs={editBreadcrumbs}
+                        reason={process.pending_change ? undefined : t('pending_change.business_edits_blocked')}
+                        testId="process-edit-blocked"
+                    >
+                        {actionError ? (
+                            <div role="alert" className="glass-card border border-destructive/30 text-sm text-destructive">
+                                {actionError}
+                            </div>
+                        ) : null}
+                        {process.pending_change ? (
+                            <ProcessPendingChangePanel
+                                pendingChange={process.pending_change}
+                                locale={format.locale}
+                                cancelling={isCancellingPendingChange}
+                                onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
+                                    ? openPendingChangeCancellation
+                                    : undefined}
+                            />
+                        ) : null}
+                    </EditBlockedState>
                     {pendingCancellationDialog}
-                </div>
+                </>
             );
         }
         if (process.ownership_status === 'pending_governance') {
             return (
-                <div className="space-y-8">
+                <PageContainer>
                     {staleWarning}
-                    <div className="flex items-start gap-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(processDetailPath(process.id))}
-                            aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                        >
-                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
-                            <p className="text-muted-foreground font-medium mt-1">{process.l1_process}</p>
-                        </div>
-                    </div>
+                    {editHeader}
                     <ProcessOwnershipAlert
                         actionLabel={t('actions.resolve_in_governance')}
                         message={t(authz.canViewGovernance
@@ -338,29 +353,21 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             : undefined}
                         testId="process-orphan-edit-blocked"
                     />
-                </div>
+                </PageContainer>
             );
         }
         if (canEdit !== true) {
-            return <FormCapabilityGateState state="denied" />;
+            return (
+                <PageContainer size="form">
+                    {editHeader}
+                    <FormCapabilityGateState state="denied" />
+                </PageContainer>
+            );
         }
         return (
-            <div className="space-y-8">
+            <PageContainer size="form">
                 {staleWarning}
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(processDetailPath(process.id))}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">{process.l1_process}</p>
-                    </div>
-                </div>
+                {editHeader}
                 {process.ownership_status === 'legacy_unassigned' ? (
                     <ProcessOwnershipAlert message={t('messages.ownership_legacy_unassigned')} />
                 ) : null}
@@ -376,34 +383,30 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         }
                         : process}
                     isEdit
-                    onApprovalQueued={() => {
-                        void navigate(processDetailPath(process.id));
-                    }}
+                    onApprovalQueued={(queued) => announceApprovalQueued({
+                        approvalId: queued.approval_id,
+                        to: processDetailPath(process.id),
+                    })}
                     onSaved={(saved: Process) => {
                         setProcess(saved);
                         void navigate(processDetailPath(saved.id));
                     }}
                     onCancel={() => navigate(processDetailPath(process.id))}
                 />
-            </div>
+            </PageContainer>
         );
     }
 
     const status = getProcessDisplayStatus(process);
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             {staleWarning}
-            {actionError ? (
-                <div className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{actionError}</p>
-                </div>
-            ) : null}
+            <ApprovalQueuedNotice />
             {process.pending_change ? (
                 <ProcessPendingChangePanel
                     pendingChange={process.pending_change}
-                    locale={i18n.language}
+                    locale={format.locale}
                     cancelling={isCancellingPendingChange}
                     onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
                         ? openPendingChangeCancellation
@@ -428,75 +431,64 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 <ProcessOwnershipAlert message={t('messages.ownership_invalid_assignment')} />
             ) : null}
 
-            <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        data-testid="process-detail-back"
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            <EntityDetailHeader
+                back={{ ...backToRegister, testId: 'process-detail-back' }}
+                breadcrumbs={[{ label: t('title'), to: returnTo }, { label: process.l1_process }]}
+                identifier={<span className="font-mono text-accent-text">{process.f_code}</span>}
+                title={process.l1_process}
+                documentTitle={process.l1_process}
+                statuses={(
+                    <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
                     >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono font-bold text-accent-text">{process.f_code}</span>
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
+                        {t(`status.${status}`)}
+                    </span>
+                )}
+                description={`${process.l0_area}${process.l2_subprocess ? ` · ${process.l2_subprocess}` : ''}`}
+                actions={(
+                    <>
+                        {canRestore && (
+                            <button
+                                type="button"
+                                onClick={() => void restoreProcess()}
+                                data-testid="process-detail-restore"
+                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                             >
-                                {t(`status.${status}`)}
-                            </span>
-                        </div>
-                        <h1 className="text-3xl font-bold text-foreground mt-1">{process.l1_process}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">
-                            {process.l0_area}
-                            {process.l2_subprocess ? ` · ${process.l2_subprocess}` : ''}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    {canRestore && (
-                        <button
-                            type="button"
-                            onClick={() => void restoreProcess()}
-                            data-testid="process-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <ArchiveRestore className="h-4 w-4" />
-                            {t('actions.restore')}
-                        </button>
-                    )}
-                    {canEdit
-                        && !process.capabilities?.business_edit_blocked
-                        && !process.pending_change
-                        && process.ownership_status !== 'pending_governance' && (
-                        <button
-                            type="button"
-                            onClick={() => navigate(appendRegisterReturnTo(`/processes/${process.id}/edit`, returnTo))}
-                            data-testid="process-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Pencil className="h-4 w-4" />
-                            {t('actions.edit')}
-                        </button>
-                    )}
-                    {canArchive && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setActionError(null);
-                                setIsArchiveDialogOpen(true);
-                            }}
-                            data-testid="process-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            {tCommon('actions.archive')}
-                        </button>
-                    )}
-                </div>
-            </div>
+                                <ArchiveRestore className="h-4 w-4" />
+                                {t('actions.restore')}
+                            </button>
+                        )}
+                        {canEdit
+                            && !process.capabilities?.business_edit_blocked
+                            && !process.pending_change
+                            && process.ownership_status !== 'pending_governance' && (
+                            <button
+                                type="button"
+                                onClick={() => navigate(appendRegisterReturnTo(`/processes/${process.id}/edit`, returnTo))}
+                                data-testid="process-detail-edit"
+                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                {t('actions.edit')}
+                            </button>
+                        )}
+                        {canArchive && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setActionError(null);
+                                    setIsArchiveDialogOpen(true);
+                                }}
+                                data-testid="process-detail-archive"
+                                className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            >
+                                <Archive className="h-4 w-4" aria-hidden="true" />
+                                {tCommon('actions.archive')}
+                            </button>
+                        )}
+                    </>
+                )}
+            />
 
             <div className="glass-card space-y-5">
                 <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
@@ -595,7 +587,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                             label={t('derived.bcm_check')}
                             value={processDerivedCheckLabel(t, process.derived.bcm_check)}
                         />
-                        <DetailField label={t('derived.next_review_date')} value={process.derived.next_review_date} />
+                        <DetailField label={t('derived.next_review_date')} value={format.date(process.derived.next_review_date)} />
                         <DetailField label={t('derived.linked_asset_count')} value={process.derived.linked_asset_count} />
                         <DetailField
                             label={t('derived.linked_vendor_count')}
@@ -730,7 +722,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         label={t('form.bcm_link')}
                         value={processControlledValueLabel(t, 'bcm_link', process.bcm_link)}
                     />
-                    <DetailField label={t('form.last_dr_test_date')} value={process.last_dr_test_date} />
+                    <DetailField label={t('form.last_dr_test_date')} value={format.date(process.last_dr_test_date)} />
                     <DetailField
                         label={t('form.dr_test_result')}
                         value={processControlledValueLabel(t, 'dr_test_result', process.dr_test_result)}
@@ -747,7 +739,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         label={t('form.interruption_impact')}
                         value={processControlledValueLabel(t, 'interruption_impact', process.interruption_impact)}
                     />
-                    <DetailField label={t('form.assessment_date')} value={process.assessment_date} />
+                    <DetailField label={t('form.assessment_date')} value={format.date(process.assessment_date)} />
                 </div>
                 {process.notes ? (
                     <div className="space-y-1">
@@ -763,23 +755,26 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 onLinksChanged={() => fetchProcess()}
             />
 
+            {/* D10 / PM-1: the process API takes a reason; it is required
+                only when the archive is routed through approval. */}
             <ConfirmDialog
                 isOpen={isArchiveDialogOpen}
-                onClose={() => setIsArchiveDialogOpen(false)}
+                onClose={() => {
+                    setIsArchiveDialogOpen(false);
+                    setActionError(null);
+                }}
                 onConfirm={archiveProcess}
-                title={tCommon('actions.archive')}
+                intent="archive"
+                entityLabel={tCommon('labels.process')}
                 message={t('messages.archive_confirm', { processName: process.l1_process })}
-                confirmLabel={tCommon('actions.archive')}
-                variant="danger"
                 isLoading={isArchiving}
-                showInput={processMutationRequiresApprovalReason(process)}
-                inputRequired={processMutationRequiresApprovalReason(process)}
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason={processMutationRequiresApprovalReason(process) ? 'required' : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
                 errorText={actionError}
             />
             {pendingCancellationDialog}
-        </div>
+        </PageContainer>
     );
 }
 

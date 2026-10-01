@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import type { RiskSummary } from '@/types/risk';
 
 import type { KRIFormVendorContext } from './kriForm.types';
+import { LoadingState } from '@/components/ui/state';
 
 interface KriRiskSelectionStepProps {
     filteredRisks: RiskSummary[];
@@ -170,10 +171,7 @@ export function KriRiskSelectionStep({
 
                     <div className="custom-scrollbar max-h-[400px] overflow-y-auto rounded-xl border border-border divide-y divide-border">
                         {isLoadingRisks ? (
-                            <div className="p-8 text-center text-sm text-muted-foreground">
-                                <div className="mx-auto mb-2 h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-                                {t('common:loading.risk_data')}
-                            </div>
+                            <LoadingState className="p-8" label={t('common:loading.risk_data')} />
                         ) : filteredRisks.length === 0 ? (
                             <div className="p-8 text-center text-sm text-muted-foreground">
                                 {showOnlyVendorLinkedRisks && vendorContext

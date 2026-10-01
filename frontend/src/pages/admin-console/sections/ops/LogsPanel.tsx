@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { formatDateTimeValue } from '@/i18n/formatters';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 export function LogsPanel() {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const [eventFilter, setEventFilter] = useState<string>('');
     const [eventTypes, setEventTypes] = useState<string[]>([]);
 
@@ -18,7 +19,13 @@ export function LogsPanel() {
         queryKey: adminKeys.logEventTypes(limit),
         queryFn: () => adminApi.getTechnicalLogs({ event_type: undefined, limit }),
     });
-    const { data: logs, isLoading } = useQuery({
+    const {
+        data: logs,
+        isLoading,
+        isError: isLogsError,
+        isFetching: isLogsFetching,
+        refetch: refetchLogs,
+    } = useQuery({
         queryKey: adminKeys.logs(eventFilter),
         queryFn: () => adminApi.getTechnicalLogs({ event_type: eventFilter || undefined, limit }),
     });
@@ -34,7 +41,17 @@ export function LogsPanel() {
     }, [eventFilter, eventVocabulary, isEventVocabularyError, logs]);
 
     if (isLoading && !eventVocabulary && eventTypes.length === 0) {
-        return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
+        return <LoadingState label={t('application_logs.loading')} />;
+    }
+
+    const retryLogs = () => void refetchLogs();
+    let logsRegion: ReactNode = null;
+    if (isLoading) {
+        logsRegion = <LoadingState label={t('application_logs.loading')} />;
+    } else if (isLogsError && !logs) {
+        logsRegion = <ErrorState title={t('application_logs.title')} onRetry={retryLogs} isRetrying={isLogsFetching} />;
+    } else if (!logs || logs.length === 0) {
+        logsRegion = <EmptyState title={t('common:empty.no_data')} />;
     }
 
     return (
@@ -51,6 +68,11 @@ export function LogsPanel() {
                 />
             </div>
 
+            {isLogsError && logs ? (
+                <ErrorState variant="banner" onRetry={retryLogs} isRetrying={isLogsFetching} />
+            ) : null}
+
+            {logsRegion ?? (
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
                     <thead className="admin-table-head sticky top-0">
@@ -66,7 +88,7 @@ export function LogsPanel() {
                         {logs?.map((log) => (
                             <tr key={log.id} className="border-b border-border hover:bg-tint/5">
                                 <td className="admin-subtle whitespace-nowrap py-2 px-3">
-                                    {formatDateTimeValue(log.timestamp, i18n.language)}
+                                    {format.dateTime(log.timestamp)}
                                 </td>
                                 <td className="py-2 px-3">
                                     <span className={cn(
@@ -88,6 +110,7 @@ export function LogsPanel() {
                     </tbody>
                 </table>
             </div>
+            )}
         </div>
     );
 }

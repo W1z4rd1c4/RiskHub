@@ -1,22 +1,22 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import { SortableTable } from '@/components/tables';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TableErrorState, resolveTableErrorContract } from '@/components/tables/tableError';
+import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import type { VendorContract } from '@/types/vendorContract';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 
 import { buildVendorContractColumns, buildVendorContractPayload } from './vendorContractsPresentation';
 
@@ -93,8 +93,11 @@ export function VendorContractsSection({
     canManageContracts,
     protectedChangeRequiresApproval,
 }: VendorContractsSectionProps) {
-    const { t, i18n } = useTranslation('vendors');
-    const navigate = useNavigate();
+    const { t } = useTranslation('vendors');
+    const format = useFormat();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
@@ -192,7 +195,7 @@ export function VendorContractsSection({
             setSectionError(null);
             closeForm();
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshContracts();
@@ -207,7 +210,7 @@ export function VendorContractsSection({
             setSectionError(null);
             setPendingArchive(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshContracts();
@@ -229,15 +232,13 @@ export function VendorContractsSection({
     // would only add an exhaustive-deps burden without a real stability win.
     const columns = buildVendorContractColumns({
         t: (key, options) => t(key, options),
-        locale: i18n.language,
+        locale: format.locale,
         onEdit: openEditForm,
+        // GAP-C-06 / D10: every archive is confirmed; the reason is required
+        // only when the change is routed through approval (PM-1).
         onArchive: (contract) => {
-            if (protectedChangeRequiresApproval) {
-                setSectionError(null);
-                setPendingArchive(contract);
-                return;
-            }
-            archiveContract.mutate({ contract, reason: '' });
+            setSectionError(null);
+            setPendingArchive(contract);
         },
         onRestore: (contract) => restoreContract.mutate(contract),
     });
@@ -339,29 +340,18 @@ export function VendorContractsSection({
                     }}
                 >
                     {closedListsQuery.isError ? (
-                        <div
-                            role="status"
-                            className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-sm font-medium text-warning-text"
+                        <InlineMessage
+                            tone="warning"
+                            action={(
+                                <Button type="button" variant="outline" size="compact" onClick={() => void closedListsQuery.refetch()}>
+                                    {t('actions.refresh')}
+                                </Button>
+                            )}
                         >
-                            <span>{t('contracts.form.lists_failed')}</span>
-                            <button
-                                type="button"
-                                onClick={() => void closedListsQuery.refetch()}
-                                className="shrink-0 rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-glass-hover"
-                            >
-                                {t('actions.refresh')}
-                            </button>
-                        </div>
+                            {t('contracts.form.lists_failed')}
+                        </InlineMessage>
                     ) : null}
-                    {requestReasonError ? (
-                        <VendorInlineMessage
-                            role="alert"
-                            tone="danger"
-                            className="text-sm font-medium"
-                        >
-                            {requestReasonError}
-                        </VendorInlineMessage>
-                    ) : null}
+                    {requestReasonError ? <InlineMessage tone="danger">{requestReasonError}</InlineMessage> : null}
                     <div className="vendor-form-grid">
                         {textInput('contract_reference', t('contracts.form.contract_reference'))}
                         {textInput('internal_contract_number', t('contracts.form.internal_contract_number'))}
@@ -608,22 +598,21 @@ export function VendorContractsSection({
                 isOpen={pendingArchive !== null}
                 onClose={() => setPendingArchive(null)}
                 onConfirm={(reason) => {
-                    if (pendingArchive && reason?.trim()) {
-                        archiveContract.mutate({ contract: pendingArchive, reason: reason.trim() });
+                    if (pendingArchive) {
+                        archiveContract.mutate({ contract: pendingArchive, reason: reason?.trim() ?? '' });
                     }
                 }}
+                intent="archive"
                 title={t('contracts.actions.archive')}
                 message={t('contracts.archive_confirm', {
                     reference: pendingArchive?.contract_reference ?? '—',
                 })}
                 confirmLabel={t('contracts.actions.archive')}
-                variant="danger"
                 isLoading={archiveContract.isPending}
                 errorText={sectionError}
-                showInput
-                inputRequired
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason={protectedChangeRequiresApproval ? 'required' : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
             />
         </div>
     );

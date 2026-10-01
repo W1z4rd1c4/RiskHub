@@ -23,6 +23,12 @@ interface PaginationBaseProps {
     className?: string;
     /** Accessible name of the `<nav>`; defaults to `common:pagination.label`. */
     ariaLabel?: string;
+    /**
+     * Blocks every control while a page is loading. Previous / next stay
+     * focusable (`aria-disabled`, click ignored) so the control the user just
+     * pressed keeps keyboard focus; only a boundary (no page there) disables.
+     */
+    isLoading?: boolean;
 }
 
 export interface PagedPaginationProps extends PaginationBaseProps {
@@ -42,8 +48,9 @@ export interface CursorPaginationProps extends PaginationBaseProps {
     onNext: () => void;
     /** Optional status text, e.g. "Showing 20 notifications". */
     summary?: ReactNode;
-    /** Disables both controls while a page is loading. */
-    isLoading?: boolean;
+    /** Direction-specific names, e.g. "Newer entries" / "Older entries"; default to previous / next page. */
+    previousLabel?: string;
+    nextLabel?: string;
 }
 
 export type PaginationProps = PagedPaginationProps | CursorPaginationProps;
@@ -59,24 +66,33 @@ function visiblePages(currentPage: number, totalPages: number): number[] {
 }
 
 interface StepButtonsProps {
+    /** A previous / next page exists. */
     canGoPrev: boolean;
     canGoNext: boolean;
+    isLoading: boolean;
     onPrev: () => void;
     onNext: () => void;
+    previousLabel?: string;
+    nextLabel?: string;
     children?: ReactNode;
 }
 
-function StepButtons({ canGoPrev, canGoNext, onPrev, onNext, children }: StepButtonsProps) {
+function StepButtons({ canGoPrev, canGoNext, isLoading, onPrev, onNext, previousLabel, nextLabel, children }: StepButtonsProps) {
     const { t } = useTranslation('common');
+    const prevName = previousLabel ?? t('pagination.previous_page');
+    const nextName = nextLabel ?? t('pagination.next_page');
     return (
         <div className="flex items-center gap-2">
             <Button
                 variant="outline"
                 size="iconCompact"
-                onClick={onPrev}
-                disabled={!canGoPrev}
-                aria-label={t('actions.previous')}
-                title={t('actions.previous')}
+                onClick={() => {
+                    if (canGoPrev && !isLoading) onPrev();
+                }}
+                disabled={!canGoPrev && !isLoading}
+                aria-disabled={!canGoPrev || isLoading || undefined}
+                aria-label={prevName}
+                title={prevName}
             >
                 <ChevronLeft aria-hidden="true" />
             </Button>
@@ -84,10 +100,13 @@ function StepButtons({ canGoPrev, canGoNext, onPrev, onNext, children }: StepBut
             <Button
                 variant="outline"
                 size="iconCompact"
-                onClick={onNext}
-                disabled={!canGoNext}
-                aria-label={t('actions.next')}
-                title={t('actions.next')}
+                onClick={() => {
+                    if (canGoNext && !isLoading) onNext();
+                }}
+                disabled={!canGoNext && !isLoading}
+                aria-disabled={!canGoNext || isLoading || undefined}
+                aria-label={nextName}
+                title={nextName}
             >
                 <ChevronRight aria-hidden="true" />
             </Button>
@@ -124,21 +143,24 @@ export function Pagination(props: PaginationProps) {
     const navLabel = props.ariaLabel ?? t('pagination.label');
 
     if (props.mode === 'cursor') {
-        const { hasPrevious, hasNext, onPrevious, onNext, summary, isLoading = false, className } = props;
+        const { hasPrevious, hasNext, onPrevious, onNext, summary, previousLabel, nextLabel, isLoading = false, className } = props;
         return (
             <nav aria-label={navLabel} className={cn('flex items-center justify-between gap-4', className)}>
                 <div className="text-sm text-muted-foreground">{summary}</div>
                 <StepButtons
-                    canGoPrev={hasPrevious && !isLoading}
-                    canGoNext={hasNext && !isLoading}
+                    canGoPrev={hasPrevious}
+                    canGoNext={hasNext}
+                    isLoading={isLoading}
                     onPrev={onPrevious}
                     onNext={onNext}
+                    previousLabel={previousLabel}
+                    nextLabel={nextLabel}
                 />
             </nav>
         );
     }
 
-    const { mode = 'pages', currentPage, totalPages, onPageChange, className } = props;
+    const { mode = 'pages', currentPage, totalPages, onPageChange, isLoading = false, className } = props;
     const canGoPrev = currentPage > 1;
     const canGoNext = currentPage < totalPages;
 
@@ -150,6 +172,7 @@ export function Pagination(props: PaginationProps) {
             <StepButtons
                 canGoPrev={canGoPrev}
                 canGoNext={canGoNext}
+                isLoading={isLoading}
                 onPrev={() => onPageChange(currentPage - 1)}
                 onNext={() => onPageChange(currentPage + 1)}
             >
@@ -163,6 +186,7 @@ export function Pagination(props: PaginationProps) {
                                     variant={isCurrent ? 'accent' : 'ghost'}
                                     size="iconCompact"
                                     onClick={() => onPageChange(pageNum)}
+                                    disabled={isLoading && !isCurrent}
                                     aria-label={t('pagination.go_to_page', { page: pageNum })}
                                     aria-current={isCurrent ? 'page' : undefined}
                                     className={cn('tabular-nums', !isCurrent && 'text-muted-foreground')}

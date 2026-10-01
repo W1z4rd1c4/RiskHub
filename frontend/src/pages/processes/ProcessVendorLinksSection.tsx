@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Building2, Plus, Unlink } from 'lucide-react';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
 import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { processMutationRequiresApprovalReason } from '@/pages/processes/processProtectedEdit';
 
 import {
@@ -31,7 +32,9 @@ interface ProcessVendorLinksSectionProps {
 /** The manual Process<->Vendor Link relations (sheet 11 §1, issue #46). */
 export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChanged }: ProcessVendorLinksSectionProps) {
     const { t } = useTranslation(['processes', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<{ kind: 'add' } | { kind: 'remove'; linkId: number } | null>(null);
@@ -82,7 +85,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
             setLinkError(null);
             setPendingAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             setVendorToLink('');
@@ -99,7 +102,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
             setLinkError(null);
             setPendingAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -123,14 +126,17 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
             </div>
 
             {linkError && pendingAction === null ? (
-                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
-                    {linkError}
-                </div>
+                <InlineMessage tone="danger">{linkError}</InlineMessage>
             ) : null}
 
             <div className="space-y-4">
-                {vendorLinks.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">{t('links.vendors.empty')}</p>
+                {vendorLinksQuery.isLoading ? (
+                    <LoadingState layout="inline" />
+                ) : vendorLinksQuery.isError && !vendorLinksQuery.data ? (
+                    // GAP-C-11: a failed load is an error with retry, never "no links".
+                    <ErrorState layout="inline" onRetry={() => void vendorLinksQuery.refetch()} isRetrying={vendorLinksQuery.isFetching} />
+                ) : vendorLinks.length === 0 ? (
+                    <EmptyState layout="inline" icon={null} title={t('links.vendors.empty')} />
                 ) : (
                     <ul className="space-y-2" data-testid="process-vendor-links">
                         {vendorLinks.map((link) => (
@@ -160,7 +166,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                                         className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                         title={t('links.remove')}
                                     >
-                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                        <Unlink className="h-4 w-4" aria-hidden="true" />
                                     </button>
                                 ) : null}
                             </li>

@@ -1,14 +1,22 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { requester?: string }) => options?.requester
-            ? `${key}:${options.requester}`
-            : key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    return {
+        useTranslation: () => ({
+            t: (key: string, options?: { requester?: string }) => options?.requester
+                ? `${key}:${options.requester}`
+                : key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => ({
+            locale: 'en',
+            date: (value: string | null | undefined) => formatters.formatDateValue(value, 'en'),
+            number: (value: number | null | undefined) => formatters.formatNumberValue(value, 'en'),
+        }),
+    };
+});
 
 import { ProcessPendingChangePanel } from '@/pages/processes/ProcessPendingChangePanel';
 import type { ProcessPendingChangeRead } from '@/types/process';

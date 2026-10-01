@@ -65,9 +65,14 @@ function installHandlers(item: Notification = linkedUnread) {
     );
 }
 
+/** The bell's name also carries the unread count (AX-14), e.g. "Notifications, 2 unread". */
+function bellName() {
+    return new RegExp(`^${i18n.t('notifications:aria.bell')}`);
+}
+
 async function openBell() {
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: i18n.t('notifications:aria.bell') }));
+    await user.click(screen.getByRole('button', { name: bellName() }));
     await screen.findByText(linkedUnread.title);
     return user;
 }
@@ -107,7 +112,7 @@ describe('NotificationBell read-state controls', () => {
         );
         const user = userEvent.setup();
         render(<MemoryRouter><BellHarness /></MemoryRouter>);
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Could not load notifications. Try again.');
         expect(screen.queryByText('No notifications')).not.toBeInTheDocument();
@@ -146,7 +151,7 @@ describe('NotificationBell read-state controls', () => {
         render(<MemoryRouter><BellHarness /></MemoryRouter>);
         const user = await openBell();
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Notifications may be out of date. Try again.');
         expect(screen.getByText(linkedUnread.title)).toBeInTheDocument();
@@ -173,9 +178,10 @@ describe('NotificationBell read-state controls', () => {
         render(<MemoryRouter><BellHarness /></MemoryRouter>);
         const user = await openBell();
         expect(screen.getByTestId('notification-bell-button')).toHaveTextContent('1');
+        expect(screen.getByTestId('notification-bell-button')).toHaveAccessibleName('Notifications, 1 unread');
         expect(screen.getByRole('status', { name: 'Unread count' })).toHaveTextContent('1');
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to notifications.');
         expect(screen.queryByText(linkedUnread.title)).not.toBeInTheDocument();
@@ -206,10 +212,10 @@ describe('NotificationBell read-state controls', () => {
         );
         const user = userEvent.setup();
         render(<MemoryRouter><BellHarness /></MemoryRouter>);
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
         await waitFor(() => expect(listRequests).toBe(1));
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to notifications.');
         await act(async () => {
@@ -252,7 +258,7 @@ describe('NotificationBell read-state controls', () => {
         await user.click(screen.getByRole('button', { name: 'Mark as read' }));
         await waitFor(() => expect(mutationRequests).toBe(1));
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
         expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to notifications.');
 
         await act(async () => {
@@ -418,7 +424,7 @@ describe('NotificationBell read-state controls', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent('Could not update this notification. Try again.');
 
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
         await waitFor(() => expect(listRequests).toBe(2));
         expect(screen.getByRole('alert')).toHaveTextContent('Could not update this notification. Try again.');
 
@@ -458,13 +464,13 @@ describe('NotificationBell read-state controls', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent('Could not mark all notifications as read. Try again.');
 
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
         expect(await screen.findByText('You do not have access to notifications.')).toBeInTheDocument();
         expect(screen.getAllByRole('alert')).toHaveLength(1);
         expect(screen.queryByText('Could not mark all notifications as read. Try again.')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Close' }));
-        await user.click(screen.getByRole('button', { name: 'Notifications' }));
+        await user.click(screen.getByRole('button', { name: bellName() }));
         expect(await screen.findByText(linkedUnread.title)).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });

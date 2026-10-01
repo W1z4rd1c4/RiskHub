@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 import type { DashboardOverview, DashboardSummary } from '@/types/dashboard';
-import { classifyRiskScore, riskScoreClass } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, severityClass } from '@/lib/severity';
 
 export type DashboardStat = {
     bg: string;
@@ -77,8 +77,8 @@ export function buildDashboardStats({
             title: t('stats.avg_risk_score'),
             value: summary?.average_net_risk_score ?? 0,
             icon: CheckCircle,
-            color: averageBand ? riskScoreClass('text', averageBand) : 'text-muted-foreground',
-            bg: averageBand ? riskScoreClass('card', averageBand) : 'bg-tint/5',
+            color: averageBand ? severityClass('text', averageBand) : 'text-muted-foreground',
+            bg: averageBand ? severityClass('card', averageBand) : 'bg-tint/5',
             context: averageBand ? t(`risk_levels.${averageBand}`) : undefined,
             path: '/risks',
         },

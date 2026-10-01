@@ -1,11 +1,17 @@
-import { useRef } from 'react';
+import { Suspense, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { DesktopOnlyNotice, Sidebar } from '@/components/layout';
+import { LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
+
+import { useRouteFocus } from './useRouteFocus';
 
 export function MainLayout() {
     const { t } = useTranslation('layout');
     const mainRef = useRef<HTMLElement>(null);
+    // NAV-01 (audit 2026-09-30 §4.14): after a pathname change, move focus to
+    // the new page's `h1` and announce the page through a polite live region.
+    const announcement = useRouteFocus(mainRef);
 
     return (
         <>
@@ -24,6 +30,9 @@ export function MainLayout() {
                 >
                     {t('skip_to_main')}
                 </a>
+                <p role="status" aria-live="polite" aria-atomic="true" className="sr-only" data-testid="route-announcer">
+                    {announcement}
+                </p>
                 {/* Subtle Background Glows */}
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
                 <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-chart-2/5 rounded-full blur-[100px] pointer-events-none" />
@@ -36,7 +45,11 @@ export function MainLayout() {
                         tabIndex={-1}
                         className="flex-1 overflow-y-auto p-6 md:p-8"
                     >
-                        <Outlet />
+                        {/* NAV-04: a lazy route suspends inside the shell, so the
+                            sidebar stays put while the page chunk loads. */}
+                        <Suspense fallback={<LoadingState layout="page" />}>
+                            <Outlet />
+                        </Suspense>
                     </main>
                 </div>
             </div>

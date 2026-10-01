@@ -1,11 +1,9 @@
 import { motion } from 'framer-motion';
-import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { cn } from '@/lib/utils';
 import type { RiskDistributionItem } from '../../types/dashboard';
 import { useTranslation } from '@/i18n/hooks';
-import { useStatusTheme } from '@/hooks/useStatusTheme';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { classifyRiskScore } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, SEVERITY_BANDS, severityClass } from '@/lib/severity';
 
 interface RiskDistributionMatrixProps {
     distribution: RiskDistributionItem[];
@@ -19,7 +17,6 @@ interface RiskDistributionMatrixProps {
  */
 export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistributionMatrixProps) {
     const { t } = useTranslation('dashboard');
-    const statusTheme = useStatusTheme();
     const { thresholds } = useRiskThresholds();
 
     const getCountForCell = (p: number, i: number) => {
@@ -31,9 +28,9 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
         const score = p * i;
         const count = getCountForCell(p, i);
         if (count === 0) {
-            return `${statusTheme.matrix.emptyCell} opacity-20`;
+            return 'bg-tint/[0.03] opacity-20';
         }
-        return statusTheme.matrix[classifyRiskScore(score, thresholds)];
+        return severityClass('matrix-cell', classifyRiskScore(score, thresholds));
     };
 
     const handleCellClick = (p: number, i: number) => {
@@ -112,24 +109,14 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                 {t('risk_distribution_matrix.axis.impact')}
             </span>
 
-            {/* Legend */}
+            {/* Legend (D1 bands, labelled with the risk-level keys) */}
             <div className="flex gap-4 mt-8">
-                <div className="flex items-center gap-2">
-                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.low.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.low')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.medium.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.medium')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.high.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.high')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.critical.replace(/^bg-/, 'text-')} fill-current`} />
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t('issues.severity.critical')}</span>
-                </div>
+                {SEVERITY_BANDS.map((band) => (
+                    <div key={band} className="flex items-center gap-2">
+                        <span aria-hidden="true" className={cn('size-3 shrink-0 rounded-sm', severityClass('dot', band))} />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t(`risk_levels.${band}`)}</span>
+                    </div>
+                ))}
             </div>
 
         </div>

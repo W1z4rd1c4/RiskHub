@@ -10,6 +10,7 @@ import { adminApi } from '@/services/adminApi';
 
 import { OutboxStatusSection } from './OutboxStatusSection';
 import { SchedulerStatusSection } from './SchedulerStatusSection';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 
 export function HealthPanel() {
     const { t } = useTranslation('admin');
@@ -38,7 +39,19 @@ export function HealthPanel() {
     const isRefreshing = healthQuery.isFetching || schedulerQuery.isFetching || outboxQuery.isFetching;
 
     if (healthQuery.isLoading) {
-        return <div className="admin-muted text-center py-8">{t('health.loading')}</div>;
+        return <LoadingState label={t('health.loading')} />;
+    }
+
+    // GAP-D-17: without health data the cards would read "Error"/"0h 0m" and
+    // misreport the system; show the load failure instead.
+    if (!health) {
+        return (
+            <ErrorState
+                title={t('health.title')}
+                onRetry={() => void healthQuery.refresh()}
+                isRetrying={healthQuery.isFetching}
+            />
+        );
     }
 
     return (

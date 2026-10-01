@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
-import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import type { Risk } from '@/types/risk';
 import { useRiskTypes, useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { RiskFormIdentityStep } from './RiskFormIdentityStep';
@@ -30,6 +29,8 @@ interface RiskFormProps {
     initialData?: Risk;
     isEdit?: boolean;
     onSuccess?: (riskId: number, acceptNavigation?: () => void) => void | Promise<void>;
+    /** Page shown after an approval-routed submit (D12 / PM-2). */
+    approvalReturnTo?: string;
     onCancel?: () => void;
     firstStepBackLabel?: string;
 }
@@ -38,11 +39,12 @@ export function RiskForm({
     initialData,
     isEdit = false,
     onSuccess,
+    approvalReturnTo,
     onCancel,
     firstStepBackLabel,
 }: RiskFormProps) {
     const navigate = useNavigate();
-    const { t } = useTranslation(['risks', 'common', 'errorKeys', 'approvals']);
+    const { t } = useTranslation(['risks', 'common', 'errorKeys']);
     const steps = [
         { id: 'identity', title: t('risks:form.steps.identity'), icon: Info },
         { id: 'ownership', title: t('risks:form.steps.ownership'), icon: User },
@@ -63,7 +65,6 @@ export function RiskForm({
     const [roleFilter, setRoleFilter] = useState<string>('');
 
     const {
-        approvalQueued,
         confirmationDialog,
         currentStep,
         error,
@@ -75,13 +76,13 @@ export function RiskForm({
         nextStep,
         prevStep,
         requestLocalLeave,
-        setApprovalQueued,
         setCurrentStep,
         submit,
     } = useRiskFormWorkflow({
         initialData,
         isEdit,
         onSuccess,
+        approvalReturnTo,
         riskTypes,
     });
 
@@ -108,16 +109,6 @@ export function RiskForm({
             />
 
             <div className="glass-card min-h-[480px] flex flex-col">
-                {/* Approval-queued banner */}
-                {approvalQueued && (
-                    <ApprovalQueuedBanner
-                        closeLabel={t('common:actions.close')}
-                        message={translateUiMessage(t, approvalQueued.message)}
-                        onClose={() => setApprovalQueued(null)}
-                        title={t('approval_submitted', { ns: 'errorKeys' })}
-                        viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
-                    />
-                )}
 
                 {error && (
                     <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">

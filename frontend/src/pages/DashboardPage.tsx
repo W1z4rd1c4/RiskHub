@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 import type { DashboardFilters } from '@/types/dashboard';
@@ -15,7 +15,14 @@ import { DashboardErrorState } from './dashboard/DashboardErrorState';
 import { DashboardHeader } from './dashboard/DashboardHeader';
 import { DashboardLoadingState } from './dashboard/DashboardLoadingState';
 import { DashboardOverviewContent } from './dashboard/DashboardOverviewContent';
-import { DashboardViewTabs, type DashboardView } from './dashboard/DashboardViewTabs';
+import {
+    DASHBOARD_VIEW_TABS_ID_PREFIX,
+    DashboardViewTabs,
+    type DashboardView,
+} from './dashboard/DashboardViewTabs';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { TabPanel } from '@/components/ui/tabs';
 import { exportDashboardSummary, openDashboardPath } from './dashboard/dashboardNavigation';
 import { useDashboardOverviewState } from './dashboard/useDashboardOverviewState';
 import {
@@ -149,7 +156,8 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
     const [searchParams, setSearchParams] = useSearchParams();
     const { filters } = useDashboardFilters();
     const authz = useAuthz();
-    const { i18n, t } = useTranslation('dashboard');
+    const { t } = useTranslation('dashboard');
+    const format = useFormat();
     const { t: tCommon } = useTranslation('common');
 
     const [selectedCell, setSelectedCell] = useState<{
@@ -239,41 +247,100 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
     // The overview's own loading / error only replaces the screen while the
     // overview tab is active. Committee tabs are never blocked by the overview
     // request (fixes the former unconditional early-return — acceptance d).
+    // D7: the dashboard title is the route's `h1` and `document.title` in every state.
     if (activeView === 'overview' && overviewQuery.isLoading && !summary) {
-        return <DashboardLoadingState label={t('loading')} />;
+        return (
+            <PageContainer>
+                <PageHeader title={t('title')} description={t('page_subtitle')} />
+                <DashboardLoadingState label={t('loading')} />
+            </PageContainer>
+        );
     }
 
     if (activeView === 'overview' && error && !summary) {
         return (
-            <DashboardErrorState
-                detail={error}
-                onRetry={() => {
-                    void overviewQuery.refresh();
-                }}
-                retryLabel={t('errors.retry')}
-                title={t('errors.connection_interrupted')}
-            />
+            <PageContainer>
+                <PageHeader title={t('title')} description={t('page_subtitle')} />
+                <DashboardErrorState
+                    detail={error}
+                    onRetry={() => {
+                        void overviewQuery.refresh();
+                    }}
+                    retryLabel={t('errors.retry')}
+                    title={t('errors.connection_interrupted')}
+                />
+            </PageContainer>
         );
     }
 
+    // The view tabs (and their panel) render only when a committee view exists.
+    const showViewTabs = canViewRiskCommittee || canViewIctCommittee;
+    const viewContent = activeView === 'risk-committee' ? (
+        <RiskCommitteeSection />
+    ) : activeView === 'ict-committee' ? (
+        <IctCommitteeSection />
+    ) : (
+        <DashboardOverviewContent
+            breachHistoryTitle={t('sections.kri_breach_history')}
+            breachTrends={breachTrends}
+            canReadIssues={canViewIssueMetrics}
+            canUseDepartmentFilter={canUseDepartmentFilter}
+            categoryAnalyticsTitle={t('sections.control_analytics')}
+            controlExecutionTitle={t('sections.control_execution_trends')}
+            departmentMetrics={departmentMetrics}
+            departmentVisibilityTitle={t('sections.departmental_visibility')}
+            filterScope={overviewQuery.data?.filter_scope}
+            grossDistribution={grossDistribution}
+            grossMatrixTitle={t('sections.gross_risk_matrix')}
+            historicalTitle={t('sections.time_series_analysis')}
+            issueAging={issueAging}
+            issueAgingTitle={t('issues.summary.open_by_age')}
+            issueSeverity={issueSeverity}
+            issueSeverityTitle={t('issues.summary.open_by_severity')}
+            issueSummary={issueSummary}
+            netDistribution={netDistribution}
+            netMatrixTitle={t('sections.net_risk_matrix')}
+            noExecutionHistoryLabel={t('sections.no_execution_history')}
+            onGrossCellClick={(probability, impact) =>
+                setSelectedCell({ probability, impact, riskType: 'gross' })
+            }
+            onNetCellClick={(probability, impact) =>
+                setSelectedCell({ probability, impact, riskType: 'net' })
+            }
+            onRiskModalClose={() => setSelectedCell(null)}
+            onStatSelect={handleStatSelect}
+            riskCreationTitle={t('sections.risk_creation_trends')}
+            riskModal={{
+                impact: selectedCell?.impact ?? 0,
+                isOpen: selectedCell !== null,
+                probability: selectedCell?.probability ?? 0,
+                riskType: selectedCell?.riskType ?? 'net',
+            }}
+            riskTrends={riskTrends}
+            stats={stats}
+            summary={summary}
+            trends={trends}
+        />
+    );
+
     return (
-        <div className="space-y-10">
-                <DashboardHeader
-                    canExport={canExport}
-                    generatedAt={overviewQuery.data?.generated_at}
-                    isExporting={isExporting}
-                    isUpdating={overviewQuery.isFetching && Boolean(overviewQuery.data)}
-                    locale={i18n.language}
-                    onExport={() => void onExport(exportFilters)}
-                    subtitle={t('page_subtitle')}
-                    title={t('title')}
-                    exportLabel={t('actions.export_overview_csv')}
-                    showFreshness={activeView === 'overview'}
-                    updateFailed={Boolean(overviewQuery.error && overviewQuery.data)}
-                    updatedLabel={t('freshness.updated')}
-                    updatingLabel={t('freshness.updating')}
-                    updateFailedLabel={t('freshness.update_failed')}
-                />
+        <PageContainer>
+            <DashboardHeader
+                canExport={canExport}
+                generatedAt={overviewQuery.data?.generated_at}
+                isExporting={isExporting}
+                isUpdating={overviewQuery.isFetching && Boolean(overviewQuery.data)}
+                locale={format.locale}
+                onExport={() => void onExport(exportFilters)}
+                subtitle={t('page_subtitle')}
+                title={t('title')}
+                exportLabel={t('actions.export_overview_csv')}
+                showFreshness={activeView === 'overview'}
+                updateFailed={Boolean(overviewQuery.error && overviewQuery.data)}
+                updatedLabel={t('freshness.updated')}
+                updatingLabel={t('freshness.updating')}
+                updateFailedLabel={t('freshness.update_failed')}
+            />
 
             {exportError && canExport ? (
                 <div
@@ -297,59 +364,20 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
                 canViewRiskCommittee={canViewRiskCommittee}
                 canViewIctCommittee={canViewIctCommittee}
                 onChange={handleViewChange}
+                label={t('views.label')}
                 overviewLabel={t('views.overview')}
                 riskCommitteeLabel={t('views.risk_committee')}
                 ictCommitteeLabel={t('views.ict_committee')}
             />
 
-            {activeView === 'risk-committee' ? (
-                <RiskCommitteeSection />
-            ) : activeView === 'ict-committee' ? (
-                <IctCommitteeSection />
+            {showViewTabs ? (
+                <TabPanel tab={activeView} activeTab={activeView} idPrefix={DASHBOARD_VIEW_TABS_ID_PREFIX} className="space-y-8">
+                    {viewContent}
+                </TabPanel>
             ) : (
-                <DashboardOverviewContent
-                    breachHistoryTitle={t('sections.kri_breach_history')}
-                    breachTrends={breachTrends}
-                    canReadIssues={canViewIssueMetrics}
-                    canUseDepartmentFilter={canUseDepartmentFilter}
-                    categoryAnalyticsTitle={t('sections.control_analytics')}
-                    controlExecutionTitle={t('sections.control_execution_trends')}
-                    departmentMetrics={departmentMetrics}
-                    departmentVisibilityTitle={t('sections.departmental_visibility')}
-                    filterScope={overviewQuery.data?.filter_scope}
-                    grossDistribution={grossDistribution}
-                    grossMatrixTitle={t('sections.gross_risk_matrix')}
-                    historicalTitle={t('sections.time_series_analysis')}
-                    issueAging={issueAging}
-                    issueAgingTitle={t('issues.summary.open_by_age')}
-                    issueSeverity={issueSeverity}
-                    issueSeverityTitle={t('issues.summary.open_by_severity')}
-                    issueSummary={issueSummary}
-                    netDistribution={netDistribution}
-                    netMatrixTitle={t('sections.net_risk_matrix')}
-                    noExecutionHistoryLabel={t('sections.no_execution_history')}
-                    onGrossCellClick={(probability, impact) =>
-                        setSelectedCell({ probability, impact, riskType: 'gross' })
-                    }
-                    onNetCellClick={(probability, impact) =>
-                        setSelectedCell({ probability, impact, riskType: 'net' })
-                    }
-                    onRiskModalClose={() => setSelectedCell(null)}
-                    onStatSelect={handleStatSelect}
-                    riskCreationTitle={t('sections.risk_creation_trends')}
-                    riskModal={{
-                        impact: selectedCell?.impact ?? 0,
-                        isOpen: selectedCell !== null,
-                        probability: selectedCell?.probability ?? 0,
-                        riskType: selectedCell?.riskType ?? 'net',
-                    }}
-                    riskTrends={riskTrends}
-                    stats={stats}
-                    summary={summary}
-                    trends={trends}
-                />
+                <div className="space-y-8">{viewContent}</div>
             )}
-        </div>
+        </PageContainer>
     );
 }
 

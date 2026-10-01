@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Network, Plus, Save, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SortableTable } from '@/components/tables';
@@ -9,7 +8,7 @@ import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { vendorContractApi } from '@/services/vendorContractApi';
@@ -25,6 +24,7 @@ import {
     groupSubOutsourcingChainRows,
     resolveSubOutsourcingContractLabel,
 } from './vendorSubOutsourcingPresentation';
+import { ErrorState } from '@/components/ui/state';
 
 interface VendorSubOutsourcingSectionProps {
     vendorId: number;
@@ -83,7 +83,9 @@ export function VendorSubOutsourcingSection({
     protectedChangeRequiresApproval,
 }: VendorSubOutsourcingSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
@@ -225,7 +227,7 @@ export function VendorSubOutsourcingSection({
             setSectionError(null);
             closeForm();
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshEntries();
@@ -240,7 +242,7 @@ export function VendorSubOutsourcingSection({
             setSectionError(null);
             setPendingArchive(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshEntries();
@@ -276,13 +278,11 @@ export function VendorSubOutsourcingSection({
         t: (key, options) => t(key, options),
         getContractLabel,
         onEdit: openEditForm,
+        // GAP-C-06 / D10: every archive is confirmed; the reason is required
+        // only when the change is routed through approval (PM-1).
         onArchive: (entry) => {
-            if (protectedChangeRequiresApproval) {
-                setSectionError(null);
-                setPendingArchive(entry);
-                return;
-            }
-            archiveEntry.mutate({ entry, reason: '' });
+            setSectionError(null);
+            setPendingArchive(entry);
         },
         onRestore: (entry) => restoreEntry.mutate(entry),
     });
@@ -472,13 +472,22 @@ export function VendorSubOutsourcingSection({
 
             {/* Loading / error / empty keep #61's SortableTable contract verbatim;
                 only the populated state switches to the grouped, collapsible render. */}
-            {entriesQuery.isLoading || entriesQuery.isError || chainGroups.length === 0 ? (
+            {entriesQuery.isError && entriesQuery.data ? (
+                // GAP-C-11: a refetch error keeps the grouped data and adds a stale banner.
+                <ErrorState
+                    variant="banner"
+                    onRetry={() => void entriesQuery.refetch()}
+                    isRetrying={entriesQuery.isFetching}
+                    className="mb-3"
+                />
+            ) : null}
+            {entriesQuery.isLoading || (entriesQuery.isError && !entriesQuery.data) || chainGroups.length === 0 ? (
                 <SortableTable
                     data={chainRows}
                     columns={columns}
                     keyExtractor={(row) => row.entry.id}
                     isLoading={entriesQuery.isLoading}
-                    isError={entriesQuery.isError}
+                    isError={entriesQuery.isError && !entriesQuery.data}
                     onRetry={() => void entriesQuery.refetch()}
                     emptyMessage={t('sub_outsourcing.empty')}
                 />
@@ -490,22 +499,21 @@ export function VendorSubOutsourcingSection({
                 isOpen={pendingArchive !== null}
                 onClose={() => setPendingArchive(null)}
                 onConfirm={(reason) => {
-                    if (pendingArchive && reason?.trim()) {
-                        archiveEntry.mutate({ entry: pendingArchive, reason: reason.trim() });
+                    if (pendingArchive) {
+                        archiveEntry.mutate({ entry: pendingArchive, reason: reason?.trim() ?? '' });
                     }
                 }}
+                intent="archive"
                 title={t('sub_outsourcing.actions.archive')}
                 message={t('sub_outsourcing.archive_confirm', {
                     name: pendingArchive?.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing'),
                 })}
                 confirmLabel={t('sub_outsourcing.actions.archive')}
-                variant="danger"
                 isLoading={archiveEntry.isPending}
                 errorText={sectionError}
-                showInput
-                inputRequired
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason={protectedChangeRequiresApproval ? 'required' : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
             />
         </div>
     );

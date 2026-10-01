@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { ControlEffectiveness } from '@/types/risk';
 import { useControlRiskLinkStep } from './controlRiskLinkStepContext';
+import { LoadingState } from '@/components/ui/state';
 
 type TranslateFn = (
   key: string,
@@ -150,10 +151,7 @@ export function ControlFormRiskLinkStep({
 
           <div className="max-h-[200px] overflow-y-auto rounded-xl border border-border divide-y divide-border custom-scrollbar">
             {isLoadingRisks ? (
-              <div className="p-8 text-center text-muted-foreground text-sm">
-                <div className="animate-spin h-5 w-5 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2"></div>
-                {t('common:loading.risk_data')}
-              </div>
+              <LoadingState className="p-8" label={t('common:loading.risk_data')} />
             ) : risks.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-sm">
                 {t('common:empty.no_risks_found')}

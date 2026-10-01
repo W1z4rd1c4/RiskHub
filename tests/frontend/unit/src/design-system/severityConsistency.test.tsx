@@ -1,25 +1,22 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, renderHook } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import * as criticalityPillModule from '@/components/ict-register/CriticalityClassPill';
 import { CriticalityClassPill, VendorTierPill } from '@/components/ict-register/CriticalityClassPill';
 import * as issueUiModule from '@/components/issues/issueUi';
 import { issueSeverityClass } from '@/components/issues/issueUi';
-import type { Theme } from '@/contexts/ThemeContext';
+import { scoreColor as vendorScoreColor } from '@/components/vendor-form/vendorForm.mappers';
 import * as useChartThemeModule from '@/hooks/useChartTheme';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import * as useStatusThemeModule from '@/hooks/useStatusTheme';
-import { useStatusTheme } from '@/hooks/useStatusTheme';
 import * as monitoringStatusModule from '@/lib/monitoringStatus';
 import { riskHubKeys } from '@/lib/queryKeys';
-import * as riskScoreTheme from '@/lib/riskScoreTheme';
 import * as severityModule from '@/lib/severity';
 import {
     classifyRiskScore,
@@ -28,6 +25,7 @@ import {
     CRITICALITY_CLASSES,
     criticalityClass,
     ISSUE_SEVERITY_BAND,
+    ordinalSeverityBand,
     riskScoreVariantClass,
     SEVERITY_BAND_TONE,
     SEVERITY_BANDS,
@@ -40,6 +38,7 @@ import {
     vendorTierClass,
 } from '@/lib/severity';
 import * as tonesModule from '@/lib/tones';
+import { getControlRiskLevelColor } from '@/pages/controls/controlsPagePresentation';
 import { TONE_CSS_VAR, TONE_VARIANTS, type Tone, toneClass } from '@/lib/tones';
 import type { IssueSeverity } from '@/types/issue';
 import { createTestQueryClient } from '@test/queryClient';
@@ -52,17 +51,11 @@ import { createTestQueryClient } from '@test/queryClient';
  *    own token family: low `success`, medium `warning`, high `severity-high`,
  *    critical `destructive`. Blue (`info` / `accent`) never encodes severity.
  * 2. Risk-score bands come from the configured thresholds, never literals.
- * 3. Ratchet: the legacy adapters that still render their own palette are
- *    listed explicitly. Migrating one (roadmap 2.11) makes this test fail until
- *    it is removed from `PENDING_MIGRATION`; a new divergent adapter fails too.
+ * 3. Single source: every adapter (issue pills, DORA criticality and vendor
+ *    tier pills, chart series) resolves each band to the same token family as
+ *    `lib/severity.ts`, and the legacy palettes (`useStatusTheme`,
+ *    `riskScoreTheme`, the `useChartTheme` hex tables) are gone for good.
  */
-
-const themeState = vi.hoisted(() => ({ theme: 'riskhub' as Theme }));
-vi.mock('@/contexts/ThemeContext', () => ({
-    useTheme: () => ({ theme: themeState.theme }),
-}));
-
-const THEMES: Theme[] = ['riskhub', 'dark', 'light'];
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
 const readSource = (path: string) => readFileSync(resolve(repoRoot, path), 'utf8');
@@ -184,30 +177,22 @@ describe('severity consistency — D1 scale', () => {
 
 describe('severity consistency — no ambiguous same-named exports', () => {
     /*
-     * A legacy theme module may re-export a name from lib/severity.ts or
+     * An adapter module may re-export a name from lib/severity.ts or
      * lib/tones.ts only as the identical binding, so an auto-import can never
-     * pick a same-named helper with a different palette (the pre-D1
-     * score helper is `riskScoreTheme.legacyRiskScoreVariantClass`).
+     * pick a same-named helper with a different palette.
      */
     const canonical: Record<string, unknown> = { ...tonesModule, ...severityModule };
-    const legacyModules: Record<string, Record<string, unknown>> = {
-        'lib/riskScoreTheme': riskScoreTheme,
+    const adapterModules: Record<string, Record<string, unknown>> = {
         'lib/monitoringStatus': monitoringStatusModule,
         'components/issues/issueUi': issueUiModule,
         'components/ict-register/CriticalityClassPill': criticalityPillModule,
-        'hooks/useStatusTheme': useStatusThemeModule,
         'hooks/useChartTheme': useChartThemeModule,
     };
 
-    it.each(Object.entries(legacyModules))('%s shares no export name with a different value', (_name, legacy) => {
-        for (const exportName of Object.keys(legacy).filter((key) => key in canonical)) {
-            expect(legacy[exportName], exportName).toBe(canonical[exportName]);
+    it.each(Object.entries(adapterModules))('%s shares no export name with a different value', (_name, adapter) => {
+        for (const exportName of Object.keys(adapter).filter((key) => key in canonical)) {
+            expect(adapter[exportName], exportName).toBe(canonical[exportName]);
         }
-    });
-
-    it('keeps the pre-D1 risk-score helper under its legacy name only', () => {
-        expect(Object.keys(riskScoreTheme)).not.toContain('riskScoreVariantClass');
-        expect(Object.keys(riskScoreTheme)).toContain('legacyRiskScoreVariantClass');
     });
 });
 
@@ -218,10 +203,6 @@ describe('severity consistency — thresholds come from configuration (ADR-008)'
         expect(classifyRiskScore.toString()).not.toMatch(/\d/);
         const severitySource = readSource('frontend/src/lib/severity.ts');
         expect(severitySource).not.toMatch(/\b(?:score|net_score|gross_score|risk_score)\s*[<>]=?\s*\d/);
-    });
-
-    it('keeps riskScoreTheme on the same classifier', () => {
-        expect(riskScoreTheme.classifyRiskScore).toBe(classifyRiskScore);
     });
 
     it('follows non-default thresholds end to end', () => {
@@ -244,35 +225,18 @@ describe('severity consistency — thresholds come from configuration (ADR-008)'
     });
 });
 
-describe('severity consistency — legacy adapter ratchet (roadmap 2.11)', () => {
-    /**
-     * Adapters that still paint severity with their own palette. Remove an entry
-     * when its consumers move onto `lib/severity.ts`; never add one.
-     */
-    const PENDING_MIGRATION = [
-        'issueUi.issueSeverityClass',
-        'riskScoreTheme.riskScoreClass',
-        'useChartTheme.issueSeverity',
-        'useStatusTheme.matrix',
-    ];
+describe('severity consistency — every adapter uses the single source (roadmap 2.11)', () => {
+    const ORDINAL_RATINGS = [1, 2, 3, 4, 5] as const;
+
+    it('maps 1-5 ordinal ratings onto the D1 bands (5 critical, 4 high, 3 medium, 1-2 low)', () => {
+        expect(ORDINAL_RATINGS.map(ordinalSeverityBand)).toEqual(['low', 'low', 'medium', 'high', 'critical']);
+    });
 
     type Case = { className: string; tone: Tone } | { chartColor: string; band: SeverityBand };
 
     function adapterCases(): Record<string, Case[]> {
-        const riskThemeVariants: riskScoreTheme.RiskScoreThemeVariant[] = [
-            'badge',
-            'matrix-cell',
-            'card',
-            'text',
-            'slider',
-        ];
-        const cases: Record<string, Case[]> = {
-            'riskScoreTheme.riskScoreClass': SEVERITY_BANDS.flatMap((band) =>
-                riskThemeVariants.map((variant) => ({
-                    className: riskScoreTheme.riskScoreClass(variant, band),
-                    tone: SEVERITY_BAND_TONE[band],
-                })),
-            ),
+        const chartTheme = renderHook(() => useChartTheme()).result.current;
+        return {
             'issueUi.issueSeverityClass': (Object.keys(ISSUE_SEVERITY_BAND) as IssueSeverity[]).map((severity) => ({
                 className: issueSeverityClass(severity),
                 tone: SEVERITY_BAND_TONE[ISSUE_SEVERITY_BAND[severity]],
@@ -285,26 +249,19 @@ describe('severity consistency — legacy adapter ratchet (roadmap 2.11)', () =>
                 className: renderedClass(<VendorTierPill tier={tier} />),
                 tone: VENDOR_TIER_TONE[tier],
             })),
-            'useStatusTheme.matrix': [],
-            'useChartTheme.issueSeverity': [],
+            'controlsPagePresentation.getControlRiskLevelColor': ORDINAL_RATINGS.map((level) => ({
+                className: getControlRiskLevelColor(level),
+                tone: SEVERITY_BAND_TONE[ordinalSeverityBand(level)],
+            })),
+            'vendorForm.scoreColor': ORDINAL_RATINGS.map((score) => ({
+                className: vendorScoreColor(score),
+                tone: SEVERITY_BAND_TONE[ordinalSeverityBand(score)],
+            })),
+            'useChartTheme.severity': SEVERITY_BANDS.map((band) => ({
+                chartColor: chartTheme.severity[band],
+                band,
+            })),
         };
-        for (const theme of THEMES) {
-            themeState.theme = theme;
-            const statusTheme = renderHook(() => useStatusTheme()).result.current;
-            const chartTheme = renderHook(() => useChartTheme()).result.current;
-            for (const band of SEVERITY_BANDS) {
-                cases['useStatusTheme.matrix']?.push({
-                    className: statusTheme.matrix[band],
-                    tone: SEVERITY_BAND_TONE[band],
-                });
-                cases['useChartTheme.issueSeverity']?.push({
-                    chartColor: chartTheme.issueSeverity[band],
-                    band,
-                });
-            }
-        }
-        themeState.theme = 'riskhub';
-        return cases;
     }
 
     function conforms(entry: Case): boolean {
@@ -312,11 +269,42 @@ describe('severity consistency — legacy adapter ratchet (roadmap 2.11)', () =>
         return conformsToTone(entry.className, entry.tone);
     }
 
-    it('lists exactly the adapters that still diverge from lib/severity', () => {
-        const divergent = Object.entries(adapterCases())
-            .filter(([, cases]) => cases.length === 0 || !cases.every(conforms))
-            .map(([name]) => name)
-            .sort();
-        expect(divergent).toEqual([...PENDING_MIGRATION].sort());
+    it.each(Object.entries(adapterCases()))('%s maps every band onto its D1 token family', (_name, cases) => {
+        expect(cases.length).toBeGreaterThan(0);
+        for (const entry of cases) {
+            expect(conforms(entry), JSON.stringify(entry)).toBe(true);
+        }
+    });
+
+    it('reads the chart severity series from the band tokens, not hex tables', () => {
+        const chartSource = readSource('frontend/src/hooks/useChartTheme.ts');
+        expect(chartSource).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+        expect(chartSource).not.toMatch(/\brgba?\(/);
+        expect(chartSource).toContain('severityChartToken');
+    });
+
+    it('has no legacy severity palette module left, and nothing imports one', () => {
+        const legacyModules = ['frontend/src/hooks/useStatusTheme.ts', 'frontend/src/lib/riskScoreTheme.ts'];
+        for (const legacy of legacyModules) {
+            expect(existsSync(resolve(repoRoot, legacy)), legacy).toBe(false);
+        }
+
+        const srcRoot = resolve(repoRoot, 'frontend/src');
+        const offenders: string[] = [];
+        const walk = (dir: string) => {
+            for (const entry of readdirSync(dir)) {
+                const path = join(dir, entry);
+                if (statSync(path).isDirectory()) {
+                    walk(path);
+                } else if (/\.(?:ts|tsx)$/.test(entry)) {
+                    const source = readFileSync(path, 'utf8');
+                    if (/useStatusTheme|riskScoreTheme|legacyRiskScoreVariantClass/.test(source)) {
+                        offenders.push(relative(srcRoot, path));
+                    }
+                }
+            }
+        };
+        walk(srcRoot);
+        expect(offenders).toEqual([]);
     });
 });

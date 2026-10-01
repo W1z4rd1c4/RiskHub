@@ -171,9 +171,15 @@ describe('ErrorState', () => {
         expect(screen.getByRole('alert')).toHaveTextContent('SessionsCustom failure');
     });
 
-    it('disables retry while retrying and omits it without a handler', () => {
-        const { rerender } = renderWithoutProviders(<ErrorState onRetry={vi.fn()} isRetrying />);
-        expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled();
+    it('keeps retry focusable but inert while retrying and omits it without a handler', () => {
+        const onRetry = vi.fn();
+        const { rerender } = renderWithoutProviders(<ErrorState onRetry={onRetry} isRetrying />);
+        const retry = screen.getByRole('button', { name: 'Retry' });
+        expect(retry).not.toBeDisabled();
+        expect(retry).toHaveAttribute('aria-disabled', 'true');
+        expect(retry).toHaveAttribute('aria-busy', 'true');
+        retry.click();
+        expect(onRetry).not.toHaveBeenCalled();
         rerender(<ErrorState />);
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -212,6 +218,15 @@ describe('AccessDeniedState', () => {
         renderWithoutProviders(<AccessDeniedState headingLevel={1} descriptionKey="access.denied_activity_log" ns="common" layout="section" />);
         expect(screen.getByRole('heading', { level: 1, name: 'Přístup zamítnut' })).toBeInTheDocument();
         expect(screen.getByText('Nemáte oprávnění zobrazit záznamy aktivit.')).toBeInTheDocument();
+    });
+
+    it('stays silent by default and announces itself as an alert when live', () => {
+        const { rerender } = renderWithoutProviders(<AccessDeniedState layout="section" />);
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+        rerender(<AccessDeniedState layout="section" live />);
+        const alert = screen.getByRole('alert');
+        expect(alert).toContainElement(screen.getByRole('heading', { level: 2, name: 'Access Denied' }));
     });
 });
 

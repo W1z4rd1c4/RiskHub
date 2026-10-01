@@ -29,12 +29,30 @@ vi.mock('@/authz/useAuthz', () => ({
     }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
@@ -181,11 +199,11 @@ describe('DashboardPage — ICT Committee tab addressability (#64)', () => {
 
         expect(await screen.findByText('overview content')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /views\.ict_committee/ }));
+        fireEvent.click(screen.getByRole('tab', { name: /views\.ict_committee/ }));
         expect(await screen.findByText('ict committee section')).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/?view=ict-committee');
 
-        fireEvent.click(screen.getByRole('button', { name: /views\.risk_committee/ }));
+        fireEvent.click(screen.getByRole('tab', { name: /views\.risk_committee/ }));
         expect(await screen.findByText('risk committee section')).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/?view=risk-committee');
 
@@ -228,8 +246,8 @@ describe('DashboardPage — ICT Committee tab addressability (#64)', () => {
         renderDashboard(['/']);
 
         expect(await screen.findByText('overview content')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /views\.risk_committee/ })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /views\.ict_committee/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /views\.risk_committee/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /views\.ict_committee/ })).not.toBeInTheDocument();
     });
 });
 
@@ -253,9 +271,9 @@ describe('Overview summary export ownership (#178)', () => {
         renderDashboard([`/?view=${view}`]);
         expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
         expect(fetchOverviewMock).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole('button', { name: 'views.overview' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'views.overview' }));
         expect(await screen.findByTitle('actions.export_overview_csv')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: `views.${view.replace('-', '_')}` }));
+        fireEvent.click(screen.getByRole('tab', { name: `views.${view.replace('-', '_')}` }));
         expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: '__back__' }));
         expect(await screen.findByTitle('actions.export_overview_csv')).toBeInTheDocument();
@@ -273,11 +291,11 @@ describe('Overview summary export ownership (#178)', () => {
         fireEvent.click(await screen.findByTitle('actions.export_overview_csv'));
         fireEvent.click(screen.getByRole('button', { name: '__change_filters__' }));
         expect(await screen.findByTitle('actions.export_overview_csv')).toBeDisabled();
-        fireEvent.click(screen.getByRole('button', { name: 'views.risk_committee' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'views.risk_committee' }));
         await act(async () => rejectExport(new Error('export unavailable')));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'actions.retry' })).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'views.overview' }));
+        fireEvent.click(screen.getByRole('tab', { name: 'views.overview' }));
         expect(await screen.findByRole('alert')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));
         await waitFor(() => expect(downloadSummaryCsvMock).toHaveBeenCalledTimes(2));

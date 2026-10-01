@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
-import { useTranslation } from '@/i18n/hooks';
+import { useFeedback } from '@/hooks/useFeedback';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
@@ -48,7 +50,10 @@ const protectedSidecarFailureOptions = {
 
 export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) {
     const navigate = useNavigate();
-    const { i18n, t } = useTranslation('common');
+    const { t } = useTranslation('common');
+    const format = useFormat();
+    const feedback = useFeedback();
+    const announceApprovalQueued = useApprovalQueued();
     const [activeTab, setActiveTab] = useContentTabQuery<RiskDetailTabView>({
         tabs: riskDetailTabs,
         defaultTab: 'overview',
@@ -222,7 +227,7 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
             );
             if (controller.signal.aborted || detailOwnerRef.current !== ownerId) return;
             const items = buildRiskKriHistoryItems(results, {
-                language: i18n.language,
+                language: format.locale,
                 recordedByLabel: t('risks:history.recorded_by'),
                 systemLabel: t('risks:history.system'),
             });
@@ -237,7 +242,7 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
             }
         }
     }, [
-        i18n.language,
+        format.locale,
         applyKriHistoryFailure,
         applyKriHistorySuccess,
         beginKriHistoryQuery,
@@ -246,7 +251,11 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
         t,
     ]);
 
+    // D9 / D12: direct outcomes are toasts; an approval-routed archive keeps the
+    // user on the risk with the pending notice. Failures stay in the banner.
     const { isRunning: isDeleting, runArchive, runRestore } = useArchiveRestoreAction({
+        onApprovalQueued: (response) => announceApprovalQueued({ approvalId: approvalIdFromResponse(response) }),
+        onSuccessMessage: (message) => feedback.success({ title: translateUiMessage(t, message.key) }),
         setMessage: setApprovalMessage,
         toErrorKey: (error) => apiClient.toUiMessageKey(error),
     });
@@ -303,7 +312,10 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
             archive: () => riskApi.deleteRisk(risk.id, reason || 'Archived by user'),
             approvalKey: 'risks:messages.archive_submitted_for_approval',
             isCurrent: () => detailOwnerRef.current === risk.id,
-            onImmediate: () => navigate(returnTo),
+            onImmediate: () => {
+                feedback.success({ title: t('outcome.archived', { name: risk.name }) });
+                void navigate(returnTo);
+            },
         });
         if (
             detailOwnerRef.current === risk.id
@@ -311,7 +323,7 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
         ) {
             setIsDeleteDialogOpen(false);
         }
-    }, [navigate, returnTo, risk, runArchive]);
+    }, [feedback, navigate, returnTo, risk, runArchive, t]);
 
     const handleRestore = useCallback(async () => {
         if (!risk) return;
@@ -350,12 +362,12 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
         setLinkErrorKey(null);
         try {
             await riskApi.unlinkControl(ownerId, controlId);
-            if (detailOwnerRef.current === ownerId) await fetchLinkedControls(ownerId);
         } catch (error) {
             if (detailOwnerRef.current !== ownerId) return;
-            logError('Unlinking failed.', error);
-            setLinkErrorKey(apiClient.toUiMessageKey(error));
+            // D10: the unlink confirmation shows this failure inside the dialog.
+            throw error;
         }
+        if (detailOwnerRef.current === ownerId) await fetchLinkedControls(ownerId);
     }, [fetchLinkedControls, risk]);
 
     return {

@@ -143,46 +143,6 @@
   color: hsl(var(--destructive));
 }
 
-.vendor-tabbar {
-  border-bottom: 1px solid hsl(var(--border));
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.vendor-tabbar::-webkit-scrollbar {
-  display: none;
-}
-
-.vendor-tablist {
-  align-items: center;
-  display: flex;
-  gap: 20px;
-  min-width: max-content;
-}
-
-.vendor-tab {
-  align-items: center;
-  border-bottom: 2px solid transparent;
-  color: hsl(var(--muted-foreground));
-  display: inline-flex;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  gap: 8px;
-  min-height: 56px;
-  padding: 0 2px;
-  transition: color 150ms ease, border-color 150ms ease;
-  white-space: nowrap;
-}
-
-.vendor-tab:hover {
-  color: hsl(var(--foreground));
-}
-
-.vendor-tab--active {
-  border-bottom-color: hsl(var(--accent));
-  color: hsl(var(--foreground));
-}
-
 .vendor-subnav {
   display: flex;
   flex-wrap: wrap;
@@ -452,35 +412,6 @@
 
 .vendor-tree-node--root {
   background: hsl(var(--glass-hover) / 0.88);
-}
-
-.vendor-inline-message {
-  align-items: flex-start;
-  background: hsl(var(--nested));
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  color: hsl(var(--foreground));
-  display: flex;
-  gap: 10px;
-  padding: 14px 16px;
-}
-
-.vendor-inline-message--danger {
-  background: hsl(var(--destructive) / 0.1);
-  border-color: hsl(var(--destructive) / 0.24);
-  color: hsl(var(--destructive));
-}
-
-.vendor-inline-message--success {
-  background: hsl(var(--success) / 0.1);
-  border-color: hsl(var(--success) / 0.24);
-  color: hsl(var(--success-text));
-}
-
-.vendor-inline-message--warn {
-  background: hsl(var(--warning) / 0.1);
-  border-color: hsl(var(--warning) / 0.28);
-  color: hsl(var(--warning-text));
 }
 
 .vendor-form-grid {

@@ -70,6 +70,7 @@
     }
   },
   "views": {
+    "label": "Dashboard views",
     "overview": "Overview",
     "risk_committee": "Risk Committee",
     "ict_committee": "ICT Committee"
@@ -138,6 +139,7 @@
     "appetite_maintained": "Appetite Maintained",
     "no_breaches_org": "No KRIs are currently in breach across the organization.",
     "status_title": "KRI Status",
+    "status_views_label": "KRI status view",
     "upcoming_count": "{{count}} upcoming",
     "overdue_count": "{{count}} overdue",
     "upcoming": "Upcoming",
@@ -244,11 +246,6 @@
     "risk_count_few": "{{count}} Risks",
     "risk_count_other": "{{count}} Risks",
     "no_recent_significant_activity": "No recent significant activity",
-    "today": "Today",
-    "yesterday": "Yesterday",
-    "days_ago": "{{count}} days ago",
-    "weeks_ago": "{{count}} weeks ago",
-    "months_ago": "{{count}} months ago",
     "actions": {
       "create": "Create",
       "delete": "Delete",

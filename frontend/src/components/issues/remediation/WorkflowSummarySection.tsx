@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { InlineMessage } from '@/components/ui/inline-message';
 import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import type { Issue, IssueStatus } from '@/types/issue';
 
@@ -51,9 +52,7 @@ export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySecti
             </div>
 
             {errorKey && (
-                <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {translateUiMessage(t, errorKey)}
-                </div>
+                <InlineMessage tone="danger">{translateUiMessage(t, errorKey)}</InlineMessage>
             )}
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

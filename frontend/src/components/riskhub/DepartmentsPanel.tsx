@@ -1,6 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Building, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users, Activity, Shield } from 'lucide-react';
+import { Archive, Building, Plus, Edit, RotateCcw, AlertCircle, Users, Activity, Shield } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
@@ -11,9 +11,10 @@ import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ErrorState, LoadingState } from '@/components/ui/state';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import { useRiskHubConfigResource } from './useRiskHubConfigResource';
@@ -184,11 +185,8 @@ export function DepartmentsPanel() {
             {panel.error ? (
                 <ErrorState variant="banner" onRetry={panel.retry} isRetrying={panel.isFetching} />
             ) : null}
-            {panel.actionErrorKey && (
-                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {t(panel.actionErrorKey, { ns: 'errorKeys' })}
-                </div>
+            {panel.actionErrorKey && !panel.deleteConfirm && (
+                <InlineMessage tone="danger">{translateUiMessage(t, panel.actionErrorKey)}</InlineMessage>
             )}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -309,10 +307,10 @@ export function DepartmentsPanel() {
                                             <button
                                                 onClick={() => panel.requestDelete(dept)}
                                                 className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                title={t('common:actions.delete')}
-                                                aria-label={t('common:actions.delete')}
+                                                title={t('common:actions.archive_named', { name: dept.name })}
+                                                aria-label={t('common:actions.archive_named', { name: dept.name })}
                                             >
-                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                <Archive className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
 
@@ -343,7 +341,8 @@ export function DepartmentsPanel() {
                 onSave={panel.handleSave}
             />
 
-            {/* Delete Confirmation */}
+            {/* Archive confirmation (D10): departments are soft-deleted and
+                restorable, so this is an archive; busy and errors stay here. */}
             {panel.deleteConfirm && (
                 <DialogShell
                     isOpen
@@ -352,17 +351,18 @@ export function DepartmentsPanel() {
                     descriptionIds={[deleteDescriptionId]}
                     role="alertdialog"
                     size="sm"
+                    isBusy={panel.isDeleting}
                 >
-                    <DialogHeader title={t('confirmations.delete_department')} icon={Trash2} tone="danger" />
+                    <DialogHeader title={t('confirmations.archive_department')} icon={Archive} tone="danger" />
                     <DialogBody className="text-sm text-muted-foreground">
                         <p id={deleteDescriptionId}>
-                            {t('admin:departments_panel.delete_confirm', { name: panel.deleteConfirm.name })}
+                            {t('admin:departments_panel.archive_confirm', { name: panel.deleteConfirm.name })}
                         </p>
                         {deleteBlocked && (
                             <div className="space-y-1 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                                 <div className="flex items-center gap-2 font-bold">
                                     <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                                    {t('admin:departments_panel.delete_blocked_title')}
+                                    {t('admin:departments_panel.archive_blocked_title')}
                                 </div>
                                 <ul className="ml-1 list-inside list-disc">
                                     {panel.deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: panel.deleteConfirm.user_count })}</li>}
@@ -374,11 +374,14 @@ export function DepartmentsPanel() {
                                 </ul>
                             </div>
                         )}
+                        {panel.actionErrorKey ? (
+                            <InlineMessage tone="danger">{translateUiMessage(t, panel.actionErrorKey)}</InlineMessage>
+                        ) : null}
                     </DialogBody>
                     <DialogFooter
                         cancelLabel={t('common:actions.cancel')}
                         intent="destructive"
-                        submitLabel={deleteBlocked ? undefined : t('common:actions.delete')}
+                        submitLabel={deleteBlocked ? undefined : t('common:actions.archive')}
                         onSubmit={() => void panel.handleDelete()}
                     />
                 </DialogShell>

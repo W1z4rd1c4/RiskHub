@@ -1,5 +1,7 @@
+import { Badge } from '@/components/ui/badge';
 import { formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { formatDateValue } from '@/i18n/formatters';
+import { getQuestionnaireStatusMeta } from '@/lib/questionnaireStatus';
 import type { RiskQuestionnaireDetail, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
 import { getRiskOwnerReassessmentQuestionKeys } from './riskQuestionnaireQuestions';
@@ -10,44 +12,13 @@ export function formatQuestionnaireDate(value: string | null | undefined, locale
     return formatDateValue(value, locale);
 }
 
-export function isQuestionnaireOverdue(item: RiskQuestionnaireListItem): boolean {
-    if (item.status === 'submitted') return false;
-    return new Date(item.due_at).getTime() < Date.now();
-}
-
-export function questionnaireStatusBadge(status: string, overdue: boolean, t: TranslateFn) {
-    if (overdue) {
-        return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-destructive/10 border-destructive/20 text-destructive">
-                {t('risks:questionnaire.status.overdue')}
-            </span>
-        );
-    }
-    if (status === 'sent') {
-        return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-warning/10 border-warning/20 text-warning-text">
-                {t('risks:questionnaire.status.sent')}
-            </span>
-        );
-    }
-    if (status === 'in_progress') {
-        return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent-text">
-                {t('risks:questionnaire.status.in_progress')}
-            </span>
-        );
-    }
-    if (status === 'submitted') {
-        return (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-success/10 border-success/20 text-success-text">
-                {t('risks:questionnaire.status.submitted')}
-            </span>
-        );
-    }
+/** Status pill for a questionnaire, from the single status map (PG-20). */
+export function questionnaireStatusBadge(questionnaire: RiskQuestionnaireListItem, t: TranslateFn) {
+    const meta = getQuestionnaireStatusMeta(questionnaire);
     return (
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-tint/5 border-border text-foreground">
-            {status}
-        </span>
+        <Badge tone={meta.tone} size="sm">
+            {meta.labelKey ? t(meta.labelKey) : questionnaire.status}
+        </Badge>
     );
 }
 

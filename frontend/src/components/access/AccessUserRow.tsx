@@ -13,8 +13,7 @@ import {
     UserX,
 } from 'lucide-react';
 
-import { formatDateTimeValue } from '@/i18n/formatters';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { AccessUserRead } from '@/types/access';
 
@@ -112,7 +111,8 @@ export function AccessUserRow({
     presentationModel,
     user,
 }: AccessUserRowProps) {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const canChangeActiveStatus = actionModel.canDeactivate || actionModel.canReactivate;
 
     return (
@@ -151,7 +151,7 @@ export function AccessUserRow({
                                 {user.directory_last_checked_at && (
                                     <>
                                         {' • '}
-                                        {formatDateTimeValue(user.directory_last_checked_at, i18n.language)}
+                                        {format.dateTime(user.directory_last_checked_at)}
                                     </>
                                 )}
                             </p>

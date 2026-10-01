@@ -1,5 +1,4 @@
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateTimeValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { SchedulerStatus } from '@/services/adminApi';
 
@@ -8,7 +7,8 @@ interface SchedulerStatusSectionProps {
 }
 
 export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSectionProps) {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
 
     return (
         <div className="rounded-2xl border border-border bg-tint/5 p-5">
@@ -59,7 +59,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                                         <span className="text-xs text-accent-text">{job.status}</span>
                                     </div>
                                     <p className="admin-muted mt-1 text-xs">
-                                        {formatDateTimeValue(job.started_at, i18n.language)}
+                                        {format.dateTime(job.started_at)}
                                     </p>
                                 </div>
                             ))}
@@ -89,7 +89,7 @@ export function SchedulerStatusSection({ schedulerStatus }: SchedulerStatusSecti
                                     </span>
                                 </div>
                                 <div className="admin-muted mt-1 flex items-center justify-between text-xs">
-                                    <span>{formatDateTimeValue(job.started_at, i18n.language)}</span>
+                                    <span>{format.dateTime(job.started_at)}</span>
                                     <span>{job.duration_ms ? `${job.duration_ms}ms` : 'n/a'}</span>
                                 </div>
                                 {job.error_message && (

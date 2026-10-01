@@ -202,24 +202,25 @@ describe('buildIctCommitteePresentation', () => {
         const presentation = buildIctCommitteePresentation(snapshot(), { language: 'en', t: translate });
 
         expect(presentation.executiveSummary.heatmap.rows[0].cells[2]).toEqual({
+            ariaLabel: 'cro.heatmap_cell_aria:{"count":2,"probability":5,"impact":3}',
             column: 3,
             count: 2,
-            fill: '#FFEB84',
+            heatClass: 'bg-heat-2 text-heat-2-foreground',
             href: '/risks?committee_scope=true&ict_linked=true&gross_probability=5&gross_impact=3',
         });
-        expect(presentation.executiveSummary.heatmap.rows[0].cells.map((cell) => cell.fill)).toEqual([
-            null,
-            '#FFF5C2',
-            '#FFEB84',
-            '#FCAA78',
-            '#F8696B',
+        expect(presentation.executiveSummary.heatmap.rows[0].cells.map((cell) => cell.heatClass)).toEqual([
+            'bg-heat-0 text-heat-0-foreground',
+            'bg-heat-1 text-heat-1-foreground',
+            'bg-heat-2 text-heat-2-foreground',
+            'bg-heat-3 text-heat-3-foreground',
+            'bg-heat-4 text-heat-4-foreground',
         ]);
         expect(presentation.executiveSummary.migration.rows[0].cells[1]).toMatchObject({
             band: 'Střední',
             count: 2,
             href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=St%C5%99edn%C3%AD',
         });
-        expect(presentation.executiveSummary.migration.rows[0].cells[3].fill).toBe('#F8696B');
+        expect(presentation.executiveSummary.migration.rows[0].cells[3].heatClass).toBe('bg-heat-4 text-heat-4-foreground');
         expect(presentation.executiveSummary.migration.columnLabels).toEqual(['Low', 'Medium', 'High', 'Critical']);
         expect(presentation.executiveSummary.migration.rows[0].grossBandLabel).toBe('Critical');
         expect(presentation.executiveSummary.topRisks[0]).toMatchObject({
@@ -227,10 +228,7 @@ describe('buildIctCommitteePresentation', () => {
             label: 'Unknown risk',
             netBand: 'Low',
             tolerance: 'Within tolerance',
-            netBandStyle: {
-                backgroundColor: 'hsl(var(--success))',
-                color: 'hsl(var(--success-foreground))',
-            },
+            netBandClass: 'bg-success text-success-foreground',
         });
         expect(presentation.executiveSummary.assetChart[0].href).toBe(
             '/assets?committee_scope=true&criticality=critical',
@@ -244,10 +242,7 @@ describe('buildIctCommitteePresentation', () => {
         expect(presentation.executiveSummary.topVendors[0]).toMatchObject({
             href: '/vendors/8',
             tier: 'Critical vendor',
-            tierStyle: {
-                backgroundColor: 'hsl(var(--destructive))',
-                color: 'hsl(var(--destructive-foreground))',
-            },
+            tierClass: 'bg-destructive text-destructive-foreground',
         });
         expect(presentation.executiveSummary.narratives[0].text).toContain(
             'narratives.a34:{"cif":1,"total":2,"bcm":1}',

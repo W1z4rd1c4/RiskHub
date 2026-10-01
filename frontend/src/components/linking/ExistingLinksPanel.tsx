@@ -3,10 +3,11 @@
  * Extracted from LinkManagementDialog to improve maintainability.
  */
 
-import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Unlink } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { buildExistingLinkPresentation } from './linkManagementPresentation';
 import type { ExistingLinkItem, LinkMode } from './linkTypes';
+import { Spinner } from '@/components/ui/state';
 
 export type { ExistingLinkItem } from './linkTypes';
 
@@ -67,14 +68,14 @@ export function ExistingLinksPanel({
                                 </div>
                                 <button
                                     type="button"
-                                    aria-label={`${t('risks:actions.unlink')} ${presentation.displayName}`}
+                                    aria-label={t('common:links.remove_named', { name: presentation.displayName })}
                                     onClick={() => onUnlink(presentation.targetId)}
                                     disabled={isCurrentlyUnlinking}
                                     className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10"
                                 >
                                     {isCurrentlyUnlinking
-                                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                                        : <Trash2 className="h-4 w-4" />
+                                        ? <Spinner size="sm" className="text-current" />
+                                        : <Unlink className="h-4 w-4" aria-hidden="true" />
                                     }
                                 </button>
                             </div>

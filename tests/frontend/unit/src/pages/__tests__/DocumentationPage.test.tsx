@@ -203,7 +203,7 @@ describe('DocumentationPage', () => {
 
         await uiUser.click(await screen.findByRole('link', { name: 'User Management' }));
 
-        expect(await screen.findByRole('heading', { level: 2, name: 'User Management' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'User Management' })).toBeInTheDocument();
         expect(scrollToMock).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' });
         expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'auto', block: 'start' });
     });
@@ -236,7 +236,7 @@ describe('DocumentationPage', () => {
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
 
-        expect(await screen.findByRole('heading', { level: 2, name: 'Getting Started with RiskHub' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Getting Started with RiskHub' })).toBeInTheDocument();
         expect(screen.queryByText('v2.0')).not.toBeInTheDocument();
         expect(screen.queryByText(/Maintainer reference:/i)).not.toBeInTheDocument();
         expect(screen.queryByText('docs/BUSINESS_LOGIC.md')).not.toBeInTheDocument();

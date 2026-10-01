@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { logError } from '@/services/logger';
+import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
@@ -30,17 +30,19 @@ export function useThreatDetailState({ mode }: UseThreatDetailStateOptions) {
         load: (threatId) => threatApi.getThreat(threatId),
     });
 
+    const restoreWithFeedback = useRestoreWithFeedback();
     const restoreThreat = useCallback(async () => {
         if (!threat) {
             return;
         }
-        try {
-            await threatApi.restoreThreat(threat.id);
-            await fetchThreat();
-        } catch (restoreError) {
-            logError('Error restoring threat:', restoreError);
-        }
-    }, [fetchThreat, threat]);
+        // D9: restore outcomes (success and failure) are toasts.
+        const restored = threat;
+        await restoreWithFeedback({
+            restore: () => threatApi.restoreThreat(restored.id),
+            name: restored.name,
+            refresh: () => fetchThreat(),
+        });
+    }, [fetchThreat, restoreWithFeedback, threat]);
 
     return {
         canArchive: resolveCapabilityFlag(threat?.capabilities, 'can_archive'),

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useResourcePanelQuery, type ResourceId } from '@/hooks/useResourcePanelQuery';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
 import { apiClient } from '@/services/apiClient';
 import { useRiskHubConfigPanelState } from './useRiskHubConfigPanelState';
 
@@ -16,6 +18,8 @@ function resourceQueryKey<TItem, TCreate, TUpdate>(definition: RiskHubConfigReso
 }
 export function useRiskHubConfigResource<TItem, TCreate, TUpdate>(definition: RiskHubConfigResourceDefinition<TItem, TCreate, TUpdate>) {
     const panel = useRiskHubConfigPanelState<TItem>();
+    const [isDeleting, setIsDeleting] = useState(false);
+    const restoreWithFeedback = useRestoreWithFeedback();
     const query = useResourcePanelQuery<TItem, TCreate, TUpdate>({
         create: definition.create ?? missingMutation('Create'),
         invalidateKey: definition.queryKey,
@@ -30,19 +34,23 @@ export function useRiskHubConfigResource<TItem, TCreate, TUpdate>(definition: Ri
         await query.handleSave({ id, payload: data });
     }
     async function handleDelete(): Promise<void> {
-        if (!panel.deleteConfirm) return;
+        if (!panel.deleteConfirm || isDeleting) return;
+        setIsDeleting(true);
         try {
             await query.handleDelete(definition.itemId(panel.deleteConfirm));
             panel.closeDelete();
         } catch (error: unknown) {
             panel.setActionErrorKey(apiClient.toUiMessageKey(error));
+        } finally {
+            setIsDeleting(false);
         }
     }
-    function handleRestore(item: TItem): void { void query.handleRestore(definition.itemId(item)); }
+    /** Row restore: the outcome is a toast (D9); a failure is never an unhandled rejection. */
+    function handleRestore(item: TItem): void { void restoreWithFeedback({ restore: () => query.handleRestore(definition.itemId(item)), refresh: () => undefined }); }
     return {
         actionErrorKey: panel.actionErrorKey, closeDelete: panel.closeDelete, closeModal: panel.closeModal,
         deleteConfirm: panel.deleteConfirm, editingItem: panel.editingItem, error: query.error,
-        handleDelete, handleRestore, handleSave, hasData: query.hasData, isFetching: query.isFetching,
+        handleDelete, handleRestore, handleSave, hasData: query.hasData, isDeleting, isFetching: query.isFetching,
         isLoading: query.isLoading, items: query.items, retry: () => { void query.refetch(); },
         modalOpen: panel.modalOpen, openCreate: panel.openCreate, openEdit: panel.openEdit,
         requestDelete: panel.requestDelete, setActionErrorKey: panel.setActionErrorKey,

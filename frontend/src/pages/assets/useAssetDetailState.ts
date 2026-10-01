@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { logError } from '@/services/logger';
+import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
 import { assetApi } from '@/services/assetApi';
 import type { Asset } from '@/types/asset';
 
@@ -30,17 +30,19 @@ export function useAssetDetailState({ mode }: UseAssetDetailStateOptions) {
         load: (assetId) => assetApi.getAsset(assetId),
     });
 
+    const restoreWithFeedback = useRestoreWithFeedback();
     const restoreAsset = useCallback(async () => {
         if (!asset) {
             return;
         }
-        try {
-            await assetApi.restoreAsset(asset.id);
-            await fetchAsset();
-        } catch (restoreError) {
-            logError('Error restoring asset:', restoreError);
-        }
-    }, [fetchAsset, asset]);
+        // D9: restore outcomes (success and failure) are toasts.
+        const restored = asset;
+        await restoreWithFeedback({
+            restore: () => assetApi.restoreAsset(restored.id),
+            name: restored.name,
+            refresh: () => fetchAsset(),
+        });
+    }, [fetchAsset, restoreWithFeedback, asset]);
 
     return {
         canArchive: resolveCapabilityFlag(asset?.capabilities, 'can_archive'),

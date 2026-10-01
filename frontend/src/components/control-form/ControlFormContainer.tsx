@@ -16,11 +16,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { Card } from '@/components/ui/card';
 import { StepIndicator } from '@/components/ui/StepIndicator';
-import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useFormStepNavigation } from '@/components/forms/FormStepContext';
-import {
-    resolveSubmitOutcome,
-} from '@/components/forms/entityFormWorkflow';
 import type { Control } from '@/types/control';
 import type { ControlEffectiveness } from '@/types/risk';
 import { ControlFormExecutionStep } from './ControlFormExecutionStep';
@@ -37,7 +33,6 @@ import { useControlFormLookups } from './useControlFormLookups';
 import {
     createControlFormSnapshot,
     useControlFormWorkflow,
-    type ControlFormLocationState,
 } from './useControlFormWorkflow';
 
 interface ControlFormProps {
@@ -45,9 +40,10 @@ interface ControlFormProps {
     isEdit?: boolean;
     onSuccess?: (
         controlId: number,
-        locationState?: ControlFormLocationState,
         acceptNavigation?: () => void,
     ) => void | Promise<void>;
+    /** Entity page shown after an approval-routed edit (D12 / PM-2). */
+    approvalReturnTo?: string;
     onCancel?: () => void;
     firstStepBackLabel?: string;
     allowRiskLinking?: boolean;
@@ -63,6 +59,7 @@ export function ControlForm({
     initialData,
     isEdit = false,
     onSuccess,
+    approvalReturnTo,
     onCancel,
     firstStepBackLabel,
     allowRiskLinking = true,
@@ -106,13 +103,11 @@ export function ControlForm({
     const [selectedCategory, setSelectedCategory] = useState('');
 
     const {
-        approvalQueued,
         currentStep,
         error,
         formData,
         isSubmitting,
         handleInputChange,
-        setApprovalQueued,
         setCurrentStep,
         setError,
         submit,
@@ -121,6 +116,7 @@ export function ControlForm({
         initialData,
         isEdit,
         onSuccess,
+        approvalReturnTo,
         users,
         t,
     });
@@ -213,8 +209,6 @@ export function ControlForm({
         return () => registerCloseRequest?.(null);
     }, [registerCloseRequest, requestClose]);
 
-    const submitOutcome = resolveSubmitOutcome({ approvalQueued: Boolean(approvalQueued) });
-
     return (
         <>
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
@@ -236,17 +230,6 @@ export function ControlForm({
             />
 
             <Card tone={surface === 'nested' ? 'nested' : 'default'} className="min-h-[400px] flex flex-col">
-                {/* Approval-queued banner */}
-                {submitOutcome.approvalQueued && approvalQueued && (
-                    <ApprovalQueuedBanner
-                        closeLabel={t('common:actions.close')}
-                        message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
-                        onClose={() => setApprovalQueued(null)}
-                        title={t('approval_submitted', { ns: 'errorKeys' })}
-                        viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
-                    />
-                )}
-
                 {visibleError && (
                     <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />

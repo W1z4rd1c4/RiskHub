@@ -58,7 +58,11 @@ export function LinkSearchResultItem({
                         </div>
                         <div className="flex flex-col items-end min-w-[60px]">
                             <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-right">{t('linking.frequency_short')}</span>
-                            <span className="text-xs font-bold text-foreground capitalize">{result.frequency}</span>
+                            <span className="text-xs font-bold text-foreground">
+                                {result.frequency
+                                    ? t(`controls:frequencies.${result.frequency}`, { defaultValue: result.frequency })
+                                    : '—'}
+                            </span>
                         </div>
                     </>
                 )}

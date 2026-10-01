@@ -1,5 +1,6 @@
 import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 import type { TranslateFn } from './risk-questionnaire-detail/questionnairePresentation';
 import type { LatestSubmittedLoadOutcome } from './useRiskQuestionnairesTabData';
@@ -60,11 +61,9 @@ export function QuestionnaireAssessmentSummary({
                     isRetrying={latestSubmittedLoading}
                 />
             ) : latestSubmittedLoading && !latestSubmitted ? (
-                <div className="text-sm text-muted-foreground">{t('loading.generic')}</div>
+                <LoadingState layout="inline" label={t('loading.generic')} />
             ) : !latestSubmitted ? (
-                <div className="text-sm text-muted-foreground">
-                    {t('risks:questionnaires.assessment_summary_empty')}
-                </div>
+                <EmptyState layout="inline" icon={null} title={t('risks:questionnaires.assessment_summary_empty')} />
             ) : (
                 <div data-testid="risk-questionnaire-summary-content" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">

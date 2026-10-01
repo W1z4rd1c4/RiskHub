@@ -21,7 +21,9 @@ vi.mock('framer-motion', () => ({
     },
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string, options?: { count?: number }) => (options?.count ? `${key}: ${options.count}` : key),
         i18n: { language: 'en' },
@@ -508,7 +510,7 @@ describe('AuditLogsPanel', () => {
         });
     });
 
-    it('shows a user-facing log config save error', async () => {
+    it('shows a translated, announced log config save error without backend text', async () => {
         updateLogConfigMock.mockRejectedValueOnce(new ApiClientError({
             status: 400,
             code: 'REQUEST_FAILED',
@@ -522,6 +524,8 @@ describe('AuditLogsPanel', () => {
         fireEvent.change(sizeInput, { target: { value: '30' } });
         fireEvent.click(screen.getByRole('button', { name: 'audit.save_settings' }));
 
-        expect(await screen.findByText('Invalid log settings')).toBeInTheDocument();
+        // GAP-C-12: the error key is translated and announced; backend text is never rendered.
+        expect(await screen.findByRole('alert')).toHaveTextContent('request_failed');
+        expect(screen.queryByText('Invalid log settings')).not.toBeInTheDocument();
     });
 });

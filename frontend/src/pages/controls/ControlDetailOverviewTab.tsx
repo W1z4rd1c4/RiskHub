@@ -1,9 +1,13 @@
 import type { MouseEvent } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, BarChart3, BookOpen, Building2, Calendar, ShieldAlert, User } from 'lucide-react';
+import { BarChart3, BookOpen, Building2, Calendar, ShieldAlert, User } from 'lucide-react';
 
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
+import { Badge } from '@/components/ui/badge';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { getControlEffectivenessMeta } from '@/lib/monitoringStatus';
 import { getControlRiskLevelColor } from '@/pages/controls/controlsPagePresentation';
 import type { Control, ControlRiskLink } from '@/types/control';
 import type { ControlEffectiveness, Risk } from '@/types/risk';
@@ -32,6 +36,16 @@ type ControlDetailOverviewTabProps = {
     onCloseRiskModal: () => void;
     onRetryLinkedRisks: () => void;
 };
+
+/** Link effectiveness: three distinct status tones and a translated label (PG-19). */
+function EffectivenessBadge({ level, t }: { level: ControlEffectiveness; t: TranslateFn }) {
+    const meta = getControlEffectivenessMeta(level);
+    return (
+        <Badge tone={meta.tone} size="sm" className="shrink-0">
+            {meta.labelKey ? t(meta.labelKey) : level}
+        </Badge>
+    );
+}
 
 const container = {
     hidden: { opacity: 0 },
@@ -181,47 +195,41 @@ export function ControlDetailOverviewTab({
                 </div>
 
                 {linkErrorKey && (
-                    <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
+                    <InlineMessage tone="danger" className="mb-3">
                         {t(linkErrorKey, { ns: 'errorKeys' })}
-                    </div>
+                    </InlineMessage>
                 )}
 
                 {linkedRisksOutcome === 'stale-with-error' && linkedRisksErrorKey ? (
-                    <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex flex-wrap items-center justify-between gap-3">
-                        <span className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4" />
-                            {t(linkedRisksErrorKey)}
-                        </span>
-                        <button type="button" className="text-xs font-bold text-accent-text" onClick={onRetryLinkedRisks}>
-                            {t('common:actions.retry')}
-                        </button>
-                    </div>
+                    <ErrorState
+                        variant="banner"
+                        message={t(linkedRisksErrorKey)}
+                        onRetry={onRetryLinkedRisks}
+                        className="mb-3"
+                    />
                 ) : null}
 
                 {linkedRisksOutcome === 'loading' ? (
-                    <div className="py-10 text-center text-sm text-muted-foreground" role="status">
-                        {t('common:loading.generic')}
-                    </div>
+                    <LoadingState layout="section" label={t('common:loading.generic')} className="py-6" />
                 ) : linkedRisksOutcome === 'denied' ? (
-                    <div className="py-10 text-center border-2 border-dashed border-destructive/20 rounded-2xl bg-destructive/5" role="alert">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-xs text-destructive font-medium">{t('controls:access.denied')}</p>
-                    </div>
+                    <AccessDeniedState
+                        layout="section"
+                        descriptionKey="detail.linked_risks_denied"
+                        ns="controls"
+                        className="py-6"
+                        live
+                    />
                 ) : linkedRisksOutcome === 'error' && linkedRisksErrorKey ? (
-                    <div className="py-10 text-center border-2 border-dashed border-destructive/20 rounded-2xl bg-destructive/5">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-xs text-destructive font-medium">{t(linkedRisksErrorKey)}</p>
-                        <button type="button" className="mt-3 text-xs font-bold text-accent-text" onClick={onRetryLinkedRisks}>
-                            {t('common:actions.retry')}
-                        </button>
-                    </div>
+                    <ErrorState
+                        layout="section"
+                        message={t(linkedRisksErrorKey)}
+                        onRetry={onRetryLinkedRisks}
+                        className="py-6"
+                    />
                 ) : (
                     <div className="space-y-6">
                         {activeLinkedRisks.length === 0 && archivedLinkedRisks.length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl col-span-full">
-                                <p className="text-xs text-muted-foreground font-medium">{t('controls:empty_state.no_linked_risks')}</p>
-                            </div>
+                            <EmptyState layout="section" title={t('controls:empty_state.no_linked_risks')} className="py-6" />
                         ) : (
                             <>
                                 {activeLinkedRisks.length > 0 && (
@@ -238,15 +246,7 @@ export function ControlDetailOverviewTab({
                                                         <span className="text-xs font-bold text-foreground line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
                                                         {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
                                                     </div>
-                                                    <span
-                                                        className={`px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest ${
-                                                            link.effectiveness === 'high'
-                                                                ? 'bg-success/10 text-success-text'
-                                                                : 'bg-warning/10 text-warning-text'
-                                                        }`}
-                                                    >
-                                                        {link.effectiveness}
-                                                    </span>
+                                                    <EffectivenessBadge level={link.effectiveness} t={t} />
                                                 </div>
                                                 {link.risk?.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{link.risk.description}</p>}
                                                 {link.notes && <p className="mt-2 text-xs text-muted-foreground font-medium italic">"{link.notes}"</p>}
@@ -272,15 +272,7 @@ export function ControlDetailOverviewTab({
                                                             <span className="text-xs font-bold text-foreground line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
                                                             {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
                                                         </div>
-                                                        <span
-                                                            className={`px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest ${
-                                                                link.effectiveness === 'high'
-                                                                    ? 'bg-success/10 text-success-text'
-                                                                    : 'bg-warning/10 text-warning-text'
-                                                            }`}
-                                                        >
-                                                            {link.effectiveness}
-                                                        </span>
+                                                        <EffectivenessBadge level={link.effectiveness} t={t} />
                                                     </div>
                                                     {link.risk?.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{link.risk.description}</p>}
                                                     {link.notes && <p className="mt-2 text-xs text-muted-foreground font-medium italic">"{link.notes}"</p>}

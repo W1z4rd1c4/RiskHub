@@ -55,10 +55,10 @@ describe('TableErrorState', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('disables the retry button while a retry is in flight', () => {
+    it('makes the retry button inert (focus-stable) while a retry is in flight', () => {
         render(<TableErrorState onRetry={vi.fn()} isRetrying />);
 
-        expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Retry' })).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('supports message and retry-label overrides', () => {

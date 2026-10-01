@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { docsKeys } from '@/lib/queryKeys';
 import { adminApi } from '@/services/adminApi';
@@ -14,9 +14,11 @@ import {
     getMaintainerReference,
     shouldShowRawVersion,
 } from '@/components/documentation/documentationPresentation';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 export function DocumentationSettings() {
-    const { t, i18n } = useTranslation('settings');
+    const { t } = useTranslation('settings');
+    const format = useFormat();
     const { user } = useAuth();
     const navigate = useNavigate();
 
@@ -26,9 +28,9 @@ export function DocumentationSettings() {
     const docTopRef = useRef<HTMLDivElement | null>(null);
     const docScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-    const { data: docsData, isLoading } = useQuery({
-        queryKey: docsKeys.settingsDocs(i18n.language),
-        queryFn: () => adminApi.getDocs(i18n.language),
+    const { data: docsData, isLoading, isError, isFetching, refetch } = useQuery({
+        queryKey: docsKeys.settingsDocs(format.locale),
+        queryFn: () => adminApi.getDocs(format.locale),
     });
 
     const docs = useMemo(() => docsData?.documents ?? [], [docsData?.documents]);
@@ -94,11 +96,13 @@ export function DocumentationSettings() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-                <p>{t('documentation.loading')}</p>
-            </div>
+            <LoadingState label={t('documentation.loading')} />
         );
+    }
+
+    // GAP-C-11: a failed load is an error with retry, never "no documentation".
+    if (isError && !docsData) {
+        return <ErrorState onRetry={() => void refetch()} isRetrying={isFetching} />;
     }
 
     if (activeDoc) {
@@ -228,15 +232,13 @@ export function DocumentationSettings() {
             )}
 
             {filteredDocs.length === 0 ? (
-                <div className="glass-card flex flex-col items-center justify-center py-16 text-muted-foreground">
-                    <BookOpen className="h-12 w-12 mb-4 opacity-10" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                        {docs.length === 0 ? t('documentation.empty_title') : t('documentation.no_matches_title')}
-                    </h3>
-                    <p className="text-sm">
-                        {docs.length === 0 ? t('documentation.empty_subtitle') : t('documentation.no_matches_subtitle')}
-                    </p>
-                </div>
+                <EmptyState
+                    icon={BookOpen}
+                    kind={docs.length === 0 ? 'no-data' : 'no-results'}
+                    title={docs.length === 0 ? t('documentation.empty_title') : t('documentation.no_matches_title')}
+                    description={docs.length === 0 ? t('documentation.empty_subtitle') : t('documentation.no_matches_subtitle')}
+                    className="glass-card py-16"
+                />
             ) : (
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {filteredDocs.map((doc) => (

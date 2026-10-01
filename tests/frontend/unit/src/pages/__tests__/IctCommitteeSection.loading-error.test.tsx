@@ -110,7 +110,8 @@ describe('IctCommitteeSection loading + error branches (FR-P3-4)', () => {
         renderSection();
 
         const loading = await screen.findByTestId('committee-loading');
-        expect(loading).toHaveAttribute('aria-busy', 'true');
+        expect(within(loading).getByRole('status')).toHaveTextContent(/\S/);
+        expect(loading.querySelector('[data-loading-placeholder][aria-busy="true"]')).not.toBeNull();
         // C3/C4: no tiles (and therefore no false zero counts) render during load.
         expect(screen.queryByTestId('committee-state-process_count')).not.toBeInTheDocument();
     });

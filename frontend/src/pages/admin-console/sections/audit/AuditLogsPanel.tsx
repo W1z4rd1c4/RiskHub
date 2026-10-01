@@ -4,7 +4,7 @@ import { FileDown, RefreshCw } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,8 @@ import { LogSettingsPanel } from './LogSettingsPanel';
 const AUDIT_USER_LOOKUP_CHUNK_SIZE = 200;
 
 export function AuditLogsPanel() {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const [lines, setLines] = useState<number>(100);
     const [eventFilter, setEventFilter] = useState<string>('');
     const [autoRefresh, setAutoRefresh] = useState(false);
@@ -181,7 +182,7 @@ export function AuditLogsPanel() {
 
             <AuditLogsTable
                 logs={logs}
-                language={i18n.language}
+                language={format.locale}
                 resolveUserName={(userId) => auditUserNameById.get(userId)}
                 t={t}
                 onViewDetails={setSelectedLogExtra}

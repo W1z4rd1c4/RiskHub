@@ -52,14 +52,33 @@ function executionResponse(name = 'Quarterly Review Control') {
     };
 }
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { count?: number }) => (
-            typeof options?.count === 'number' ? `${key}:${options.count}` : key
-        ),
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string, options?: { count?: number }) => (
+                typeof options?.count === 'number' ? `${key}:${options.count}` : key
+            ),
+            i18n: { language: 'en' },
+        }),
+        translateUiMessage: (t: (key: string) => string, key: string | null | undefined) => (key ? t(key) : ''),
+        useFormat: () => format,
+    };
+});
 
 vi.mock('@/services/executionApi', () => ({
     executionApi: {
@@ -504,7 +523,7 @@ describe('AuditTrailPage execution status rendering', () => {
         const retryButton = await screen.findByRole('button', { name: 'common:actions.retry' });
         await user.click(retryButton);
 
-        expect(retryButton).toBeDisabled();
+        expect(retryButton).toHaveAttribute('aria-disabled', 'true');
         expect(retryButton).toHaveAttribute('aria-busy', 'true');
         expect(retryButton).toHaveFocus();
         await user.click(retryButton);

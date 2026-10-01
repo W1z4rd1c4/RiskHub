@@ -166,7 +166,11 @@ export interface ErrorStateProps {
     onRetry?: () => void;
     /** Defaults to `common:actions.retry`. */
     retryLabel?: string;
-    /** Disables the retry button and spins its icon while a retry is in flight. */
+    /**
+     * Marks the retry button busy and inert (`aria-disabled`, clicks ignored) and
+     * spins its icon while a retry is in flight. The button stays focusable, so
+     * keyboard focus is not lost mid-retry.
+     */
     isRetrying?: boolean;
     /** Extra actions after Retry, e.g. a `BackButton`. */
     actions?: ReactNode;
@@ -195,9 +199,10 @@ export function ErrorState({
         <Button
             variant="outline"
             size={isCompact ? 'compact' : 'default'}
-            onClick={onRetry}
-            disabled={isRetrying}
+            onClick={isRetrying ? undefined : onRetry}
+            aria-disabled={isRetrying || undefined}
             aria-busy={isRetrying || undefined}
+            className={cn(isRetrying && 'cursor-not-allowed opacity-70')}
         >
             <RefreshCw aria-hidden="true" className={cn(isRetrying && 'animate-spin')} />
             {retryLabel ?? t('actions.retry')}
@@ -255,6 +260,12 @@ export interface AccessDeniedStateProps {
     title?: ReactNode;
     /** Follow the document outline: `1` when the state replaces a whole route that has no other `h1`. */
     headingLevel?: keyof typeof ACCESS_HEADING;
+    /**
+     * Announce the state (`role="alert"`) when it can replace content that was
+     * already on screen, e.g. a refresh denied after rows were shown. A state
+     * rendered on first load stays silent (the route title is announced).
+     */
+    live?: boolean;
     action?: ReactNode;
     className?: string;
     testId?: string;
@@ -267,6 +278,7 @@ export function AccessDeniedState({
     ns,
     title,
     headingLevel = 2,
+    live = false,
     action,
     className,
     testId,
@@ -275,7 +287,7 @@ export function AccessDeniedState({
     const Heading = ACCESS_HEADING[headingLevel];
 
     return (
-        <div data-testid={testId} className={cn(LAYOUT_CLASS[layout], className)}>
+        <div role={live ? 'alert' : undefined} data-testid={testId} className={cn(LAYOUT_CLASS[layout], className)}>
             <div className="rounded-2xl bg-destructive/10 p-4">
                 <ShieldX aria-hidden="true" className="size-12 text-destructive" />
             </div>

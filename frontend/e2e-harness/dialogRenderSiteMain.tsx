@@ -13,10 +13,12 @@ import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
 import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
+import { RiskQuestionnairesPanel } from '@/components/riskhub/RiskQuestionnairesPanel';
 import { RolesPanel } from '@/components/riskhub/RolesPanel';
 import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { RiskLinkedControlsSection } from '@/components/risks/detail-overview/RiskLinkedControlsSection';
+import { RiskRegisterLinksSection } from '@/components/risks/detail-overview/RiskRegisterLinksSection';
 import { VendorLinkedEntitiesTab } from '@/components/vendors/VendorLinkedEntitiesTab';
 import type { VendorLinkedEntitiesAdapter } from '@/components/vendors/useVendorLinkedEntities';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -28,10 +30,12 @@ import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverview
 import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
 import { VendorSubOutsourcingSection } from '@/pages/vendors/VendorSubOutsourcingSection';
 import { DashboardRiskSections } from '@/pages/dashboard/DashboardRiskSections';
+import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import type { Asset } from '@/types/asset';
 import type { Control, ControlRiskLink } from '@/types/control';
 import type { Risk, RiskControlLink } from '@/types/risk';
+import type { Threat } from '@/types/threat';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -57,6 +61,16 @@ const riskFixture = {
     can_send_questionnaire: true,
   },
 } as unknown as Risk;
+
+const threatFixture = {
+  id: 1,
+  name: 'Credential Stuffing',
+  stewardship_status: 'assigned',
+  is_archived: false,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  capabilities: { can_update: true },
+} as unknown as Threat;
 
 const controlFixture = {
   id: 1,
@@ -325,6 +339,9 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'confirm.vendor-sub-outsourcing': return (
       <VendorSubOutsourcingSection vendorId={1} canManageSubOutsourcing protectedChangeRequiresApproval />
     );
+    case 'confirm.threat-risk-links': return <ThreatRiskLinksSection threat={threatFixture} canManageLinks />;
+    case 'confirm.risk-register-links': return <RiskRegisterLinksSection risk={riskFixture} canManageLinks />;
+    case 'send.risk-questionnaires-panel': return <RiskQuestionnairesPanel />;
     case 'link.control-overview':
     case 'risk-view.control-overview': return <ControlOverviewOwner />;
     case 'risk-drilldown.dashboard': return <DashboardOwner />;

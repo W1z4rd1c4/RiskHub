@@ -124,7 +124,7 @@ export function ProfileSettings({ user, nativeAccount = false }: ProfileSettings
                         <ul className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                             {listedPermissions.map((permission) => (
                                 <li key={permission} className="text-sm text-foreground flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-success" />
                                     {getPermissionLabel(permission, t)}
                                 </li>
                             ))}

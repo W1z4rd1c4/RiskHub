@@ -4,6 +4,7 @@ import { HttpResponse, http } from 'msw';
 import { Link, RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 import type { KRIFormVendorContext } from '@/components/kri-form/kriForm.types';
 import type { KRICreate, KeyRiskIndicator } from '@/types/kri';
@@ -68,7 +69,7 @@ function renderKriCreate(options: {
 } = {}) {
     const router = createMemoryRouter([
         { path: '/new', element: <KriCreateHarness {...options} /> },
-        { path: '/done', element: <p>Destination reached</p> },
+        { path: '/done', element: <><ApprovalQueuedNotice /><p>Destination reached</p></> },
         { path: '/approvals', element: <p>Approval destination reached</p> },
     ], { initialEntries: ['/new'] });
     render(<RouterProvider router={router} />);
@@ -269,9 +270,11 @@ describe('KRI create dirty-task protection', () => {
         });
         fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue/i }));
 
-        expect(await screen.findByText('Approval destination reached')).toBeInTheDocument();
-        expect(router.state.location.pathname).toBe('/approvals');
-        expect(router.state.location.search).toBe('?tab=mine&approvalId=899');
+        // D12 / PM-2: back to the vendor (returnTo) with the pending notice.
+        expect(await screen.findByText('Destination reached')).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/done');
+        const notice = screen.getByTestId('approval-queued-notice');
+        expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=899');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 

@@ -19,8 +19,13 @@ export interface ChartTooltipProps {
     offset: number;
 }
 
+type TooltipTheme = Pick<
+    ChartTheme,
+    'tooltipBackground' | 'tooltipBorder' | 'tooltipTextPrimary' | 'tooltipTextSecondary'
+>;
+
 export function getChartTooltipProps(
-    chartTheme: ChartTheme,
+    chartTheme: TooltipTheme,
     options: ChartTooltipOptions = {},
 ): ChartTooltipProps {
     const base: ChartTooltipProps = {

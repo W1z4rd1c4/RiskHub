@@ -14,7 +14,7 @@ describe('EntityDetailHeader', () => {
     it('keeps identifier, title, status, metadata, description, and actions in one semantic header', () => {
         render(
             <EntityDetailHeader
-                backAction={<button type="button">Back</button>}
+                back={{ label: 'Back to Risks', onClick: () => undefined }}
                 identifier="RISK-WITH-A-VERY-LONG-UNBROKEN-IDENTIFIER"
                 identifierSeparatorLabel="Identifier separator"
                 title="A very long decision-record title"
@@ -33,12 +33,12 @@ describe('EntityDetailHeader', () => {
         expect(screen.getByText('Operations')).toBeVisible();
         expect(screen.getByText('A long description that must remain readable.')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Edit' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Back to Risks' })).toHaveAttribute('type', 'button');
     });
 
     it('omits the optional identifier and separator together', () => {
         render(
             <EntityDetailHeader
-                backAction={<button type="button">Back</button>}
                 identifierSeparatorLabel="Identifier separator"
                 title="Asset name"
             />,
@@ -49,7 +49,7 @@ describe('EntityDetailHeader', () => {
     });
 
     it('uses the shared D7 page-title recipe', () => {
-        render(<EntityDetailHeader backAction={<span />} title="Risk A" />);
+        render(<EntityDetailHeader title="Risk A" />);
         const heading = screen.getByRole('heading', { level: 1, name: 'Risk A' });
         expect(heading).toHaveClass(...PAGE_TITLE_CLASS.split(' '));
         expect(heading.className).not.toMatch(/font-black|text-4xl|tracking-tighter/);
@@ -76,10 +76,10 @@ describe('EntityDetailHeader', () => {
     });
 
     it('sets the per-route document title from the title or documentTitle (NAV-01)', () => {
-        const { unmount } = render(<EntityDetailHeader backAction={<span />} title="Vendor outage" />);
+        const { unmount } = render(<EntityDetailHeader title="Vendor outage" />);
         expect(document.title).toBe('Vendor outage · RiskHub');
         unmount();
-        render(<EntityDetailHeader backAction={<span />} title={<span>Rich</span>} documentTitle="KRI 7" />);
+        render(<EntityDetailHeader title={<span>Rich</span>} documentTitle="KRI 7" />);
         expect(document.title).toBe('KRI 7 · RiskHub');
     });
 });

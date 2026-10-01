@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion';
 import type { KeyRiskIndicator, KRIMonitoringFields } from '@/types/kri';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
-import { useTranslation } from '@/i18n/hooks';
-import { formatMetricNumberValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 
 export type KRIGaugeCardKri = Pick<
@@ -19,7 +18,8 @@ interface KRIGaugeCardProps {
 }
 
 export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeCardProps) {
-    const { t, i18n } = useTranslation(['kris', 'common']);
+    const { t } = useTranslation(['kris', 'common']);
+    const format = useFormat();
     const {
         metric_name,
         current_value,
@@ -47,7 +47,7 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
 
     // Format numbers with locale-aware separators and limited decimals
     const formatNumber = (val: number): string => {
-        return formatMetricNumberValue(val, i18n.language);
+        return format.metric(val);
     };
 
     const valuePct = calculatePercent(current_value);

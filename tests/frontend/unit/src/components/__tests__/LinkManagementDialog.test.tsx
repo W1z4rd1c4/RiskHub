@@ -205,7 +205,10 @@ describe('LinkManagementDialog', () => {
             existingLinks: [{ id: 4, control_id: 204, display_name: 'Existing control', effectiveness: 'medium' }],
         })} />);
 
-        expect(screen.getByRole('button', { name: /unlink existing control/i })).toBeInTheDocument();
+        // D10: unlink wording ("Remove link"), named by the linked record.
+        const removeButton = screen.getByRole('button', { name: /remove link: existing control/i });
+        expect(removeButton.querySelector('svg.lucide-unlink')).not.toBeNull();
+        expect(removeButton.querySelector('svg.lucide-trash-2')).toBeNull();
     });
 
     afterEach(() => {
@@ -339,10 +342,35 @@ describe('LinkManagementDialog', () => {
         const row = screen.getByText('Existing control').closest('.group');
         expect(row).not.toBeNull();
         fireEvent.click(within(row as HTMLElement).getByRole('button'));
-        fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+        // GAP-B-13 / D10: the confirmation is an unlink, never "Delete".
+        const confirmation = screen.getByRole('alertdialog');
+        expect(within(confirmation).getByRole('heading', { name: 'Remove link to Existing control?' })).toBeInTheDocument();
+        expect(within(confirmation).queryByRole('button', { name: /delete/i })).toBeNull();
+        expect(onUnlink).not.toHaveBeenCalled();
+        fireEvent.click(within(confirmation).getByRole('button', { name: 'Remove link' }));
 
         await flushPromises();
         expect(onUnlink).toHaveBeenCalledWith(204);
+    });
+
+    it('keeps a failed unlink inside the open confirmation (D10)', async () => {
+        const onUnlink = vi.fn(async () => { throw new Error('unlink failed'); });
+        render(<LinkManagementDialog
+            {...defaultProps({
+                existingLinks: [{ id: 4, control_id: 204, display_name: 'Existing control', effectiveness: 'medium' }],
+                onUnlink,
+                showSearch: false,
+            })}
+        />);
+
+        const row = screen.getByText('Existing control').closest('.group');
+        fireEvent.click(within(row as HTMLElement).getByRole('button'));
+        const confirmation = screen.getByRole('alertdialog');
+        fireEvent.click(within(confirmation).getByRole('button', { name: 'Remove link' }));
+
+        await flushPromises();
+        expect(onUnlink).toHaveBeenCalledWith(204);
+        expect(within(screen.getByRole('alertdialog')).getByRole('alert')).toBeInTheDocument();
     });
 
     it('restores archived search results through the mode-specific API and refreshes search', async () => {

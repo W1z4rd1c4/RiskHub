@@ -116,7 +116,10 @@ describe('KRI bounded history pagination', () => {
         getHistory.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         await screen.findByText('Loading history page 2…');
-        expect(screen.getByRole('button', { name: 'Older entries' })).toBeDisabled();
+        // Inert while the page loads, but still focusable (aria-disabled), so the pressed control keeps focus.
+        expect(screen.getByRole('button', { name: 'Older entries' })).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
+        expect(getHistory).toHaveBeenCalledTimes(2);
         fireEvent.click(screen.getByRole('button', { name: 'Back fixture' }));
         await screen.findByText('1–50 of 75');
         await act(async () => release({ items: fixture(75).slice(50), total: 75 }));

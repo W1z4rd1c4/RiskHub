@@ -1,7 +1,7 @@
 /**
  * RiskTrendChart - Area chart showing risk creation trends over time.
  * Refined with smoother curves, better tooltips, and premium styling.
- * Uses theme-aware colors via useChartTheme hook.
+ * Colours come from the theme tokens via useChartTheme (severity-coded series use the D1 band tokens).
  */
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import type { RiskTrendPoint } from '@/types/dashboard';
@@ -20,7 +20,6 @@ export function RiskTrendChart({ data, emptyMessage }: RiskTrendChartProps) {
     const resolvedEmptyMessage = emptyMessage ?? t('charts.no_risk_trend_data');
     const tooltipProps = getChartTooltipProps(chartTheme, {
         contentStyle: {
-            borderRadius: '12px',
             backdropFilter: 'blur(12px)',
             padding: '12px 16px',
         },
@@ -46,8 +45,8 @@ export function RiskTrendChart({ data, emptyMessage }: RiskTrendChartProps) {
                             <stop offset="95%" stopColor={chartTheme.series.primary} stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="criticalGradientNew" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={chartTheme.series.secondary} stopOpacity={0.2} />
-                            <stop offset="95%" stopColor={chartTheme.series.secondary} stopOpacity={0} />
+                            <stop offset="5%" stopColor={chartTheme.severity.critical} stopOpacity={0.2} />
+                            <stop offset="95%" stopColor={chartTheme.severity.critical} stopOpacity={0} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} opacity={0.5} />
@@ -80,8 +79,9 @@ export function RiskTrendChart({ data, emptyMessage }: RiskTrendChartProps) {
                             fontWeight: 800,
                             textTransform: 'uppercase',
                             letterSpacing: '0.05em',
-                            color: chartTheme.tooltipTextSecondary
+                            color: chartTheme.legendText
                         }}
+                        labelStyle={{ color: chartTheme.legendText }}
                     />
                     <Area
                         type="monotone"
@@ -97,11 +97,11 @@ export function RiskTrendChart({ data, emptyMessage }: RiskTrendChartProps) {
                         type="monotone"
                         dataKey="critical_new"
                         name={t('charts.critical')}
-                        stroke={chartTheme.series.secondary}
+                        stroke={chartTheme.severity.critical}
                         fill="url(#criticalGradientNew)"
                         strokeWidth={2.5}
                         animationDuration={1500}
-                        activeDot={{ r: 6, stroke: chartTheme.series.secondary, strokeWidth: 2, fill: chartTheme.activeDotFill }}
+                        activeDot={{ r: 6, stroke: chartTheme.severity.critical, strokeWidth: 2, fill: chartTheme.activeDotFill }}
                     />
                 </AreaChart>
             </ResponsiveContainer>

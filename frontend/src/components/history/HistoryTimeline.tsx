@@ -3,10 +3,10 @@
  * Renders a visual rail with status-colored dots and event details.
  */
 import { cn } from '@/lib/utils';
-import { Loader2, Edit3 } from 'lucide-react';
+import { Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
-import { useTranslation } from '@/i18n/hooks';
-import { formatRelativeDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 interface HistoryTimelineProps {
     items: HistoryTimelineItem[];
@@ -46,23 +46,20 @@ export function HistoryTimeline({
     onItemAction,
     actionLabel
 }: HistoryTimelineProps) {
-    const { t, i18n } = useTranslation('common');
+    const { t } = useTranslation('common');
+    const format = useFormat();
     const resolvedEmptyMessage = emptyMessage ?? t('empty.no_history_available');
     const resolvedActionLabel = actionLabel ?? t('actions.request_correction');
 
     if (loading) {
         return (
-            <div className={cn('flex items-center justify-center py-12', className)}>
-                <Loader2 className="h-8 w-8 text-accent-text animate-spin" />
-            </div>
+            <LoadingState className={className} />
         );
     }
 
     if (!items || items.length === 0) {
         return (
-            <div className={cn('text-center py-12 text-muted-foreground text-sm', className)}>
-                {resolvedEmptyMessage}
-            </div>
+            <EmptyState layout="inline" icon={null} title={resolvedEmptyMessage} className={cn('justify-center py-12', className)} />
         );
     }
 
@@ -111,7 +108,7 @@ export function HistoryTimeline({
                                         )}
                                     </div>
                                     <time className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">
-                                        {formatRelativeDateValue(item.timestamp, i18n.language)}
+                                        {format.relative(item.timestamp)}
                                     </time>
                                 </div>
 

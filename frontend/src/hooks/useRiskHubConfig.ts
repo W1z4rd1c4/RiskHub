@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { riskHubKeys } from '@/lib/queryKeys';
-import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
-import { classifyRiskScore, type SeverityBand } from '@/lib/severity';
+import { classifyRiskScore, riskScoreVariantClass, type SeverityBand } from '@/lib/severity';
 import { riskHubApi, type PublicRiskType } from '@/services/riskHubApi';
 
 // Internal type that matches what the rest of the app expects
@@ -156,20 +155,15 @@ export function useRiskThresholds() {
             const t = query.data || DEFAULT_THRESHOLDS;
             return classifyRiskScore(score, t);
         },
-        // Helper to get score color class based on thresholds
+        // D1 soft-badge recipe for a score (register score pills).
         getScoreColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            return legacyRiskScoreVariantClass('badge', score, t);
+            return riskScoreVariantClass('badge', score, t);
         },
-        // Helper to get score color for matrix cells
-        getMatrixCellColor: (score: number): string => {
-            const t = query.data || DEFAULT_THRESHOLDS;
-            return legacyRiskScoreVariantClass('matrix-cell', score, t);
-        },
-        // Helper to get score badge color
+        // D1 card recipe for a score (linked-risk score chips).
         getScoreBadgeColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            return legacyRiskScoreVariantClass('card', score, t);
+            return riskScoreVariantClass('card', score, t);
         },
     };
 }

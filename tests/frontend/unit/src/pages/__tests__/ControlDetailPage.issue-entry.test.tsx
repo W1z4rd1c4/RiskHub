@@ -118,7 +118,7 @@ describe('ControlDetailPage issue entry', () => {
             </MemoryRouter>
         );
 
-        await screen.findByText('Quarterly Access Review');
+        await screen.findByRole('heading', { level: 1, name: 'Quarterly Access Review' });
         fireEvent.click(screen.getByRole('button', { name: 'New Issue' }));
 
         expect(screen.getByTestId('issue-modal-context')).toHaveTextContent('Quarterly Access Review');
@@ -133,7 +133,7 @@ describe('ControlDetailPage issue entry', () => {
             </MemoryRouter>
         );
 
-        await screen.findByText('Quarterly Access Review');
+        await screen.findByRole('heading', { level: 1, name: 'Quarterly Access Review' });
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
@@ -161,7 +161,7 @@ describe('ControlDetailPage issue entry', () => {
             </MemoryRouter>
         );
 
-        await screen.findByText('Legacy Access Review');
+        await screen.findByRole('heading', { level: 1, name: 'Legacy Access Review' });
         expect(screen.getByText(/^archived$/i)).toBeInTheDocument();
         expect(screen.queryByText(/^active$/i)).not.toBeInTheDocument();
     });
@@ -198,7 +198,7 @@ describe('ControlDetailPage issue entry', () => {
             { queryClient: createTestQueryClient({ defaultOptions: { queries: { retryDelay: 0 } } }) },
         );
 
-        const back = await screen.findByRole('button', { name: 'Control Catalog' });
+        const back = await screen.findByRole('button', { name: 'Back to Catalog' });
         expect(back).toHaveAttribute('type', 'button');
         fireEvent.click(back);
         expect(mockNavigate).toHaveBeenCalledWith('/controls');
@@ -212,7 +212,7 @@ describe('ControlDetailPage issue entry', () => {
             </MemoryRouter>,
         );
 
-        await screen.findByText('Quarterly Access Review');
+        await screen.findByRole('heading', { level: 1, name: 'Quarterly Access Review' });
         fireEvent.click(screen.getByRole('button', { name: /archive/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'confirm-control-archive' }));
 

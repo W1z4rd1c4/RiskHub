@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
@@ -50,7 +51,7 @@ export function RisksPage() {
         table={{ keyExtractor: (risk) => risk.id, onRowClick: (risk) => void navigate(appendRegisterReturnTo(`/risks/${risk.id}`, returnTo)), rowHref: (risk) => appendRegisterReturnTo(`/risks/${risk.id}`, returnTo), rowLabel: (risk) => risk.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage} onRetry={() => void state.fetchRisks()}
-        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_risks') : t('common:loading.data')}
+        emptyMessage={t('empty_state.no_risks')}
         grouping={{
             groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,
@@ -67,7 +68,7 @@ export function RisksPage() {
                 }),
         }}
         testIdPrefix="risks"
-        toolbar={<div className="space-y-4"><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isPopulationLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
+        toolbar={<div className="space-y-4"><ApprovalQueuedNotice /><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isPopulationLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
     />;
 }
 

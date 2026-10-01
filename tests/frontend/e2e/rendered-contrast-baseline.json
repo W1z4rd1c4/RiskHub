@@ -2,21 +2,21 @@
   "description": "G-RENDER rendered-contrast ratchet (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1, §5.2 item 0.3). Counts of visible text elements per theme and harness surface; belowAA/below3/below1_5/whiteOnLight may only go down. Regenerate with UPDATE_CONTRAST_BASELINE=1 (see theme-rendered-contrast.spec.ts).",
   "totals": {
     "light": {
-      "total": 1011,
+      "total": 1048,
       "belowAA": 0,
       "below3": 0,
       "below1_5": 0,
       "whiteOnLight": 0
     },
     "riskhub": {
-      "total": 1011,
+      "total": 1048,
       "belowAA": 0,
       "below3": 0,
       "below1_5": 0,
       "whiteOnLight": 0
     },
     "dark": {
-      "total": 1011,
+      "total": 1048,
       "belowAA": 0,
       "below3": 0,
       "below1_5": 0,
@@ -200,6 +200,20 @@
         "below1_5": 0,
         "whiteOnLight": 0
       },
+      "dialog/confirm.risk-register-links/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.threat-risk-links/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/confirm.vendor-contracts/open": {
         "total": 5,
         "belowAA": 0,
@@ -389,8 +403,22 @@
         "below1_5": 0,
         "whiteOnLight": 0
       },
+      "dialog/risk-questionnaires-panel/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/risk-questionnaires-tab/closed": {
         "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-register-links/closed": {
+        "total": 7,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -426,6 +454,20 @@
       },
       "dialog/roles-panel/closed": {
         "total": 14,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/send.risk-questionnaires-panel/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/threat-risk-links/closed": {
+        "total": 2,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -755,6 +797,20 @@
         "below1_5": 0,
         "whiteOnLight": 0
       },
+      "dialog/confirm.risk-register-links/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.threat-risk-links/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/confirm.vendor-contracts/open": {
         "total": 5,
         "belowAA": 0,
@@ -944,8 +1000,22 @@
         "below1_5": 0,
         "whiteOnLight": 0
       },
+      "dialog/risk-questionnaires-panel/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/risk-questionnaires-tab/closed": {
         "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-register-links/closed": {
+        "total": 7,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -981,6 +1051,20 @@
       },
       "dialog/roles-panel/closed": {
         "total": 14,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/send.risk-questionnaires-panel/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/threat-risk-links/closed": {
+        "total": 2,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -1310,6 +1394,20 @@
         "below1_5": 0,
         "whiteOnLight": 0
       },
+      "dialog/confirm.risk-register-links/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.threat-risk-links/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/confirm.vendor-contracts/open": {
         "total": 5,
         "belowAA": 0,
@@ -1499,8 +1597,22 @@
         "below1_5": 0,
         "whiteOnLight": 0
       },
+      "dialog/risk-questionnaires-panel/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
       "dialog/risk-questionnaires-tab/closed": {
         "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-register-links/closed": {
+        "total": 7,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
@@ -1536,6 +1648,20 @@
       },
       "dialog/roles-panel/closed": {
         "total": 14,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/send.risk-questionnaires-panel/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/threat-risk-links/closed": {
+        "total": 2,
         "belowAA": 0,
         "below3": 0,
         "below1_5": 0,

@@ -1,4 +1,4 @@
-import { ArrowLeft, Edit, FileText, RotateCcw, Trash2 } from 'lucide-react';
+import { Archive, Edit, FileText, RotateCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
@@ -18,6 +18,8 @@ interface VendorDetailHeaderProps {
     onEdit: () => void;
     onOpenIssueModal: () => void;
     onRestore: () => void;
+    /** The register the user came from (honours `return_to`); first breadcrumb (NAV-02). */
+    registerHref: string;
     vendor: Vendor;
 }
 
@@ -53,6 +55,7 @@ export function VendorDetailHeader({
     onEdit,
     onOpenIssueModal,
     onRestore,
+    registerHref,
     vendor,
 }: VendorDetailHeaderProps) {
     const { t } = useTranslation('vendors');
@@ -62,17 +65,8 @@ export function VendorDetailHeader({
 
     return (
         <EntityDetailHeader
-            backAction={(
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={onBack}
-                    className="text-xs font-black uppercase tracking-widest"
-                >
-                    <ArrowLeft className="h-3 w-3" aria-hidden="true" />
-                    {t('actions.back_to_register')}
-                </Button>
-            )}
+            back={{ label: t('actions.back_to_register'), onClick: onBack }}
+            breadcrumbs={[{ label: t('title'), to: registerHref }, { label: vendor.name }]}
             identifier={vendor.registration_id}
             identifierSeparatorLabel={tCommon('detail_header.identifier_separator')}
             title={vendor.name}
@@ -152,7 +146,7 @@ export function VendorDetailHeader({
                         title={tCommon('actions.archive')}
                         aria-label={tCommon('actions.archive')}
                     >
-                        <Trash2 className="h-5 w-5" aria-hidden="true" />
+                        <Archive className="h-5 w-5" aria-hidden="true" />
                     </Button>
                 ) : null}
                 </>

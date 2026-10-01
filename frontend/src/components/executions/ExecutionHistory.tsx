@@ -7,16 +7,15 @@ import {
     ChevronUp,
     FileText,
     History,
-    AlertTriangle,
     PlusCircle
 } from 'lucide-react';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { controlApi } from '@/services/controlApi';
 import type { ControlExecution } from '@/types/execution';
 import type { Issue } from '@/types/issue';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { getExecutionResultMeta } from '@/lib/executionResult';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { logError } from '@/services/logger';
 import { isAbortError } from '@/services/api/requestRuntime';
 import { ApiClientError } from '@/services/apiClient';
@@ -57,7 +56,8 @@ export function ExecutionHistory({
     onIssueCreated,
     refreshKey = 0,
 }: ExecutionHistoryProps) {
-    const { t, i18n } = useTranslation(['controls', 'common', 'issues']);
+    const { t } = useTranslation(['controls', 'common', 'issues']);
+    const format = useFormat();
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const requestedExecutionValues = searchParams.getAll(EXECUTION_QUERY_PARAM);
@@ -194,21 +194,12 @@ export function ExecutionHistory({
     }, [fetchExecutions, queryIdentity]);
 
     if (outcome.kind === 'initial-loading') {
-        return (
-            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-3" role="status">
-                <History className="h-8 w-8 animate-pulse text-muted-foreground" />
-                <p className="text-sm font-medium">{t('loading.history', { ns: 'common' })}</p>
-            </div>
-        );
+        return <LoadingState layout="section" label={t('loading.history', { ns: 'common' })} />;
     }
 
     if (outcome.kind === 'denied') {
-        return (
-            <div role="alert" className="flex flex-col items-center justify-center p-12 text-destructive border-2 border-dashed border-destructive/20 rounded-2xl gap-3">
-                <AlertTriangle className="h-8 w-8 text-destructive" />
-                <p className="text-sm font-medium">{t('errors.history_access_denied', { ns: 'controls' })}</p>
-            </div>
-        );
+        // A refresh can be denied after rows were shown, so the replacement is announced.
+        return <AccessDeniedState layout="section" descriptionKey="errors.history_access_denied" ns="controls" live />;
     }
 
     let loadError: string | null = null;
@@ -221,20 +212,17 @@ export function ExecutionHistory({
         isRetrying = outcome.isRetrying;
     }
     const errorState = loadError ? (
-        <div role="alert" className="flex items-center gap-3 p-4 text-destructive border border-destructive/20 bg-destructive/5 rounded-2xl">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
-            <p className="text-sm font-medium">{loadError}</p>
-            <button
-                type="button"
-                onClick={() => void retryExecutions()}
-                aria-busy={isRetrying}
-                aria-disabled={isRetrying}
-                className="ml-auto px-4 py-2 rounded-xl border border-destructive/20 bg-destructive/10 text-xs font-black uppercase tracking-widest text-destructive hover:bg-destructive/20 transition-colors"
-            >
-                {t('errors.try_again', { ns: 'controls' })}
-            </button>
+        <>
+            <ErrorState
+                layout="section"
+                variant={outcome.kind === 'stale-with-error' ? 'banner' : 'block'}
+                message={loadError}
+                onRetry={() => void retryExecutions()}
+                retryLabel={t('errors.try_again', { ns: 'controls' })}
+                isRetrying={isRetrying}
+            />
             {isRetrying ? <span role="status" className="sr-only">{t('status.history_retrying', { ns: 'controls' })}</span> : null}
-        </div>
+        </>
     ) : null;
 
     if (outcome.kind === 'fatal-error') {
@@ -247,11 +235,12 @@ export function ExecutionHistory({
 
     if (outcome.kind === 'empty') {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground border-2 border-dashed border-border rounded-2xl gap-2">
-                <History className="h-8 w-8 opacity-20" />
-                <p className="text-sm font-medium">{t('empty_state.no_executions', { ns: 'controls' })}</p>
-                <p className="text-xs">{t('executions.log_to_start')}</p>
-            </div>
+            <EmptyState
+                layout="section"
+                icon={History}
+                title={t('empty_state.no_executions', { ns: 'controls' })}
+                description={t('executions.log_to_start')}
+            />
         );
     }
 
@@ -289,7 +278,7 @@ export function ExecutionHistory({
                                                 </span>
                                                 <span className="text-muted-foreground">•</span>
                                                 <span className="text-xs font-bold text-foreground">
-                                                    {formatDateTimeValue(exe.executed_at, i18n.language)}
+                                                    {format.dateTime(exe.executed_at)}
                                                 </span>
                                             </span>
                                             <span className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
@@ -302,7 +291,7 @@ export function ExecutionHistory({
                                                         <span className="text-muted-foreground">|</span>
                                                         <span className="flex items-center gap-1 text-accent-text">
                                                             <Calendar className="h-3 w-3" />
-                                                            {t('executions.next')}: {formatDateValue(exe.next_scheduled, i18n.language)}
+                                                            {t('executions.next')}: {format.date(exe.next_scheduled)}
                                                         </span>
                                                     </>
                                                 )}
@@ -374,7 +363,7 @@ export function ExecutionHistory({
                     onClose={() => setIssueExecution(null)}
                     contextEntityType="execution"
                     contextEntityId={issueExecution.id}
-                    contextEntityLabel={controlName ?? formatDateTimeValue(issueExecution.executed_at, i18n.language)}
+                    contextEntityLabel={controlName ?? format.dateTime(issueExecution.executed_at)}
                     onCreated={(issue) => {
                         onIssueCreated?.(issue);
                         setIssueExecution(null);

@@ -11,7 +11,8 @@ UI components for `tables` area.
 - `Pagination.tsx` — the one pager (D14): named `<nav>`, `Button`-based
   controls, `aria-current="page"`; `mode` `pages` (default, page buttons),
   `compact` (previous/next + summary) or `cursor` (`hasPrevious`/`hasNext` for
-  server cursors).
+  server cursors). While `isLoading`, previous/next stay focusable but inert
+  (`aria-disabled`), so the pressed control keeps keyboard focus.
 - `RowActionButton.tsx` — icon-only row action: required `label` (accessible
   name + tooltip), optional `disabledReason` (inert via `aria-disabled`, reason
   as tooltip/description), never bubbles to row activation.

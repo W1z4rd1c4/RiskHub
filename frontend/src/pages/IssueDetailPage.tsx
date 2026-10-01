@@ -1,11 +1,15 @@
 import { useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, History, RefreshCw, Target, Wrench } from 'lucide-react';
+import { History, RefreshCw, Target, Wrench, type LucideIcon } from 'lucide-react';
 
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { Button } from '@/components/ui/button';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
+import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import type { IssueSeverity, IssueStatus } from '@/types/issue';
 
 import { IssueHistoryTab } from './issues/issue-detail/IssueHistoryTab';
@@ -16,9 +20,10 @@ import { useIssueDetail } from './issues/issue-detail/useIssueDetail';
 import { useIssueHistory } from './issues/issue-detail/useIssueHistory';
 import { resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
-import { useContentTabs } from '@/hooks/useContentTabs';
+import { LoadingState } from '@/components/ui/state';
 
 const issueDetailTabs = ['overview', 'workflow', 'history'] as const;
+const ISSUE_TABS_ID_PREFIX = 'issue-detail';
 
 export function IssueDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -31,18 +36,12 @@ export function IssueDetailPage() {
         tabs: issueDetailTabs,
         defaultTab: 'overview',
     });
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: issueDetailTabs,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'issue-detail',
-    });
 
     const { isRetrying, issue, issueId, loadOutcome, refreshIssue } = useIssueDetail({
         rawId: id,
     });
     const canViewActivityHistory = resolveCapabilityFlag(issue?.capabilities, 'can_view_activity_history');
-    const { historyItems, isHistoryLoading, refreshHistory } = useIssueHistory({
+    const { historyItems, isHistoryLoading, historyLoadFailed, isHistoryRefetching, refreshHistory } = useIssueHistory({
         activeTab,
         canViewActivityHistory,
         issue,
@@ -68,7 +67,7 @@ export function IssueDetailPage() {
         [issue?.description, t],
     );
 
-    const tabs: Array<{ id: IssueDetailTab; label: string; icon: typeof Target }> = [
+    const tabs: Array<{ id: IssueDetailTab; label: string; icon: LucideIcon }> = [
         { id: 'overview', label: t('detail.tabs.overview'), icon: Target },
         { id: 'workflow', label: t('detail.tabs.workflow'), icon: Wrench },
         { id: 'history', label: t('detail.tabs.history'), icon: History },
@@ -76,12 +75,7 @@ export function IssueDetailPage() {
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
-                    {t('detail.loading')}
-                </p>
-            </div>
+            <LoadingState layout="page" label={t('detail.loading')} />
         );
     }
 
@@ -97,72 +91,51 @@ export function IssueDetailPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             {loadOutcome === 'stale-with-error' ? (
                 <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshIssue()} />
             ) : null}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="space-y-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest"
-                    >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        {t('actions.back_to_issues')}
-                    </button>
-
-                    <div className="flex flex-wrap items-center gap-2.5">
-                        <h2 className="text-4xl font-black text-foreground tracking-tighter">{issue.title}</h2>
+            <EntityDetailHeader
+                back={{ label: t('actions.back_to_issues'), onClick: () => void navigate(returnTo) }}
+                breadcrumbs={[{ label: t('navigation:sidebar.issues'), to: returnTo }, { label: issue.title }]}
+                title={issue.title}
+                statuses={(
+                    <>
                         <span className={issuePill(issueStatusClass(issue.status))}>
                             {statusLabel(issue.status)}
                         </span>
                         <span className={issuePill(issueSeverityClass(issue.severity))}>
                             {severityLabel(issue.severity)}
                         </span>
-                    </div>
+                    </>
+                )}
+                description={formattedDescription}
+                actions={(
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            void refreshIssue();
+                            if (activeTab === 'history') {
+                                void refreshHistory();
+                            }
+                        }}
+                    >
+                        <RefreshCw aria-hidden="true" />
+                        {t('actions.refresh')}
+                    </Button>
+                )}
+            />
 
-                    <p className="text-muted-foreground font-medium max-w-3xl">{formattedDescription}</p>
-                </div>
-
-                <button
-                    type="button"
-                    onClick={() => {
-                        void refreshIssue();
-                        if (activeTab === 'history') {
-                            void refreshHistory();
-                        }
-                    }}
-                    className="p-3 bg-tint/5 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-accent/40 transition-colors"
-                    title={t('actions.refresh')}
-                    aria-label={t('actions.refresh')}
-                >
-                    <RefreshCw className="h-5 w-5" aria-hidden="true" />
-                </button>
-            </div>
-
-            <div className="flex items-center gap-1 border-b border-tint/10" role="tablist" aria-label={t('title')}>
-                {tabs.map((tab, index) => {
-                    const TabIcon = tab.icon;
-                    const isActive = activeTab === tab.id;
-
-                    return (
-                        <button
-                            key={tab.id}
-                            {...getTabProps(tab.id, index)}
-                            className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-bold transition-colors ${
-                                isActive ? 'text-accent-text border-b-2 border-accent' : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            <TabIcon className="h-4 w-4" />
-                            {tab.label}
-                        </button>
-                    );
-                })}
-            </div>
+            <TabList
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={ISSUE_TABS_ID_PREFIX}
+                ariaLabel={t('title')}
+            />
 
             {issueDetailTabs.map((tab) => (
-                <div key={tab} {...getPanelProps(tab)}>
+                <TabPanel key={tab} tab={tab} activeTab={activeTab} idPrefix={ISSUE_TABS_ID_PREFIX}>
                     {tab === 'overview' && activeTab === tab ? (
                         <IssueOverviewTab
                             issue={issue}
@@ -176,12 +149,15 @@ export function IssueDetailPage() {
                             canViewActivityHistory={canViewActivityHistory}
                             historyItems={historyItems}
                             isHistoryLoading={isHistoryLoading}
+                            historyLoadFailed={historyLoadFailed}
+                            isHistoryRefetching={isHistoryRefetching}
+                            onRetryHistory={() => void refreshHistory()}
                             t={t}
                         />
                     ) : null}
-                </div>
+                </TabPanel>
             ))}
-        </div>
+        </PageContainer>
     );
 }
 

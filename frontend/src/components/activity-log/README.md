@@ -8,7 +8,6 @@ UI components for `activity-log` area.
 
 - `ActivityLogFilterBar.tsx`
 - `ActivityLogEntries.tsx`
-- `ActivityLogPagination.tsx`
 - `activityLogPresentation.ts`
 
 ## Notes

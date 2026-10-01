@@ -7,6 +7,8 @@ Small shared helpers for page-level collection state that are reused by list pag
 ## Contents
 
 - `collectionPageState.ts`
+- `useRestoreWithFeedback.ts` — restore with toast feedback (D9 / FB-01) for register rows and
+  detail pages; a row failure never flips the register into its error state.
 
 ## Notes
 

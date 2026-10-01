@@ -7,7 +7,6 @@ import './vendorRoute.css';
 type VendorSurfaceElement = 'article' | 'div' | 'section';
 type VendorSurfaceTone = 'default' | 'emphasis' | 'muted';
 type VendorBadgeTone = 'danger' | 'info' | 'neutral' | 'success' | 'warn';
-type VendorMessageTone = 'danger' | 'success' | 'neutral' | 'warn';
 
 interface VendorSurfaceProps extends HTMLAttributes<HTMLElement> {
     as?: VendorSurfaceElement;
@@ -26,10 +25,6 @@ interface VendorSectionHeaderProps {
 
 interface VendorBadgeProps extends HTMLAttributes<HTMLSpanElement> {
     tone?: VendorBadgeTone;
-}
-
-interface VendorInlineMessageProps extends HTMLAttributes<HTMLDivElement> {
-    tone?: VendorMessageTone;
 }
 
 export function VendorSurface({
@@ -97,27 +92,5 @@ export function VendorBadge({ children, className, tone = 'neutral', ...props }:
         >
             {children}
         </span>
-    );
-}
-
-export function VendorInlineMessage({
-    children,
-    className,
-    tone = 'neutral',
-    ...props
-}: VendorInlineMessageProps) {
-    return (
-        <div
-            className={cn(
-                'vendor-inline-message',
-                tone === 'danger' && 'vendor-inline-message--danger',
-                tone === 'success' && 'vendor-inline-message--success',
-                tone === 'warn' && 'vendor-inline-message--warn',
-                className,
-            )}
-            {...props}
-        >
-            {children}
-        </div>
     );
 }

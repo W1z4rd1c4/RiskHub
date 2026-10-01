@@ -1,4 +1,4 @@
-import { Filter, Loader2, RotateCcw, Search } from 'lucide-react';
+import { Filter, RotateCcw, Search } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -6,6 +6,7 @@ import { useTranslation } from '@/i18n/hooks';
 
 import { getSearchPlaceholder } from './linkSearchPresentation';
 import type { DepartmentLookup, LinkMode } from './linkTypes';
+import { Spinner } from '@/components/ui/state';
 
 interface LinkSearchFiltersProps {
     mode: LinkMode;
@@ -68,7 +69,7 @@ export function LinkSearchFilters({
                 />
                 {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 text-accent animate-spin" />
+                        <Spinner size="sm" label={t('common:loading.generic')} />
                     </div>
                 )}
             </div>
@@ -76,7 +77,7 @@ export function LinkSearchFilters({
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-foreground">
                 <Filter className="h-3 w-3" />
                 {t('common:actions.filter')}
-                {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                {isLoadingLookups && <Spinner size="sm" className="ml-auto" />}
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                 <input

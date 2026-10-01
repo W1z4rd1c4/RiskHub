@@ -3,6 +3,7 @@ import { render, screen, userEvent, waitFor } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SystemSettingsPanel } from '@/components/riskhub/SystemSettingsPanel';
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { riskHubApi } from '@/services/riskHubApi';
 import { createTestQueryClient } from '@test/queryClient';
@@ -73,7 +74,9 @@ function renderPanel({ canUpdate = true } = {}) {
     const queryClient = createTestQueryClient();
     render(
         <QueryClientProvider client={queryClient}>
-            <SystemSettingsPanel />
+            <FeedbackProvider>
+                <SystemSettingsPanel />
+            </FeedbackProvider>
         </QueryClientProvider>,
     );
 }
@@ -98,6 +101,29 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         expect(toggle).toHaveAttribute('aria-checked', 'true');
         await user.keyboard('{Enter}');
         expect(toggle).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('renders a settings load failure as an error with retry (DS-17, GAP-C-11)', async () => {
+        const user = userEvent.setup();
+        vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({ system_settings: { can_update: true } } as never);
+        vi.mocked(riskHubApi.getAllConfig)
+            .mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({ approvals: [config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days' })] } as never);
+        render(
+            <QueryClientProvider client={createTestQueryClient()}>
+                <FeedbackProvider>
+                    <SystemSettingsPanel />
+                </FeedbackProvider>
+            </QueryClientProvider>,
+        );
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('admin:errors.failed_to_load_settings');
+
+        await user.click(screen.getByRole('button', { name: 'actions.retry' }));
+        expect(await screen.findByRole('textbox', { name: 'Approval SLA days' })).toHaveValue('5');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(riskHubApi.getAllConfig).toHaveBeenCalledTimes(2);
     });
 
     it('labels value inputs with their setting names', async () => {
@@ -140,7 +166,10 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         await waitFor(() => {
             expect(riskHubApi.updateConfig).toHaveBeenCalledWith('require_dual_approval', 'true');
         });
-        expect(await screen.findByRole('status')).toHaveTextContent('admin:system_settings.saved');
+        // D9 / GAP-B-10: the save outcome is a success toast naming the setting.
+        const toast = (await screen.findByText('common:success.saved')).closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'success');
+        expect(toast).toHaveTextContent('Require dual approval');
     });
 
     it('keeps the switch disabled without update capability', async () => {

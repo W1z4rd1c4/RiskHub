@@ -4,12 +4,14 @@ import { Settings2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { parseBoundedInteger } from '@/lib/boundedInteger';
 import { adminKeys } from '@/lib/queryKeys';
 import { adminApi, type LogConfig } from '@/services/adminApi';
 import { apiClient } from '@/services/apiClient';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 
 interface LogConfigNumberInputProps {
     label: string;
@@ -99,7 +101,7 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isDirty, setIsDirty] = useState(false);
 
-    const { data: config, isLoading } = useQuery({
+    const { data: config, isLoading, isError, isFetching, refetch } = useQuery({
         queryKey: adminKeys.logConfig(),
         queryFn: () => adminApi.getLogConfig(),
     });
@@ -117,7 +119,7 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
         },
         onError: (error) => {
             setShowSavedNotice(false);
-            setErrorMessage(apiClient.getRawErrorMessage(error) ?? t(apiClient.toUiMessageKey(error), { ns: 'errorKeys' }));
+            setErrorMessage(translateUiMessage(t, apiClient.toUiMessageKey(error)));
         },
     });
 
@@ -149,7 +151,20 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
         return () => window.clearTimeout(timeout);
     }, [showSavedNotice]);
 
-    if (isLoading || !form) return null;
+    if (isLoading) {
+        return <LoadingState label={t('common:loading.named', { name: t('audit.title') })} className="mb-6" />;
+    }
+    if (isError && !config) {
+        return (
+            <ErrorState
+                title={t('audit.title')}
+                onRetry={() => void refetch()}
+                isRetrying={isFetching}
+                className="mb-6"
+            />
+        );
+    }
+    if (!form) return null;
 
     const updateForm = (patch: Partial<LogConfigDraft>) => {
         setForm({ ...form, ...patch });
@@ -206,6 +221,8 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
                 </div>
             </div>
 
+            {errorMessage ? <InlineMessage tone="danger" className="mt-4">{errorMessage}</InlineMessage> : null}
+
             <div className="mt-4 flex items-center justify-between">
                 <div className="space-y-1">
                     <p className="text-xs text-warning-text italic">
@@ -214,11 +231,6 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
                     {showSavedNotice && (
                         <p className="text-xs text-success-text font-medium">
                             {t('audit.settings_saved_notice')}
-                        </p>
-                    )}
-                    {errorMessage && (
-                        <p className="text-xs text-destructive font-medium">
-                            {errorMessage}
                         </p>
                     )}
                 </div>

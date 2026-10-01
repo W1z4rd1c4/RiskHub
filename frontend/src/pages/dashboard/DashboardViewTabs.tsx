@@ -1,36 +1,38 @@
-import { Landmark, Users } from 'lucide-react';
+import { LayoutDashboard, Landmark, Users } from 'lucide-react';
+
+import { TabList, type TabItem } from '@/components/ui/tabs';
 
 // The URL-addressable dashboard views (issue #64). `overview` is the canonical
 // default and carries no `?view=` query param; the two committee views are
 // deep-linkable at `/?view=risk-committee` and `/?view=ict-committee`.
 export type DashboardView = 'overview' | 'risk-committee' | 'ict-committee';
 
+/** Tab / panel id prefix shared with the view panel in `DashboardPage`. */
+export const DASHBOARD_VIEW_TABS_ID_PREFIX = 'dashboard-view';
+
 interface DashboardViewTabsProps {
     activeView: DashboardView;
     canViewRiskCommittee: boolean;
     canViewIctCommittee: boolean;
     onChange: (view: DashboardView) => void;
+    /** Accessible name of the tablist. */
+    label: string;
     overviewLabel: string;
     riskCommitteeLabel: string;
     ictCommitteeLabel: string;
 }
 
-const TAB_BASE =
-    'flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all';
-
-function tabClassName(isActive: boolean) {
-    return `${TAB_BASE} ${
-        isActive
-            ? 'bg-accent text-accent-foreground'
-            : 'bg-tint/5 text-muted-foreground hover:bg-tint/10 hover:text-foreground'
-    }`;
-}
-
+/**
+ * Page-level dashboard views on the shared `pill` tabs (D8, DS-12): arrow keys,
+ * Home / End and a roving tab stop come from `TabList`. The retired uppercase
+ * pill style is gone.
+ */
 export function DashboardViewTabs({
     activeView,
     canViewRiskCommittee,
     canViewIctCommittee,
     onChange,
+    label,
     overviewLabel,
     riskCommitteeLabel,
     ictCommitteeLabel,
@@ -40,38 +42,20 @@ export function DashboardViewTabs({
         return null;
     }
 
+    const tabs: Array<TabItem<DashboardView>> = [
+        { id: 'overview', label: overviewLabel, icon: LayoutDashboard },
+    ];
+    if (canViewRiskCommittee) tabs.push({ id: 'risk-committee', label: riskCommitteeLabel, icon: Users });
+    if (canViewIctCommittee) tabs.push({ id: 'ict-committee', label: ictCommitteeLabel, icon: Landmark });
+
     return (
-        <div className="flex items-center gap-2">
-            <button
-                type="button"
-                onClick={() => onChange('overview')}
-                aria-current={activeView === 'overview' ? 'page' : undefined}
-                className={tabClassName(activeView === 'overview')}
-            >
-                {overviewLabel}
-            </button>
-            {canViewRiskCommittee && (
-                <button
-                    type="button"
-                    onClick={() => onChange('risk-committee')}
-                    aria-current={activeView === 'risk-committee' ? 'page' : undefined}
-                    className={tabClassName(activeView === 'risk-committee')}
-                >
-                    <Users className="h-4 w-4" />
-                    {riskCommitteeLabel}
-                </button>
-            )}
-            {canViewIctCommittee && (
-                <button
-                    type="button"
-                    onClick={() => onChange('ict-committee')}
-                    aria-current={activeView === 'ict-committee' ? 'page' : undefined}
-                    className={tabClassName(activeView === 'ict-committee')}
-                >
-                    <Landmark className="h-4 w-4" />
-                    {ictCommitteeLabel}
-                </button>
-            )}
-        </div>
+        <TabList
+            tabs={tabs}
+            activeTab={activeView}
+            onChange={onChange}
+            idPrefix={DASHBOARD_VIEW_TABS_ID_PREFIX}
+            variant="pill"
+            ariaLabel={label}
+        />
     );
 }

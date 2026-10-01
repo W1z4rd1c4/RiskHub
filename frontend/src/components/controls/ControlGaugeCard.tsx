@@ -17,7 +17,9 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
     } = link;
 
     const controlName = control?.name || t('common:fallbacks.unknown_control');
-    const frequency = control?.frequency || '—';
+    const frequency = control?.frequency
+        ? t(`controls:frequencies.${control.frequency}`, { defaultValue: control.frequency })
+        : '—';
     const riskLevel = control?.risk_level || 0;
     const maxRiskLevel = 5;
     const monitoring = getControlMonitoringMeta(control?.monitoring_status);

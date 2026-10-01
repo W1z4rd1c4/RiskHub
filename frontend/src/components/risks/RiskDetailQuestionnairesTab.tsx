@@ -1,8 +1,9 @@
-import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
+import { FileText, Send, UserX } from 'lucide-react';
 
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
-import { useTranslation } from '@/i18n/hooks';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import type { Risk } from '@/types/risk';
@@ -12,7 +13,6 @@ import { QuestionnaireHistoryTable } from './QuestionnaireHistoryTable';
 import { RiskQuestionnaireDetail } from './RiskQuestionnaireDetail';
 import {
     formatQuestionnaireDate,
-    isQuestionnaireOverdue,
     questionnaireStatusBadge,
 } from './questionnairesTabPresentation';
 import { useRiskQuestionnairesTabData } from './useRiskQuestionnairesTabData';
@@ -22,7 +22,8 @@ interface RiskDetailQuestionnairesTabProps {
 }
 
 export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTabProps) {
-    const { t, i18n } = useTranslation(['common', 'risks']);
+    const { t } = useTranslation(['common', 'risks']);
+    const format = useFormat();
     const { totalAssets } = useTotalAssetsValue();
     const canSend = resolveCapabilityFlag(risk.capabilities, 'can_send_questionnaire');
     const {
@@ -64,9 +65,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
     return (
         <div className="glass-card !p-0 overflow-hidden">
             {message && (
-                <div className="p-4 border-b border-border text-sm text-warning-text bg-warning/5">
-                    {message}
-                </div>
+                <InlineMessage tone="warning" className="m-4">{message}</InlineMessage>
             )}
 
             {loadOutcome === 'stale-with-error' ? (
@@ -80,12 +79,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
             ) : null}
 
             {errorKey && loadOutcome === 'content' && (
-                <div className="p-4 border-b border-destructive/20 text-sm text-destructive bg-destructive/10 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
-                </div>
+                <InlineMessage tone="danger" className="m-4">{translateUiMessage(t, errorKey)}</InlineMessage>
             )}
 
             <div className="p-6 border-b border-border flex items-start justify-between gap-4">
@@ -100,9 +94,9 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
                     {openItem && (
                         <div className="mt-3 flex items-center gap-3">
-                            {questionnaireStatusBadge(openItem.status, isQuestionnaireOverdue(openItem), t)}
+                            {questionnaireStatusBadge(openItem, t)}
                             <span className="text-xs text-muted-foreground">
-                                {t('risks:questionnaires.current_due')}: {formatQuestionnaireDate(openItem.due_at, i18n.language)}
+                                {t('risks:questionnaires.current_due')}: {formatQuestionnaireDate(openItem.due_at, format.locale)}
                             </span>
                             <button
                                 onClick={() => setSelectedId(openItem.id)}
@@ -142,7 +136,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 latestSubmitted={latestSubmitted}
                 latestSubmittedLoading={latestSubmittedLoading}
                 loadOutcome={latestSubmittedOutcome}
-                locale={i18n.language}
+                locale={format.locale}
                 onRetry={() => void refreshLatestSubmitted()}
                 t={t}
                 totalAssets={totalAssets}
@@ -151,7 +145,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
             <QuestionnaireHistoryTable
                 items={items}
                 loading={loading}
-                locale={i18n.language}
+                locale={format.locale}
                 onSelect={setSelectedId}
                 t={t}
             />

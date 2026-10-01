@@ -1,11 +1,12 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
+import { getChartTooltipProps } from '@/components/dashboard/chartTooltip';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { cn } from '@/lib/utils';
 import type { IctCommitteePresentation } from '@/pages/ictRegisterCommittee/buildIctCommitteePresentation';
 
 type ExecutivePresentation = IctCommitteePresentation['executiveSummary'];
-type CellStyle = { backgroundColor: string; color: string };
 
 interface DrilldownBarShapeProps {
     fill?: string;
@@ -60,7 +61,7 @@ function HeatmapLegend({
     testId,
 }: {
     label: string;
-    stops: Array<{ fill: string | null; label: string; value: number }>;
+    stops: Array<{ heatClass: string; label: string; value: number }>;
     testId: string;
 }) {
     return (
@@ -69,11 +70,7 @@ function HeatmapLegend({
             <div className="flex items-center gap-2">
                 {stops.map((stop) => (
                     <span key={stop.value} className="flex items-center gap-1">
-                        <span
-                            aria-hidden="true"
-                            style={stop.fill ? { backgroundColor: stop.fill } : undefined}
-                            className={`h-3 w-3 rounded ${stop.fill ? '' : 'bg-tint/5'}`}
-                        />
+                        <span aria-hidden="true" className={cn('h-3 w-3 rounded border border-border', stop.heatClass)} />
                         <span className="text-[10px] text-muted-foreground tabular-nums">{stop.label}</span>
                     </span>
                 ))}
@@ -82,26 +79,25 @@ function HeatmapLegend({
     );
 }
 
-function CellPill({ value, style }: { value: string | null; style: CellStyle | null }) {
+function CellPill({ value, toneClassName }: { value: string | null; toneClassName: string | null }) {
     if (!value) return <span />;
     return (
         <span
-            style={style ?? undefined}
-            className="inline-block px-2 py-0.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+            className={cn(
+                'inline-block px-2 py-0.5 rounded-lg text-xs font-semibold whitespace-nowrap',
+                toneClassName ?? 'bg-muted text-muted-foreground',
+            )}
         >
             {value}
         </span>
     );
 }
 
-function MatrixCell({ fill, count, testId }: { fill: string | null; count: number; testId: string }) {
+function MatrixCell({ heatClass, count, testId }: { heatClass: string; count: number; testId: string }) {
     return (
         <div
             data-testid={testId}
-            style={fill ? { backgroundColor: fill, color: '#0F172A' } : undefined}
-            className={`h-10 min-w-10 flex items-center justify-center rounded-lg text-sm font-bold tabular-nums ${
-                fill ? '' : 'bg-tint/5 text-muted-foreground'
-            }`}
+            className={cn('h-10 min-w-10 flex items-center justify-center rounded-lg text-sm font-bold tabular-nums', heatClass)}
         >
             {count}
         </div>
@@ -143,10 +139,10 @@ function TopRisksTable({ presentation }: { presentation: ExecutivePresentation }
                             <td className="py-2 pr-3 text-right tabular-nums text-foreground">{risk.grossScore}</td>
                             <td className="py-2 pr-3 text-right tabular-nums font-bold text-foreground">{risk.netScore}</td>
                             <td className="py-2 pr-3">
-                                <CellPill value={risk.netBand} style={risk.netBandStyle} />
+                                <CellPill value={risk.netBand} toneClassName={risk.netBandClass} />
                             </td>
                             <td className="py-2 pr-3">
-                                <CellPill value={risk.tolerance} style={risk.toleranceStyle} />
+                                <CellPill value={risk.tolerance} toneClassName={risk.toleranceClass} />
                             </td>
                             <td className="py-2 text-foreground">{risk.statusLabel}</td>
                         </tr>
@@ -192,7 +188,7 @@ function TopVendorsTable({ presentation }: { presentation: ExecutivePresentation
                                 {vendor.cifProcessCount}
                             </td>
                             <td className="py-2">
-                                <CellPill value={vendor.tier} style={vendor.tierStyle} />
+                                <CellPill value={vendor.tier} toneClassName={vendor.tierClass} />
                             </td>
                         </tr>
                     ))}
@@ -210,6 +206,7 @@ function TopVendorsTable({ presentation }: { presentation: ExecutivePresentation
 
 export function IctCommitteeExecutiveSummarySection({ presentation }: { presentation: ExecutivePresentation }) {
     const chartTheme = useChartTheme();
+    const tooltipProps = getChartTooltipProps(chartTheme);
 
     return (
         <section id="cro" className="space-y-4" data-testid="committee-cro">
@@ -260,10 +257,11 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                             key={cell.column}
                                             to={cell.href}
                                             data-testid={`committee-heatmap-link-${row.probability}-${cell.column}`}
+                                            aria-label={cell.ariaLabel}
                                             className="block"
                                         >
                                             <MatrixCell
-                                                fill={cell.fill}
+                                                heatClass={cell.heatClass}
                                                 count={cell.count}
                                                 testId={`committee-heatmap-cell-${row.probability}-${cell.column}`}
                                             />
@@ -301,10 +299,11 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                             key={cell.band}
                                             to={cell.href}
                                             data-testid={`committee-migration-link-${row.grossBand}-${cell.band}`}
+                                            aria-label={cell.ariaLabel}
                                             className="block"
                                         >
                                             <MatrixCell
-                                                fill={cell.fill}
+                                                heatClass={cell.heatClass}
                                                 count={cell.count}
                                                 testId={`committee-migration-cell-${row.grossBand}-${cell.band}`}
                                             />
@@ -374,15 +373,7 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                 axisLine={false}
                                 tickLine={false}
                             />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: chartTheme.tooltipBackground,
-                                    border: `1px solid ${chartTheme.tooltipBorder}`,
-                                    borderRadius: '12px',
-                                }}
-                                itemStyle={{ color: chartTheme.tooltipTextPrimary }}
-                                cursor={{ fill: 'transparent' }}
-                            />
+                            <Tooltip {...tooltipProps} cursor={{ fill: 'transparent' }} />
                             <Bar
                                 dataKey="count"
                                 fill={chartTheme.series.primary}
@@ -427,16 +418,8 @@ export function IctCommitteeExecutiveSummarySection({ presentation }: { presenta
                                 axisLine={false}
                                 tickLine={false}
                             />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: chartTheme.tooltipBackground,
-                                    border: `1px solid ${chartTheme.tooltipBorder}`,
-                                    borderRadius: '12px',
-                                }}
-                                itemStyle={{ color: chartTheme.tooltipTextPrimary }}
-                                cursor={{ fill: 'transparent' }}
-                            />
-                            <Legend />
+                            <Tooltip {...tooltipProps} cursor={{ fill: 'transparent' }} />
+                            <Legend labelStyle={{ color: chartTheme.legendText }} />
                             <Bar
                                 dataKey="gross"
                                 name={presentation.riskBandChartLabels.gross}

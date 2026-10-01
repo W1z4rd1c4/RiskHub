@@ -7,7 +7,6 @@
   --admin-text: rgba(226, 232, 240, 0.94);
   --admin-muted: rgba(203, 213, 225, 0.92);
   --admin-subtle: rgba(148, 163, 184, 0.92);
-  --admin-tab-muted: rgba(226, 232, 240, 0.86);
   --admin-table-head: rgba(255, 255, 255, 0.05);
   color: var(--admin-text);
 }
@@ -21,7 +20,6 @@
   --admin-text: rgba(241, 245, 249, 0.92);
   --admin-muted: rgba(226, 232, 240, 0.96);
   --admin-subtle: rgba(203, 213, 225, 0.98);
-  --admin-tab-muted: rgba(241, 245, 249, 0.92);
   --admin-table-head: rgba(255, 255, 255, 0.04);
 }
 
@@ -34,7 +32,6 @@
   --admin-text: rgba(15, 23, 42, 0.9);
   --admin-muted: rgba(51, 65, 85, 0.94);
   --admin-subtle: rgba(71, 85, 105, 0.94);
-  --admin-tab-muted: rgba(51, 65, 85, 0.92);
   --admin-table-head: rgba(241, 245, 249, 0.92);
 }
 
@@ -62,14 +59,6 @@
 
 .admin-console-route .admin-subtle {
   color: var(--admin-subtle) !important;
-}
-
-.admin-console-route .admin-tab-inactive {
-  color: var(--admin-tab-muted) !important;
-}
-
-.admin-console-route .admin-tab-inactive:hover {
-  color: var(--admin-text-strong) !important;
 }
 
 .admin-console-route .admin-table-head {

@@ -2,8 +2,7 @@
   "title": "Nálezy",
   "page_subtitle": "Sledujte nápravu, výjimky a validaci uzavření.",
   "new_page": {
-    "title": "Vytvořit nález",
-    "breadcrumb": "Nálezy / Nový záznam"
+    "title": "Vytvořit nález"
   },
   "actions": {
     "new_issue": "Nový nález",
@@ -124,6 +123,20 @@
       "no_history": "Pro tento nález nebyly nalezeny žádné záznamy aktivit.",
       "expires": "Vyprší",
       "system": "Systém"
+    },
+    "history_actions": {
+        "create": "Vytvořeno",
+        "update": "Upraveno",
+        "delete": "Smazáno",
+        "archive": "Archivováno",
+        "restore": "Obnoveno",
+        "approve": "Schváleno",
+        "reject": "Zamítnuto",
+        "cancel": "Zrušeno",
+        "status_change": "Změna stavu",
+        "link": "Propojeno",
+        "unlink": "Odpojeno",
+        "comment": "Komentováno"
     }
   },
   "form": {

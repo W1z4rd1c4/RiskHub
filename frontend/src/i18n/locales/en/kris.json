@@ -99,6 +99,7 @@
     "ok": "OK"
   },
   "actions": {
+    "back_to_register": "Back to KRIs",
     "link_risk": "Link Risk",
     "add_kri": "Add KRI",
     "unarchive": "Unarchive",
@@ -206,9 +207,6 @@
     "lower_limit_breach": "Lower Limit (Breach)",
     "upper_limit_breach": "Upper Limit (Breach)",
     "last_updated": "Last Updated"
-  },
-  "detail": {
-    "approval_banner_help": "The KRI and its vendor links stay unchanged until this approval is resolved."
   },
   "value_modal": {
     "title": "Record Value",

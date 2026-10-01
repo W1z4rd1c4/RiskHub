@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { Flame, Plus, Server, Trash2, Workflow } from 'lucide-react';
+import { Flame, Plus, Server, Unlink, Workflow } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useFeedback } from '@/hooks/useFeedback';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
+import { LoadingState } from '@/components/ui/state';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
 import { assetApi } from '@/services/assetApi';
@@ -17,7 +20,6 @@ import { processApi } from '@/services/processApi';
 import { riskRegisterLinksApi, threatApi } from '@/services/threatApi';
 import type { Risk } from '@/types/risk';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
 import { ApiClientError, isForbiddenApiError } from '@/services/apiClient';
 import {
     processBusinessEditBlocked,
@@ -130,11 +132,7 @@ function LinkLane<T>({ children, isProtectedUnavailable, query, testId }: LinkLa
     const hasCachedData = query.data !== undefined;
 
     if (query.isPending && !hasCachedData) {
-        return (
-            <div className="py-12 text-center text-sm text-muted-foreground" role="status">
-                {t('common:loading.generic')}
-            </div>
-        );
+        return <LoadingState />;
     }
 
     if (isProtectedUnavailable || query.isError && !hasCachedData) {
@@ -220,7 +218,7 @@ function LinkBlock({
                                         ? processBlockedLabel
                                         : removeLabel}
                                 >
-                                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                    <Unlink className="h-4 w-4" aria-hidden="true" />
                                 </button>
                             ) : null}
                         </li>
@@ -269,9 +267,14 @@ function LinkBlock({
 /** ICT Register link sections on the Risk detail: Threats, Processes, Assets (issue #47). */
 export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterLinksSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const feedback = useFeedback();
+    // D12 / PM-2: an approval-routed link change keeps the user on the risk
+    // with the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const [linkError, setLinkError] = useState<string | null>(null);
+    // GAP-C-01 (R3-02): threat link removal is confirmed first (D10 unlink).
+    const [pendingThreatRemoval, setPendingThreatRemoval] = useState<{ linkId: number; name: string } | null>(null);
     const [pendingProcessAction, setPendingProcessAction] = useState<
         { kind: 'add'; processId: number } | { kind: 'remove'; linkId: number } | null
     >(null);
@@ -291,6 +294,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         setLinkError(null);
         setPendingProcessAction(null);
         setPendingAssetAction(null);
+        setPendingThreatRemoval(null);
 
         return () => {
             ownerRef.current = null;
@@ -388,12 +392,13 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         mutationFn: ({ linkId, ownerId }: { linkId: number; ownerId: number }) =>
             riskRegisterLinksApi.removeThreatLink(ownerId, linkId),
         onSuccess: (_result, { ownerId }) => {
-            if (threatLinksLane.unavailableRef.current) return;
+            if (ownerRef.current !== ownerId || threatLinksLane.unavailableRef.current) return;
+            setPendingThreatRemoval(null);
+            feedback.success({ title: t('common:outcome.link_removed') });
             return invalidateOwnedLinks(ownerId, ictRegisterKeys.riskThreatLinks(ownerId));
         },
-        onError: (error, { ownerId }) => {
-            if (!threatLinksLane.unavailableRef.current) handleMutationError(error, ownerId);
-        },
+        // The failure is shown inside the open removal confirmation.
+        onError: (error) => logError('Risk threat link removal failed:', error),
     });
     const addProcessLink = useMutation({
         mutationFn: ({ ownerId, processId, reason }: { ownerId: number; processId: number; reason: string }) =>
@@ -402,7 +407,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || processLinksLane.unavailableRef.current) return;
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskProcessLinks(ownerId));
@@ -418,7 +423,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || processLinksLane.unavailableRef.current) return;
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskProcessLinks(ownerId));
@@ -434,7 +439,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || assetLinksLane.unavailableRef.current) return;
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskAssetLinks(ownerId));
@@ -450,7 +455,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || assetLinksLane.unavailableRef.current) return;
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskAssetLinks(ownerId));
@@ -479,9 +484,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             </div>
 
             {linkError && pendingProcessAction === null && pendingAssetAction === null ? (
-                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
-                    {linkError}
-                </div>
+                <InlineMessage tone="danger">{linkError}</InlineMessage>
             ) : null}
 
             <LinkLane
@@ -515,7 +518,13 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 searchValue={threatSearch}
                 onSearchChange={setThreatSearch}
                 onAdd={(threatId) => addThreatLink.mutate({ ownerId: risk.id, threatId })}
-                onRemove={(linkId) => removeThreatLink.mutate({ linkId, ownerId: risk.id })}
+                onRemove={(linkId) => setPendingThreatRemoval({
+                    linkId,
+                    name: registerLinkRowName(
+                        threatLinks.find((link) => link.id === linkId)?.threat_name,
+                        t('common:fallbacks.unknown_threat'),
+                    ),
+                })}
                 isAddPending={addThreatLink.isPending && addThreatLink.variables?.ownerId === risk.id}
             />
             </LinkLane>
@@ -653,6 +662,16 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                         removeAssetLink.mutate({ linkId: pendingAssetAction.linkId, ownerId: risk.id, reason });
                     }
                 }}
+            />
+            <ConfirmDialog
+                isOpen={pendingThreatRemoval !== null && !threatLinksProtectedUnavailable}
+                onClose={() => setPendingThreatRemoval(null)}
+                onConfirm={() => (pendingThreatRemoval
+                    ? removeThreatLink.mutateAsync({ linkId: pendingThreatRemoval.linkId, ownerId: risk.id })
+                    : undefined)}
+                intent="unlink"
+                entityName={pendingThreatRemoval?.name}
+                isLoading={removeThreatLink.isPending && removeThreatLink.variables?.ownerId === risk.id}
             />
         </div>
     );

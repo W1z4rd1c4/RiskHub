@@ -1,5 +1,6 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { useTranslation } from '@/i18n/hooks';
 import type { IssueAgingBucket } from '@/types/dashboard';
 import { getChartTooltipProps } from './chartTooltip';
 
@@ -8,6 +9,7 @@ interface IssueAgingChartProps {
 }
 
 export function IssueAgingChart({ buckets }: IssueAgingChartProps) {
+    const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
     const tooltipProps = getChartTooltipProps(chartTheme);
 
@@ -27,9 +29,15 @@ export function IssueAgingChart({ buckets }: IssueAgingChartProps) {
                         {...tooltipProps}
                         cursor={{ fill: chartTheme.gridStroke }}
                     />
-                    <Bar dataKey="count" fill={chartTheme.series.primary} radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="count" name={t('issues.summary.open_issues')} fill={chartTheme.series.primary} radius={[6, 6, 0, 0]} />
                 </BarChart>
             </ResponsiveContainer>
+            {/* GAP-D-11: the bucket counts as text for assistive technology. */}
+            <ul className="sr-only" aria-label={t('issues.summary.open_by_age')}>
+                {buckets.map((bucket) => (
+                    <li key={bucket.bucket}>{`${bucket.bucket}: ${bucket.count}`}</li>
+                ))}
+            </ul>
         </div>
     );
 }

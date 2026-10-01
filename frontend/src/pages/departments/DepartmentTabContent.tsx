@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { TabPanel } from '@/components/ui/tabs';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import type { TabView } from '@/hooks/useDepartmentDetail';
 import { ActivityLogPage } from '@/pages/ActivityLogPage';
 import { AssetsPage } from '@/pages/AssetsPage';
@@ -45,7 +44,8 @@ export function DepartmentTabContent({
     department,
     onSelectTab,
 }: DepartmentTabContentProps) {
-    const { t, i18n } = useTranslation('common');
+    const { t } = useTranslation('common');
+    const format = useFormat();
     const navigate = useNavigate();
     const RegisterPage = REGISTER_TABS[activeTab];
     const recentExecutions = department.recent_executions;
@@ -76,7 +76,7 @@ export function DepartmentTabContent({
                                                 <span>
                                                     <strong>{entry.control_name}</strong>
                                                     <span className="ml-2 text-xs text-muted-foreground">
-                                                        {t('labels.by')} {entry.executed_by} · {formatDateValue(entry.executed_at, i18n.language)}
+                                                        {t('labels.by')} {entry.executed_by} · {format.date(entry.executed_at)}
                                                     </span>
                                                 </span>
                                                 <span className="text-xs uppercase text-muted-foreground">{entry.result}</span>

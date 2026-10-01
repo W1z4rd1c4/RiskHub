@@ -130,7 +130,8 @@ describe('KRI restore outcomes', () => {
         expect(await screen.findByRole('status')).toHaveTextContent('KRI restored');
         fireEvent.click(screen.getByRole('tab', { name: /History/ }));
         expect(await screen.findByTestId('kri-history-load-state')).toBeInTheDocument();
-        expect(screen.getByText('KRI restored.')).toHaveAttribute('role', 'status');
+        // AX-05: the InlineMessage carries the polite status role for the success tone.
+        expect(screen.getByText('KRI restored.').closest('[role="status"]')).toHaveAttribute('data-tone', 'success');
         expect(screen.queryByRole('button', { name: 'Retry restore' })).not.toBeInTheDocument();
         expect(getKri).toHaveBeenCalledTimes(1);
     });

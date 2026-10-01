@@ -20,7 +20,7 @@
     "export": "Export",
     "refresh": "Obnovit",
     "unarchive": "Obnovit z archivu",
-    "back_to_register": "Zpět do registru"
+    "back_to_register": "Zpět na dodavatele"
   },
   "messages": {
     "archive_confirm": "Archivovat dodavatele {{vendorName}}?"

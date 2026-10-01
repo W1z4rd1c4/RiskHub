@@ -1,4 +1,4 @@
-import { ShieldAlert } from 'lucide-react';
+import { ErrorState } from '@/components/ui/state';
 
 interface DashboardErrorStateProps {
     detail: string;
@@ -14,18 +14,12 @@ export function DashboardErrorState({
     title,
 }: DashboardErrorStateProps) {
     return (
-        <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="glass-card p-10 flex flex-col items-center text-center max-w-md">
-                <ShieldAlert className="h-12 w-12 text-destructive mb-4" />
-                <h3 className="text-xl font-bold text-foreground mb-2">{title}</h3>
-                <p className="text-muted-foreground mb-6">{detail}</p>
-                <button
-                    onClick={onRetry}
-                    className="px-6 py-2 bg-accent text-accent-foreground rounded-xl font-bold hover:bg-accent-hover transition-colors"
-                >
-                    {retryLabel}
-                </button>
-            </div>
-        </div>
+        <ErrorState
+            layout="page"
+            title={title}
+            message={detail}
+            onRetry={onRetry}
+            retryLabel={retryLabel}
+        />
     );
 }

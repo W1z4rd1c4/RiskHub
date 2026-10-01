@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
@@ -54,7 +55,7 @@ export function AssetsPage() {
         }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount}
         itemsPerPage={state.limit} onPageChange={state.setCurrentPage} onRetry={() => void state.fetchAssets()}
-        emptyMessage={state.hasLoadedOnce ? t(assetsEmptyStateKey(state.search.trim().length > 0)) : t('common:loading.data')}
+        emptyMessage={t(assetsEmptyStateKey(state.search.trim().length > 0))}
         grouping={{
             groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,
@@ -71,6 +72,7 @@ export function AssetsPage() {
         }}
         testIdPrefix="assets"
         toolbar={<div className="space-y-4">
+            <ApprovalQueuedNotice />
             <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
             <AssetRegisterFilterBar facets={state.facets} filters={state.filters} isLifecycleLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading}
                 onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchAssets()}

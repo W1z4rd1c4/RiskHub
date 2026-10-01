@@ -133,7 +133,8 @@ per file under **Contents**) plus the rules for using and extending it.
   container and keeps status text outside it), `EmptyState` (`kind` `no-data`/`no-results`, `action`),
   `ErrorState` (`role="alert"`, `variant` `block` or `banner` above stale data,
   `message`/`messageKey`, `onRetry` + `isRetrying`, extra `actions`) and
-  `AccessDeniedState` (`descriptionKey` + `ns`, `headingLevel`). Every
+  `AccessDeniedState` (`descriptionKey` + `ns`, `headingLevel`, `live` for
+  `role="alert"` when it replaces rows already on screen). Every
   query-backed region renders exactly one of them or its data; an error never
   falls through to an empty state. `TableErrorState` and
   `pages/shared/ReadAccessDeniedState` are thin adapters/aliases over them.

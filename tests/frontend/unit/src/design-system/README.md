@@ -14,7 +14,9 @@ justified allowlist for library runtime variables (DS-18); each allowlist entry
 names its package and the test proves that package's installed build sets it.
 `severityConsistency.test.tsx` asserts every severity mapping derives from
 `lib/severity.ts` + `lib/tones.ts` on one token family per band (D1), that
-risk-score bands follow the configured thresholds (ADR-008), that legacy theme
-modules never export a same-named helper with a different value (the pre-D1 score
-helper is `legacyRiskScoreVariantClass`), and ratchets the legacy adapters still
-pending migration (roadmap 2.11).
+risk-score bands follow the configured thresholds (ADR-008), that adapter
+modules never export a same-named helper with a different value, that every
+adapter (issue pills, DORA criticality / vendor tier pills, 1-5 ordinal ratings,
+chart severity series) resolves each band to its D1 token family, and that the
+legacy palettes (`useStatusTheme`, `riskScoreTheme`, the `useChartTheme` hex
+tables) stay deleted (roadmap 2.11).

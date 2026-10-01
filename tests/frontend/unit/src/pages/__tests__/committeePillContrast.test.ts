@@ -8,19 +8,20 @@ import { buildIctCommitteePresentation } from '@/pages/ictRegisterCommittee/buil
 import type { IctCommittee } from '@/types/ictRegisterCommittee';
 
 /**
- * FR-P5-1 (spec N20, ADR-015) — the Committee Excel-pastel status pills are
- * migrated onto the semantic status tokens and must clear WCAG AA text contrast
- * (≥ 4.5:1) in every theme.
+ * FR-P5-1 (spec N20, ADR-015) + D1 (ADR-015 Addendum 1) — the Committee status
+ * pills take their colours from the severity SSOT (`lib/severity.ts` /
+ * `lib/tones.ts` fill recipes) and must clear WCAG AA text contrast (≥ 4.5:1)
+ * in every theme.
  *
  * Two things are asserted:
- *  1. The RAG mapping — each verbatim band label resolves to the expected token
- *     (`--success` / `--warning` / `--destructive`), so the four Excel bands read
- *     red/amber/green (the yellow + orange middles both collapse to amber).
+ *  1. The mapping — each verbatim label resolves to the expected token: the
+ *     net risk band is the 4-step D1 scale (`success` / `warning` /
+ *     `severity-high` / `destructive`), tolerance is a RAG outcome, and the
+ *     vendor tier is TierDod (critical → destructive, significant → warning,
+ *     standard → neutral `muted`, PM-3).
  *  2. Contrast — each pill's background / foreground pair, resolved against the
  *     actual token values PARSED from index.css, clears 4.5:1 in the default /
- *     dark / light themes. Every pill consumes its semantic background and
- *     foreground directly. The destructive foreground is deliberately
- *     near-black because white on the destructive red does not clear AA.
+ *     dark / light themes.
  */
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
@@ -31,21 +32,21 @@ type Rgb = [number, number, number];
 
 const AA_TEXT = 4.5;
 
-/** Token name out of an `hsl(var(--<token>))` (or `color-mix(… var(--<token>) …)`) string. */
-function tokenOf(styleValue: string): string {
-    const match = styleValue.match(/var\(--([\w-]+)\)/);
-    if (!match) throw new Error(`Not a token reference: "${styleValue}"`);
-    return match[1]!;
+/** Background and text token of a fill class recipe (`bg-<token> text-<token>-foreground`). */
+function pillTokens(className: string): { bg: string; fg: string } {
+    const bg = className.match(/(?:^|\s)bg-([\w-]+)(?=\s|$)/)?.[1];
+    const fg = className.match(/(?:^|\s)text-([\w-]+)(?=\s|$)/)?.[1];
+    if (!bg || !fg) throw new Error(`Not a token fill recipe: "${className}"`);
+    return { bg, fg };
 }
 
-/** Declaration body of the status-token rule block for `selector`. */
+/** Every declaration body of the rule blocks for `selector`, joined. */
 function themeBlock(css: string, selector: string): string {
-    const re = new RegExp(`${selector}\\s*\\{([^{}]*)\\}`, 'g');
-    for (const m of css.matchAll(re)) {
-        const body = m[1] ?? '';
-        if (body.includes('--success')) return body;
-    }
-    throw new Error(`No status-token block for "${selector}"`);
+    const re = new RegExp(`(?:^|[\\s,])${selector}\\s*\\{([^{}]*)\\}`, 'g');
+    const bodies = [...css.matchAll(re)].map((m) => m[1] ?? '');
+    const block = bodies.join('\n');
+    if (!block.includes('--success')) throw new Error(`No status-token block for "${selector}"`);
+    return block;
 }
 
 function readHsl(block: string, token: string): Hsl {
@@ -70,26 +71,8 @@ function hslToRgb([h, s, l]: Hsl): Rgb {
     return [(base[0] + m) * 255, (base[1] + m) * 255, (base[2] + m) * 255];
 }
 
-/**
- * Resolve a pill style value to sRGB — either a plain `hsl(var(--token))`, or a
- * `color-mix(in srgb, hsl(var(--token)) P%, black|white)` interpolated
- * component-wise in sRGB (exactly how the browser renders it).
- */
-function resolveRgb(styleValue: string, block: string): Rgb {
-    const mix = styleValue.match(
-        /color-mix\(in srgb,\s*hsl\(var\(--([\w-]+)\)\)\s*([\d.]+)%,\s*(black|white)\)/,
-    );
-    if (mix) {
-        const base = hslToRgb(readHsl(block, mix[1]!));
-        const p = Number(mix[2]) / 100;
-        const other: Rgb = mix[3] === 'black' ? [0, 0, 0] : [255, 255, 255];
-        return [
-            base[0] * p + other[0] * (1 - p),
-            base[1] * p + other[1] * (1 - p),
-            base[2] * p + other[2] * (1 - p),
-        ];
-    }
-    return hslToRgb(readHsl(block, tokenOf(styleValue)));
+function resolveRgb(token: string, block: string): Rgb {
+    return hslToRgb(readHsl(block, token));
 }
 
 function relativeLuminance([r, g, b]: Rgb): number {
@@ -190,50 +173,49 @@ const presentation = buildIctCommitteePresentation(
     { language: 'en', t: (key) => key },
 );
 
-function bandStyle(band: string) {
+function bandClass(band: string) {
     const index = ['Nízké', 'Střední', 'Vysoké', 'Kritické'].indexOf(band);
-    return presentation.executiveSummary.topRisks[index * 2].netBandStyle!;
+    return presentation.executiveSummary.topRisks[index * 2].netBandClass!;
 }
 
-function toleranceStyle(tolerance: string) {
-    return presentation.executiveSummary.topRisks[tolerance === 'V toleranci' ? 0 : 1].toleranceStyle!;
+function toleranceClass(tolerance: string) {
+    return presentation.executiveSummary.topRisks[tolerance === 'V toleranci' ? 0 : 1].toleranceClass!;
 }
 
-function tierStyle(tier: string) {
+function tierClass(tier: string) {
     const index = ['Standardní dodavatel', 'Významný dodavatel', 'Kritický dodavatel'].indexOf(tier);
-    return presentation.executiveSummary.topVendors[index].tierStyle!;
+    return presentation.executiveSummary.topVendors[index].tierClass!;
 }
 
-// Distinct pill styles the three helpers resolve to.
+// Distinct pill recipes the three helpers resolve to.
 const PILLS = [
-    { name: 'success (green)', style: bandStyle('Nízké') },
-    { name: 'warning (amber)', style: bandStyle('Střední') },
-    { name: 'destructive (red)', style: bandStyle('Kritické') },
+    { name: 'success (green)', className: bandClass('Nízké') },
+    { name: 'warning (amber)', className: bandClass('Střední') },
+    { name: 'severity-high (orange)', className: bandClass('Vysoké') },
+    { name: 'destructive (red)', className: bandClass('Kritické') },
+    { name: 'neutral (muted)', className: tierClass('Standardní dodavatel') },
 ] as const;
 
-describe('committee status pills — semantic-token RAG mapping (FR-P5-1)', () => {
-    const success = 'success';
-    const warning = 'warning';
-    const destructive = 'destructive';
-
-    it('collapses the four Excel bands onto the three-token RAG scale', () => {
-        expect(tokenOf(bandStyle('Nízké').backgroundColor)).toBe(success);
-        expect(tokenOf(bandStyle('Střední').backgroundColor)).toBe(warning);
-        expect(tokenOf(bandStyle('Vysoké').backgroundColor)).toBe(warning);
-        expect(tokenOf(bandStyle('Kritické').backgroundColor)).toBe(destructive);
+describe('committee status pills — severity SSOT mapping (FR-P5-1, D1)', () => {
+    it('maps the four net risk bands onto the D1 4-step scale', () => {
+        expect(pillTokens(bandClass('Nízké')).bg).toBe('success');
+        expect(pillTokens(bandClass('Střední')).bg).toBe('warning');
+        expect(pillTokens(bandClass('Vysoké')).bg).toBe('severity-high');
+        expect(pillTokens(bandClass('Kritické')).bg).toBe('destructive');
     });
 
-    it('maps tolerance + vendor-tier pills onto the same tokens', () => {
-        expect(tokenOf(toleranceStyle('V toleranci').backgroundColor)).toBe(success);
-        expect(tokenOf(toleranceStyle('NAD TOLERANCI').backgroundColor)).toBe(destructive);
-        expect(tokenOf(tierStyle('Standardní dodavatel').backgroundColor)).toBe(success);
-        expect(tokenOf(tierStyle('Významný dodavatel').backgroundColor)).toBe(warning);
-        expect(tokenOf(tierStyle('Kritický dodavatel').backgroundColor)).toBe(destructive);
+    it('maps tolerance (RAG) and vendor-tier (TierDod, standard = neutral) pills onto the same tokens', () => {
+        expect(pillTokens(toleranceClass('V toleranci')).bg).toBe('success');
+        expect(pillTokens(toleranceClass('NAD TOLERANCI')).bg).toBe('destructive');
+        expect(pillTokens(tierClass('Standardní dodavatel')).bg).toBe('muted');
+        expect(pillTokens(tierClass('Významný dodavatel')).bg).toBe('warning');
+        expect(pillTokens(tierClass('Kritický dodavatel')).bg).toBe('destructive');
     });
 
     it('pairs every pill background with the matching token foreground', () => {
-        for (const { style } of PILLS) {
-            expect(tokenOf(style.color)).toBe(`${tokenOf(style.backgroundColor)}-foreground`);
+        for (const { className } of PILLS) {
+            const { bg, fg } = pillTokens(className);
+            expect(fg).toBe(`${bg}-foreground`);
         }
     });
 });
@@ -243,10 +225,11 @@ describe('committee status pills — WCAG AA text contrast in every theme (FR-P5
         PILLS.map((pill) => ({ theme: name, selector, ...pill })),
     );
 
-    it.each(cases)('$name pill clears AA text (4.5:1) in $theme', ({ selector, style, theme, name }) => {
+    it.each(cases)('$name pill clears AA text (4.5:1) in $theme', ({ selector, className, theme, name }) => {
         const block = themeBlock(indexCss, selector);
-        const bg = resolveRgb(style.backgroundColor, block);
-        const fg = resolveRgb(style.color, block);
+        const tokens = pillTokens(className);
+        const bg = resolveRgb(tokens.bg, block);
+        const fg = resolveRgb(tokens.fg, block);
         const ratio = contrast(bg, fg);
         expect(
             ratio,

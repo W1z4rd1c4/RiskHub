@@ -20,7 +20,7 @@
     "export": "Export",
     "refresh": "Refresh",
     "unarchive": "Unarchive",
-    "back_to_register": "Back to Register"
+    "back_to_register": "Back to Vendors"
   },
   "messages": {
     "archive_confirm": "Archive vendor {{vendorName}}?"

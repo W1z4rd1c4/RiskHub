@@ -444,6 +444,24 @@ describe('resolveActiveSidebarHref (FR-P4-2, finding S3)', () => {
   it('returns null when no nav item matches', () => {
     expect(resolveActiveSidebarHref('/unmapped', hrefs)).toBeNull();
   });
+
+  it('highlights the parent section of a route without its own entry (activeNavHref, NAV-02)', () => {
+    const withEvidence = [...hrefs, '/evidence'];
+    expect(resolveActiveSidebarHref('/audit-trail', withEvidence)).toBe('/evidence');
+    expect(resolveActiveSidebarHref('/vendor-reports', withEvidence)).toBe('/evidence');
+  });
+
+  it('falls back to no highlight when the parent section is not visible to the user', () => {
+    expect(resolveActiveSidebarHref('/audit-trail', hrefs)).toBeNull();
+  });
+
+  it('assigns every unowned business route a sidebar parent that exists', () => {
+    const navHrefs = new Set(protectedAppRoutes.flatMap((route) => (route.nav ? [route.nav.href] : [])));
+    for (const route of protectedAppRoutes.filter((candidate) => candidate.activeNavHref)) {
+      expect(route.nav).toBeUndefined();
+      expect(navHrefs.has(route.activeNavHref!)).toBe(true);
+    }
+  });
 });
 
 describe('ICT Committee route migration (#64, FR-P4-3/4)', () => {

@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateTimeValue } from '@/i18n/formatters';
+import { useSearchParams } from 'react-router-dom';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import {
     Scale,
     ClipboardList,
@@ -23,7 +22,12 @@ import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { governanceKeys } from '@/lib/queryKeys';
 import { useAuthz } from '@/authz/useAuthz';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { ErrorState, LoadingState } from '@/components/ui/state';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 const container = {
     hidden: { opacity: 0 },
@@ -41,8 +45,9 @@ const item = {
 };
 
 function GovernancePageInner() {
-    const { t, i18n } = useTranslation('admin');
-    const navigate = useNavigate();
+    const { t } = useTranslation('admin');
+    const format = useFormat();
+    const announceApprovalQueued = useApprovalQueued();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,44 +91,38 @@ function GovernancePageInner() {
         void overviewQuery.refresh();
     };
 
+    // D12 / PM-2: the user stays on Governance (the orphan row stays pending)
+    // with the persistent pending notice deep-linking to the request in My
+    // Requests, plus a success toast.
     const handleApprovalQueued = (response: ApprovalCreatedResponse) => {
-        void navigate(`/approvals?tab=mine&approvalId=${String(response.approval_id)}`);
+        setIsModalOpen(false);
+        announceApprovalQueued({ approvalId: response.approval_id });
+        void overviewQuery.refresh();
     };
 
+    // D7: the page title is the route's `h1` and `document.title` in every state.
     if (overviewQuery.isLoading && !stats) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="flex flex-col items-center gap-4">
-                    <RefreshCw className="h-8 w-8 text-accent animate-spin" />
-                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
-                </div>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('governance.title')} description={t('governance.subtitle')} />
+                <LoadingState layout="page" label={t('governance.loading')} />
+            </PageContainer>
         );
     }
 
     if (overviewQuery.isError && !stats) {
         return (
-            <div
-                role="alert"
-                className="glass-card mx-auto flex min-h-[18rem] max-w-2xl flex-col items-center justify-center gap-4 p-8 text-center"
-            >
-                <ShieldAlert className="h-10 w-10 text-destructive" aria-hidden="true" />
-                <h2 className="text-lg font-bold text-foreground">{t('governance.load_failed')}</h2>
-                <p className="text-sm text-muted-foreground">{t('governance.load_failed_help')}</p>
-                <button
-                    type="button"
-                    onClick={() => { void overviewQuery.refresh(); }}
-                    disabled={overviewQuery.isFetching}
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground disabled:opacity-50"
-                    aria-label={t('governance.refresh')}
-                >
-                    <RefreshCw
-                        className={`h-4 w-4 ${overviewQuery.isFetching ? 'animate-spin' : ''}`}
-                        aria-hidden="true"
-                    />
-                    {t('governance.refresh')}
-                </button>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('governance.title')} description={t('governance.subtitle')} />
+                <ErrorState
+                    layout="page"
+                    title={t('governance.load_failed')}
+                    message={t('governance.load_failed_help')}
+                    onRetry={() => { void overviewQuery.refresh(); }}
+                    retryLabel={t('governance.refresh')}
+                    isRetrying={overviewQuery.isFetching}
+                />
+            </PageContainer>
         );
     }
 
@@ -240,39 +239,47 @@ function GovernancePageInner() {
             <div className="relative z-10">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{bar.subtitle}</p>
                 <p className="text-sm font-bold text-muted-foreground mb-2">{bar.title}</p>
-                <h3 className="text-4xl font-black text-foreground tracking-tighter">{bar.value}</h3>
+                <p className="text-4xl font-black text-foreground tracking-tighter">{bar.value}</p>
             </div>
         </>
     );
 
     return (
-        <div className="space-y-10">
-            <div className="flex justify-between items-end">
-                <div>
-                    <h2 className="text-3xl font-black text-foreground mb-2">{t('governance.title')}</h2>
-                    <p className="text-muted-foreground font-medium">{t('governance.subtitle')}</p>
-                    {(lastScanAt || scanStatus) && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                            {scanStatus ? `${scanStatus}` : ''}
-                            {lastScanAt ? ` • ${formatDateTimeValue(lastScanAt, i18n.language)}` : ''}
-                        </p>
-                    )}
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => { void overviewQuery.refresh(); }}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-accent-text hover:bg-accent/10 transition-colors"
-                        title={t('governance.refresh')}
-                        aria-label={t('governance.refresh')}
-                    >
-                        <RefreshCw className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                    <div className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest bg-tint/5 px-3 py-1.5 rounded-full border border-border">
-                        <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                        {t('governance.live_status')}
-                    </div>
-                </div>
-            </div>
+        <PageContainer>
+            <PageHeader
+                title={t('governance.title')}
+                description={(
+                    <>
+                        <p>{t('governance.subtitle')}</p>
+                        {(lastScanAt || scanStatus) && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {scanStatus ? `${scanStatus}` : ''}
+                                {lastScanAt ? ` • ${format.dateTime(lastScanAt)}` : ''}
+                            </p>
+                        )}
+                    </>
+                )}
+                documentTitle={t('governance.title')}
+                actions={(
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => { void overviewQuery.refresh(); }}
+                            className="p-2.5 glass rounded-xl text-muted-foreground hover:text-accent-text hover:bg-accent/10 transition-colors"
+                            title={t('governance.refresh')}
+                            aria-label={t('governance.refresh')}
+                        >
+                            <RefreshCw className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                        <div className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest bg-tint/5 px-3 py-1.5 rounded-full border border-border">
+                            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                            {t('governance.live_status')}
+                        </div>
+                    </>
+                )}
+            />
+
+            <ApprovalQueuedNotice />
 
             <motion.div
                 variants={container}
@@ -355,8 +362,13 @@ function GovernancePageInner() {
                 onClose={() => setViewingOrphan(null)}
                 orphan={viewingOrphan}
             />
-        </div>
+        </PageContainer>
     );
+}
+
+function GovernanceDeniedHeader() {
+    const { t } = useTranslation('admin');
+    return <PageHeader title={t('governance.title')} />;
 }
 
 export default function GovernancePage() {
@@ -364,7 +376,12 @@ export default function GovernancePage() {
 
     // CRO-only business route. Keep a local guard so direct page mounts never hit orphan APIs for blocked roles.
     if (!authz.canViewGovernance) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                <GovernanceDeniedHeader />
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     return <GovernancePageInner />;

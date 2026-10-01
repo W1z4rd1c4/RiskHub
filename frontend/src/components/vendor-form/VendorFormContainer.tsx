@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Save, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { IMPACT_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 
 import {
     buildVendorPayload,
@@ -161,23 +161,19 @@ export function VendorFormContainer({
             className="space-y-6"
         >
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
-            {error ? (
-                <VendorInlineMessage tone="danger">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error}</p>
-                </VendorInlineMessage>
-            ) : null}
+            {error ? <InlineMessage tone="danger">{error}</InlineMessage> : null}
 
             {lookups.isOwnerLookupError ? (
-                <VendorInlineMessage tone="warn">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <div className="flex flex-1 items-center justify-between gap-3">
-                        <p className="text-sm font-medium">{t('errors.owner_lookup_failed')}</p>
-                        <button type="button" onClick={() => void lookups.refetchOwners()} className="text-xs font-black uppercase tracking-widest">
+                <InlineMessage
+                    tone="warning"
+                    action={(
+                        <Button type="button" variant="outline" size="compact" onClick={() => void lookups.refetchOwners()}>
                             {t('actions.refresh')}
-                        </button>
-                    </div>
-                </VendorInlineMessage>
+                        </Button>
+                    )}
+                >
+                    {t('errors.owner_lookup_failed')}
+                </InlineMessage>
             ) : null}
 
             <VendorIdentitySection formData={formData} onChange={handleChange} />

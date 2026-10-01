@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 import { motion } from 'framer-motion';
-import { ArchiveRestore, Pencil, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -323,7 +323,7 @@ export function buildVendorSubOutsourcingColumns({
                             title={t('vendors:sub_outsourcing.actions.archive')}
                             aria-label={t('vendors:sub_outsourcing.actions.archive_named', { name: subProviderLabel(entry, t) })}
                         >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            <Archive className="h-4 w-4" aria-hidden="true" />
                         </button>
                     ) : null}
                     {resolveCapabilityFlag(entry.capabilities, 'can_restore') ? (

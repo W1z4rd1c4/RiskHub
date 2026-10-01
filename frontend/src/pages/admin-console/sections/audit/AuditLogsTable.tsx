@@ -2,6 +2,7 @@ import type { RecentLogEntry } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { formatDateTimeValue } from '@/i18n/formatters';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/state';
 
 import { formatAuditEvent, formatAuditUser, getAuditEventClassName } from './auditPresentation';
 
@@ -29,8 +30,8 @@ export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetai
                 <tbody className="divide-y divide-border">
                     {logs.length === 0 ? (
                         <tr>
-                            <td colSpan={5} className="admin-subtle py-8 text-center">
-                                {t('audit.no_events')}
+                            <td colSpan={5} className="p-0">
+                                <EmptyState layout="section" title={t('audit.no_events')} className="py-8" />
                             </td>
                         </tr>
                     ) : (

@@ -1,7 +1,6 @@
 import { Clock, RotateCcw } from 'lucide-react';
 
-import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { ProcessPendingCreationRead } from '@/types/process';
 import type { ApprovalQueueTab } from '@/pages/approvals/approvalNavigation';
@@ -9,7 +8,8 @@ import type { ApprovalQueueTab } from '@/pages/approvals/approvalNavigation';
 interface ProcessPendingCreationsPanelProps {
     items: ProcessPendingCreationRead[];
     cancellingApprovalId: number | null;
-    onCancel: (approvalId: number) => void;
+    /** Opens the cancellation confirmation (GAP-D-08); the name feeds its copy. */
+    onCancel: (approvalId: number, targetName: string) => void;
     onOpenRequest: (approvalId: number, tab: ApprovalQueueTab) => void;
 }
 
@@ -25,7 +25,8 @@ export function ProcessPendingCreationsPanel({
     onCancel,
     onOpenRequest,
 }: ProcessPendingCreationsPanelProps) {
-    const { t, i18n } = useTranslation('processes');
+    const { t } = useTranslation('processes');
+    const format = useFormat();
     if (items.length === 0) return null;
 
     return (
@@ -41,7 +42,14 @@ export function ProcessPendingCreationsPanel({
                 <p className="mt-1 text-sm text-muted-foreground">{t('pending_creation.description')}</p>
             </div>
             <ul className="space-y-3">
-                {items.map((item) => (
+                {items.map((item) => {
+                    const canViewDiff = resolveCapabilityFlag(item.capabilities, 'can_view_diff');
+                    const itemName = canViewDiff
+                        ? safeLabel(item.proposed.l1_process, t('pending_creation.unnamed'))
+                        : t('pending_creation.unnamed');
+                    // The row buttons repeat per item, so they are described by the row heading.
+                    const headingId = canViewDiff ? `process-pending-creation-${item.approval_id}-title` : undefined;
+                    return (
                     <li key={item.approval_id} className="rounded-xl border border-border bg-tint/[0.03] p-4">
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="min-w-0 space-y-2">
@@ -57,8 +65,8 @@ export function ProcessPendingCreationsPanel({
                                 </div>
                                 {resolveCapabilityFlag(item.capabilities, 'can_view_diff') ? (
                                     <>
-                                        <h3 className="text-base font-bold text-foreground">
-                                            {safeLabel(item.proposed.l1_process, t('pending_creation.unnamed'))}
+                                        <h3 id={headingId} className="text-base font-bold text-foreground">
+                                            {itemName}
                                         </h3>
                                         <dl className="grid grid-cols-1 gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                                             <div>
@@ -75,8 +83,8 @@ export function ProcessPendingCreationsPanel({
                                             <Clock className="h-3 w-3" aria-hidden="true" />
                                             {t('pending_creation.requested_by_at', {
                                                 requester: item.requested_by_name ?? t('pending_change.unknown_requester'),
-                                                date: formatDateValue(item.requested_at, i18n.language),
-                                                time: formatTimeValue(item.requested_at, i18n.language),
+                                                date: format.date(item.requested_at),
+                                                time: format.time(item.requested_at),
                                             })}
                                         </p>
                                     </>
@@ -87,6 +95,7 @@ export function ProcessPendingCreationsPanel({
                             <div className="flex shrink-0 gap-2">
                                 <button
                                     type="button"
+                                    aria-describedby={headingId}
                                     onClick={() => onOpenRequest(
                                         item.approval_id,
                                         resolveCapabilityFlag(item.capabilities, 'is_requester')
@@ -103,7 +112,8 @@ export function ProcessPendingCreationsPanel({
                                     <button
                                         type="button"
                                         disabled={cancellingApprovalId === item.approval_id}
-                                        onClick={() => onCancel(item.approval_id)}
+                                        aria-describedby={headingId}
+                                        onClick={() => onCancel(item.approval_id, itemName)}
                                         className="rounded-xl border border-destructive/20 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 disabled:opacity-50"
                                     >
                                         <span className="flex items-center gap-1.5">
@@ -115,7 +125,8 @@ export function ProcessPendingCreationsPanel({
                             </div>
                         </div>
                     </li>
-                ))}
+                    );
+                })}
             </ul>
         </section>
     );

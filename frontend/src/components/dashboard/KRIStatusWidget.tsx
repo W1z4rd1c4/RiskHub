@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, ArrowRight, Activity, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Clock, ArrowRight, CalendarClock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
@@ -8,8 +8,12 @@ import { useDashboardFilterSelector } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import type { OverdueKRI, DueSoonKRI } from '@/types/kri';
 import { logError } from '@/services/logger';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { TabList, TabPanel, type TabItem } from '@/components/ui/tabs';
 
 type TabType = 'upcoming' | 'overdue';
+
+const STATUS_TABS_ID_PREFIX = 'kri-status';
 
 export function KRIStatusWidget() {
     const { t } = useTranslation('dashboard');
@@ -67,32 +71,35 @@ export function KRIStatusWidget() {
     };
 
     const loadingFallback = (
-        <div className="glass-card animate-pulse h-[300px] flex items-center justify-center">
-            <Activity className="h-6 w-6 text-muted-foreground animate-spin" />
+        <div className="glass-card h-[300px]">
+            <LoadingState className="h-full" label={t('common:loading.named', { name: t('kri.status_title') })} testId="widget-loading" />
         </div>
     );
 
     const hasNoItems = overdueKRIs.length === 0 && dueSoonKRIs.length === 0;
 
     const emptyFallback = (
-        <div className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-4">
-                <Clock className="h-6 w-6 text-success-text" />
-            </div>
-            <h4 className="text-foreground font-bold mb-1">{t('kri.all_current')}</h4>
-            <p className="text-xs text-muted-foreground">{t('kri.no_due_soon')}</p>
+        <div className="glass-card h-full">
+            <EmptyState
+                icon={Clock}
+                title={t('kri.all_current')}
+                description={t('kri.no_due_soon')}
+                className="h-full"
+                testId="widget-empty"
+            />
         </div>
     );
 
     const errorFallback = (
-        <div data-testid="widget-error" className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-warning/10 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="h-6 w-6 text-warning-text" />
-            </div>
-            <h4 className="text-foreground font-bold mb-1">{t('kri.status_load_failed')}</h4>
-            <p className="text-xs text-muted-foreground">{error?.message}</p>
+        <div className="glass-card h-full">
+            <ErrorState title={t('kri.status_load_failed')} className="h-full" testId="widget-error" />
         </div>
     );
+
+    const statusTabs: Array<TabItem<TabType>> = [
+        { id: 'upcoming', label: t('kri.upcoming'), icon: CalendarClock },
+        { id: 'overdue', label: t('kri.overdue'), icon: AlertTriangle },
+    ];
 
     const currentItems = activeTab === 'upcoming' ? dueSoonKRIs : overdueKRIs;
     const showUpcomingEmpty = activeTab === 'upcoming' && dueSoonKRIs.length === 0;
@@ -131,33 +138,24 @@ export function KRIStatusWidget() {
                         </div>
                     </div>
 
-                    {/* Tab buttons */}
-                    <div className="flex gap-1 bg-tint/5 rounded-lg p-0.5">
-                        <button
-                            onClick={() => setActiveTab('upcoming')}
-                            className={`flex-1 py-1.5 px-3 text-xs font-black uppercase tracking-widest rounded-md transition-colors ${activeTab === 'upcoming'
-                                ? 'bg-accent text-accent-foreground'
-                                : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                        >
-                            <CalendarClock className="h-3 w-3 inline mr-1" />
-                            {t('kri.upcoming')}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('overdue')}
-                            className={`flex-1 py-1.5 px-3 text-xs font-black uppercase tracking-widest rounded-md transition-colors ${activeTab === 'overdue'
-                                ? 'bg-warning text-warning-foreground'
-                                : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                        >
-                            <AlertTriangle className="h-3 w-3 inline mr-1" />
-                            {t('kri.overdue')}
-                        </button>
-                    </div>
+                    <TabList
+                        tabs={statusTabs}
+                        activeTab={activeTab}
+                        onChange={setActiveTab}
+                        idPrefix={STATUS_TABS_ID_PREFIX}
+                        variant="pill"
+                        ariaLabel={t('kri.status_views_label')}
+                        className="flex w-full [&>button]:flex-1 [&>button]:justify-center"
+                    />
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto divide-y divide-border">
+                <TabPanel
+                    tab={activeTab}
+                    activeTab={activeTab}
+                    idPrefix={STATUS_TABS_ID_PREFIX}
+                    className="flex-1 overflow-auto divide-y divide-border"
+                >
                     {showUpcomingEmpty && (
                         <div className="p-6 text-center">
                             <p className="text-xs text-muted-foreground">{t('kri.no_due_next_7')}</p>
@@ -196,7 +194,7 @@ export function KRIStatusWidget() {
                                                 : t('kri.days_until_due', { count: days })
                                             }
                                         </span>
-                                        <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                        <span aria-hidden="true" className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                                         <span className="text-xs text-muted-foreground font-black uppercase tracking-tighter">
                                             {kri.frequency}
                                         </span>
@@ -206,9 +204,10 @@ export function KRIStatusWidget() {
                             </motion.div>
                         );
                     })}
-                </div>
+                </TabPanel>
 
                 <button
+                    type="button"
                     onClick={() => navigate(activeTab === 'overdue'
                         ? '/kris?monitoring_status=not_submitted'
                         : '/kris?timeliness_status=due_soon')}

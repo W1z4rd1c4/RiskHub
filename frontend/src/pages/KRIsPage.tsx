@@ -4,8 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
-import type { SupportedLanguage } from '@/i18n';
-import { useTranslation } from '@/i18n/hooks';
+import { useTranslation, useFormat } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { KeyRiskIndicator } from '@/types/kri';
 
@@ -21,8 +20,9 @@ export function KRIsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/kris');
-    const { t, i18n } = useTranslation(['kris', 'common']);
-    const language = i18n.language as SupportedLanguage;
+    const { t } = useTranslation(['kris', 'common']);
+    // PG-35: one normalized UI language (the value LanguageProvider reports).
+    const { locale: language } = useFormat();
     const state = useKrisPageState(language);
     const columns = buildKriColumns({
         language,
@@ -75,7 +75,7 @@ export function KRIsPage() {
         itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage}
         onRetry={() => void state.fetchKris()}
-        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_kris') : t('common:loading.data')}
+        emptyMessage={t('empty_state.no_kris')}
         grouping={{
             groups: state.groups,
             onBack: state.clearSelectedGroup,

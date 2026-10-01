@@ -1,11 +1,16 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { AlertCircle, Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { useAuthz } from '@/authz/useAuthz';
-import { useTranslation } from '@/i18n/hooks';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 import { approvalsApi } from '@/services/approvalsApi';
@@ -15,6 +20,7 @@ import type { Threat } from '@/types/threat';
 import { DetailField, DetailFieldList } from './detail/DetailField';
 import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { EditBlockedState } from './detail/EditBlockedState';
+import { EntityDetailHeader } from './detail/EntityDetailHeader';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ThreatForm } from './threats/ThreatForm';
@@ -24,6 +30,7 @@ import { getThreatDisplayStatus, threatCategoryLabel } from './threats/threatsPa
 import { getThreatStatusColor } from './threats/threatColumns';
 import { useThreatDetailState, type ThreatDetailMode } from './threats/useThreatDetailState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
+import { LoadingState } from '@/components/ui/state';
 
 interface ThreatDetailPageProps {
     mode?: ThreatDetailMode;
@@ -70,8 +77,11 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/threats');
     const threatDetailPath = (threatId: number) => appendRegisterReturnTo(`/threats/${threatId}`, returnTo);
     const authz = useAuthz();
-    const { t, i18n } = useTranslation('threats');
+    const { t } = useTranslation('threats');
+    const format = useFormat();
     const { t: tCommon } = useTranslation('common');
+    // D14 / AX-06: every back control names its destination.
+    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
@@ -101,20 +111,27 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         logMessage: 'Failed to load threat create capabilities.',
     });
 
+    const feedback = useFeedback();
+    const announceApprovalQueued = useApprovalQueued();
+
+    // D10 / PG-07: a failed archive keeps the dialog open with the error
+    // inside it (the threat API takes no reason, PM-1).
     const archiveThreat = async () => {
         if (!threat) {
             return;
         }
         try {
             setIsArchiving(true);
+            setActionError(null);
             await threatApi.archiveThreat(threat.id);
+            setIsArchiveDialogOpen(false);
+            feedback.success({ title: tCommon('outcome.archived', { name: threat.name }) });
             void navigate(returnTo);
         } catch (archiveError) {
             logError('Failed to archive threat:', archiveError);
             setActionError(t('errors.archive_failed'));
         } finally {
             setIsArchiving(false);
-            setIsArchiveDialogOpen(false);
         }
     };
 
@@ -144,36 +161,38 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     };
 
     if (mode === 'new') {
+        // D7 / D14: the page title, back control and breadcrumbs stay in place
+        // while the create capability loads or is denied.
+        const newHeader = (
+            <PageHeader
+                title={t('actions.new')}
+                description={t('subtitle')}
+                back={backToRegister}
+                breadcrumbs={[{ label: t('title'), to: returnTo }, { label: t('actions.new') }]}
+            />
+        );
         if (createGateState.state !== 'allowed') {
-            return <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />;
+            return (
+                <PageContainer size="form">
+                    {newHeader}
+                    <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />
+                </PageContainer>
+            );
         }
         return (
-            <div className="space-y-8">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">{t('actions.new')}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
-                    </div>
-                </div>
+            <PageContainer size="form">
+                {newHeader}
                 <ThreatForm
                     onSaved={(saved: Threat) => navigate(threatDetailPath(saved.id))}
                     onCancel={() => navigate(returnTo)}
                 />
-            </div>
+            </PageContainer>
         );
     }
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="glass-card text-sm text-muted-foreground">{tCommon('loading.generic')}</div>
+            <LoadingState layout="page" label={tCommon('loading.generic')} />
         );
     }
 
@@ -205,6 +224,23 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         />
     );
 
+    const editHeader = (
+        <PageHeader
+            title={t('actions.edit')}
+            description={threat.name}
+            documentTitle={tCommon('page_title.edit', { name: threat.name })}
+            back={{
+                label: tCommon('actions.back_to_detail', { name: threat.name }),
+                onClick: () => void navigate(threatDetailPath(threat.id)),
+            }}
+            breadcrumbs={[
+                { label: t('title'), to: returnTo },
+                { label: threat.name, to: threatDetailPath(threat.id) },
+                { label: t('actions.edit') },
+            ]}
+        />
+    );
+
     if (mode === 'edit') {
         if (resolveCapabilityFlag(threat.capabilities, 'business_edit_blocked')) {
             return (
@@ -212,7 +248,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     <EditBlockedState
                         notice={staleWarning}
                         entityName={threat.name}
-                        documentTitle={threat.name}
+                        documentTitle={tCommon('page_title.edit', { name: threat.name })}
                         back={{
                             label: tCommon('actions.back_to_detail', { name: threat.name }),
                             to: threatDetailPath(threat.id),
@@ -227,7 +263,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         {threat.pending_change ? (
                             <ThreatPendingChangePanel
                                 pendingChange={threat.pending_change}
-                                locale={i18n.language}
+                                locale={format.locale}
                                 cancelling={isCancellingPendingChange}
                                 onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
                                     ? openPendingChangeCancellation
@@ -241,22 +277,9 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         }
         if (threat.stewardship_status === 'pending_governance') {
             return (
-                <div className="space-y-8">
+                <PageContainer>
                     {staleWarning}
-                    <div className="flex items-start gap-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(threatDetailPath(threat.id))}
-                            aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                        >
-                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
-                            <p className="text-muted-foreground font-medium mt-1">{threat.name}</p>
-                        </div>
-                    </div>
+                    {editHeader}
                     <StewardshipAlert
                         actionLabel={t('actions.resolve_in_governance')}
                         message={t(authz.canViewGovernance
@@ -267,29 +290,21 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                             : undefined}
                         testId="threat-orphan-edit-blocked"
                     />
-                </div>
+                </PageContainer>
             );
         }
         if (canEdit !== true) {
-            return <FormCapabilityGateState state="denied" />;
+            return (
+                <PageContainer size="form">
+                    {editHeader}
+                    <FormCapabilityGateState state="denied" />
+                </PageContainer>
+            );
         }
         return (
-            <div className="space-y-8">
+            <PageContainer size="form">
                 {staleWarning}
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(threatDetailPath(threat.id))}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">{t('actions.edit')}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">{threat.name}</p>
-                    </div>
-                </div>
+                {editHeader}
                 {threat.stewardship_status === 'legacy_unassigned' ? (
                     <StewardshipAlert message={t('messages.stewardship_legacy_unassigned')} />
                 ) : null}
@@ -301,9 +316,10 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         ? { ...threat, threat_steward_user_id: null }
                         : threat}
                     isEdit
-                    onApprovalQueued={(queued) => {
-                        void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
-                    }}
+                    onApprovalQueued={(queued) => announceApprovalQueued({
+                        approvalId: queued.approval_id,
+                        to: threatDetailPath(threat.id),
+                    })}
                     onSaved={(saved: Threat) => {
                         // The edit and view routes share the same detail-query
                         // key. Replace its cached pre-edit snapshot before
@@ -314,25 +330,20 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                     }}
                     onCancel={() => navigate(threatDetailPath(threat.id))}
                 />
-            </div>
+            </PageContainer>
         );
     }
 
     const status = getThreatDisplayStatus(threat);
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             {staleWarning}
-            {actionError ? (
-                <div className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{actionError}</p>
-                </div>
-            ) : null}
+            <ApprovalQueuedNotice />
             {threat.pending_change ? (
                 <ThreatPendingChangePanel
                     pendingChange={threat.pending_change}
-                    locale={i18n.language}
+                    locale={format.locale}
                     cancelling={isCancellingPendingChange}
                     onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
                         ? openPendingChangeCancellation
@@ -357,70 +368,59 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 <StewardshipAlert message={t('messages.stewardship_invalid_assignment')} />
             ) : null}
 
-            <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        data-testid="threat-detail-back"
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            <EntityDetailHeader
+                back={{ ...backToRegister, testId: 'threat-detail-back' }}
+                breadcrumbs={[{ label: t('title'), to: returnTo }, { label: threat.name }]}
+                title={threat.name}
+                statuses={(
+                    <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
                     >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            {threat.category ? (
-                                <span className="text-xs font-bold text-accent-text">{threatCategoryLabel(t, threat.category)}</span>
-                            ) : null}
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
+                        {t(`status.${status}`)}
+                    </span>
+                )}
+                metadata={threat.category ? (
+                    <span className="font-bold text-accent-text">{threatCategoryLabel(t, threat.category)}</span>
+                ) : undefined}
+                description={threat.relevant_subject || undefined}
+                actions={(
+                    <>
+                        {canRestore && (
+                            <button
+                                type="button"
+                                onClick={() => void restoreThreat()}
+                                data-testid="threat-detail-restore"
+                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                             >
-                                {t(`status.${status}`)}
-                            </span>
-                        </div>
-                        <h1 className="text-3xl font-bold text-foreground mt-1">{threat.name}</h1>
-                        {threat.relevant_subject ? (
-                            <p className="text-muted-foreground font-medium mt-1">{threat.relevant_subject}</p>
-                        ) : null}
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    {canRestore && (
-                        <button
-                            type="button"
-                            onClick={() => void restoreThreat()}
-                            data-testid="threat-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <ArchiveRestore className="h-4 w-4" />
-                            {t('actions.restore')}
-                        </button>
-                    )}
-                    {canEdit && !threat.pending_change && threat.stewardship_status !== 'pending_governance' && (
-                        <button
-                            type="button"
-                            onClick={() => navigate(appendRegisterReturnTo(`/threats/${threat.id}/edit`, returnTo))}
-                            data-testid="threat-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Pencil className="h-4 w-4" />
-                            {t('actions.edit')}
-                        </button>
-                    )}
-                    {canArchive && (
-                        <button
-                            type="button"
-                            onClick={() => setIsArchiveDialogOpen(true)}
-                            data-testid="threat-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            {tCommon('actions.archive')}
-                        </button>
-                    )}
-                </div>
-            </div>
+                                <ArchiveRestore className="h-4 w-4" />
+                                {t('actions.restore')}
+                            </button>
+                        )}
+                        {canEdit && !threat.pending_change && threat.stewardship_status !== 'pending_governance' && (
+                            <button
+                                type="button"
+                                onClick={() => navigate(appendRegisterReturnTo(`/threats/${threat.id}/edit`, returnTo))}
+                                data-testid="threat-detail-edit"
+                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                {t('actions.edit')}
+                            </button>
+                        )}
+                        {canArchive && (
+                            <button
+                                type="button"
+                                onClick={() => setIsArchiveDialogOpen(true)}
+                                data-testid="threat-detail-archive"
+                                className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                            >
+                                <Archive className="h-4 w-4" aria-hidden="true" />
+                                {tCommon('actions.archive')}
+                            </button>
+                        )}
+                    </>
+                )}
+            />
 
             <div className="glass-card space-y-5">
                 <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
@@ -452,16 +452,19 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
 
             <ConfirmDialog
                 isOpen={isArchiveDialogOpen}
-                onClose={() => setIsArchiveDialogOpen(false)}
+                onClose={() => {
+                    setIsArchiveDialogOpen(false);
+                    setActionError(null);
+                }}
                 onConfirm={archiveThreat}
-                title={tCommon('actions.archive')}
+                intent="archive"
+                entityLabel={tCommon('labels.threat')}
                 message={t('messages.archive_confirm', { threatName: threat.name })}
-                confirmLabel={tCommon('actions.archive')}
-                variant="danger"
                 isLoading={isArchiving}
+                errorText={actionError}
             />
             {pendingCancellationDialog}
-        </div>
+        </PageContainer>
     );
 }
 

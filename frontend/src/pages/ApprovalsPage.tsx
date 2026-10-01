@@ -1,7 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
-import { X } from 'lucide-react';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { Search } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Pagination } from '@/components/tables/Pagination';
+import { Input } from '@/components/ui/input';
+import { ErrorState } from '@/components/ui/state';
 import { ApprovalList } from './approvals/ApprovalList';
 import { ApprovalResolutionDialog } from './approvals/ApprovalResolutionDialog';
 import { ApprovalsTabs } from './approvals/ApprovalsTabs';
@@ -9,7 +14,8 @@ import { QuestionnaireInboxList } from './approvals/QuestionnaireInboxList';
 import { useApprovalsPageState } from './approvals/useApprovalsPageState';
 
 export default function ApprovalsPage() {
-    const { t, i18n } = useTranslation('approvals');
+    const { t } = useTranslation('approvals');
+    const format = useFormat();
     const navigate = useNavigate();
     const {
         approvals,
@@ -70,24 +76,15 @@ export default function ApprovalsPage() {
             : t('workbench.range', rangeValues);
 
     return (
-        <div className="space-y-8 p-8">
-            <div>
-                <h1 className="text-4xl font-black text-foreground tracking-tighter mb-2">{t('title')}</h1>
-                <p className="text-muted-foreground font-medium">{t('page_subtitle')}</p>
-            </div>
+        <PageContainer>
+            <PageHeader title={t('title')} description={t('page_subtitle')} />
 
             {filter !== 'risk_assessment' && approvalQueueErrorKey && (
-                <div role="alert" className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl flex items-center gap-2 mb-4">
-                    <X className="h-5 w-5" />
-                    <span>{translateError(approvalQueueErrorKey)}</span>
-                    <button
-                        type="button"
-                        onClick={refreshActiveView}
-                        className="ml-auto text-sm underline hover:text-destructive"
-                    >
-                        {t('common:actions.retry')}
-                    </button>
-                </div>
+                <ErrorState
+                    variant="banner"
+                    message={translateError(approvalQueueErrorKey)}
+                    onRetry={refreshActiveView}
+                />
             )}
 
             <ApprovalsTabs filter={filter} onChange={setFilter} t={t} label={t('title')}>
@@ -95,24 +92,24 @@ export default function ApprovalsPage() {
                     <QuestionnaireInboxList
                         questionnaires={questionnaires}
                         outcome={questionnairesOutcome}
-                        locale={i18n.language}
+                        locale={format.locale}
                         onOpenRisk={(riskId) => navigate(`/risks/${riskId}`)}
                         onRetry={() => void retryQuestionnaires()}
                         t={t}
                     />
                 ) : (
                     <div className="space-y-4">
-                        <div>
+                        <div className="max-w-md">
                             <label htmlFor="approval-search" className="sr-only">
                                 {t('workbench.search_label')}
                             </label>
-                            <input
+                            <Input
                                 id="approval-search"
                                 type="search"
+                                leadingIcon={Search}
                                 value={query}
                                 onChange={(event) => setQuery(event.target.value)}
                                 placeholder={t('workbench.search_placeholder')}
-                                className="w-full max-w-md rounded-xl border border-border bg-tint/5 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                             />
                         </div>
 
@@ -121,7 +118,7 @@ export default function ApprovalsPage() {
                                 approvals={approvals}
                                 loading={loading}
                                 expandedRows={expandedRows}
-                                locale={i18n.language}
+                                locale={format.locale}
                                 onToggleRow={toggleRow}
                                 onApprove={openApproveDialog}
                                 onReject={openRejectDialog}
@@ -137,45 +134,16 @@ export default function ApprovalsPage() {
                         )}
 
                         {approvalPaginationAvailable && (
-                            <nav
-                                aria-label={t('workbench.pagination_label')}
-                                className="flex items-center justify-between gap-4"
-                            >
-                                <p
-                                    role={loading ? 'status' : undefined}
-                                    className="text-sm text-muted-foreground"
-                                >
-                                    {rangeText}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!loading && approvalSkip > 0) {
-                                                setPage(page - 1);
-                                            }
-                                        }}
-                                        disabled={!loading && approvalSkip === 0}
-                                        aria-disabled={loading || approvalSkip === 0}
-                                        className="rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                                    >
-                                        {t('workbench.previous_page')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!loading && approvalSkip + approvalLimit < approvalTotal) {
-                                                setPage(page + 1);
-                                            }
-                                        }}
-                                        disabled={!loading && approvalSkip + approvalLimit >= approvalTotal}
-                                        aria-disabled={loading || approvalSkip + approvalLimit >= approvalTotal}
-                                        className="rounded-lg border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-                                    >
-                                        {t('workbench.next_page')}
-                                    </button>
-                                </div>
-                            </nav>
+                            <Pagination
+                                mode="cursor"
+                                ariaLabel={t('workbench.pagination_label')}
+                                hasPrevious={approvalSkip > 0}
+                                hasNext={approvalSkip + approvalLimit < approvalTotal}
+                                isLoading={loading}
+                                onPrevious={() => setPage(page - 1)}
+                                onNext={() => setPage(page + 1)}
+                                summary={<span role={loading ? 'status' : undefined}>{rangeText}</span>}
+                            />
                         )}
                     </div>
                 )}
@@ -222,7 +190,7 @@ export default function ApprovalsPage() {
                             approvals={[linkedApprovalState.approval]}
                             loading={false}
                             expandedRows={expandedRows}
-                            locale={i18n.language}
+                            locale={format.locale}
                             onToggleRow={toggleRow}
                             onApprove={openApproveDialog}
                             onReject={openRejectDialog}
@@ -236,7 +204,7 @@ export default function ApprovalsPage() {
             <ApprovalResolutionDialog
                 selectedApproval={selectedApproval}
                 dialogMode={dialogMode}
-                locale={i18n.language}
+                locale={format.locale}
                 resolutionNotes={resolutionNotes}
                 errorText={translateError(resolutionErrorKey)}
                 isSubmitting={isSubmitting}
@@ -259,6 +227,6 @@ export default function ApprovalsPage() {
                 isLoading={isCancelling}
                 errorText={translateError(cancelErrorKey)}
             />
-        </div>
+        </PageContainer>
     );
 }

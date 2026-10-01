@@ -58,6 +58,8 @@
         "alternative_names": "Alternative names",
         "business_owner": "Business owner",
         "owner_department": "Owning department",
+        "business_owner_department": "Business owner — owning department",
+        "ict_owner_department": "ICT owner — owning department",
         "ict_owner": "ICT owner",
         "gdpr_relevance": "GDPR relevance",
         "ai_relevance": "AI relevance",
@@ -154,7 +156,6 @@
         "remove": "Remove link",
         "spof": "SPOF",
         "remove_confirm": {
-            "title": "Remove link?",
             "message": "Remove the link to {{name}}? You can re-link it at any time."
         },
         "errors": {

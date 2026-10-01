@@ -66,8 +66,9 @@ export function RiskHubFieldError({ errorKey }: RiskHubFieldErrorProps) {
     const { t } = useTranslation(['errorKeys']);
     if (!errorKey) return null;
     return (
-        <div className="flex items-center gap-2 text-destructive text-sm">
-            <AlertCircle className="h-4 w-4" />
+        // AX-05: a rejected admin action is announced.
+        <div role="alert" className="flex items-center gap-2 text-destructive text-sm">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
             {t(errorKey, { ns: 'errorKeys' })}
         </div>
     );

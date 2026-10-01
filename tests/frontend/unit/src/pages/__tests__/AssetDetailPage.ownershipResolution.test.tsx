@@ -36,6 +36,7 @@ vi.mock('@/i18n/hooks', () => ({
         },
         i18n: { language: 'cs' },
     }),
+    useFormat: () => ({ locale: 'cs', date: (value?: string | null) => value ?? '' }),
 }));
 
 vi.mock('@/pages/assets/useAssetDetailState', () => ({
@@ -236,7 +237,8 @@ describe('AssetDetailPage ownership resolution', () => {
             'detail.ownership_pending',
         );
         expect(screen.getByRole('button', { name: 'detail.resolve_in_governance' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'actions.back_to_register' })).toBeInTheDocument();
+        // AX-06: the edit route returns to the record, and the back control says so.
+        expect(screen.getByRole('button', { name: 'actions.back_to_detail' })).toBeInTheDocument();
         expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
         expect(screen.queryByTestId('asset-detail-edit')).not.toBeInTheDocument();
         const results = await axe.run(container, {
@@ -252,7 +254,7 @@ describe('AssetDetailPage ownership resolution', () => {
         renderPage('edit');
 
         expect(screen.queryByRole('button', { name: 'detail.resolve_in_governance' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'actions.back_to_register' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'actions.back_to_detail' })).toBeInTheDocument();
     });
 
     it('keeps the error-state back action named, non-submitting, and operational', async () => {
@@ -270,6 +272,7 @@ describe('AssetDetailPage ownership resolution', () => {
     it.each([
         {
             label: 'governed edit blocked',
+            backName: 'actions.back_to_detail',
             asset: governedPendingAsset,
             mode: 'edit' as const,
             expectedPath: '/assets/75',
@@ -280,6 +283,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
         {
             label: 'ownership governance edit blocked',
+            backName: 'actions.back_to_detail',
             asset: pendingAsset,
             mode: 'edit' as const,
             expectedPath: '/assets/75',
@@ -291,6 +295,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
         {
             label: 'ordinary edit',
+            backName: 'actions.back_to_detail',
             asset: ownedAsset,
             mode: 'edit' as const,
             expectedPath: '/assets/75',
@@ -300,6 +305,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
         {
             label: 'detail view',
+            backName: 'actions.back_to_register',
             asset: ownedAsset,
             mode: 'view' as const,
             expectedPath: '/assets',
@@ -310,6 +316,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
     ])('keeps the $label back action on the shared public control contract', async ({
         asset,
+        backName,
         mode,
         expectedPath,
         assertState,
@@ -319,7 +326,8 @@ describe('AssetDetailPage ownership resolution', () => {
         renderPage(mode);
         assertState();
 
-        const back = screen.getByRole('button', { name: 'actions.back_to_register' });
+        // AX-06: the name matches the destination (record for edit routes, register for the detail view).
+        const back = screen.getByRole('button', { name: backName });
         expect(back).toHaveAttribute('type', 'button');
 
         await user.click(back);

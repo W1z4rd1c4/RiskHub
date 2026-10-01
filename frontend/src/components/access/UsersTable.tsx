@@ -1,3 +1,6 @@
+import { Users } from 'lucide-react';
+
+import { EmptyState, LoadingState, Skeleton } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import type { AccessUserRead } from '@/types/access';
 import type { UserDirectoryEntry } from '@/types/user';
@@ -24,12 +27,22 @@ interface UsersTableProps {
     presentationModelsByUserId: Map<number, AccessUserPresentationModel>;
 }
 
-function LoadingRows({ isAccessMode }: { isAccessMode: boolean }) {
-    return Array.from({ length: 5 }).map((_, index) => (
-        <tr key={index} className="animate-pulse">
-            <td colSpan={isAccessMode ? 6 : 4} className="py-8 px-4 h-16 bg-tint/5 rounded-lg mb-2" />
+function LoadingRows({ columnCount }: { columnCount: number }) {
+    return (
+        <tr>
+            <td colSpan={columnCount} className="p-0">
+                <LoadingState
+                    skeleton={(
+                        <div className="space-y-2 p-2">
+                            {Array.from({ length: 5 }).map((_, index) => (
+                                <Skeleton key={index} className="h-16 w-full" />
+                            ))}
+                        </div>
+                    )}
+                />
+            </td>
         </tr>
-    ));
+    );
 }
 
 export function UsersTable({
@@ -71,7 +84,7 @@ export function UsersTable({
                 </thead>
                 <tbody className="divide-y divide-border">
                     {isLoading ? (
-                        <LoadingRows isAccessMode={isAccessMode} />
+                        <LoadingRows columnCount={columnCount} />
                     ) : isAccessMode && accessUsers.length > 0 ? (
                         accessUsers.map((user) => {
                             const actionModel = actionModelsByUserId.get(user.id);
@@ -102,8 +115,8 @@ export function UsersTable({
                         directoryUsers.map((user) => <DirectoryUserRow key={user.id} user={user} />)
                     ) : (
                         <tr>
-                            <td colSpan={columnCount} className="py-12 text-center text-muted-foreground">
-                                {t('access.table.no_users_found')}
+                            <td colSpan={columnCount} className="p-0">
+                                <EmptyState layout="section" icon={Users} title={t('access.table.no_users_found')} />
                             </td>
                         </tr>
                     )}

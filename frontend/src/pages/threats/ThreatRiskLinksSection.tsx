@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { Plus, ShieldAlert, Unlink } from 'lucide-react';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -28,7 +32,11 @@ interface ThreatRiskLinksSectionProps {
 export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged }: ThreatRiskLinksSectionProps) {
     const { t } = useTranslation(['threats', 'common']);
     const queryClient = useQueryClient();
+    const feedback = useFeedback();
     const [linkError, setLinkError] = useState<string | null>(null);
+    // GAP-C-01: link removal is confirmed first (D10 unlink intent); its
+    // failure stays inside the open confirmation.
+    const [pendingRemoval, setPendingRemoval] = useState<{ linkId: number; name: string } | null>(null);
     const [riskToLink, setRiskToLink] = useState('');
     const [riskSearch, setRiskSearch] = useState('');
     const debouncedRiskSearch = useDebouncedValue(riskSearch);
@@ -79,9 +87,11 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
         mutationFn: (linkId: number) => threatApi.removeRiskLink(threat.id, linkId),
         onSuccess: async () => {
             setLinkError(null);
+            setPendingRemoval(null);
+            feedback.success({ title: t('common:outcome.link_removed') });
             await refreshLinks();
         },
-        onError: handleMutationError,
+        onError: (mutationError) => logError('Threat risk link removal failed:', mutationError),
     });
 
     const riskLinks = riskLinksQuery.data ?? [];
@@ -105,14 +115,22 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
             </div>
 
             {linkError ? (
-                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
-                    {linkError}
-                </div>
+                <InlineMessage tone="danger">{linkError}</InlineMessage>
             ) : null}
 
             <div className="space-y-4">
-                {riskLinks.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">{t('links.risks.empty')}</p>
+                {riskLinksQuery.isLoading ? (
+                    <LoadingState layout="inline" testId="threat-risk-links-loading" />
+                ) : riskLinksQuery.isError && !riskLinksQuery.data ? (
+                    // GAP-C-11: a failed load is an error with retry, never "no linked risks".
+                    <ErrorState
+                        layout="inline"
+                        onRetry={() => void riskLinksQuery.refetch()}
+                        isRetrying={riskLinksQuery.isFetching}
+                        testId="threat-risk-links-error"
+                    />
+                ) : riskLinks.length === 0 ? (
+                    <EmptyState layout="inline" icon={null} title={t('links.risks.empty')} />
                 ) : (
                     <ul className="space-y-2" data-testid="threat-risk-links">
                         {riskLinks.map((link) => (
@@ -127,14 +145,17 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                                     <button
                                         type="button"
                                         data-testid={`threat-risk-link-remove-${link.id}`}
-                                        onClick={() => removeRiskLink.mutate(link.id)}
+                                        onClick={() => setPendingRemoval({
+                                            linkId: link.id,
+                                            name: threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk')),
+                                        })}
                                         aria-label={t('common:links.remove_named', {
                                             name: threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk')),
                                         })}
                                         className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                         title={t('links.remove')}
                                     >
-                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                        <Unlink className="h-4 w-4" aria-hidden="true" />
                                     </button>
                                 ) : null}
                             </li>
@@ -168,6 +189,14 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                     </div>
                 ) : null}
             </div>
+            <ConfirmDialog
+                isOpen={pendingRemoval !== null}
+                onClose={() => setPendingRemoval(null)}
+                onConfirm={() => (pendingRemoval ? removeRiskLink.mutateAsync(pendingRemoval.linkId) : undefined)}
+                intent="unlink"
+                entityName={pendingRemoval?.name}
+                isLoading={removeRiskLink.isPending}
+            />
         </div>
     );
 }

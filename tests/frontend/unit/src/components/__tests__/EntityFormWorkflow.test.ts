@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
     nextEntityFormStep,
     previousEntityFormStep,
-    resolveSubmitOutcome,
 } from '@/components/forms/entityFormWorkflow';
 
 describe('entity form workflow', () => {
@@ -13,14 +12,6 @@ describe('entity form workflow', () => {
         expect(previousEntityFormStep({ currentStep: 1 })).toBe(0);
         expect(previousEntityFormStep({ currentStep: 3 })).toBe(2);
         expect(previousEntityFormStep({ currentStep: 3, minStep: 2 })).toBe(2);
-    });
-
-    it('maps approval queued submit outcomes without changing modal state', () => {
-        expect(resolveSubmitOutcome({ approvalQueued: true })).toEqual({
-            shouldClose: false,
-            shouldRefresh: true,
-            approvalQueued: true,
-        });
     });
 
 });

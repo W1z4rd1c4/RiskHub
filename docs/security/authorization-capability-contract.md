@@ -20,6 +20,20 @@ Native bootstrap (#203) seeds only canonical references and distinct pending Adm
 
 ## UI-consistency remediation (presentation only) — 2026-10-01
 
+Wave W7 (roadmap 2.4–2.13) adds confirmations and shared page patterns only.
+Archive, unlink, pending-creation cancel and batch-send actions open a
+`ConfirmDialog` that calls the same API with the same arguments; the archive reason
+is required only where the backend routes the archive through approval, and the
+backend still enforces it. Approval-queued outcomes stay on the entity page
+(`useApprovalQueued`). Detail headers (`EntityDetailHeader`/`PageHeader`) and tabs
+(`TabList`) keep the same `canUpdate*`/`canArchive*`/`canRestore`/`canCreateIssue`/
+`canRecordValue`, `business_edit_blocked` and `pending_change.capabilities.can_cancel`
+gates; `IssueNewPage` uses the shared create-capability gate (never renders the form
+without `can_create`). Dashboard view tabs keep the committee capability projection,
+and the ActivityLog/AuditTrail/IctRegisterDq gate lines are re-indented only.
+Navigation projection, route gates, capability fallbacks and backend authority are
+unchanged.
+
 Wave W6 (roadmap 2.1–2.3) moves the 27 `DialogShell` owners onto the v2
 header/body/footer API and swaps colour classes for design tokens elsewhere. Every
 action keeps its gate: `isEditable && canSaveDraft` / `canSubmitQuestionnaire` in

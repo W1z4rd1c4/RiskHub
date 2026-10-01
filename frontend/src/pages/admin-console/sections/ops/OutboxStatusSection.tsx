@@ -1,5 +1,4 @@
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateTimeValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { OutboxStatus } from '@/services/adminApi';
 
@@ -8,7 +7,8 @@ interface OutboxStatusSectionProps {
 }
 
 export function OutboxStatusSection({ outboxStatus }: OutboxStatusSectionProps) {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
 
     return (
         <div className="admin-surface-elevated rounded-xl border p-4">
@@ -61,8 +61,8 @@ export function OutboxStatusSection({ outboxStatus }: OutboxStatusSectionProps) 
                     <div className="admin-text mt-2 space-y-1 text-sm">
                         <p>{t('health.outbox.status')}: {outboxStatus?.last_dispatch_status || t('health.outbox.none')}</p>
                         <p>{t('health.outbox.processed')}: {outboxStatus?.last_dispatch_processed ?? 0}</p>
-                        <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? formatDateTimeValue(outboxStatus.last_dispatch_started_at, i18n.language) : t('health.outbox.none')}</p>
-                        <p>{t('health.outbox.finished')}: {outboxStatus?.last_dispatch_finished_at ? formatDateTimeValue(outboxStatus.last_dispatch_finished_at, i18n.language) : t('health.outbox.none')}</p>
+                        <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? format.dateTime(outboxStatus.last_dispatch_started_at) : t('health.outbox.none')}</p>
+                        <p>{t('health.outbox.finished')}: {outboxStatus?.last_dispatch_finished_at ? format.dateTime(outboxStatus.last_dispatch_finished_at) : t('health.outbox.none')}</p>
                         {outboxStatus?.last_dispatch_error && (
                             <p className="text-destructive">{outboxStatus.last_dispatch_error}</p>
                         )}

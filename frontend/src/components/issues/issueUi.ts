@@ -1,3 +1,4 @@
+import { ISSUE_SEVERITY_BAND, severityClass } from '@/lib/severity';
 import { cn } from '@/lib/utils';
 import type { IssueSeverity, IssueStatus } from '@/types/issue';
 
@@ -46,19 +47,10 @@ export function issueStatusClass(status: IssueStatus): string {
     }
 }
 
+/** D1: issue severity pills use the single severity scale (`lib/severity.ts`). */
 export function issueSeverityClass(severity: IssueSeverity): string {
-    switch (severity) {
-        case 'critical':
-            return 'border-destructive/40 bg-destructive/10 text-destructive';
-        case 'high':
-            return 'border-destructive/40 bg-destructive/10 text-destructive';
-        case 'medium':
-            return 'border-warning/40 bg-warning/10 text-warning-text';
-        case 'low':
-            return 'border-info/40 bg-info/10 text-accent-text';
-        default:
-            return 'border-border bg-muted text-muted-foreground';
-    }
+    const band = ISSUE_SEVERITY_BAND[severity];
+    return band ? severityClass('badge', band) : 'border-border bg-muted text-muted-foreground';
 }
 
 export function issuePill(baseClass: string): string {

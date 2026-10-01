@@ -4,6 +4,7 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import i18n from '@/i18n';
 import { ApiClientError } from '@/services/apiClient';
 
@@ -59,7 +60,7 @@ vi.mock('@/services/kriApi', () => ({
 }));
 
 function render(ui: ReactElement) {
-    const router = createMemoryRouter([{ path: '/', element: ui }]);
+    const router = createMemoryRouter([{ path: '/', element: <FeedbackProvider>{ui}</FeedbackProvider> }]);
     return rtlRender(<RouterProvider router={router} />);
 }
 
@@ -167,15 +168,11 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
                 }),
             );
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-            state: {
-                vendorFlash: expect.objectContaining({
-                    tone: 'success',
-                    message: i18n.t('vendors:links.kris.created_and_linked'),
-                    ctaHref: '/kris/55',
-                }),
-            },
-        });
+        // D9 / FB-01: the vendor-context outcome is a toast raised before returning.
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+        const outcomeToast = (await screen.findByText(i18n.t('vendors:links.kris.created_and_linked'))).closest('li');
+        expect(outcomeToast).toHaveAttribute('data-tone', 'success');
+        expect(within(outcomeToast as HTMLElement).getByRole('button', { name: i18n.t('vendors:links.actions.open_kri') })).toBeInTheDocument();
     });
 
     it('submits ensure_parent_risk_vendor_ids when user links a non-linked parent risk before create', async () => {
@@ -263,15 +260,11 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
         await waitFor(() => {
             expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Monitor this protected vendor');
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-            state: {
-                vendorFlash: expect.objectContaining({
-                    tone: 'warn',
-                    message: i18n.t('vendors:links.kris.created_but_not_linked'),
-                    ctaHref: '/kris/55',
-                }),
-            },
-        });
+        // D9 / FB-01: the vendor-context outcome is a toast raised before returning.
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+        const outcomeToast = (await screen.findByText(i18n.t('vendors:links.kris.created_but_not_linked'))).closest('li');
+        expect(outcomeToast).toHaveAttribute('data-tone', 'warning');
+        expect(within(outcomeToast as HTMLElement).getByRole('button', { name: i18n.t('vendors:links.actions.open_kri') })).toBeInTheDocument();
     });
 
     it('collects a reason and opens the queued approval for a protected vendor link', async () => {
@@ -316,7 +309,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
         await waitFor(() => {
             expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Monitor this critical vendor signal');
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=900');
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', { state: { approvalQueued: { approvalId: 900 } } });
     });
 
     it('queues only the protected parent Risk link before creating the KRI', async () => {
@@ -370,7 +363,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
 
         await waitFor(() => {
             expect(mockLinkRisk).toHaveBeenCalledWith(12, 202, 'Govern the parent Risk first');
-            expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=899');
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', { state: { approvalQueued: { approvalId: 899 } } });
         });
         expect(mockCreateKri).not.toHaveBeenCalled();
         expect(mockLinkKRI).not.toHaveBeenCalled();
@@ -433,7 +426,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
             expect(mockLinkRisk).toHaveBeenCalledTimes(2);
             expect(mockLinkRisk).toHaveBeenNthCalledWith(1, 12, 202, 'Govern the parent Risk first');
             expect(mockLinkRisk).toHaveBeenNthCalledWith(2, 12, 202, 'Govern the parent Risk first');
-            expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=899');
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', { state: { approvalQueued: { approvalId: 899 } } });
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         });
         expect(mockCreateKri).not.toHaveBeenCalled();
@@ -534,14 +527,8 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
             }));
             expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Link the parent Risk before creation');
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-            state: {
-                vendorFlash: expect.objectContaining({
-                    tone: 'success',
-                    ctaHref: '/kris/55',
-                }),
-            },
-        });
+        // D9 / FB-01: the vendor-context outcome is a toast raised before returning.
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
     });
 
     it('creates the KRI before queuing its protected Vendor link when continuing without the Risk link', async () => {
@@ -600,7 +587,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
                 ensure_parent_risk_vendor_ids: undefined,
             }));
             expect(mockLinkKRI).toHaveBeenCalledWith(12, 55, 'Govern only the KRI relationship');
-            expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=900');
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', { state: { approvalQueued: { approvalId: 900 } } });
         });
         expect(mockLinkRisk).not.toHaveBeenCalled();
     });

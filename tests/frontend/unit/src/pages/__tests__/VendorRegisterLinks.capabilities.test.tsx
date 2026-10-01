@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { VendorRegisterLinksSection } from '@/pages/vendors/VendorRegisterLinksSection';
 import { assetApi } from '@/services/assetApi';
 import { processApi } from '@/services/processApi';
@@ -63,6 +64,7 @@ function renderSection(capabilities: {
     return render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
+                <ApprovalQueuedNotice />
                 <VendorRegisterLinksSection vendorId={4} capabilities={capabilities} />
                 <LocationProbe />
             </MemoryRouter>
@@ -188,7 +190,7 @@ describe('Vendor register-link backend capability gates', () => {
         expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
     });
 
-    it('navigates to the queued approval returned by a governed Vendor-side Asset unlink', async () => {
+    it('surfaces the queued approval returned by a governed Vendor-side Asset unlink on the vendor', async () => {
         vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([{
             id: 43,
             asset_id: 9,
@@ -221,9 +223,10 @@ describe('Vendor register-link backend capability gates', () => {
         });
         fireEvent.click(within(dialog).getByText('assets:link_approval.continue'));
 
-        await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/approvals?tab=mine&approvalId=186');
-        });
+        // D12 / PM-2: the user stays on the vendor with the pending notice.
+        const notice = await screen.findByTestId('approval-queued-notice');
+        expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=186');
+        expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
     });
 
     it('keeps pending record-owner links readable while honoring mutation denial', async () => {

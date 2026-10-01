@@ -7,12 +7,16 @@ Folder for `frontend/src/hooks` implementation assets.
 ## Contents
 
 - `useActivityLogPageState.ts`
-- `useChartTheme.ts`
+- `useChartTheme.ts` — Recharts colours read from the theme tokens through `lib/cssTokens.ts`
+  (chrome, `--chart-1…8` categorical series, D1 severity and status-tone series); no hex tables.
 - `useContentTabs.ts` — tab/panel ARIA wiring with roving tabindex and
   Arrow/Home/End (disabled tabs skipped via `isTabDisabled`); the engine behind
   `components/ui/tabs.tsx`. `contentTabId` / `contentPanelId` build the shared ids.
 - `useDebouncedValue.ts`
 - `useDepartmentDetail.ts`
+- `useApprovalQueued.ts` — D12 / PM-2 approval-queued rule: `announce({ approvalId, to })`
+  raises the success toast and returns to (or stays on) the entity page with the router state
+  that `components/approvals/ApprovalQueuedNotice` renders as the persistent pending notice.
 - `useFeedback.ts` — toast feedback channel (audit §4.16, D9): `success` /
   `info` / `warning` (polite) and `error` (assertive, `messageKey` translated
   through `translateUiMessage`), `dismiss(id?)`; stable API. Reads the
@@ -24,7 +28,6 @@ Folder for `frontend/src/hooks` implementation assets.
   one unmounts.
   `PageHeader`, `EntityDetailHeader` and `AuthFrame` call it.
 - `useRiskHubConfig.ts`
-- `useStatusTheme.ts`
 - `useUsersPageFilters.ts`
 
 ## Notes

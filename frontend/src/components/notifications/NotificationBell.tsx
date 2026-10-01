@@ -6,6 +6,7 @@ import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
 import { Button } from '@/components/ui/button';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { buildNotificationPresentation, NotificationPresentationIcon } from './notificationPresentation';
 import { logError } from '@/services/logger';
 import { useCollectionDataState } from '@/pages/shared/collectionPageState';
@@ -13,9 +14,11 @@ import { useCollectionDataState } from '@/pages/shared/collectionPageState';
 interface NotificationBellProps {
     unreadCount?: number;
     onUnreadCountChange?: (count: number) => void;
+    /** The Notifications page is open: the bell is its sidebar entry (NAV-02). */
+    isCurrentPage?: boolean;
 }
 
-export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: NotificationBellProps) {
+export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurrentPage = false }: NotificationBellProps) {
     const navigate = useNavigate();
     const { t: tCommon } = useTranslation('common');
     const { t } = useTranslation('notifications');
@@ -195,13 +198,14 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-full hover:bg-tint/10 transition-colors"
-                aria-label={t('aria.bell')}
+                className={`relative p-2 rounded-full hover:bg-tint/10 transition-colors ${isCurrentPage ? 'bg-tint/10' : ''}`}
+                aria-label={unreadCount > 0 ? t('aria.bell_unread', { count: unreadCount }) : t('aria.bell')}
+                aria-current={isCurrentPage ? 'page' : undefined}
                 data-testid="notification-bell-button"
             >
                 <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
                 {unreadCount > 0 && (
-                    <span className="notification-count-badge absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                    <span aria-hidden="true" className="notification-count-badge absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
@@ -229,37 +233,38 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                     {/* Notification List */}
                     <div className="max-h-[40rem] overflow-y-auto">
                         {outcome.kind === 'initial-loading' && (
-                            <div className="p-4 text-center text-muted-foreground" role="status">
-                                {tCommon('loading.generic')}
-                            </div>
+                            <LoadingState layout="section" label={tCommon('loading.generic')} className="py-6" />
                         )}
                         {outcome.kind === 'denied' && (
-                            <div role="alert" className="m-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                                {t('errors.access_denied')}
-                            </div>
+                            <AccessDeniedState
+                                layout="section"
+                                headingLevel={3}
+                                descriptionKey="errors.access_denied"
+                                ns="notifications"
+                                className="py-6"
+                                live
+                            />
                         )}
                         {listError && (
-                            <div role="alert" className="m-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                                <p>{listError}</p>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="compact"
-                                    onClick={() => void retryNotifications()}
-                                    aria-busy={retrying}
-                                    aria-disabled={retrying}
-                                    className="mt-2"
-                                >
-                                    {tCommon('actions.retry')}
-                                </Button>
+                            <>
+                                <ErrorState
+                                    layout="section"
+                                    variant={hasStaleData ? 'banner' : 'block'}
+                                    message={listError}
+                                    onRetry={() => void retryNotifications()}
+                                    isRetrying={retrying}
+                                    className={hasStaleData ? 'm-3' : 'py-6'}
+                                />
                                 {retrying && <span role="status" className="sr-only">{t('status.retrying')}</span>}
-                            </div>
+                            </>
                         )}
                         {outcome.kind === 'empty' && (
-                            <div className="p-8 text-center text-muted-foreground">
-                                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                <p>{tCommon('empty.no_notifications')}</p>
-                            </div>
+                            <EmptyState
+                                layout="section"
+                                icon={Bell}
+                                title={tCommon('empty.no_notifications')}
+                                className="py-6"
+                            />
                         )}
                         {(outcome.kind === 'content' || hasStaleData) && notifications.length > 0 && (
                             <div className="divide-y divide-border">

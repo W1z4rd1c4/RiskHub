@@ -3,14 +3,12 @@ import { ShieldPlus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogBody, DialogHeader, DialogShell } from './ui/dialog';
 import { ControlForm } from './control-form/ControlFormContainer';
-import type { ControlFormLocationState } from './control-form/useControlFormWorkflow';
 
 interface ControlCreateDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: (
         controlId: number,
-        locationState?: ControlFormLocationState,
         acceptNavigation?: () => void,
     ) => void | Promise<void>;
 }

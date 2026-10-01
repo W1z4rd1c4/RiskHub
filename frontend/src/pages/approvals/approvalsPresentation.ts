@@ -1,4 +1,5 @@
 import type { SafeTFunction } from '@/i18n/hooks';
+import { getQuestionnaireStatusMeta, isQuestionnaireOverdue } from '@/lib/questionnaireStatus';
 import type { ApprovalActionType, ApprovalStatus } from '@/types/approval';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
@@ -78,21 +79,11 @@ export function getGovernedActionLabel(
     return 'update';
 }
 
-export function isQuestionnaireOverdue(questionnaire: RiskQuestionnaireListItem, now = Date.now()): boolean {
-    return questionnaire.status !== 'submitted' && new Date(questionnaire.due_at).getTime() < now;
-}
+export { isQuestionnaireOverdue };
 
+/** Inbox status pill classes, from the single questionnaire status map (PG-20). */
 export function getQuestionnaireStatusBadge(questionnaire: RiskQuestionnaireListItem, now = Date.now()): string {
-    if (isQuestionnaireOverdue(questionnaire, now)) {
-        return 'text-destructive border-destructive/20 bg-destructive/5';
-    }
-    if (questionnaire.status === 'sent') {
-        return 'text-warning-text border-warning/20 bg-warning/5';
-    }
-    if (questionnaire.status === 'in_progress') {
-        return 'text-accent-text border-accent/20 bg-accent/5';
-    }
-    return 'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5';
+    return getQuestionnaireStatusMeta(questionnaire, now).badgeClassName;
 }
 
 export function getQuestionnaireStatusLabel(
@@ -100,17 +91,6 @@ export function getQuestionnaireStatusLabel(
     t: SafeTFunction,
     now = Date.now(),
 ): string {
-    if (isQuestionnaireOverdue(questionnaire, now)) {
-        return t('risks:questionnaire.status.overdue');
-    }
-    if (questionnaire.status === 'sent') {
-        return t('risks:questionnaire.status.sent');
-    }
-    if (questionnaire.status === 'in_progress') {
-        return t('risks:questionnaire.status.in_progress');
-    }
-    if (questionnaire.status === 'submitted') {
-        return t('risks:questionnaire.status.submitted');
-    }
-    return questionnaire.status;
+    const { labelKey } = getQuestionnaireStatusMeta(questionnaire, now);
+    return labelKey ? t(labelKey) : questionnaire.status;
 }

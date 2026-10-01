@@ -8,6 +8,7 @@ import { kriApi } from '@/services/kriApi';
 import { useTranslation } from '@/i18n/hooks';
 import type { KeyRiskIndicator } from '@/types/kri';
 import { logError } from '@/services/logger';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 export function KRIBreachWidget() {
     const { t } = useTranslation('dashboard');
@@ -48,28 +49,26 @@ export function KRIBreachWidget() {
     }, [departmentId, t]);
 
     const loadingFallback = (
-        <div className="glass-card animate-pulse h-[300px] flex items-center justify-center">
-            <Activity className="h-6 w-6 text-muted-foreground animate-spin" />
+        <div className="glass-card h-[300px]">
+            <LoadingState className="h-full" label={t('common:loading.named', { name: t('kri.active_breaches') })} testId="widget-loading" />
         </div>
     );
 
     const emptyFallback = (
-        <div className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-4">
-                <Activity className="h-6 w-6 text-success-text" />
-            </div>
-            <h4 className="text-foreground font-bold mb-1">{t('kri.appetite_maintained')}</h4>
-            <p className="text-xs text-muted-foreground">{t('kri.no_breaches_org')}</p>
+        <div className="glass-card h-full">
+            <EmptyState
+                icon={Activity}
+                title={t('kri.appetite_maintained')}
+                description={t('kri.no_breaches_org')}
+                className="h-full"
+                testId="widget-empty"
+            />
         </div>
     );
 
     const errorFallback = (
-        <div data-testid="widget-error" className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
-            </div>
-            <h4 className="text-foreground font-bold mb-1">{t('kri.breaches_load_failed')}</h4>
-            <p className="text-xs text-muted-foreground">{error?.message}</p>
+        <div className="glass-card h-full">
+            <ErrorState title={t('kri.breaches_load_failed')} className="h-full" testId="widget-error" />
         </div>
     );
 
@@ -118,7 +117,7 @@ export function KRIBreachWidget() {
                                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-tighter">
                                         {t('kri.current_label')} <span className="text-destructive">{kri.current_value}{kri.unit}</span>
                                     </span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                    <span aria-hidden="true" className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-tighter">
                                         {t('kri.limit_label')} {kri.upper_limit}{kri.unit}
                                     </span>

@@ -17,12 +17,30 @@ vi.mock('@/hooks/useDepartmentDetail', () => ({
     useDepartmentDetail: (...args: unknown[]) => useDepartmentDetailMock(...args),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 function registerPage(name: string) {
     return function RegisterPage() {
@@ -264,5 +282,21 @@ describe('DepartmentDetailPage operational workspace', () => {
         await user.click(screen.getByRole('button', { name: 'actions.retry' }));
         expect(refresh).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute('href', '/departments');
+    });
+
+    it.each([
+        ['loading', { department: null, isLoading: true, isAccessDenied: false, error: null }],
+        ['access denied', { department: null, isLoading: false, isAccessDenied: true, error: null }],
+        ['load failure', { department: null, isLoading: false, isAccessDenied: false, error: 'errors.load_department_detail_failed' }],
+    ])('keeps one page h1 and a labelled back link in the %s state (D7)', (_label, state) => {
+        useDepartmentDetailMock.mockReturnValue({ ...state, refresh: vi.fn() });
+        renderPage('/departments/7?return_to=%2Fdepartments%3Fq%3Dops');
+
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('sidebar.departments');
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute(
+            'href',
+            '/departments?q=ops',
+        );
     });
 });

@@ -571,12 +571,19 @@
       "empty": "No risks found for the current filters.",
       "select_all_hint": "Will send to all matching filtered risks.",
       "selected_count": "{{count}} selected",
-      "send": "Send questionnaires"
+      "send": "Send questionnaires",
+      "confirm_title": "Send questionnaires for {{count}} risks?",
+      "confirm_title_one": "Send a questionnaire for {{count}} risk?",
+      "confirm_title_few": "Send questionnaires for {{count}} risks?",
+      "confirm_title_other": "Send questionnaires for {{count}} risks?",
+      "confirm_all_title": "Send questionnaires for all matching risks?",
+      "confirm_body": "The owner of each selected risk receives an assessment questionnaire. Sent questionnaires cannot be recalled.",
+      "confirm_all_body": "The owner of every risk matching the current filters receives an assessment questionnaire. Sent questionnaires cannot be recalled."
     }
   },
   "roles_panel": {
     "title": "Platform Roles",
-    "show_deleted": "Show deleted",
+    "show_deleted": "Show archived",
     "add_role": "Add Role",
     "columns": {
       "role_name": "Role Name",
@@ -588,14 +595,17 @@
       "full_access": "Full Access",
       "system": "System",
       "active": "Active",
-      "deleted": "Deleted"
+      "deleted": "Archived"
     },
     "actions": {
       "edit_disabled": "{{role}} role cannot be edited",
       "restore": "Restore"
     },
-    "delete_confirm": "Are you sure you want to delete {{name}}?",
-    "cannot_delete_assigned": "Cannot delete: {{count}} users are assigned to this role.",
+    "archive_confirm": "Archive role {{name}}? It can be restored later.",
+    "cannot_archive_assigned": "Cannot archive: {{count}} users are assigned to this role.",
+    "cannot_archive_assigned_one": "Cannot archive: {{count}} user is assigned to this role.",
+    "cannot_archive_assigned_few": "Cannot archive: {{count}} users are assigned to this role.",
+    "cannot_archive_assigned_other": "Cannot archive: {{count}} users are assigned to this role.",
     "modal": {
       "edit_title": "Edit Role",
       "new_title": "New Role",
@@ -622,7 +632,7 @@
   },
   "departments_panel": {
     "title": "Departments",
-    "show_deleted": "Show deleted",
+    "show_deleted": "Show archived",
     "add_department": "Add Department",
     "columns": {
       "name_code": "Name / Code",
@@ -633,13 +643,13 @@
     },
     "badges": {
       "active": "Active",
-      "deleted": "Deleted"
+      "deleted": "Archived"
     },
     "actions": {
       "restore": "Restore"
     },
-    "delete_confirm": "Are you sure you want to delete {{name}}?",
-    "delete_blocked_title": "Cannot delete because of linked items:",
+    "archive_confirm": "Archive department {{name}}? It can be restored later.",
+    "archive_blocked_title": "Cannot archive because of linked items:",
     "linked_counts": {
       "users": "Users: {{count}}",
       "risks": "Risks: {{count}}",
@@ -672,7 +682,7 @@
   },
   "risk_types_panel": {
     "title": "Risk Types",
-    "show_deleted": "Show deleted",
+    "show_deleted": "Show archived",
     "add_type": "Add Type",
     "columns": {
       "color": "Color",
@@ -683,13 +693,13 @@
     "badges": {
       "system": "System",
       "active": "Active",
-      "deleted": "Deleted"
+      "deleted": "Archived"
     },
     "actions": {
       "restore": "Restore"
     },
-    "delete_confirm": "Are you sure you want to delete {{name}}?",
     "delete_warning": "⚠️ {{count}} risks will become uncategorized.",
+    "archive_confirm": "Archive risk type {{name}}? It can be restored later.",
     "modal": {
       "edit_title": "Edit Risk Type",
       "new_title": "New Risk Type",
@@ -762,7 +772,6 @@
   },
   "system_settings": {
     "title": "System Settings",
-    "saved": "Saved",
     "save_named": "Save {{name}}",
     "errors": {
       "save_failed": "Failed to save"
@@ -783,12 +792,9 @@
     }
   },
   "confirmations": {
-    "delete_department": "Delete Department?",
-    "delete_department_desc": "This action will permanently delete the department. This cannot be undone.",
-    "delete_risk_type": "Delete Risk Type?",
-    "delete_risk_type_desc": "This action will permanently delete the risk type. This cannot be undone.",
-    "delete_role": "Delete Role?",
-    "delete_role_desc": "This action will permanently delete the role. This cannot be undone."
+    "archive_department": "Archive department?",
+    "archive_risk_type": "Archive risk type?",
+    "archive_role": "Archive role?"
   },
   "errors": {
     "failed_to_load_settings": "Failed to load settings",

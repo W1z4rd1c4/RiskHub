@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
@@ -33,12 +35,21 @@ export function ProcessesPage() {
     const state = useProcessesPageState(semanticFilters, language);
     const [cancellingApprovalId, setCancellingApprovalId] = useState<number | null>(null);
     const [pendingCreationCancelFailed, setPendingCreationCancelFailed] = useState(false);
+    // GAP-D-08 / D10: cancelling a pending creation is confirmed first, like
+    // every pending-change cancel on the detail pages; failures stay inside it.
+    const [pendingCancellation, setPendingCancellation] = useState<{
+        approvalId: number;
+        targetName: string;
+    } | null>(null);
 
-    const cancelPendingCreation = async (approvalId: number) => {
+    const cancelPendingCreation = async () => {
+        if (!pendingCancellation || cancellingApprovalId !== null) return;
+        const { approvalId } = pendingCancellation;
         setCancellingApprovalId(approvalId);
         setPendingCreationCancelFailed(false);
         try {
             await approvalsApi.cancel(approvalId);
+            setPendingCancellation(null);
             await state.fetchProcesses();
         } catch (error) {
             logError('Failed to cancel pending Process creation.', error);
@@ -110,7 +121,7 @@ export function ProcessesPage() {
             itemsPerPage={state.limit}
             onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchProcesses()}
-            emptyMessage={state.hasLoadedOnce ? emptyMessage : t('common:loading.data')}
+            emptyMessage={emptyMessage}
             grouping={{
                 groups: state.groups,
                 onBack: state.clearSelectedGroup,
@@ -133,19 +144,14 @@ export function ProcessesPage() {
             testIdPrefix="processes"
             toolbar={(
                 <div className="space-y-4">
-                    {pendingCreationCancelFailed ? (
-                        <div
-                            role="alert"
-                            aria-atomic="true"
-                            className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive"
-                        >
-                            {t('pending_creation.cancel_failed')}
-                        </div>
-                    ) : null}
+                    <ApprovalQueuedNotice />
                     <ProcessPendingCreationsPanel
                         items={state.pendingCreations}
                         cancellingApprovalId={cancellingApprovalId}
-                        onCancel={(approvalId) => void cancelPendingCreation(approvalId)}
+                        onCancel={(approvalId, targetName) => {
+                            setPendingCreationCancelFailed(false);
+                            setPendingCancellation({ approvalId, targetName });
+                        }}
                         onOpenRequest={(approvalId, tab) => void navigate(`/approvals?tab=${tab}&approvalId=${approvalId}`)}
                     />
                     <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
@@ -158,6 +164,17 @@ export function ProcessesPage() {
                         onRefresh={() => void state.fetchProcesses()}
                         onSearchChange={state.updateSearch}
                         search={state.search}
+                    />
+                    <PendingChangeCancellationDialog
+                        isOpen={pendingCancellation !== null}
+                        targetName={pendingCancellation?.targetName ?? ''}
+                        isLoading={cancellingApprovalId !== null}
+                        errorText={pendingCreationCancelFailed ? t('pending_creation.cancel_failed') : null}
+                        onClose={() => {
+                            setPendingCancellation(null);
+                            setPendingCreationCancelFailed(false);
+                        }}
+                        onConfirm={() => void cancelPendingCreation()}
                     />
                 </div>
             )}

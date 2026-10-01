@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Handshake } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 import type { Vendor } from '@/types/vendor';
 
 interface RiskLinkedVendorsSectionProps {
@@ -46,7 +47,7 @@ export function RiskLinkedVendorsSection({
                                     <p className="text-sm font-bold text-foreground truncate">{vendor.name}</p>
                                     <p className="text-[10px] text-muted-foreground truncate">{vendor.department_name || t('overview.unassigned', { ns: 'risks' })}</p>
                                 </div>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black border text-warning-text bg-warning/10 border-warning/20 whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${severityClass('badge', ordinalSeverityBand(vendor.risk_score_1_5))}`}>
                                     {vendor.risk_score_1_5}/5
                                 </span>
                             </div>

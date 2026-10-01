@@ -17,6 +17,7 @@ import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLin
 import { useTranslation } from '@/i18n/hooks';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { buildExistingLinkPresentation } from './linking/linkManagementPresentation';
 import { getLinkDialogTitle } from './linking/linkModes';
 import type { LinkMode } from './linking/linkTypes';
 import { useLinkManagementWorkflow } from './linking/useLinkManagementWorkflow';
@@ -65,6 +66,12 @@ export function LinkManagementDialog({
         onUnlink,
         showSearch,
     });
+    const unlinkTargetName = workflow.unlinkTargetId === null
+        ? undefined
+        : existingLinks
+            .map((link) => buildExistingLinkPresentation(link, mode, t))
+            .find((presentation) => presentation.targetId === workflow.unlinkTargetId)
+            ?.displayName;
 
     // -----------------------------------------------------------------------
     // Render
@@ -124,14 +131,13 @@ export function LinkManagementDialog({
 
                 <DialogFooter cancelLabel={t('common:actions.close')} />
             </DialogShell>
+            {/* D10 / PG-07: unlink, not delete — "Remove link" with the Unlink icon. */}
             <ConfirmDialog
                 isOpen={workflow.unlinkTargetId !== null}
                 onClose={() => workflow.setUnlinkTargetId(null)}
                 onConfirm={workflow.handleConfirmUnlink}
-                title={t('common:confirmation.delete_title')}
-                message={t('common:confirmation.remove_link')}
-                confirmLabel={t('common:actions.delete')}
-                variant="danger"
+                intent="unlink"
+                entityName={unlinkTargetName}
                 isLoading={workflow.isUnlinking !== null}
             />
         </>

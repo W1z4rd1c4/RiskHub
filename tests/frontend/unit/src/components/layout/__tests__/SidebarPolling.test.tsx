@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@test/queryClient';
@@ -15,7 +15,9 @@ vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => mockUseAuthz(),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -174,5 +176,28 @@ describe('Sidebar badge polling', () => {
         await waitFor(() => expect(getShellSummary).toHaveBeenCalledTimes(1));
 
         unmount();
+    });
+
+    it('gives count badges an accessible name that says what is counted (AX-14)', async () => {
+        mockUseAuthz.mockReturnValue({
+            isPlatformAdmin: false,
+            can: () => true,
+            canViewApprovals: true,
+            canViewGovernance: true,
+            canViewUsersRoute: false,
+            canViewRiskHub: false,
+            canViewAdminConsole: false,
+        });
+
+        render(
+            <MemoryRouter>
+                <Sidebar />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        const approvals = await screen.findByRole('link', { name: 'sidebar.approvals sidebar_badges.workflow' });
+        expect(approvals.querySelector('.sidebar-nav-badge [aria-hidden="true"]')).toHaveTextContent('4');
+        expect(await screen.findByRole('link', { name: 'sidebar.governance sidebar_badges.orphan_count' })).toBeInTheDocument();
     });
 });

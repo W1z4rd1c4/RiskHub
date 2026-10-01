@@ -18,7 +18,9 @@ vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({ canViewGovernance: mocks.canViewGovernance }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string, options?: { targetName?: string }) => (
             key === 'pending_change_cancellation.message' ? options?.targetName ?? key : key

@@ -17,8 +17,8 @@ export const PAGE_TITLE_CLASS = 'font-heading text-3xl font-bold tracking-tight 
 
 /** Labelled back navigation; `label` names the destination (D14, AX-06). */
 export type PageBackTarget =
-    | { label: string; to: To; state?: unknown }
-    | { label: string; onClick: () => void };
+    | { label: string; to: To; state?: unknown; testId?: string }
+    | { label: string; onClick: () => void; testId?: string };
 
 export function PageBackButton({ back, className }: { back: PageBackTarget; className?: string }) {
     const shared = {
@@ -26,6 +26,7 @@ export function PageBackButton({ back, className }: { back: PageBackTarget; clas
         variant: 'ghost',
         size: 'compact',
         className: cn('-ml-3 text-muted-foreground', className),
+        'data-testid': back.testId,
     } as const;
     return 'to' in back
         ? <BackButton {...shared} to={back.to} state={back.state} />

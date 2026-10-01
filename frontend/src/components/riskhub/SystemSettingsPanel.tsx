@@ -1,13 +1,15 @@
 import { useId, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings2, Save, Check, AlertCircle } from 'lucide-react';
+import { Settings2, Save, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { riskHubKeys } from '@/lib/queryKeys';
 import { Switch } from '@/components/ui/switch';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
+import { ErrorState, LoadingState, Spinner } from '@/components/ui/state';
 
 const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string }> = {
     risk_thresholds: {
@@ -34,8 +36,8 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const { t } = useTranslation(['admin', 'common']);
     const format = useFormat();
     const [value, setValue] = useState(config.value);
+    const feedback = useFeedback();
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const fieldId = useId();
     const nameId = `${fieldId}-name`;
@@ -50,8 +52,8 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         setSaving(true);
         try {
             await onSave(config.key, value);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
+            // D9 / GAP-B-10: the save outcome is a toast, not a 2 s inline flash.
+            feedback.success({ title: t('common:success.saved'), description: config.display_name });
         } catch (err) {
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
@@ -138,18 +140,12 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
                         className="flex items-center gap-1 px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
                     >
                         {saving ? (
-                            <span className="animate-spin" aria-hidden="true">⏳</span>
+                            <Spinner size="sm" className="size-3.5 text-current" />
                         ) : (
                             <Save className="h-3.5 w-3.5" aria-hidden="true" />
                         )}
                         {t('common:actions.save')}
                     </button>
-                )}
-
-                {saved && (
-                    <span role="status" className="flex items-center gap-1 text-success-text text-sm">
-                        <Check className="h-4 w-4" aria-hidden="true" /> {t('admin:system_settings.saved')}
-                    </span>
                 )}
 
                 {errorKey && (
@@ -168,7 +164,7 @@ export function SystemSettingsPanel() {
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canUpdateSettings = riskHubCapabilityEnabled(riskHubCapabilities?.system_settings, 'can_update');
 
-    const { data: configs, isLoading, error } = useQuery({
+    const { data: configs, isLoading, error, isFetching, refetch } = useQuery({
         queryKey: riskHubKeys.globalConfig(),
         queryFn: () => riskHubApi.getAllConfig(),
     });
@@ -182,12 +178,19 @@ export function SystemSettingsPanel() {
         await updateMutation.mutateAsync({ key, value });
     };
 
+    // DS-17 / GAP-C-11: shared loading and error (with retry) states.
     if (isLoading) {
-        return <div className="text-muted-foreground text-center py-8">{t('common:loading.settings')}</div>;
+        return <LoadingState label={t('common:loading.settings')} />;
     }
 
-    if (error) {
-        return <div className="text-destructive text-center py-8">{t('admin:errors.failed_to_load_settings')}</div>;
+    if (error && !configs) {
+        return (
+            <ErrorState
+                message={t('admin:errors.failed_to_load_settings')}
+                onRetry={() => void refetch()}
+                isRetrying={isFetching}
+            />
+        );
     }
 
     const categories = Object.keys(configs || {});

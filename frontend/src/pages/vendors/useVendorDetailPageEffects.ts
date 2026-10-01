@@ -1,41 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { Location, NavigateFunction } from 'react-router-dom';
 
 import {
     getVendorDetailScrollTargetId,
     normalizeVendorDetailSearch,
-    type VendorDetailFlash,
 } from './vendorDetailPresentation';
-
-interface VendorLocationState {
-    vendorFlash?: VendorDetailFlash;
-}
-
-function getVendorFlash(locationState: unknown): VendorDetailFlash | null {
-    return (locationState as VendorLocationState | null)?.vendorFlash ?? null;
-}
-
-export function useVendorFlashMessage(location: Location, navigate: NavigateFunction) {
-    const [actionMessage, setActionMessage] = useState<VendorDetailFlash | null>(() => getVendorFlash(location.state));
-    const currentLocation = `${location.pathname}${location.search}${location.hash}`;
-
-    useEffect(() => {
-        if (getVendorFlash(location.state)) {
-            void navigate(currentLocation, { replace: true });
-        }
-    }, [currentLocation, location.state, navigate]);
-
-    const dismissActionMessage = () => {
-        setActionMessage(null);
-        void navigate(currentLocation, { replace: true });
-    };
-
-    return {
-        actionMessage,
-        setActionMessage,
-        dismissActionMessage,
-    };
-}
 
 export function useVendorDeepLinkScroll(location: Location) {
     useEffect(() => {

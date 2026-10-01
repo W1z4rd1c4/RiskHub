@@ -312,8 +312,10 @@ test.describe('ICT Register — Sub-outsourcing chains (Deterministic)', () => {
         await detailPage.navigateToSection(vendorId, 'sub-outsourcing');
         await expect(detailPage.subOutsourcingRowByText(uniqueName)).toBeVisible();
 
-        // Archive: the row swaps its actions to restore-only.
+        // Archive (confirmed first, GAP-C-06): the row swaps its actions to restore-only.
         await riskManagerPage.getByTestId(`vendor-sub-outsourcing-archive-${created.id}`).click();
+        await riskManagerPage.getByRole('alertdialog')
+            .getByRole('button', { name: /Archive entry|Archivovat subdodávku/ }).click();
         await expect(riskManagerPage.getByTestId(`vendor-sub-outsourcing-restore-${created.id}`)).toBeVisible();
         await expect(riskManagerPage.getByTestId(`vendor-sub-outsourcing-archive-${created.id}`)).toHaveCount(0);
         await expect(riskManagerPage.getByTestId(`vendor-sub-outsourcing-edit-${created.id}`)).toHaveCount(0);

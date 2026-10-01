@@ -1,4 +1,4 @@
-import { Building2, Check, Crown, Loader2, Shield, User } from 'lucide-react';
+import { Building2, Check, Crown, Shield, User } from 'lucide-react';
 import { useId } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -9,6 +9,7 @@ import type { DepartmentSummary } from '@/services/departmentApi';
 import type { AccessUserRead, RoleWithPermissions } from '@/types/access';
 
 import { type AccessEditCapabilities, type AccessEditSelection, SCOPE_OPTIONS } from './accessEditModalLogic';
+import { LoadingState } from '@/components/ui/state';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -22,10 +23,7 @@ function updateSelection(
 
 export function AccessEditLoading({ label }: { label: string }) {
     return (
-        <div className="py-20 flex flex-col items-center justify-center gap-4">
-            <Loader2 className="h-10 w-10 text-accent animate-spin" />
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-        </div>
+        <LoadingState className="py-20" label={label} />
     );
 }
 

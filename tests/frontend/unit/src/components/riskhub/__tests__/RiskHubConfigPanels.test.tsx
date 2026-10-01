@@ -11,7 +11,9 @@ import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
 import { accessApi } from '@/services/accessApi';
 import { riskHubApi } from '@/services/riskHubApi';
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `translateUiMessage` stays real; only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string, options?: { count?: number; name?: string }) => {
             if (options?.name) return `${key}:${options.name}`;
@@ -208,6 +210,36 @@ describe('Risk Hub config panels', () => {
         expect(riskHubApi.getDepartments).toHaveBeenCalledTimes(2);
     });
 
+    it.each([
+        {
+            name: 'risk types',
+            panel: () => <RiskTypesPanel />,
+            load: () => vi.mocked(riskHubApi.getRiskTypes),
+            message: 'errors.failed_to_load_risk_types',
+            loaded: 'Operational',
+        },
+        {
+            name: 'approval scenarios',
+            panel: () => <ApprovalScenariosPanel />,
+            load: () => vi.mocked(riskHubApi.getApprovalScenarios),
+            message: 'admin:errors.failed_to_load_approval_scenarios',
+            loaded: 'Risk update',
+        },
+    ])('renders a $name load failure as an error with retry (DS-17, GAP-C-11)', async ({ panel, load, message, loaded }) => {
+        const loader = load() as unknown as ReturnType<typeof vi.fn>;
+        const items = await loader();
+        loader.mockReset().mockRejectedValueOnce(new Error('network down')).mockResolvedValueOnce(items);
+        renderWithQueryClient(panel());
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(message);
+
+        fireEvent.click(within(alert).getByRole('button', { name: 'actions.retry' }));
+        expect(await screen.findByText(loaded)).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(loader).toHaveBeenCalledTimes(2);
+    });
+
     it('creates departments without manager assignment', async () => {
         renderWithQueryClient(<DepartmentsPanel />);
 
@@ -310,21 +342,42 @@ describe('Risk Hub config panels', () => {
         expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
     });
 
-    it('keeps risk type delete confirmation open and shows an error when delete fails', async () => {
+    it('keeps risk type archive confirmation open and shows an error when archive fails', async () => {
         vi.mocked(riskHubApi.deleteRiskType).mockRejectedValue(new Error('delete failed'));
 
         renderWithQueryClient(<RiskTypesPanel />);
 
         await screen.findByText('Operational');
-        fireEvent.click(screen.getByRole('button', { name: 'common:actions.delete' }));
-        const modal = await screen.findByRole('alertdialog', { name: 'confirmations.delete_risk_type' });
+        // D10: soft-deleted, restorable risk types are archived (Archive icon, never Trash2).
+        const rowAction = screen.getByRole('button', { name: 'common:actions.archive_named:Operational' });
+        expect(rowAction.querySelector('svg.lucide-archive')).not.toBeNull();
+        fireEvent.click(rowAction);
+        const modal = await screen.findByRole('alertdialog', { name: 'confirmations.archive_risk_type' });
 
-        fireEvent.click(screen.getAllByRole('button', { name: 'common:actions.delete' }).at(-1)!);
+        fireEvent.click(within(modal).getByRole('button', { name: 'common:actions.archive' }));
 
         await waitFor(() => {
-            expect(within(modal).getByText('errors.failed')).toBeInTheDocument();
+            expect(within(modal).getByRole('alert')).toHaveTextContent('errors.failed');
         });
-        expect(within(modal).getByText('confirmations.delete_risk_type')).toBeInTheDocument();
+        expect(within(modal).getByText('confirmations.archive_risk_type')).toBeInTheDocument();
+    });
+
+    it('keeps the department archive error inside the open confirmation', async () => {
+        vi.mocked(riskHubApi.deleteDepartment).mockRejectedValue(new Error('delete failed'));
+
+        renderWithQueryClient(<DepartmentsPanel />);
+
+        const rowAction = await screen.findByRole('button', { name: /^common:actions\.archive_named:/ });
+        expect(rowAction.querySelector('svg.lucide-trash-2')).toBeNull();
+        fireEvent.click(rowAction);
+        const modal = await screen.findByRole('alertdialog', { name: 'confirmations.archive_department' });
+
+        fireEvent.click(within(modal).getByRole('button', { name: 'common:actions.archive' }));
+
+        await waitFor(() => {
+            expect(within(modal).getByRole('alert')).toHaveTextContent('errors.failed');
+        });
+        expect(screen.getByRole('alertdialog', { name: 'confirmations.archive_department' })).toBeInTheDocument();
     });
 
     it('keeps approval scenario modal open and shows an error when save fails', async () => {

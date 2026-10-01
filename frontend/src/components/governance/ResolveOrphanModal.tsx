@@ -1,8 +1,7 @@
 import { useId } from 'react';
-import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { OrphanedItem } from '@/types/orphanedItem';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { DialogBody, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +13,7 @@ import { ResolveOrphanOwnerSelection } from './ResolveOrphanOwnerSelection';
 import { ResolveOrphanRiskSelection } from './ResolveOrphanRiskSelection';
 import { ResolveOrphanSummary } from './ResolveOrphanSummary';
 import { useResolveOrphanWorkflow } from './useResolveOrphanWorkflow';
+import { LoadingState } from '@/components/ui/state';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;
@@ -30,7 +30,7 @@ export function ResolveOrphanModal({
     orphan,
     onResolved,
 }: ResolveOrphanModalProps) {
-    const { i18n } = useTranslation('common');
+    const format = useFormat();
     const { t: tAdmin } = useTranslation('admin');
     const workflow = useResolveOrphanWorkflow({
         isOpen,
@@ -75,12 +75,7 @@ export function ResolveOrphanModal({
 
             <DialogBody className="custom-scrollbar">
                 {!workflow.isInitialized && (
-                    <div className="py-20 flex flex-col items-center justify-center gap-4">
-                        <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                            {tAdmin('governance.resolve_modal.initializing')}
-                        </p>
-                    </div>
+                    <LoadingState className="py-20" label={tAdmin('governance.resolve_modal.initializing')} />
                 )}
 
                 {workflow.isInitialized && (
@@ -90,7 +85,7 @@ export function ResolveOrphanModal({
                         animate={{ opacity: 1 }}
                         className="space-y-8"
                     >
-                        <ResolveOrphanSummary language={i18n.language} orphan={orphan} />
+                        <ResolveOrphanSummary language={format.locale} orphan={orphan} />
 
                         <div className="space-y-8">
                             {shouldShowRisk && (

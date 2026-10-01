@@ -94,9 +94,7 @@ export function ThreatsPage() {
             itemsPerPage={state.limit}
             onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchThreats()}
-            emptyMessage={state.hasLoadedOnce
-                ? t(threatsEmptyStateKey(state.search.trim().length > 0))
-                : t('common:loading.data')}
+            emptyMessage={t(threatsEmptyStateKey(state.search.trim().length > 0))}
             grouping={{
                 groups: state.groups,
                 onBack: state.clearSelectedGroup,

@@ -10,8 +10,7 @@ import { HistoryChangeCard } from './HistoryChangeCard';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from '@/i18n/hooks';
-import { formatNumberValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 
 interface HistoryComparisonPanelProps {
     entries: KRIHistoryEntry[];
@@ -24,10 +23,11 @@ export function HistoryComparisonPanel({
     formatValue,
     className,
 }: HistoryComparisonPanelProps) {
-    const { t, i18n } = useTranslation(['kris', 'common']);
+    const { t } = useTranslation(['kris', 'common']);
+    const format = useFormat();
     const resolvedFormatValue = useMemo(
-        () => formatValue ?? ((n: number) => formatNumberValue(n, i18n.language, { maximumFractionDigits: 2 })),
-        [formatValue, i18n.language],
+        () => formatValue ?? ((n: number) => format.number(n, { maximumFractionDigits: 2 })),
+        [formatValue, format],
     );
 
     // Sort by period_end descending (most recent first)
@@ -68,7 +68,7 @@ export function HistoryComparisonPanel({
     const comparisonFields = useMemo<HistoryComparisonField[]>(() => {
         if (!leftEntry || !rightEntry || isSameSelection) return [];
 
-        const formatDate = (d: string) => formatKriPeriodDate(d, i18n.language);
+        const formatDate = (d: string) => formatKriPeriodDate(d, format.locale);
 
         // Determine tone based on breach status change
         const getBreachTone = (): HistoryStatus => {
@@ -137,11 +137,11 @@ export function HistoryComparisonPanel({
                 after: rightEntry.recorded_by_name || t('comparison.system', { ns: 'kris' }),
             },
         ];
-    }, [leftEntry, rightEntry, isSameSelection, resolvedFormatValue, t, i18n.language]);
+    }, [leftEntry, rightEntry, isSameSelection, resolvedFormatValue, t, format.locale]);
 
     // Format option label
     const formatOptionLabel = (entry: KRIHistoryEntry) => {
-        const date = formatKriPeriodDate(entry.period_end, i18n.language);
+        const date = formatKriPeriodDate(entry.period_end, format.locale);
         return `${date} (${resolvedFormatValue(entry.value)} ${entry.unit})`;
     };
 

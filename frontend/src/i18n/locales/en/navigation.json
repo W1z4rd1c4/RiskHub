@@ -69,6 +69,16 @@
         "risk_hub": "Risk Hub",
         "users": "Access Management"
     },
+    "sidebar_badges": {
+        "workflow": "{{count}} pending items",
+        "workflow_one": "{{count}} pending item",
+        "workflow_few": "{{count}} pending items",
+        "workflow_other": "{{count}} pending items",
+        "orphan_count": "{{count}} records without an owner",
+        "orphan_count_one": "{{count}} record without an owner",
+        "orphan_count_few": "{{count}} records without an owner",
+        "orphan_count_other": "{{count}} records without an owner"
+    },
     "groups": {
         "overview": "Overview",
         "registers": "Registers",

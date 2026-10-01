@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Filter,
@@ -18,6 +18,7 @@ import {
 import { lookupApi } from '../../services/lookupApi';
 import { ThemedSelect } from '../ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { severityClass } from '@/lib/severity';
 import { logError } from '@/services/logger';
 import { ControlForm, ControlStatus, isControlForm, isControlStatus } from '@/types/control';
 import type { DashboardFilterScope } from '@/types/dashboard';
@@ -47,13 +48,15 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
     const [isExpanded, setIsExpanded] = useState(false);
     const [departmentLoadError, setDepartmentLoadError] = useState<Error | null>(null);
     const { t } = useTranslation(['dashboard', 'common']);
+    const panelId = useId();
+    const riskLevelLabelId = useId();
 
     const riskLevels: { value: RiskLevel; label: string; color: string }[] = [
         { value: 'all', label: t('common:labels.all'), color: 'bg-tint/10' },
-        { value: 'critical', label: t('dashboard:risk_levels.critical'), color: 'bg-rose-500/20 text-destructive' },
-        { value: 'high', label: t('dashboard:issues.severity.high'), color: 'bg-orange-500/20 text-severity-high-text' },
-        { value: 'medium', label: t('dashboard:issues.severity.medium'), color: 'bg-amber-500/20 text-warning-text' },
-        { value: 'low', label: t('dashboard:issues.severity.low'), color: 'bg-emerald-500/20 text-success-text' },
+        { value: 'critical', label: t('dashboard:risk_levels.critical'), color: severityClass('badge', 'critical') },
+        { value: 'high', label: t('dashboard:risk_levels.high'), color: severityClass('badge', 'high') },
+        { value: 'medium', label: t('dashboard:risk_levels.medium'), color: severityClass('badge', 'medium') },
+        { value: 'low', label: t('dashboard:risk_levels.low'), color: severityClass('badge', 'low') },
     ];
 
     const controlStatuses = [
@@ -94,7 +97,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
         },
         filters.riskLevel !== 'all' && {
             key: 'risk',
-            label: `${t('dashboard:filters.risk_level')}: ${t(`dashboard:issues.severity.${filters.riskLevel}`, filters.riskLevel)}`,
+            label: `${t('dashboard:filters.risk_level')}: ${t(`dashboard:risk_levels.${filters.riskLevel}`, filters.riskLevel)}`,
             onRemove: () => setRiskLevel('all'),
         },
         filters.controlStatus && {
@@ -121,7 +124,10 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                 {/* Header Row */}
                 <div className="flex items-center justify-between gap-4">
                     <button
+                        type="button"
                         onClick={() => setIsExpanded(!isExpanded)}
+                        aria-expanded={isExpanded}
+                        aria-controls={panelId}
                         className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <Filter className="h-4 w-4" />
@@ -178,6 +184,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                 <AnimatePresence>
                     {isExpanded && (
                         <motion.div
+                            id={panelId}
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -213,14 +220,16 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
 
                                 {/* Risk Level Toggle */}
                                 <div className="space-y-2">
-                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                        <AlertTriangle className="h-3 w-3" />
+                                    <span id={riskLevelLabelId} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        <AlertTriangle aria-hidden="true" className="h-3 w-3" />
                                         {t('dashboard:filters.risk_level')}
-                                    </label>
-                                    <div className="flex flex-wrap gap-1">
+                                    </span>
+                                    <div role="group" aria-labelledby={riskLevelLabelId} className="flex flex-wrap gap-1">
                                         {riskLevels.map(level => (
                                             <button
                                                 key={level.value}
+                                                type="button"
+                                                aria-pressed={filters.riskLevel === level.value}
                                                 onClick={() => setRiskLevel(level.value)}
                                                 className={`px-2 py-1 text-xs font-bold rounded-md transition-all
                                                     ${filters.riskLevel === level.value

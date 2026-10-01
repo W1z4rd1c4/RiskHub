@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed } from 'lucide-react';
 
 import { RegisterExportLink } from '@/components/ict-register/RegisterExportLink';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Pagination } from '@/components/tables/Pagination';
 import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { Badge, SeverityBadge } from '@/components/ui/badge';
 import { useTranslation } from '@/i18n/hooks';
@@ -25,6 +29,7 @@ import {
     violatingRowPath,
 } from './ictRegisterDq/dqPresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { LoadingState } from '@/components/ui/state';
 
 function StatusPill({ check }: { check: IctDqCheck }) {
     const { t } = useTranslation('ictRegisterDq');
@@ -141,31 +146,20 @@ function ViolatingRows({
                   })
                 : null}
             {page && page.total > page.limit ? (
-                <div className="flex items-center justify-between gap-3 pt-3">
-                    <button
-                        type="button"
-                        disabled={page.offset === 0 || detail?.isLoading}
-                        onClick={() => onPage(Math.max(0, page.offset - page.limit))}
-                        className="px-3 py-1.5 rounded-lg bg-tint/5 disabled:opacity-40"
-                    >
-                        {t('actions.previous')}
-                    </button>
-                    <span className="text-xs text-muted-foreground">
-                        {t('rows_page', {
-                            from: page.offset + 1,
-                            to: Math.min(page.offset + page.items.length, page.total),
-                            total: page.total,
-                        })}
-                    </span>
-                    <button
-                        type="button"
-                        disabled={page.offset + page.limit >= page.total || detail?.isLoading}
-                        onClick={() => onPage(page.offset + page.limit)}
-                        className="px-3 py-1.5 rounded-lg bg-tint/5 disabled:opacity-40"
-                    >
-                        {t('actions.next')}
-                    </button>
-                </div>
+                <Pagination
+                    mode="cursor"
+                    className="pt-3"
+                    hasPrevious={page.offset > 0}
+                    hasNext={page.offset + page.limit < page.total}
+                    isLoading={detail?.isLoading}
+                    onPrevious={() => onPage(Math.max(0, page.offset - page.limit))}
+                    onNext={() => onPage(page.offset + page.limit)}
+                    summary={t('rows_page', {
+                        from: page.offset + 1,
+                        to: Math.min(page.offset + page.items.length, page.total),
+                        total: page.total,
+                    })}
+                />
             ) : null}
         </div>
     );
@@ -314,8 +308,16 @@ export function IctRegisterDqPage() {
     const hasData = data !== null;
     const errorContract = useTableErrorContract({ isError: errorKey !== null, hasData });
 
+    // D7: the page title is the route's one `h1` (and `document.title`) in every state.
+    const pageHeader = <PageHeader title={t('title')} description={t('subtitle')} />;
+
     if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                {pageHeader}
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     // Explicit aria-busy loading branch — only while there is nothing to show yet.
@@ -323,17 +325,12 @@ export function IctRegisterDqPage() {
     // button instead of flashing 0/0/0 during load (C3).
     if (isLoading && !hasData) {
         return (
-            <div
-                className="flex flex-col items-center justify-center gap-4 py-24"
-                aria-busy="true"
-                data-loading="true"
-                data-testid="dq-loading"
-            >
-                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
-                    {t('loading')}
-                </p>
-            </div>
+            <PageContainer>
+                {pageHeader}
+                <div data-loading="true">
+                    <LoadingState label={t('loading')} testId="dq-loading" className="py-24" />
+                </div>
+            </PageContainer>
         );
     }
 
@@ -341,11 +338,14 @@ export function IctRegisterDqPage() {
     // localized error + retry, never an empty/zero state (C4, N17).
     if (errorContract.showErrorBlock) {
         return (
-            <TableErrorState
-                onRetry={() => void fetchDq()}
-                isRetrying={isLoading}
-                testId="dq-error"
-            />
+            <PageContainer>
+                {pageHeader}
+                <TableErrorState
+                    onRetry={() => void fetchDq()}
+                    isRetrying={isLoading}
+                    testId="dq-error"
+                />
+            </PageContainer>
         );
     }
 
@@ -354,27 +354,24 @@ export function IctRegisterDqPage() {
     const visibleChecks = filterChecks(checks, queryState.statusFilter);
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">{t('title')}</h1>
-                    <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
-                        gated on the separate can_download_dora_register capability. */}
-                    <RegisterExportLink className="px-5 py-2.5 rounded-xl bg-accent border border-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit" />
-                    <button
-                        type="button"
-                        onClick={() => void fetchDq()}
-                        data-testid="dq-refresh-button"
-                        className="px-5 py-2.5 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-secondary transition-colors flex items-center gap-2"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        {t('actions.refresh')}
-                    </button>
-                </div>
-            </div>
+        <PageContainer>
+            <PageHeader
+                title={t('title')}
+                description={t('subtitle')}
+                actions={(
+                    <>
+                        {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
+                            gated on the separate can_download_dora_register capability. */}
+                        <RegisterExportLink className="px-5 py-2.5 rounded-xl bg-accent border border-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit" />
+                        <RefreshButton
+                            label={t('actions.refresh')}
+                            onRefresh={() => void fetchDq()}
+                            isFetching={isLoading}
+                            data-testid="dq-refresh-button"
+                        />
+                    </>
+                )}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="glass-card">
@@ -548,7 +545,7 @@ export function IctRegisterDqPage() {
                     <div className="glass-card text-muted-foreground text-center py-8">{t('empty')}</div>
                 )}
             </div>
-        </div>
+        </PageContainer>
     );
 }
 

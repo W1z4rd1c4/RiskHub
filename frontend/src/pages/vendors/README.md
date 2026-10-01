@@ -73,7 +73,9 @@ Routed create-from-vendor flow is shared with risk/control forms via query param
 - `/kris/new?vendor_id=:id&return_to=/vendors/:id`
 
 After successful create, the originating form returns to vendor detail with the
-new entity already linked to the vendor and a flash banner. For KRI create,
+new entity already linked to the vendor and an outcome toast
+(`useVendorContextOutcome.ts`, D9 — the former `vendorFlash` router state is
+gone); an approval-routed link returns with the pending notice (D12). For KRI create,
 vendor assignment and optional parent vendor-risk linking are transactional; on
 failure the form stays open and vendor detail does not receive a partial-success
 warning state.

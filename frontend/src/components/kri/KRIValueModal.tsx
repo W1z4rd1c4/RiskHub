@@ -8,8 +8,7 @@ import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
 import { isApprovalCreatedResponse } from '@/types/approval';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 
@@ -21,7 +20,8 @@ interface KRIValueModalProps {
 }
 
 export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModalProps) {
-    const { t, i18n } = useTranslation(['kris', 'common', 'errorKeys']);
+    const { t } = useTranslation(['kris', 'common', 'errorKeys']);
+    const format = useFormat();
     const [isSaving, setIsSaving] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [submitResult, setSubmitResult] = useState<'success' | 'pending_approval' | null>(null);
@@ -136,7 +136,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                             {kri.last_period_end && (
                                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                                     <span>{t('value_modal.last_period_end', { ns: 'kris' })}</span>
-                                    <span className="font-bold text-foreground">{formatDateValue(kri.last_period_end, i18n.language)}</span>
+                                    <span className="font-bold text-foreground">{format.date(kri.last_period_end)}</span>
                                 </div>
                             )}
                         </div>

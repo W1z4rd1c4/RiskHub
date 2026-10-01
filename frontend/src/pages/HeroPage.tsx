@@ -2,11 +2,13 @@ import { motion } from 'framer-motion';
 import { Shield, ArrowRight, Zap, BarChart3, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BrandWordmark } from '@/components/layout/BrandWordmark';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTranslation } from '@/i18n/hooks';
 
 export function HeroPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    usePageTitle(t('hero.page_title'));
 
     const handleLogin = () => {
         // Mock login as admin (ID 1 from seed)

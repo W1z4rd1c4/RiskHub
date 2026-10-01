@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { controlApi } from '@/services/controlApi';
@@ -36,7 +38,7 @@ export function ControlEditPage() {
     if (loadOutcome === 'unavailable' || !control) {
         return (
             <DetailLoadUnavailableState
-                backLabel={t('controls:title')}
+                backLabel={t('controls:detail.back_to_catalog')}
                 isRetrying={isRetrying}
                 onBack={() => navigate(returnTo)}
                 onRetry={controlId === null ? undefined : () => void fetchControl()}
@@ -45,20 +47,26 @@ export function ControlEditPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <PageContainer size="form">
             {loadOutcome === 'stale-with-error' ? (
                 <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchControl()} />
             ) : null}
-            <div className="flex flex-col gap-2">
-                <button
-                    onClick={() => navigate(detailPath)}
-                    className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-2"
-                >
-                    <ArrowLeft className="h-3 w-3" /> {t('common:actions.back')} {t('common:labels.details')}
-                </button>
-                <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('controls:edit_control')}</h2>
-                <p className="text-muted-foreground font-medium tracking-tight">{t('controls:view_control')}: {control.name}</p>
-            </div>
+            {/* D7 / D14 (PG-12): one `h1`; the back label names the record it returns to. */}
+            <PageHeader
+                title={t('controls:edit_control')}
+                description={control.name}
+                documentTitle={t('common:page_title.edit', { name: control.name })}
+                icon={Edit}
+                back={{
+                    label: t('common:actions.back_to_detail', { name: control.name }),
+                    onClick: () => void navigate(detailPath),
+                }}
+                breadcrumbs={[
+                    { label: t('navigation:sidebar.controls'), to: returnTo },
+                    { label: control.name, to: detailPath },
+                    { label: t('controls:edit_control') },
+                ]}
+            />
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -71,16 +79,14 @@ export function ControlEditPage() {
                         isEdit={true}
                         allowRiskLinking={resolveCapabilityFlag(control.capabilities, 'can_link_risk')}
                         onCancel={() => navigate(detailPath)}
-                        onSuccess={(_controlId, locationState) => navigate(
-                            detailPath,
-                            locationState ? { state: locationState } : undefined,
-                        )}
+                        onSuccess={() => navigate(detailPath)}
+                        approvalReturnTo={detailPath}
                     />
                 ) : (
                     <FormCapabilityGateState state="denied" />
                 )}
             </motion.div>
-        </div>
+        </PageContainer>
     );
 }
 

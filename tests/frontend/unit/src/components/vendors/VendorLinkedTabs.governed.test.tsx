@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
@@ -97,6 +99,7 @@ function renderTab(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresAppro
             );
     return render(
         <MemoryRouter>
+            <ApprovalQueuedNotice />
             {tabElement}
             <LocationProbe />
         </MemoryRouter>,
@@ -141,10 +144,11 @@ describe('protected Vendor link/unlink governed UX (#100)', () => {
             await waitFor(() => {
                 expect(mutation).toHaveBeenCalledWith(7, 501, 'Material register change');
             });
-            // 202 is QUEUED, never success: surface the pending approval.
-            await waitFor(() => {
-                expect(screen.getByTestId('location')).toHaveTextContent('/approvals?tab=mine&approvalId=186');
-            });
+            // 202 is QUEUED, never success (D12 / PM-2): the user stays on the
+            // vendor with the persistent pending notice linking to the request.
+            const notice = await screen.findByTestId('approval-queued-notice');
+            expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=186');
+            expect(screen.getByTestId('location')).toHaveTextContent('/');
         },
     );
 

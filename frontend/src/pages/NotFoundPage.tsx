@@ -1,11 +1,14 @@
 import { ArrowLeft, LayoutDashboard, SearchX } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { PAGE_TITLE_CLASS } from '@/components/layout/PageHeader';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTranslation } from '@/i18n/hooks';
 
 export function NotFoundPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    usePageTitle(t('not_found_page.title'));
 
     return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
@@ -13,7 +16,7 @@ export function NotFoundPage() {
                 <SearchX className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-foreground">{t('not_found_page.title')}</h1>
+                <h1 tabIndex={-1} data-page-title="" className={PAGE_TITLE_CLASS}>{t('not_found_page.title')}</h1>
                 <p className="max-w-md text-muted-foreground">{t('not_found_page.description')}</p>
             </div>
             <div className="flex flex-wrap justify-center gap-3">
@@ -30,7 +33,7 @@ export function NotFoundPage() {
                     className="inline-flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2 font-bold text-foreground"
                 >
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    {t('actions.back')}
+                    {t('not_found_page.back')}
                 </button>
             </div>
         </div>

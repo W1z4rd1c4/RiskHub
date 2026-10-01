@@ -211,6 +211,7 @@
     "not_specified": "Not specified",
     "mitigated_risks": "Mitigated Risks",
     "unnamed_risk": "Unnamed Risk",
+    "linked_risks_denied": "You do not have permission to view the risks linked to this control.",
     "archived_risks": "Archived Risks ({{count}})",
     "manage_risk_linkage": "Manage Risk Linkage",
     "execution_audit_trail": "Execution Audit Trail",

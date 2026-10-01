@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Link as LinkIcon, Plus, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Link as LinkIcon, Plus } from 'lucide-react';
 
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
-import type { ControlFormLocationState } from '@/components/control-form/useControlFormWorkflow';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
 import { useTranslation } from '@/i18n/hooks';
@@ -53,7 +51,6 @@ export function RiskLinkedControlsSection({
     canUnlinkControls,
 }: RiskLinkedControlsSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
-    const [controlFlash, setControlFlash] = useState<ControlFormLocationState['controlFlash'] | null>(null);
     const hasControls = activeControls.length > 0 || draftControls.length > 0 || archivedControls.length > 0;
 
     return (
@@ -94,16 +91,6 @@ export function RiskLinkedControlsSection({
                 )}
             </div>
 
-            {controlFlash && (
-                <div
-                    role="status"
-                    className="mb-6 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning-text"
-                >
-                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning-text" aria-hidden="true" />
-                    <span>{controlFlash.message}</span>
-                </div>
-            )}
-
             {!hasControls ? (
                 <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
                     <p className="text-xs text-muted-foreground font-medium">{t('overview.no_controls_linked', { ns: 'risks' })}</p>
@@ -129,7 +116,7 @@ export function RiskLinkedControlsSection({
                     {archivedControls.length > 0 && (
                         <div className="mt-8">
                             <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-slate-600" />
+                                <span aria-hidden="true" className="w-2 h-2 rounded-full bg-muted-foreground" />
                                 {t('overview.archived_controls', { ns: 'risks', count: archivedControls.length })}
                             </h4>
                             <ControlGroup
@@ -169,9 +156,10 @@ export function RiskLinkedControlsSection({
             <ControlCreateDialog
                 isOpen={isCreateDialogOpen}
                 onClose={() => setIsCreateDialogOpen(false)}
-                onSuccess={(_controlId, locationState) => {
+                onSuccess={() => {
+                    // A partial outcome (control saved, risk link failed) is a
+                    // warning toast raised by the control form itself (D9).
                     setIsCreateDialogOpen(false);
-                    setControlFlash(locationState?.controlFlash ?? null);
                     onRefreshData();
                 }}
             />

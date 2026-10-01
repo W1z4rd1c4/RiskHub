@@ -101,8 +101,6 @@
         "range": "Zobrazeny žádosti {{start}}–{{end}} z {{total}}",
         "range_incomplete": "Pozice na stránce {{start}}–{{end}} z {{total}} odpovídajících žádostí",
         "page_loading": "Načítá se stránka žádostí.",
-        "previous_page": "Předchozí stránka",
-        "next_page": "Další stránka",
         "incomplete": "Některé odpovídající žádosti nelze zobrazit. Výsledky nejsou úplné (přeskočeno: {{count}}).",
         "linked_title": "Odkazovaná žádost",
         "linked_description": "Odkazované žádosti se zobrazují mimo tuto stránku fronty.",

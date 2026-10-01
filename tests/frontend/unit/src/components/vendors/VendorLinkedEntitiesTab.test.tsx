@@ -344,7 +344,7 @@ describe('VendorLinkedEntitiesTab', () => {
         await userEvent.click(screen.getByText('links.actions.link_existing'));
         await userEvent.click(screen.getByText('mock-link-target'));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('links.errors.access_denied');
+        expect(await screen.findByText('links.errors.access_denied')).toBeInTheDocument();
         expect(screen.queryByText('Protected linked item')).not.toBeInTheDocument();
         expect(screen.queryByText('links.fake.empty')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'actions.retry' })).not.toBeInTheDocument();

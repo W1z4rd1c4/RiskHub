@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
+import { BookOpen, FileText, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { docsKeys } from '@/lib/queryKeys';
 import { adminApi } from '@/services/adminApi';
 import { DocumentationMarkdown } from '@/components/documentation';
@@ -13,9 +13,13 @@ import {
     getMaintainerReference,
     shouldShowRawVersion,
 } from '@/components/documentation/documentationPresentation';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export function DocumentationPage() {
-    const { t, i18n } = useTranslation('common');
+    const { t } = useTranslation('common');
+    const format = useFormat();
     const navigate = useNavigate();
 
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -24,9 +28,9 @@ export function DocumentationPage() {
     const docTopRef = useRef<HTMLDivElement | null>(null);
     const docScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-    const { data: docsData, isLoading } = useQuery({
-        queryKey: docsKeys.adminDocs(i18n.language),
-        queryFn: () => adminApi.getDocs(i18n.language),
+    const { data: docsData, isLoading, isError, isFetching, refetch } = useQuery({
+        queryKey: docsKeys.adminDocs(format.locale),
+        queryFn: () => adminApi.getDocs(format.locale),
     });
 
     const docs = useMemo(() => docsData?.documents ?? [], [docsData?.documents]);
@@ -89,119 +93,133 @@ export function DocumentationPage() {
         setPendingAnchor(anchor);
     };
 
+    // D7: the library title is the route's `h1` and `document.title`; an open
+    // manual's title takes over both, with a labelled back control (D14).
+    const libraryHeader = (
+        <PageHeader
+            title={t('documentation.library_title')}
+            description={t('documentation.library_subtitle')}
+            icon={BookOpen}
+        />
+    );
+
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
-                <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-                <p>{t('loading.platform_docs')}</p>
-            </div>
+            <PageContainer>
+                {libraryHeader}
+                <LoadingState layout="page" label={t('loading.platform_docs')} />
+            </PageContainer>
+        );
+    }
+
+    // GAP-C-11: a failed load is an error with retry, never "no documentation".
+    if (isError && !docsData) {
+        return (
+            <PageContainer>
+                {libraryHeader}
+                <ErrorState className="glass-card" onRetry={() => void refetch()} isRetrying={isFetching} />
+            </PageContainer>
         );
     }
 
     if (docs.length === 0) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center py-24 text-muted-foreground">
-                <BookOpen className="h-16 w-16 mb-4 opacity-10" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">{t('empty.no_documentation')}</h3>
-                <p>{t('documentation.no_manuals_seeded')}</p>
-            </div>
+            <PageContainer>
+                {libraryHeader}
+                <EmptyState
+                    icon={BookOpen}
+                    title={t('empty.no_documentation')}
+                    description={t('documentation.no_manuals_seeded')}
+                    className="glass-card py-24"
+                />
+            </PageContainer>
         );
     }
 
     if (activeDoc) {
         return (
-            <div ref={docTopRef} className="space-y-6">
-                <button
-                    onClick={() => setSelectedDocId(null)}
-                    className="flex items-center gap-2 px-4 py-2 bg-tint/5 hover:bg-tint/10 text-muted-foreground hover:text-foreground text-sm font-medium rounded-xl transition-all border border-border"
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                    {t('documentation.back_to_library')}
-                </button>
+            <div ref={docTopRef}>
+                <PageContainer>
+                    <PageHeader
+                        title={activeDoc.title}
+                        description={activeDoc.summary || undefined}
+                        back={{ label: t('documentation.back_to_library'), onClick: () => setSelectedDocId(null) }}
+                        breadcrumbs={[
+                            { label: t('documentation.library_title') },
+                            { label: activeDoc.title },
+                        ]}
+                    />
 
-                <div className="docs-reader-surface min-h-[600px] flex flex-col overflow-hidden">
-                    <div className="px-8 py-6 border-b border-tint/10 space-y-3">
-                        <div>
-                            <h2 className="text-2xl font-bold text-foreground">{activeDoc.title}</h2>
-                            {activeDoc.summary && (
-                                <p className="text-foreground text-base mt-2 max-w-4xl leading-relaxed">{activeDoc.summary}</p>
+                    <div className="docs-reader-surface min-h-[600px] flex flex-col overflow-hidden">
+                        <div className="px-8 py-6 border-b border-tint/10 space-y-3">
+
+                            <div className="docs-reader-meta mt-1">
+                                <span className="docs-reader-meta-chip bg-info/20 text-accent-text border border-info/30">
+                                    {audienceLabel}
+                                </span>
+                                {shouldShowRawVersion(activeDoc) && (
+                                    <span className="docs-reader-meta-chip">
+                                        v{activeDoc.version}
+                                    </span>
+                                )}
+                                {activeDoc.last_updated && (
+                                    <span className="docs-reader-meta-chip">
+                                        {activeDoc.last_updated}
+                                    </span>
+                                )}
+                                {activeDoc.tags.map((tag) => (
+                                    <span
+                                        key={tag}
+                                        className="docs-reader-meta-chip"
+                                    >
+                                        {formatDocumentationTag(tag)}
+                                    </span>
+                                ))}
+                            </div>
+
+                            {maintainerReference && (
+                                <p className="docs-reader-meta-source">
+                                    {t('documentation.maintainer_reference')} {maintainerReference}
+                                </p>
                             )}
                         </div>
 
-                        <div className="docs-reader-meta mt-1">
-                            <span className="docs-reader-meta-chip bg-info/20 text-accent-text border border-info/30">
-                                {audienceLabel}
-                            </span>
-                            {shouldShowRawVersion(activeDoc) && (
-                                <span className="docs-reader-meta-chip">
-                                    v{activeDoc.version}
-                                </span>
-                            )}
-                            {activeDoc.last_updated && (
-                                <span className="docs-reader-meta-chip">
-                                    {activeDoc.last_updated}
-                                </span>
-                            )}
-                            {activeDoc.tags.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="docs-reader-meta-chip"
-                                >
-                                    {formatDocumentationTag(tag)}
-                                </span>
-                            ))}
-                        </div>
-
-                        {maintainerReference && (
-                            <p className="docs-reader-meta-source">
-                                {t('documentation.maintainer_reference')} {maintainerReference}
-                            </p>
-                        )}
-                    </div>
-
-                    <div
-                        ref={docScrollContainerRef}
-                        className="flex-1 px-5 py-6 overflow-auto md:px-8 md:py-8"
-                        data-testid="admin-doc-content-scroll"
-                        data-doc-scroll-container="true"
-                    >
-                        <div className="mx-auto w-full max-w-4xl">
-                            <article className="docs-reader-prose prose max-w-none prose-pre:border prose-table:border prose-th:p-2 prose-td:p-2 prose-td:border-t">
-                                <DocumentationMarkdown
-                                    content={activeDocContent}
-                                    currentDoc={activeDoc}
-                                    docs={docs}
-                                    onOpenDoc={openDoc}
-                                    onNavigateApp={(path) => navigate(path)}
-                                />
-                            </article>
+                        <div
+                            ref={docScrollContainerRef}
+                            className="flex-1 px-5 py-6 overflow-auto md:px-8 md:py-8"
+                            data-testid="admin-doc-content-scroll"
+                            data-doc-scroll-container="true"
+                        >
+                            <div className="mx-auto w-full max-w-4xl">
+                                <article className="docs-reader-prose prose max-w-none prose-pre:border prose-table:border prose-th:p-2 prose-td:p-2 prose-td:border-t">
+                                    <DocumentationMarkdown
+                                        content={activeDocContent}
+                                        currentDoc={activeDoc}
+                                        docs={docs}
+                                        onOpenDoc={openDoc}
+                                        onNavigateApp={(path) => navigate(path)}
+                                    />
+                                </article>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </PageContainer>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8">
-            <header className="glass-card p-8">
-                <div className="flex items-center gap-6">
-                    <div className="bg-accent p-4 rounded-2xl shadow-xl">
-                        <BookOpen className="h-10 w-10 text-accent-foreground" />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground font-heading">{t('documentation.library_title')}</h1>
-                        <p className="text-muted-foreground text-lg mt-1">
-                            {t('documentation.library_subtitle')}
-                        </p>
-                        <div className="mt-3">
-                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-info/10 text-accent-text">
-                                {audienceLabel}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </header>
+        <PageContainer>
+            <PageHeader
+                title={t('documentation.library_title')}
+                description={t('documentation.library_subtitle')}
+                icon={BookOpen}
+                actions={(
+                    <span className="px-2 py-1 rounded-md text-xs font-semibold bg-info/10 text-accent-text">
+                        {audienceLabel}
+                    </span>
+                )}
+            />
 
             {availableTags.length > 0 && (
                 <section className="flex items-center gap-2 flex-wrap">
@@ -234,11 +252,13 @@ export function DocumentationPage() {
             )}
 
             {filteredDocs.length === 0 ? (
-                <div className="glass-card flex flex-col items-center justify-center py-24 text-muted-foreground">
-                    <BookOpen className="h-16 w-16 mb-4 opacity-10" />
-                    <h3 className="text-xl font-semibold text-foreground mb-2">{t('documentation.no_matches_title')}</h3>
-                    <p>{t('documentation.no_matches_subtitle')}</p>
-                </div>
+                <EmptyState
+                    kind="no-results"
+                    icon={BookOpen}
+                    title={t('documentation.no_matches_title')}
+                    description={t('documentation.no_matches_subtitle')}
+                    className="glass-card py-24"
+                />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredDocs.map((doc) => (
@@ -272,7 +292,7 @@ export function DocumentationPage() {
                     ))}
                 </div>
             )}
-        </div>
+        </PageContainer>
     );
 }
 

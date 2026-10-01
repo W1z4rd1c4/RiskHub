@@ -181,6 +181,22 @@ describe('IctCommitteeSection — heatmap legend + RoI threshold (FR-P5-7 / P10)
         expect(within(migrationLegend).getByText('5+')).toBeInTheDocument();
     });
 
+    it('names every heatmap link by its axes and count, on the sequential heat tokens (GAP-B-16, DS-23)', async () => {
+        getCommittee.mockResolvedValue(makeCommittee());
+        renderSection();
+
+        const heatmapLink = await screen.findByTestId('committee-heatmap-link-5-3');
+        expect(heatmapLink).toHaveAccessibleName('View 2 risks at gross probability 5, impact 3');
+        expect(screen.getByTestId('committee-heatmap-link-4-2')).toHaveAccessibleName(
+            'View 1 risk at gross probability 4, impact 2',
+        );
+        expect(screen.getByTestId('committee-migration-link-Kritické-Kritické')).toHaveAccessibleName(
+            'View 5 risks with gross band Critical and net band Critical',
+        );
+        expect(screen.getByTestId('committee-heatmap-cell-5-3').className).toContain('bg-heat-2');
+        expect(screen.getByTestId('committee-heatmap-cell-5-3').getAttribute('style')).toBeNull();
+    });
+
     it('colours the RoI readiness bar by threshold (ready / partial / at-risk) from the status tokens', async () => {
         getCommittee.mockResolvedValue(makeCommittee());
         renderSection();

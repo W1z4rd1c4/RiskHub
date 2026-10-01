@@ -48,6 +48,7 @@ vi.mock('@/i18n/hooks', () => ({
         },
         i18n: { language: mocks.language },
     }),
+    useFormat: () => ({ locale: 'cs', date: (value?: string | null) => value ?? '' }),
 }));
 
 vi.mock('@/pages/processes/useProcessDetailState', () => ({

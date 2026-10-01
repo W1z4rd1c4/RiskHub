@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification } from '@/types/notification';
@@ -8,9 +8,13 @@ import {
     buildNotificationPresentation,
     NotificationPresentationIcon,
 } from '@/components/notifications/notificationPresentation';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Pagination } from '@/components/tables/Pagination';
 import { Button } from '@/components/ui/button';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { logError } from '@/services/logger';
-import { useContentTabs } from '@/hooks/useContentTabs';
 import { notificationTabs, useNotificationsPageQuery } from '@/pages/notifications/useNotificationsPageQuery';
 import { resolveCollectionOutcome, useCollectionDataState } from '@/pages/shared/collectionPageState';
 
@@ -65,12 +69,7 @@ export function NotificationsPage() {
         ? mutationError
         : null;
     const limit = 20;
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: notificationTabs,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'notifications',
-    });
+    const tabsIdPrefix = 'notifications';
 
     const fetchNotifications = useCallback(async () => {
         const requestViewKey = currentViewKey;
@@ -288,16 +287,11 @@ export function NotificationsPage() {
     }
 
     return (
-        <div className="p-8 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground font-heading">{t('title')}</h1>
-                    <p className="text-muted-foreground mt-1">
-                        {subtitle}
-                    </p>
-                </div>
-                {hasFreshSummary && unreadCount !== null && unreadCount > 0 && (
+        <PageContainer size="form">
+            <PageHeader
+                title={t('title')}
+                description={subtitle}
+                actions={hasFreshSummary && unreadCount !== null && unreadCount > 0 ? (
                     <Button
                         type="button"
                         variant="ghost"
@@ -309,86 +303,59 @@ export function NotificationsPage() {
                         <Check className="h-4 w-4" aria-hidden="true" />
                         {tCommon('actions.mark_all_read')}
                     </Button>
-                )}
-            </div>
+                ) : undefined}
+            />
             {visibleMutationError?.target === 'all' && (
-                <p id="notifications-mark-all-error" role="alert" className="-mt-6 mb-6 text-sm text-destructive text-right">
+                <p id="notifications-mark-all-error" role="alert" className="text-sm text-destructive text-right">
                     {visibleMutationError.message}
                 </p>
             )}
 
-            {/* Tabs */}
-            <div className="flex gap-2 mb-6" role="tablist" aria-label={t('title')}>
-                <button
-                    {...getTabProps('all', 0)}
-                    disabled={navigationDisabled}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === 'all'
-                        ? 'bg-accent text-accent-foreground'
-                        : 'bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10'
-                        }`}
-                >
-                    {t('tabs.all')}
-                </button>
-                <button
-                    {...getTabProps('unread', 1)}
-                    disabled={navigationDisabled}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50 ${activeTab === 'unread'
-                        ? 'bg-accent text-accent-foreground'
-                        : 'bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10'
-                        }`}
-                >
-                    {t('tabs.unread')}
-                    {unreadCount !== null && unreadCount > 0 && (
-                        <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                            {unreadCount}
-                        </span>
-                    )}
-                </button>
-            </div>
+            <TabList
+                tabs={notificationTabs.map((tab) => ({
+                    id: tab,
+                    label: tab === 'unread' ? t('tabs.unread') : t('tabs.all'),
+                    disabled: navigationDisabled,
+                    count: tab === 'unread' && unreadCount !== null && unreadCount > 0 ? unreadCount : undefined,
+                }))}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={tabsIdPrefix}
+                variant="pill"
+                ariaLabel={t('title')}
+            />
 
             {/* Notification List */}
             {notificationTabs.map((tab) => (
-                <div key={tab} className="glass-card overflow-hidden" {...getPanelProps(tab)}>
+                <TabPanel key={tab} tab={tab} activeTab={activeTab} idPrefix={tabsIdPrefix} className="glass-card overflow-hidden">
                 {activeTab === tab && (
                     <>
                     {outcome.kind === 'initial-loading' && (
-                        <div className="p-8 text-center text-muted-foreground" role="status">
-                            {tCommon('loading.generic')}
-                        </div>
+                        <LoadingState layout="section" label={tCommon('loading.generic')} />
                     )}
                     {outcome.kind === 'denied' && (
-                        <div role="alert" className="m-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                            {t('errors.access_denied')}
-                        </div>
+                        <AccessDeniedState layout="section" descriptionKey="errors.access_denied" ns="notifications" live />
                     )}
                     {listError && (
-                        <div
-                            role="alert"
-                            className="m-4 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-                        >
-                            <span>{listError}</span>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="compact"
-                                onClick={() => void retryNotifications()}
-                                aria-busy={retrying}
-                                aria-disabled={retrying}
-                                className="ml-auto"
-                            >
-                                {tCommon('actions.retry')}
-                            </Button>
+                        <>
+                            <ErrorState
+                                layout="section"
+                                variant={hasStaleData ? 'banner' : 'block'}
+                                message={listError}
+                                onRetry={() => void retryNotifications()}
+                                isRetrying={retrying}
+                                className={hasStaleData ? 'm-4' : undefined}
+                            />
                             {retrying && <span role="status" className="sr-only">{t('status.retrying')}</span>}
-                        </div>
+                        </>
                     )}
                     {outcome.kind === 'empty' && (
-                        <div className="p-12 text-center text-muted-foreground">
-                            <Bell className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                            <p className="text-lg font-medium text-foreground">{tCommon('empty.no_notifications')}</p>
-                            <p className="text-sm mt-1">
-                                {activeTab === 'unread' ? tCommon('empty.all_caught_up') : tCommon('empty.nothing_to_show')}
-                            </p>
-                        </div>
+                        <EmptyState
+                            layout="section"
+                            icon={Bell}
+                            title={tCommon('empty.no_notifications')}
+                            description={activeTab === 'unread' ? tCommon('empty.all_caught_up') : tCommon('empty.nothing_to_show')}
+                        />
                     )}
                     {(outcome.kind === 'content' || hasStaleData) && notifications.length > 0 && (
                         <div className="divide-y divide-border">
@@ -455,36 +422,21 @@ export function NotificationsPage() {
                     )}
                     </>
                 )}
-                </div>
+                </TabPanel>
             ))}
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-6">
-                    <button
-                        type="button"
-                        onClick={() => setPage(page - 1)}
-                        disabled={page === 0 || navigationDisabled}
-                        aria-label={tCommon('pagination.previous_page')}
-                        className="p-2 rounded-lg bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                    <span className="text-sm text-muted-foreground">
-                        {t('pagination.page_of', { page: page + 1, total: totalPages })}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                        disabled={page >= totalPages - 1 || navigationDisabled}
-                        aria-label={tCommon('pagination.next_page')}
-                        className="p-2 rounded-lg bg-tint/5 text-muted-foreground hover:text-foreground hover:bg-tint/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                </div>
+                <Pagination
+                    currentPage={page + 1}
+                    totalPages={totalPages}
+                    totalItems={total}
+                    itemsPerPage={limit}
+                    isLoading={navigationDisabled}
+                    onPageChange={(nextPage) => setPage(Math.min(totalPages - 1, Math.max(0, nextPage - 1)))}
+                />
             )}
-        </div>
+        </PageContainer>
     );
 }
 

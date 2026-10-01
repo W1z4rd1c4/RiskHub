@@ -1,5 +1,5 @@
 import { useState, useEffect, useId } from 'react';
-import { Palette, Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
+import { Archive, Palette, Plus, Edit, RotateCcw } from 'lucide-react';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys } from '@/lib/queryKeys';
 import { useTranslation } from '@/i18n/hooks';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import { useRiskHubConfigResource } from './useRiskHubConfigResource';
@@ -179,12 +180,19 @@ export function RiskTypesPanel() {
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
 
+    // DS-17 / GAP-C-11: shared loading and error (with retry) states.
     if (panel.isLoading) {
-        return <div className="text-muted-foreground text-center py-8">{t('common:loading.risk_types')}</div>;
+        return <LoadingState label={t('common:loading.risk_types')} />;
     }
 
-    if (panel.error) {
-        return <div className="text-destructive text-center py-8">{t('errors.failed_to_load_risk_types')}</div>;
+    if (panel.error && !panel.hasData) {
+        return (
+            <ErrorState
+                message={t('errors.failed_to_load_risk_types')}
+                onRetry={panel.retry}
+                isRetrying={panel.isFetching}
+            />
+        );
     }
 
     return (
@@ -293,10 +301,10 @@ export function RiskTypesPanel() {
                                             <button
                                                 onClick={() => panel.requestDelete(type)}
                                                 className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                title={t('common:actions.delete')}
-                                                aria-label={t('common:actions.delete')}
+                                                title={t('common:actions.archive_named', { name: type.display_name })}
+                                                aria-label={t('common:actions.archive_named', { name: type.display_name })}
                                             >
-                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                <Archive className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
 
@@ -327,7 +335,8 @@ export function RiskTypesPanel() {
                 onSave={panel.handleSave}
             />
 
-            {/* Delete Confirmation */}
+            {/* Archive confirmation (D10): risk types are soft-deleted and
+                restorable, so this is an archive; busy and errors stay here. */}
             {panel.deleteConfirm && (
                 <DialogShell
                     isOpen
@@ -336,11 +345,12 @@ export function RiskTypesPanel() {
                     descriptionIds={[deleteDescriptionId]}
                     role="alertdialog"
                     size="sm"
+                    isBusy={panel.isDeleting}
                 >
-                    <DialogHeader title={t('confirmations.delete_risk_type')} icon={Trash2} tone="danger" />
+                    <DialogHeader title={t('confirmations.archive_risk_type')} icon={Archive} tone="danger" />
                     <DialogBody className="text-sm text-muted-foreground">
                         <p id={deleteDescriptionId}>
-                            {t('admin:risk_types_panel.delete_confirm', { name: panel.deleteConfirm.display_name })}
+                            {t('admin:risk_types_panel.archive_confirm', { name: panel.deleteConfirm.display_name })}
                             {panel.deleteConfirm.risk_count > 0 && (
                                 <span className="mt-2 block text-warning-text">
                                     {t('admin:risk_types_panel.delete_warning', { count: panel.deleteConfirm.risk_count })}
@@ -352,7 +362,7 @@ export function RiskTypesPanel() {
                     <DialogFooter
                         cancelLabel={t('common:actions.cancel')}
                         intent="destructive"
-                        submitLabel={t('common:actions.delete')}
+                        submitLabel={t('common:actions.archive')}
                         onSubmit={() => void panel.handleDelete()}
                     />
                 </DialogShell>

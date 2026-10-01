@@ -2,8 +2,7 @@
   "title": "Issues",
   "page_subtitle": "Track remediation, exceptions, and closure validation.",
   "new_page": {
-    "title": "Create Issue",
-    "breadcrumb": "Issues / New Entry"
+    "title": "Create Issue"
   },
   "actions": {
     "new_issue": "New Issue",
@@ -124,6 +123,20 @@
       "no_history": "No activity log entries found for this issue.",
       "expires": "Expires",
       "system": "System"
+    },
+    "history_actions": {
+        "create": "Created",
+        "update": "Updated",
+        "delete": "Deleted",
+        "archive": "Archived",
+        "restore": "Restored",
+        "approve": "Approved",
+        "reject": "Rejected",
+        "cancel": "Cancelled",
+        "status_change": "Status changed",
+        "link": "Linked",
+        "unlink": "Unlinked",
+        "comment": "Commented"
     }
   },
   "form": {

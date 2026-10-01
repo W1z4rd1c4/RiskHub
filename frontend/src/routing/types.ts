@@ -33,4 +33,9 @@ export type AppRouteDef = {
   index?: boolean;
   element: ReactElement;
   nav?: SidebarNavDef;
+  /**
+   * Sidebar entry that reads as active on a route without its own `nav`
+   * (audit 2026-09-30 NAV-02), e.g. `/audit-trail` → `/evidence`.
+   */
+  activeNavHref?: string;
 };

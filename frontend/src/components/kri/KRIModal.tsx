@@ -3,8 +3,7 @@ import { Activity, Calendar, Save } from 'lucide-react';
 
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { InlineMessage } from '@/components/ui/inline-message';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateTimeValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 
 import { KriCadenceOwnerFields } from './KriCadenceOwnerFields';
@@ -17,7 +16,8 @@ import { createKriModalSnapshot, useKriModalState } from './useKriModalState';
 export type { KRIModalSaveResult };
 
 export function KRIModal(props: KRIModalProps) {
-    const { i18n, t } = useTranslation(['kris', 'common', 'errorKeys']);
+    const { t } = useTranslation(['kris', 'common', 'errorKeys']);
+    const format = useFormat();
     const { isOpen, kri, onClose } = props;
     const state = useKriModalState(props);
     const currentSnapshot = createKriModalSnapshot(
@@ -98,7 +98,7 @@ export function KRIModal(props: KRIModalProps) {
                     <div className="flex items-center gap-2 px-4 py-3 bg-tint/[0.03] border border-border rounded-xl text-xs text-muted-foreground font-bold">
                         <Calendar aria-hidden="true" className="h-3.5 w-3.5" />
                         {t('modal.last_updated', { ns: 'kris' })}:{' '}
-                        {formatDateTimeValue(kri.last_updated, i18n.language)}
+                        {format.dateTime(kri.last_updated)}
                     </div>
                 </fieldset>
             </DialogBody>

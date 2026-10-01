@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { isApprovalCreatedResponse, parseUpdateResult } from '@/lib/approvalUi';
-import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { riskScoreVariantClass } from '@/lib/severity';
 import { ApiClientError } from '@/services/apiClient';
 import { riskApi } from '@/services/riskApi';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -23,6 +24,11 @@ interface UseRiskFormWorkflowArgs {
     initialData?: Risk;
     isEdit: boolean;
     onSuccess?: (riskId: number, acceptNavigation?: () => void) => void | Promise<void>;
+    /**
+     * Page shown after an approval-routed submit (D12 / PM-2): the risk for an
+     * edit (default `/risks/:id`), the register for a create (default `/risks`).
+     */
+    approvalReturnTo?: string;
     riskTypes: RiskTypeOption[];
 }
 
@@ -99,11 +105,11 @@ export function useRiskScorePresentation() {
     const { thresholds } = useRiskThresholds();
 
     const getScoreTextColor = (score: number) => {
-        return legacyRiskScoreVariantClass('text', score, thresholds);
+        return riskScoreVariantClass('text', score, thresholds);
     };
 
     const getSliderAccent = (score: number) => {
-        return legacyRiskScoreVariantClass('slider', score, thresholds);
+        return riskScoreVariantClass('slider', score, thresholds);
     };
 
     return { getScoreTextColor, getSliderAccent };
@@ -113,13 +119,14 @@ export function useRiskFormWorkflow({
     initialData,
     isEdit,
     onSuccess,
+    approvalReturnTo,
     riskTypes,
 }: UseRiskFormWorkflowArgs) {
     const navigate = useNavigate();
+    const announceApprovalQueued = useApprovalQueued();
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState<Partial<Risk>>(() => createInitialRiskFormData(initialData));
     const {
@@ -135,7 +142,6 @@ export function useRiskFormWorkflow({
         setFormData(createInitialRiskFormData(initialData));
         setFieldErrors({});
         setError(null);
-        setApprovalQueued(null);
     }, [initialData]);
 
     useEffect(() => {
@@ -217,15 +223,18 @@ export function useRiskFormWorkflow({
         try {
             setIsSubmitting(true);
             setError(null);
-            setApprovalQueued(null);
 
             if (isEdit && initialData) {
                 const result = await riskApi.updateRisk(initialData.id, formData as RiskUpdate);
                 const parsed = parseUpdateResult(result);
                 if (parsed.kind === 'approval') {
+                    // D12 / PM-2: back to the risk with the pending notice + toast.
                     acceptCurrentSnapshot(submittedSnapshot);
-                    setApprovalQueued({ message: parsed.message });
                     setIsSubmitting(false);
+                    announceApprovalQueued({
+                        approvalId: parsed.approvalId,
+                        to: approvalReturnTo ?? `/risks/${initialData.id}`,
+                    });
                     return;
                 }
             } else {
@@ -239,9 +248,10 @@ export function useRiskFormWorkflow({
 
                 const result = await riskApi.createRisk(createPayload);
                 if (isApprovalCreatedResponse(result)) {
+                    // D12 / PM-2: no risk exists yet, so return to the register.
                     acceptCurrentSnapshot(createRiskFormSnapshot(createPayload, riskTypeOptions));
-                    setApprovalQueued({ message: result.message });
                     setIsSubmitting(false);
+                    announceApprovalQueued({ approvalId: result.approval_id, to: approvalReturnTo ?? '/risks' });
                     return;
                 }
                 const newRisk = result;
@@ -282,7 +292,6 @@ export function useRiskFormWorkflow({
     const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
     return {
-        approvalQueued,
         confirmationDialog,
         currentStep,
         error,
@@ -294,7 +303,6 @@ export function useRiskFormWorkflow({
         nextStep,
         prevStep,
         requestLocalLeave,
-        setApprovalQueued,
         setCurrentStep,
         submit,
     };

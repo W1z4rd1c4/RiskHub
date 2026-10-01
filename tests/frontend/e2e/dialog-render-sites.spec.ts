@@ -320,7 +320,7 @@ Object.assign(drivers, {
     await detail('/controls', /\/controls\/\d+$/)(page);
     await page.getByRole('tab', { name: /execution history/i }).click();
   }, (page) => page.getByRole('button', { name: /log execution/i })),
-  'archive.control-detail': liveDriver(RM, detail('/controls', /\/controls\/\d+$/), (page) => page.locator('main button').filter({ has: page.locator('svg.lucide-trash-2') }).first()),
+  'archive.control-detail': liveDriver(RM, detail('/controls', /\/controls\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.controls-page': liveDriver(RM, list('/controls'), (page) => page.getByTestId('controls-export-button')),
   'resolve.governance-page': liveDriver(
     CRO,
@@ -341,7 +341,6 @@ Object.assign(drivers, {
   'kri-modal.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /^edit$/i }).first()),
   'kri-value.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /record value|add value/i }).first()),
   'kri-history.kri-detail': liveDriver(RM, arrangeKriWithHistory, (page) => page.getByRole('button', { name: /request correction/i }).first()),
-  'issue.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /new issue/i }).first()),
   'confirm.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.kris-page': liveDriver(RM, list('/kris'), (page) => page.getByTestId('kris-export-button')),
   'confirm.process-detail': liveDriver(RM, detail('/processes', /\/processes\/\d+$/), (page) => page.getByTestId('process-detail-archive')),

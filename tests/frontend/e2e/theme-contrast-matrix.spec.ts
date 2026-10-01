@@ -789,7 +789,7 @@ test.describe('UX-24 audited theme matrix', () => {
       });
     });
     await visit(page, riskRoute);
-    const riskBackButton = page.getByRole('button', { name: 'Back to Register' });
+    const riskBackButton = page.getByRole('button', { name: 'Back to Risks' });
     await riskBackButton.hover();
     await expect.poll(
       () => riskBackButton.evaluate((element) => getComputedStyle(element).color),
@@ -1412,7 +1412,7 @@ test.describe('UX-24 audited theme matrix', () => {
       });
     });
     await visit(page, vendorRoute);
-    const vendorBackButton = page.getByRole('button', { name: 'Back to Register' });
+    const vendorBackButton = page.getByRole('button', { name: 'Back to Vendors' });
     await vendorBackButton.hover();
     await expect.poll(
       () => vendorBackButton.evaluate((element) => getComputedStyle(element).color),

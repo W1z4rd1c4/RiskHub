@@ -8,11 +8,11 @@ Header and state primitives (audit 2026-09-30 §4.14, D7, D14):
 
 - `EntityDetailHeader.tsx` — canonical entity detail header: the page `h1` on the shared
   `PAGE_TITLE_CLASS` recipe, a destination-labelled `back` (`BackButton`), `breadcrumbs`, and
-  `document.title` via `usePageTitle` (`documentTitle`, else a string `title`). `backAction` (custom
-  node) and an explicit `identifierSeparatorLabel` remain for existing callers.
+  `document.title` via `usePageTitle` (`documentTitle`, else a string `title`). Every entity detail
+  page (Risk, Control, KRI, Issue, Vendor, Asset, Process, Threat, Department) renders it.
 - `EditBlockedState.tsx` — the edit route of a record whose business edits are blocked: `PageHeader`
   (one `h1`, labelled back, breadcrumbs), a warning `InlineMessage` reason and the module's
-  pending-change panel as children (SM-05). Used by Threat; Process/Asset/Vendor migrate in Phase 3d.
+  pending-change panel as children (SM-05). Used by the Threat, Process, Asset and Vendor edit routes.
 - `DetailField.tsx` — `DetailFieldList` (`dl` grid) and `DetailField` (`dt` with `.text-eyebrow`,
   `dd` value; empty values show a hidden dash announced as `common:fallbacks.not_set`).
 

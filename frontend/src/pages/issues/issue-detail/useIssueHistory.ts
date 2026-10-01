@@ -41,6 +41,9 @@ export function useIssueHistory({
     return {
         historyItems,
         isHistoryLoading,
+        // GAP-C-11 / PG-21: a failed first load is an error with retry, never "no history".
+        historyLoadFailed: historyQuery.isError && !historyQuery.data,
+        isHistoryRefetching: historyQuery.isFetching,
         refreshHistory: historyQuery.refetch,
     };
 }

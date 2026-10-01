@@ -1,11 +1,22 @@
 /**
- * useChartTheme - Provides theme-aware colors for Recharts components.
- * 
- * Returns colors that adapt to the current theme (RiskHub, Dark, Light)
- * for consistent chart styling across the application.
+ * useChartTheme - theme colours for Recharts, read from the CSS tokens.
+ *
+ * Recharts cannot use Tailwind classes, so every colour here is a reference to
+ * a token declared per theme in `index.css` (ADR-015 Addendum 1 §8, audit
+ * 2026-09-30 D1 / DS-05). There are no per-theme hex tables: the values are
+ * re-read through `lib/cssTokens.ts` whenever the root theme class changes.
+ *
+ * - Chrome (tooltip, grid, axis, legend, cursor) uses the surface and text tokens.
+ * - Categorical series use `--chart-1…8`.
+ * - Severity-coded series use the D1 band tokens from `lib/severity.ts`, and
+ *   status-coded series the status tones from `lib/tones.ts`, never the
+ *   categorical chart tokens.
  */
 import { useMemo } from 'react';
-import { useTheme, type Theme } from '@/contexts/ThemeContext';
+
+import { readCssColor, useCssThemeKey, type CssCustomProperty } from '@/lib/cssTokens';
+import { SEVERITY_BANDS, severityChartToken, type SeverityBand } from '@/lib/severity';
+import { TONE_CSS_VAR } from '@/lib/tones';
 
 export interface ChartTheme {
     /** Background color for chart tooltips */
@@ -16,6 +27,8 @@ export interface ChartTheme {
     tooltipTextPrimary: string;
     /** Secondary text color in tooltips (labels) */
     tooltipTextSecondary: string;
+    /** Legend item text (AA on every theme; series colour stays on the icon) */
+    legendText: string;
     /** CartesianGrid stroke color */
     gridStroke: string;
     /** XAxis/YAxis tick text color */
@@ -24,7 +37,7 @@ export interface ChartTheme {
     activeDotFill: string;
     /** Tooltip cursor line color */
     cursorStroke: string;
-    /** Semantic line/area series colors */
+    /** Line/area series colors: categorical (`primary`…`neutral`) or status-coded */
     series: {
         primary: string;
         secondary: string;
@@ -39,14 +52,8 @@ export interface ChartTheme {
         min: string;
         max: string;
     };
-    /** Severity palette for issue charts */
-    issueSeverity: {
-        low: string;
-        medium: string;
-        high: string;
-        critical: string;
-        fallback: string;
-    };
+    /** D1 severity bands (risk levels, issue severity), plus a neutral fallback */
+    severity: Record<SeverityBand, string> & { fallback: string };
     /** Domain palettes used by dashboard category charts */
     breakdown: {
         status: Record<string, string>;
@@ -55,189 +62,131 @@ export interface ChartTheme {
     };
 }
 
-const THEME_COLORS: Record<Theme, ChartTheme> = {
-    // RiskHub (default) - Dark blue-gray
-    riskhub: {
-        tooltipBackground: 'rgba(15, 23, 42, 0.95)',
-        tooltipBorder: 'rgba(255, 255, 255, 0.1)',
-        tooltipTextPrimary: '#ffffff',
-        tooltipTextSecondary: '#94a3b8',
-        gridStroke: 'rgba(255, 255, 255, 0.05)',
-        axisTickFill: '#94a3b8',
-        activeDotFill: '#0F172A',
-        cursorStroke: '#334155',
-        series: {
-            primary: '#1E84FF',
-            secondary: '#F43F5E',
-            tertiary: '#F97316',
-            warning: '#F59E0B',
-            danger: '#EF4444',
-            success: '#10B981',
-            neutral: '#64748B',
-        },
-        threshold: {
-            min: '#F59E0B',
-            max: '#EF4444',
-        },
-        issueSeverity: {
-            low: '#22C55E',
-            medium: '#F59E0B',
-            high: '#F97316',
-            critical: '#EF4444',
-            fallback: '#64748B',
-        },
-        breakdown: {
-            status: {
-                active: '#10B981',
-                inactive: '#6B7280',
-                pending: '#F59E0B',
-                deprecated: '#EF4444',
-            },
-            form: {
-                preventive: '#3B82F6',
-                detective: '#8B5CF6',
-                corrective: '#F97316',
-            },
-            frequency: {
-                daily: '#0D9488',
-                weekly: '#14B8A6',
-                monthly: '#2DD4BF',
-                quarterly: '#5EEAD4',
-                'semi-annually': '#67E8F9',
-                annually: '#99F6E4',
-                ad_hoc: '#6B7280',
-                continuous: '#06B6D4',
-            },
-        },
+/** A token, or a token with an alpha. */
+type TokenRef = CssCustomProperty | readonly [CssCustomProperty, number];
+type TokenGroup<T> = { [K in keyof T]: TokenRef };
+type ChartThemeSpec = {
+    [K in keyof ChartTheme]: ChartTheme[K] extends string
+        ? TokenRef
+        : K extends 'breakdown'
+            ? { [G in keyof ChartTheme['breakdown']]: Record<string, TokenRef> }
+            : TokenGroup<ChartTheme[K]>;
+};
+
+const CATEGORICAL = {
+    blue: '--chart-1',
+    violet: '--chart-2',
+    teal: '--chart-3',
+    amber: '--chart-4',
+    pink: '--chart-5',
+    sky: '--chart-6',
+    lime: '--chart-7',
+    slate: '--chart-8',
+} as const satisfies Record<string, CssCustomProperty>;
+
+/** Token behind every chart colour; the only colour source for charts. */
+const CHART_THEME_TOKENS: Readonly<ChartThemeSpec> = {
+    tooltipBackground: ['--popover', 0.97],
+    tooltipBorder: '--border',
+    tooltipTextPrimary: '--popover-foreground',
+    tooltipTextSecondary: '--muted-foreground',
+    legendText: '--muted-foreground',
+    gridStroke: ['--tint', 0.08],
+    axisTickFill: '--muted-foreground',
+    activeDotFill: '--background',
+    cursorStroke: ['--muted-foreground', 0.4],
+    series: {
+        primary: CATEGORICAL.blue,
+        secondary: CATEGORICAL.violet,
+        tertiary: CATEGORICAL.teal,
+        warning: TONE_CSS_VAR.warning,
+        danger: TONE_CSS_VAR.danger,
+        success: TONE_CSS_VAR.success,
+        neutral: CATEGORICAL.slate,
     },
-    // Dark (OLED) - Pure black
-    dark: {
-        tooltipBackground: 'rgba(10, 10, 10, 0.98)',
-        tooltipBorder: 'rgba(255, 255, 255, 0.12)',
-        tooltipTextPrimary: '#f1f1f1',
-        tooltipTextSecondary: '#a1a1a1',
-        gridStroke: 'rgba(255, 255, 255, 0.04)',
-        axisTickFill: '#a1a1a1',
-        activeDotFill: '#000000',
-        cursorStroke: '#333333',
-        series: {
-            primary: '#38BDF8',
-            secondary: '#FB7185',
-            tertiary: '#FB923C',
-            warning: '#FBBF24',
-            danger: '#FB7185',
-            success: '#34D399',
-            neutral: '#94A3B8',
-        },
-        threshold: {
-            min: '#FBBF24',
-            max: '#FB7185',
-        },
-        issueSeverity: {
-            low: '#4ADE80',
-            medium: '#FBBF24',
-            high: '#FB923C',
-            critical: '#FB7185',
-            fallback: '#94A3B8',
-        },
-        breakdown: {
-            status: {
-                active: '#34D399',
-                inactive: '#6B7280',
-                pending: '#FBBF24',
-                deprecated: '#FB7185',
-            },
-            form: {
-                preventive: '#60A5FA',
-                detective: '#A78BFA',
-                corrective: '#FB923C',
-            },
-            frequency: {
-                daily: '#2DD4BF',
-                weekly: '#5EEAD4',
-                monthly: '#67E8F9',
-                quarterly: '#A5F3FC',
-                'semi-annually': '#BAE6FD',
-                annually: '#CCFBF1',
-                ad_hoc: '#6B7280',
-                continuous: '#22D3EE',
-            },
-        },
+    threshold: {
+        min: TONE_CSS_VAR.warning,
+        max: TONE_CSS_VAR.danger,
     },
-    // Light - White/light gray
-    light: {
-        tooltipBackground: 'rgba(255, 255, 255, 0.98)',
-        tooltipBorder: 'rgba(0, 0, 0, 0.1)',
-        tooltipTextPrimary: '#1e293b',
-        tooltipTextSecondary: '#64748b',
-        gridStroke: 'rgba(0, 0, 0, 0.06)',
-        axisTickFill: '#64748b',
-        activeDotFill: '#f8fafc',
-        cursorStroke: '#cbd5e1',
-        series: {
-            primary: '#1D4ED8',
-            secondary: '#BE123C',
-            tertiary: '#C2410C',
-            warning: '#B45309',
-            danger: '#DC2626',
-            success: '#059669',
-            neutral: '#475569',
+    severity: {
+        ...(Object.fromEntries(SEVERITY_BANDS.map((band) => [band, severityChartToken(band)])) as Record<
+            SeverityBand,
+            CssCustomProperty
+        >),
+        fallback: CATEGORICAL.slate,
+    },
+    breakdown: {
+        status: {
+            active: TONE_CSS_VAR.success,
+            inactive: CATEGORICAL.slate,
+            pending: TONE_CSS_VAR.warning,
+            deprecated: TONE_CSS_VAR.danger,
         },
-        threshold: {
-            min: '#B45309',
-            max: '#DC2626',
+        form: {
+            preventive: CATEGORICAL.blue,
+            detective: CATEGORICAL.violet,
+            corrective: CATEGORICAL.amber,
         },
-        issueSeverity: {
-            low: '#16A34A',
-            medium: '#D97706',
-            high: '#EA580C',
-            critical: '#DC2626',
-            fallback: '#64748B',
-        },
-        breakdown: {
-            status: {
-                active: '#059669',
-                inactive: '#64748B',
-                pending: '#D97706',
-                deprecated: '#DC2626',
-            },
-            form: {
-                preventive: '#2563EB',
-                detective: '#7C3AED',
-                corrective: '#EA580C',
-            },
-            frequency: {
-                daily: '#0F766E',
-                weekly: '#0D9488',
-                monthly: '#14B8A6',
-                quarterly: '#2DD4BF',
-                'semi-annually': '#22D3EE',
-                annually: '#5EEAD4',
-                ad_hoc: '#64748B',
-                continuous: '#0891B2',
-            },
+        frequency: {
+            daily: CATEGORICAL.teal,
+            weekly: CATEGORICAL.sky,
+            monthly: CATEGORICAL.blue,
+            quarterly: CATEGORICAL.violet,
+            'semi-annually': CATEGORICAL.pink,
+            annually: CATEGORICAL.lime,
+            ad_hoc: CATEGORICAL.slate,
+            continuous: CATEGORICAL.amber,
         },
     },
 };
 
+function readToken(ref: TokenRef): string {
+    return typeof ref === 'string' ? readCssColor(ref) : readCssColor(ref[0], ref[1]);
+}
+
+function readGroup<T extends Record<string, TokenRef>>(group: T): { [K in keyof T]: string } {
+    return Object.fromEntries(
+        Object.entries(group).map(([key, ref]) => [key, readToken(ref as TokenRef)]),
+    ) as { [K in keyof T]: string };
+}
+
+/** Resolve every chart colour against the current theme's tokens. */
+function buildChartTheme(spec: Readonly<ChartThemeSpec> = CHART_THEME_TOKENS): ChartTheme {
+    return {
+        tooltipBackground: readToken(spec.tooltipBackground),
+        tooltipBorder: readToken(spec.tooltipBorder),
+        tooltipTextPrimary: readToken(spec.tooltipTextPrimary),
+        tooltipTextSecondary: readToken(spec.tooltipTextSecondary),
+        legendText: readToken(spec.legendText),
+        gridStroke: readToken(spec.gridStroke),
+        axisTickFill: readToken(spec.axisTickFill),
+        activeDotFill: readToken(spec.activeDotFill),
+        cursorStroke: readToken(spec.cursorStroke),
+        series: readGroup(spec.series),
+        threshold: readGroup(spec.threshold),
+        severity: readGroup(spec.severity),
+        breakdown: {
+            status: readGroup(spec.breakdown.status),
+            form: readGroup(spec.breakdown.form),
+            frequency: readGroup(spec.breakdown.frequency),
+        },
+    };
+}
+
 /**
- * Hook to get theme-aware colors for Recharts components.
- * 
+ * Theme colours for Recharts components, re-read on theme change.
+ *
  * @example
  * ```tsx
  * const chartTheme = useChartTheme();
- * 
- * <Tooltip
- *   contentStyle={{
- *     backgroundColor: chartTheme.tooltipBackground,
- *     border: `1px solid ${chartTheme.tooltipBorder}`,
- *   }}
- *   itemStyle={{ color: chartTheme.tooltipTextPrimary }}
- * />
+ * <Tooltip {...getChartTooltipProps(chartTheme)} />
  * ```
  */
 export function useChartTheme(): ChartTheme {
-    const { theme } = useTheme();
-
-    return useMemo(() => THEME_COLORS[theme], [theme]);
+    const themeKey = useCssThemeKey();
+    return useMemo(() => {
+        // `themeKey` is the re-read trigger; reading it keeps the dependency honest.
+        void themeKey;
+        return buildChartTheme();
+    }, [themeKey]);
 }

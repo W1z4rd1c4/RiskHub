@@ -34,20 +34,25 @@ export function GovernedMutationReasonDialog({
     onConfirm,
 }: GovernedMutationReasonDialogProps) {
     const { t } = useTranslation(['processes', 'vendors', 'assets']);
+    // D10: a removal is an unlink (Unlink icon, destructive action). Without
+    // an approval requirement it reads as a plain "Remove link"; with one it
+    // keeps the governed request wording and asks for the reason.
+    const isRemoval = kind === 'link_remove';
+    const useRequestCopy = !isRemoval || reasonRequired;
     return (
         <ConfirmDialog
             isOpen={isOpen}
             onClose={onClose}
             onConfirm={(value) => onConfirm(value?.trim() ?? '')}
-            title={t(`${namespace}:link_approval.${kind}.title`)}
-            message={t(`${namespace}:link_approval.${kind}.message`)}
-            confirmLabel={t(`${namespace}:link_approval.continue`)}
-            variant={kind === 'link_remove' ? 'warning' : 'info'}
+            intent={isRemoval ? 'unlink' : 'generic'}
+            title={useRequestCopy ? t(`${namespace}:link_approval.${kind}.title`) : undefined}
+            message={useRequestCopy ? t(`${namespace}:link_approval.${kind}.message`) : undefined}
+            confirmLabel={useRequestCopy ? t(`${namespace}:link_approval.continue`) : undefined}
+            variant="info"
             isLoading={isLoading}
-            showInput={reasonRequired}
-            inputRequired={reasonRequired}
-            inputLabel={t(`${namespace}:form.request_reason`)}
-            inputPlaceholder={t(`${namespace}:link_approval.reason_placeholder`)}
+            reason={reasonRequired ? 'required' : 'none'}
+            reasonLabel={t(`${namespace}:form.request_reason`)}
+            reasonPlaceholder={t(`${namespace}:link_approval.reason_placeholder`)}
             errorText={errorText}
         />
     );

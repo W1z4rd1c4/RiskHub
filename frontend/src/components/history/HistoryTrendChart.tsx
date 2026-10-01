@@ -16,8 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { HistoryTrendPoint } from '@/types/history';
 import { useChartTheme } from '@/hooks/useChartTheme';
-import { useTranslation } from '@/i18n/hooks';
-import { formatNumberValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 
 interface HistoryTrendChartProps {
     data: HistoryTrendPoint[];
@@ -38,11 +37,12 @@ export function HistoryTrendChart({
     emptyMessage,
     className,
 }: HistoryTrendChartProps) {
-    const { t, i18n } = useTranslation(['common', 'controls']);
+    const { t } = useTranslation(['common', 'controls']);
+    const format = useFormat();
     const chartTheme = useChartTheme();
     const resolvedValueLabel = valueLabel ?? t('common:labels.value');
     const resolvedEmptyMessage = emptyMessage ?? t('common:empty.no_data_available');
-    const resolvedFormatValue = formatValue ?? ((value: number) => formatNumberValue(value, i18n.language));
+    const resolvedFormatValue = formatValue ?? ((value: number) => format.number(value));
 
     if (!data || data.length === 0) {
         return (

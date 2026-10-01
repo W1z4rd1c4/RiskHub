@@ -4,7 +4,6 @@ import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import type { TranslateFn } from './risk-questionnaire-detail/questionnairePresentation';
 import {
     formatQuestionnaireDate,
-    isQuestionnaireOverdue,
     questionnaireStatusBadge,
 } from './questionnairesTabPresentation';
 
@@ -36,7 +35,7 @@ export function QuestionnaireHistoryTable({
             key: 'status',
             label: t('common:labels.status'),
             render: (questionnaire) =>
-                questionnaireStatusBadge(questionnaire.status, isQuestionnaireOverdue(questionnaire), t),
+                questionnaireStatusBadge(questionnaire, t),
         },
         {
             key: 'sent_at',

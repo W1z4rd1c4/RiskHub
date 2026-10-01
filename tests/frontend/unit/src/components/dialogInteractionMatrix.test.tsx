@@ -955,7 +955,8 @@ describe('Dialog interaction matrix — row-triggered delete confirms (FR-P2c-1,
         await assertTriggeredDialogContract('alertdialog', <DepartmentsPanel />, async (user) => {
             // Loaded sentinel: the row delete action only exists once the list +
             // capabilities loaded and the row exposes `can_delete`.
-            const del = await screen.findByRole('button', { name: 'Delete' });
+            // D10: soft-deleted, restorable rows are archived ("Archive <name>").
+            const del = await screen.findByRole('button', { name: /^Archive / });
             del.focus();
             await user.click(del);
             return del;
@@ -969,7 +970,8 @@ describe('Dialog interaction matrix — row-triggered delete confirms (FR-P2c-1,
             http.get('*/api/v1/riskhub/risk-types', () => HttpResponse.json([riskTypeHubFixture])),
         );
         await assertTriggeredDialogContract('alertdialog', <RiskTypesPanel />, async (user) => {
-            const del = await screen.findByRole('button', { name: 'Delete' });
+            // D10: soft-deleted, restorable rows are archived ("Archive <name>").
+            const del = await screen.findByRole('button', { name: /^Archive / });
             del.focus();
             await user.click(del);
             return del;

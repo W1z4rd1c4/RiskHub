@@ -317,6 +317,7 @@ export const businessRoutes: AppRouteDef[] = [
     key: 'vendor-reports',
     path: 'vendor-reports',
     element: <VendorReportsPage />,
+    activeNavHref: '/evidence',
   },
   {
     key: 'audit-trail',
@@ -326,6 +327,7 @@ export const businessRoutes: AppRouteDef[] = [
         <AuditTrailPage />
       </AuditTrailRouteGuard>
     ),
+    activeNavHref: '/evidence',
   },
   {
     key: 'risk-hub',

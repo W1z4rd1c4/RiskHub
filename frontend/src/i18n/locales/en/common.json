@@ -17,7 +17,6 @@
     "view": "View",
     "back": "Back",
     "next": "Next",
-    "previous": "Previous",
     "select": "Select",
     "clear": "Clear",
     "apply": "Apply",
@@ -27,6 +26,7 @@
     "no": "No",
     "archive": "Archive",
     "remove_link": "Remove link",
+    "archive_named": "Archive {{name}}",
     "send": "Send",
     "discard": "Discard",
     "unarchive": "Unarchive",
@@ -51,7 +51,8 @@
     "name": "RiskHub"
   },
   "page_title": {
-    "template": "{{page}} · RiskHub"
+    "template": "{{page}} · RiskHub",
+    "edit": "Edit {{name}}"
   },
   "breadcrumbs": {
     "label": "Breadcrumb"
@@ -63,7 +64,8 @@
   "not_found_page": {
     "title": "Page not found",
     "description": "This address does not match an available page.",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "back": "Back to previous page"
   },
   "detail_load": {
     "unavailable_title": "Record unavailable",
@@ -126,6 +128,10 @@
     "department": "Department",
     "owner": "Owner",
     "process": "Process",
+    "vendor": "Vendor",
+    "asset": "Asset",
+    "threat": "Threat",
+    "risk_type": "Risk type",
     "gross": "Gross",
     "net": "Net",
     "form": "Form",
@@ -204,13 +210,11 @@
     }
   },
   "confirmation": {
-    "delete_title": "Confirm Delete",
     "delete_message": "Are you sure you want to delete this item? This action cannot be undone.",
     "unsaved_title": "Unsaved changes",
     "unsaved_changes": "You have unsaved changes. Are you sure you want to leave?",
     "archive_title": "Archive {{type}}",
-    "archive_reversible": "This action can be undone by an administrator.",
-    "remove_link": "Are you sure you want to remove this link?"
+    "archive_reversible": "This action can be undone by an administrator."
   },
   "confirm": {
     "archive": {
@@ -277,7 +281,6 @@
     "to": "to",
     "entries": "entries",
     "per_page": "per page",
-    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries",
     "go_to_page": "Go to page {{page}}",
     "previous_page": "Previous page",
     "next_page": "Next page",
@@ -304,6 +307,7 @@
     "by_flag": "By Flag"
   },
   "hero": {
+    "page_title": "Enterprise Risk Management",
     "tagline": "The next generation Enterprise Risk Management platform.",
     "subtitle": "Built for modern insurance giants under SII regulation.",
     "access_platform": "Access Platform",
@@ -446,7 +450,23 @@
     "result_plural": "items"
   },
   "approval": {
-    "submitted_for_approval": "Submitted for approval"
+    "submitted_for_approval": "Submitted for approval",
+    "queued": {
+      "toast_title": "Submitted for approval",
+      "toast_body": "The change takes effect once it is approved.",
+      "title": "Pending approval",
+      "body": "Your request was submitted for approval. The record stays unchanged until the request is approved.",
+      "open": "Open in Approvals"
+    }
+  },
+  "outcome": {
+    "archived": "Archived: {{name}}",
+    "archived_generic": "Record archived",
+    "restored": "Restored: {{name}}",
+    "restored_generic": "Record restored",
+    "restore_failed": "The record could not be restored.",
+    "link_removed": "Link removed",
+    "deleted": "Deleted: {{name}}"
   },
   "activity_log": {
     "subtitle": "Review recorded user and system actions.",
@@ -658,16 +678,11 @@
   "risk_committee": {
     "critical_risks": "Critical risks",
     "critical_vendors": "Critical vendors",
-    "days_ago": "{{count}} days ago",
-    "months_ago": "{{count}} months ago",
     "no_critical_risks": "No critical risks at this time",
     "no_department_exposure_data": "No department exposure data",
     "no_recent_significant_activity": "No recent significant activity",
     "no_summary_data": "No summary data available",
-    "no_vendors_in_scope": "No vendors in scope",
-    "today": "Today",
-    "weeks_ago": "{{count}} weeks ago",
-    "yesterday": "Yesterday"
+    "no_vendors_in_scope": "No vendors in scope"
   },
   "sections": {
     "recent_activity": "Recent activity",

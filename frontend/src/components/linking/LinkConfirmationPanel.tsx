@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Link as LinkIcon } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 
 import { getResultTitle } from './linkSearchPresentation';
 import type { LinkMode, SearchResultItem } from './linkTypes';
+import { Spinner } from '@/components/ui/state';
 
 interface LinkConfirmationPanelProps {
     mode: LinkMode;
@@ -88,7 +89,7 @@ export function LinkConfirmationPanel({
                                 disabled={isLinking}
                                 className="px-6 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-accent-foreground text-xs font-black uppercase tracking-widest rounded-lg transition-[background-color,box-shadow] shadow-lg shadow-accent/20 disabled:opacity-50 h-10 self-end"
                             >
-                                {isLinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <LinkIcon className="h-3 w-3" />}
+                                {isLinking ? <Spinner size="sm" className="size-3 text-current" /> : <LinkIcon className="h-3 w-3" />}
                                 {t('common:linking.create_link')}
                             </button>
                         </div>

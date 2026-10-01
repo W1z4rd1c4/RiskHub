@@ -73,7 +73,7 @@ export function MetricGaugeSvg({
                 animate={{ cx: clampedValue }}
                 cy="8"
                 r="2.5"
-                className={cn('fill-current stroke-slate-900', pointerClassName)}
+                className={cn('fill-current stroke-background', pointerClassName)}
                 strokeWidth="1.5"
                 transition={{ type: 'spring', stiffness: 100 }}
             />

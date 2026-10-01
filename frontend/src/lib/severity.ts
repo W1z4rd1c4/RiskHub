@@ -107,6 +107,22 @@ export function riskScoreVariantClass(
 }
 
 // ---------------------------------------------------------------------------
+// 1-5 ordinal ratings (vendor risk score, control risk level)
+// ---------------------------------------------------------------------------
+
+/**
+ * A 1-5 ordinal rating on the D1 bands: 5 → critical, 4 → high, 3 → medium,
+ * 1-2 → low. These are fixed rating scales, not configurable risk scores
+ * (those use `classifyRiskScore` with `useRiskThresholds()`).
+ */
+export function ordinalSeverityBand(value: number): SeverityBand {
+    if (value >= 5) return 'critical';
+    if (value >= 4) return 'high';
+    if (value >= 3) return 'medium';
+    return 'low';
+}
+
+// ---------------------------------------------------------------------------
 // Issue severity
 // ---------------------------------------------------------------------------
 

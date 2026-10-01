@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Bell, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Bell, AlertTriangle } from 'lucide-react';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation } from '@/i18n/hooks';
+import { apiClient } from '@/services/apiClient';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { NotificationPreferences } from '@/types/notification';
 import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
+import { ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
 
 interface ToggleItemProps {
     label: string;
@@ -30,7 +33,7 @@ function ToggleItem({ label, description, checked, onChange, loading }: ToggleIt
                 disabled={loading}
                 className={cn(
                     "relative w-12 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50",
-                    checked ? "bg-accent" : "bg-slate-700",
+                    checked ? "bg-accent" : "bg-muted-foreground/40",
                     loading && "opacity-50 cursor-not-allowed"
                 )}
             >
@@ -47,6 +50,7 @@ function ToggleItem({ label, description, checked, onChange, loading }: ToggleIt
 
 export function NotificationSettings() {
     const { t } = useTranslation('settings');
+    const feedback = useFeedback();
     const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
@@ -82,9 +86,10 @@ export function NotificationSettings() {
             const updatedPrefs = await notificationsApi.updatePreferences({ [key]: value });
             setPreferences(updatedPrefs);
         } catch (err) {
-            // Rollback on error
+            // Roll back and tell the user (GAP-C-14, D9): a failed save is never silent.
             setPreferences({ ...preferences, [key]: previousValue });
             logError('Failed to update preference:', err);
+            feedback.error({ title: t('notifications.save_failed'), messageKey: apiClient.toUiMessageKey(err) });
         } finally {
             setUpdating(null);
         }
@@ -92,37 +97,29 @@ export function NotificationSettings() {
 
     if (loading) {
         return (
-            <div className="space-y-8 animate-pulse">
-                <div className="h-6 w-48 bg-tint/10 rounded" />
-                <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="flex justify-between items-center">
-                            <div className="space-y-2 flex-1">
-                                <div className="h-4 w-32 bg-tint/10 rounded" />
-                                <div className="h-3 w-64 bg-tint/5 rounded" />
-                            </div>
-                            <div className="w-12 h-6 bg-tint/10 rounded-full" />
+            <LoadingState
+                skeleton={(
+                    <div className="space-y-8">
+                        <Skeleton className="h-6 w-48" />
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="flex items-center justify-between">
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3 w-64" />
+                                    </div>
+                                    <Skeleton className="h-6 w-12 rounded-full" />
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-            </div>
+                    </div>
+                )}
+            />
         );
     }
 
     if (errorKey) {
-        return (
-            <div className="text-center py-8">
-                <AlertTriangle className="h-12 w-12 text-warning-text mx-auto mb-4" />
-                <p className="text-muted-foreground mb-4">{t(errorKey)}</p>
-                <button
-                    onClick={loadPreferences}
-                    className="flex items-center gap-2 mx-auto px-4 py-2 bg-accent/10 text-accent-text rounded-lg hover:bg-accent/20 transition-colors"
-                >
-                    <RefreshCw className="h-4 w-4" />
-                    {t('common:actions.retry')}
-                </button>
-            </div>
-        );
+        return <ErrorState message={t(errorKey)} onRetry={() => void loadPreferences()} />;
     }
 
     if (!preferences) return null;

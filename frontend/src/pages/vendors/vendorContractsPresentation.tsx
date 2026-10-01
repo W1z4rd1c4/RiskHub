@@ -1,8 +1,8 @@
 import type { MouseEvent } from 'react';
-import { ArchiveRestore, Pencil, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 import type { Column } from '@/components/tables/SortableTable';
-import { formatDateValue } from '@/i18n/formatters';
+import { formatDateValue, formatNumberValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { VendorContract, VendorContractWritePayload } from '@/types/vendorContract';
 
@@ -42,12 +42,13 @@ export function buildVendorContractPayload(
     return payload as VendorContractWritePayload;
 }
 
-export function formatContractCost(contract: VendorContract): string | null {
+/** Annual cost in the UI locale (I18N-03: never a hard-coded `cs-CZ`). */
+export function formatContractCost(contract: VendorContract, locale: string): string | null {
     if (contract.annual_cost === null || contract.annual_cost === undefined) {
         return null;
     }
     const amount = Number(contract.annual_cost);
-    const rendered = Number.isFinite(amount) ? amount.toLocaleString('cs-CZ') : String(contract.annual_cost);
+    const rendered = Number.isFinite(amount) ? formatNumberValue(amount, locale) : String(contract.annual_cost);
     return contract.currency ? `${rendered} ${contract.currency}` : rendered;
 }
 
@@ -184,7 +185,7 @@ export function buildVendorContractColumns({
             headerClassName: 'text-right',
             render: (contract) => (
                 <span className="text-sm text-foreground tabular-nums">
-                    {formatContractCost(contract) ?? '—'}
+                    {formatContractCost(contract, locale ?? 'en') ?? '—'}
                 </span>
             ),
         },
@@ -230,7 +231,7 @@ export function buildVendorContractColumns({
                             aria-label={t('vendors:contracts.actions.archive')}
                             title={t('vendors:contracts.actions.archive')}
                         >
-                            <Trash2 className="h-4 w-4" />
+                            <Archive className="h-4 w-4" aria-hidden="true" />
                         </button>
                     ) : null}
                     {resolveCapabilityFlag(contract.capabilities, 'can_restore') ? (

@@ -3,6 +3,7 @@ import { Building2, Search, X } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/hooks';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 export interface KRIVendorOption {
     id: number;
@@ -99,13 +100,14 @@ export function KRIVendorSelector({
 
             <div className="max-h-56 overflow-y-auto rounded-xl border border-border divide-y divide-border custom-scrollbar">
                 {isLoading ? (
-                    <div className="p-6 text-center text-sm text-muted-foreground">
-                        {t('common:loading.generic')}
-                    </div>
+                    <LoadingState layout="inline" className="justify-center p-6" />
                 ) : sortedVendors.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-muted-foreground">
-                        {emptyStateLabel ?? t('kris:vendor_assignment.empty')}
-                    </div>
+                    <EmptyState
+                        layout="inline"
+                        icon={null}
+                        className="justify-center p-6 text-muted-foreground"
+                        title={emptyStateLabel ?? t('kris:vendor_assignment.empty')}
+                    />
                 ) : (
                     sortedVendors.map((vendor) => {
                         const checked = selectedVendorIds.includes(vendor.id);

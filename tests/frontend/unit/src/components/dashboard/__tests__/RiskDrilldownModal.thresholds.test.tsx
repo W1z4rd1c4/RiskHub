@@ -86,7 +86,7 @@ describe('RiskDrilldownModal risk thresholds', () => {
         );
 
         expect(await screen.findByText('Threshold Risk')).toBeInTheDocument();
-        expect(screen.getByText('issues.severity.high')).toBeVisible();
+        expect(screen.getByText('risk_levels.high')).toBeVisible();
         expect(screen.getByText('risk_drilldown.score_value 15')).toBeVisible();
     });
 });

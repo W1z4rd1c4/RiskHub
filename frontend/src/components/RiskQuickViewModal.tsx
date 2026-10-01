@@ -2,14 +2,13 @@ import { useId } from 'react';
 import type { Risk } from '@/types/risk';
 import { ArrowRight, Shield, Target, User, BarChart, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
-import { classifyRiskScore, riskScoreClass, type RiskScoreBand } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, severityClass, type SeverityBand } from '@/lib/severity';
 import { cn } from '@/lib/utils';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from './ui/dialog';
 
-const RISK_BAND_LABEL_KEYS: Record<RiskScoreBand, string> = {
+const RISK_BAND_LABEL_KEYS: Record<SeverityBand, string> = {
     critical: 'risks:register.net_bands.critical',
     high: 'risks:register.net_bands.high',
     medium: 'risks:register.net_bands.medium',
@@ -24,7 +23,8 @@ interface RiskQuickViewModalProps {
 
 export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModalProps) {
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation(['risks', 'common']);
+    const { t } = useTranslation(['risks', 'common']);
+    const format = useFormat();
     const titleId = useId();
     const { thresholds } = useRiskThresholds();
     const { getDisplayName: getRiskTypeName } = useRiskTypes();
@@ -35,11 +35,11 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
         const band = classifyRiskScore(score, thresholds);
         return (
             <>
-                <span className={cn('text-2xl font-black', riskScoreClass('text', band))}>{score}</span>
+                <span className={cn('text-2xl font-black', severityClass('text', band))}>{score}</span>
                 <span
                     className={cn(
                         'px-2 py-0.5 rounded border text-xs font-bold uppercase tracking-wide',
-                        riskScoreClass('badge', band),
+                        severityClass('badge', band),
                     )}
                 >
                     {t(RISK_BAND_LABEL_KEYS[band])}
@@ -122,7 +122,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                             <Calendar className="h-3 w-3" /> {t('common:labels.updated_at')}
                         </h4>
                         <p className="text-sm font-bold text-foreground">
-                            {formatDateValue(risk.updated_at, i18n.language)}
+                            {format.date(risk.updated_at)}
                         </p>
                     </div>
                 </div>

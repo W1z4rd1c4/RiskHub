@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Plus, Trash2, Workflow } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Boxes, Plus, Unlink, Workflow } from 'lucide-react';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAuthz } from '@/authz/useAuthz';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -18,7 +19,7 @@ import { vendorApi } from '@/services/vendorApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { VendorCapabilities } from '@/types/vendor';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import {
     processBusinessEditBlocked,
     processMutationRequiresApprovalReason,
@@ -46,7 +47,9 @@ interface VendorRegisterLinksSectionProps {
  */
 export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorRegisterLinksSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const authz = useAuthz();
     const queryClient = useQueryClient();
     const [sectionError, setSectionError] = useState<string | null>(null);
@@ -145,7 +148,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             setSectionError(null);
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             setAssetToLink('');
@@ -162,7 +165,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             setSectionError(null);
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -179,7 +182,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             setSectionError(null);
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             setProcessToLink('');
@@ -195,7 +198,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             setSectionError(null);
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -257,9 +260,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             </div>
 
             {sectionError && pendingProcessAction === null && pendingAssetAction === null ? (
-                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
-                    {sectionError}
-                </div>
+                <InlineMessage tone="danger">{sectionError}</InlineMessage>
             ) : null}
 
             {canReadAssetLinks ? (
@@ -268,8 +269,17 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                         <Boxes className="h-4 w-4 text-accent-text" />
                         {t('register_links.assets_title')}
                     </h3>
-                    {assetRows.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">{t('register_links.assets_empty')}</p>
+                    {assetLinksQuery.isLoading ? (
+                        <LoadingState layout="inline" />
+                    ) : assetLinksQuery.isError && !assetLinksQuery.data ? (
+                        // GAP-C-03: a failed load is an error with retry, never "no linked items".
+                        <ErrorState
+                            layout="inline"
+                            onRetry={() => void assetLinksQuery.refetch()}
+                            isRetrying={assetLinksQuery.isFetching}
+                        />
+                    ) : assetRows.length === 0 ? (
+                        <EmptyState layout="inline" icon={null} title={t('register_links.assets_empty')} />
                     ) : (
                         <ul className="space-y-2" data-testid="vendor-asset-links">
                             {assetRows.map((row) => (
@@ -299,7 +309,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                             title={t('register_links.remove')}
                                         >
-                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                            <Unlink className="h-4 w-4" aria-hidden="true" />
                                         </button>
                                     ) : null}
                                 </li>
@@ -353,8 +363,17 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                         <Workflow className="h-4 w-4 text-success-text" />
                         {t('register_links.processes_title')}
                     </h3>
-                    {processRows.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">{t('register_links.processes_empty')}</p>
+                    {processLinksQuery.isLoading ? (
+                        <LoadingState layout="inline" />
+                    ) : processLinksQuery.isError && !processLinksQuery.data ? (
+                        // GAP-C-03: a failed load is an error with retry, never "no linked items".
+                        <ErrorState
+                            layout="inline"
+                            onRetry={() => void processLinksQuery.refetch()}
+                            isRetrying={processLinksQuery.isFetching}
+                        />
+                    ) : processRows.length === 0 ? (
+                        <EmptyState layout="inline" icon={null} title={t('register_links.processes_empty')} />
                     ) : (
                         <ul className="space-y-2" data-testid="vendor-process-links">
                             {processRows.map((row) => (
@@ -391,7 +410,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                                 ? t('processes:pending_change.link_action_blocked')
                                                 : t('register_links.remove')}
                                         >
-                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                            <Unlink className="h-4 w-4" aria-hidden="true" />
                                         </button>
                                     ) : null}
                                 </li>

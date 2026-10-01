@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, RefreshCw } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 
@@ -15,6 +15,7 @@ import {
     getSnapshotAvailability,
 } from './quarterlyComparisonPresentation';
 import { useQuarterlyComparisonData } from './useQuarterlyComparisonData';
+import { Spinner } from '@/components/ui/state';
 
 export function QuarterlyComparisonWidget() {
     const { t } = useTranslation('dashboard');
@@ -97,9 +98,7 @@ export function QuarterlyComparisonWidget() {
                     <Calendar className="h-5 w-5 text-accent" />
                     <h3 className="text-lg font-bold text-foreground">{t('sections.quarterly_comparison')}</h3>
                 </div>
-                {isLoading && (
-                    <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />
-                )}
+                {isLoading && <Spinner size="sm" label={t('common:loading.generic')} />}
             </div>
 
             <QuarterPeriodSelector

@@ -1,3 +1,4 @@
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 import type { ControlStatus } from '@/types/control';
 import type { CollectionGroup } from '@/types/collection';
 
@@ -11,11 +12,9 @@ export const ARCHIVED_CONTROL_FILTER = 'archived' as const;
 export const ARCHIVED_CONTROL_BADGE_CLASS_NAME = 'text-muted-foreground bg-muted';
 export type ControlDisplayStatus = ControlStatus | typeof ARCHIVED_CONTROL_FILTER;
 
+/** Control risk level (1-5) on the D1 severity scale; blue never encodes severity. */
 export function getControlRiskLevelColor(level: number): string {
-    if (level >= 4) return 'text-destructive bg-destructive/10 border-destructive/20';
-    if (level >= 3) return 'text-warning-text bg-warning/10 border-warning/20';
-    if (level >= 2) return 'text-accent-text bg-info/10 border-info/20';
-    return 'text-success-text bg-success/10 border-success/20';
+    return severityClass('badge', ordinalSeverityBand(level));
 }
 
 export function getControlDisplayStatus(control: { status: ControlStatus; is_archived: boolean }): ControlDisplayStatus {

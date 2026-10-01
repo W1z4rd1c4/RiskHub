@@ -1,6 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Activity, Database, FileText, Calendar, Workflow } from 'lucide-react';
+import { ShieldAlert, ClipboardList, AlertTriangle, User, Target, Activity, Database, FileText, Calendar, Workflow } from 'lucide-react';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
@@ -8,9 +8,9 @@ import { threatApi } from '@/services/threatApi';
 import { processApi } from '@/services/processApi';
 import { assetApi } from '@/services/assetApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
-import { useTranslation } from '@/i18n/hooks';
-import { formatRelativeDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
+import { LoadingState } from '@/components/ui/state';
 
 interface OrphanQuickViewModalProps {
     isOpen: boolean;
@@ -27,7 +27,8 @@ interface ItemDetails {
 }
 
 export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickViewModalProps) {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const titleId = useId();
@@ -159,12 +160,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
             {/* Content Area */}
             <DialogBody className="custom-scrollbar">
                 {!isInitialized ? (
-                    <div className="py-20 flex flex-col items-center justify-center gap-4">
-                        <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                            {t('governance.quick_view.initializing')}
-                        </p>
-                    </div>
+                    <LoadingState className="py-20" label={t('governance.quick_view.initializing')} />
                 ) : (
                     <motion.div
                         data-testid="orphan-quick-view-ready"
@@ -194,7 +190,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-xs text-muted-foreground font-medium">
-                                            {formatRelativeDateValue(orphan.orphaned_at, i18n.language)}
+                                            {format.relative(orphan.orphaned_at)}
                                         </span>
                                     </div>
                                 </div>

@@ -11,7 +11,9 @@ const linkApiMocks = vi.hoisted(() => ({
     getLinkedRisks: vi.fn(),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         i18n: { language: 'en' },
         t: (key: string) => key,

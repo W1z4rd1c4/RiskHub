@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ApiClientError } from '@/services/apiClient';
-import { renderWithQueryClient as render } from '@test/render';
+import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetKRI = vi.fn();
@@ -17,6 +17,8 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '21' }),
         useNavigate: () => mockNavigate,
+        // D12: the approval-queued notice reads router state.
+        useLocation: () => ({ pathname: '/kris/21', search: '', hash: '', state: null, key: 'test' }),
         useSearchParams: () => [new URLSearchParams()],
     };
 });

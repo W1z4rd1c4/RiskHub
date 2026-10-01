@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuthz } from '@/authz/useAuthz';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useVendorReportCapabilities } from '@/hooks/useVendorReportCapabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -101,11 +103,8 @@ export function EvidencePage() {
             : vendorCanRead ? 'available' : 'omitted';
 
     return (
-        <div className="space-y-8">
-            <header>
-                <h1 className="text-3xl font-bold text-foreground">{t('title')}</h1>
-                <p className="mt-2 text-muted-foreground">{t('subtitle')}</p>
-            </header>
+        <PageContainer>
+            <PageHeader title={t('title')} description={t('subtitle')} />
             <div className="grid gap-6 lg:grid-cols-3">
                 {authz.canViewActivityLog ? (
                     <EvidenceCard
@@ -140,7 +139,7 @@ export function EvidencePage() {
                     />
                 ) : null}
             </div>
-        </div>
+        </PageContainer>
     );
 }
 

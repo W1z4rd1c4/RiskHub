@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { BreadcrumbItem } from '@/components/layout/Breadcrumbs';
+import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader, type PageBackTarget } from '@/components/layout/PageHeader';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
@@ -27,8 +28,9 @@ interface EditBlockedStateProps {
 /**
  * The edit route of a record whose business edits are blocked (pending
  * governed change, D7, SM-05, audit §4.14): one `h1` through `PageHeader`, a
- * destination-labelled back control, and the reason on warning tokens. The
- * Threat edit route uses it; Process, Asset and Vendor migrate in Phase 3d.
+ * destination-labelled back control, and the reason on warning tokens, in
+ * the shared `PageContainer` (D11). The Threat, Process, Asset and Vendor
+ * edit routes use it.
  */
 export function EditBlockedState({
     back,
@@ -45,7 +47,7 @@ export function EditBlockedState({
     const resolvedTitle = title ?? t('edit_blocked.title');
 
     return (
-        <div className="space-y-8" data-testid={testId}>
+        <PageContainer data-testid={testId}>
             {notice}
             <PageHeader
                 title={resolvedTitle}
@@ -58,6 +60,6 @@ export function EditBlockedState({
                 <InlineMessage tone="warning">{reason ?? t('edit_blocked.description')}</InlineMessage>
             )}
             {children}
-        </div>
+        </PageContainer>
     );
 }

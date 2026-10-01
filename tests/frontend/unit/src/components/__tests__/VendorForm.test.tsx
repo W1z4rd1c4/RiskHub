@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -184,6 +184,30 @@ describe('VendorForm', () => {
 
         expect(await screen.findByText('errors.name_required')).toBeInTheDocument();
         expect(createVendorMock).not.toHaveBeenCalled();
+    });
+
+    it('announces a form-level validation error through a danger InlineMessage (AX-05)', async () => {
+        renderWithQueryClient(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+        const alert = (await screen.findByText('errors.name_required')).closest('[role="alert"]');
+        expect(alert).not.toBeNull();
+        expect(alert).toHaveAttribute('data-tone', 'danger');
+    });
+
+    it('offers a refresh on a failed owner lookup through a warning InlineMessage (AX-05)', async () => {
+        getVendorOwnersMock.mockRejectedValueOnce(new Error('owners unavailable'));
+        renderWithQueryClient(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+        const notice = (await screen.findByText('errors.owner_lookup_failed')).closest('[data-tone]');
+        expect(notice).toHaveAttribute('data-tone', 'warning');
+        expect(notice).toHaveAttribute('role', 'status');
+        const callsBefore = getVendorOwnersMock.mock.calls.length;
+
+        fireEvent.click(within(notice as HTMLElement).getByRole('button', { name: 'actions.refresh' }));
+
+        await waitFor(() => expect(getVendorOwnersMock.mock.calls.length).toBeGreaterThan(callsBefore));
     });
 
     it('associates the Vendor identity labels with their editable fields', () => {

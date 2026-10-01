@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { BackButton } from '@/components/ui/BackButton';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { AccessDeniedState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { useDepartmentDetail, type TabView } from '@/hooks/useDepartmentDetail';
@@ -65,23 +67,36 @@ export function DepartmentDetailPage() {
         setSearchParams(next);
     };
 
+    // D7: the department register's name is the route's `h1` and `document.title`
+    // until the department has loaded (its own name takes over in `DepartmentDetailHeader`).
+    const stateShell = (state: ReactNode) => (
+        <PageContainer>
+            <PageHeader
+                title={t('sidebar.departments', { ns: 'navigation' })}
+                back={{ label: t('department_detail.back_to_departments'), to: returnTo }}
+            />
+            {state}
+        </PageContainer>
+    );
+
     if (isLoading) {
-        return <LoadingState label={t('loading.data')} skeleton={<Skeleton className="h-40 rounded-2xl" />} />;
+        return stateShell(
+            <LoadingState label={t('loading.data')} skeleton={<Skeleton className="h-40 rounded-2xl" />} />,
+        );
     }
-    if (isAccessDenied) return <AccessDeniedState />;
+    if (isAccessDenied) return stateShell(<AccessDeniedState layout="section" />);
     if (error || !department) {
-        return (
+        return stateShell(
             <ErrorState
-                layout="page"
+                layout="section"
                 message={error ? t(error, { ns: 'common' }) : t('not_found', { ns: 'errorKeys' })}
                 onRetry={error ? refresh : undefined}
-                actions={<BackButton label={t('department_detail.back_to_departments')} to={returnTo} />}
-            />
+            />,
         );
     }
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             <DepartmentDetailHeader
                 department={department}
                 returnTo={returnTo}
@@ -96,7 +111,7 @@ export function DepartmentDetailPage() {
                 department={department}
                 onSelectTab={selectTab}
             />
-        </div>
+        </PageContainer>
     );
 }
 

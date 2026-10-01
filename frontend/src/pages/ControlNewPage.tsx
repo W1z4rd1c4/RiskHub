@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
-import type { ControlFormLocationState } from '@/components/control-form/useControlFormWorkflow';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
@@ -15,6 +16,7 @@ import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
+import { useVendorContextOutcome } from './vendors/useVendorContextOutcome';
 import {
     coerceVendorContext,
     type VendorDetailFlash,
@@ -42,21 +44,14 @@ export function ControlNewPage() {
         logMessage: 'Failed to load vendor control-create capabilities.',
     });
 
+    const reportVendorOutcome = useVendorContextOutcome();
     const navigateToVendor = (flash: VendorDetailFlash) => {
-        if (!returnTo) {
-            void navigate('/controls');
-            return;
-        }
-        void navigate(returnTo, {
-            state: {
-                vendorFlash: flash,
-            },
-        });
+        reportVendorOutcome(flash);
+        void navigate(returnTo ?? '/controls');
     };
 
     const handleVendorContextSuccess = async (
         controlId: number,
-        _locationState?: ControlFormLocationState,
         acceptNavigation?: () => void,
     ) => {
         if (!vendorId || !returnTo) {
@@ -101,18 +96,21 @@ export function ControlNewPage() {
     const gateState = combineCapabilityGateStates([createGateState.state, vendorContextGate.state]);
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col gap-2">
-                <button
-                    onClick={() => navigate(isVendorContext ? returnTo! : controlListReturnTo)}
-                    className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-accent-text transition-colors uppercase tracking-widest mb-2"
-                >
-                    <ArrowLeft className="h-3 w-3" />
-                    {isVendorContext ? t('vendors:links.actions.back_to_vendor') : `${t('common:actions.back')} ${t('controls:title')}`}
-                </button>
-                <h2 className="text-3xl font-black text-foreground tracking-tighter">{t('controls:new_control')}</h2>
-                <p className="text-muted-foreground font-medium tracking-tight">{t('controls:page_subtitle')}</p>
-            </div>
+        <PageContainer size="form">
+            {/* D7 / D14 (PG-12): one `h1`, a whole-phrase back label naming the destination. */}
+            <PageHeader
+                title={t('controls:new_control')}
+                description={t('controls:page_subtitle')}
+                icon={Plus}
+                back={{
+                    label: isVendorContext ? t('vendors:links.actions.back_to_vendor') : t('controls:detail.back_to_catalog'),
+                    onClick: () => void navigate(isVendorContext ? returnTo! : controlListReturnTo),
+                }}
+                breadcrumbs={isVendorContext ? undefined : [
+                    { label: t('navigation:sidebar.controls'), to: controlListReturnTo },
+                    { label: t('controls:new_control') },
+                ]}
+            />
 
             {gateState !== 'allowed' ? (
                 <FormCapabilityGateState state={gateState} onRetry={() => { createGateState.retry(); vendorContextGate.retry(); }} />
@@ -126,16 +124,15 @@ export function ControlNewPage() {
                         allowRiskLinking={!isVendorContext}
                         onSuccess={isVendorContext
                             ? handleVendorContextSuccess
-                            : (controlId, locationState) => navigate(
+                            : (controlId) => navigate(
                                 appendRegisterReturnTo(`/controls/${controlId}`, controlListReturnTo),
-                                locationState ? { state: locationState } : undefined,
                             )}
                         onCancel={() => navigate(isVendorContext ? returnTo! : controlListReturnTo)}
                         firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
                     />
                 </motion.div>
             )}
-        </div>
+        </PageContainer>
     );
 }
 

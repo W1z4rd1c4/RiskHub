@@ -221,11 +221,10 @@
   "actions": {
     "link_control": "Link Control",
     "link_kri": "Link KRI",
-    "unlink": "Unlink",
     "unarchive": "Unarchive",
     "export": "Export",
     "export_excel": "Export CSV",
-    "back_to_register": "Back to Register"
+    "back_to_register": "Back to Risks"
   },
   "form": {
     "owner_search": {
@@ -341,10 +340,6 @@
   },
   "tooltips": {
     "unarchive_risk": "Unarchive risk"
-  },
-  "confirmation": {
-    "archive_title": "Archive Risk",
-    "archive_message": "\"{{riskName}}\"\n\nThis will move the risk to archived status."
   },
   "messages": {
     "archive_submitted_for_approval": "Archive request submitted for approval. The risk has not been archived yet.",

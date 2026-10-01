@@ -8,6 +8,7 @@ import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
 import { getQuestionnaireStatusBadge, getQuestionnaireStatusLabel } from './approvalsPresentation';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 interface QuestionnaireInboxListProps {
     questionnaires: RiskQuestionnaireListItem[];
@@ -28,18 +29,17 @@ export function QuestionnaireInboxList({
 }: QuestionnaireInboxListProps) {
     if (outcome.kind === 'initial-loading') {
         return (
-            <div className="flex items-center justify-center py-20" role="status">
-                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                <span className="sr-only">{t('common:loading.generic')}</span>
-            </div>
+            <LoadingState className="py-20" label={t('common:loading.generic')} />
         );
     }
 
     if (outcome.kind === 'denied') {
         return (
-            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                {t('approvals:errors.questionnaire_access_denied')}
-            </div>
+            <AccessDeniedState
+                layout="section"
+                descriptionKey="errors.questionnaire_access_denied"
+                ns="approvals"
+            />
         );
     }
 
@@ -56,30 +56,27 @@ export function QuestionnaireInboxList({
 
     if (outcome.kind === 'empty') {
         return (
-            <div className="py-20 text-center border-2 border-dashed border-border rounded-2xl bg-tint/[0.01]">
-                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-foreground mb-2">{t('empty_state.all_caught_up')}</h3>
-                <p className="text-muted-foreground max-w-sm mx-auto">{t('empty_state.no_questionnaires')}</p>
-            </div>
+            <EmptyState
+                icon={CheckCircle2}
+                title={t('empty_state.all_caught_up')}
+                description={t('empty_state.no_questionnaires')}
+                className="rounded-2xl border-2 border-dashed border-border"
+            />
         );
     }
 
     return (
         <div className="space-y-4">
             {loadError && (
-                <div role="alert" className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                    <span>{loadError}</span>
-                    <button
-                        type="button"
-                        onClick={onRetry}
-                        aria-busy={retrying}
-                        aria-disabled={retrying}
-                        className="ml-auto rounded-lg border border-current px-3 py-2 font-medium"
-                    >
-                        {t('common:actions.retry')}
-                    </button>
+                <>
+                    <ErrorState
+                        variant={hasStaleData ? 'banner' : 'block'}
+                        message={loadError}
+                        onRetry={onRetry}
+                        isRetrying={retrying}
+                    />
                     {retrying && <span role="status" className="sr-only">{t('approvals:status.questionnaire_retrying')}</span>}
-                </div>
+                </>
             )}
             {(outcome.kind === 'content' || hasStaleData) && questionnaires.map((questionnaire) => (
                 <motion.div

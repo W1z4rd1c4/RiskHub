@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { SidebarNavRoute } from '@/routing';
 import { goToApi } from '@/services/goToApi';
@@ -29,7 +29,8 @@ const RECORD_STATUS_TRANSLATION_KEYS: Readonly<Record<string, string>> = {
 };
 
 export function DestinationLauncher({ routes }: DestinationLauncherProps) {
-    const { t, i18n } = useTranslation('navigation');
+    const { t } = useTranslation('navigation');
+    const format = useFormat();
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -61,12 +62,12 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
     const trimmedQuery = query.trim();
     const recordQueryToken = `${recordQueryRevision}\u0000${trimmedQuery}`;
     const debouncedRecordQueryToken = useDebouncedValue(recordQueryToken);
-    const normalizedQuery = trimmedQuery.toLocaleLowerCase(i18n.language);
+    const normalizedQuery = trimmedQuery.toLocaleLowerCase(format.locale);
     const filteredDestinations = normalizedQuery.length === 0
         ? []
         : destinations.filter((destination) => (
-            destination.label.toLocaleLowerCase(i18n.language).includes(normalizedQuery)
-            || destination.supportingTerm?.toLocaleLowerCase(i18n.language).includes(normalizedQuery)
+            destination.label.toLocaleLowerCase(format.locale).includes(normalizedQuery)
+            || destination.supportingTerm?.toLocaleLowerCase(format.locale).includes(normalizedQuery)
         ));
     const destinationOptions = filteredDestinations.map((destination) => ({
         id: `${listboxId}-destination-${destination.key}`,

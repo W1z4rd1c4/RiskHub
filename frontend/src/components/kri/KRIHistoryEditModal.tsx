@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { formatKriPeriodDate } from '@/lib/kriHistory';
 
 interface KRIHistoryEditModalProps {
@@ -21,7 +21,8 @@ interface KRIHistoryEditModalProps {
 }
 
 export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, onError }: KRIHistoryEditModalProps) {
-    const { t, i18n } = useTranslation(['kris', 'common', 'errorKeys']);
+    const { t } = useTranslation(['kris', 'common', 'errorKeys']);
+    const format = useFormat();
     const [newValue, setNewValue] = useState(entry.value.toString());
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,7 +76,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
         >
             <DialogHeader
                 title={t('history_edit.request_correction', { ns: 'kris' })}
-                description={`${t('history_edit.period', { ns: 'kris' })}: ${formatKriPeriodDate(entry.period_end, i18n.language)}`}
+                description={`${t('history_edit.period', { ns: 'kris' })}: ${formatKriPeriodDate(entry.period_end, format.locale)}`}
                 descriptionId={descriptionId}
                 icon={Edit3}
                 tone="warning"

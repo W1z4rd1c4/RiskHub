@@ -7,6 +7,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -27,6 +28,10 @@ interface RoleModalProps {
     onClose: () => void;
     onSave: (data: RoleHubCreate | RoleHubUpdate) => Promise<void>;
     permissionsLoading: boolean;
+    /** The permission catalogue failed to load (no cached data). */
+    permissionsLoadFailed?: boolean;
+    permissionsRefetching?: boolean;
+    onRetryPermissions?: () => void;
     role?: RoleHubRead | null;
 }
 
@@ -36,6 +41,9 @@ export function RoleModal({
     onClose,
     onSave,
     permissionsLoading,
+    permissionsLoadFailed = false,
+    permissionsRefetching = false,
+    onRetryPermissions,
     role,
 }: RoleModalProps) {
     const { t } = useTranslation(['admin', 'common', 'settings']);
@@ -161,9 +169,18 @@ export function RoleModal({
                             {t('admin:roles_panel.modal.fields.permissions')}
                         </span>
                         {permissionsLoading ? (
-                            <div className="text-muted-foreground text-sm py-4 text-center">
-                                {t('admin:roles_panel.modal.loading_permissions')}
-                            </div>
+                            <LoadingState
+                                layout="inline"
+                                className="justify-center py-4"
+                                label={t('admin:roles_panel.modal.loading_permissions')}
+                            />
+                        ) : permissionsLoadFailed ? (
+                            <ErrorState
+                                layout="inline"
+                                onRetry={onRetryPermissions}
+                                isRetrying={permissionsRefetching}
+                                testId="role-modal-permissions-error"
+                            />
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
                                 {Object.entries(permissionsByResource).map(([resource, permissions]) => (
@@ -224,7 +241,7 @@ export function RoleModal({
                     onCancel={onClose}
                     cancelLabel={t('common:actions.cancel')}
                     submitType="submit"
-                    submitDisabled={permissionsLoading}
+                    submitDisabled={permissionsLoading || permissionsLoadFailed}
                     isSubmitting={saving}
                     submitLabel={saving ? t('admin:roles_panel.modal.saving') : t('admin:roles_panel.modal.save_role')}
                 />

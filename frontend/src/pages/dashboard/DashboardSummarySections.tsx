@@ -55,7 +55,7 @@ export function DashboardSummarySections({
                         </div>
                         <div>
                             <p className="text-sm font-bold text-muted-foreground mb-1">{stat.title}</p>
-                            <h3 className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</h3>
+                            <p className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</p>
                         </div>
                     </button>
                 ))}

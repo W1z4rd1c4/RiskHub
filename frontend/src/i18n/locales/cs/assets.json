@@ -58,6 +58,8 @@
         "alternative_names": "Alternativní názvy",
         "business_owner": "Business vlastník",
         "owner_department": "Vlastnický útvar",
+        "business_owner_department": "Business vlastník — vlastnický útvar",
+        "ict_owner_department": "ICT vlastník — vlastnický útvar",
         "ict_owner": "ICT vlastník",
         "gdpr_relevance": "GDPR relevance",
         "ai_relevance": "AI relevance",
@@ -154,7 +156,6 @@
         "remove": "Odebrat vazbu",
         "spof": "SPOF",
         "remove_confirm": {
-            "title": "Odebrat vazbu?",
             "message": "Odebrat vazbu na {{name}}? Vazbu lze kdykoli znovu vytvořit."
         },
         "errors": {

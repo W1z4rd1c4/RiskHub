@@ -2,10 +2,11 @@ import { motion } from 'framer-motion';
 import type { NavigateFunction } from 'react-router-dom';
 import { Activity, AlertTriangle, Building2, Clock, Handshake, Star } from 'lucide-react';
 import type { DashboardCommitteeSummary } from '@/services/dashboardApi';
-import type { SafeTFunction } from '@/i18n/hooks';
+import { useFormat, type SafeTFunction } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { legacyRiskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { ordinalSeverityBand, riskScoreVariantClass, severityClass } from '@/lib/severity';
+import { EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -16,41 +17,26 @@ const ACTION_COLORS: Record<string, string> = {
     reject: 'bg-warning/10 text-warning-text',
 };
 
-function formatTimeAgo(dateStr: string, t: SafeTFunction): string {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return t('risk_committee.today');
-    if (diffDays === 1) return t('risk_committee.yesterday');
-    if (diffDays < 7) return t('risk_committee.days_ago', { count: diffDays });
-    if (diffDays < 30) return t('risk_committee.weeks_ago', { count: Math.floor(diffDays / 7) });
-    return t('risk_committee.months_ago', { count: Math.floor(diffDays / 30) });
-}
-
-function getVendorRiskColor(score: number): string {
-    if (score >= 4) return 'text-destructive';
-    if (score >= 3) return 'text-warning-text';
-    return 'text-success-text';
-}
-
 export function RiskCommitteeLoadingState() {
     return (
         <div className="space-y-6">
             <QuarterlyComparisonWidget />
-            <div className="grid gap-6 lg:grid-cols-3">
-                {Array(3).fill(0).map((_, i) => (
-                    <div key={i} className="glass-card animate-pulse">
-                        <div className="h-8 bg-tint/5 rounded mb-4 w-1/3" />
-                        <div className="space-y-3">
-                            {Array(3).fill(0).map((_, j) => (
-                                <div key={j} className="h-16 bg-tint/5 rounded" />
-                            ))}
-                        </div>
+            <LoadingState
+                skeleton={(
+                    <div className="grid gap-6 lg:grid-cols-3">
+                        {Array(3).fill(0).map((_, i) => (
+                            <div key={i} className="glass-card">
+                                <Skeleton className="mb-4 h-8 w-1/3" />
+                                <div className="space-y-3">
+                                    {Array(3).fill(0).map((_, j) => (
+                                        <Skeleton key={j} className="h-16" />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                )}
+            />
         </div>
     );
 }
@@ -59,9 +45,11 @@ export function RiskCommitteeErrorState({ message, t }: { message: string | null
     return (
         <div className="space-y-6">
             <QuarterlyComparisonWidget />
-            <div className="glass-card">
-                <p className="text-muted-foreground text-sm">{message || t('risk_committee.no_summary_data')}</p>
-            </div>
+            {message ? (
+                <ErrorState layout="section" message={message} className="glass-card" />
+            ) : (
+                <EmptyState layout="section" title={t('risk_committee.no_summary_data')} className="glass-card" />
+            )}
         </div>
     );
 }
@@ -101,7 +89,7 @@ function CriticalRisksCard({
             </div>
 
             {summary.critical_risks.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('risk_committee.no_critical_risks')}</p>
+                <EmptyState layout="section" title={t('risk_committee.no_critical_risks')} className="py-6" />
             ) : (
                 <div className="space-y-3">
                     <p className="text-xs font-semibold text-muted-foreground">
@@ -131,7 +119,7 @@ function CriticalRisksCard({
                                     </div>
                                 </div>
                                 <span
-                                    className={`text-sm font-black shrink-0 ${legacyRiskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                    className={`text-sm font-black shrink-0 ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
                                 >
                                     {risk.net_score}
                                 </span>
@@ -194,7 +182,7 @@ function CriticalVendorsCard({
                     {t('risk_committee.restricted_by_access_scope', { ns: 'dashboard' })}
                 </p>
             ) : summary.critical_vendors.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('risk_committee.no_vendors_in_scope')}</p>
+                <EmptyState layout="section" title={t('risk_committee.no_vendors_in_scope')} className="py-6" />
             ) : (
                 <div className="space-y-3">
                     <p className="text-xs font-semibold text-muted-foreground">
@@ -212,7 +200,7 @@ function CriticalVendorsCard({
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <p className="text-sm font-bold text-foreground truncate">{v.name}</p>
-                                <span className={`text-sm font-black ${getVendorRiskColor(v.risk_score_1_5)}`}>
+                                <span className={`text-sm font-black ${severityClass('text', ordinalSeverityBand(v.risk_score_1_5))}`}>
                                     {v.risk_score_1_5}/5
                                 </span>
                             </div>
@@ -241,7 +229,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
             </div>
 
             {summary.department_exposure.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('risk_committee.no_department_exposure_data')}</p>
+                <EmptyState layout="section" title={t('risk_committee.no_department_exposure_data')} className="py-6" />
             ) : (
                 <div className="space-y-3">
                     {summary.department_exposure.map((dept, index) => {
@@ -273,7 +261,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                                             initial={{ width: 0 }}
                                             animate={{ width: `${barWidth}%` }}
                                             transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
-                                            className="h-full bg-purple-400 rounded-full"
+                                            className="h-full bg-chart-2 rounded-full"
                                             role="progressbar"
                                         />
                                     </div>
@@ -291,6 +279,8 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
 }
 
 function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+    // PG-39: relative dates come from the shared locale-aware formatter.
+    const format = useFormat();
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -304,7 +294,7 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
             </div>
 
             {summary.recent_activity.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('risk_committee.no_recent_significant_activity')}</p>
+                <EmptyState layout="section" title={t('risk_committee.no_recent_significant_activity')} className="py-6" />
             ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto">
                     {summary.recent_activity.map((activity) => (
@@ -322,7 +312,7 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
                                     </p>
                                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                         <Clock className="h-3 w-3" />
-                                        {formatTimeAgo(activity.created_at, t)}
+                                        {format.relative(activity.created_at)}
                                     </p>
                                 </div>
                             </div>

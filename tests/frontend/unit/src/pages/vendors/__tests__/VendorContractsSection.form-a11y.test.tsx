@@ -107,6 +107,26 @@ describe('VendorContractsSection form — Field migration (#59)', () => {
         expect(screen.getByRole('button', { name: i18n.t('vendors:actions.refresh') })).toBeInTheDocument();
     });
 
+    it('renders the closed-lists notice as a warning InlineMessage whose refresh refetches (AX-05)', async () => {
+        const user = userEvent.setup();
+        mockGetClosedLists.mockRejectedValueOnce(new Error('network down')).mockResolvedValue({});
+        renderSection();
+
+        const form = await openForm(user);
+
+        const notice = (await within(form).findByText(i18n.t('vendors:contracts.form.lists_failed'))).closest('[data-tone]');
+        expect(notice).toHaveAttribute('data-tone', 'warning');
+        expect(notice).toHaveAttribute('role', 'status');
+        const callsBefore = mockGetClosedLists.mock.calls.length;
+
+        await user.click(within(notice as HTMLElement).getByRole('button', { name: i18n.t('vendors:actions.refresh') }));
+
+        await waitFor(() => expect(mockGetClosedLists.mock.calls.length).toBeGreaterThan(callsBefore));
+        await waitFor(() => expect(
+            screen.queryByText(i18n.t('vendors:contracts.form.lists_failed')),
+        ).not.toBeInTheDocument());
+    });
+
     it('has no axe violations with the contract form open', async () => {
         const user = userEvent.setup();
         const { container } = renderSection();

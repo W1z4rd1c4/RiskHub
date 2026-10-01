@@ -9,7 +9,7 @@ import {
     User,
 } from 'lucide-react';
 
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { vendorValueLabel } from '@/lib/vendorValues';
@@ -91,7 +91,8 @@ export function VendorOverviewTab({
     onNavigateToRisk,
     vendor,
 }: VendorOverviewTabProps) {
-    const { t, i18n } = useTranslation(['vendors', 'common']);
+    const { t } = useTranslation(['vendors', 'common']);
+    const format = useFormat();
     const [summary, setSummary] = useState<VendorOverviewSummary>(() => (
         createVendorOverviewSummary(vendor.id)
     ));
@@ -431,11 +432,11 @@ export function VendorOverviewTab({
             <div className="flex items-center justify-end gap-6 text-xs text-muted-foreground font-medium">
                 <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {t('overview.meta.created_at')}: {formatDateTime(vendor.created_at, i18n.language)}
+                    {t('overview.meta.created_at')}: {formatDateTime(vendor.created_at, format.locale)}
                 </div>
                 <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {t('overview.meta.updated_at')}: {formatDateTime(vendor.updated_at, i18n.language)}
+                    {t('overview.meta.updated_at')}: {formatDateTime(vendor.updated_at, format.locale)}
                 </div>
             </div>
         </div>

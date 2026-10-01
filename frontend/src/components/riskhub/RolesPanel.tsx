@@ -1,12 +1,14 @@
-import { AlertCircle, Plus, Shield } from 'lucide-react';
+import { Plus, Shield } from 'lucide-react';
 
-import { useTranslation } from '@/i18n/hooks';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 
 import { RoleDeleteDialog } from './roles/RoleDeleteDialog';
 import { RoleModal } from './roles/RoleModal';
 import { RolesTable } from './roles/RolesTable';
 import { useRolesPanelData } from './roles/useRolesPanelData';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 
 export function RolesPanel() {
     const { t } = useTranslation(['admin', 'common']);
@@ -15,16 +17,16 @@ export function RolesPanel() {
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.roles, 'can_create');
 
     if (rolesPanel.rolesLoading) {
-        return <div className="text-muted-foreground text-center py-8">{t('common:loading.roles')}</div>;
+        return <LoadingState label={t('common:loading.roles')} />;
+    }
+    if (rolesPanel.rolesError && !rolesPanel.rolesHasData) {
+        return <ErrorState onRetry={rolesPanel.retryRoles} isRetrying={rolesPanel.rolesRefetching} />;
     }
 
     return (
         <div className="space-y-4">
-            {rolesPanel.actionErrorKey && (
-                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {t(rolesPanel.actionErrorKey, { ns: 'errorKeys' })}
-                </div>
+            {rolesPanel.actionErrorKey && !rolesPanel.deleteConfirm && (
+                <InlineMessage tone="danger">{translateUiMessage(t, rolesPanel.actionErrorKey)}</InlineMessage>
             )}
 
             <div className="flex items-center justify-between">
@@ -69,13 +71,18 @@ export function RolesPanel() {
                 onClose={rolesPanel.closeRoleModal}
                 onSave={rolesPanel.handleSave}
                 permissionsLoading={rolesPanel.permissionsLoading}
+                permissionsLoadFailed={rolesPanel.permissionsLoadFailed}
+                permissionsRefetching={rolesPanel.permissionsRefetching}
+                onRetryPermissions={rolesPanel.retryPermissions}
                 role={rolesPanel.editingRole}
             />
 
             <RoleDeleteDialog
-                onCancel={() => rolesPanel.setDeleteConfirm(null)}
-                onConfirm={rolesPanel.handleDelete}
+                onCancel={rolesPanel.closeDelete}
+                onConfirm={() => void rolesPanel.handleDelete()}
                 role={rolesPanel.deleteConfirm}
+                isBusy={rolesPanel.isDeleting}
+                errorText={translateUiMessage(t, rolesPanel.actionErrorKey) || null}
             />
         </div>
     );

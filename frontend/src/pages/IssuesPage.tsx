@@ -2,7 +2,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SupportedLanguage } from '@/i18n';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { IssueSummary } from '@/types/issue';
@@ -19,10 +18,10 @@ export function IssuesPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/issues');
-    const { t, i18n } = useTranslation(['issues', 'common']);
-    const language = i18n.language as SupportedLanguage;
-    const state = useIssuesPageState(language);
+    const { t } = useTranslation(['issues', 'common']);
+    // PG-35: one normalized UI language (the value LanguageProvider reports).
     const format = useFormat();
+    const state = useIssuesPageState(format.locale);
     const columns = buildIssueColumns({ format, t });
     const views = ISSUE_REGISTER_CONFIG.views.filter((view) => view.value !== 'vendor' || resolveCapabilityFlag(state.capabilities, 'can_view_vendor_contexts'));
 
@@ -71,7 +70,7 @@ export function IssuesPage() {
         itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage}
         onRetry={() => void state.fetchIssues()}
-        emptyMessage={state.hasLoadedOnce ? t('list.empty') : t('common:loading.data')}
+        emptyMessage={t('list.empty')}
         grouping={{
             groups: state.groups,
             onBack: state.clearSelectedGroup,

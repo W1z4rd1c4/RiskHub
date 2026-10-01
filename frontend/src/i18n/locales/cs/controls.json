@@ -211,6 +211,7 @@
     "not_specified": "Neuvedeno",
     "mitigated_risks": "Zmírňovaná rizika",
     "unnamed_risk": "Riziko bez názvu",
+    "linked_risks_denied": "Nemáte oprávnění zobrazit rizika propojená s touto kontrolou.",
     "archived_risks": "Archivovaná rizika ({{count}})",
     "manage_risk_linkage": "Spravovat propojení rizik",
     "execution_audit_trail": "Auditní stopa vykonání",

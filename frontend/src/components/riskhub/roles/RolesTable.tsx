@@ -1,4 +1,4 @@
-import { Edit, RotateCcw, Trash2, Users } from 'lucide-react';
+import { Archive, Edit, RotateCcw, Users } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
@@ -95,10 +95,10 @@ export function RolesTable({ onDelete, onEdit, onRestore, roles }: RolesTablePro
                                             <button
                                                 onClick={() => onDelete(role)}
                                                 className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                title={t('common:actions.delete')}
-                                                aria-label={t('common:actions.delete')}
+                                                title={t('common:actions.archive_named', { name: role.display_name })}
+                                                aria-label={t('common:actions.archive_named', { name: role.display_name })}
                                             >
-                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                <Archive className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
 

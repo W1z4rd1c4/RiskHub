@@ -1,26 +1,39 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries';
 import type { ActivityLogEntry } from '@/types/activityLog';
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, fallback?: string) => {
-            const translations: Record<string, string> = {
-                'activity_log.select_risk': 'Select a risk to view activity.',
-                'activity_log.select_risk_hint': 'Choose a risk in the filter above to load entries.',
-            };
-            return translations[key] ?? fallback ?? key;
-        },
-        i18n: { language: 'en' },
-    }),
-}));
-
-vi.mock('@/i18n/formatters', () => ({
-    formatDateTimeValue: () => '2026-04-06 10:00',
-    formatRelativeDateValue: () => 'just now',
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string, fallback?: string) => {
+                const translations: Record<string, string> = {
+                    'activity_log.select_risk': 'Select a risk to view activity.',
+                    'activity_log.select_risk_hint': 'Choose a risk in the filter above to load entries.',
+                };
+                return translations[key] ?? fallback ?? key;
+            },
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 function renderEntries(entries: ActivityLogEntry[]) {
     render(
@@ -130,5 +143,86 @@ describe('ActivityLogEntries', () => {
         );
 
         expect(screen.getByText('Select a risk to view activity.')).toBeInTheDocument();
+    });
+
+    it('announces the first load through the shared loading state', () => {
+        render(
+            <ActivityLogEntries
+                entries={[]}
+                outcome={{ kind: 'initial-loading' }}
+                onRetry={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('status')).toHaveTextContent('loading.activity_log');
+    });
+
+    it('renders access denied as an announced shared denied state', () => {
+        render(
+            <ActivityLogEntries
+                entries={[]}
+                outcome={{ kind: 'denied' }}
+                onRetry={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('alert')).toHaveTextContent('access.denied_activity_log');
+        expect(screen.getByRole('heading', { name: 'access.denied' })).toBeInTheDocument();
+    });
+
+    it('renders a load failure as an error with retry instead of an empty list', () => {
+        const onRetry = vi.fn();
+        render(
+            <ActivityLogEntries
+                entries={[]}
+                outcome={{ kind: 'fatal-error', errorKey: 'errorKeys.server', isRetrying: false }}
+                onRetry={onRetry}
+            />
+        );
+
+        expect(screen.getByRole('alert')).toHaveTextContent('activity_log.failed_to_load');
+        expect(screen.queryByText('empty.no_activity_logs')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'actions.retry' }));
+        expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps rows visible under a stale banner and marks the retry busy while retrying', () => {
+        render(
+            <ActivityLogEntries
+                entries={[{
+                    id: 9,
+                    entity_type: 'risk',
+                    entity_id: 1,
+                    entity_name: 'R-1',
+                    action: 'update',
+                    actor_id: 1,
+                    actor_name: 'Stale Actor',
+                    department_id: 1,
+                    changes: null,
+                    description: 'Still visible',
+                    created_at: '2026-04-06T10:00:00Z',
+                }]}
+                outcome={{ kind: 'stale-with-error', errorKey: 'errorKeys.server', isRetrying: true }}
+                onRetry={() => {}}
+            />
+        );
+
+        expect(screen.getByRole('alert')).toHaveTextContent('activity_log.may_be_out_of_date');
+        expect(screen.getByText('Still visible')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'actions.retry' })).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByText('activity_log.retrying')).toBeInTheDocument();
+    });
+
+    it('renders the filtered-empty state as no results with a hint', () => {
+        render(
+            <ActivityLogEntries
+                entries={[]}
+                outcome={{ kind: 'empty', isRefreshing: false }}
+                onRetry={() => {}}
+            />
+        );
+
+        expect(screen.getByText('empty.no_activity_logs')).toBeInTheDocument();
+        expect(screen.getByText('activity_log.try_adjusting_filters')).toBeInTheDocument();
     });
 });

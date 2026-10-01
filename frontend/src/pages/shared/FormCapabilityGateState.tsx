@@ -1,32 +1,31 @@
-import { ShieldAlert } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
+import { AccessDeniedState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
+import type { Namespace } from '@/i18n/types';
 
 interface FormCapabilityGateStateProps {
     state: 'loading' | 'denied' | 'error';
     onRetry?: () => void;
+    /** Module-specific denial text; defaults to the shared `errors.forbidden`. */
+    deniedDescriptionKey?: string;
+    deniedNs?: Namespace;
 }
 
-export function FormCapabilityGateState({ state, onRetry }: FormCapabilityGateStateProps) {
+/** Create-page capability gate: one shared state per outcome (DS-17, §4.15). */
+export function FormCapabilityGateState({
+    state,
+    onRetry,
+    deniedDescriptionKey,
+    deniedNs,
+}: FormCapabilityGateStateProps) {
     const { t } = useTranslation(['common']);
 
     if (state === 'loading') {
-        return (
-            <div role="status" aria-busy="true" className="flex items-center justify-center gap-3 h-[40vh] text-foreground">
-                <div aria-hidden="true" className="w-8 h-8 border-4 border-current border-t-transparent rounded-full animate-spin" />
-                <span>{t('access.checking')}</span>
-            </div>
-        );
+        return <LoadingState layout="section" label={t('access.checking')} />;
     }
 
-    return (
-        <div role="alert" className="rounded-2xl border border-border bg-card px-5 py-6 text-sm text-foreground">
-            <div className="flex items-center gap-3">
-                <ShieldAlert aria-hidden="true" className="h-5 w-5 shrink-0" />
-                <span>{t(state === 'error' ? 'access.check_failed' : 'access.denied')}</span>
-                {state === 'error' && <Button variant="outline" className="text-foreground hover:bg-muted" onClick={onRetry}>{t('actions.retry')}</Button>}
-            </div>
-        </div>
-    );
+    if (state === 'error') {
+        return <ErrorState layout="section" messageKey="access.check_failed" onRetry={onRetry} />;
+    }
+
+    return <AccessDeniedState layout="section" descriptionKey={deniedDescriptionKey} ns={deniedNs} />;
 }

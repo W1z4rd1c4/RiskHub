@@ -130,10 +130,22 @@ const RESTORABLE_REGISTERS = [
     { fetchMock: apiMocks.getVendors, name: 'Vendor', path: '/vendors', restoreMock: apiMocks.restoreVendor, useCollectionState: useVendorCollectionState },
 ] as const;
 
-/** Registers whose row restore reports through `useFeedback()` toasts (D9, FB-01); the rest migrate in W7. */
-const TOAST_RESTORE_REGISTER_NAMES: ReadonlySet<string> = new Set(['Risk']);
-const TOAST_RESTORE_REGISTERS = RESTORABLE_REGISTERS.filter(({ name }) => TOAST_RESTORE_REGISTER_NAMES.has(name));
-const REGISTER_ERROR_RESTORE_REGISTERS = RESTORABLE_REGISTERS.filter(({ name }) => !TOAST_RESTORE_REGISTER_NAMES.has(name));
+/**
+ * Every register's row restore reports through `useFeedback()` toasts (D9,
+ * FB-01). Risk keeps its module copy; the rest use `common:outcome.*` with the
+ * row's display name (KRI and Process rows here carry no `metric_name` /
+ * `l1_process`, so they fall back to the generic title).
+ */
+const RESTORE_TOAST_TEXT: Readonly<Record<string, { failed: string; restored: string }>> = {
+    Risk: { failed: 'The risk could not be restored.', restored: 'Risk restored successfully.' },
+    KRI: { failed: 'The record could not be restored.', restored: 'Record restored' },
+    Process: { failed: 'The record could not be restored.', restored: 'Record restored' },
+};
+const DEFAULT_RESTORE_TOAST_TEXT = { failed: 'The record could not be restored.', restored: 'Restored: Query A row' };
+const TOAST_RESTORE_REGISTERS = RESTORABLE_REGISTERS.map((register) => ({
+    ...register,
+    toastText: RESTORE_TOAST_TEXT[register.name] ?? DEFAULT_RESTORE_TOAST_TEXT,
+}));
 
 const populatedPage = {
     capabilities: { can_create: true, can_export: true, can_view_risk_contexts: true, can_view_vendor_contexts: true },
@@ -292,23 +304,9 @@ describe('eight-register collection query identity', () => {
         },
     );
 
-    it.each(REGISTER_ERROR_RESTORE_REGISTERS)(
-        '$name applies a same-query restore failure without clearing safe rows',
-        async ({ path, restoreMock, useCollectionState }) => {
-            restoreMock.mockRejectedValueOnce(new ApiClientError({ status: 500, messageKey: 'errors.server' }));
-            const { result } = renderHook(() => useCollectionState(), { wrapper: routeWrapper(path) });
-            await waitFor(() => expect(result.current.items).toHaveLength(1));
-
-            await act(async () => { await result.current.restore?.(1); });
-
-            expect(result.current.items).toHaveLength(1);
-            expect(result.current.errorKey).not.toBeNull();
-        },
-    );
-
     it.each(TOAST_RESTORE_REGISTERS)(
         '$name reports a restore failure as an error toast and keeps the register usable',
-        async ({ fetchMock, path, restoreMock, useCollectionState }) => {
+        async ({ fetchMock, path, restoreMock, toastText, useCollectionState }) => {
             restoreMock.mockRejectedValueOnce(new ApiClientError({ status: 500, messageKey: 'errorKeys.server' }));
             const { result } = renderHook(() => useCollectionState(), { wrapper: routeWrapper(path) });
             await waitFor(() => expect(result.current.items).toHaveLength(1));
@@ -319,7 +317,7 @@ describe('eight-register collection query identity', () => {
             expect(result.current.items).toHaveLength(1);
             expect(result.current.errorKey).toBeNull();
             expect(fetchMock.mock.calls).toHaveLength(fetchesBeforeRestore);
-            const toast = (await screen.findByText('The risk could not be restored.')).closest('li');
+            const toast = (await screen.findByText(toastText.failed)).closest('li');
             expect(toast).toHaveAttribute('data-tone', 'danger');
             expect(toast).toHaveTextContent('Server error. Please try again later.');
         },
@@ -327,13 +325,13 @@ describe('eight-register collection query identity', () => {
 
     it.each(TOAST_RESTORE_REGISTERS)(
         '$name confirms a successful restore with a success toast',
-        async ({ path, useCollectionState }) => {
+        async ({ path, toastText, useCollectionState }) => {
             const { result } = renderHook(() => useCollectionState(), { wrapper: routeWrapper(path) });
             await waitFor(() => expect(result.current.items).toHaveLength(1));
 
             await act(async () => { await result.current.restore?.(1); });
 
-            const toast = (await screen.findByText('Risk restored successfully.')).closest('li');
+            const toast = (await screen.findByText(toastText.restored)).closest('li');
             expect(toast).toHaveAttribute('data-tone', 'success');
         },
     );

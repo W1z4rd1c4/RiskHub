@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { ApiClientError } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
@@ -56,28 +58,21 @@ interface UseControlFormWorkflowArgs {
     isEdit: boolean;
     onSuccess?: (
         controlId: number,
-        locationState?: ControlFormLocationState,
         acceptNavigation?: () => void,
     ) => void | Promise<void>;
+    /** Entity page shown after an approval-routed edit (D12 / PM-2); defaults to the control. */
+    approvalReturnTo?: string;
     users: UserLookupItem[];
     t: SafeTFunction;
 }
 
-interface ControlFlashState {
-    tone: 'warn';
-    message: string;
-}
-
-export interface ControlFormLocationState {
-    controlFlash: ControlFlashState;
-}
-
-export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, t }: UseControlFormWorkflowArgs) {
+export function useControlFormWorkflow({ initialData, isEdit, onSuccess, approvalReturnTo, users, t }: UseControlFormWorkflowArgs) {
     const navigate = useNavigate();
+    const feedback = useFeedback();
+    const announceApprovalQueued = useApprovalQueued();
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
     const [formData, setFormData] = useState<Partial<Control>>({
         name: '',
         description: '',
@@ -129,7 +124,6 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
         try {
             setIsSubmitting(true);
             setError(null);
-            setApprovalQueued(null);
 
             let controlId = initialData?.id;
 
@@ -137,9 +131,13 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
                 const result = await controlApi.updateControl(initialData.id, formData as ControlUpdate);
                 const parsed = parseUpdateResult(result);
                 if (parsed.kind === 'approval') {
+                    // D12 / PM-2: back to the control with the pending notice + toast.
                     acceptCurrentSnapshot(submittedSnapshot);
-                    setApprovalQueued({ message: parsed.message });
                     setIsSubmitting(false);
+                    announceApprovalQueued({
+                        approvalId: parsed.approvalId,
+                        to: approvalReturnTo ?? `/controls/${initialData.id}`,
+                    });
                     return;
                 }
             } else {
@@ -147,7 +145,6 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
                 controlId = newControl.id;
             }
 
-            let controlFlash: ControlFlashState | null = null;
             if (controlId && selectedRiskId) {
                 try {
                     await controlApi.linkRisk(controlId, {
@@ -157,24 +154,20 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
                     });
                 } catch (linkErr) {
                     logError('Control saved but failed to link risk:', linkErr);
-                    controlFlash = {
-                        tone: 'warn',
-                        message: t(isEdit
+                    // D9: the partial outcome is a warning toast raised before navigating.
+                    feedback.warning({
+                        title: t(isEdit
                             ? 'controls:form.risk_link_failed_after_update'
                             : 'controls:form.risk_link_failed_after_create'),
-                    };
+                    });
                 }
             }
 
             acceptCurrentSnapshot(submittedSnapshot);
             if (onSuccess && controlId) {
-                await onSuccess(
-                    controlId,
-                    controlFlash ? { controlFlash } : undefined,
-                    () => acceptCurrentSnapshot(submittedSnapshot),
-                );
+                await onSuccess(controlId, () => acceptCurrentSnapshot(submittedSnapshot));
             } else if (controlId) {
-                void navigate(`/controls/${controlId}`, controlFlash ? { state: { controlFlash } } : undefined);
+                void navigate(`/controls/${controlId}`);
             } else {
                 void navigate('/controls');
             }
@@ -187,13 +180,11 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, users, 
     };
 
     return {
-        approvalQueued,
         currentStep,
         error,
         formData,
         isSubmitting,
         handleInputChange,
-        setApprovalQueued,
         setCurrentStep,
         setError,
         submit,

@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
@@ -17,36 +16,6 @@ import { mergeVendorOptions, syncSelectedVendorOptions, validateKriDetails, vali
 import { createKriFormSnapshot, useKriFormState } from './useKriFormState';
 import { useKriLookups } from './useKriLookups';
 import { useKriSubmit } from './useKriSubmit';
-
-type KriFormTranslator = ReturnType<typeof useTranslation>['t'];
-
-function KriApprovalQueuedFeedback({
-    approvalQueued,
-    onClose,
-    t,
-}: {
-    approvalQueued: { message: string } | null;
-    onClose: () => void;
-    t: KriFormTranslator;
-}) {
-    if (!approvalQueued) {
-        return null;
-    }
-
-    const message = approvalQueued.message.startsWith('errorKeys.')
-        ? t(approvalQueued.message, { ns: 'errorKeys' })
-        : approvalQueued.message;
-
-    return (
-        <ApprovalQueuedBanner
-            closeLabel={t('common:actions.close')}
-            message={message}
-            onClose={onClose}
-            title={t('approval_submitted', { ns: 'errorKeys' })}
-            viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
-        />
-    );
-}
 
 export function KRIFormContainer({
     initialData,
@@ -184,11 +153,6 @@ export function KRIFormContainer({
         <>
             <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-8">
                 <div className="glass-card flex min-h-[560px] flex-col">
-                    <KriApprovalQueuedFeedback
-                        approvalQueued={state.approvalQueued}
-                        onClose={() => setStatePatch({ approvalQueued: null })}
-                        t={t}
-                    />
                     {visibleError ? <KriFormErrorAlert error={visibleError} /> : null}
                     {vendorContext ? <KriVendorContextBanner vendorName={vendorContext.vendorName} /> : null}
 

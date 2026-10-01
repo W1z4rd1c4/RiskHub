@@ -11,7 +11,9 @@ const revokeSessionMock = vi.fn();
 const checkAllDirectoryUsersMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -82,7 +84,7 @@ describe('SessionsPanel', () => {
         expect(screen.queryByText('7')).not.toBeInTheDocument();
     });
 
-    it('refreshes sessions and shows the API error when revoke fails', async () => {
+    it('refreshes sessions and shows the translated API error key when revoke fails', async () => {
         revokeSessionMock.mockRejectedValueOnce(new ApiClientError({
             status: 400,
             code: 'SELF_REVOKE_BLOCKED',
@@ -97,7 +99,9 @@ describe('SessionsPanel', () => {
         const revokeButtons = screen.getAllByRole('button', { name: 'sessions.revoke' });
         fireEvent.click(revokeButtons[revokeButtons.length - 1]);
 
-        expect(await screen.findByText('Cannot revoke your own session')).toBeInTheDocument();
+        // GAP-C-12: the error key is translated and announced; backend text is never rendered.
+        expect(await screen.findByRole('alert')).toHaveTextContent('request_failed');
+        expect(screen.queryByText('Cannot revoke your own session')).not.toBeInTheDocument();
         await waitFor(() => {
             expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['adminSessions'] });
         });

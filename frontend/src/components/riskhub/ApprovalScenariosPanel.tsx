@@ -14,6 +14,7 @@ import {
 import { DialogBody } from '@/components/ui/dialog';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Switch } from '@/components/ui/switch';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 import { useState, useMemo, useEffect, useId } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
@@ -254,12 +255,19 @@ export function ApprovalScenariosPanel() {
         return found?.label.split('(')[0].trim() || roleValue;
     };
 
+    // DS-17 / GAP-C-11: shared loading and error (with retry) states.
     if (scenariosResource.isLoading) {
-        return <div className="text-muted-foreground text-center py-8">{t('common:loading.scenarios')}</div>;
+        return <LoadingState label={t('common:loading.scenarios')} />;
     }
 
-    if (scenariosResource.error) {
-        return <div className="text-destructive text-center py-8">{t('admin:errors.failed_to_load_approval_scenarios')}</div>;
+    if (scenariosResource.error && !scenariosResource.hasData) {
+        return (
+            <ErrorState
+                message={t('admin:errors.failed_to_load_approval_scenarios')}
+                onRetry={scenariosResource.retry}
+                isRetrying={scenariosResource.isFetching}
+            />
+        );
     }
 
     return (

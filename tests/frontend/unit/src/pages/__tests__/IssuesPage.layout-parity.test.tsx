@@ -113,7 +113,8 @@ describe('IssuesPage layout parity', () => {
         await screen.findByText('You do not have permission to view issues.');
         // DS-17: Issues uses the shared ReadAccessDeniedState like the other registers.
         expect(screen.getByRole('heading', { level: 2, name: 'Access Denied' })).toBeInTheDocument();
-        expect(screen.queryByText('Issues')).not.toBeInTheDocument();
+        // D7: the register title stays the route's one `h1` (and document title) when access is denied.
+        expect(screen.getByRole('heading', { level: 1, name: 'Issues' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });

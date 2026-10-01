@@ -1,5 +1,5 @@
-import { BADGE_TONES, type BadgeTone } from '@/lib/tones';
-import type { ControlMonitoringStatus } from '@/types/control';
+import { BADGE_TONES, type BadgeTone, type StatusTone } from '@/lib/tones';
+import type { ControlEffectiveness, ControlMonitoringStatus } from '@/types/control';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 
 // Status tones live in `lib/tones.ts` (audit 2026-09-30 §4.4 A); the
@@ -101,4 +101,22 @@ export function getKriMonitoringMeta(status?: KRIMonitoringStatus | null) {
         return KRI_MONITORING_FALLBACK;
     }
     return KRI_MONITORING_META[status] ?? KRI_MONITORING_FALLBACK;
+}
+
+// Control ↔ risk link effectiveness (PG-19): an outcome rating on the status
+// tones, three distinct steps, always rendered with its translated label.
+const CONTROL_EFFECTIVENESS_TONE: Readonly<Record<ControlEffectiveness, StatusTone>> = {
+    high: 'success',
+    medium: 'warning',
+    low: 'danger',
+};
+
+export function getControlEffectivenessMeta(level?: ControlEffectiveness | string | null): {
+    labelKey: string | null;
+    tone: StatusTone;
+} {
+    if (level === 'high' || level === 'medium' || level === 'low') {
+        return { labelKey: `controls:form.effectiveness.${level}`, tone: CONTROL_EFFECTIVENESS_TONE[level] };
+    }
+    return { labelKey: null, tone: 'neutral' };
 }

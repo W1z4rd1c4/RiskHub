@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ActivityLogPagination } from '@/components/activity-log/ActivityLogPagination';
+import { Pagination } from '@/components/tables/Pagination';
 import i18n from '@/i18n';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { renderWithoutProviders, screen, userEvent } from '@test/render';
@@ -12,8 +12,8 @@ import { renderWithoutProviders, screen, userEvent } from '@test/render';
  */
 
 function PaginationHarness() {
-    const [page, setPage] = useState(0);
-    return <ActivityLogPagination page={page} setPage={setPage} limit={10} total={35} isLoading={false} />;
+    const [page, setPage] = useState(1);
+    return <Pagination currentPage={page} onPageChange={setPage} totalPages={4} totalItems={35} itemsPerPage={10} />;
 }
 
 describe('AX-01 icon-only button names', () => {
@@ -48,7 +48,7 @@ describe('AX-01 icon-only button names', () => {
         expect(screen.getByRole('button', { name: 'Zavřít zprávu' })).toBeInTheDocument();
     });
 
-    it('names ActivityLogPagination chevrons and marks the current page', async () => {
+    it('names the shared Pagination chevrons and marks the current page (DS-29: the ActivityLog pager now uses it)', async () => {
         const user = userEvent.setup();
         renderWithoutProviders(<PaginationHarness />);
 

@@ -221,11 +221,10 @@
   "actions": {
     "link_control": "Propojit kontrolu",
     "link_kri": "Propojit KRI",
-    "unlink": "Odpojit",
     "unarchive": "Obnovit z archivu",
     "export": "Export",
     "export_excel": "Exportovat CSV",
-    "back_to_register": "Zpět do registru"
+    "back_to_register": "Zpět na rizika"
   },
   "form": {
     "owner_search": {
@@ -341,10 +340,6 @@
   },
   "tooltips": {
     "unarchive_risk": "Obnovit archivované riziko"
-  },
-  "confirmation": {
-    "archive_title": "Archivovat riziko",
-    "archive_message": "\"{{riskName}}\"\n\nTímto přesunete riziko do archivovaného stavu."
   },
   "messages": {
     "archive_submitted_for_approval": "Požadavek na archivaci byl odeslán ke schválení. Riziko zatím nebylo archivováno.",

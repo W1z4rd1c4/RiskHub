@@ -98,10 +98,13 @@ export function Sidebar() {
         label: t(`groups.${section.group}`),
         items: section.items.map((route) => {
             let badge: number | undefined;
+            let badgeLabel: string | undefined;
             if (route.nav.badgeKey === 'workflow') {
                 badge = workflowCount > 0 ? workflowCount : undefined;
+                badgeLabel = t('sidebar_badges.workflow', { count: workflowCount });
             } else if (route.nav.badgeKey === 'orphanCount') {
                 badge = orphanCount > 0 ? orphanCount : undefined;
+                badgeLabel = t('sidebar_badges.orphan_count', { count: orphanCount });
             }
 
             return {
@@ -110,6 +113,7 @@ export function Sidebar() {
                 icon: route.nav.icon,
                 label: t(`sidebar.${route.nav.labelKey}`),
                 badge,
+                badgeLabel,
             };
         }),
     }));
@@ -164,6 +168,7 @@ export function Sidebar() {
                         <BrandWordmark className="text-xl font-bold tracking-tight text-foreground font-heading" />
                     </div>
                     <NotificationBell
+                        isCurrentPage={location.pathname === '/notifications'}
                         unreadCount={displayedUnreadNotificationCount}
                         onUnreadCountChange={handleUnreadCountChange}
                     />
@@ -211,7 +216,10 @@ export function Sidebar() {
                                             </div>
                                             {item.badge !== undefined && (
                                                 <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                    {item.badge}
+                                                    {/* AX-14: the bare number reads as "Approvals 3"; the
+                                                        sr-only text names what is counted. */}
+                                                    <span aria-hidden="true">{item.badge}</span>
+                                                    <span className="sr-only">{item.badgeLabel}</span>
                                                 </span>
                                             )}
                                             {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}

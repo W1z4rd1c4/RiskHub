@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle, FileText, Send } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { departmentApi } from '@/services/departmentApi';
 import type { RiskStatus } from '@/types/risk';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
@@ -22,6 +26,9 @@ export function RiskQuestionnairesPanel() {
     const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [result, setResult] = useState<BatchSendResponse | null>(null);
+    // GAP-B-05 / D10: the outbound batch send is confirmed first (send intent,
+    // count-aware title); a failure stays inside the open confirmation.
+    const [isSendConfirmOpen, setIsSendConfirmOpen] = useState(false);
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canBatchSend = riskHubCapabilityEnabled(riskHubCapabilities?.questionnaires, 'can_batch_send');
     const {
@@ -35,7 +42,11 @@ export function RiskQuestionnairesPanel() {
         setStatus,
         status,
     } = useRiskQuestionnaireFilters();
-    const { fetchRisks, loading, risks } = useRiskQuestionnaireRisks(filters);
+    const { fetchRisks, loadFailed, loading, risks } = useRiskQuestionnaireRisks(filters);
+    const reloadRisks = useCallback(() => fetchRisks(() => {
+        setErrorKey(null);
+        setResult(null);
+    }), [fetchRisks]);
     const {
         allVisibleSelected,
         selectedIds,
@@ -46,10 +57,8 @@ export function RiskQuestionnairesPanel() {
         updateSelectAll,
     } = useRiskQuestionnaireSelection(risks);
     const { handleBatchSend, sending } = useRiskQuestionnaireBatchSend({
-        fetchRisks: () => fetchRisks(() => {
-            setErrorKey(null);
-            setResult(null);
-        }, setErrorKey),
+        // The refresh after a send keeps the send result on screen (D9 outcome).
+        fetchRisks: () => fetchRisks(),
         filters,
         selectedIds,
         selectAll,
@@ -72,11 +81,11 @@ export function RiskQuestionnairesPanel() {
     }, []);
 
     useEffect(() => {
-        void fetchRisks(() => {
-            setErrorKey(null);
-            setResult(null);
-        }, setErrorKey);
-    }, [fetchRisks]);
+        void reloadRisks();
+    }, [reloadRisks]);
+
+    const errorText = translateUiMessage(t, errorKey);
+    const hasActiveFilters = Object.values(filters).some((value) => value !== undefined);
 
     return (
         <div className="space-y-6">
@@ -90,30 +99,17 @@ export function RiskQuestionnairesPanel() {
                         {t('riskhub.questionnaires.subtitle')}
                     </p>
                 </div>
-                <button
-                    onClick={() => fetchRisks(() => {
-                        setErrorKey(null);
-                        setResult(null);
-                    }, setErrorKey)}
-                    disabled={loading}
-                    className={cn(
-                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
-                        "bg-tint/5 border-border text-foreground hover:bg-tint/10",
-                        loading && "opacity-50 cursor-not-allowed"
-                    )}
-                >
-                    <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    {t('actions.refresh')}
-                </button>
+                <RefreshButton onRefresh={() => void reloadRisks()} isFetching={loading} />
             </div>
 
-            {errorKey && (
-                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
-                </div>
+            {/* GAP-C-11: a refetch failure over stale rows is a banner; a first-load
+                failure is the table's own error state, never "no risks". */}
+            {loadFailed && !loading && risks.length > 0 ? (
+                <ErrorState variant="banner" onRetry={() => void reloadRisks()} />
+            ) : null}
+
+            {errorKey && !isSendConfirmOpen && (
+                <InlineMessage tone="danger">{errorText}</InlineMessage>
             )}
 
             {result && (
@@ -215,14 +211,28 @@ export function RiskQuestionnairesPanel() {
                         <tbody className="divide-y divide-border">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-6 text-muted-foreground text-sm">
-                                        {t('console.loading')}
+                                    <td colSpan={5} className="px-4 py-6">
+                                        <LoadingState layout="inline" label={t('console.loading')} />
+                                    </td>
+                                </tr>
+                            ) : loadFailed && risks.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-4 py-6">
+                                        <ErrorState
+                                            layout="inline"
+                                            onRetry={() => void reloadRisks()}
+                                            testId="risk-questionnaires-load-error"
+                                        />
                                     </td>
                                 </tr>
                             ) : risks.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-10 text-muted-foreground text-sm">
-                                        {t('riskhub.questionnaires.empty')}
+                                    <td colSpan={5}>
+                                        <EmptyState
+                                            kind={hasActiveFilters ? 'no-results' : 'no-data'}
+                                            title={t('riskhub.questionnaires.empty')}
+                                            testId="risk-questionnaires-empty"
+                                        />
                                     </td>
                                 </tr>
                             ) : (
@@ -259,7 +269,11 @@ export function RiskQuestionnairesPanel() {
                                 : t('riskhub.questionnaires.selected_count', { count: selectedIds.size })}
                         </div>
                         <button
-                            onClick={handleBatchSend}
+                            type="button"
+                            onClick={() => {
+                                setErrorKey(null);
+                                setIsSendConfirmOpen(true);
+                            }}
                             disabled={sending || (!selectAll && selectedIds.size === 0)}
                             className={cn(
                                 "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
@@ -273,6 +287,26 @@ export function RiskQuestionnairesPanel() {
                     </div>
                 ) : null}
             </div>
+            <ConfirmDialog
+                isOpen={isSendConfirmOpen}
+                onClose={() => {
+                    setIsSendConfirmOpen(false);
+                    setErrorKey(null);
+                }}
+                onConfirm={async () => {
+                    if (await handleBatchSend()) setIsSendConfirmOpen(false);
+                }}
+                intent="send"
+                title={selectAll
+                    ? t('riskhub.questionnaires.confirm_all_title')
+                    : t('riskhub.questionnaires.confirm_title', { count: selectedIds.size })}
+                message={selectAll
+                    ? t('riskhub.questionnaires.confirm_all_body')
+                    : t('riskhub.questionnaires.confirm_body')}
+                confirmLabel={t('riskhub.questionnaires.send')}
+                isLoading={sending}
+                errorText={isSendConfirmOpen && errorText ? errorText : null}
+            />
         </div>
     );
 }

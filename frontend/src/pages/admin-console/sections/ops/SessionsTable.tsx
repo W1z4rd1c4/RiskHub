@@ -1,8 +1,7 @@
 import { UserX } from 'lucide-react';
 
-import { formatDateTimeValue } from '@/i18n/formatters';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { ActiveSession } from '@/services/adminApi';
 
@@ -15,7 +14,8 @@ interface SessionsTableProps {
 }
 
 export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: SessionsTableProps) {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const now = new Date();
 
     return (
@@ -47,7 +47,7 @@ export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: Session
                                 </td>
                                 <td className="admin-muted py-3 px-4">{session.department || t('common:fallbacks.not_available')}</td>
                                 <td className="admin-subtle py-3 px-4">
-                                    {formatDateTimeValue(presentation.lastActivityDate, i18n.language)}
+                                    {format.dateTime(presentation.lastActivityDate)}
                                 </td>
                                 <td className="py-3 px-4">
                                     <div className="flex items-center gap-2">

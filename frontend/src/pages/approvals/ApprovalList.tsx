@@ -10,7 +10,6 @@ import {
     Link2,
     Plus,
     RotateCcw,
-    Trash2,
     X,
 } from 'lucide-react';
 
@@ -24,6 +23,7 @@ import { GovernedMutationDiff } from '@/components/approvals/GovernedMutationDif
 import { LegacyApprovalChanges } from '@/components/approvals/LegacyApprovalChanges';
 import { getApprovalActionBadge, getApprovalStatusBadge, getGovernedActionLabel } from './approvalsPresentation';
 import { canViewApprovalPendingChanges } from './approvalPendingChanges';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 interface ApprovalListProps {
     approvals: ApprovalRequest[];
@@ -50,19 +50,18 @@ export function ApprovalList({
 }: ApprovalListProps) {
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            </div>
+            <LoadingState className="py-20" />
         );
     }
 
     if (approvals.length === 0) {
         return (
-            <div className="py-20 text-center border-2 border-dashed border-border rounded-2xl bg-tint/[0.01]">
-                <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-foreground mb-2">{t('empty_state.all_caught_up')}</h3>
-                <p className="text-muted-foreground max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
-            </div>
+            <EmptyState
+                icon={CheckCircle2}
+                title={t('empty_state.all_caught_up')}
+                description={t('empty_state.no_matching')}
+                className="rounded-2xl border-2 border-dashed border-border"
+            />
         );
     }
 
@@ -101,11 +100,8 @@ export function ApprovalList({
                                         getApprovalActionBadge(approval.action_type),
                                     )}
                                 >
-                                    {approval.action_type === 'delete' && !approval.governed_mutation ? (
-                                        <Trash2 className="h-3 w-3" />
-                                    ) : (
-                                        <ActionIcon className="h-3 w-3" />
-                                    )}
+                                    {/* D10: delete requests archive a restorable record, so they share the Archive icon. */}
+                                    <ActionIcon className="h-3 w-3" aria-hidden="true" />
                                     {t(`request_types.${governedActionLabel}`)}
                                 </span>
                             </div>

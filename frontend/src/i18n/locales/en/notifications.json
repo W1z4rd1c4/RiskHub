@@ -23,10 +23,11 @@
   "status": {
     "retrying": "Retrying notifications."
   },
-  "pagination": {
-    "page_of": "Page {{page}} of {{total}}"
-  },
   "aria": {
-    "bell": "Notifications"
+    "bell": "Notifications",
+    "bell_unread": "Notifications, {{count}} unread",
+    "bell_unread_one": "Notifications, {{count}} unread",
+    "bell_unread_few": "Notifications, {{count}} unread",
+    "bell_unread_other": "Notifications, {{count}} unread"
   }
 }

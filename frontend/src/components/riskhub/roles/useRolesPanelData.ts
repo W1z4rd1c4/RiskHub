@@ -44,19 +44,31 @@ export function useRolesPanelData() {
 
     return {
         actionErrorKey: rolesResource.actionErrorKey,
+        closeDelete: rolesResource.closeDelete,
         closeRoleModal,
         deleteConfirm: rolesResource.deleteConfirm,
         editingRole: rolesResource.editingItem,
         handleDelete: rolesResource.handleDelete,
         handleRestore,
         handleSave: rolesResource.handleSave,
+        isDeleting: rolesResource.isDeleting,
         modalOpen: rolesResource.modalOpen,
         openCreateModal,
         openEditModal,
         permissions: permissionsQuery.data ?? [],
         permissionsLoading: permissionsQuery.isLoading,
+        // GAP-C-11: a failed permission catalogue is an error with retry in the
+        // role dialog, never an empty permission list that could be saved.
+        permissionsLoadFailed: permissionsQuery.isError && !permissionsQuery.data,
+        permissionsRefetching: permissionsQuery.isFetching,
+        retryPermissions: () => void permissionsQuery.refetch(),
         roles: rolesResource.items,
         rolesLoading: rolesResource.isLoading,
+        // GAP-C-11: expose the load failure so the panel never shows it as "no roles".
+        rolesError: rolesResource.error,
+        rolesHasData: rolesResource.hasData,
+        rolesRefetching: rolesResource.isFetching,
+        retryRoles: rolesResource.retry,
         setDeleteConfirm: rolesResource.setDeleteConfirm,
         setShowInactive: rolesResource.setShowInactive,
         showInactive: rolesResource.showInactive,

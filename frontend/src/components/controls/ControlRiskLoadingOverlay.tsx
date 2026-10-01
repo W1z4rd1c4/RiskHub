@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { useTranslation } from '@/i18n/hooks';
+import { Spinner } from '@/components/ui/state';
 
 interface ControlRiskLoadingOverlayProps {
     isVisible: boolean;
@@ -19,10 +20,10 @@ export function ControlRiskLoadingOverlay({ isVisible }: ControlRiskLoadingOverl
                     exit={{ opacity: 0 }}
                     role="status"
                     aria-busy="true"
-                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]"
+                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-overlay backdrop-blur-[2px]"
                 >
                     <div className="glass-card !p-6 shadow-2xl flex flex-col items-center gap-4">
-                        <div aria-hidden="true" className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                        <Spinner size="lg" />
                         <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
                             {t('detail.fetching_risk_details')}
                         </p>

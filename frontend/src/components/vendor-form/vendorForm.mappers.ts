@@ -10,6 +10,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import type { DepartmentLookup, VendorFormData, VendorFormField } from './vendorForm.types';
 import { VENDOR_REGISTER_DATE_FIELDS, VENDOR_REGISTER_TEXT_FIELDS } from './vendorForm.types';
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 
 interface VendorApprovalScenario {
     isEnabled: boolean;
@@ -164,10 +165,7 @@ export function getSubprocessSuggestions(
     return filterSuggestions(subprocessesByProcess[process || ''] || [], subprocessQuery);
 }
 
+/** Vendor risk score (1-5) badge on the D1 severity scale. */
 export function scoreColor(score: number): string {
-    if (score >= 5) return 'text-destructive bg-rose-400/10 border-rose-400/20';
-    if (score >= 4) return 'text-severity-high-text bg-orange-400/10 border-orange-400/20';
-    if (score >= 3) return 'text-warning-text bg-amber-400/10 border-amber-400/20';
-    if (score >= 2) return 'text-accent-text bg-blue-400/10 border-blue-400/20';
-    return 'text-success-text bg-emerald-400/10 border-emerald-400/20';
+    return severityClass('badge', ordinalSeverityBand(score));
 }

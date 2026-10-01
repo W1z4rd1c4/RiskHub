@@ -129,7 +129,7 @@ describe('ControlDetailPage execution status refresh', () => {
             </MemoryRouter>
         );
 
-        await screen.findByText('Quarterly Access Review');
+        await screen.findByRole('heading', { level: 1, name: 'Quarterly Access Review' });
         expect(screen.getByText('controls:status.active')).toBeInTheDocument();
         expect(screen.getByText('controls:monitoring.failed')).toBeInTheDocument();
 
@@ -153,25 +153,20 @@ describe('ControlDetailPage execution status refresh', () => {
         });
     });
 
-    it('clears partial-link flash state without dropping search or hash context', async () => {
-        const detailLocation = '/controls/13?return_to=%2Fcontrols%3Fq%3Dpayments%23group-heading#linked-result';
+    it('shows the persistent pending-approval notice carried in router state (D12 / PM-2)', async () => {
         render(
             <MemoryRouter initialEntries={[{
                 pathname: '/controls/13',
                 search: '?return_to=%2Fcontrols%3Fq%3Dpayments%23group-heading',
-                hash: '#linked-result',
-                state: {
-                    controlFlash: {
-                        tone: 'warn',
-                        message: 'Control created, but linking the selected risk failed.',
-                    },
-                },
+                state: { approvalQueued: { approvalId: 91 } },
             }]}>
                 <ControlDetailPage />
             </MemoryRouter>,
         );
 
-        await screen.findByText('Quarterly Access Review');
-        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(detailLocation, { replace: true }));
+        await screen.findByRole('heading', { level: 1, name: 'Quarterly Access Review' });
+        const notice = screen.getByTestId('approval-queued-notice');
+        expect(notice).toHaveTextContent('approval.queued.title');
+        expect(notice.querySelector('a')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=91');
     });
 });

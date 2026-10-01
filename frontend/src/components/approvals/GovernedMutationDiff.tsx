@@ -1,7 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 
-import { formatDateValue } from '@/i18n/formatters';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation, type FormatApi } from '@/i18n/hooks';
 import {
     processControlledValueLabel,
     processDerivedCifLabel,
@@ -391,7 +390,7 @@ function displayGovernedValue(
     value: unknown,
     spec: GovernedFieldSpec,
     t: (key: string, options?: Record<string, unknown>) => string,
-    locale: string,
+    format: FormatApi,
 ): string {
     if (value === null || value === undefined || value === '') {
         return t('approvals:governed.not_set');
@@ -409,14 +408,14 @@ function displayGovernedValue(
     }
     if (spec.kind === 'number') {
         return typeof value === 'number' && Number.isFinite(value)
-            ? new Intl.NumberFormat(locale).format(value)
+            ? format.number(value)
             : t('approvals:governed.redacted_value');
     }
     if (spec.kind === 'date') {
         if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
             return t('approvals:governed.redacted_value');
         }
-        return formatDateValue(value, locale) || t('approvals:governed.redacted_value');
+        return format.date(value) || t('approvals:governed.redacted_value');
     }
     if (spec.kind === 'asset_controlled') {
         const field = spec.assetControlledField;
@@ -449,8 +448,8 @@ export function GovernedMutationDiff({
     mutationKind,
     testId,
 }: GovernedMutationDiffProps) {
-    const { t, i18n } = useTranslation(['approvals', 'processes', 'assets', 'vendors', 'threats']);
-    const locale = i18n?.language ?? 'en';
+    const { t } = useTranslation(['approvals', 'processes', 'assets', 'vendors', 'threats']);
+    const format = useFormat();
     const vendorContractMutation = mutationKind?.startsWith('vendor.contract.') === true;
     const vendorSubOutsourcingMutation = mutationKind?.startsWith('vendor.sub_outsourcing.') === true;
     const childMutation = vendorContractMutation || vendorSubOutsourcingMutation;
@@ -591,16 +590,16 @@ export function GovernedMutationDiff({
                                     </dt>
                                     {unchangedContext ? (
                                         <dd className="break-words text-xs font-bold text-foreground">
-                                            {displayGovernedValue(displayedAfter[field], spec, t, locale)}
+                                            {displayGovernedValue(displayedAfter[field], spec, t, format)}
                                         </dd>
                                     ) : (
                                         <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
                                             <span className={`break-words ${REMOVED_VALUE_CLASS}`}>
-                                                {displayGovernedValue(displayedBefore[field], spec, t, locale)}
+                                                {displayGovernedValue(displayedBefore[field], spec, t, format)}
                                             </span>
                                             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                                             <span className={`break-words font-bold ${ADDED_VALUE_CLASS}`}>
-                                                {displayGovernedValue(displayedAfter[field], spec, t, locale)}
+                                                {displayGovernedValue(displayedAfter[field], spec, t, format)}
                                             </span>
                                         </dd>
                                     )}

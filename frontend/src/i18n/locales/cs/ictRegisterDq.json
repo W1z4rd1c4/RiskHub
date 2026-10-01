@@ -3,9 +3,7 @@
     "subtitle": "52 průběžných kontrol kvality dat z pracovního sešitu, počítaných živě nad registrem",
     "actions": {
         "refresh": "Obnovit",
-        "retry_rows": "Zkusit znovu",
-        "previous": "Předchozí",
-        "next": "Další"
+        "retry_rows": "Zkusit znovu"
     },
     "loading": "Načítání…",
     "summary": {

@@ -2,15 +2,17 @@ import { Activity, Server, Shield, Terminal, Users } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthz } from '@/authz/useAuthz';
-import { useContentTabs } from '@/hooks/useContentTabs';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { useTranslation } from '@/i18n/hooks';
-import { cn } from '@/lib/utils';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 import { AuditLogsPanel } from './admin-console/sections/AdminConsoleAuditPanels';
 import { HealthPanel, LogsPanel, SessionsPanel } from './admin-console/sections/AdminConsoleOpsPanels';
 import './admin-console/adminConsoleRoute.css';
+import { LoadingState } from '@/components/ui/state';
 
 const tabDefs = [
     { id: 'health', labelKey: 'tabs.health', icon: Activity },
@@ -21,6 +23,7 @@ const tabDefs = [
 
 type TabId = (typeof tabDefs)[number]['id'];
 const tabIds = tabDefs.map((tab) => tab.id);
+const TABS_ID_PREFIX = 'admin-console';
 
 export function AdminConsolePage() {
     const { t } = useTranslation('admin');
@@ -30,60 +33,42 @@ export function AdminConsolePage() {
         tabs: tabIds,
         defaultTab: 'health',
     });
-    const { getTabProps, getPanelProps } = useContentTabs({
-        tabs: tabIds,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'admin-console',
-    });
+
+    const pageHeader = <PageHeader title={t('console.title')} description={t('console.subtitle')} icon={Server} />;
 
     if (isLoading) {
-        return <div className="admin-console-route flex items-center justify-center min-h-screen admin-muted">{t('console.loading')}</div>;
+        return (
+            <PageContainer className="admin-console-route">
+                {pageHeader}
+                <LoadingState layout="page" label={t('console.loading')} />
+            </PageContainer>
+        );
     }
 
     if (!authz.canViewAdminConsole) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                {pageHeader}
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     return (
-        <div className="admin-console-route space-y-6">
-            <header className="glass-card p-6">
-                <div className="flex items-center gap-4">
-                    <div className="bg-nested border border-border p-3 rounded-xl shadow-lg">
-                        <Server className="h-8 w-8 text-foreground" />
-                    </div>
-                    <div>
-                        <h1 className="admin-title text-2xl font-bold font-heading">{t('console.title')}</h1>
-                        <p className="admin-text">{t('console.subtitle')}</p>
-                    </div>
-                </div>
-            </header>
+        <PageContainer className="admin-console-route">
+            {pageHeader}
 
-            <div
-                role="tablist"
-                aria-label={t('console.title')}
-                className="glass-card p-2 flex gap-2 overflow-x-auto"
-            >
-                {tabDefs.map((tab, index) => {
-                    const isActive = activeTab === tab.id;
-                    return (
-                        <button
-                            key={tab.id}
-                            {...getTabProps(tab.id, index)}
-                            className={cn(
-                                'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap',
-                                isActive ? 'bg-accent text-accent-foreground shadow-lg' : 'admin-tab-inactive hover:bg-tint/10',
-                            )}
-                        >
-                            <tab.icon className="h-4 w-4" aria-hidden="true" />
-                            <span className="font-medium">{t(tab.labelKey)}</span>
-                        </button>
-                    );
-                })}
-            </div>
+            <TabList
+                tabs={tabDefs.map((tab) => ({ id: tab.id, label: t(tab.labelKey), icon: tab.icon }))}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={TABS_ID_PREFIX}
+                variant="pill"
+                ariaLabel={t('console.title')}
+            />
 
             {tabDefs.map((tab) => (
-                <div key={tab.id} className="glass-card p-6" {...getPanelProps(tab.id)}>
+                <TabPanel key={tab.id} tab={tab.id} activeTab={activeTab} idPrefix={TABS_ID_PREFIX} className="glass-card p-6">
                     {activeTab === tab.id ? (
                         <>
                             {tab.id === 'health' && <HealthPanel />}
@@ -92,9 +77,9 @@ export function AdminConsolePage() {
                             {tab.id === 'sessions' && <SessionsPanel />}
                         </>
                     ) : null}
-                </div>
+                </TabPanel>
             ))}
-        </div>
+        </PageContainer>
     );
 }
 

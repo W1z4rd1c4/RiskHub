@@ -14,7 +14,9 @@ vi.mock('@/authz/useAuthz', () => ({
     }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -147,7 +149,7 @@ describe('GovernancePage overview aggregation', () => {
         expect(screen.getByRole('button', { name: 'governance.refresh' })).toBeEnabled();
     });
 
-    it('navigates a queued orphan reassignment to the exact My Requests approval deep link', async () => {
+    it('keeps a queued orphan reassignment on Governance with a notice deep-linking to the My Requests approval (D12 / PM-2)', async () => {
         const user = userEvent.setup();
         render(
             <MemoryRouter initialEntries={['/governance?type=risk']}>
@@ -159,9 +161,12 @@ describe('GovernancePage overview aggregation', () => {
         await user.click(await screen.findByRole('button', { name: 'Open orphan resolution' }));
         await user.click(screen.getByRole('button', { name: 'Queue orphan approval' }));
 
-        expect(screen.getByTestId('governance-route')).toHaveTextContent(
+        expect(screen.getByTestId('governance-route')).toHaveTextContent('/governance?type=risk');
+        expect(await screen.findByTestId('approval-queued-notice-link')).toHaveAttribute(
+            'href',
             '/approvals?tab=mine&approvalId=88',
         );
+        expect(screen.queryByRole('button', { name: 'Queue orphan approval' })).not.toBeInTheDocument();
     });
 
     it('opens the Threat queue when linked from an orphaned Threat detail', async () => {

@@ -8,6 +8,7 @@ import {
 
 import { scoreColor } from './vendorForm.mappers';
 import type { VendorFormField } from './vendorForm.types';
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 
 type ClassificationFlagKey =
     | 'supports_important_core_insurance_function'
@@ -61,18 +62,7 @@ export function VendorClassificationSection({
                             max={5}
                             value={score}
                             onChange={(event) => onChange('risk_score_1_5', Number(event.target.value))}
-                            className={cn(
-                                'w-full',
-                                score >= 5
-                                    ? 'accent-rose-500'
-                                    : score >= 4
-                                        ? 'accent-orange-500'
-                                        : score >= 3
-                                            ? 'accent-amber-500'
-                                            : score >= 2
-                                                ? 'accent-blue-500'
-                                                : 'accent-emerald-500',
-                            )}
+                            className={cn('w-full', severityClass('slider', ordinalSeverityBand(score)))}
                         />
                         <div
                             className={cn(

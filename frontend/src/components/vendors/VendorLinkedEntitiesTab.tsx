@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Link as LinkIcon, Loader2, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link as LinkIcon, Plus } from 'lucide-react';
 
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import type { LinkMode } from '@/components/linking/linkTypes';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { logError } from '@/services/logger';
 
 import {
@@ -74,7 +74,9 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     onCollectionStateChange,
 }: VendorLinkedEntitiesTabProps<T>) {
     const { t } = useTranslation(['vendors', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const entities = useVendorLinkedEntities(vendorId, adapter);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogMode, setDialogMode] = useState<DialogMode>('search-only');
@@ -120,7 +122,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 : await entities.unlink(pendingGovernedAction.targetId, reason);
             setPendingGovernedAction(null);
             if (queued !== null) {
-                navigateToApprovalRequest(navigate, queued.approval_id);
+                announceApprovalQueued({ approvalId: queued.approval_id });
             }
         } catch (mutationErr) {
             logError('Vendor link mutation failed:', mutationErr);
@@ -153,67 +155,52 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     let collectionContent: ReactNode = null;
     switch (entities.outcome.kind) {
         case 'initial-loading':
-            collectionContent = (
-                <div role="status" className="flex items-center gap-3 text-muted-foreground font-medium">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading')}
-                </div>
-            );
+            collectionContent = <LoadingState layout="inline" label={t('labels.loading')} />;
             break;
         case 'denied':
             collectionContent = (
-                <div role="alert" className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
-                    <AlertCircle className="h-5 w-5" />
-                    {t('links.errors.access_denied')}
-                </div>
+                <AccessDeniedState layout="section" descriptionKey="links.errors.access_denied" ns="vendors" />
             );
             break;
         case 'fatal-error':
             collectionContent = (
-                <div role="alert" className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
-                    <AlertCircle className="h-5 w-5" />
-                    <span>{t('links.errors.load_failed')}</span>
-                    <button
-                        type="button"
-                        onClick={() => void entities.retry()}
-                        aria-busy={entities.outcome.isRetrying}
-                        aria-disabled={entities.outcome.isRetrying}
-                        className="ml-auto rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-black uppercase tracking-widest hover:bg-destructive/20"
-                    >
-                        {t('actions.retry', { ns: 'common' })}
-                    </button>
+                <>
+                    <ErrorState
+                        layout="inline"
+                        message={t('links.errors.load_failed')}
+                        onRetry={() => void entities.retry()}
+                        isRetrying={entities.outcome.isRetrying}
+                        className="mb-2"
+                    />
                     {entities.outcome.isRetrying ? (
                         <span role="status" className="sr-only">{t('links.status.retrying')}</span>
                     ) : null}
-                </div>
+                </>
             );
             break;
         case 'empty':
             collectionContent = (
-                <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
-                    <p className="text-xs text-muted-foreground font-medium">{t(i18nKeys.empty)}</p>
-                </div>
+                <EmptyState
+                    layout="inline"
+                    icon={null}
+                    title={t(i18nKeys.empty)}
+                    className="justify-center rounded-2xl border-2 border-dashed border-border py-10"
+                />
             );
             break;
         case 'stale-with-error':
             collectionContent = (
                 <>
-                    <div role="alert" className="mb-4 p-4 bg-warning/10 border border-warning/20 rounded-xl flex items-center gap-3 text-warning-text text-sm font-medium">
-                        <AlertCircle className="h-5 w-5" />
-                        <span>{t('links.errors.stale')}</span>
-                        <button
-                            type="button"
-                            onClick={() => void entities.retry()}
-                            aria-busy={entities.outcome.isRetrying}
-                            aria-disabled={entities.outcome.isRetrying}
-                            className="ml-auto rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-black uppercase tracking-widest hover:bg-warning/20"
-                        >
-                            {t('actions.retry', { ns: 'common' })}
-                        </button>
-                        {entities.outcome.isRetrying ? (
-                            <span role="status" className="sr-only">{t('links.status.retrying')}</span>
-                        ) : null}
-                    </div>
+                    <ErrorState
+                        variant="banner"
+                        message={t('links.errors.stale')}
+                        onRetry={() => void entities.retry()}
+                        isRetrying={entities.outcome.isRetrying}
+                        className="mb-4"
+                    />
+                    {entities.outcome.isRetrying ? (
+                        <span role="status" className="sr-only">{t('links.status.retrying')}</span>
+                    ) : null}
                     {renderEntityLists()}
                 </>
             );

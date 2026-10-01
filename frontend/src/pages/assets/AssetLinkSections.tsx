@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Link2, Plus, Star, Trash2, Workflow } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Building2, Link2, Plus, Star, Unlink, Workflow } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
@@ -18,7 +18,7 @@ import { vendorContractApi } from '@/services/vendorContractApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { Asset } from '@/types/asset';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import {
     processBusinessEditBlocked,
     processMutationRequiresApprovalReason,
@@ -72,7 +72,8 @@ function sectionShell(
 
 export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: AssetLinkSectionsProps) {
     const { t } = useTranslation(['assets', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed link changes keep the user on the asset.
+    const announceApprovalQueued = useApprovalQueued();
     const queryClient = useQueryClient();
     const [linkError, setLinkError] = useState<string | null>(null);
     // FR-P4-8: the single removal awaiting confirmation across all three lists.
@@ -252,7 +253,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             setProcessToLink('');
@@ -271,7 +272,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -286,7 +287,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -307,7 +308,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             setAssetToLink('');
@@ -325,7 +326,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingRemoval(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -352,7 +353,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             setVendorToLink('');
@@ -372,7 +373,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setLinkError(null);
             setPendingRemoval(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
             await refreshLinks();
@@ -449,8 +450,13 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 <Workflow className="h-5 w-5 text-accent" />,
                 t('links.processes.title'),
                 <div className="space-y-4">
-                    {processLinks.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">{t('links.processes.empty')}</p>
+                    {processLinksQuery.isLoading ? (
+                        <LoadingState layout="inline" />
+                    ) : processLinksQuery.isError && !processLinksQuery.data ? (
+                        // GAP-C-11: a failed load is an error with retry, never "no links".
+                        <ErrorState layout="inline" onRetry={() => void processLinksQuery.refetch()} isRetrying={processLinksQuery.isFetching} />
+                    ) : processLinks.length === 0 ? (
+                        <EmptyState layout="inline" icon={null} title={t('links.processes.empty')} />
                     ) : (
                         <ul className="space-y-2" data-testid="asset-process-links">
                             {processLinks.map((link) => {
@@ -520,7 +526,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                     ? t('processes:pending_change.link_action_blocked')
                                                     : t('links.remove')}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Unlink className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         </div>
                                     ) : null}
@@ -569,7 +575,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                         data-testid="asset-process-link-is-primary"
                                         checked={processLinkIsPrimary}
                                         onChange={(event) => setProcessLinkIsPrimary(event.target.checked)}
-                                        className="accent-amber-400"
+                                        className="accent-accent"
                                     />
                                     {t('links.processes.primary')}
                                 </label>
@@ -598,8 +604,13 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 <Link2 className="h-5 w-5 text-accent-text" />,
                 t('links.assets.title'),
                 <div className="space-y-4">
-                    {assetLinks.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">{t('links.assets.empty')}</p>
+                    {assetLinksQuery.isLoading ? (
+                        <LoadingState layout="inline" />
+                    ) : assetLinksQuery.isError && !assetLinksQuery.data ? (
+                        // GAP-C-11: a failed load is an error with retry, never "no links".
+                        <ErrorState layout="inline" onRetry={() => void assetLinksQuery.refetch()} isRetrying={assetLinksQuery.isFetching} />
+                    ) : assetLinks.length === 0 ? (
+                        <EmptyState layout="inline" icon={null} title={t('links.assets.empty')} />
                     ) : (
                         <ul className="space-y-2" data-testid="asset-asset-links">
                             {assetLinks.map((link) => {
@@ -654,7 +665,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                                 className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                                 title={t('links.remove')}
                                             >
-                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                <Unlink className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         ) : null}
                                     </li>
@@ -724,8 +735,13 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 <Building2 className="h-5 w-5 text-success-text" />,
                 t('links.vendors.title'),
                 <div className="space-y-4">
-                    {vendorLinks.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">{t('links.vendors.empty')}</p>
+                    {vendorLinksQuery.isLoading ? (
+                        <LoadingState layout="inline" />
+                    ) : vendorLinksQuery.isError && !vendorLinksQuery.data ? (
+                        // GAP-C-11: a failed load is an error with retry, never "no links".
+                        <ErrorState layout="inline" onRetry={() => void vendorLinksQuery.refetch()} isRetrying={vendorLinksQuery.isFetching} />
+                    ) : vendorLinks.length === 0 ? (
+                        <EmptyState layout="inline" icon={null} title={t('links.vendors.empty')} />
                     ) : (
                         <ul className="space-y-2" data-testid="asset-vendor-links">
                             {vendorLinks.map((link) => (
@@ -764,7 +780,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                             title={t('links.remove')}
                                         >
-                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                            <Unlink className="h-4 w-4" aria-hidden="true" />
                                         </button>
                                     ) : null}
                                 </li>
@@ -843,14 +859,12 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 isOpen={pendingRemoval !== null}
                 onClose={closeRemovalDialog}
                 onConfirm={confirmRemoval}
-                title={t('links.remove_confirm.title')}
+                intent="unlink"
+                entityName={pendingRemoval?.name}
                 message={t('links.remove_confirm.message', { name: pendingRemoval?.name ?? '' })}
-                confirmLabel={t('links.remove')}
-                variant="danger"
-                showInput
-                inputRequired
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason="required"
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
                 isLoading={removeAssetLink.isPending || removeVendorLink.isPending}
                 errorText={pendingRemoval ? linkError : null}
             />

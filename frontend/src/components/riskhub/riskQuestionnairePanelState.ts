@@ -94,10 +94,12 @@ export function useRiskQuestionnaireSelection(risks: RiskSummary[]) {
 
 export function useRiskQuestionnaireRisks(filters: RiskQuestionnaireFilters) {
     const [loading, setLoading] = useState(false);
+    // GAP-C-11: a failed load is its own state, so the table never reads it as "no risks".
+    const [loadFailed, setLoadFailed] = useState(false);
     const [risks, setRisks] = useState<RiskSummary[]>([]);
 
     const fetchRisks = useCallback(
-        async (onBeforeLoad?: () => void, onError?: (errorKey: string) => void) => {
+        async (onBeforeLoad?: () => void) => {
             setLoading(true);
             onBeforeLoad?.();
             try {
@@ -110,8 +112,9 @@ export function useRiskQuestionnaireRisks(filters: RiskQuestionnaireFilters) {
                     status: filters.status,
                 });
                 setRisks(response.items);
+                setLoadFailed(false);
             } catch (error) {
-                onError?.('errors.failed_to_load');
+                setLoadFailed(true);
                 logError('Failed to load questionnaire risks.', error);
             } finally {
                 setLoading(false);
@@ -122,6 +125,7 @@ export function useRiskQuestionnaireRisks(filters: RiskQuestionnaireFilters) {
 
     return {
         fetchRisks,
+        loadFailed,
         loading,
         risks,
     };
@@ -146,7 +150,8 @@ export function useRiskQuestionnaireBatchSend({
 }) {
     const [sending, setSending] = useState(false);
 
-    const handleBatchSend = useCallback(async () => {
+    /** Resolves `true` when the batch was sent (the confirmation then closes). */
+    const handleBatchSend = useCallback(async (): Promise<boolean> => {
         setSending(true);
         setErrorKey(null);
         setResult(null);
@@ -163,15 +168,17 @@ export function useRiskQuestionnaireBatchSend({
 
             if (!selectAll && selectedIds.size === 0) {
                 setErrorKey('riskhub.questionnaires.select_some');
-                return;
+                return false;
             }
 
             const response = await riskHubApi.batchSendQuestionnaires(payload);
             setResult(response);
             setSelectedIds(new Set());
             await fetchRisks();
+            return true;
         } catch (error) {
             setErrorKey(apiClient.toUiMessageKey(error));
+            return false;
         } finally {
             setSending(false);
         }

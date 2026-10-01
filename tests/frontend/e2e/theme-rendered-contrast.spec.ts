@@ -85,6 +85,9 @@ const DIALOG_OWNERS: ReadonlyArray<{ owner: string; sites: readonly string[] }> 
   { owner: 'departments-panel', sites: ['frame.departments', 'inline.departments-delete'] },
   { owner: 'risk-types-panel', sites: ['frame.risk-types', 'inline.risk-types-delete'] },
   { owner: 'approval-scenarios-panel', sites: ['frame.approval-scenarios'] },
+  { owner: 'threat-risk-links', sites: ['confirm.threat-risk-links'] },
+  { owner: 'risk-register-links', sites: ['confirm.risk-register-links'] },
+  { owner: 'risk-questionnaires-panel', sites: ['send.risk-questionnaires-panel'] },
 ];
 
 /**

@@ -44,7 +44,7 @@ export function ControlsPage() {
         table={{ keyExtractor: (control) => control.id, onRowClick: (control) => void navigate(appendRegisterReturnTo(`/controls/${control.id}`, returnTo)), rowHref: (control) => appendRegisterReturnTo(`/controls/${control.id}`, returnTo), rowLabel: (control) => control.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage} onRetry={() => void state.fetchControls()}
-        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_controls') : t('common:loading.data')}
+        emptyMessage={t('empty_state.no_controls')}
         grouping={{
             groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,

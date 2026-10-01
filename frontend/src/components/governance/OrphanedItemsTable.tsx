@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2, Database, Eye, Workflow, Truck } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
-import { formatRelativeDateValue } from '@/i18n/formatters';
+import { ShieldAlert, ClipboardList, AlertTriangle, CheckCircle2, UserCheck, Filter, Building2, Database, Eye, Workflow, Truck } from 'lucide-react';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { OrphanedItem } from '@/types/orphanedItem';
+import { EmptyState } from '@/components/ui/state';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface OrphanedItemsTableProps {
@@ -23,7 +23,8 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const [filter, setFilter] = useState<string>('all');
     const [now, setNow] = useState(() => Date.now());
 
@@ -54,13 +55,12 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
 
     if (items.length === 0) {
         return (
-            <div className="glass-card text-center py-16">
-                <AlertTriangle className="h-12 w-12 text-success-text mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-foreground mb-2">{t('governance.all_clear')}</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                    {t('governance.no_orphans')}
-                </p>
-            </div>
+            <EmptyState
+                icon={CheckCircle2}
+                title={t('governance.all_clear')}
+                description={t('governance.no_orphans')}
+                className="glass-card py-16"
+            />
         );
     }
 
@@ -159,7 +159,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`text-xs font-bold uppercase tracking-widest ${old ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                            {formatRelativeDateValue(item.orphaned_at, i18n.language)}
+                                            {format.relative(item.orphaned_at)}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">

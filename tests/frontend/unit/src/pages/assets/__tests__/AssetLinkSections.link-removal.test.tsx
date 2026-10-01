@@ -295,7 +295,9 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
         const dialog = screen.getByRole('alertdialog');
         expect(within(dialog).queryByRole('textbox', { name: /request reason/i })).not.toBeInTheDocument();
-        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('processes:link_approval.continue') }));
+        // D10: without an approval requirement the governed removal reads as a plain unlink.
+        expect(dialog.querySelector('svg.lucide-unlink')).not.toBeNull();
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.remove_link') }));
 
         await waitFor(() => expect(mockRemoveProcessLink).toHaveBeenCalledWith(1, 100, ''));
     });

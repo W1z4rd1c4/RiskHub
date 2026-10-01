@@ -6,7 +6,6 @@ import type { KRICreate } from '@/types/kri';
 import type { KRIFormVendorContext } from './kriForm.types';
 
 interface KriFormState {
-    approvalQueued: { message: string } | null;
     currentStep: number;
     error: string | null;
     formData: Partial<KRICreate>;
@@ -65,7 +64,6 @@ function createInitialState(
     vendorContext: KRIFormVendorContext | null,
 ): KriFormState {
     return {
-        approvalQueued: null,
         currentStep: 0,
         error: null,
         formData: {

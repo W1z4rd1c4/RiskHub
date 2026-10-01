@@ -78,7 +78,8 @@
     "questionnaire_clarification_requested": "Vyžádáno upřesnění",
     "questionnaire_clarification_requested_desc": "Když někdo požádá o upřesnění vašich odpovědí v dotazníku",
     "persistence_note": "Vaše preference jsou automaticky ukládány a synchronizovány napříč zařízeními.",
-    "load_failed": "Nepodařilo se načíst nastavení notifikací."
+    "load_failed": "Nepodařilo se načíst nastavení notifikací.",
+    "save_failed": "Nastavení notifikace se nepodařilo uložit. Zůstalo původní nastavení."
   },
   "localization": {
     "title": "Nastavení jazyka",

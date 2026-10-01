@@ -4,6 +4,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation } from '@/i18n/hooks';
 import { accessApi } from '@/services/accessApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
@@ -18,6 +19,7 @@ import { selectSafeDefaultRole } from './userNewRoleDefaults';
 type Manager = { id: number; name: string; email: string };
 export function NativeInviteForm() {
     const { t } = useTranslation('admin');
+    const feedback = useFeedback();
     const session = useSessionSnapshot();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -72,11 +74,22 @@ export function NativeInviteForm() {
             department_id: departmentId, manager_id: managerId }, { token, signal }), setResult,
         (kind) => { if (kind === 'uncertain' || kind === 'unavailable' || kind === 'forbidden') setUncertain(true); });
     };
+    // D9 / FB-01: the outcome travels to the users list as a toast, not as a
+    // router-state flash rendered by the list.
+    const announceInvitation = () => {
+        if (!result) return;
+        const options = {
+            title: t('native_users.created', { name, email }),
+            description: t(`native_users.delivery.${result.delivery_status}`),
+        };
+        if (result.delivery_status === 'failed') feedback.warning(options);
+        else feedback.success(options);
+    };
     if (result) return <section className="glass-card space-y-4 p-6">
         <p ref={notice} tabIndex={-1} role="status">{t('native_users.created', { name, email })}</p>
         <p role={result.delivery_status === 'failed' ? 'alert' : 'status'}>{t(`native_users.delivery.${result.delivery_status}`)}</p>
         <p>{t('native_users.recipient_chooses_password')}</p>
-        <Link className="underline" to="/users" state={{ nativeInvitation: { ...result, name, email } }}>{t('native_users.view_users')}</Link>
+        <Link className="underline" to="/users" onClick={announceInvitation}>{t('native_users.view_users')}</Link>
     </section>;
     return <><form onSubmit={submit} className="glass-card space-y-5 p-6" aria-busy={action.pending || loading}>
         <p>{t('native_users.recipient_chooses_password')}</p>

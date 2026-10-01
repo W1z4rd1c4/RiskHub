@@ -2,10 +2,13 @@ import { useTranslation } from '@/i18n/hooks';
 import { Command, Palette, Settings2, ShieldCheck, Shield, Building } from 'lucide-react';
 import { useAuthz } from '@/authz/useAuthz';
 import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, ApprovalScenariosPanel, RiskQuestionnairesPanel } from '@/components/riskhub';
-import { cn } from '@/lib/utils';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
-import { useContentTabs } from '@/hooks/useContentTabs';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+
+const TABS_ID_PREFIX = 'risk-hub';
 
 const tabs = [
     { id: 'risk-types', labelKey: 'riskhub.tabs.risk_types', icon: Palette },
@@ -26,12 +29,6 @@ export function RiskHubPage() {
         tabs: tabIds,
         defaultTab: 'risk-types',
     });
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: tabIds,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'risk-hub',
-    });
 
     // Tab labels with translations
     const tabLabels: Record<TabId, string> = {
@@ -45,65 +42,43 @@ export function RiskHubPage() {
 
     // Only CRO can access Risk Hub
     if (!authz.canViewRiskHub) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                <PageHeader title={t('riskhub.title')} icon={Command} />
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <header className="glass-card p-6">
-                <div className="flex items-center gap-4">
-                    <div className="bg-accent p-3 rounded-xl shadow-lg shadow-accent/20">
-                        <Command className="h-8 w-8 text-accent-foreground" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground font-heading">{t('riskhub.title')}</h1>
-                        <p className="text-muted-foreground">
-                            {t('riskhub.subtitle')}
-                        </p>
-                    </div>
-                </div>
-            </header>
+        <PageContainer>
+            <PageHeader title={t('riskhub.title')} description={t('riskhub.subtitle')} icon={Command} />
 
-            {/* Tab Navigation */}
-            <div className="glass-card p-2 flex gap-2 overflow-x-auto" role="tablist" aria-label={t('riskhub.title')}>
-                {tabs.map((tab, index) => {
-                    const isActive = activeTab === tab.id;
-                    return (
-                        <button
-                            key={tab.id}
-                            {...getTabProps(tab.id, index)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
-                                isActive
-                                    ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                            )}
-                        >
-                            <tab.icon className="h-4 w-4" />
-                            <span className="font-medium">{tabLabels[tab.id]}</span>
-                        </button>
-                    );
-                })}
-            </div>
+            <TabList
+                tabs={tabs.map((tab) => ({ id: tab.id, label: tabLabels[tab.id], icon: tab.icon }))}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={TABS_ID_PREFIX}
+                variant="pill"
+                ariaLabel={t('riskhub.title')}
+            />
 
-            {/* Tab Content */}
             {tabIds.map((tab) => (
-                <div key={tab} className="glass-card p-6" {...getPanelProps(tab)}>
+                <TabPanel key={tab} tab={tab} activeTab={activeTab} idPrefix={TABS_ID_PREFIX} className="glass-card p-6">
                     {activeTab === tab && tab === 'risk-types' ? <RiskTypesPanel /> : null}
                     {activeTab === tab && tab === 'settings' ? <SystemSettingsPanel /> : null}
                     {activeTab === tab && tab === 'approvals' ? <ApprovalScenariosPanel /> : null}
                     {activeTab === tab && tab === 'roles' ? <RolesPanel /> : null}
                     {activeTab === tab && tab === 'departments' ? <DepartmentsPanel /> : null}
                     {activeTab === tab && tab === 'questionnaires' ? <RiskQuestionnairesPanel /> : null}
-                </div>
+                </TabPanel>
             ))}
 
             {/* Footer Note */}
             <div className="text-center text-sm text-muted-foreground">
                 {t('riskhub.footer')}
             </div>
-        </div>
+        </PageContainer>
     );
 }
 

@@ -45,14 +45,20 @@ describe('FilterBar population scope', () => {
             </DashboardFilterProvider>,
         );
 
-        await user.click(screen.getByRole('button', { name: 'dashboard:filters.title' }));
-        await user.click(screen.getByRole('button', { name: 'dashboard:issues.severity.high' }));
+        const expander = screen.getByRole('button', { name: 'dashboard:filters.title' });
+        expect(expander).toHaveAttribute('aria-expanded', 'false');
+        await user.click(expander);
+        expect(expander).toHaveAttribute('aria-expanded', 'true');
+        const highToggle = screen.getByRole('button', { name: 'dashboard:risk_levels.high' });
+        expect(highToggle).toHaveAttribute('aria-pressed', 'false');
+        await user.click(highToggle);
+        expect(highToggle).toHaveAttribute('aria-pressed', 'true');
 
         expect(screen.getByTestId('dashboard-filter-scope-note')).toHaveTextContent(
             'dashboard:filters.unaffected_scope',
         );
         expect(screen.getByRole('button', {
-            name: 'Remove dashboard:filters.risk_level: dashboard:issues.severity.high',
+            name: 'Remove dashboard:filters.risk_level: dashboard:risk_levels.high',
         })).toBeInTheDocument();
     });
 });

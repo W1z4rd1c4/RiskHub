@@ -6,6 +6,7 @@ import { useTranslation } from '@/i18n/hooks';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { RoleWithPermissions } from '@/types/access';
 import type { UserCreate } from '@/types/user';
+import { Spinner } from '@/components/ui/state';
 
 interface UserNewLocalFormProps {
     departments: DepartmentSummary[];
@@ -146,7 +147,7 @@ export function UserNewLocalForm({
                     className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-foreground px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                 >
                     {isLoading ? (
-                        <div className="h-5 w-5 border-2 border-accent-foreground/30 border-t-accent-foreground rounded-full animate-spin" />
+                        <Spinner className="text-current" />
                     ) : <Save className="h-5 w-5" />}
                     {t('users.create_user', { ns: 'admin' })}
                 </button>

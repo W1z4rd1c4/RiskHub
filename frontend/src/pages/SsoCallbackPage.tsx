@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
 import { applyAuthenticatedSession, clearExplicitLogoutSuppressed } from '@/services/session';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 
@@ -10,6 +11,7 @@ export default function SsoCallbackPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('auth');
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    usePageTitle(errorKey ? t('sso_callback.sign_in_failed_title') : t('sso_callback.signing_in_title'));
 
     useEffect(() => {
         let cancelled = false;

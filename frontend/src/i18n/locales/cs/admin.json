@@ -571,12 +571,19 @@
       "empty": "Pro aktuální filtry nebyla nalezena žádná rizika.",
       "select_all_hint": "Odešle se všem rizikům odpovídajícím filtrům.",
       "selected_count": "Vybráno: {{count}}",
-      "send": "Odeslat dotazníky"
+      "send": "Odeslat dotazníky",
+      "confirm_title": "Odeslat dotazníky pro {{count}} rizik?",
+      "confirm_title_one": "Odeslat dotazník pro {{count}} riziko?",
+      "confirm_title_few": "Odeslat dotazníky pro {{count}} rizika?",
+      "confirm_title_other": "Odeslat dotazníky pro {{count}} rizik?",
+      "confirm_all_title": "Odeslat dotazníky pro všechna odpovídající rizika?",
+      "confirm_body": "Vlastník každého vybraného rizika obdrží dotazník hodnocení. Odeslané dotazníky nelze vzít zpět.",
+      "confirm_all_body": "Vlastník každého rizika odpovídajícího aktuálním filtrům obdrží dotazník hodnocení. Odeslané dotazníky nelze vzít zpět."
     }
   },
   "roles_panel": {
     "title": "Role platformy",
-    "show_deleted": "Zobrazit smazané",
+    "show_deleted": "Zobrazit archivované",
     "add_role": "Přidat roli",
     "columns": {
       "role_name": "Název role",
@@ -588,14 +595,17 @@
       "full_access": "Plný přístup",
       "system": "Systém",
       "active": "Aktivní",
-      "deleted": "Smazané"
+      "deleted": "Archivované"
     },
     "actions": {
       "edit_disabled": "Roli {{role}} nelze upravit",
       "restore": "Obnovit"
     },
-    "delete_confirm": "Opravdu chcete smazat {{name}}?",
-    "cannot_delete_assigned": "Nelze smazat: k této roli je přiřazeno {{count}} uživatelů.",
+    "archive_confirm": "Archivovat roli {{name}}? Později ji lze obnovit.",
+    "cannot_archive_assigned": "Nelze archivovat: k této roli je přiřazeno {{count}} uživatelů.",
+    "cannot_archive_assigned_one": "Nelze archivovat: k této roli je přiřazen {{count}} uživatel.",
+    "cannot_archive_assigned_few": "Nelze archivovat: k této roli jsou přiřazeni {{count}} uživatelé.",
+    "cannot_archive_assigned_other": "Nelze archivovat: k této roli je přiřazeno {{count}} uživatelů.",
     "modal": {
       "edit_title": "Upravit roli",
       "new_title": "Nová role",
@@ -622,7 +632,7 @@
   },
   "departments_panel": {
     "title": "Oddělení",
-    "show_deleted": "Zobrazit smazané",
+    "show_deleted": "Zobrazit archivované",
     "add_department": "Přidat oddělení",
     "columns": {
       "name_code": "Název / Kód",
@@ -633,13 +643,13 @@
     },
     "badges": {
       "active": "Aktivní",
-      "deleted": "Smazané"
+      "deleted": "Archivované"
     },
     "actions": {
       "restore": "Obnovit"
     },
-    "delete_confirm": "Opravdu chcete smazat {{name}}?",
-    "delete_blocked_title": "Nelze smazat kvůli navázaným položkám:",
+    "archive_confirm": "Archivovat oddělení {{name}}? Později je lze obnovit.",
+    "archive_blocked_title": "Nelze archivovat kvůli navázaným položkám:",
     "linked_counts": {
       "users": "Uživatelé: {{count}}",
       "risks": "Rizika: {{count}}",
@@ -672,7 +682,7 @@
   },
   "risk_types_panel": {
     "title": "Typy rizik",
-    "show_deleted": "Zobrazit smazané",
+    "show_deleted": "Zobrazit archivované",
     "add_type": "Přidat typ",
     "columns": {
       "color": "Barva",
@@ -683,13 +693,13 @@
     "badges": {
       "system": "Systém",
       "active": "Aktivní",
-      "deleted": "Smazané"
+      "deleted": "Archivované"
     },
     "actions": {
       "restore": "Obnovit"
     },
-    "delete_confirm": "Opravdu chcete smazat {{name}}?",
     "delete_warning": "⚠️ {{count}} rizik bude bez kategorie.",
+    "archive_confirm": "Archivovat typ rizika {{name}}? Později jej lze obnovit.",
     "modal": {
       "edit_title": "Upravit typ rizika",
       "new_title": "Nový typ rizika",
@@ -762,7 +772,6 @@
   },
   "system_settings": {
     "title": "Nastavení systému",
-    "saved": "Uloženo",
     "save_named": "Uložit nastavení {{name}}",
     "errors": {
       "save_failed": "Uložení se nezdařilo"
@@ -783,12 +792,9 @@
     }
   },
   "confirmations": {
-    "delete_department": "Smazat oddělení?",
-    "delete_department_desc": "Tato akce trvale odstraní oddělení. Tuto akci nelze vrátit zpět.",
-    "delete_risk_type": "Smazat typ rizika?",
-    "delete_risk_type_desc": "Tato akce trvale odstraní typ rizika. Tuto akci nelze vrátit zpět.",
-    "delete_role": "Smazat roli?",
-    "delete_role_desc": "Tato akce trvale odstraní roli. Tuto akci nelze vrátit zpět."
+    "archive_department": "Archivovat oddělení?",
+    "archive_risk_type": "Archivovat typ rizika?",
+    "archive_role": "Archivovat roli?"
   },
   "errors": {
     "failed_to_load_settings": "Nepodařilo se načíst nastavení",
