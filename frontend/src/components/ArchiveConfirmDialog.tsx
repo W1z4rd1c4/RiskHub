@@ -1,9 +1,8 @@
-import { useCallback, useId, useRef, useState, type FormEvent } from 'react';
-import { X, Trash2, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useCallback } from 'react';
+
 import { useTranslation } from '@/i18n/hooks';
-import { apiClient } from '@/services/apiClient';
-import { DialogShell } from './DialogShell';
+
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface ArchiveConfirmDialogProps {
     isOpen: boolean;
@@ -13,160 +12,37 @@ interface ArchiveConfirmDialogProps {
     resourceName: string;
 }
 
+/**
+ * Required-reason archive confirmation. Delegates to
+ * `<ConfirmDialog intent="archive" reason="required">` (audit §4.11, D10);
+ * callers migrate to ConfirmDialog directly and this wrapper is deleted in
+ * Phase 4 (roadmap 4.3). Closes itself once `onConfirm` resolves; a rejection
+ * stays in the open dialog with the typed reason intact.
+ */
 export function ArchiveConfirmDialog({
     isOpen,
     onClose,
     onConfirm,
     resourceType,
-    resourceName
+    resourceName,
 }: ArchiveConfirmDialogProps) {
-    const [reason, setReason] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const { t } = useTranslation('common');
-    const titleId = useId();
-    const descriptionId = useId();
-    const resourceDescriptionId = useId();
-    const errorId = useId();
-    const reasonId = useId();
-    const reasonRef = useRef<HTMLTextAreaElement>(null);
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-
-        if (!reason.trim()) {
-            setError(t('errors.required_field'));
-            return;
-        }
-
-        setIsSubmitting(true);
-        setError(null);
-
-        try {
-            await onConfirm(reason.trim());
-            setReason('');
-            onClose();
-        } catch (err: unknown) {
-            setError(t(apiClient.toUiMessageKey(err), { ns: 'errorKeys' }));
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleClose = useCallback(() => {
-        if (isSubmitting) return;
-        setReason('');
-        setError(null);
+    const handleConfirm = useCallback(async (reason?: string) => {
+        await onConfirm((reason ?? '').trim());
         onClose();
-    }, [isSubmitting, onClose]);
-
-    const descriptionIds = [descriptionId, resourceDescriptionId];
-    if (error) descriptionIds.push(errorId);
+    }, [onClose, onConfirm]);
 
     return (
-        <DialogShell
+        <ConfirmDialog
             isOpen={isOpen}
-            onClose={handleClose}
-            titleId={titleId}
-            descriptionIds={descriptionIds}
-            initialFocusRef={reasonRef}
-            closeDisabled={isSubmitting}
-            role="alertdialog"
-            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="glass-card !p-0 w-full max-w-md overflow-hidden"
-        >
-            {/* Header */}
-            <div className="p-6 border-b border-white/5 bg-rose-500/5">
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                            <Trash2 className="h-5 w-5 text-destructive" aria-hidden="true" />
-                        </div>
-                        <div>
-                            <h3 id={titleId} className="text-lg font-bold text-foreground">
-                                {t('confirmation.archive_title', { type: resourceType === 'control' ? t('labels.control') : t('labels.risk') })}
-                            </h3>
-                            <p id={descriptionId} className="text-sm text-muted-foreground font-medium mt-0.5">
-                                {t('confirmation.archive_reversible')}
-                            </p>
-                        </div>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="iconCompact"
-                        onClick={handleClose}
-                        disabled={isSubmitting}
-                        aria-label={t('actions.close')}
-                        className="rounded-full"
-                    >
-                        <X className="h-5 w-5" aria-hidden="true" />
-                    </Button>
-                </div>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-                {/* Content */}
-                <div className="p-6 space-y-5">
-                    <div id={resourceDescriptionId} className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-1">{t('labels.archiving')}</p>
-                        <p className="text-foreground font-bold truncate">{resourceName}</p>
-                    </div>
-
-                    {error && (
-                        <div
-                            id={errorId}
-                            className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-destructive text-sm font-medium flex gap-3"
-                        >
-                            <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                        <label htmlFor={reasonId} className="block">
-                            <span className="block mb-2 text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">
-                                {t('labels.archive_reason')} <span className="text-destructive">*</span>
-                            </span>
-                            <textarea
-                                id={reasonId}
-                                ref={reasonRef}
-                                value={reason}
-                                onChange={(e) => setReason(e.target.value)}
-                                placeholder={t('labels.archive_reason_placeholder')}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-rose-400/50 min-h-[100px] transition-all resize-none"
-                                disabled={isSubmitting}
-                            />
-                        </label>
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-end gap-3">
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleClose}
-                        disabled={isSubmitting}
-                    >
-                        {t('actions.cancel')}
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant="destructive"
-                        disabled={isSubmitting || !reason.trim()}
-                        isLoading={isSubmitting}
-                        className="min-w-[120px]"
-                    >
-                        {isSubmitting ? `${t('labels.archiving')}...` : (
-                            <>
-                                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                {t('actions.archive')}
-                            </>
-                        )}
-                    </Button>
-                </div>
-            </form>
-        </DialogShell>
+            onClose={onClose}
+            onConfirm={handleConfirm}
+            intent="archive"
+            entityLabel={resourceType === 'control' ? t('labels.control') : t('labels.risk')}
+            entityName={resourceName}
+            reason="required"
+            reasonPlaceholder={t('labels.archive_reason_placeholder')}
+        />
     );
 }

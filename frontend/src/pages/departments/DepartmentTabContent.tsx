@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { Card, CardBody, CardHeader } from '@/components/ui/card';
+import { TabPanel } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import type { TabView } from '@/hooks/useDepartmentDetail';
@@ -16,6 +18,7 @@ import { VendorsPage } from '@/pages/VendorsPage';
 import type { RegisterFilters } from '@/pages/shared/registerListQuery';
 import type { DepartmentDetail } from '@/services/departmentApi';
 
+import { DEPARTMENT_TABS_ID_PREFIX } from './DepartmentDetailTabs';
 import { DepartmentRegisterScopeProvider } from './DepartmentRegisterScope';
 import { DepartmentStatsGrid } from './DepartmentStatsGrid';
 
@@ -48,45 +51,42 @@ export function DepartmentTabContent({
     const recentExecutions = department.recent_executions;
 
     return (
-        <section
-            id={`department-panel-${activeTab}`}
-            role="tabpanel"
-            aria-labelledby={`department-tab-${activeTab}`}
-            tabIndex={0}
-        >
+        <TabPanel tab={activeTab} activeTab={activeTab} idPrefix={DEPARTMENT_TABS_ID_PREFIX}>
             {activeTab === 'overview' ? (
                 <div className="space-y-6">
                     <DepartmentStatsGrid department={department} onSelectTab={onSelectTab} />
-                    <div className="glass-card" data-testid="department-overview-activity">
-                        <h2 className="mb-4 text-lg font-bold">{t('department_detail.recent_activity.title')}</h2>
-                        {recentExecutions === null && (
-                            <p className="text-sm text-slate-500">{t('fallbacks.not_available')}</p>
-                        )}
-                        {recentExecutions?.length === 0 && (
-                            <p className="text-sm text-slate-500">{t('department_detail.recent_activity.empty')}</p>
-                        )}
-                        {recentExecutions && recentExecutions.length > 0 && (
-                            <ul className="divide-y divide-white/5">
-                                {recentExecutions.map((entry) => (
-                                    <li key={entry.id}>
-                                        <button
-                                            type="button"
-                                            className="flex w-full items-center justify-between py-3 text-left text-sm text-foreground"
-                                            onClick={() => navigate(`/controls/${entry.control_id}`)}
-                                        >
-                                            <span>
-                                                <strong>{entry.control_name}</strong>
-                                                <span className="ml-2 text-xs text-muted-foreground">
-                                                    {t('labels.by')} {entry.executed_by} · {formatDateValue(entry.executed_at, i18n.language)}
+                    <Card data-testid="department-overview-activity">
+                        <CardHeader title={t('department_detail.recent_activity.title')} />
+                        <CardBody>
+                            {recentExecutions === null && (
+                                <p className="text-sm text-muted-foreground">{t('fallbacks.not_available')}</p>
+                            )}
+                            {recentExecutions?.length === 0 && (
+                                <p className="text-sm text-muted-foreground">{t('department_detail.recent_activity.empty')}</p>
+                            )}
+                            {recentExecutions && recentExecutions.length > 0 && (
+                                <ul className="divide-y divide-border">
+                                    {recentExecutions.map((entry) => (
+                                        <li key={entry.id}>
+                                            <button
+                                                type="button"
+                                                className="flex w-full items-center justify-between py-3 text-left text-sm text-foreground"
+                                                onClick={() => navigate(`/controls/${entry.control_id}`)}
+                                            >
+                                                <span>
+                                                    <strong>{entry.control_name}</strong>
+                                                    <span className="ml-2 text-xs text-muted-foreground">
+                                                        {t('labels.by')} {entry.executed_by} · {formatDateValue(entry.executed_at, i18n.language)}
+                                                    </span>
                                                 </span>
-                                            </span>
-                                            <span className="text-xs uppercase text-muted-foreground">{entry.result}</span>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+                                                <span className="text-xs uppercase text-muted-foreground">{entry.result}</span>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardBody>
+                    </Card>
                 </div>
             ) : RegisterPage ? (
                 <DepartmentRegisterScopeProvider
@@ -95,6 +95,6 @@ export function DepartmentTabContent({
                     <RegisterPage />
                 </DepartmentRegisterScopeProvider>
             ) : null}
-        </section>
+        </TabPanel>
     );
 }

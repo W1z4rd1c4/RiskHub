@@ -182,7 +182,8 @@
     "last_submission": "Last submission: {{date}}"
   },
   "labels": {
-    "archived": "Archived"
+    "archived": "Archived",
+    "entity": "KRI"
   },
   "comparison": {
     "breach_status": "Breach Status",
@@ -283,13 +284,6 @@
     "export": {
       "title": "Export filtered KRIs"
     }
-  },
-  "delete_dialog": {
-    "title": "Delete KRI",
-    "message": "Provide a reason for deleting this KRI. This action is audited.",
-    "reason_label": "Deletion reason",
-    "reason_placeholder": "Explain why this KRI should be deleted...",
-    "confirm": "Delete KRI"
   },
   "restore": {
     "pending": "Restoring…",

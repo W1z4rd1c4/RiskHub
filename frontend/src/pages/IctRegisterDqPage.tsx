@@ -5,7 +5,9 @@ import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, Ref
 import { RegisterExportLink } from '@/components/ict-register/RegisterExportLink';
 import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Badge, SeverityBadge } from '@/components/ui/badge';
 import { useTranslation } from '@/i18n/hooks';
+import type { SeverityBand } from '@/lib/severity';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { ictRegisterDqApi } from '@/services/ictRegisterDqApi';
 import type { IctDqCheck, IctDqViolationsPage, IctRegisterDq } from '@/types/ictRegisterDq';
@@ -26,56 +28,45 @@ import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 function StatusPill({ check }: { check: IctDqCheck }) {
     const { t } = useTranslation('ictRegisterDq');
+    const testId = `dq-status-${check.check_id}`;
     if (isFinding(check)) {
         return (
-            <span
-                data-testid={`dq-status-${check.check_id}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-destructive/10 text-destructive"
-            >
-                <AlertCircle className="h-3.5 w-3.5" />
+            <Badge data-testid={testId} tone="danger" icon={AlertCircle}>
                 {t('status.finding')}
-            </span>
+            </Badge>
         );
     }
     if (isProductionInert(check)) {
         // A quiet check with no app column feeding it (DQ-23): muted "not
         // yet measurable", never a false OK.
         return (
-            <span
-                data-testid={`dq-status-${check.check_id}`}
-                title={t('status.not_measurable_hint')}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-muted-foreground"
-            >
-                <CircleDashed className="h-3.5 w-3.5" />
+            <Badge data-testid={testId} tone="neutral" icon={CircleDashed} title={t('status.not_measurable_hint')}>
                 {t('status.not_measurable')}
-            </span>
+            </Badge>
         );
     }
     return (
-        <span
-            data-testid={`dq-status-${check.check_id}`}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-success/10 text-success-text"
-        >
-            <CheckCircle2 className="h-3.5 w-3.5" />
+        <Badge data-testid={testId} tone="success" icon={CheckCircle2}>
             {t('status.ok')}
-        </span>
+        </Badge>
     );
 }
+
+/** DQ severities on the D1 scale (medium → warning, high → severity-high, critical → danger). */
+const DQ_SEVERITY_BAND: Readonly<Record<string, SeverityBand>> = {
+    medium: 'medium',
+    high: 'high',
+    critical: 'critical',
+};
 
 function SeverityChip({ severity }: { severity: string }) {
     const { t } = useTranslation('ictRegisterDq');
     const key = dqSeverityKey(severity);
-    const tone =
-        key === 'critical'
-            ? 'bg-destructive/10 text-destructive'
-            : key === 'high'
-              ? 'bg-warning/10 text-warning-text'
-              : 'bg-info/10 text-accent-text';
-    return (
-        <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${tone}`}>
-            {key ? t(`severity.${key}`) : severity}
-        </span>
-    );
+    const band = key ? DQ_SEVERITY_BAND[key] : undefined;
+    if (!key || !band) {
+        return <Badge tone="neutral">{severity}</Badge>;
+    }
+    return <SeverityBadge band={band} label={t(`severity.${key}`)} />;
 }
 
 interface DqDetailState {

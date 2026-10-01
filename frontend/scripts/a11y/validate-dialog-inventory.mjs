@@ -92,6 +92,24 @@ assertUnique(implementations.map((entry) => entry.id), 'implementation id');
 assertUnique(renderSites.map((entry) => entry.id), 'render-site id');
 assertUnique(nonDialogs.map((entry) => entry.id), 'non-dialog id');
 
+// DialogShell v2 lives in `components/ui/dialog.tsx`; the old path is a
+// re-export-only shim until Phase 4 (audit 2026-09-30 §4.11, O8).
+const primitive = manifest.primitive;
+if (!primitive?.file || !primitive?.legacyShim) fail('manifest must declare primitive.file and primitive.legacyShim');
+for (const path of [primitive.file, primitive.legacyShim]) {
+    if (!existsSync(resolve(repoRoot, path))) fail(`primitive references missing file ${path}`);
+}
+
+const delegates = implementations.filter((entry) => entry.kind === 'delegate');
+const directImplementations = implementations.filter((entry) => entry.kind !== 'delegate');
+for (const entry of delegates) {
+    const target = directImplementations.find((candidate) => candidate.component === entry.delegatesTo);
+    if (!target || target.kind !== 'semantic') {
+        fail(`${entry.id} delegates to ${entry.delegatesTo ?? '(missing delegatesTo)'}, which is not a semantic DialogShell owner`);
+    }
+    if (entry.legacyClassProps?.length) fail(`${entry.id} is a delegate and cannot record legacyClassProps`);
+}
+
 const registeredComponents = new Set(implementations.map((entry) => entry.component));
 for (const entry of [...implementations, ...renderSites, ...nonDialogs]) {
     if (!entry.id || !entry.component || !entry.file) fail(`malformed entry ${JSON.stringify(entry)}`);
@@ -104,35 +122,110 @@ for (const entry of renderSites) {
 
 const semanticComponents = new Set(
     implementations
-        .filter((entry) => entry.kind === 'semantic' || entry.kind === 'transparent-wrapper')
+        .filter((entry) => ['semantic', 'transparent-wrapper', 'delegate'].includes(entry.kind))
         .map((entry) => entry.component),
 );
+const LEGACY_CLASS_PROPS = new Set(['backdropClassName', 'containerClassName', 'contentClassName']);
 const directOwners = [];
 const semanticRenderSites = [];
+const delegateRenderSites = [];
+const legacyClassPropsByOwner = new Map();
+const dialogShellDefinitions = [];
+const delegateKeys = new Set(delegates.map((entry) => `${entry.delegatesTo}|${entry.file}|${entry.component}`));
+
+function definesDialogShell(node) {
+    return (ts.isFunctionDeclaration(node) || ts.isVariableDeclaration(node))
+        && node.name
+        && ts.isIdentifier(node.name)
+        && node.name.text === 'DialogShell';
+}
 
 for (const path of collectTsxFiles(sourceRoot)) {
     const file = repoPath(path);
     const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const visit = (node) => {
+        if (definesDialogShell(node)) dialogShellDefinitions.push(file);
         if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
             const tag = jsxTag(node);
             if (tag === 'DialogShell') {
                 const owner = componentOwner(node);
                 if (!owner) fail(`cannot determine DialogShell owner in ${file}`);
                 directOwners.push(`${owner}|${file}`);
+                const legacyProps = legacyClassPropsByOwner.get(`${owner}|${file}`) ?? new Set();
+                for (const attribute of node.attributes.properties) {
+                    if (
+                        ts.isJsxAttribute(attribute)
+                        && ts.isIdentifier(attribute.name)
+                        && LEGACY_CLASS_PROPS.has(attribute.name.text)
+                    ) {
+                        legacyProps.add(attribute.name.text);
+                    }
+                }
+                legacyClassPropsByOwner.set(`${owner}|${file}`, legacyProps);
             }
-            if (tag && semanticComponents.has(tag)) semanticRenderSites.push(`${tag}|${file}`);
+            if (tag && semanticComponents.has(tag)) {
+                const owner = componentOwner(node);
+                if (delegateKeys.has(`${tag}|${file}|${owner}`)) {
+                    delegateRenderSites.push(`${tag}|${file}|${owner}`);
+                } else {
+                    semanticRenderSites.push(`${tag}|${file}`);
+                }
+            }
         }
         ts.forEachChild(node, visit);
     };
     visit(source);
 }
 
+if (dialogShellDefinitions.length !== 1 || dialogShellDefinitions[0] !== primitive.file) {
+    fail(`DialogShell must be defined once, in ${primitive.file}; found: ${dialogShellDefinitions.join(', ') || 'none'}`);
+}
+
+const shimPath = resolve(repoRoot, primitive.legacyShim);
+const shimSource = ts.createSourceFile(shimPath, readFileSync(shimPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const primitiveModule = resolve(repoRoot, primitive.file).replace(/\.tsx?$/, '');
+for (const statement of shimSource.statements) {
+    const specifier = ts.isExportDeclaration(statement) && statement.moduleSpecifier
+        && ts.isStringLiteral(statement.moduleSpecifier)
+        ? statement.moduleSpecifier.text
+        : null;
+    const target = specifier?.startsWith('@/')
+        ? resolve(sourceRoot, specifier.slice(2))
+        : specifier ? resolve(dirname(shimPath), specifier) : null;
+    if (target !== primitiveModule) {
+        fail(`${primitive.legacyShim} may only re-export ${primitive.file}`);
+    }
+}
+
 compareMultisets(
     'DialogShell implementation owners drifted',
-    implementations.map((entry) => `${entry.component}|${entry.file}`),
+    directImplementations.map((entry) => `${entry.component}|${entry.file}`),
     directOwners,
 );
+compareMultisets(
+    'delegate implementations drifted',
+    delegates.map((entry) => `${entry.delegatesTo}|${entry.file}|${entry.component}`),
+    delegateRenderSites,
+);
+
+// Ratchet (audit §4.11 guard): deprecated DialogShell class props may only go down.
+const legacyProblems = [];
+for (const entry of directImplementations) {
+    const recorded = new Set(entry.legacyClassProps ?? []);
+    const observed = legacyClassPropsByOwner.get(`${entry.component}|${entry.file}`) ?? new Set();
+    for (const prop of observed) {
+        if (!recorded.has(prop)) {
+            legacyProblems.push(`${entry.id} passes deprecated ${prop}; use size/className and DialogHeader/DialogBody/DialogFooter`);
+        }
+    }
+    for (const prop of recorded) {
+        if (!observed.has(prop)) {
+            legacyProblems.push(`${entry.id} no longer passes ${prop}; remove it from legacyClassProps (ratchet)`);
+        }
+    }
+}
+if (legacyProblems.length) fail(`DialogShell legacy class props drifted\n${legacyProblems.join('\n')}`);
+const legacyPropUses = directImplementations.reduce((total, entry) => total + (entry.legacyClassProps?.length ?? 0), 0);
 compareMultisets(
     'application render sites drifted',
     renderSites
@@ -173,5 +266,6 @@ compareMultisets('matrix verification cases drifted', [...expectedCaseIds], obse
 console.log(
     `Dialog inventory verified: ${implementations.length} implementation owners, `
     + `${renderSites.length} application render sites, ${nonDialogs.length} non-dialog surfaces, `
-    + `${expectedCaseIds.size} executable contract cases.`,
+    + `${expectedCaseIds.size} executable contract cases, `
+    + `${legacyPropUses} deprecated DialogShell class-prop uses (ratchet).`,
 );

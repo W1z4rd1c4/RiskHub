@@ -116,7 +116,7 @@ test.describe('Department metric drill-down (#90)', () => {
         const tabs = page.getByRole('tab');
         await expect(tabs).toHaveCount(10);
         for (const [index, tab] of ENTITY_TABS.entries()) {
-            await expect(tabs.nth(index)).toHaveAttribute('data-department-tab', tab);
+            await expect(tabs.nth(index)).toHaveAttribute('id', `department-tab-${tab}`);
         }
         await expect(page.getByRole('tab', { name: /threat/i })).toHaveCount(0);
 

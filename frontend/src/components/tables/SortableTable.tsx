@@ -1,26 +1,45 @@
 /**
  * SortableTable - Generic table with sortable column headers.
  *
- * Centralizes the accessible table contract (issue #61, spec §4 Phase 3, N16–N18):
- *   - FR-P3-1 keyboard access: sort headers are real `<button>`s inside
- *     `<th scope="col" aria-sort>`; an optional trailing chevron is a focusable
- *     `<Link aria-label="View …">` (the keyboard path to detail); row `onClick`
- *     is retained purely as a mouse convenience.
+ * Centralizes the accessible table contract (issue #61, spec §4 Phase 3, N16–N18;
+ * audit 2026-09-30 §4.13, D14):
+ *   - FR-P3-1 keyboard access: sort headers are real buttons inside
+ *     `<th scope="col" aria-sort>` (`ui/table` `TH`); an optional trailing chevron
+ *     is a focusable `<Link aria-label="View …">` (the keyboard path to detail).
+ *   - D14 / AX-02 row activation: `onRowActivate` (in-page selection) renders a
+ *     named button in the first cell (native Enter/Space); a row click
+ *     delegates to it as a mouse convenience. `onRowClick` is the deprecated,
+ *     mouse-only predecessor.
+ *   - `getRowActions` renders named `RowActionButton`s in a trailing cell.
  *   - FR-P3-2 column-aware `isLoading` skeleton (renders the header + placeholder
  *     rows so a load never flashes the empty state).
  *   - FR-P3-3 `isError` branch consuming the reusable table-error contract from
  *     #70 (`useTableErrorContract` + `<TableErrorState>`): a failed fetch with no
  *     data replaces the table; a failed refetch that still holds data keeps the
  *     stale rows and surfaces a non-blocking retry banner.
+ *
+ * The markup comes from the presentational `components/ui/table.tsx` primitives
+ * (scroll container, header recipe, row dividers).
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
+import {
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+    Table,
+    TableRowButton,
+    type TableDensity,
+    type TableSortDirection,
+} from '@/components/ui/table';
 
-export type SortDirection = 'asc' | 'desc' | null;
+export type SortDirection = TableSortDirection;
 
 export interface Column<T> {
     key: keyof T | string;
@@ -35,6 +54,7 @@ interface SortableTableProps<T> {
     data: T[];
     columns: Column<T>[];
     keyExtractor: (item: T) => string | number;
+    /** @deprecated Mouse-only. Use `rowHref` (navigation) or `onRowActivate` (in-page selection). */
     onRowClick?: (item: T) => void;
     className?: string;
     emptyMessage?: string;
@@ -60,92 +80,36 @@ interface SortableTableProps<T> {
     rowLabel?: (item: T) => string;
     /** Optional accessible name when multiple table regions share one view. */
     horizontalRegionLabel?: string;
+    // Row activation and actions (audit §4.13, D14, AX-02).
+    /**
+     * In-page selection (open a drawer / dialog, select a row). Renders the first
+     * column's content inside a named button (Enter/Space); a click anywhere
+     * else on the row (outside interactive content) activates it too. The first
+     * column must not render interactive content when this is set.
+     */
+    onRowActivate?: (item: T) => void;
+    /** Visually hidden text appended to the activation button's name (e.g. "Open questionnaire sent 5 Jan"). */
+    rowActivateLabel?: (item: T) => string;
+    /** Trailing per-row actions, normally `RowActionButton`s. */
+    getRowActions?: (item: T) => React.ReactNode;
+    /**
+     * `card` (default) wraps the table in the glass card; `none` renders it bare
+     * for tables that already sit inside a card (never nest glass in glass).
+     */
+    surface?: 'card' | 'none';
+    /** Cell padding: `default` px-6 py-4 · `compact` px-4 py-3. */
+    density?: TableDensity;
 }
 
-interface HorizontalTableViewportProps {
-    children: React.ReactNode;
-    continuationLabel: string;
-    regionLabel: string;
-}
+const INTERACTIVE_TARGET_SELECTOR =
+    'a, button, input, select, textarea, label, summary, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="menuitem"], [contenteditable="true"]';
 
-function HorizontalTableViewport({
-    children,
-    continuationLabel,
-    regionLabel,
-}: HorizontalTableViewportProps) {
-    const viewportRef = useRef<HTMLDivElement>(null);
-    const cueId = useId();
-    const [hasOverflow, setHasOverflow] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(false);
-
-    const measure = useCallback(() => {
-        const viewport = viewportRef.current;
-        if (!viewport) return;
-        const nextHasOverflow = viewport.scrollWidth > viewport.clientWidth + 1;
-        setHasOverflow(nextHasOverflow);
-        setCanScrollRight(nextHasOverflow && viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 1);
-    }, []);
-
-    useEffect(() => {
-        measure();
-        window.addEventListener('resize', measure);
-        const viewport = viewportRef.current;
-        viewport?.addEventListener('scroll', measure);
-        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-        if (observer && viewport) {
-            observer.observe(viewport);
-            if (viewport.firstElementChild) {
-                observer.observe(viewport.firstElementChild);
-            }
-        }
-        return () => {
-            window.removeEventListener('resize', measure);
-            viewport?.removeEventListener('scroll', measure);
-            observer?.disconnect();
-        };
-    }, [measure]);
-
-    useEffect(() => {
-        measure();
-    }, [children, measure]);
-
-    useEffect(() => {
-        const viewport = viewportRef.current;
-        if (!viewport) return;
-        viewport.tabIndex = hasOverflow ? 0 : -1;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!hasOverflow || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
-            event.preventDefault();
-            const direction = event.key === 'ArrowRight' ? 1 : -1;
-            const next = viewport.scrollLeft + direction * Math.max(120, viewport.clientWidth * 0.75);
-            viewport.scrollLeft = Math.max(0, Math.min(next, viewport.scrollWidth - viewport.clientWidth));
-            measure();
-        };
-        viewport.addEventListener('keydown', handleKeyDown);
-        return () => viewport.removeEventListener('keydown', handleKeyDown);
-    }, [hasOverflow, measure]);
-
-    return (
-        <div className="relative">
-            <div
-                ref={viewportRef}
-                role="region"
-                aria-label={regionLabel}
-                aria-describedby={canScrollRight ? cueId : undefined}
-                className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-            >
-                {children}
-            </div>
-            {canScrollRight ? (
-                <span
-                    id={cueId}
-                    className="pointer-events-none absolute bottom-2 right-2 rounded-md border border-border bg-background/95 px-2 py-1 text-xs font-medium text-foreground shadow-lg"
-                >
-                    {continuationLabel}
-                </span>
-            ) : null}
-        </div>
-    );
+/** True when a click started on interactive content inside the row (it handles its own click). */
+function isInteractiveTarget(event: React.MouseEvent<HTMLTableRowElement>): boolean {
+    const target = event.target;
+    if (!(target instanceof Element)) return false;
+    const interactive = target.closest(INTERACTIVE_TARGET_SELECTOR);
+    return interactive !== null && event.currentTarget.contains(interactive);
 }
 
 function getItemValue<T extends object>(item: T, key: string): unknown {
@@ -170,6 +134,11 @@ export function SortableTable<T extends object>({
     rowHref,
     rowLabel,
     horizontalRegionLabel,
+    onRowActivate,
+    rowActivateLabel,
+    getRowActions,
+    surface = 'card',
+    density = 'default',
 }: SortableTableProps<T>) {
     const { t } = useTranslation('common');
     const [internalSortKey, setInternalSortKey] = useState<string | null>(null);
@@ -225,64 +194,36 @@ export function SortableTable<T extends object>({
     const hasData = data.length > 0;
     const errorContract = useTableErrorContract({ isError, hasData });
 
-    const getSortIcon = (key: string) => {
-        if (currentSortKey !== key) {
-            return <ChevronsUpDown className="h-4 w-4 text-slate-500" aria-hidden="true" />;
-        }
-        if (currentSortDirection === 'asc') {
-            return <ChevronUp className="h-4 w-4 text-accent" aria-hidden="true" />;
-        }
-        if (currentSortDirection === 'desc') {
-            return <ChevronDown className="h-4 w-4 text-accent" aria-hidden="true" />;
-        }
-        return <ChevronsUpDown className="h-4 w-4 text-slate-500" aria-hidden="true" />;
-    };
-
-    const getAriaSort = (col: Column<T>, key: string): React.AriaAttributes['aria-sort'] => {
-        if (!col.sortable) return undefined;
-        if (currentSortKey !== key) return 'none';
-        if (currentSortDirection === 'asc') return 'ascending';
-        if (currentSortDirection === 'desc') return 'descending';
-        return 'none';
-    };
+    const hasTrailingCell = Boolean(rowHref || getRowActions);
+    // Link-only rows keep the 40px chevron column; row actions shrink-wrap their buttons.
+    const trailingCellWidth = getRowActions ? 'w-px whitespace-nowrap' : 'w-[40px]';
+    const surfaceClassName = surface === 'card' ? 'glass-card !p-0 overflow-hidden' : undefined;
+    const rowActivationHandler = onRowActivate ?? onRowClick;
 
     const renderHeader = () => (
-        <thead>
-            <tr className="border-b border-white/10">
+        <THead>
+            <TR>
                 {columns.map((col) => {
                     const key = String(col.key);
+                    const isActiveSort = currentSortKey === key;
                     return (
-                        <th
+                        <TH
                             key={key}
-                            scope="col"
-                            aria-sort={getAriaSort(col, key)}
-                            className={cn(
-                                'px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground',
-                                col.headerClassName
-                            )}
+                            className={col.headerClassName}
+                            onSort={col.sortable ? () => handleSort(key) : undefined}
+                            sortDirection={isActiveSort ? currentSortDirection ?? null : null}
                         >
-                            {col.sortable ? (
-                                <button
-                                    type="button"
-                                    onClick={() => handleSort(key)}
-                                    className="group inline-flex items-center gap-2 uppercase tracking-wider transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
-                                >
-                                    {col.label}
-                                    {getSortIcon(key)}
-                                </button>
-                            ) : (
-                                <span className="inline-flex items-center gap-2">{col.label}</span>
-                            )}
-                        </th>
+                            {col.sortable ? col.label : <span className="inline-flex items-center gap-2">{col.label}</span>}
+                        </TH>
                     );
                 })}
-                {rowHref ? (
-                    <th scope="col" className="px-6 py-4 w-[40px]">
+                {hasTrailingCell ? (
+                    <TH className={trailingCellWidth}>
                         <span className="sr-only">{t('tables.row_actions')}</span>
-                    </th>
+                    </TH>
                 ) : null}
-            </tr>
-        </thead>
+            </TR>
+        </THead>
     );
 
     // FR-P3-3 — a failed fetch with no last-good data replaces the table entirely
@@ -294,96 +235,114 @@ export function SortableTable<T extends object>({
     // FR-P3-2 — column-aware skeleton while the first load is in flight, so the
     // list never flashes a false "no data" / zero state (C3).
     if (isLoading && !hasData) {
-        const skeletonColumnCount = columns.length + (rowHref ? 1 : 0);
+        const skeletonColumnCount = columns.length + (hasTrailingCell ? 1 : 0);
         return (
             <div
-                className={cn('glass-card !p-0 overflow-hidden', className)}
+                className={cn(surfaceClassName, className)}
                 aria-busy="true"
                 data-testid="sortable-table-skeleton"
             >
-                <HorizontalTableViewport
-                    regionLabel={resolvedHorizontalRegionLabel}
-                    continuationLabel={t('tables.more_columns_right')}
-                >
-                    <table className="w-full">
-                        {renderHeader()}
-                        <tbody className="divide-y divide-white/5">
-                            {Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
-                                <tr key={`sortable-skeleton-${rowIndex}`} className="animate-pulse" aria-hidden="true">
-                                    {Array.from({ length: skeletonColumnCount }, (_, colIndex) => (
-                                        <td key={colIndex} className="px-6 py-4" aria-hidden="true">
-                                            <div className="h-4 w-full max-w-[120px] rounded bg-white/5" />
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </HorizontalTableViewport>
+                <Table density={density} regionLabel={resolvedHorizontalRegionLabel}>
+                    {renderHeader()}
+                    <TBody>
+                        {Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
+                            <TR key={`sortable-skeleton-${rowIndex}`} className="animate-pulse" aria-hidden="true">
+                                {Array.from({ length: skeletonColumnCount }, (_, colIndex) => (
+                                    <TD key={colIndex} aria-hidden="true">
+                                        <div className="h-4 w-full max-w-[120px] rounded bg-tint/5" />
+                                    </TD>
+                                ))}
+                            </TR>
+                        ))}
+                    </TBody>
+                </Table>
             </div>
         );
     }
 
     if (!hasData) {
         return (
-            <div className="glass-card text-center py-12">
+            <div className={cn(surface === 'card' ? 'glass-card' : undefined, 'text-center py-12')}>
                 <p className="text-muted-foreground">{resolvedEmptyMessage}</p>
             </div>
         );
     }
 
-    const table = (
-        // FR-P5-3: the rounded card keeps `overflow-hidden` (corner clip); an inner
-        // `overflow-x-auto` scroll container lets dense/wide columns scroll at `>= lg`
-        // instead of being clipped.
-        <div className={cn('glass-card !p-0 overflow-hidden', className)}>
-            <HorizontalTableViewport
-                regionLabel={resolvedHorizontalRegionLabel}
-                continuationLabel={t('tables.more_columns_right')}
+    const renderCell = (item: T, col: Column<T>, index: number, colIndex: number) => {
+        const content = col.render
+            ? col.render(item, index)
+            : String(getItemValue(item, String(col.key)) ?? '');
+        if (colIndex !== 0 || !onRowActivate) return content;
+        return (
+            <TableRowButton
+                onClick={() => onRowActivate(item)}
+                srLabel={rowActivateLabel?.(item)}
+                data-row-activate=""
             >
-                <table className="w-full">
-                    {renderHeader()}
-                    <tbody className="divide-y divide-white/5">
-                        {sortedData.map((item, index) => (
-                            <tr
-                                key={keyExtractor(item)}
-                                className={cn(
-                                    'hover:bg-white/5 transition-colors',
-                                    onRowClick && 'cursor-pointer'
-                                )}
-                                onClick={onRowClick ? () => onRowClick(item) : undefined}
-                            >
-                                {columns.map((col) => (
-                                    <td
-                                        key={String(col.key)}
-                                        className={cn('px-6 py-4', col.className)}
-                                    >
-                                        {col.render
-                                            ? col.render(item, index)
-                                            : String(getItemValue(item, String(col.key)) ?? '')}
-                                    </td>
-                                ))}
-                                {rowHref ? (
-                                    <td className="px-6 py-4 w-[40px] text-right">
-                                        <Link
-                                            to={rowHref(item)}
-                                            onClick={(event) => event.stopPropagation()}
-                                            aria-label={
-                                                rowLabel
-                                                    ? t('tables.view_entity', { entity: rowLabel(item) })
-                                                    : t('tables.view_row')
-                                            }
-                                            className="inline-flex items-center justify-center rounded text-slate-500 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                        >
-                                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                                        </Link>
-                                    </td>
-                                ) : null}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </HorizontalTableViewport>
+                {content}
+            </TableRowButton>
+        );
+    };
+
+    const renderTrailingCell = (item: T) => {
+        const link = rowHref ? (
+            <Link
+                to={rowHref(item)}
+                onClick={(event) => event.stopPropagation()}
+                aria-label={
+                    rowLabel
+                        ? t('tables.view_entity', { entity: rowLabel(item) })
+                        : t('tables.view_row')
+                }
+                className="inline-flex items-center justify-center rounded text-muted-foreground transition-colors hover:text-accent-text focus-ring"
+            >
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+        ) : null;
+        if (!getRowActions) {
+            return <TD className={cn(trailingCellWidth, 'text-right')}>{link}</TD>;
+        }
+        return (
+            <TD className={cn(trailingCellWidth, 'text-right')}>
+                <div className="flex items-center justify-end gap-1">
+                    {getRowActions(item)}
+                    {link}
+                </div>
+            </TD>
+        );
+    };
+
+    const table = (
+        // FR-P5-3: the rounded card keeps `overflow-hidden` (corner clip); the inner
+        // `Table` scroll container lets dense/wide columns scroll at `>= lg`
+        // instead of being clipped.
+        <div className={cn(surfaceClassName, className)}>
+            <Table density={density} regionLabel={resolvedHorizontalRegionLabel}>
+                {renderHeader()}
+                <TBody>
+                    {sortedData.map((item, index) => (
+                        <TR
+                            key={keyExtractor(item)}
+                            className={cn(rowActivationHandler && 'cursor-pointer')}
+                            onClick={
+                                rowActivationHandler
+                                    ? (event) => {
+                                        if (isInteractiveTarget(event)) return;
+                                        rowActivationHandler(item);
+                                    }
+                                    : undefined
+                            }
+                        >
+                            {columns.map((col, colIndex) => (
+                                <TD key={String(col.key)} className={col.className}>
+                                    {renderCell(item, col, index, colIndex)}
+                                </TD>
+                            ))}
+                            {hasTrailingCell ? renderTrailingCell(item) : null}
+                        </TR>
+                    ))}
+                </TBody>
+            </Table>
         </div>
     );
 

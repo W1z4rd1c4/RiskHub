@@ -15,12 +15,11 @@ export interface SelectOption {
     disabled?: boolean
 }
 
-export interface ThemedSelectProps {
+interface ThemedSelectBaseProps {
     value: string
     onValueChange: (value: string) => void
     options: SelectOption[]
     placeholder?: string
-    triggerAriaLabel?: string
     className?: string
     disabled?: boolean
     /** Show empty option that clears selection */
@@ -33,12 +32,6 @@ export interface ThemedSelectProps {
     triggerRef?: React.Ref<HTMLButtonElement>
     /** Control id (owned by `Field` when wrapped). */
     id?: string
-    /**
-     * Id(s) of the visible label(s) associated with this control. When set, the
-     * fallback `aria-label` is suppressed so the visible label is the accessible
-     * name (FR-P2a-4 / spec N13 — no fallback label overrides a real label).
-     */
-    "aria-labelledby"?: string
     /** Id(s) of help/error text (wired by `Field`). */
     "aria-describedby"?: string
     /** Invalid-state flag (wired by `Field`); also drives the error visual. */
@@ -47,6 +40,33 @@ export interface ThemedSelectProps {
     "aria-required"?: React.AriaAttributes["aria-required"]
 }
 
+interface ThemedSelectNameProps {
+    /** Accessible name when no visible label is associated (filter bars). */
+    triggerAriaLabel?: string
+    /**
+     * Id(s) of the visible label(s) associated with this control. When set, the
+     * fallback `aria-label` is suppressed so the visible label is the accessible
+     * name (FR-P2a-4 / spec N13 — no fallback label overrides a real label).
+     */
+    "aria-labelledby"?: string
+}
+
+/**
+ * Props of a named select (audit §4.8, AX-04): `triggerAriaLabel` **or**
+ * `aria-labelledby` is required. Spreading `Field`'s render-prop supplies
+ * `aria-labelledby`.
+ */
+export type ThemedSelectProps = ThemedSelectBaseProps & (
+    | { triggerAriaLabel: string; "aria-labelledby"?: string }
+    | { triggerAriaLabel?: string; "aria-labelledby": string }
+)
+
+/**
+ * Legacy props: no name source, so the placeholder doubles as the accessible
+ * name and the visible label disappears once a value is picked (AX-04).
+ */
+export type UnnamedThemedSelectProps = ThemedSelectBaseProps & ThemedSelectNameProps
+
 // Radix UI Select doesn't allow empty string values (uses "" to clear selection).
 // We use this sentinel value internally and translate to/from "" for the consumer.
 const EMPTY_SENTINEL = "__EMPTY__"
@@ -54,7 +74,15 @@ const EMPTY_SENTINEL = "__EMPTY__"
 /**
  * Convenience wrapper around the Radix Select primitives.
  * Provides a simple value + options API while maintaining full theme support.
+ * Name it with `Field` (`aria-labelledby`) or `triggerAriaLabel`.
  */
+export function ThemedSelect(props: ThemedSelectProps): React.JSX.Element
+/**
+ * @deprecated Name the select: wrap it in `Field` (spread its render-prop) or
+ * pass `triggerAriaLabel` (audit §4.8, AX-04). Unnamed call sites migrate
+ * with their module in Phase 3; this overload is deleted afterwards.
+ */
+export function ThemedSelect(props: UnnamedThemedSelectProps): React.JSX.Element
 export function ThemedSelect({
     value,
     onValueChange,
@@ -74,7 +102,7 @@ export function ThemedSelect({
     "aria-describedby": ariaDescribedby,
     "aria-invalid": ariaInvalid,
     "aria-required": ariaRequired,
-}: ThemedSelectProps) {
+}: UnnamedThemedSelectProps): React.JSX.Element {
     const { t } = useTranslation('common')
     const resolvedPlaceholder = placeholder ?? t('actions.select')
     const resolvedEmptyLabel = emptyLabel ?? t('labels.all')

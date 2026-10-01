@@ -5,12 +5,15 @@ import { useActivityLogPageState, type ActiveTab } from '@/hooks/useActivityLogP
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
 import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries';
 import { ActivityLogPagination } from '@/components/activity-log/ActivityLogPagination';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 // ─────────────────────────────────────────────────────────────
 // Tab definitions
 // ─────────────────────────────────────────────────────────────
+
+const ACTIVITY_LOG_TABS_ID_PREFIX = 'activity-log';
 
 const TABS: { id: ActiveTab; labelKey: string }[] = [
     { id: 'kri', labelKey: 'activity_log.entities.kri' },
@@ -77,22 +80,16 @@ export function ActivityLogPage() {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        data-testid={`activity-log-tab-${tab.id}`}
-                        onClick={() => state.setActiveTab(tab.id)}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${state.activeTab === tab.id
-                            ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/25'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                            }`}
-                    >
-                        {t(tab.labelKey)}
-                    </button>
-                ))}
-            </div>
+            {/* Tabs (AX-07, D8): a real tablist with roving tabindex and arrow keys */}
+            <TabList
+                variant="pill"
+                tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.labelKey), testId: `activity-log-tab-${tab.id}` }))}
+                activeTab={state.activeTab}
+                onChange={state.setActiveTab}
+                idPrefix={ACTIVITY_LOG_TABS_ID_PREFIX}
+                ariaLabel={t('activity_log.entity_tabs_label')}
+                className="self-start"
+            />
 
             {/* Filter Bar (view mode + filters) */}
             <ActivityLogFilterBar
@@ -120,24 +117,32 @@ export function ActivityLogPage() {
                 canViewEntityFilters={resolveCapabilityFlag(state.capabilities, 'can_view_entity_filters')}
             />
 
-            {/* Entries List */}
-            <ActivityLogEntries
-                entries={state.entries}
-                outcome={state.outcome}
-                needsRiskSelection={state.needsRiskSelection}
-                onRetry={state.refresh}
-            />
-
-            {/* Pagination */}
-            {state.total > state.limit && (
-                <ActivityLogPagination
-                    page={state.page}
-                    setPage={state.setPage}
-                    limit={state.limit}
-                    total={state.total}
-                    isLoading={state.isLoading}
+            {/* The tab switches the entity whose entries and pages are listed. */}
+            <TabPanel
+                tab={state.activeTab}
+                activeTab={state.activeTab}
+                idPrefix={ACTIVITY_LOG_TABS_ID_PREFIX}
+                className="flex flex-col gap-6"
+            >
+                {/* Entries List */}
+                <ActivityLogEntries
+                    entries={state.entries}
+                    outcome={state.outcome}
+                    needsRiskSelection={state.needsRiskSelection}
+                    onRetry={state.refresh}
                 />
-            )}
+
+                {/* Pagination */}
+                {state.total > state.limit && (
+                    <ActivityLogPagination
+                        page={state.page}
+                        setPage={state.setPage}
+                        limit={state.limit}
+                        total={state.total}
+                        isLoading={state.isLoading}
+                    />
+                )}
+            </TabPanel>
         </div>
     );
 }

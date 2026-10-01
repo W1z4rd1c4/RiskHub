@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { nativeAuthApi, type NativeErrorKind } from '@/services/nativeAuthApi';
 import type { TokenResponse } from '@/services/authApi';
@@ -79,10 +80,10 @@ export function NativeFactor({ challenge, mode, token, onSession, onDone, onCanc
                     {(field) => <Input {...field} readOnly value={new URL(setup.provisioning_uri).searchParams.get('secret') ?? ''} autoComplete="off" />}
                 </Field>}
                 {isLogin && <Field label={t('native.factor_method')}>
-                    {(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={method} disabled={action.pending} onChange={(event) => { setCode(''); setMethod(event.target.value as typeof method); }}>
+                    {(field) => <NativeSelect {...field} value={method} disabled={action.pending} onChange={(event) => { setCode(''); setMethod(event.target.value as typeof method); }}>
                         <option value="totp">{t('native.totp')}</option>
                         <option value="recovery_code">{t('native.recovery_code')}</option>
-                    </select>}
+                    </NativeSelect>}
                 </Field>}
                 <Field label={t(method === 'totp' ? 'native.code' : 'native.recovery_code')} required>
                     {(field) => <Input {...field} value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" inputMode={method === 'totp' ? 'numeric' : 'text'} required disabled={action.pending} />}

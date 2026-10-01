@@ -8,7 +8,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string) => key,
+        t: (key: string, options?: { name?: string }) => (options?.name ? `${key}:${options.name}` : key),
     }),
 }));
 
@@ -148,8 +148,10 @@ describe('RiskQuestionnairesPanel', () => {
         renderWithQueryClient(<RiskQuestionnairesPanel />);
 
         await screen.findByText('Owner named risk');
-        const rowCheckboxes = screen.getAllByRole('checkbox');
-        fireEvent.click(rowCheckboxes[2]);
+        // AX-04: every selection checkbox has a name.
+        expect(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_all' })).not.toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_all_visible' })).not.toBeChecked();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_risk:Owner named risk' }));
         fireEvent.click(screen.getByRole('button', { name: 'riskhub.questionnaires.send' }));
 
         await waitFor(() => {

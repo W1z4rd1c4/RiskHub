@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, Archive, Edit2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
@@ -204,7 +204,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                             }}
                             disabled={isDeleting}
                         >
-                            <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
+                            <Archive aria-hidden="true" className="h-4 w-4 mr-1" /> {isDeleting ? t('common:confirm.archive.busy') : t('common:actions.archive')}
                         </Button>
                     )}
                 </div>
@@ -359,16 +359,12 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                             setDeleteErrorKey(null);
                             setIsDeleteDialogOpen(false);
                         }}
-                        onConfirm={(inputValue) => handleDelete(inputValue)}
-                        title={t('kris:delete_dialog.title')}
-                        message={t('kris:delete_dialog.message')}
-                        confirmLabel={t('kris:delete_dialog.confirm')}
-                        variant="danger"
+                        onConfirm={(reason) => handleDelete(reason)}
+                        intent="archive"
+                        entityLabel={t('kris:labels.entity')}
+                        entityName={kri.metric_name}
+                        reason="required"
                         isLoading={isDeleting}
-                        showInput
-                        inputLabel={t('kris:delete_dialog.reason_label')}
-                        inputPlaceholder={t('kris:delete_dialog.reason_placeholder')}
-                        inputRequired
                         errorText={deleteErrorKey ? t(deleteErrorKey, { ns: 'errorKeys' }) : null}
                     />
                 </>

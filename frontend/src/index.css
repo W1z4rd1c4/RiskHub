@@ -587,9 +587,8 @@
 }
 
 /* Light theme - Form inputs are themed by the token-driven Input primitive
-   (bg-input/40, text-foreground), by the vendor route (.vendor-route inputs),
-   and by component rules (.confirm-dialog-input); select triggers are themed
-   by tokens in ThemedSelect / select.tsx.
+   (bg-input/40, text-foreground) and by the vendor route (.vendor-route
+   inputs); select triggers are themed by tokens in ThemedSelect / select.tsx.
    The former blanket `.theme-light input {…!important}` rule was removed
    (FR-P5-10 / P4): being `!important` it overrode both the design-system Input
    and the vendor-route field theming in the light theme. */
@@ -795,67 +794,6 @@
 .theme-light .group:hover .group-hover\:text-slate-400 { color: var(--d2-slate-400); }
 :where(.theme-light) .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: var(--d2-divide-white-5); }
 :where(.theme-light) .divide-white\/10 > :not([hidden]) ~ :not([hidden]) { border-color: var(--d2-divide-white-10); }
-
-/* =================================
-   CONFIRM DIALOG - THEME AWARE
-   ================================= */
-
-/* Default (RiskHub theme) */
-.confirm-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.6);
-}
-
-.confirm-dialog-actions {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-/* True Dark Theme */
-.theme-dark .confirm-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.8);
-}
-
-.theme-dark .confirm-dialog-content {
-  background-color: rgba(10, 10, 10, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.theme-dark .confirm-dialog-actions {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-/* Light Theme */
-.theme-light .confirm-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.4);
-}
-
-.theme-light .confirm-dialog-content {
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.theme-light .confirm-dialog-content h3 {
-  color: #0f172a !important;
-}
-
-.theme-light .confirm-dialog-content p {
-  color: #475569 !important;
-}
-
-.theme-light .confirm-dialog-actions {
-  background-color: rgba(0, 0, 0, 0.02);
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-.theme-light .confirm-dialog-input {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-.theme-light .confirm-dialog-input::placeholder {
-  color: #94a3b8 !important;
-}
 
 /* =================================
    THEMED SELECT - All Themes

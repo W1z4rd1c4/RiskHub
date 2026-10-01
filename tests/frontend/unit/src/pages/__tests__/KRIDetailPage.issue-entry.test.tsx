@@ -138,11 +138,11 @@ describe('KRIDetailPage issue entry', () => {
         render(<KRIDetailPage />);
         await screen.findAllByText('Claims Leakage Ratio');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
         const dialog = screen.getByRole('alertdialog');
         const reason = within(dialog).getByRole('textbox', { name: /reason/i });
         fireEvent.change(reason, { target: { value: 'Exact KRI rationale' } });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Delete KRI' }));
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }));
 
         expect(await within(dialog).findByRole('alert')).toBeInTheDocument();
         expect(reason).toHaveValue('Exact KRI rationale');
@@ -151,7 +151,7 @@ describe('KRIDetailPage issue entry', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
         const reopenedDialog = screen.getByRole('alertdialog');
         expect(within(reopenedDialog).queryByRole('alert')).not.toBeInTheDocument();
         expect(within(reopenedDialog).getByRole('textbox', { name: /reason/i })).toHaveValue('');

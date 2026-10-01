@@ -565,6 +565,8 @@
       "status_active": "Aktivní",
       "status_emerging": "Vznikající",
       "select_all": "Vybrat vše (filtry)",
+      "select_all_visible": "Vybrat všechna zobrazená rizika",
+      "select_risk": "Vybrat {{name}}",
       "owner": "Vlastník",
       "empty": "Pro aktuální filtry nebyla nalezena žádná rizika.",
       "select_all_hint": "Odešle se všem rizikům odpovídajícím filtrům.",
@@ -729,7 +731,10 @@
     "modal": {
       "configure": "Nastavit: {{name}}",
       "select_roles": "Vyberte role...",
-      "roles_selected": "Vybráno rolí: {{count}}"
+      "roles_selected": "Vybráno rolí: {{count}}",
+      "roles_selected_one": "{{count}} vybraná role",
+      "roles_selected_few": "{{count}} vybrané role",
+      "roles_selected_other": "{{count}} vybraných rolí"
     },
     "fixed_policy": {
       "title": "Pevná pravidla schvalování",

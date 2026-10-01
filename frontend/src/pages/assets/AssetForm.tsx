@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+import { Input, type InputProps } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
@@ -386,7 +386,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         field: keyof FormFields,
         label: string,
         testId: string,
-        props: React.InputHTMLAttributes<HTMLInputElement> = {},
+        props: InputProps = {},
     ) => (
         <Field
             label={label}

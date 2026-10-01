@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Download, FileDown, X } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { DialogShell } from '@/components/DialogShell';
+import { RadioGroup } from '@/components/ui/radio-group';
 
 export type ExportFormat = 'csv';
 export type ExportPurpose = 'current_view' | 'evaluation' | 'point_in_time';
@@ -118,53 +119,30 @@ export function ExportDialog({
 
             <div className="p-6 space-y-5">
                 {supportsCurrentView && (
-                    <fieldset className="space-y-2">
-                        <legend className="ml-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            {t('export.purpose.label')}
-                        </legend>
-                        <label
-                            htmlFor={`${purposeId}-current`}
-                            aria-label={t('export.purpose.current_view.title')}
-                            className="flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 has-[:checked]:border-accent/50 has-[:checked]:bg-accent/10"
-                        >
-                            <input
-                                id={`${purposeId}-current`}
-                                type="radio"
-                                name="export-purpose"
-                                value="current_view"
-                                checked={purpose === 'current_view'}
-                                onChange={() => { setPurpose('current_view'); setSubmitFailed(false); }}
-                                data-testid="export-purpose-current-view"
-                                className="mt-1 accent-accent"
-                            />
-                            <span>
-                                <span className="block font-bold text-white">{t('export.purpose.current_view.title')}</span>
-                                <span className="block text-sm text-slate-400">{t('export.purpose.current_view.description')}</span>
-                            </span>
-                        </label>
-                        <label
-                            htmlFor={`${purposeId}-${datedPurpose}`}
-                            aria-label={t(`export.purpose.${datePurposeKey}.title`)}
-                            className="flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 has-[:checked]:border-accent/50 has-[:checked]:bg-accent/10"
-                        >
-                            <input
-                                id={`${purposeId}-${datedPurpose}`}
-                                type="radio"
-                                name="export-purpose"
-                                value={datedPurpose}
-                                checked={purpose === datedPurpose}
-                                onChange={() => { setPurpose(datedPurpose); setSubmitFailed(false); }}
-                                data-testid={datedPurpose === 'evaluation'
+                    <RadioGroup<ExportPurpose>
+                        variant="card"
+                        name={`${purposeId}-purpose`}
+                        legend={t('export.purpose.label')}
+                        legendClassName="ml-1 text-eyebrow"
+                        value={purpose}
+                        onValueChange={(next) => { setPurpose(next); setSubmitFailed(false); }}
+                        options={[
+                            {
+                                value: 'current_view',
+                                label: t('export.purpose.current_view.title'),
+                                description: t('export.purpose.current_view.description'),
+                                testId: 'export-purpose-current-view',
+                            },
+                            {
+                                value: datedPurpose,
+                                label: t(`export.purpose.${datePurposeKey}.title`),
+                                description: t(`export.purpose.${datePurposeKey}.description`),
+                                testId: datedPurpose === 'evaluation'
                                     ? 'export-purpose-evaluation'
-                                    : 'export-purpose-point-in-time'}
-                                className="mt-1 accent-accent"
-                            />
-                            <span>
-                                <span className="block font-bold text-white">{t(`export.purpose.${datePurposeKey}.title`)}</span>
-                                <span className="block text-sm text-slate-400">{t(`export.purpose.${datePurposeKey}.description`)}</span>
-                            </span>
-                        </label>
-                    </fieldset>
+                                    : 'export-purpose-point-in-time',
+                            },
+                        ]}
+                    />
                 )}
                 {purpose === datedPurpose && (
                     <div className="space-y-2">

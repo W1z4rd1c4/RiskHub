@@ -393,7 +393,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 .getByRole('textbox')
                 .fill('E2E direct archive lifecycle verification');
             await riskManagerPage
-                .locator('.confirm-dialog-actions')
+                .getByRole('alertdialog')
                 .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
                 .click();
             await riskManagerPage.waitForURL(/.*assets$/);

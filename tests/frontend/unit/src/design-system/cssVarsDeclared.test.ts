@@ -32,6 +32,9 @@ const RUNTIME_PROVIDED_VARS: Record<string, string> = {
   // consumed by frontend/src/components/ui/select.tsx.
   '--radix-select-trigger-height': 'set at runtime by @radix-ui/react-select',
   '--radix-select-trigger-width': 'set at runtime by @radix-ui/react-select',
+  // Radix Popover sets this on the popper wrapper; consumed by
+  // frontend/src/components/ui/multi-select.tsx (panel matches trigger width).
+  '--radix-popover-trigger-width': 'set at runtime by @radix-ui/react-popover',
 };
 
 const SCANNED_EXTENSIONS = new Set(['.css', '.ts', '.tsx']);

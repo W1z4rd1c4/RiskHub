@@ -239,8 +239,14 @@ describe('Risk Hub config panels', () => {
 
         await screen.findByText('Risk update');
         fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
-        fireEvent.click(screen.getByRole('button', { name: /admin:approval_scenarios.modal.roles_selected/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'CRO' }));
+        // GAP-B-07: the approver picker is a named MultiSelect (combobox + checkbox list).
+        const rolePicker = screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' });
+        expect(rolePicker).toHaveTextContent('admin:approval_scenarios.modal.roles_selected:1');
+        fireEvent.click(rolePicker);
+        fireEvent.click(await screen.findByRole('checkbox', { name: 'CRO' }));
+        expect(rolePicker).toHaveTextContent('admin:approval_scenarios.modal.roles_selected:2');
+        // Chip removal is worded "Remove", not "Delete".
+        expect(screen.getByRole('button', { name: 'actions.remove_named:CRO' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
 
         await waitFor(() => {
@@ -279,10 +285,10 @@ describe('Risk Hub config panels', () => {
 
         await screen.findByText('Risk update');
         fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
-        fireEvent.click(screen.getByRole('button', { name: /admin:approval_scenarios.modal.roles_selected/ }));
+        fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
 
-        expect(screen.getByRole('button', { name: 'CRO' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Department Head' })).not.toBeInTheDocument();
+        expect(await screen.findByRole('checkbox', { name: 'CRO' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
     });
 
     it('keeps risk type delete confirmation open and shows an error when delete fails', async () => {

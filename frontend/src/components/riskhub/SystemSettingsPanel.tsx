@@ -4,8 +4,8 @@ import { Settings2, Save, Check, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
-import { cn } from '@/lib/utils';
 import { riskHubKeys } from '@/lib/queryKeys';
+import { Switch } from '@/components/ui/switch';
 import { useTranslation } from '@/i18n/hooks';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
@@ -62,32 +62,13 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         if (config.value_type === 'bool') {
             const checked = value.toLowerCase() === 'true';
             return (
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={checked}
+                <Switch
+                    checked={checked}
+                    onCheckedChange={(next) => setValue(next ? 'true' : 'false')}
                     aria-labelledby={nameId}
                     aria-describedby={descriptionId}
-                    onClick={() => {
-                        if (isReadOnly) return;
-                        setValue(checked ? 'false' : 'true');
-                    }}
                     disabled={isReadOnly}
-                    className={cn(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                        checked ? "bg-accent" : "bg-white/20",
-                        isReadOnly && "opacity-50 cursor-not-allowed"
-                    )}
-                >
-                    <span
-                        aria-hidden="true"
-                        className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                            checked ? "translate-x-6" : "translate-x-1"
-                        )}
-                    />
-                </button>
+                />
             );
         }
 

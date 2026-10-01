@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { nativeAuthApi } from '@/services/nativeAuthApi';
 import { useSessionSnapshot } from '@/services/session';
@@ -86,9 +87,9 @@ export default function NativePublicPage() {
                             {recovery && <>
                                 <p>{t('native.recover_help')}</p>
                                 <Field label={t('native.recovery_kind')}>
-                                    {(field) => <select {...field} className="w-full border rounded-md bg-background p-2" value={recoveryKind} onChange={(event) => { setPassword(''); setNewPassword(''); setRecoveryKind(event.target.value as typeof recoveryKind); }}>
+                                    {(field) => <NativeSelect {...field} value={recoveryKind} onChange={(event) => { setPassword(''); setNewPassword(''); setRecoveryKind(event.target.value as typeof recoveryKind); }}>
                                         <option value="factor">{t('native.recover_factor')}</option><option value="password">{t('native.recover_password')}</option>
-                                    </select>}
+                                    </NativeSelect>}
                                 </Field>
                                 <Field label={t(recoveryEmail ? 'native.primary_grant' : 'native.verified_grant')} help={t('native.grant_help')} required={recoveryEmail}>
                                     {(field) => <Input {...field} type="password" autoComplete="off" value={verifiedGrant} onChange={(event) => setVerifiedGrant(event.target.value)} required={recoveryEmail} />}

@@ -565,6 +565,8 @@
       "status_active": "Active",
       "status_emerging": "Emerging",
       "select_all": "Select all (filters)",
+      "select_all_visible": "Select all listed risks",
+      "select_risk": "Select {{name}}",
       "owner": "Owner",
       "empty": "No risks found for the current filters.",
       "select_all_hint": "Will send to all matching filtered risks.",
@@ -729,7 +731,10 @@
     "modal": {
       "configure": "Configure: {{name}}",
       "select_roles": "Select roles...",
-      "roles_selected": "{{count}} role(s) selected"
+      "roles_selected": "{{count}} roles selected",
+      "roles_selected_one": "{{count}} role selected",
+      "roles_selected_few": "{{count}} roles selected",
+      "roles_selected_other": "{{count}} roles selected"
     },
     "fixed_policy": {
       "title": "Fixed approval policy",

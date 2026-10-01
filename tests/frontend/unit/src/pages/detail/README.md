@@ -6,3 +6,6 @@ Use this directory for route-detail shell behavior shared across domains. Entity
 
 `DetailLoadState.test.tsx` covers the unavailable state's destination-labelled
 `BackButton` and Retry action.
+
+`DetailActionBanner.test.tsx` covers the banner's `InlineMessage` roles (alert
+for failures, status for queued approvals) and the approvals link.

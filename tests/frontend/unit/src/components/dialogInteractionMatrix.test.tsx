@@ -644,9 +644,16 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (OrphanQuickViewModal.tsx:128), axe button-name fails.
     it('[owner.orphan-quick-view-modal] OrphanQuickViewModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
-            <OrphanQuickViewModal isOpen onClose={onClose} orphan={orphanFixture} />
-        ));
+        await assertDialogContract(
+            'dialog',
+            (onClose) => <OrphanQuickViewModal isOpen onClose={onClose} orphan={orphanFixture} />,
+            // Deterministic loaded sentinel: the modal flips to its details after the
+            // item fetch plus a 150ms entry delay. Waiting here keeps that update inside
+            // the test's async scope instead of racing the contract (act() warning flake).
+            async (surface) => {
+                await within(surface).findByTestId('orphan-quick-view-ready');
+            },
+        );
     });
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ResolveOrphanModal.tsx:58), axe button-name fails.

@@ -3,6 +3,8 @@ import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-reac
 import { useTranslation } from '@/i18n/hooks';
 import { departmentApi } from '@/services/departmentApi';
 import type { RiskStatus } from '@/types/risk';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
@@ -165,15 +167,20 @@ export function RiskQuestionnairesPanel() {
                         ]}
                     />
                     {canBatchSend ? (
-                        <label className="flex items-center gap-2 text-xs text-slate-300 font-bold select-none">
-                            <input
-                                type="checkbox"
-                                checked={selectAll}
-                                onChange={(e) => updateSelectAll(e.target.checked)}
-                                className="accent-accent"
-                            />
-                            {t('riskhub.questionnaires.select_all')}
-                        </label>
+                        <Field
+                            layout="inline"
+                            label={t('riskhub.questionnaires.select_all')}
+                            className="items-center gap-2"
+                            labelClassName="text-xs text-slate-300 font-bold select-none"
+                        >
+                            {(field) => (
+                                <Checkbox
+                                    {...field}
+                                    checked={selectAll}
+                                    onCheckedChange={updateSelectAll}
+                                />
+                            )}
+                        </Field>
                     ) : null}
                 </div>
 
@@ -183,12 +190,11 @@ export function RiskQuestionnairesPanel() {
                             <tr className="border-b border-white/5">
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
                                     {canBatchSend ? (
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
+                                            aria-label={t('riskhub.questionnaires.select_all_visible')}
                                             checked={selectAll ? true : allVisibleSelected}
-                                            onChange={toggleAllVisible}
+                                            onCheckedChange={toggleAllVisible}
                                             disabled={selectAll || risks.length === 0}
-                                            className="accent-accent"
                                         />
                                     ) : null}
                                 </th>
@@ -224,12 +230,11 @@ export function RiskQuestionnairesPanel() {
                                     <tr key={risk.id} className="hover:bg-white/5">
                                         <td className="px-4 py-3">
                                             {canBatchSend ? (
-                                                <input
-                                                    type="checkbox"
+                                                <Checkbox
+                                                    aria-label={t('riskhub.questionnaires.select_risk', { name: risk.name })}
                                                     checked={selectAll ? true : selectedIds.has(risk.id)}
-                                                    onChange={() => toggleRisk(risk.id)}
+                                                    onCheckedChange={() => toggleRisk(risk.id)}
                                                     disabled={selectAll}
-                                                    className="accent-accent"
                                                 />
                                             ) : null}
                                         </td>

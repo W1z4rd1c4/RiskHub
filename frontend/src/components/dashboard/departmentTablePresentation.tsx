@@ -1,25 +1,7 @@
-import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, ClipboardList, Target } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ClipboardList, Target } from 'lucide-react';
 import type { NavigateFunction } from 'react-router-dom';
 import type { SafeTFunction } from '@/i18n/hooks';
 import type { DepartmentMetrics } from '@/types/dashboard';
-import type { DepartmentSortDirection, DepartmentSortKey } from './departmentTableSorting';
-
-export function SortIcon({
-    columnKey,
-    sortDirection,
-    sortKey,
-}: {
-    columnKey: DepartmentSortKey;
-    sortKey: DepartmentSortKey;
-    sortDirection: DepartmentSortDirection;
-}) {
-    if (sortKey !== columnKey) {
-        return <div className="w-3 h-3" />;
-    }
-    return sortDirection === 'asc'
-        ? <ChevronUp className="w-3 h-3 text-accent" />
-        : <ChevronDown className="w-3 h-3 text-accent" />;
-}
 
 interface DepartmentQuickActionsProps {
     canUseDepartmentFilter: boolean;

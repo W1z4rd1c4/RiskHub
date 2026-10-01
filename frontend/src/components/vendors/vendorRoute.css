@@ -579,10 +579,6 @@
   accent-color: hsl(var(--accent));
 }
 
-.vendor-route .confirm-dialog-content {
-  border-radius: var(--radius);
-}
-
 @media (max-width: 1024px) {
   .vendor-metric-strip,
   .vendor-summary-grid,

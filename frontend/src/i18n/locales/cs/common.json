@@ -26,6 +26,9 @@
     "yes": "Ano",
     "no": "Ne",
     "archive": "Archivovat",
+    "remove_link": "Odebrat propojení",
+    "send": "Odeslat",
+    "discard": "Zahodit",
     "unarchive": "Obnovit z archivu",
     "view_all": "Zobrazit vše →",
     "add_control": "Přidat kontrolu",
@@ -36,7 +39,9 @@
     "stay": "Zůstat",
     "leave": "Odejít",
     "dismiss_message": "Zavřít zprávu",
-    "clear_selection_named": "Zrušit výběr: {{name}}"
+    "clear_selection_named": "Zrušit výběr: {{name}}",
+    "remove": "Odebrat",
+    "remove_named": "Odebrat {{name}}"
   },
   "links": {
     "remove_named": "Odebrat vazbu: {{name}}"
@@ -131,6 +136,7 @@
     "overview": "Přehled",
     "all": "Vše",
     "none": "Žádné",
+    "optional": "(nepovinné)",
     "unknown": "Neznámé",
     "loading": "Načítání...",
     "no_data": "Žádná data k dispozici",
@@ -184,6 +190,59 @@
     "archive_reversible": "Tuto akci může administrátor vrátit zpět.",
     "remove_link": "Opravdu chcete odebrat toto propojení?"
   },
+  "confirm": {
+    "archive": {
+      "title": "Archivovat záznam typu {{entity}}?",
+      "title_generic": "Archivovat tuto položku?",
+      "title_count": "Archivovat {{count}} položek?",
+      "title_count_one": "Archivovat {{count}} položku?",
+      "title_count_few": "Archivovat {{count}} položky?",
+      "title_count_other": "Archivovat {{count}} položek?",
+      "busy": "Archivace…",
+      "reason_placeholder": "Vysvětlete, proč se položka archivuje"
+    },
+    "delete": {
+      "title": "Smazat záznam typu {{entity}}?",
+      "title_generic": "Smazat tuto položku?",
+      "title_count": "Smazat {{count}} položek?",
+      "title_count_one": "Smazat {{count}} položku?",
+      "title_count_few": "Smazat {{count}} položky?",
+      "title_count_other": "Smazat {{count}} položek?",
+      "body": "Tuto akci nelze vrátit zpět.",
+      "busy": "Mazání…"
+    },
+    "unlink": {
+      "title": "Odebrat propojení s položkou {{name}}?",
+      "title_generic": "Odebrat toto propojení?",
+      "title_count": "Odebrat {{count}} propojení?",
+      "title_count_one": "Odebrat {{count}} propojení?",
+      "title_count_few": "Odebrat {{count}} propojení?",
+      "title_count_other": "Odebrat {{count}} propojení?",
+      "body": "Odebere se pouze propojení; propojený záznam zůstane zachován.",
+      "busy": "Odebírání propojení…"
+    },
+    "send": {
+      "title": "Odeslat záznam typu {{entity}}?",
+      "title_generic": "Odeslat nyní?",
+      "title_count": "Odeslat {{count}} položek?",
+      "title_count_one": "Odeslat {{count}} položku?",
+      "title_count_few": "Odeslat {{count}} položky?",
+      "title_count_other": "Odeslat {{count}} položek?",
+      "body": "Odeslání proběhne okamžitě a nelze jej vzít zpět.",
+      "busy": "Odesílání…"
+    },
+    "discard": {
+      "title": "Zahodit neuložené změny?",
+      "body": "Neuložené změny budou ztraceny."
+    },
+    "generic": {
+      "title": "Opravdu pokračovat?"
+    },
+    "reason": {
+      "label": "Důvod",
+      "placeholder": "Vysvětlete důvod této změny"
+    }
+  },
   "pending_change_cancellation": {
     "title": "Zrušit čekající žádost?",
     "message": "Zrušit čekající žádost pro „{{targetName}}“? Jde o konečný krok, který nelze vrátit zpět.",
@@ -199,7 +258,8 @@
     "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů",
     "go_to_page": "Přejít na stránku {{page}}",
     "previous_page": "Předchozí stránka",
-    "next_page": "Další stránka"
+    "next_page": "Další stránka",
+    "label": "Stránkování"
   },
   "date": {
     "today": "Dnes",
@@ -379,7 +439,8 @@
       "users": "Uživatelé"
     },
     "select_risk": "Vyberte riziko pro zobrazení aktivity.",
-    "select_risk_hint": "Pro načtení záznamů vyberte riziko ve filtru výše."
+    "select_risk_hint": "Pro načtení záznamů vyberte riziko ve filtru výše.",
+    "entity_tabs_label": "Aktivita podle typu entity"
   },
   "department_detail": {
     "tabs": {
@@ -434,6 +495,12 @@
     "no_matches_subtitle": "Zkuste jiný tag filtr.",
     "view_manual": "Zobrazit manuál",
     "maintainer_reference": "Reference správce:"
+  },
+  "severity": {
+    "low": "Nízká",
+    "medium": "Střední",
+    "high": "Vysoká",
+    "critical": "Kritická"
   },
   "tables": {
     "items": "Položky",
@@ -614,6 +681,12 @@
     "critical_risks": "Kritická rizika",
     "total_controls": "Celkem kontrol",
     "vendors": "Dodavatelé"
+  },
+  "multi_select": {
+    "selected_count": "Vybráno: {{count}}",
+    "selected_count_one": "{{count}} vybraná položka",
+    "selected_count_few": "{{count}} vybrané položky",
+    "selected_count_other": "{{count}} vybraných položek"
   },
   "error_boundary": {
     "title": "Něco se pokazilo",

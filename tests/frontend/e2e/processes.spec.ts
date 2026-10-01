@@ -302,7 +302,7 @@ test.describe('ICT Register — Processes (Deterministic)', () => {
         await waitForDataLoad(riskManagerPage);
         await riskManagerPage.getByTestId('process-detail-archive').click();
         await riskManagerPage
-            .locator('.confirm-dialog-actions')
+            .getByRole('alertdialog')
             .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
             .click();
         await riskManagerPage.waitForURL(/.*processes$/);

@@ -92,15 +92,15 @@ describe('accountability reassignment approval scenario', () => {
         expect(screen.getByTestId('accountability-reassignment-fixed-policy')).toBeInTheDocument();
         expect(screen.getByRole('switch', { name: 'admin:approval_scenarios.requires_approval' })).toBeChecked();
 
-        fireEvent.click(screen.getByRole('button', { name: /admin:approval_scenarios.modal.roles_selected/ }));
-        expect(screen.getByRole('button', { name: 'Risk Manager' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'CRO' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Department Head' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
+        expect(screen.getByRole('checkbox', { name: 'Risk Manager' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'CRO' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
         expect(screen.queryByText('admin:approval_scenarios.special_roles.risk_owner_dynamic')).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Risk Manager' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Risk Manager' }));
         expect(screen.getByRole('button', { name: 'common:actions.save' })).toBeDisabled();
-        fireEvent.click(screen.getByRole('button', { name: 'CRO' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'CRO' }));
         expect(screen.getByRole('button', { name: 'common:actions.save' })).toBeEnabled();
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
 

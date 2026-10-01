@@ -68,6 +68,33 @@ describe('Input', () => {
     });
 });
 
+/** Stand-in for a lucide icon (the test tree cannot import lucide-react). */
+function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
+    return <svg {...props} />;
+}
+
+describe('Input sizes (cva)', () => {
+    it('keeps the 40px default and offers the 32px compact size with a leading icon', () => {
+        renderWithoutProviders(
+            <>
+                <div><Input aria-label="Default" /></div>
+                <Input aria-label="Compact" size="compact" leadingIcon={SearchIcon} />
+            </>,
+        );
+        const regular = screen.getByRole('textbox', { name: 'Default' });
+        expect(regular.className).toContain('h-10');
+        expect(regular.className).toContain('rounded-lg');
+        expect(regular.parentElement?.querySelector('svg')).toBeNull();
+
+        const compact = screen.getByRole('textbox', { name: 'Compact' });
+        expect(compact.className).toContain('h-8');
+        expect(compact.className).not.toContain('h-10');
+        expect(compact.className).toContain('pl-8');
+        const icon = compact.parentElement?.querySelector('svg');
+        expect(icon).toHaveAttribute('aria-hidden', 'true');
+    });
+});
+
 describe('Field', () => {
     it('owns the id and wires label + help + error + aria state onto the control', () => {
         renderWithoutProviders(
@@ -121,6 +148,40 @@ describe('Field', () => {
         const second = screen.getByRole('textbox', { name: 'Second' }).getAttribute('id');
         expect(first).not.toBe(second);
         expect(screen.getByRole('textbox', { name: 'Third' })).toHaveAttribute('id', 'explicit-id');
+    });
+
+    it('appends the translated "(optional)" hint, never alongside the required marker', () => {
+        renderWithoutProviders(
+            <>
+                <Field label="Notes" optional>{(f) => <Input {...f} />}</Field>
+                <Field label="Title" optional required>{(f) => <Input {...f} />}</Field>
+            </>,
+        );
+        expect(screen.getByRole('textbox', { name: 'Notes (optional)' })).not.toHaveAttribute('aria-required');
+        const title = screen.getByRole('textbox', { name: 'Title' });
+        expect(title).toHaveAttribute('aria-required', 'true');
+        expect(document.getElementById(`${title.id}-label`)).not.toHaveTextContent('(optional)');
+    });
+
+    it('keeps a visually hidden label as the accessible name (filter bars)', () => {
+        renderWithoutProviders(
+            <Field label="Search risks" labelVisuallyHidden>{(f) => <Input {...f} placeholder="Search…" />}</Field>,
+        );
+        const input = screen.getByRole('textbox', { name: 'Search risks' });
+        expect(document.getElementById(`${input.id}-label`)).toHaveClass('sr-only');
+    });
+
+    it('renders the inline layout with the control before its label and messages', () => {
+        renderWithoutProviders(
+            <Field layout="inline" label="Accept terms" help="Required once" error="Accept to continue">
+                {(f) => <input type="checkbox" {...f} />}
+            </Field>,
+        );
+        const checkbox = screen.getByRole('checkbox', { name: 'Accept terms' });
+        const label = document.getElementById(`${checkbox.id}-label`);
+        expect(label).not.toBeNull();
+        expect(checkbox.compareDocumentPosition(label as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(checkbox).toHaveAccessibleDescription('Required once Accept to continue');
     });
 
     it.each(THEMES)('has no axe violations in the $name theme', async ({ className }) => {

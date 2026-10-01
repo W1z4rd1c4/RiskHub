@@ -342,7 +342,7 @@ Object.assign(drivers, {
   'kri-value.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /record value|add value/i }).first()),
   'kri-history.kri-detail': liveDriver(RM, arrangeKriWithHistory, (page) => page.getByRole('button', { name: /request correction/i }).first()),
   'issue.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /new issue/i }).first()),
-  'confirm.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /^delete$/i }).first()),
+  'confirm.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.kris-page': liveDriver(RM, list('/kris'), (page) => page.getByTestId('kris-export-button')),
   'confirm.process-detail': liveDriver(RM, detail('/processes', /\/processes\/\d+$/), (page) => page.getByTestId('process-detail-archive')),
   'confirm.risk-detail': liveDriver(RM, detail('/risks', /\/risks\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),

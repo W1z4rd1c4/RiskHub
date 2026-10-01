@@ -190,7 +190,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
         render(<KRIDetailPage />);
 
         await screen.findAllByText('Claims Leakage Ratio');
-        fireEvent.click(screen.getByRole('button', { name: /Delete|Smazat/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^(Archive|Archivovat)$/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'confirm-kri-delete' }));
 
         await waitFor(() => {
@@ -210,7 +210,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
         render(<KRIDetailPage />);
 
         await screen.findAllByText('Claims Leakage Ratio');
-        fireEvent.click(screen.getByRole('button', { name: /Delete|Smazat/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^(Archive|Archivovat)$/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'confirm-kri-delete' }));
 
         await waitFor(() => expect(mockDeleteKRI).toHaveBeenCalled());

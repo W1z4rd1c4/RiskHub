@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { resolveNativeRoute } from '@/routing/public';
@@ -125,13 +126,13 @@ export default function NativeSecurityPage() {
                             emailSent ? <p role="status">{t('native.email_sent')}</p> : <form className="space-y-4" onSubmit={submit}>
                                 <p className="text-sm">{t(account.mfa_enabled ? 'native.mfa_enabled' : 'native.mfa_disabled')}</p>
                                 {!verifyingEmail && <Field label={t('native.security_action')}>
-                                    {(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={operation} disabled={action.pending} onChange={(event) => { setOperation(event.target.value as Operation); setPassword(''); setFactor(''); setNewPassword(''); setEmail(''); action.setError(null); }}>
+                                    {(field) => <NativeSelect {...field} value={operation} disabled={action.pending} onChange={(event) => { setOperation(event.target.value as Operation); setPassword(''); setFactor(''); setNewPassword(''); setEmail(''); action.setError(null); }}>
                                         <option value="password_change">{t('native.password_change')}</option>
                                         <option value="email_change">{t('native.email_change')}</option>
                                         {config.authConfig?.identity?.factor_management_enabled && <>
                                             {account.mfa_enabled ? <><option value="factor_replace">{t('native.factor_replace')}</option><option value="recovery_codes">{t('native.recovery_codes')}</option></> : <option value="factor_enroll">{t('native.factor_enroll')}</option>}
                                         </>}
-                                    </select>}
+                                    </NativeSelect>}
                                 </Field>}
                                 {operation === 'password_change' && <Field label={t('native.new_password')} help={t('native.password_help')} required>
                                     {(field) => <Input {...field} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required disabled={action.pending} />}
@@ -145,9 +146,9 @@ export default function NativeSecurityPage() {
                                 </Field>
                                 {account.factor_required && <>
                                     <Field label={t('native.factor_method')}>
-                                        {(field) => <select {...field} className="w-full border rounded-md bg-background p-2" value={method} onChange={(event) => { setFactor(''); setMethod(event.target.value as typeof method); }} disabled={action.pending}>
+                                        {(field) => <NativeSelect {...field} value={method} onChange={(event) => { setFactor(''); setMethod(event.target.value as typeof method); }} disabled={action.pending}>
                                             <option value="totp">{t('native.totp')}</option><option value="recovery_code">{t('native.recovery_code')}</option>
-                                        </select>}
+                                        </NativeSelect>}
                                     </Field>
                                     <Field label={t(method === 'totp' ? 'native.code' : 'native.recovery_code')} required>
                                         {(field) => <Input {...field} autoComplete="one-time-code" value={factor} onChange={(event) => setFactor(event.target.value)} required disabled={action.pending} />}

@@ -86,13 +86,13 @@ describe('protected Process approval scenario', () => {
         expect(screen.getByText('admin:approval_scenarios.fixed_policy.covered_action_values.edit')).toBeInTheDocument();
         expect(screen.getByText('admin:approval_scenarios.fixed_policy.self_approval.false')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /admin:approval_scenarios.modal.roles_selected/ }));
-        expect(screen.getByRole('button', { name: 'Risk Manager' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'CRO' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Department Head' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
+        expect(screen.getByRole('checkbox', { name: 'Risk Manager' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'CRO' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
         expect(screen.queryByText('admin:approval_scenarios.special_roles.risk_owner_dynamic')).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'CRO' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'CRO' }));
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
         await waitFor(() => {
             expect(riskHubApi.updateApprovalScenario).toHaveBeenCalledWith('protected_process_edit', {

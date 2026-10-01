@@ -191,7 +191,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         // Archive/restore proves the delete permission is scoped to Threats.
         await cisoPage.getByTestId('threat-detail-archive').click();
         await cisoPage
-            .locator('.confirm-dialog-actions')
+            .getByRole('alertdialog')
             .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
             .click();
         await cisoPage.waitForURL(/.*threats$/);
@@ -353,7 +353,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         // Archive: confirm dialog, then the detail navigates back to /threats.
         await riskManagerPage.getByTestId('threat-detail-archive').click();
         await riskManagerPage
-            .locator('.confirm-dialog-actions')
+            .getByRole('alertdialog')
             .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
             .click();
         await riskManagerPage.waitForURL(/.*threats$/);

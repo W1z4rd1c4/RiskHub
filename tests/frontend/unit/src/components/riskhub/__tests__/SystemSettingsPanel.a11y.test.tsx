@@ -88,7 +88,7 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         expect(toggle).toHaveAttribute('type', 'button');
         expect(toggle).toHaveAttribute('aria-checked', 'false');
         expect(toggle).toHaveAccessibleDescription('Two approvers for privileged changes.');
-        expect(toggle.className).toContain('focus-visible:ring-2');
+        expect(toggle.className).toContain('focus-ring');
 
         toggle.focus();
         await user.keyboard(' ');

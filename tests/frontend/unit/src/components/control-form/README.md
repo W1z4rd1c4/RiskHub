@@ -6,6 +6,7 @@ Folder for `tests/frontend/unit/src/components/control-form` implementation asse
 
 ## Contents
 
+- `ControlFormRiskLinkStep.notes.test.tsx` — PG-37: optional link-notes `Textarea` via `Field`.
 - `controlFormUtils.absence.test.ts`
 - `controlFormWorkflow.absent.spec.ts`
 - `inlined-helpers.test.ts`

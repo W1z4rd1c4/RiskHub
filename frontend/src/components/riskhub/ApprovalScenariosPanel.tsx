@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck, Check, X, ChevronDown } from 'lucide-react';
+import { ShieldCheck, Check, X } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -11,8 +11,9 @@ import {
     type ApprovalScenarioFixedPolicyDefinition,
     type ApprovalScenarioUpdate,
 } from '@/services/riskHubApi';
-import { cn } from '@/lib/utils';
-import { useState, useMemo, useEffect } from 'react';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Switch } from '@/components/ui/switch';
+import { useState, useMemo, useEffect, useId } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
@@ -57,8 +58,9 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     const [requiresApproval, setRequiresApproval] = useState(true);
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
-    const [showRoleDropdown, setShowRoleDropdown] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const requiresApprovalLabelId = useId();
+    const approverRolesLabelId = useId();
     const isFixedProtectedScenario = scenario != null && FIXED_PROTECTED_SCENARIO_KEYS.has(scenario.key);
     const fixedPolicyDefinition = isFixedProtectedScenario && scenario?.fixed_policy
         ? scenario.fixed_policy_definition ?? LEGACY_PROTECTED_PROCESS_FIXED_POLICY
@@ -75,18 +77,9 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                     ? scenario.approver_roles.filter((role) => FIXED_PROTECTED_APPROVER_ROLES.has(role))
                     : scenario.approver_roles,
             );
-            setShowRoleDropdown(false);
             setErrorKey(null);
         }
     }, [isOpen, scenario]);
-
-    const handleToggleRole = (role: string) => {
-        setSelectedRoles(prev =>
-            prev.includes(role)
-                ? prev.filter(r => r !== role)
-                : [...prev, role]
-        );
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,37 +100,18 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
         }
     };
 
-    // Get label for a role, preserving unknown roles that may exist from old config
-    const getRoleLabel = (roleValue: string): string => {
-        const found = availableRoles.find(r => r.value === roleValue);
-        return found?.label || roleValue;
-    };
-
     if (!isOpen || !scenario) return null;
 
     return (
         <RiskHubModalFrame onClose={onClose} title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="flex items-center justify-between">
-                        <span className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={requiresApproval}
-                            aria-label={t('admin:approval_scenarios.requires_approval')}
-                            onClick={() => setRequiresApproval(!requiresApproval)}
-                            className={cn(
-                                "w-12 h-6 rounded-full transition-colors relative",
-                                requiresApproval ? "bg-accent" : "bg-slate-600"
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform",
-                                    requiresApproval ? "left-6" : "left-0.5"
-                                )}
-                            />
-                        </button>
+                        <span id={requiresApprovalLabelId} className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>
+                        <Switch
+                            checked={requiresApproval}
+                            onCheckedChange={setRequiresApproval}
+                            aria-labelledby={requiresApprovalLabelId}
+                        />
                     </div>
 
                     {fixedPolicyDefinition ? (
@@ -190,65 +164,24 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
                     {requiresApproval && (
                         <div className="space-y-2">
-                            <span className="block text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
+                            <span id={approverRolesLabelId} className="block text-white font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
                             {rolesLoading ? (
                                 <div className="text-slate-400 text-sm py-2">{t('common:loading.roles')}</div>
                             ) : (
-                                <>
-                                    <div className="relative">
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                                            aria-expanded={showRoleDropdown}
-                                            aria-haspopup="listbox"
-                                            className="w-full flex items-center justify-between px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-left"
-                                        >
-                                            <span className="text-slate-300">
-                                                {selectedRoles.length === 0
-                                                    ? t('admin:approval_scenarios.modal.select_roles')
-                                                    : t('admin:approval_scenarios.modal.roles_selected', { count: selectedRoles.length })}
-                                            </span>
-                                            <ChevronDown className="h-4 w-4 text-slate-400" />
-                                        </button>
-
-                                        {showRoleDropdown && (
-                                            <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                                {selectableRoles.map(role => (
-                                                    <button
-                                                        key={role.value}
-                                                        type="button"
-                                                        onClick={() => handleToggleRole(role.value)}
-                                                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 text-left"
-                                                    >
-                                                        <span className="text-slate-300">{role.label}</span>
-                                                        {selectedRoles.includes(role.value) && (
-                                                            <Check className="h-4 w-4 text-accent" />
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {selectedRoles.map(role => (
-                                            <span
-                                                key={role}
-                                                className="flex items-center gap-1 px-2 py-1 bg-accent/20 text-accent text-xs rounded-full"
-                                            >
-                                                {getRoleLabel(role)}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleToggleRole(role)}
-                                                    className="hover:text-white"
-                                                >
-                                                    <span className="sr-only">{t('common:actions.delete')} {getRoleLabel(role)}</span>
-                                                    <X className="h-3 w-3" aria-hidden="true" />
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                </>
+                                // Pending W6 (D5, NEW-V1-01): RiskHubModalFrame is still a dark
+                                // surface in every theme, so the trigger and chips use dark-surface
+                                // colours until the frame moves to the themed surface (white chip
+                                // text: the former `text-accent` chip was 3.7:1, below AA).
+                                <MultiSelect
+                                    aria-labelledby={approverRolesLabelId}
+                                    options={selectableRoles}
+                                    value={selectedRoles}
+                                    onChange={setSelectedRoles}
+                                    placeholder={t('admin:approval_scenarios.modal.select_roles')}
+                                    formatSummary={(count) => t('admin:approval_scenarios.modal.roles_selected', { count })}
+                                    className="border-white/10 bg-white/5 text-slate-300"
+                                    chipClassName="border-transparent bg-accent/20 text-white"
+                                />
                             )}
                         </div>
                     )}

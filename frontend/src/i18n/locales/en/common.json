@@ -26,6 +26,9 @@
     "yes": "Yes",
     "no": "No",
     "archive": "Archive",
+    "remove_link": "Remove link",
+    "send": "Send",
+    "discard": "Discard",
     "unarchive": "Unarchive",
     "view_all": "View all →",
     "add_control": "Add control",
@@ -36,7 +39,9 @@
     "stay": "Stay",
     "leave": "Leave",
     "dismiss_message": "Dismiss message",
-    "clear_selection_named": "Clear selection: {{name}}"
+    "clear_selection_named": "Clear selection: {{name}}",
+    "remove": "Remove",
+    "remove_named": "Remove {{name}}"
   },
   "links": {
     "remove_named": "Remove link: {{name}}"
@@ -131,6 +136,7 @@
     "overview": "Overview",
     "all": "All",
     "none": "None",
+    "optional": "(optional)",
     "unknown": "Unknown",
     "loading": "Loading...",
     "no_data": "No data available",
@@ -184,6 +190,59 @@
     "archive_reversible": "This action can be undone by an administrator.",
     "remove_link": "Are you sure you want to remove this link?"
   },
+  "confirm": {
+    "archive": {
+      "title": "Archive {{entity}}?",
+      "title_generic": "Archive this item?",
+      "title_count": "Archive {{count}} items?",
+      "title_count_one": "Archive {{count}} item?",
+      "title_count_few": "Archive {{count}} items?",
+      "title_count_other": "Archive {{count}} items?",
+      "busy": "Archiving…",
+      "reason_placeholder": "Explain why this item is being archived"
+    },
+    "delete": {
+      "title": "Delete {{entity}}?",
+      "title_generic": "Delete this item?",
+      "title_count": "Delete {{count}} items?",
+      "title_count_one": "Delete {{count}} item?",
+      "title_count_few": "Delete {{count}} items?",
+      "title_count_other": "Delete {{count}} items?",
+      "body": "This cannot be undone.",
+      "busy": "Deleting…"
+    },
+    "unlink": {
+      "title": "Remove link to {{name}}?",
+      "title_generic": "Remove this link?",
+      "title_count": "Remove {{count}} links?",
+      "title_count_one": "Remove {{count}} link?",
+      "title_count_few": "Remove {{count}} links?",
+      "title_count_other": "Remove {{count}} links?",
+      "body": "Only the link is removed; the linked record itself is not deleted.",
+      "busy": "Removing link…"
+    },
+    "send": {
+      "title": "Send {{entity}}?",
+      "title_generic": "Send now?",
+      "title_count": "Send {{count}} items?",
+      "title_count_one": "Send {{count}} item?",
+      "title_count_few": "Send {{count}} items?",
+      "title_count_other": "Send {{count}} items?",
+      "body": "This is sent immediately and cannot be recalled.",
+      "busy": "Sending…"
+    },
+    "discard": {
+      "title": "Discard unsaved changes?",
+      "body": "Your unsaved changes will be lost."
+    },
+    "generic": {
+      "title": "Are you sure?"
+    },
+    "reason": {
+      "label": "Reason",
+      "placeholder": "Explain the reason for this change"
+    }
+  },
   "pending_change_cancellation": {
     "title": "Cancel pending request?",
     "message": "Cancel the pending request for \"{{targetName}}\"? This is terminal and cannot be undone.",
@@ -199,7 +258,8 @@
     "showing_range": "Showing {{start}} to {{end}} of {{total}} entries",
     "go_to_page": "Go to page {{page}}",
     "previous_page": "Previous page",
-    "next_page": "Next page"
+    "next_page": "Next page",
+    "label": "Pagination"
   },
   "date": {
     "today": "Today",
@@ -379,7 +439,8 @@
       "users": "Users"
     },
     "select_risk": "Select a risk to view activity.",
-    "select_risk_hint": "Choose a risk in the filter above to load entries."
+    "select_risk_hint": "Choose a risk in the filter above to load entries.",
+    "entity_tabs_label": "Activity by entity type"
   },
   "department_detail": {
     "tabs": {
@@ -434,6 +495,12 @@
     "no_matches_subtitle": "Try another tag filter.",
     "view_manual": "View manual",
     "maintainer_reference": "Maintainer reference:"
+  },
+  "severity": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical"
   },
   "tables": {
     "items": "Items",
@@ -614,6 +681,12 @@
     "critical_risks": "Critical risks",
     "total_controls": "Total controls",
     "vendors": "Vendors"
+  },
+  "multi_select": {
+    "selected_count": "{{count}} selected",
+    "selected_count_one": "{{count}} selected",
+    "selected_count_few": "{{count}} selected",
+    "selected_count_other": "{{count}} selected"
   },
   "error_boundary": {
     "title": "Something went wrong",

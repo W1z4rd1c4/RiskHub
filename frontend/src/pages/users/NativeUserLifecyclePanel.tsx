@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { nativeAdminApi } from '@/services/nativeAdminApi';
@@ -132,13 +133,13 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh,
                     <p>{t('native_users.verification_help')}</p>
                     <Field label={t('native_users.incident')} required>{(field) => <Input {...field} value={incident} onChange={(event) => setIncident(event.target.value)} required maxLength={255} />}</Field>
                     <Field label={t('native_users.verification')} required>{(field) => <Input {...field} value={verification} onChange={(event) => setVerification(event.target.value)} required maxLength={255} />}</Field>
-                    <Field label={t('native_users.recovery_operation')}>{(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={recoveryOperation} onChange={(event) => { setRecoveryOperation(event.target.value as typeof recoveryOperation); setPassword(''); setFactor(''); }}>
+                    <Field label={t('native_users.recovery_operation')}>{(field) => <NativeSelect {...field} value={recoveryOperation} onChange={(event) => { setRecoveryOperation(event.target.value as typeof recoveryOperation); setPassword(''); setFactor(''); }}>
                         {(['factor_recovery', 'credential_and_factor_recovery', 'verified_address_recovery'] as const).map((value) => <option value={value} key={value}>{t(`native_users.operations.${value}`)}</option>)}
-                    </select>}</Field>
+                    </NativeSelect>}</Field>
                     {recoveryOperation === 'verified_address_recovery' && <Field label={t('native_users.new_email')} required>{(field) => <Input {...field} type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} required />}</Field>}
                     <Field label={t('native_users.admin_password')} required>{(field) => <Input {...field} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />}</Field>
                     {account?.mfa_enabled && <>
-                        <Field label={t('native_users.factor_method')}>{(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={method} onChange={(event) => { setMethod(event.target.value as typeof method); setFactor(''); }}><option value="totp">{t('auth:native.totp')}</option><option value="recovery_code">{t('auth:native.recovery_code')}</option></select>}</Field>
+                        <Field label={t('native_users.factor_method')}>{(field) => <NativeSelect {...field} value={method} onChange={(event) => { setMethod(event.target.value as typeof method); setFactor(''); }}><option value="totp">{t('auth:native.totp')}</option><option value="recovery_code">{t('auth:native.recovery_code')}</option></NativeSelect>}</Field>
                         <Field label={t('native_users.admin_factor')} required>{(field) => <Input {...field} value={factor} onChange={(event) => setFactor(event.target.value)} autoComplete="one-time-code" required />}</Field>
                     </>}
                 </>}

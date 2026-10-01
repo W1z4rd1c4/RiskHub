@@ -3,7 +3,7 @@
   "description": "Locale families that interpolate {{count}} without full plural forms (GAP-B-14). May only shrink; regenerate with `npm run i18n:validate:plurals -- --update-baseline`.",
   "totals": {
     "cs": 41,
-    "en": 52
+    "en": 51
   },
   "violations": {
     "cs": [
@@ -52,7 +52,6 @@
     "en": [
       "admin:access.modal.permissions_count",
       "admin:access.of_users",
-      "admin:approval_scenarios.modal.roles_selected",
       "admin:audit.last_n",
       "admin:risk_types_panel.delete_warning",
       "admin:riskhub.questionnaires.selected_count",

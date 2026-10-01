@@ -1,6 +1,4 @@
-import { AlertCircle, XCircle } from 'lucide-react';
-
-import { useTranslation } from '@/i18n/hooks';
+import { InlineMessage } from '@/components/ui/inline-message';
 
 import { buildDetailMutationPresentation } from './detailMutationPresentation';
 
@@ -19,6 +17,11 @@ interface DetailActionBannerProps {
     onNavigateApprovals?: () => void;
 }
 
+/**
+ * Detail-page mutation outcome (AX-05, §4.10): keeps its API and renders
+ * `InlineMessage`, so a failure is announced (`role="alert"`) and a queued
+ * approval is a polite status with a link to the approvals queue.
+ */
 export function DetailActionBanner({
     approvalsLabel,
     message,
@@ -28,7 +31,6 @@ export function DetailActionBanner({
     pendingText,
     sectionSuffix,
 }: DetailActionBannerProps) {
-    const { t } = useTranslation('common');
     const presentation = buildDetailMutationPresentation({
         approvalsLabel,
         message,
@@ -37,28 +39,17 @@ export function DetailActionBanner({
     });
 
     return (
-        <div className={`p-4 rounded-xl border flex items-start gap-3 ${presentation.className}`}>
-            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-                <p className="text-sm font-medium">{messageText}</p>
-                {presentation.showApprovalLink ? (
-                    <p className="text-xs mt-1 opacity-75">
-                        {pendingText}{' '}
-                        <button type="button" onClick={onNavigateApprovals} className="underline hover:no-underline">
-                            {approvalsLabel}
-                        </button>
-                        {sectionSuffix ? ` ${sectionSuffix}` : null}
-                    </p>
-                ) : null}
-            </div>
-            <button
-                type="button"
-                onClick={onClose}
-                aria-label={t('actions.dismiss_message')}
-                className="ml-auto text-current opacity-50 hover:opacity-100"
-            >
-                <XCircle className="h-4 w-4" aria-hidden="true" />
-            </button>
-        </div>
+        <InlineMessage tone={presentation.tone === 'error' ? 'danger' : 'warning'} onDismiss={onClose}>
+            <p className="font-medium">{messageText}</p>
+            {presentation.showApprovalLink ? (
+                <p className="mt-1 text-xs">
+                    {pendingText}{' '}
+                    <button type="button" onClick={onNavigateApprovals} className="rounded underline hover:no-underline focus-ring">
+                        {approvalsLabel}
+                    </button>
+                    {sectionSuffix ? ` ${sectionSuffix}` : null}
+                </p>
+            ) : null}
+        </InlineMessage>
     );
 }

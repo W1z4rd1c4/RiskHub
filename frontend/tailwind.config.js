@@ -69,9 +69,9 @@ export default {
 				form: '960px',
 				prose: '72ch'
 			},
-			// The `foreground` keys of card / nested / glass (and glass `hover-border`) have no
-			// class usages today; they are kept on purpose as the documented, contrast-tested
-			// surface/foreground pairs (statusTokenContrast.test.ts) for the Phase 1 primitives.
+			// The `foreground` keys of card / nested / glass (and glass `hover-border`) are the
+			// documented, contrast-tested surface/foreground pairs (statusTokenContrast.test.ts)
+			// for the Phase 1 primitives; `ui/card.tsx` `tone="nested"` uses `nested-foreground`.
 			colors: {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',

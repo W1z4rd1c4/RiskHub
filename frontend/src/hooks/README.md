@@ -8,6 +8,9 @@ Folder for `frontend/src/hooks` implementation assets.
 
 - `useActivityLogPageState.ts`
 - `useChartTheme.ts`
+- `useContentTabs.ts` — tab/panel ARIA wiring with roving tabindex and
+  Arrow/Home/End (disabled tabs skipped via `isTabDisabled`); the engine behind
+  `components/ui/tabs.tsx`. `contentTabId` / `contentPanelId` build the shared ids.
 - `useDebouncedValue.ts`
 - `useDepartmentDetail.ts`
 - `useRiskHubConfig.ts`

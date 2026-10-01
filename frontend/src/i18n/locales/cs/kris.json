@@ -182,7 +182,8 @@
     "last_submission": "Poslední odeslání: {{date}}"
   },
   "labels": {
-    "archived": "Archivováno"
+    "archived": "Archivováno",
+    "entity": "KRI"
   },
   "comparison": {
     "breach_status": "Stav překročení",
@@ -283,13 +284,6 @@
     "export": {
       "title": "Export filtrovaných KRI"
     }
-  },
-  "delete_dialog": {
-    "title": "Smazat KRI",
-    "message": "Uveďte důvod smazání tohoto KRI. Tato akce je auditována.",
-    "reason_label": "Důvod smazání",
-    "reason_placeholder": "Vysvětlete, proč má být toto KRI smazáno...",
-    "confirm": "Smazat KRI"
   },
   "restore": {
     "pending": "Obnovování…",

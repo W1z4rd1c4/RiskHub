@@ -53,7 +53,22 @@ fails if either of these sets diverges from the manifest:
 It also requires unique IDs, registered owners, a browser verification case for
 every application render site, and an exact match between the manifest's unit
 case IDs and `dialogInteractionMatrix.test.tsx`. The successful command reports
-the four counts above.
+the four counts above plus the deprecated class-prop ratchet total (below).
+
+DialogShell v2 (audit 2026-09-30 §4.11) adds three checks:
+
+- **Primitive location.** `primitive.file` (`frontend/src/components/ui/dialog.tsx`)
+  is the only definition of `DialogShell`; `primitive.legacyShim`
+  (`frontend/src/components/DialogShell.tsx`) may only re-export it.
+- **Delegates.** An implementation with `kind: "delegate"` renders another
+  semantic owner (`delegatesTo`) instead of `DialogShell`, for example
+  `ArchiveConfirmDialog` → `ConfirmDialog intent="archive"`. Its own render sites
+  stay tracked; its internal render of the target is not a separate site.
+- **Deprecated class-prop ratchet.** `legacyClassProps` records which of
+  `containerClassName`, `backdropClassName` and `contentClassName` each owner
+  still passes. Adding one fails; dropping one fails until the manifest entry is
+  updated, so the count only goes down as dialogs migrate to `size` and
+  `DialogHeader` / `DialogBody` / `DialogFooter`.
 
 ## Verification layers
 

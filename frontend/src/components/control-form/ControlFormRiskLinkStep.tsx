@@ -1,5 +1,7 @@
 import { Search, Target, X } from 'lucide-react';
 
+import { Field } from '@/components/ui/field';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { ControlEffectiveness } from '@/types/risk';
 import { useControlRiskLinkStep } from './controlRiskLinkStepContext';
@@ -86,16 +88,23 @@ export function ControlFormRiskLinkStep({
                 ]}
               />
             </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.notes')} ({t('common:labels.none')})</label>
-              <input
-                type="text"
-                value={linkNotes}
-                onChange={(e) => setLinkNotes(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                placeholder={t('form.placeholders.link_rationale')}
-              />
-            </div>
+            {/* PG-37: "(optional)" via Field. Pending W6 (D5): ControlCreateDialog is still a
+                dark surface, so the field keeps the step's label and text colours until then. */}
+            <Field
+              label={t('common:labels.notes')}
+              optional
+              labelClassName="block text-[10px] font-black text-slate-500 uppercase tracking-widest"
+            >
+              {(field) => (
+                <Textarea
+                  {...field}
+                  value={linkNotes}
+                  onChange={(e) => setLinkNotes(e.target.value)}
+                  className="border-white/10 bg-white/5 text-white"
+                  placeholder={t('form.placeholders.link_rationale')}
+                />
+              )}
+            </Field>
           </div>
         </div>
       ) : (

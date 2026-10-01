@@ -3,21 +3,21 @@
   "totals": {
     "light": {
       "total": 720,
-      "belowAA": 41,
+      "belowAA": 40,
       "below3": 18,
       "below1_5": 3,
       "whiteOnLight": 0
     },
     "riskhub": {
       "total": 720,
-      "belowAA": 94,
+      "belowAA": 86,
       "below3": 14,
       "below1_5": 0,
       "whiteOnLight": 0
     },
     "dark": {
       "total": 720,
-      "belowAA": 85,
+      "belowAA": 77,
       "below3": 6,
       "below1_5": 0,
       "whiteOnLight": 0
@@ -139,7 +139,7 @@
       },
       "dialog/frame.approval-scenarios/open": {
         "total": 7,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -540,7 +540,7 @@
       },
       "dialog/dashboard-risk-sections/closed": {
         "total": 35,
-        "belowAA": 17,
+        "belowAA": 10,
         "below3": 1,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -568,7 +568,7 @@
       },
       "dialog/frame.approval-scenarios/open": {
         "total": 7,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -969,7 +969,7 @@
       },
       "dialog/dashboard-risk-sections/closed": {
         "total": 35,
-        "belowAA": 17,
+        "belowAA": 10,
         "below3": 1,
         "below1_5": 0,
         "whiteOnLight": 0
@@ -997,7 +997,7 @@
       },
       "dialog/frame.approval-scenarios/open": {
         "total": 7,
-        "belowAA": 1,
+        "belowAA": 0,
         "below3": 0,
         "below1_5": 0,
         "whiteOnLight": 0

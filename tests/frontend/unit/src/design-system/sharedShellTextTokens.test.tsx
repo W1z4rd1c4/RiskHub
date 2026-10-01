@@ -69,8 +69,10 @@ describe('shared shell text tokens', () => {
         );
 
         const dialog = screen.getByRole('alertdialog');
-        // DS-08: the sections carry their own p-6, so the glass-card surface must not pad again.
-        expect(dialog).toHaveClass('glass-card', '!p-0');
+        // D5 / DS-08: DialogShell v2's themed surface; the header, body and footer
+        // carry their own padding, so the surface itself is never padded.
+        expect(dialog).toHaveClass('bg-popover', 'text-popover-foreground');
+        expect(dialog.className).not.toMatch(/(?:^|\s)!?p-\d|glass-card/);
         expect(rawTextClasses(dialog)).toEqual([]);
         expect(screen.getByText('Vendor outage')).toHaveClass('text-foreground');
         expect(screen.getByRole('textbox')).toHaveClass('text-foreground', 'placeholder:text-muted-foreground');

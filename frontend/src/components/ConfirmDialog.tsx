@@ -1,202 +1,253 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { AlertTriangle, Trash2, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/i18n/hooks';
-import { DialogShell } from './DialogShell';
+import { apiClient } from '@/services/apiClient';
+
+import {
+    confirmPresentation,
+    resolveConfirmCopy,
+    type ConfirmIntent,
+    type ConfirmLegacyVariant,
+    type ConfirmReasonPolicy,
+} from './confirmDialogCopy';
+
+export type { ConfirmIntent, ConfirmReasonPolicy };
 
 interface ConfirmDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (inputValue?: string) => void;
-    title: string;
-    message: string;
+    /**
+     * Receives the reason when a reason field is shown (untrimmed). A returned
+     * promise keeps the dialog busy until it settles; a rejection is announced
+     * inside the dialog, which stays open for retry.
+     */
+    onConfirm: (reason?: string) => unknown;
+    /** Icon, action tone and default copy (D10). Defaults to `generic`. */
+    intent?: ConfirmIntent;
+    /** Localised entity type, e.g. "Control" ("Archive Control?"). */
+    entityLabel?: string;
+    /** The affected record's name, shown in the dialog body (or the unlink title). */
+    entityName?: string;
+    /** Count for bulk actions; switches the title to its plural form. */
+    count?: number;
+    /** PM-1 reason policy. */
+    reason?: ConfirmReasonPolicy;
+    reasonLabel?: string;
+    reasonPlaceholder?: string;
+    title?: string;
+    message?: string;
     confirmLabel?: string;
     cancelLabel?: string;
-    variant?: 'danger' | 'warning' | 'info';
     isLoading?: boolean;
-    // Optional input field
-    showInput?: boolean;
-    inputLabel?: string;
-    inputPlaceholder?: string;
-    inputRequired?: boolean;
     /**
      * Rejected-mutation error announced INSIDE the dialog (#100/#101 P2): the
      * shell traps focus, so a page-level banner behind the overlay is
      * unreachable while the dialog stays open for retry.
      */
     errorText?: string | null;
+    /** @deprecated Use `intent`; read only for `intent="generic"`. */
+    variant?: ConfirmLegacyVariant;
+    /** @deprecated Use `reason="required"` or `reason="optional"`. */
+    showInput?: boolean;
+    /** @deprecated Use `reasonLabel`. */
+    inputLabel?: string;
+    /** @deprecated Use `reasonPlaceholder`. */
+    inputPlaceholder?: string;
+    /** @deprecated Use `reason="required"` or `reason="optional"`. */
+    inputRequired?: boolean;
 }
 
-// Status colours consume the semantic tokens (FR-P5-1 / ADR-015): danger →
-// --destructive (canonical danger), warning → --warning, info → --info.
-const variantStyles = {
-    danger: {
-        icon: Trash2,
-        iconBg: 'bg-destructive',
-        iconColor: 'text-destructive-foreground',
-        buttonBg: 'bg-destructive hover:bg-destructive/90',
-        buttonRing: 'focus:ring-destructive/50',
-        buttonText: 'text-destructive-foreground',
-    },
-    warning: {
-        icon: AlertTriangle,
-        iconBg: 'bg-warning',
-        iconColor: 'text-warning-foreground',
-        buttonBg: 'bg-warning hover:bg-warning/90',
-        buttonRing: 'focus:ring-warning/50',
-        buttonText: 'text-warning-foreground',
-    },
-    info: {
-        icon: AlertTriangle,
-        iconBg: 'bg-info',
-        iconColor: 'text-info-foreground',
-        buttonBg: 'bg-info hover:bg-info/90',
-        buttonRing: 'focus:ring-info/50',
-        buttonText: 'text-info-foreground',
-    },
-};
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { then?: unknown }).then === 'function';
+}
 
+/**
+ * The one confirmation for destructive, irreversible or outbound actions
+ * (audit 2026-09-30 §4.11, D10): `role="alertdialog"` on `DialogShell` v2,
+ * intent-driven icon/copy, PM-1 reason field, busy state that blocks every
+ * close path, and errors kept inside the open dialog.
+ */
 export function ConfirmDialog({
     isOpen,
     onClose,
     onConfirm,
+    intent = 'generic',
+    entityLabel,
+    entityName,
+    count,
+    reason,
+    reasonLabel,
+    reasonPlaceholder,
     title,
     message,
     confirmLabel,
     cancelLabel,
-    variant = 'danger',
     isLoading = false,
+    errorText = null,
+    variant = 'danger',
     showInput = false,
     inputLabel,
     inputPlaceholder,
     inputRequired = true,
-    errorText = null,
 }: ConfirmDialogProps) {
     const { t } = useTranslation('common');
     const titleId = useId();
     const messageId = useId();
-    const inputId = useId();
+    const entityId = useId();
+    const reasonId = useId();
+    const validationId = useId();
+    const errorId = useId();
     const confirmRef = useRef<HTMLButtonElement>(null);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [inputValue, setInputValue] = useState('');
-    const styles = variantStyles[variant];
-    const IconComponent = styles.icon;
+    const reasonRef = useRef<HTMLTextAreaElement>(null);
+    const generationRef = useRef(0);
+    const [reasonValue, setReasonValue] = useState('');
+    const [validationError, setValidationError] = useState<string | null>(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isPending, setIsPending] = useState(false);
+
+    const reasonPolicy: ConfirmReasonPolicy = reason
+        ?? (showInput ? (inputRequired ? 'required' : 'optional') : 'none');
+    const busy = isLoading || isPending;
+    const presentation = confirmPresentation(intent, variant);
+    const copy = resolveConfirmCopy(t, { intent, entityLabel, entityName, count });
+    const resolvedMessage = message ?? copy.message;
+    const resolvedReasonLabel = reasonLabel ?? inputLabel ?? copy.reasonLabel;
+    const showEntity = Boolean(entityName) && intent !== 'unlink';
+    const displayedError = errorText ?? submitError;
 
     useEffect(() => {
-        if (!isOpen) {
-            setInputValue('');
-        }
+        if (isOpen) return;
+        generationRef.current += 1;
+        setReasonValue('');
+        setValidationError(null);
+        setSubmitError(null);
+        setIsPending(false);
     }, [isOpen]);
 
     const handleClose = useCallback(() => {
-        if (isLoading) return;
-        setInputValue('');
+        if (busy) return;
+        setReasonValue('');
+        setValidationError(null);
+        setSubmitError(null);
         onClose();
-    }, [isLoading, onClose]);
+    }, [busy, onClose]);
 
-    // Use translations for defaults
-    const resolvedConfirmLabel = confirmLabel ?? t('actions.confirm');
-    const resolvedCancelLabel = cancelLabel ?? t('actions.cancel');
-    const resolvedInputPlaceholder = inputPlaceholder ?? t('labels.notes');
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (busy) return;
+        if (reasonPolicy === 'required' && !reasonValue.trim()) {
+            setValidationError(t('errors.required_field'));
+            reasonRef.current?.focus();
+            return;
+        }
+        setValidationError(null);
+        setSubmitError(null);
 
-    const handleConfirm = () => {
-        onConfirm(showInput ? inputValue : undefined);
+        const result = onConfirm(reasonPolicy === 'none' ? undefined : reasonValue);
+        if (!isPromiseLike(result)) return;
+
+        const generation = generationRef.current;
+        setIsPending(true);
+        Promise.resolve(result).then(
+            () => {
+                if (generationRef.current === generation) setIsPending(false);
+            },
+            (error: unknown) => {
+                if (generationRef.current !== generation) return;
+                setIsPending(false);
+                setSubmitError(t(apiClient.toUiMessageKey(error), { ns: 'errorKeys' }));
+            },
+        );
     };
 
-    const isConfirmDisabled = isLoading || (showInput && inputRequired && !inputValue.trim());
+    const descriptionIds = [
+        resolvedMessage ? messageId : '',
+        showEntity ? entityId : '',
+        validationError ? validationId : '',
+        displayedError ? errorId : '',
+    ];
+    const isConfirmDisabled = reasonPolicy === 'required' && !reasonValue.trim();
 
     return (
         <DialogShell
             isOpen={isOpen}
             onClose={handleClose}
             titleId={titleId}
-            descriptionIds={[messageId]}
-            initialFocusRef={showInput ? inputRef : confirmRef}
-            closeDisabled={isLoading}
+            descriptionIds={descriptionIds}
+            initialFocusRef={reasonPolicy === 'none' ? confirmRef : reasonRef}
+            isBusy={busy}
             role="alertdialog"
-            backdropClassName="confirm-dialog-backdrop absolute inset-0 backdrop-blur-sm"
-            contentClassName="confirm-dialog-content w-full max-w-md glass-card !p-0 overflow-hidden shadow-2xl"
+            size="md"
         >
-            {/* Header */}
-            <div className="flex items-start gap-4 p-6 pb-4">
-                <div className={`p-3 rounded-xl ${styles.iconBg}`}>
-                    <IconComponent className={`h-6 w-6 ${styles.iconColor}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h3 id={titleId} className="text-lg font-bold text-foreground">{title}</h3>
-                    <p id={messageId} className="text-sm text-muted-foreground mt-1 leading-relaxed whitespace-pre-wrap">
-                        {message}
-                    </p>
-                </div>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    size="iconCompact"
-                    onClick={handleClose}
-                    disabled={isLoading}
-                    aria-label={t('actions.close')}
-                >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                </Button>
-            </div>
+            <DialogHeader title={title ?? copy.title} icon={presentation.icon} tone={presentation.tone} />
+            <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+                <DialogBody>
+                    {resolvedMessage ? (
+                        <p id={messageId} className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                            {resolvedMessage}
+                        </p>
+                    ) : null}
 
-            {/* Optional Input Field */}
-            {showInput && (
-                <div className="px-6 pb-4">
-                    <label htmlFor={inputId} className="block">
-                        {inputLabel && (
-                            <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                                {inputLabel} {inputRequired && <span className="text-destructive">*</span>}
-                            </span>
-                        )}
-                        <textarea
-                            id={inputId}
-                            ref={inputRef}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder={resolvedInputPlaceholder}
-                            rows={3}
-                            disabled={isLoading}
-                            aria-label={inputLabel ? undefined : resolvedInputPlaceholder}
-                            className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-foreground text-sm placeholder:text-muted-foreground outline-none focus:border-accent/50 transition-all resize-none"
-                        />
-                    </label>
-                </div>
-            )}
+                    {showEntity ? (
+                        <div id={entityId} className="rounded-xl border border-border bg-nested/50 px-4 py-3">
+                            {entityLabel ? <p className="text-eyebrow">{entityLabel}</p> : null}
+                            <p className="truncate text-sm font-semibold text-foreground">{entityName}</p>
+                        </div>
+                    ) : null}
 
-            {/* In-dialog mutation error (#100/#101 P2) */}
-            {errorText ? (
-                <div className="px-6 pb-4">
-                    <p
-                        role="alert"
-                        className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-                    >
-                        {errorText}
-                    </p>
-                </div>
-            ) : null}
+                    {reasonPolicy !== 'none' ? (
+                        <div>
+                            <label htmlFor={reasonId} className="block">
+                                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    {resolvedReasonLabel}
+                                    {reasonPolicy === 'required'
+                                        ? <span className="text-destructive"> *</span>
+                                        : <span className="normal-case tracking-normal"> {t('labels.optional')}</span>}
+                                </span>
+                                <Textarea
+                                    id={reasonId}
+                                    ref={reasonRef}
+                                    value={reasonValue}
+                                    onChange={(event) => {
+                                        setReasonValue(event.target.value);
+                                        if (validationError) setValidationError(null);
+                                    }}
+                                    placeholder={reasonPlaceholder ?? inputPlaceholder ?? copy.reasonPlaceholder}
+                                    rows={3}
+                                    disabled={busy}
+                                    aria-required={reasonPolicy === 'required'}
+                                    aria-invalid={validationError ? true : undefined}
+                                    aria-describedby={validationError ? validationId : undefined}
+                                />
+                            </label>
+                            {validationError ? (
+                                <p id={validationId} role="alert" className="mt-2 text-sm font-medium text-destructive">
+                                    {validationError}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
 
-            {/* Actions */}
-            <div className="confirm-dialog-actions flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
-                <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleClose}
-                    disabled={isLoading}
-                >
-                    {resolvedCancelLabel}
-                </Button>
-                <Button
-                    type="button"
-                    ref={confirmRef}
-                    onClick={handleConfirm}
-                    disabled={isConfirmDisabled}
-                    isLoading={isLoading}
-                    className={`${styles.buttonText} ${styles.buttonBg} ${styles.buttonRing}`}
-                >
-                    {isLoading ? t('labels.loading') : resolvedConfirmLabel}
-                </Button>
-            </div>
+                    {displayedError ? (
+                        <InlineMessage id={errorId} tone="danger">
+                            {displayedError}
+                        </InlineMessage>
+                    ) : null}
+                </DialogBody>
+                <DialogFooter
+                    cancelLabel={cancelLabel}
+                    submitLabel={busy ? copy.busyLabel : (confirmLabel ?? copy.confirmLabel)}
+                    submitType="submit"
+                    submitRef={confirmRef}
+                    submitDisabled={isConfirmDisabled}
+                    intent={presentation.action}
+                />
+            </form>
         </DialogShell>
     );
 }

@@ -1,10 +1,16 @@
+import type { ReactNode, SVGProps } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SortableTable, type Column, type SortDirection } from '@/components/tables/SortableTable';
+import { RowActionButton } from '@/components/tables/RowActionButton';
 import i18n from '@/i18n';
+
+// lucide-react is not resolvable from the external test root; stub icons with
+// the same props contract are enough for these assertions.
+const Pencil = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
 
 interface Row {
     id: number;
@@ -36,6 +42,11 @@ type RenderProps = {
     rowHref?: (row: Row) => string;
     rowLabel?: (row: Row) => string;
     emptyMessage?: string;
+    onRowActivate?: (row: Row) => void;
+    rowActivateLabel?: (row: Row) => string;
+    getRowActions?: (row: Row) => ReactNode;
+    surface?: 'card' | 'none';
+    density?: 'default' | 'compact';
 };
 
 function renderTable({ data = rows, ...rest }: RenderProps = {}) {
@@ -127,6 +138,39 @@ describe('SortableTable — keyboard access (FR-P3-1, N18)', () => {
 
         expect(onRowClick).not.toHaveBeenCalled();
     });
+
+    it('ignores clicks on nested interactive cell content even when it does not stop propagation', async () => {
+        // Register columns render e.g. a "Restore" button inside a cell: that click
+        // performs its own action and must never also navigate via the row (D14).
+        const onRowClick = vi.fn();
+        const onRestore = vi.fn();
+        const withNestedButton: Column<Row>[] = [
+            ...columns,
+            {
+                key: 'restore',
+                label: 'Restore',
+                render: (row) => (
+                    <button type="button" onClick={() => onRestore(row.id)}>
+                        <span>Restore {row.name}</span>
+                    </button>
+                ),
+            },
+        ];
+        render(
+            <MemoryRouter>
+                <SortableTable data={rows} columns={withNestedButton} keyExtractor={(row) => row.id} onRowClick={onRowClick} />
+            </MemoryRouter>,
+        );
+        const user = userEvent.setup();
+
+        await user.click(screen.getByText('Restore Bravo'));
+        expect(onRestore).toHaveBeenCalledWith(2);
+        expect(onRowClick).not.toHaveBeenCalled();
+
+        await user.click(screen.getAllByText('note')[1]);
+        expect(onRowClick).toHaveBeenCalledTimes(1);
+        expect(onRowClick).toHaveBeenCalledWith(rows[1]);
+    });
 });
 
 describe('SortableTable — loading skeleton (FR-P3-2, C3)', () => {
@@ -191,5 +235,98 @@ describe('SortableTable — error contract (FR-P3-3, N17, consumes #70)', () => 
         expect(
             screen.getByText('Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('SortableTable — row activation (D14, AX-02)', () => {
+    it('renders a focusable, named button in the first cell of every row', () => {
+        renderTable({ onRowActivate: vi.fn(), rowActivateLabel: (row) => `Open ${row.name}` });
+
+        const buttons = screen.getAllByRole('button', { name: /Open (Alpha|Bravo)/ });
+        expect(buttons).toHaveLength(2);
+        for (const button of buttons) {
+            expect(button).toHaveAttribute('type', 'button');
+            expect(button.closest('td')).toBe(button.closest('tr')?.querySelector('td'));
+        }
+        expect(screen.getByRole('button', { name: 'Alpha Open Alpha' })).toBeInTheDocument();
+    });
+
+    it('activates with Enter and Space from the keyboard', async () => {
+        const onRowActivate = vi.fn();
+        renderTable({ onRowActivate });
+        const user = userEvent.setup();
+
+        const alpha = screen.getByRole('button', { name: 'Alpha' });
+        alpha.focus();
+        await user.keyboard('{Enter}');
+        expect(onRowActivate).toHaveBeenLastCalledWith(rows[0]);
+
+        await user.tab();
+        expect(screen.getByRole('button', { name: 'Bravo' })).toHaveFocus();
+        await user.keyboard(' ');
+        expect(onRowActivate).toHaveBeenLastCalledWith(rows[1]);
+        expect(onRowActivate).toHaveBeenCalledTimes(2);
+    });
+
+    it('delegates a row click once and ignores clicks on interactive content', async () => {
+        const onRowActivate = vi.fn();
+        const onEdit = vi.fn();
+        renderTable({
+            onRowActivate,
+            getRowActions: (row) => <RowActionButton icon={Pencil} label={`Edit ${row.name}`} onClick={() => onEdit(row)} />,
+        });
+        const user = userEvent.setup();
+
+        await user.click(screen.getAllByText('note')[0]);
+        expect(onRowActivate).toHaveBeenCalledTimes(1);
+        expect(onRowActivate).toHaveBeenLastCalledWith(rows[0]);
+
+        await user.click(screen.getByRole('button', { name: 'Alpha' }));
+        expect(onRowActivate).toHaveBeenCalledTimes(2);
+
+        await user.click(screen.getByRole('button', { name: 'Edit Bravo' }));
+        expect(onEdit).toHaveBeenCalledWith(rows[1]);
+        expect(onRowActivate).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not render activation buttons without onRowActivate', () => {
+        renderTable();
+        expect(screen.queryByRole('button', { name: 'Alpha' })).not.toBeInTheDocument();
+    });
+});
+
+describe('SortableTable — row actions and surface', () => {
+    it('renders row actions with the view link in one named trailing column', () => {
+        renderTable({
+            rowHref: (row) => `/rows/${row.id}`,
+            rowLabel: (row) => row.name,
+            getRowActions: (row) => <RowActionButton icon={Pencil} label={`Edit ${row.name}`} onClick={vi.fn()} />,
+        });
+
+        const headers = screen.getAllByRole('columnheader');
+        expect(headers).toHaveLength(columns.length + 1);
+        expect(headers[headers.length - 1]).toHaveTextContent('Actions');
+
+        const alphaRow = screen.getByRole('link', { name: 'View Alpha' }).closest('tr') as HTMLTableRowElement;
+        const trailingCell = within(alphaRow).getAllByRole('cell').at(-1) as HTMLElement;
+        expect(within(trailingCell).getByRole('button', { name: 'Edit Alpha' })).toBeInTheDocument();
+        expect(within(trailingCell).getByRole('link', { name: 'View Alpha' })).toBeInTheDocument();
+    });
+
+    it('wraps the table in the glass card by default and renders bare inside a card', () => {
+        const { container, unmount } = renderTable();
+        expect(container.querySelector('.glass-card')).not.toBeNull();
+        unmount();
+
+        const bare = renderTable({ surface: 'none', density: 'compact' });
+        expect(bare.container.querySelector('.glass-card')).toBeNull();
+        expect(screen.getByRole('cell', { name: 'Alpha' })).toHaveClass('px-4', 'py-3');
+    });
+
+    it('uses token classes for the header row, dividers and sort icons', () => {
+        const { container } = renderTable({ sortKey: 'name', sortDirection: 'asc', onSort: vi.fn() });
+        const html = container.innerHTML;
+        expect(html).not.toMatch(/\b(?:text|bg|border|divide)-(?:white|slate)(?:-\d+|\/)/);
+        expect(container.querySelector('tbody')).toHaveClass('divide-border');
     });
 });
