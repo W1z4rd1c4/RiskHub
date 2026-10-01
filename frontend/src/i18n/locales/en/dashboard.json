@@ -150,7 +150,9 @@
     "view_all_overdue": "View All Overdue",
     "showing": "Showing {{shown}} of {{total}}",
     "breaches_load_failed": "Unable to load KRI breaches",
-    "status_load_failed": "Unable to load KRI status"
+    "status_load_failed": "Unable to load KRI status",
+    "current_label": "Current:",
+    "limit_label": "Limit:"
   },
   "charts": {
     "by_status": "By Status",
@@ -301,6 +303,7 @@
     "no_risks_at_position": "No risks at this position",
     "footer_prefix": "Click a risk to view details • Press",
     "footer_suffix": "to close",
-    "results": "Risk drilldown results"
+    "results": "Risk drilldown results",
+    "score_value": "Score: {{score}}"
   }
 }

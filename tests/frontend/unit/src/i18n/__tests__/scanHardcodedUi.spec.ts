@@ -28,7 +28,9 @@ const allowlist = {
   ],
 };
 
-function runScanner(source: string) {
+type ScopedException = { path: string; text: string; reason: string };
+
+function runScanner(source: string, scopedExceptions?: ScopedException[]) {
   const tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'riskhub-i18n-scan-'));
   const srcDir = path.join(tmpRoot, 'src', 'components');
   const scriptDir = path.join(tmpRoot, 'scripts', 'i18n');
@@ -36,7 +38,8 @@ function runScanner(source: string) {
   mkdirSync(srcDir, { recursive: true });
   mkdirSync(scriptDir, { recursive: true });
 
-  writeFileSync(path.join(scriptDir, 'allowlist.json'), `${JSON.stringify(allowlist, null, 2)}\n`, 'utf8');
+  const fixtureAllowlist = scopedExceptions ? { ...allowlist, scopedExceptions } : allowlist;
+  writeFileSync(path.join(scriptDir, 'allowlist.json'), `${JSON.stringify(fixtureAllowlist, null, 2)}\n`, 'utf8');
   writeFileSync(path.join(srcDir, 'Probe.tsx'), source, 'utf8');
 
   const result = spawnSync(process.execPath, [scannerScript], {
@@ -135,5 +138,64 @@ describe('scan-hardcoded-ui script regressions', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('[prop]');
     expect(result.stderr).toContain('Type');
+  });
+
+  it('detects single-word JSX text literals (AX-00 / I18N-02 blind spot)', () => {
+    const result = runScanner(`
+      export function Probe() {
+        return <span>Uncategorised</span>;
+      }
+    `);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('[jsx] Uncategorised');
+  });
+
+  it('detects single-word labels with a trailing colon and JSX child string literals', () => {
+    const result = runScanner(`
+      export function Probe({ limit }: { limit: number }) {
+        return <p>Limit: {limit} <span>{'Baseline'}</span></p>;
+      }
+    `);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('[jsx] Limit:');
+    expect(result.stderr).toContain('[jsx-expr] Baseline');
+  });
+
+  it('keeps single-word class names and symbols out of the JSX text check', () => {
+    const result = runScanner(`
+      export function Probe({ active }: { active: boolean }) {
+        return <span className={active ? 'active' : 'inactive'}>{'—'} 42 →</span>;
+      }
+    `);
+
+    expect(result.status).toBe(0);
+  });
+
+  it('honours file-scoped exceptions and fails on stale ones', () => {
+    const source = `
+      export function Probe() {
+        return <span>Risk<b>Hub</b></span>;
+      }
+    `;
+    const brandException = {
+      path: 'src/components/Probe.tsx',
+      text: 'Risk',
+      reason: 'Brand wordmark',
+    };
+
+    expect(runScanner(source).status).toBe(1);
+
+    const allowed = runScanner(source.replace('<b>Hub</b>', ''), [brandException]);
+    expect(allowed.status).toBe(0);
+
+    const stale = runScanner(`
+      export function Probe() {
+        return <span>{'—'}</span>;
+      }
+    `, [brandException]);
+    expect(stale.status).toBe(1);
+    expect(stale.stderr).toContain('Stale allowlist.scopedExceptions');
   });
 });

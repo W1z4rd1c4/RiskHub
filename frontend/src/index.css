@@ -574,6 +574,85 @@
 }
 
 /* =================================
+   TEMPORARY D2 stop-gap — delete at Phase 2 exit (W6).
+   Light-theme remap of `text-white` (and `/70`), the light-unsafe `text-slate-50…500`
+   shades and `divide-white/*` (docs/audits/2026-09-30-frontend-ui-consistency-audit.md
+   D2, §4.3 R-e, DS-01/DS-02/DS-03/DS-22). Measured by G-RENDER
+   (tests/frontend/e2e/theme-rendered-contrast.spec.ts). The Phase 2 text-token
+   codemod replaces these classes; this whole block goes with it.
+   Mechanism: the colours live in inherited `--d2-*` properties. `.theme-light`
+   sets the remapped values; coloured fills and still-dark surfaces (the DS-07
+   dialogs, login views) restore the original palette for their subtree; a
+   theme-aware light surface nested inside one of those re-enables the remap.
+   The nearest such ancestor wins through inheritance. Classes that index.css
+   itself `@apply`s are matched as attributes so Tailwind does not clone them.
+   ================================= */
+.theme-light,
+.theme-light :where([class~="glass"], [class~="glass-card"], [class~="bg-background"], .bg-card, .bg-popover, .bg-nested, .bg-secondary, .bg-muted) {
+  --d2-text-white: hsl(var(--foreground));
+  --d2-text-white-70: hsl(var(--foreground));
+  --d2-slate-50: hsl(var(--foreground));
+  --d2-slate-100: hsl(var(--foreground));
+  --d2-slate-200: hsl(var(--foreground));
+  --d2-slate-300: hsl(var(--foreground));
+  --d2-slate-400: hsl(var(--muted-foreground));
+  --d2-slate-500: hsl(var(--muted-foreground));
+  --d2-divide-white-5: hsl(var(--border));
+  --d2-divide-white-10: hsl(var(--border));
+}
+
+/* Excluded: still-dark surfaces, gradients and coloured (solid) fills. */
+.theme-light :where(
+  .bg-slate-500, .bg-slate-600, .bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950, .bg-black,
+  .bg-slate-800\/80, .bg-slate-900\/95, .bg-slate-950\/60, .bg-slate-950\/70, .bg-slate-950\/80,
+  .bg-slate-950\/95, .bg-black\/60, .bg-black\/80,
+  [class*="bg-gradient-to-"], [class*="bg-[#"], [class*="bg-[linear-gradient"], [class*="bg-[radial-gradient"],
+  .bg-accent, .bg-primary, .bg-destructive, .bg-success, .bg-info, .bg-warning, .notification-count-badge,
+  .bg-emerald-400, .bg-amber-400, .bg-rose-400, .bg-purple-400,
+  .bg-red-500, .bg-red-600, .bg-red-700, .bg-rose-500, .bg-rose-600, .bg-rose-700,
+  .bg-orange-500, .bg-orange-600, .bg-orange-700, .bg-amber-500, .bg-amber-600, .bg-amber-700,
+  .bg-yellow-500, .bg-yellow-600, .bg-yellow-700, .bg-lime-500, .bg-lime-600, .bg-lime-700,
+  .bg-green-500, .bg-green-600, .bg-green-700, .bg-emerald-500, .bg-emerald-600, .bg-emerald-700,
+  .bg-teal-500, .bg-teal-600, .bg-teal-700, .bg-cyan-500, .bg-cyan-600, .bg-cyan-700,
+  .bg-sky-500, .bg-sky-600, .bg-sky-700, .bg-blue-500, .bg-blue-600, .bg-blue-700,
+  .bg-indigo-500, .bg-indigo-600, .bg-indigo-700, .bg-violet-500, .bg-violet-600, .bg-violet-700,
+  .bg-purple-500, .bg-purple-600, .bg-purple-700, .bg-fuchsia-500, .bg-fuchsia-600, .bg-fuchsia-700,
+  .bg-pink-500, .bg-pink-600, .bg-pink-700
+) {
+  --d2-text-white: theme('colors.white');
+  --d2-text-white-70: rgb(255 255 255 / 0.7);
+  --d2-slate-50: theme('colors.slate.50');
+  --d2-slate-100: theme('colors.slate.100');
+  --d2-slate-200: theme('colors.slate.200');
+  --d2-slate-300: theme('colors.slate.300');
+  --d2-slate-400: theme('colors.slate.400');
+  --d2-slate-500: theme('colors.slate.500');
+  --d2-divide-white-5: rgb(255 255 255 / 0.05);
+  --d2-divide-white-10: rgb(255 255 255 / 0.1);
+}
+
+/* `:where(.theme-light)` keeps each base rule at the specificity of the utility it
+   remaps, so `hover:`/`group-hover:`/responsive colour variants still win. */
+:where(.theme-light) .text-white { color: var(--d2-text-white); }
+:where(.theme-light) .text-white\/70 { color: var(--d2-text-white-70); }
+:where(.theme-light) .text-slate-50 { color: var(--d2-slate-50); }
+:where(.theme-light) .text-slate-100 { color: var(--d2-slate-100); }
+:where(.theme-light) .text-slate-200 { color: var(--d2-slate-200); }
+:where(.theme-light) .text-slate-300 { color: var(--d2-slate-300); }
+:where(.theme-light) .text-slate-400 { color: var(--d2-slate-400); }
+:where(.theme-light) .text-slate-500 { color: var(--d2-slate-500); }
+/* Tailwind emits variant utilities (`hover:`, `group-hover:`) at the end of the
+   stylesheet, after this block, so the hover remaps keep `.theme-light` in the
+   selector (+1 class) to outrank the variant they remap. */
+.theme-light .hover\:text-white:hover { color: var(--d2-text-white); }
+.theme-light .group:hover .group-hover\:text-white { color: var(--d2-text-white); }
+.theme-light .hover\:text-slate-200:hover { color: var(--d2-slate-200); }
+.theme-light .hover\:text-slate-300:hover { color: var(--d2-slate-300); }
+.theme-light .group:hover .group-hover\:text-slate-400 { color: var(--d2-slate-400); }
+:where(.theme-light) .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: var(--d2-divide-white-5); }
+:where(.theme-light) .divide-white\/10 > :not([hidden]) ~ :not([hidden]) { border-color: var(--d2-divide-white-10); }
+
+/* =================================
    CONFIRM DIALOG - THEME AWARE
    ================================= */
 

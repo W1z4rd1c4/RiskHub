@@ -100,7 +100,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                             })}
                         </h3>
                         <p id={descriptionId} className="text-sm text-slate-500">
-                            Score: {score} • <span className={getSeverityColor()}>{getSeverityLabel()}</span>
+                            {t('risk_drilldown.score_value', { score })} • <span className={getSeverityColor()}>{getSeverityLabel()}</span>
                         </p>
                     </div>
                 </div>
@@ -165,7 +165,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                             <span
                                                 className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
                                             >
-                                                Score: {risk.net_score}
+                                                {t('risk_drilldown.score_value', { score: risk.net_score })}
                                             </span>
                                             <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />
                                         </div>

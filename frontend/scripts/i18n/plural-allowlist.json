@@ -1,0 +1,17 @@
+{
+  "invariantValuePatterns": [
+    {
+      "pattern": "\\{\\{count\\}\\}\\s*%",
+      "reason": "Percentage: the number does not govern a noun, so no plural form is selected."
+    },
+    {
+      "pattern": ":\\s*\\{\\{count\\}\\}[).\\s]*$",
+      "reason": "Label: value form ('Active filters: {{count}}') that ends the string; the count is a bare value with no noun agreement."
+    },
+    {
+      "pattern": "\\(\\{\\{count\\}\\}\\)",
+      "reason": "Parenthesised tally after a heading ('Archived risks ({{count}})'); the number carries no noun agreement."
+    }
+  ],
+  "exemptKeys": []
+}

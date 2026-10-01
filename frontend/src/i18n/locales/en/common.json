@@ -101,6 +101,8 @@
   },
   "labels": {
     "name": "Name",
+    "baseline": "Baseline",
+    "current": "Current",
     "description": "Description",
     "status": "Status",
     "type": "Type",

@@ -138,7 +138,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                         {item.department_name === 'Uncategorised' ? (
                                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning text-warning-foreground border border-warning/20 w-fit">
                                                 <Building2 className="h-3 w-3" />
-                                                <span className="text-xs font-bold uppercase tracking-wider">Uncategorised</span>
+                                                <span className="text-xs font-bold uppercase tracking-wider">{t('governance.uncategorised')}</span>
                                             </div>
                                         ) : (
                                             <span className="text-sm text-muted-foreground font-medium">

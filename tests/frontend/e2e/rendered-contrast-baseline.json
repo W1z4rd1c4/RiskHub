@@ -1,0 +1,1315 @@
+{
+  "description": "G-RENDER rendered-contrast ratchet (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1, §5.2 item 0.3). Counts of visible text elements per theme and harness surface; belowAA/below3/below1_5/whiteOnLight may only go down. Regenerate with UPDATE_CONTRAST_BASELINE=1 (see theme-rendered-contrast.spec.ts).",
+  "totals": {
+    "light": {
+      "total": 720,
+      "belowAA": 41,
+      "below3": 18,
+      "below1_5": 3,
+      "whiteOnLight": 0
+    },
+    "riskhub": {
+      "total": 720,
+      "belowAA": 94,
+      "below3": 14,
+      "below1_5": 0,
+      "whiteOnLight": 0
+    },
+    "dark": {
+      "total": 720,
+      "belowAA": 85,
+      "below3": 6,
+      "below1_5": 0,
+      "whiteOnLight": 0
+    }
+  },
+  "surfaces": {
+    "light": {
+      "dialog/approval-scenarios-panel/closed": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 1,
+        "whiteOnLight": 0
+      },
+      "dialog/asset-links/closed": {
+        "total": 17,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 1,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.asset-links/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.dirty-task-guard/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.governed-mutation-reason/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.link-management/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.pending-change-cancellation/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.vendor-contracts/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.vendor-sub-outsourcing/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/contextual-issue-action/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/control-create.risk-linked-controls/open": {
+        "total": 7,
+        "belowAA": 2,
+        "below3": 2,
+        "below1_5": 1,
+        "whiteOnLight": 0
+      },
+      "dialog/control-overview/closed": {
+        "total": 26,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/dashboard-risk-sections/closed": {
+        "total": 35,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/departments-panel/closed": {
+        "total": 17,
+        "belowAA": 3,
+        "below3": 3,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/dirty-task-guard/closed": {
+        "total": 2,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/execution-history/closed": {
+        "total": 6,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.approval-scenarios/open": {
+        "total": 7,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.departments/open": {
+        "total": 10,
+        "belowAA": 2,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.risk-types/open": {
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/governed-mutation-reason/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/inline.departments-delete/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/inline.risk-types-delete/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/issue.contextual-action/open": {
+        "total": 12,
+        "belowAA": 5,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/issue.execution-history/open": {
+        "total": 12,
+        "belowAA": 5,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/kri-form/closed": {
+        "total": 27,
+        "belowAA": 5,
+        "below3": 3,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link-management/closed": {
+        "total": 7,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.control-overview/open": {
+        "total": 16,
+        "belowAA": 2,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.risk-linked-controls/open": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.vendor-linked-entities/open": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/mismatch.kri-form/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/pending-change-cancellation/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/questionnaire.risk-detail-tab/open": {
+        "total": 46,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-drilldown.dashboard/open": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-linked-controls/closed": {
+        "total": 13,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-questionnaires-tab/closed": {
+        "total": 20,
+        "belowAA": 3,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-types-panel/closed": {
+        "total": 15,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-view.control-overview/open": {
+        "total": 24,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/role-delete.roles-panel/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/role-modal.roles-panel/open": {
+        "total": 8,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/roles-panel/closed": {
+        "total": 14,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-contracts/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-linked-entities/closed": {
+        "total": 7,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-sub-outsourcing/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/error": {
+        "total": 13,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/normal": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/pending": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/reject": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/breach": {
+        "total": 47,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/empty": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/normal": {
+        "total": 47,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/empty": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/error": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/limited": {
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/loading": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/lookup-error": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/normal": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/selected": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/normal": {
+        "total": 3,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/pending": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/readonly": {
+        "total": 2,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/submitting": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      }
+    },
+    "riskhub": {
+      "dialog/approval-scenarios-panel/closed": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/asset-links/closed": {
+        "total": 17,
+        "belowAA": 3,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.asset-links/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.dirty-task-guard/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.governed-mutation-reason/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.link-management/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.pending-change-cancellation/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.vendor-contracts/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.vendor-sub-outsourcing/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/contextual-issue-action/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/control-create.risk-linked-controls/open": {
+        "total": 7,
+        "belowAA": 2,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/control-overview/closed": {
+        "total": 26,
+        "belowAA": 2,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/dashboard-risk-sections/closed": {
+        "total": 35,
+        "belowAA": 17,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/departments-panel/closed": {
+        "total": 17,
+        "belowAA": 3,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/dirty-task-guard/closed": {
+        "total": 2,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/execution-history/closed": {
+        "total": 6,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.approval-scenarios/open": {
+        "total": 7,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.departments/open": {
+        "total": 10,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.risk-types/open": {
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/governed-mutation-reason/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/inline.departments-delete/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/inline.risk-types-delete/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/issue.contextual-action/open": {
+        "total": 12,
+        "belowAA": 4,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/issue.execution-history/open": {
+        "total": 12,
+        "belowAA": 4,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/kri-form/closed": {
+        "total": 27,
+        "belowAA": 13,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link-management/closed": {
+        "total": 7,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.control-overview/open": {
+        "total": 16,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.risk-linked-controls/open": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.vendor-linked-entities/open": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/mismatch.kri-form/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/pending-change-cancellation/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/questionnaire.risk-detail-tab/open": {
+        "total": 46,
+        "belowAA": 13,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-drilldown.dashboard/open": {
+        "total": 10,
+        "belowAA": 4,
+        "below3": 2,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-linked-controls/closed": {
+        "total": 13,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-questionnaires-tab/closed": {
+        "total": 20,
+        "belowAA": 3,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-types-panel/closed": {
+        "total": 15,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-view.control-overview/open": {
+        "total": 24,
+        "belowAA": 12,
+        "below3": 5,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/role-delete.roles-panel/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/role-modal.roles-panel/open": {
+        "total": 8,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/roles-panel/closed": {
+        "total": 14,
+        "belowAA": 2,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-contracts/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-linked-entities/closed": {
+        "total": 7,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-sub-outsourcing/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/error": {
+        "total": 13,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/normal": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/pending": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/reject": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/breach": {
+        "total": 47,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/empty": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/normal": {
+        "total": 47,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/empty": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/error": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/limited": {
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/loading": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/lookup-error": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/normal": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/selected": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/normal": {
+        "total": 3,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/pending": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/readonly": {
+        "total": 2,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/submitting": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      }
+    },
+    "dark": {
+      "dialog/approval-scenarios-panel/closed": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/asset-links/closed": {
+        "total": 17,
+        "belowAA": 3,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.asset-links/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.dirty-task-guard/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.governed-mutation-reason/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.link-management/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.pending-change-cancellation/open": {
+        "total": 4,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.vendor-contracts/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/confirm.vendor-sub-outsourcing/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/contextual-issue-action/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/control-create.risk-linked-controls/open": {
+        "total": 7,
+        "belowAA": 2,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/control-overview/closed": {
+        "total": 26,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/dashboard-risk-sections/closed": {
+        "total": 35,
+        "belowAA": 17,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/departments-panel/closed": {
+        "total": 17,
+        "belowAA": 2,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/dirty-task-guard/closed": {
+        "total": 2,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/execution-history/closed": {
+        "total": 6,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.approval-scenarios/open": {
+        "total": 7,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.departments/open": {
+        "total": 10,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/frame.risk-types/open": {
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/governed-mutation-reason/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/inline.departments-delete/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/inline.risk-types-delete/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/issue.contextual-action/open": {
+        "total": 12,
+        "belowAA": 4,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/issue.execution-history/open": {
+        "total": 12,
+        "belowAA": 4,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/kri-form/closed": {
+        "total": 27,
+        "belowAA": 11,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link-management/closed": {
+        "total": 7,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.control-overview/open": {
+        "total": 16,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.risk-linked-controls/open": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/link.vendor-linked-entities/open": {
+        "total": 12,
+        "belowAA": 1,
+        "below3": 1,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/mismatch.kri-form/open": {
+        "total": 5,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/pending-change-cancellation/closed": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/questionnaire.risk-detail-tab/open": {
+        "total": 46,
+        "belowAA": 13,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-drilldown.dashboard/open": {
+        "total": 10,
+        "belowAA": 4,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-linked-controls/closed": {
+        "total": 13,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-questionnaires-tab/closed": {
+        "total": 20,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-types-panel/closed": {
+        "total": 15,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/risk-view.control-overview/open": {
+        "total": 24,
+        "belowAA": 11,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/role-delete.roles-panel/open": {
+        "total": 4,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/role-modal.roles-panel/open": {
+        "total": 8,
+        "belowAA": 1,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/roles-panel/closed": {
+        "total": 14,
+        "belowAA": 2,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-contracts/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-linked-entities/closed": {
+        "total": 7,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "dialog/vendor-sub-outsourcing/closed": {
+        "total": 16,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/error": {
+        "total": 13,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/normal": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/pending": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/approval/reject": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/breach": {
+        "total": 47,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/empty": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/history/normal": {
+        "total": 47,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/empty": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/error": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/limited": {
+        "total": 11,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/loading": {
+        "total": 9,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/lookup-error": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/normal": {
+        "total": 10,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/owner/selected": {
+        "total": 12,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/normal": {
+        "total": 3,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/pending": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/readonly": {
+        "total": 2,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      },
+      "workflow/questionnaire/submitting": {
+        "total": 1,
+        "belowAA": 0,
+        "below3": 0,
+        "below1_5": 0,
+        "whiteOnLight": 0
+      }
+    }
+  }
+}

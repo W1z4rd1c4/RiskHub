@@ -58,7 +58,7 @@ export function RiskLinkedVendorsSection({
                                 )}
                                 {vendor.supports_important_core_insurance_function && (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black border text-emerald-400 bg-emerald-400/10 border-emerald-400/20">
-                                        Core
+                                        {t('overview.core_function_badge', { ns: 'risks' })}
                                     </span>
                                 )}
                             </div>

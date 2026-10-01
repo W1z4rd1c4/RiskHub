@@ -116,11 +116,11 @@ export function KRIBreachWidget() {
                                 </h4>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">
-                                        Current: <span className="text-rose-400">{kri.current_value}{kri.unit}</span>
+                                        {t('kri.current_label')} <span className="text-rose-400">{kri.current_value}{kri.unit}</span>
                                     </span>
                                     <span className="w-1 h-1 rounded-full bg-slate-700" />
                                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">
-                                        Limit: {kri.upper_limit}{kri.unit}
+                                        {t('kri.limit_label')} {kri.upper_limit}{kri.unit}
                                     </span>
                                 </div>
                             </div>

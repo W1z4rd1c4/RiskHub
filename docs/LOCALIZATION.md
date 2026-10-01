@@ -1,7 +1,7 @@
 # RiskHub Localization Guide
 
-> **Version**: 1.2
-> **Last Updated**: 2026-03-07
+> **Version**: 1.3
+> **Last Updated**: 2026-10-01
 > **Audience**: Engineering, QA, Documentation Owners
 > **Source of Truth**: `frontend/src/i18n/`, `backend/app/i18n/`, `backend/app/api/v1/endpoints/admin/docs.py`
 
@@ -29,12 +29,24 @@ This guide defines how localization works across UI, backend messages, reports, 
   - That login screen defaults to Czech (`cs`).
   - The pre-auth switch does not read or write the shared `riskhub-language` storage key.
   - Persistent language preference remains part of the authenticated settings flow after sign-in.
-- Run UI localization checks before merging:
+- Strings that interpolate `{{count}}` are i18next plural families with whole-phrase forms:
+  `cs` needs `_one`, `_few` and `_other` (optional `_many`), `en` needs `_one` and `_other`.
+  Strict key parity still applies, so `en` mirrors any `cs`-only suffix (for example `_few`).
+  Count-free values (`Active filters: {{count}}`, `Archived risks ({{count}})`, `{{count}}%`)
+  are exempt through `frontend/scripts/i18n/plural-allowlist.json`. `i18n:validate:plurals`
+  ratchets the remaining legacy families in `frontend/scripts/i18n/plural-baseline.json`: new
+  violations fail, and fixed ones are locked in with `npm run i18n:validate:plurals -- --update-baseline`.
+- `i18n:scan` flags single-word JSX text (`<span>Uncategorised</span>`, `Limit:`). Genuine
+  non-words go in `frontend/scripts/i18n/allowlist.json`: `tokenPatterns` for global tokens
+  (codes, units, symbols) and `scopedExceptions` (`path`, `text`, `reason`) for file-local cases
+  such as the split `Risk`+`Hub` wordmark; stale scoped exceptions fail the scan.
+- Run UI localization checks before merging (`npm run i18n:test` runs all of them):
 
 ```bash
 cd frontend
 npm run i18n:validate:strict
 npm run i18n:validate:usage
+npm run i18n:validate:plurals
 npm run i18n:scan
 ```
 

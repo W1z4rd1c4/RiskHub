@@ -8,8 +8,11 @@ Folder for `frontend/scripts/quality` implementation assets.
 
 - `debt-allowlist.json`
 - `debt-budget.mjs`
+- `ui-consistency-baseline.json`
+- `ui-consistency-ratchet.mjs`
 - `validate-debt-budget-report.mjs`
 - `validate-dora-e2e-coverage.mjs`
+- `validate-login-dependency-graph.mjs`
 - `validate-no-inline-styles.mjs`
 
 ## Notes
@@ -17,6 +20,10 @@ Folder for `frontend/scripts/quality` implementation assets.
 - `debt-budget.mjs` resolves its frontend root from `--root`, then `cwd`, then the script-local frontend tree.
 - Fixture and temp-worktree runs should prefer `--root=/abs/path/to/frontend-root` when executing outside that frontend directory.
 - `validate-dora-e2e-coverage.mjs` checks the versioned DORA requirements against the dynamically collected Playwright `ci` project.
+- `ui-consistency-ratchet.mjs` (`npm run quality:ui-ratchet`, G-RATCHET) counts design-system debt patterns per file
+  in `src/**` (tests excluded) against `ui-consistency-baseline.json`; counts may only go down. `--update-baseline`
+  locks in decreases and refuses increases unless `--force` (pure file moves only). Runs in `lint.yml` and
+  `maintenance-governance.yml`.
 Keep this README updated when responsibilities or structure in this folder change.
 `validate-login-dependency-graph.mjs` is the production-build structural gate for
 the public login path. It rejects static protected-application, Entra/MSAL, or

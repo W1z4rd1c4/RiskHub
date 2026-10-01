@@ -332,7 +332,8 @@
     "archived_controls": "Archivované kontroly ({{count}})",
     "manage_existing_links": "Spravovat existující propojení",
     "linked_vendors": "Propojení dodavatelé",
-    "no_vendors_linked": "K tomuto riziku nejsou propojeni žádní dodavatelé."
+    "no_vendors_linked": "K tomuto riziku nejsou propojeni žádní dodavatelé.",
+    "core_function_badge": "Klíčová funkce"
   },
   "history": {
     "recorded_by": "Zaznamenal",

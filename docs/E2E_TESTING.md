@@ -1,7 +1,7 @@
 # RiskHub E2E Testing Guide
 
-> **Version**: 1.6
-> **Last Updated**: 2026-08-03
+> **Version**: 1.7
+> **Last Updated**: 2026-10-01
 > **Audience**: QA, Engineering
 > **Source of Truth**: `frontend/playwright.config.ts`, `tests/frontend/e2e/`, `tests/frontend/contracts/dora-e2e-requirements.json`, `frontend/package.json`
 
@@ -168,6 +168,38 @@ npx playwright test -c playwright.config.ts ../tests/frontend/e2e/cross-departme
 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/permissions --project=chromium
 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/entity-ownership/risk-ownership.spec.ts --project=chromium
 ```
+
+## Rendered Contrast Gate (G-RENDER)
+
+`theme-rendered-contrast.spec.ts` measures every visible text element on the
+`frontend/workflow-contrast.html` families and on every
+`frontend/dialog-contract.html` owner (closed, then each of its dialogs opened)
+in the light, riskhub and dark themes, with the compositing algorithm of
+`tests/frontend/e2e/helpers/renderedContrast.ts`. Per theme and surface it counts
+text below AA (4.5:1, or 3:1 for large text), below 3:1, below 1.5:1 and white
+text on a light background, and fails when any count rises above
+`tests/frontend/e2e/rendered-contrast-baseline.json`. Targeted probes require
+4.5:1 for the typed title and selected severity in the issue quick-create dialog
+(the selected severity has a temporary 2:1 floor in light until the Phase 2.1
+dialog-surface fix, NEW-V1-01 / DS-07, raises it to 4.5:1), check that `/login`
+at 1024×600 and 1280×600 keeps the `h1` unclipped and the language switch
+clickable (RS-02), and that `<html lang>` follows the login-page language switch.
+It runs in the `ci` project of `e2e.yml` and needs no backend locally:
+
+```bash
+cd frontend
+npx playwright test -c playwright.workflow-contrast.config.ts theme-rendered-contrast
+# After an intended improvement, lower the committed baseline:
+UPDATE_CONTRAST_BASELINE=1 npx playwright test -c playwright.workflow-contrast.config.ts theme-rendered-contrast --workers=1
+```
+
+`theme-contrast-matrix.spec.ts` (live backend) also measures every axe
+`incomplete` colour-contrast node. Nodes still below AA, or not measurable over
+a gradient, are ratcheted per `theme@viewport` and route in
+`tests/frontend/e2e/theme-contrast-incomplete-baseline.json`; rewrite it with the
+same `UPDATE_CONTRAST_BASELINE=1 … --workers=1` run of that spec.
+`UPDATE_CONTRAST_BASELINE=1` refuses to raise a recorded count in either baseline;
+`UPDATE_CONTRAST_BASELINE=force` is reserved for a reviewed, explained increase.
 
 ## Debugging
 

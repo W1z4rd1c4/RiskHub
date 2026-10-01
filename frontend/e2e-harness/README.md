@@ -19,6 +19,11 @@ The same spec runs in the normal `ci` browser project. Computed-pair attachments
 are test artifacts; the isolated harness does not replace the strict live-route
 accessibility gates or establish full WCAG conformance.
 
+`theme-rendered-contrast.spec.ts` (G-RENDER) reuses this harness and
+`dialog-contract.html` to count sub-AA text per theme and surface against
+`tests/frontend/e2e/rendered-contrast-baseline.json`; it runs under the same
+config (see `docs/E2E_TESTING.md`).
+
 The pre-fix light/English/1024px browser run measured white-on-white KRI and
 approval headings and owner names at 1.00:1; white notes and questionnaire
 Save/Close on the composited 3%-black-on-white surface at 1.068:1; white Approve

@@ -18,5 +18,17 @@
     "^ISO\\s?27001$",
     "^[A-Z0-9_:-]{2,}$",
     "^[-+*/→•|:()\\[\\]{}.,\\s0-9]+$"
+  ],
+  "scopedExceptions": [
+    {
+      "path": "src/pages/login/SsoOnlyView.tsx",
+      "text": "Risk",
+      "reason": "Brand wordmark: 'Risk' + styled 'Hub' span render the untranslated product name RiskHub."
+    },
+    {
+      "path": "src/pages/ProdLoginPreviewPage.tsx",
+      "text": "Risk",
+      "reason": "Brand wordmark: 'Risk' + styled 'Hub' span render the untranslated product name RiskHub."
+    }
   ]
 }

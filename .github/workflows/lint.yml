@@ -151,6 +151,13 @@ jobs:
           npm run lint | tee ../lint-frontend.log
         working-directory: frontend
 
+      # G-RATCHET (audit 2026-09-30 §4.1, D15): per-file design-debt counts may only go down.
+      - name: Frontend UI consistency ratchet
+        run: |
+          set -euo pipefail
+          npm run quality:ui-ratchet | tee ../lint-frontend-ui-ratchet.log
+        working-directory: frontend
+
       - name: Frontend typecheck
         run: |
           set -euo pipefail
@@ -205,6 +212,7 @@ jobs:
             echo "";
             echo "- Frontend unit tests: PASS";
             echo "- Frontend lint (eslint + jsx-a11y strict zero): PASS";
+            echo "- Frontend UI consistency ratchet: PASS";
             echo "- Frontend typecheck: PASS";
             echo "- Frontend build: PASS";
             echo "- Repo artifact + script syntax contracts: PASS";
@@ -220,6 +228,7 @@ jobs:
           path: |
             lint-summary.md
             lint-frontend.log
+            lint-frontend-ui-ratchet.log
             lint-frontend-typecheck.log
             lint-frontend-build.log
             lint-repo-contracts.log

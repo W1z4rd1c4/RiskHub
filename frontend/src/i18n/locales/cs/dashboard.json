@@ -150,7 +150,9 @@
     "view_all_overdue": "Zobrazit vše po termínu",
     "showing": "Zobrazeno {{shown}} z {{total}}",
     "breaches_load_failed": "Nepodařilo se načíst porušení KRI",
-    "status_load_failed": "Nepodařilo se načíst stav KRI"
+    "status_load_failed": "Nepodařilo se načíst stav KRI",
+    "current_label": "Aktuálně:",
+    "limit_label": "Limit:"
   },
   "charts": {
     "by_status": "Podle stavu",
@@ -301,6 +303,7 @@
     "no_risks_at_position": "V této pozici nejsou žádná rizika",
     "footer_prefix": "Klikněte na riziko pro detail • Stiskněte",
     "footer_suffix": "pro zavření",
-    "results": "Výsledky detailu rizik"
+    "results": "Výsledky detailu rizik",
+    "score_value": "Skóre: {{score}}"
   }
 }

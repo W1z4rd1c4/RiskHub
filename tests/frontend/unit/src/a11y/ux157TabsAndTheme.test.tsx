@@ -251,4 +251,24 @@ describe('UX-157 Appearance theme choice', () => {
         expect(dark).toHaveFocus();
         expect(document.documentElement).toHaveClass('theme-dark');
     });
+
+    it('labels only Light as Beta and announces it through the radio description (D2)', () => {
+        render(
+            <AuthProvider>
+                <ThemeProvider>
+                    <AppearanceSettings />
+                </ThemeProvider>
+            </AuthProvider>,
+        );
+
+        const group = screen.getByRole('group', { name: 'Theme' });
+        const light = within(group).getByRole('radio', { name: 'Light' });
+        expect(screen.getByTestId('theme-light-beta')).toHaveTextContent('Beta');
+        expect(light).toHaveAccessibleDescription(
+            'Clean and bright for daytime use Beta Some screens are still being adapted to the light theme.',
+        );
+        expect(screen.queryByTestId('theme-dark-beta')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('theme-riskhub-beta')).not.toBeInTheDocument();
+        expect(within(group).getByRole('radio', { name: 'Dark' })).toHaveAccessibleDescription('True dark mode for OLED displays');
+    });
 });

@@ -42,7 +42,8 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string) => key,
+        t: (key: string, options?: { score?: number }) =>
+            options?.score !== undefined ? `${key} ${options.score}` : key,
     }),
 }));
 
@@ -86,6 +87,6 @@ describe('RiskDrilldownModal risk thresholds', () => {
 
         expect(await screen.findByText('Threshold Risk')).toBeInTheDocument();
         expect(screen.getByText('issues.severity.high')).toBeVisible();
-        expect(screen.getByText('Score: 15')).toBeVisible();
+        expect(screen.getByText('risk_drilldown.score_value 15')).toBeVisible();
     });
 });

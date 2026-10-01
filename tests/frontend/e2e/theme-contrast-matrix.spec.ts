@@ -1,10 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 import { getApiBaseUrl, getControlByName, getDemoTokenByAccountName, getVendorByRegistration } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser, logout } from './helpers/login';
 import { E2E_CONTROLS, E2E_VENDORS } from './fixtures/e2e-data';
-import { renderedContrast } from './helpers/renderedContrast';
+import { measureRenderedContrast, renderedContrast } from './helpers/renderedContrast';
 import { waitForDataLoad } from './helpers/wait';
 
 type AuditTheme = 'riskhub' | 'light' | 'dark';
@@ -92,7 +95,7 @@ function firstRecord(payload: unknown): IdentifiedRecord | null {
 
 async function resolveAuditRoutes(page: Page): Promise<string[]> {
   const token = await getDemoTokenByAccountName(DEMO_ACCOUNTS.CRO);
-  const routes = [...STATIC_AUDIT_ROUTES];
+  const routes: string[] = [...STATIC_AUDIT_ROUTES];
 
   for (const family of DETAIL_FAMILIES) {
     const response = await page.request.get(new URL(family.apiPath, getApiBaseUrl()).toString(), {
@@ -105,6 +108,97 @@ async function resolveAuditRoutes(page: Page): Promise<string[]> {
   }
 
   return routes;
+}
+
+type AxeResults = Awaited<ReturnType<AxeBuilder['analyze']>>;
+
+// Ratchet for unresolved axe `incomplete` colour-contrast nodes (NEW-V1-02):
+// per theme@viewport and route (detail ids normalised to `:id`), the count may
+// only go down. Rewrite after an intended improvement with
+// `UPDATE_CONTRAST_BASELINE=1 … theme-contrast-matrix.spec.ts --workers=1`; `=1` refuses to
+// raise a recorded count, `UPDATE_CONTRAST_BASELINE=force` is for a reviewed increase only.
+const INCOMPLETE_BASELINE_PATH = path.resolve(__dirname, 'theme-contrast-incomplete-baseline.json');
+const UPDATE_CONTRAST_BASELINE = ['1', 'force'].includes(process.env.UPDATE_CONTRAST_BASELINE ?? '');
+const FORCE_CONTRAST_BASELINE = process.env.UPDATE_CONTRAST_BASELINE === 'force';
+
+interface IncompleteBaseline {
+  description: string;
+  matrix: Record<string, Record<string, number>>;
+}
+
+function routeKey(route: string): string {
+  return route.replace(/\/\d+(?=\/|$)/g, '/:id');
+}
+
+function readIncompleteBaseline(): IncompleteBaseline | null {
+  if (!fs.existsSync(INCOMPLETE_BASELINE_PATH)) return null;
+  return JSON.parse(fs.readFileSync(INCOMPLETE_BASELINE_PATH, 'utf8')) as IncompleteBaseline;
+}
+
+function writeIncompleteBaseline(matrixKey: string, counts: Record<string, number>): void {
+  const matrix = { ...(readIncompleteBaseline()?.matrix ?? {}), [matrixKey]: counts };
+  const sorted = Object.fromEntries(Object.keys(matrix).sort().map((key) => [
+    key,
+    Object.fromEntries(Object.entries(matrix[key]!).sort(([left], [right]) => left.localeCompare(right))),
+  ]));
+  const baseline: IncompleteBaseline = {
+    description: 'Unresolved axe incomplete color-contrast nodes per theme@viewport and route (measured below AA, '
+      + 'or not measurable over a gradient); may only go down. See theme-contrast-matrix.spec.ts and '
+      + 'docs/audits/2026-09-30-frontend-ui-consistency-audit.md NEW-V1-02.',
+    matrix: sorted,
+  };
+  fs.writeFileSync(INCOMPLETE_BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
+}
+
+interface IncompleteContrastFinding {
+  target: string;
+  html: string;
+  reason: string;
+  ratio: number | null;
+  required: number;
+}
+
+/**
+ * NEW-V1-02: axe classifies text it cannot resolve (text over `backdrop-blur`
+ * glass, overlapping layers, pseudo content) as `incomplete`, which this matrix
+ * used to ignore while white-on-white text shipped. Every incomplete
+ * `color-contrast` node is measured with the rendered-contrast compositing
+ * kernel; a node below its AA requirement (4.5:1, 3:1 for large text) or one
+ * that cannot be measured (gradient background) stays unresolved and is
+ * ratcheted against `theme-contrast-incomplete-baseline.json`.
+ */
+async function measuredIncompleteContrast(page: Page, result: AxeResults): Promise<IncompleteContrastFinding[]> {
+  const findings: IncompleteContrastFinding[] = [];
+  for (const rule of result.incomplete.filter((candidate) => candidate.id === 'color-contrast')) {
+    for (const node of rule.nodes) {
+      const reason = node.any
+        .map((check) => (check.data as { messageKey?: string } | null)?.messageKey ?? check.message)
+        .join('; ');
+      const selector = node.target.at(-1);
+      const finding = { target: JSON.stringify(node.target), html: node.html.slice(0, 160), reason };
+      if (node.target.length !== 1 || typeof selector !== 'string') {
+        findings.push({ ...finding, ratio: null, required: 4.5 });
+        continue;
+      }
+      const element = page.locator(selector).first();
+      // Bounded: a node that left the DOM after the axe pass must not stall the matrix
+      // until the test timeout; it is recorded as unresolved instead.
+      const measured = await element.evaluate((node) => {
+        const style = getComputedStyle(node);
+        const fontSize = Number.parseFloat(style.fontSize);
+        const large = fontSize >= 24 || (fontSize >= 18.66 && Number.parseInt(style.fontWeight, 10) >= 700);
+        return { required: large ? 3 : 4.5 };
+      }, undefined, { timeout: 5_000 }).catch(() => null);
+      const sample = measured
+        ? await element.evaluate(measureRenderedContrast, undefined, { timeout: 5_000 }).catch(() => null)
+        : null;
+      const required = measured?.required ?? 4.5;
+      if (!sample || sample.gradient || sample.ratio < required) {
+        findings.push({ ...finding, ratio: sample && !sample.gradient ? Math.round(sample.ratio * 100) / 100 : null, required });
+      }
+    }
+  }
+  return findings;
 }
 
 async function visit(page: Page, route: string): Promise<void> {
@@ -341,30 +435,56 @@ test.describe('UX-24 audited theme matrix', () => {
         await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
         const routes = await resolveAuditRoutes(page);
         const findings: Array<{ route: string; violations: unknown[] }> = [];
-
-        for (const route of routes) {
-          await visit(page, route);
+        const unresolved: Record<string, IncompleteContrastFinding[]> = {};
+        const audit = async (route: string) => {
           // This is an additive contrast-only matrix. The existing strict Axe
           // suites continue to run every pinned WCAG rule without exclusions.
           const result = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
           if (result.violations.length > 0) {
             findings.push({ route, violations: result.violations });
           }
+          unresolved[routeKey(route)] = await measuredIncompleteContrast(page, result);
+        };
+
+        for (const route of routes) {
+          await visit(page, route);
+          await audit(route);
         }
 
         await logout(page);
         await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN);
         await visit(page, ADMIN_AUDIT_ROUTE);
-        const adminResult = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
-        if (adminResult.violations.length > 0) {
-          findings.push({ route: ADMIN_AUDIT_ROUTE, violations: adminResult.violations });
-        }
+        await audit(ADMIN_AUDIT_ROUTE);
 
         await testInfo.attach(`theme-contrast-${theme}-${viewport.width}`, {
-          body: JSON.stringify(findings, null, 2),
+          body: JSON.stringify({ violations: findings, unresolvedIncomplete: unresolved }, null, 2),
           contentType: 'application/json',
         });
         expect(findings, JSON.stringify(findings, null, 2)).toEqual([]);
+
+        const matrixKey = `${theme}@${viewport.width}`;
+        const counts = Object.fromEntries(Object.entries(unresolved).map(([route, nodes]) => [route, nodes.length]));
+        if (UPDATE_CONTRAST_BASELINE) {
+          expect(testInfo.config.workers, 'UPDATE_CONTRAST_BASELINE must run with --workers=1').toBe(1);
+          const previous = readIncompleteBaseline()?.matrix[matrixKey] ?? {};
+          const raised = Object.entries(counts)
+            .filter(([route, count]) => previous[route] !== undefined && count > previous[route]!)
+            .map(([route, count]) => `${route} ${previous[route]} -> ${count}`);
+          if (!FORCE_CONTRAST_BASELINE) {
+            expect(raised, `${matrixKey}: UPDATE_CONTRAST_BASELINE=1 only lowers counts; use =force for a reviewed increase`)
+              .toEqual([]);
+          }
+          writeIncompleteBaseline(matrixKey, counts);
+          return;
+        }
+        const baseline = readIncompleteBaseline()?.matrix[matrixKey] ?? {};
+        for (const [route, count] of Object.entries(counts)) {
+          expect.soft(
+            count,
+            `${matrixKey} ${route}: unresolved axe-incomplete contrast nodes rose above the baseline (${baseline[route] ?? 0}): ${
+              JSON.stringify(unresolved[route], null, 2)}`,
+          ).toBeLessThanOrEqual(baseline[route] ?? 0);
+        }
       });
     }
   }

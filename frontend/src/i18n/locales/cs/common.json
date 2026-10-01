@@ -101,6 +101,8 @@
   },
   "labels": {
     "name": "Název",
+    "baseline": "Výchozí",
+    "current": "Aktuální",
     "description": "Popis",
     "status": "Stav",
     "type": "Typ",

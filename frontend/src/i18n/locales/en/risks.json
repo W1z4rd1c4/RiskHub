@@ -332,7 +332,8 @@
     "archived_controls": "Archived Controls ({{count}})",
     "manage_existing_links": "Manage Existing Links",
     "linked_vendors": "Linked Vendors",
-    "no_vendors_linked": "No vendors linked to this risk."
+    "no_vendors_linked": "No vendors linked to this risk.",
+    "core_function_badge": "Core"
   },
   "history": {
     "recorded_by": "Recorded by",

@@ -21,6 +21,18 @@ Blocked by `npm run quality:debt`:
 4. Any explicit `any` type usage, except approved and time-boxed allowlist entries.
 5. Any production comment debt markers (`TODO`, `FIXME`, `HACK`, `XXX`).
 
+Ratcheted by `npm run quality:ui-ratchet` (G-RATCHET, `frontend/scripts/quality/ui-consistency-ratchet.mjs`):
+
+1. Design-system debt patterns from the 2026-09-30 UI-consistency audit (§4.1): `text-white`,
+   raw palette colours, white/black alpha utilities, sub-11px fonts, `font-black`, raw
+   `<button>`/text inputs/`<table>` outside the primitives, `dark:` variants, `style=` props,
+   `btn-primary`/`btn-secondary`, arbitrary colours/z-index/radii, ad-hoc spinners, and
+   `!important` in `src/**/*.css`.
+2. Per-file, per-pattern counts live in `frontend/scripts/quality/ui-consistency-baseline.json`
+   and may only go down: any increase, or a new file with a count above 0, fails.
+3. `npm run quality:ui-ratchet -- --update-baseline` locks in decreases and refuses increases;
+   `--force` is reserved for pure file moves/renames and needs explicit PR review.
+
 ### Backend
 
 Blocked by CI Ruff hard gate (`ruff check app`) and suppression budget gate (`python3 scripts/tools/suppression_budget.py`) against `backend/app/**`.

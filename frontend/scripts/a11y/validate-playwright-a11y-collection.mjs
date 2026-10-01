@@ -14,6 +14,7 @@ export const REQUIRED_A11Y_SPECS = [
   'dora-ux-stateful-a11y.spec.ts',
   'dialog-render-sites.spec.ts',
   'theme-contrast-matrix.spec.ts',
+  'theme-rendered-contrast.spec.ts',
 ];
 
 export function assertA11ySpecsCollected(output) {

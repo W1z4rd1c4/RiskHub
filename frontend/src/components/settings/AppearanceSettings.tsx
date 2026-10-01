@@ -13,18 +13,23 @@ export function AppearanceSettings() {
             value: 'light' as const,
             label: t('appearance.theme_light'),
             description: t('appearance.theme_light_desc'),
+            // D2: Light stays "Beta" until the Phase 2 text-token codemod lands
+            // (G-RENDER still measures sub-3:1 text in light on harness surfaces).
+            betaNote: t('appearance.theme_light_beta_note'),
             icon: Sun,
         },
         {
             value: 'dark' as const,
             label: t('appearance.theme_dark'),
             description: t('appearance.theme_dark_desc'),
+            betaNote: null,
             icon: Moon,
         },
         {
             value: 'riskhub' as const,
             label: t('appearance.theme_riskhub'),
             description: t('appearance.theme_riskhub_desc'),
+            betaNote: null,
             icon: Sparkles,
         },
     ];
@@ -45,6 +50,8 @@ export function AppearanceSettings() {
                             const Icon = option.icon;
                             const labelId = `appearance-theme-${option.value}-label`;
                             const descriptionId = `appearance-theme-${option.value}-description`;
+                            const betaBadgeId = `appearance-theme-${option.value}-beta`;
+                            const betaNoteId = `appearance-theme-${option.value}-beta-note`;
 
                             return (
                                 <label
@@ -64,7 +71,7 @@ export function AppearanceSettings() {
                                         checked={isSelected}
                                         onChange={() => setTheme(option.value)}
                                         aria-labelledby={labelId}
-                                        aria-describedby={descriptionId}
+                                        aria-describedby={option.betaNote ? `${descriptionId} ${betaBadgeId} ${betaNoteId}` : descriptionId}
                                         className="sr-only"
                                     />
 
@@ -88,18 +95,34 @@ export function AppearanceSettings() {
                                         )} />
                                     </div>
 
-                                    {/* Label */}
-                                    <span id={labelId} className={cn(
-                                        "font-semibold mb-1",
-                                        isSelected ? "text-accent-text" : "text-foreground"
-                                    )}>
-                                        {option.label}
+                                    {/* Label (+ Beta marker, announced through aria-describedby) */}
+                                    <span className="mb-1 flex items-center gap-2">
+                                        <span id={labelId} className={cn(
+                                            "font-semibold",
+                                            isSelected ? "text-accent-text" : "text-foreground"
+                                        )}>
+                                            {option.label}
+                                        </span>
+                                        {option.betaNote && (
+                                            <span
+                                                id={betaBadgeId}
+                                                data-testid={`theme-${option.value}-beta`}
+                                                className="text-xs font-semibold uppercase tracking-wide text-warning-text"
+                                            >
+                                                {t('appearance.beta_badge')}
+                                            </span>
+                                        )}
                                     </span>
 
                                     {/* Description */}
                                     <span id={descriptionId} className="text-xs text-muted-foreground">
                                         {option.description}
                                     </span>
+                                    {option.betaNote && (
+                                        <span id={betaNoteId} className="mt-2 text-xs text-warning-text">
+                                            {option.betaNote}
+                                        </span>
+                                    )}
                                 </label>
                             );
                         })}

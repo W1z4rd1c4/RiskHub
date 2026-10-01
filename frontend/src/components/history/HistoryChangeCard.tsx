@@ -3,6 +3,7 @@
  * Shows delta badges with directional arrows.
  */
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
 
@@ -27,6 +28,8 @@ const deltaBgColors: Record<HistoryStatus, string> = {
 };
 
 export function HistoryChangeCard({ title, fields, className }: HistoryChangeCardProps) {
+    const { t } = useTranslation('common');
+
     if (!fields || fields.length === 0) {
         return null;
     }
@@ -41,8 +44,8 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
                     {title}
                 </h4>
                 <div className="flex gap-12 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                    <span className="w-24">Baseline</span>
-                    <span className="w-24">Current</span>
+                    <span className="w-24">{t('labels.baseline')}</span>
+                    <span className="w-24">{t('labels.current')}</span>
                 </div>
             </div>
 
