@@ -35,7 +35,7 @@ export function QuarterPeriodSelector({
     return (
         <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-border">
             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <span className="text-eyebrow">
                     {t('quarterly.current_period')}
                 </span>
                 <ThemedSelect
@@ -61,7 +61,7 @@ export function QuarterPeriodSelector({
             <span className="text-xs text-muted-foreground font-bold">{t('quarterly.vs')}</span>
 
             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <span className="text-eyebrow">
                     {t('quarterly.compare_period')}
                 </span>
                 <ThemedSelect

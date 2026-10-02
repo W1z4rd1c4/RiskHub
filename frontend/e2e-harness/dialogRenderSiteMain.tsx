@@ -36,6 +36,7 @@ import type { Asset } from '@/types/asset';
 import type { Control, ControlRiskLink } from '@/types/control';
 import type { Risk, RiskControlLink } from '@/types/risk';
 import type { Threat } from '@/types/threat';
+import { Target } from 'lucide-react';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -174,8 +175,7 @@ function VendorLinkedOwner() {
       onAdd={() => {}}
       renderCard={(item) => <button key={item.id} type="button">{item.name}</button>}
       onNavigate={() => {}}
-      icon={<span aria-hidden="true">K</span>}
-      headerColorClass="text-foreground"
+      icon={Target}
       i18nKeys={{
         tabTitle: 'links.kris.title',
         subtitle: 'links.kris.subtitle',

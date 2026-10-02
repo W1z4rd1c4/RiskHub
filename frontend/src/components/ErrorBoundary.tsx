@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
 import i18n from '@/i18n';
 
 type ErrorBoundaryProps = {
@@ -57,13 +58,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <p id="route-error-boundary-description" className="mt-2 text-sm text-muted-foreground">
                         {description}
                     </p>
-                    <button
-                        type="button"
-                        onClick={this.reset}
-                        className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    >
+                    <Button onClick={this.reset} className="mt-4">
                         {retryLabel}
-                    </button>
+                    </Button>
                 </div>
             </section>
         );

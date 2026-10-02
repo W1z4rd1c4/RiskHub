@@ -15,6 +15,7 @@ vi.mock('@/i18n/hooks', () => ({
             'vendors:values.country_category.domestic': 'Domestic',
             'vendors:values.chain_level.A': 'Own links',
             'vendors:values.replaceability.not_substitutable': 'Not substitutable',
+            'form.register.fields.ex_ante_assessment_date': 'Ex-ante assessment date',
         })[key] ?? options?.defaultValue ?? key,
         i18n: { language: 'en' },
     }),
@@ -88,9 +89,22 @@ describe('Vendor derived section (engine block, #49)', () => {
         expect(screen.getByTestId('vendor-derived-completeness')).toHaveTextContent(
             'derived.incomplete',
         );
+        // GAP-D-02: the missing column codes read as their form labels, never snake_case.
         expect(screen.getByTestId('vendor-derived-missing')).toHaveTextContent(
-            'ex_ante_assessment_date',
+            'Ex-ante assessment date',
         );
+        expect(screen.getByTestId('vendor-derived-missing')).not.toHaveTextContent('ex_ante_assessment_date');
+    });
+
+    it('humanizes a missing column code without a form label', () => {
+        render(
+            <VendorDerivedSection
+                derived={sampleDerived({
+                    inputs: { ...sampleDerived().inputs, missing_for_completeness: ['main_contract_start_date'] },
+                })}
+            />,
+        );
+        expect(screen.getByTestId('vendor-derived-missing')).toHaveTextContent('Main contract start date');
     });
 
     it('renders the derived transitive process rows read-only, with the via-asset', () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useId, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
@@ -6,6 +6,7 @@ import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { buildNotificationPresentation, NotificationPresentationIcon } from './notificationPresentation';
 import { logError } from '@/services/logger';
@@ -37,6 +38,9 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
     const [pendingMutation, setPendingMutation] = useState<number | 'all' | null>(null);
     const [mutationError, setMutationError] = useState<{ target: number | 'all'; message: string } | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const panelId = useId();
+    const panelTitleId = useId();
     const pendingMutationRef = useRef<number | 'all' | null>(null);
     const pendingListRetryRef = useRef(false);
     const latestListRequestRef = useRef(0);
@@ -96,6 +100,18 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
             pendingListRetryRef.current = false;
         }
     }, [fetchNotifications]);
+
+    // AX-10: Escape closes the popover and returns focus to the bell that opened it.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            setIsOpen(false);
+            triggerRef.current?.focus();
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [isOpen]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -195,39 +211,48 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
     return (
         <div className="relative" ref={dropdownRef}>
             {/* Bell Button */}
-            <button
-                type="button"
+            <Button
+                ref={triggerRef}
+                variant="ghost"
+                size="icon"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`relative p-2 rounded-full hover:bg-tint/10 transition-colors ${isCurrentPage ? 'bg-tint/10' : ''}`}
+                className={cn('relative rounded-full [&_svg]:size-5', isCurrentPage && 'bg-tint/10')}
                 aria-label={unreadCount > 0 ? t('aria.bell_unread', { count: unreadCount }) : t('aria.bell')}
                 aria-current={isCurrentPage ? 'page' : undefined}
+                aria-haspopup="dialog"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? panelId : undefined}
                 data-testid="notification-bell-button"
             >
-                <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+                <Bell aria-hidden="true" className="text-muted-foreground" />
                 {unreadCount > 0 && (
-                    <span aria-hidden="true" className="notification-count-badge absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                    <span aria-hidden="true" className="notification-count-badge absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-2xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
-            </button>
+            </Button>
 
             {/* Dropdown Panel */}
             {isOpen && (
                 <div
-                    className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 bg-popover text-popover-foreground border border-border"
+                    id={panelId}
+                    role="dialog"
+                    aria-labelledby={panelTitleId}
+                    className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-popover z-50 bg-popover text-popover-foreground border border-border"
                     data-testid="notification-dropdown-panel"
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                        <h3 className="text-sm font-semibold text-popover-foreground">{t('title')}</h3>
-                        <button
-                            type="button"
+                        <h3 id={panelTitleId} className="text-sm font-semibold text-popover-foreground">{t('title')}</h3>
+                        <Button
+                            variant="ghost"
+                            size="iconCompact"
                             onClick={() => setIsOpen(false)}
-                            className="rounded-full p-1 hover:bg-muted"
+                            className="rounded-full"
                             aria-label={tCommon('actions.close')}
                         >
-                            <X className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                        </button>
+                            <X className="text-muted-foreground" aria-hidden="true" />
+                        </Button>
                     </div>
 
                     {/* Notification List */}
@@ -287,7 +312,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                                                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                                     {presentation.message}
                                                 </p>
-                                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                                <p className="mt-1 text-2xs text-muted-foreground">
                                                     {formatRelativeDate(presentation.date)}
                                                 </p>
                                             </div>
@@ -357,14 +382,15 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                                 )}
                             </div>
                         )}
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
+                            size="compact"
                             onClick={handleViewAll}
                             data-testid="notification-view-all-button"
-                            className="ml-auto text-xs font-medium text-muted-foreground hover:text-popover-foreground"
+                            className="ml-auto text-muted-foreground"
                         >
                             {tCommon('actions.view_all')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

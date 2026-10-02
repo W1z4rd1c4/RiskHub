@@ -96,8 +96,8 @@ const DESIGN_CLASS_RESTRICTIONS = [
   ...classBan("(?<![\\w-])dark:(?=[!a-z\\[-])", "No dark: variants. Theme through tokens (§4.2)."),
   ...classBan("-\\[[^\\] \"]*(?:#[0-9a-fA-F]{3}|rgba?\\(|hsla?\\()", "Arbitrary colour literal. Add a token (§4.2)."),
 ];
-// Raw elements outside the primitives (components/ui and components/tables are
-// never clean paths). `<input>` stays legal only for types without a drop-in
+// Raw elements outside the primitives (components/ui gets the class bans
+// only). `<input>` stays legal only for types without a drop-in
 // primitive: range sliders, colour pickers, hidden/file inputs and the
 // sr-only radios of custom card pickers.
 const DESIGN_ELEMENT_RESTRICTIONS = [
@@ -119,62 +119,13 @@ const DESIGN_ELEMENT_RESTRICTIONS = [
     message: "Unassociated label (AX-04). Use <Field>.",
   },
 ];
-const DESIGN_CLEAN_PATHS = [
-  "src/pages/native/**/*.{ts,tsx}",
-  // 3a Risk Hub admin
-  "src/components/riskhub/**/*.{ts,tsx}",
-  "src/pages/RiskHubPage.tsx",
-  // 3b Risk, Control, KRI, Issue
-  "src/components/risks/**/*.{ts,tsx}",
-  "src/components/risk-form/**/*.{ts,tsx}",
-  "src/components/RiskForm.tsx",
-  "src/components/RiskQuickViewModal.tsx",
-  "src/components/RiskScoreMatrix.tsx",
-  "src/components/controls/**/*.{ts,tsx}",
-  "src/components/control-form/**/*.{ts,tsx}",
-  "src/components/ControlCreateDialog.tsx",
-  "src/components/kri/**/*.{ts,tsx}",
-  "src/components/kri-form/**/*.{ts,tsx}",
-  "src/components/kris/**/*.{ts,tsx}",
-  "src/components/issues/**/*.{ts,tsx}",
-  "src/components/history/**/*.{ts,tsx}",
-  "src/components/ict-register/RegisterFilterCard.tsx",
-  "src/components/ict-register/registerFilterChips.ts",
-  "src/pages/risks/**/*.{ts,tsx}",
-  "src/pages/controls/**/*.{ts,tsx}",
-  "src/pages/kris/**/*.{ts,tsx}",
-  "src/pages/issues/**/*.{ts,tsx}",
-  "src/pages/{Risks,RiskDetail,RiskNew,RiskEdit}Page.tsx",
-  "src/pages/{Controls,ControlDetail,ControlNew,ControlEdit}Page.tsx",
-  "src/pages/{KRIs,KRIDetail,KRINew}Page.tsx",
-  "src/pages/{Issues,IssueDetail,IssueNew}Page.tsx",
-  "src/lib/{humanizeCode,kriUnits,roleLabels}.ts",
-  // 3c Settings, Users, Access, Admin console
-  "src/components/settings/**/*.{ts,tsx}",
-  "src/components/users/**/*.{ts,tsx}",
-  "src/components/access/**/*.{ts,tsx}",
-  "src/pages/admin-console/**/*.{ts,tsx}",
-  "src/pages/users/**/*.{ts,tsx}",
-  "src/pages/{Settings,Users,UserNew,AdminConsole}Page.tsx",
-  // 3d Asset, Process, Threat and link sections
-  "src/pages/assets/**/*.{ts,tsx}",
-  "src/pages/processes/**/*.{ts,tsx}",
-  "src/pages/threats/**/*.{ts,tsx}",
-  "src/pages/detail/**/*.{ts,tsx}",
-  "src/pages/shared/**/*.{ts,tsx}",
-  "src/pages/{Assets,AssetDetail,Processes,ProcessDetail,Threats,ThreatDetail}Page.tsx",
-  "src/components/linking/**/*.{ts,tsx}",
-  "src/components/LinkManagementDialog.tsx",
-  "src/components/approvals/**/*.{ts,tsx}",
-];
-// Inside the clean directories, files that migrate with a later module (W9 3e:
-// risk questionnaires and the legacy approval diff).
-const DESIGN_CLEAN_PATH_EXCEPTIONS = [
-  "src/components/risks/QuestionnaireAssessmentSummary.tsx",
-  "src/components/risks/RiskDetailQuestionnairesTab.tsx",
-  "src/components/risks/risk-questionnaire-detail/**",
-  "src/components/approvals/GovernedMutationDiff.tsx",
-];
+// W9 (audit §5.5 3e-3i): every module reached zero, so the clean paths are all
+// of `src` with no pending exceptions. Only the primitives own the raw elements
+// (components/ui): they keep the class bans but not the element bans (§4.1).
+// The table primitives in components/tables render through ui/table and get the
+// full ban like any other module.
+const DESIGN_CLEAN_PATHS = ["src/**/*.{ts,tsx}"];
+const DESIGN_CLASS_BAN_ONLY_PATHS = ["src/components/ui/**/*.{ts,tsx}"];
 
 const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
@@ -289,7 +240,7 @@ export default defineConfig([
   },
   {
     files: DESIGN_CLEAN_PATHS,
-    ignores: DESIGN_CLEAN_PATH_EXCEPTIONS,
+    ignores: DESIGN_CLASS_BAN_ONLY_PATHS,
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -297,6 +248,17 @@ export default defineConfig([
         ...ADR008_THRESHOLD_RESTRICTIONS,
         ...DESIGN_CLASS_RESTRICTIONS,
         ...DESIGN_ELEMENT_RESTRICTIONS,
+      ],
+    },
+  },
+  {
+    files: DESIGN_CLASS_BAN_ONLY_PATHS,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        RAW_ID_LABEL_RESTRICTION,
+        ...ADR008_THRESHOLD_RESTRICTIONS,
+        ...DESIGN_CLASS_RESTRICTIONS,
       ],
     },
   },

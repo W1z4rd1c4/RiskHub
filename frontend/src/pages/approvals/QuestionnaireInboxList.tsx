@@ -1,14 +1,13 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock } from 'lucide-react';
 
+import { QuestionnaireStatusBadge } from '@/components/risks/QuestionnaireStatusBadge';
+import { Button } from '@/components/ui/button';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
-import { cn } from '@/lib/utils';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
-
-import { getQuestionnaireStatusBadge, getQuestionnaireStatusLabel } from './approvalsPresentation';
-import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 interface QuestionnaireInboxListProps {
     questionnaires: RiskQuestionnaireListItem[];
@@ -87,31 +86,27 @@ export function QuestionnaireInboxList({
                 >
                     <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
                         <div className="flex flex-col gap-2 min-w-[140px]">
-                            <span
-                                className={cn(
-                                    'px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border w-fit',
-                                    getQuestionnaireStatusBadge(questionnaire),
-                                )}
-                            >
-                                {getQuestionnaireStatusLabel(questionnaire, t)}
-                            </span>
+                            <QuestionnaireStatusBadge questionnaire={questionnaire} className="w-fit" />
                             <div className="text-xs text-muted-foreground">
                                 {t('risks:questionnaire.meta.due')} {formatDateValue(questionnaire.due_at, locale)}
                             </div>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-bold text-foreground mb-1 truncate">
+                            <h3
+                                id={`questionnaire-inbox-${questionnaire.id}-title`}
+                                className="text-base font-bold text-foreground mb-1 truncate"
+                            >
                                 {questionnaire.risk_name ?? t('common:fallbacks.unknown_risk')}
                             </h3>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
+                                    <Clock className="h-3 w-3" aria-hidden="true" />
                                     {t('risks:questionnaire.meta.sent')} {formatDateValue(questionnaire.sent_at, locale)}
                                 </span>
                                 <span>
-                                    by{' '}
-                                    <span className="text-accent-text">
+                                    {t('risks:questionnaire.meta.sender')}:{' '}
+                                    <span className="text-foreground">
                                         {questionnaire.sent_by_user_name ?? t('common:fallbacks.unknown_user')}
                                     </span>
                                 </span>
@@ -119,12 +114,13 @@ export function QuestionnaireInboxList({
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button
+                            <Button
+                                variant="outline"
                                 onClick={() => onOpenRisk(questionnaire.risk_id)}
-                                className="px-3 py-2 rounded-xl bg-tint/5 border border-border text-foreground hover:bg-tint/10 hover:border-tint/20 transition-all text-sm"
+                                aria-describedby={`questionnaire-inbox-${questionnaire.id}-title`}
                             >
                                 {t('risks:questionnaires.open')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </motion.div>

@@ -16,8 +16,16 @@ UI components for `risks` area.
   `Badge`, PG-03) and `RiskPriorityBadge` (named priority star, PG-46).
 - `RiskDetailKriHistoryTab.tsx`
 - `RiskDetailOverviewTab.tsx`
-- `RiskDetailQuestionnairesTab.tsx`
-- `RiskQuestionnaireDetail.tsx`
+- `RiskDetailQuestionnairesTab.tsx` — the risk's questionnaire tab (`Card`,
+  `CardHeader`, accent send `Button`): "sent" is a success toast, "an open
+  questionnaire already exists" a warning `InlineMessage` (GAP-D-09).
+- `QuestionnaireStatusBadge.tsx` — the one questionnaire status pill (tone and
+  translated label from `lib/questionnaireStatus.ts`, PG-03 / PG-20), used by
+  the tab, the history table, the questionnaire dialog and the approvals inbox.
+- `QuestionnaireHistoryTable.tsx` — questionnaire history on `SortableTable`
+  with named first-cell row activation (AX-02).
+- `QuestionnaireAssessmentSummary.tsx` — latest submitted assessment (`dl`).
+- `RiskQuestionnaireDetail.tsx` — re-export of `risk-questionnaire-detail/`.
 - `riskQuestionnaireQuestions.ts`
 
 ## Notes

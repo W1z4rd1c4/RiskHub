@@ -1,6 +1,7 @@
 import { Calendar } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { Card, CardHeader } from '@/components/ui/card';
 import { LoadingState, Skeleton } from '@/components/ui/state';
 
 interface QuarterlyComparisonFrameProps {
@@ -10,13 +11,10 @@ interface QuarterlyComparisonFrameProps {
 
 export function QuarterlyComparisonFrame({ children, title }: QuarterlyComparisonFrameProps) {
     return (
-        <div className="glass-card">
-            <div className="flex items-center gap-2 mb-6">
-                <Calendar className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-bold text-foreground">{title}</h3>
-            </div>
+        <Card as="section">
+            <CardHeader title={title} icon={Calendar} className="mb-6" />
             {children}
-        </div>
+        </Card>
     );
 }
 

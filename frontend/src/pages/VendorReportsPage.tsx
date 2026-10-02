@@ -5,10 +5,13 @@ import { vendorReportApi } from '@/services/vendorReportApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { parseBoundedInteger } from '@/lib/boundedInteger';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { AccessDeniedState, ErrorState, LoadingState } from '@/components/ui/state';
 import { logError } from '@/services/logger';
 import { useVendorReportCapabilities } from '@/hooks/useVendorReportCapabilities';
@@ -100,55 +103,56 @@ export function VendorReportsPage() {
     const effectiveDepartmentId = canUseDepartmentFilter ? departmentId : null;
 
     const renderDepartmentSelector = (selectId: string) => canUseDepartmentFilter && departments.length > 0 ? (
-        <div className="flex items-center gap-3">
-            <label htmlFor={selectId} className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {tCommon('labels.department')}
-            </label>
-            <select
-                id={selectId}
-                value={departmentId ?? ''}
-                onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)}
-                className="min-w-48 bg-nested border border-border rounded-xl px-3 py-2 text-foreground font-medium"
-            >
-                <option value="">{tCommon('filters.all_departments')}</option>
-                {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                    </option>
-                ))}
-            </select>
-        </div>
+        <Field id={selectId} label={tCommon('labels.department')} className="max-w-xs">
+            {(field) => (
+                <NativeSelect
+                    {...field}
+                    value={departmentId ?? ''}
+                    onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)}
+                >
+                    <option value="">{tCommon('filters.all_departments')}</option>
+                    {departments.map((dept) => (
+                        <option key={dept.id} value={dept.id}>
+                            {dept.name}
+                        </option>
+                    ))}
+                </NativeSelect>
+            )}
+        </Field>
     ) : null;
 
     let reportContent: ReactNode;
     if (isCapabilitiesLoading) {
-        reportContent = <LoadingState layout="section" label={t('labels.loading')} className="glass-card" />;
+        reportContent = (
+            <Card>
+                <LoadingState layout="section" label={t('labels.loading')} />
+            </Card>
+        );
     } else if (capabilitiesUnavailable) {
         reportContent = (
-            <ErrorState
-                layout="section"
-                message={t('reports.unavailable')}
-                onRetry={vendorCapability.retry}
-                className="glass-card"
-            />
+            <Card>
+                <ErrorState
+                    layout="section"
+                    message={t('reports.unavailable')}
+                    onRetry={vendorCapability.retry}
+                />
+            </Card>
         );
     } else if (!canReadReports) {
         reportContent = (
-            <AccessDeniedState
-                layout="section"
-                descriptionKey="reports.not_authorized"
-                ns="vendors"
-                className="glass-card"
-            />
+            <Card>
+                <AccessDeniedState
+                    layout="section"
+                    descriptionKey="reports.not_authorized"
+                    ns="vendors"
+                />
+            </Card>
         );
     } else {
         reportContent = (
             <div className="grid gap-6 lg:grid-cols-2">
-                <section className="glass-card p-6 space-y-4">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                        <Download className="h-4 w-4" />
-                        {t('reports.annual.title')}
-                    </h2>
+                <Card as="section" className="space-y-4">
+                    <CardHeader icon={Download} title={t('reports.annual.title')} className="mb-0" />
 
                     <Field
                         id="vendor-report-year"
@@ -172,20 +176,19 @@ export function VendorReportsPage() {
 
                     <div className="flex flex-wrap gap-2">
                         {canDownloadAnnual ? (
-                            <button
-                                type="button"
-                                aria-busy={isAnnualDownloading}
-                                disabled={isAnnualDownloading || annualReportYear === null}
+                            <Button
+                                variant="outline"
+                                isLoading={isAnnualDownloading}
+                                disabled={annualReportYear === null}
                                 onClick={() => {
                                     if (annualReportYear !== null) {
                                         void downloadAnnual({ year: annualReportYear, departmentId: effectiveDepartmentId });
                                     }
                                 }}
-                                className="px-4 py-2 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-muted/80 transition-colors disabled:opacity-60 flex items-center gap-2"
                             >
-                                <FileSpreadsheet className="h-4 w-4" />
+                                {isAnnualDownloading ? null : <FileSpreadsheet aria-hidden="true" />}
                                 {t('reports.annual.download_csv')}
-                            </button>
+                            </Button>
                         ) : null}
                     </div>
                     {annualError ? (
@@ -195,28 +198,25 @@ export function VendorReportsPage() {
                             onRetry={() => void downloadAnnual(annualError)}
                         />
                     ) : null}
-                </section>
+                </Card>
 
-                <section className="glass-card p-6 space-y-4">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                        <FileSpreadsheet className="h-4 w-4" />
-                        {t('reports.dora.title')}
-                    </h2>
-                    <p className="text-sm text-foreground font-medium">
-                        {t('reports.dora.subtitle')}
-                    </p>
+                <Card as="section" className="space-y-4">
+                    <CardHeader
+                        icon={FileSpreadsheet}
+                        title={t('reports.dora.title')}
+                        description={t('reports.dora.subtitle')}
+                        className="mb-0"
+                    />
                     {renderDepartmentSelector('vendor-report-dora-department')}
                     {canDownloadDora ? (
-                        <button
-                            type="button"
-                            aria-busy={isDoraDownloading}
-                            disabled={isDoraDownloading}
+                        <Button
+                            variant="outline"
+                            isLoading={isDoraDownloading}
                             onClick={() => void downloadDora({ departmentId: effectiveDepartmentId })}
-                            className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/30 text-accent-text font-bold hover:bg-accent/20 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
                         >
-                            <Download className="h-4 w-4" />
+                            {isDoraDownloading ? null : <Download aria-hidden="true" />}
                             {t('reports.dora.download')}
-                        </button>
+                        </Button>
                     ) : null}
                     {doraError ? (
                         <ErrorState
@@ -225,7 +225,7 @@ export function VendorReportsPage() {
                             onRetry={() => void downloadDora(doraError)}
                         />
                     ) : null}
-                </section>
+                </Card>
             </div>
         );
     }

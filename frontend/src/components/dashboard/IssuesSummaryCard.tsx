@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AlertCircle, AlertTriangle, CalendarClock, ChevronRight, Clock3 } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { Card, CardHeader } from '@/components/ui/card';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import type { IssueDashboardSummary } from '@/types/dashboard';
 
 interface IssuesSummaryCardProps {
@@ -32,8 +33,8 @@ function buildIssuesDrilldownHref(extraQuery: Record<string, string> = {}): stri
 }
 
 export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
-    const navigate = useNavigate();
     const { t } = useTranslation('dashboard');
+    const format = useFormat();
 
     const rows = useMemo<SummaryRow[]>(
         () => [
@@ -77,50 +78,47 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
     );
 
     return (
-        <div className="glass-card">
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-foreground">
-                {t('issues.summary.title')}
-            </h3>
+        <Card as="section" className="h-full">
+            <CardHeader title={t('issues.summary.title')} />
             <div className="space-y-2">
                 {rows.map((row) => {
                     if (row.kind === 'drilldown' && row.href) {
-                        const href = row.href;
                         return (
-                            <button
+                            <Link
                                 key={row.key}
-                                type="button"
-                                onClick={() => navigate(href)}
-                                className="w-full rounded-xl border border-border bg-tint/[0.03] px-3 py-2.5 transition-all hover:border-accent/40 hover:bg-tint/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-0"
-                                aria-label={`${row.label}: ${row.value}`}
+                                to={row.href}
+                                aria-label={`${row.label}: ${format.number(row.value)}`}
+                                data-testid={`issues-summary-${row.key}`}
+                                className="block w-full rounded-xl border border-border bg-tint/[0.03] px-3 py-2.5 transition-colors hover:border-accent/40 hover:bg-tint/5 focus-ring"
                             >
                                 <span className="flex items-center gap-3">
                                     <row.Icon className={`h-4 w-4 shrink-0 ${row.iconClassName}`} aria-hidden="true" />
                                     <span className="min-w-0 flex-1 text-left text-sm text-foreground">{row.label}</span>
-                                    <span className="text-base font-bold text-foreground">{row.value}</span>
+                                    <span className="text-base font-bold tabular-nums text-foreground">{format.number(row.value)}</span>
                                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                                 </span>
-                            </button>
+                            </Link>
                         );
                     }
 
                     return (
                         <div
                             key={row.key}
+                            data-testid={`issues-summary-${row.key}`}
                             className="w-full rounded-xl border border-border bg-tint/[0.03] px-3 py-2.5"
-                            aria-label={`${row.label}: ${row.value}`}
                         >
                             <span className="flex items-center gap-3">
                                 <row.Icon className={`h-4 w-4 shrink-0 ${row.iconClassName}`} aria-hidden="true" />
                                 <span className="min-w-0 flex-1 text-left">
                                     <span className="block text-sm text-foreground">{row.label}</span>
-                                    <span className="block text-[11px] text-muted-foreground">{t('issues.summary.aggregate_metric_hint')}</span>
+                                    <span className="block text-xs text-muted-foreground">{t('issues.summary.aggregate_metric_hint')}</span>
                                 </span>
-                                <span className="text-base font-bold text-foreground">{row.value}</span>
+                                <span className="text-base font-bold tabular-nums text-foreground">{format.number(row.value)}</span>
                             </span>
                         </div>
                     );
                 })}
             </div>
-        </div>
+        </Card>
     );
 }

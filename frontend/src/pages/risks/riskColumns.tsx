@@ -8,6 +8,7 @@ import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
 import type { Column } from '@/components/tables/SortableTable';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { cn } from '@/lib/utils';
 import type { RiskSummary } from '@/types/risk';
 import { getRiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
 
@@ -93,9 +94,9 @@ export function buildRiskColumns({
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <span className={`rounded-md border px-2 py-0.5 text-xs font-bold tabular-nums ${getScoreColor(risk.gross_score)}`}>
+                    <Badge className={cn('tabular-nums', getScoreColor(risk.gross_score))}>
                         {risk.gross_score}
-                    </span>
+                    </Badge>
                 </div>
             ),
         },
@@ -106,9 +107,9 @@ export function buildRiskColumns({
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <span className={`rounded-md border px-2 py-0.5 text-xs font-bold tabular-nums ${getScoreColor(risk.net_score)}`}>
+                    <Badge className={cn('tabular-nums', getScoreColor(risk.net_score))}>
                         {risk.net_score}
-                    </span>
+                    </Badge>
                 </div>
             ),
         },

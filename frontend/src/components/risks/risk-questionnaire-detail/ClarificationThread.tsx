@@ -1,6 +1,7 @@
 import { formatDateTimeValue } from '@/i18n/formatters';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import type { RiskQuestionnaireClarification } from '@/types/riskQuestionnaire';
 
 import type { TranslateFn } from './questionnairePresentation';
@@ -39,19 +40,19 @@ export function ClarificationThread({
             {clarifications.map((clarification) => {
                 const open = !clarification.response_message;
                 return (
-                    <div key={clarification.id} className="p-4 rounded-xl border border-border bg-tint/5 space-y-2">
+                    <div key={clarification.id} className="p-4 rounded-lg border border-border bg-tint/5 space-y-2">
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-xs font-bold text-foreground">
                                 {t('risks:questionnaire.clarification')}
                             </p>
                             {open && (
-                                <span className="text-[10px] font-black uppercase tracking-widest text-warning-text">
+                                <Badge tone="warning" size="sm">
                                     {t('risks:questionnaire.clarification_open')}
-                                </span>
+                                </Badge>
                             )}
                         </div>
                         <p className="text-sm text-foreground whitespace-pre-wrap">{clarification.request_message}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                             {t('risks:questionnaire.clarification_requested_by')}{' '}
                             {clarification.requested_by_user_name ?? t('common:fallbacks.unknown_user')} •{' '}
                             {formatDateTimeValue(clarification.requested_at, locale)}
@@ -64,7 +65,7 @@ export function ClarificationThread({
                                 </p>
                                 <p className="text-sm text-foreground whitespace-pre-wrap">{clarification.response_message}</p>
                                 {clarification.responded_at && (
-                                    <p className="text-[10px] text-muted-foreground">
+                                    <p className="text-xs text-muted-foreground">
                                         {t('risks:questionnaire.clarification_responded_by')}{' '}
                                         {clarification.responded_by_user_name ?? t('common:fallbacks.unknown_user')} •{' '}
                                         {formatDateTimeValue(clarification.responded_at, locale)}
@@ -74,12 +75,9 @@ export function ClarificationThread({
                         ) : isRiskOwner ? (
                             <div className="mt-3 border-t border-border pt-3 space-y-2">
                                 {respondingClarificationId !== clarification.id ? (
-                                    <button
-                                        onClick={() => onStartResponse(clarification.id)}
-                                        className="text-xs text-accent-text hover:text-accent-text/80 font-bold"
-                                    >
+                                    <Button variant="outline" size="compact" onClick={() => onStartResponse(clarification.id)}>
                                         {t('risks:questionnaire.respond')}
-                                    </button>
+                                    </Button>
                                 ) : (
                                     <>
                                         <Textarea
@@ -90,24 +88,18 @@ export function ClarificationThread({
                                             placeholder={t('risks:questionnaire.clarification_response_placeholder')}
                                         />
                                         <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={onCancelResponse}
-                                                disabled={responding}
-                                                className="px-3 py-1.5 rounded-xl border border-border bg-tint/5 text-foreground text-[10px] font-black uppercase tracking-widest hover:bg-tint/10 transition-all"
-                                            >
+                                            <Button variant="secondary" size="compact" onClick={onCancelResponse} disabled={responding}>
                                                 {t('common:actions.cancel')}
-                                            </button>
-                                            <button
+                                            </Button>
+                                            <Button
+                                                variant="accent"
+                                                size="compact"
                                                 onClick={() => onRespond(clarification.id)}
                                                 disabled={responding || responseMessage.trim() === ''}
-                                                className={cn(
-                                                    'px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all',
-                                                    'bg-accent/20 border-accent/30 text-accent-text hover:bg-accent/30 hover:border-accent/50',
-                                                    (responding || responseMessage.trim() === '') && 'opacity-50 cursor-not-allowed',
-                                                )}
+                                                isLoading={responding}
                                             >
                                                 {t('common:actions.submit')}
-                                            </button>
+                                            </Button>
                                         </div>
                                     </>
                                 )}

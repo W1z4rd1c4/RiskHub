@@ -16,10 +16,16 @@ import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } from '@/types/execution';
 import { Pagination } from '@/components/tables';
+import { RowActionButton } from '@/components/tables/RowActionButton';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getExecutionResultMeta } from '@/lib/executionResult';
@@ -155,10 +161,7 @@ export function AuditTrailPage() {
                 actions={(
                     <>
                         {authz.canViewActivityLog ? (
-                            <Link
-                                to="/activity-log"
-                                className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
-                            >
+                            <Link to="/activity-log" className={buttonVariants({ variant: 'outline' })}>
                                 {t('admin:activity_log.title')}
                             </Link>
                         ) : null}
@@ -169,16 +172,14 @@ export function AuditTrailPage() {
                             isFetching={isLoading}
                         />
                         {resolveCapabilityFlag(capabilities, 'can_export_csv') ? (
-                            <button
-                                type="button"
-                                aria-busy={isCsvExporting}
-                                disabled={isCsvExporting}
+                            <Button
+                                variant="outline"
+                                isLoading={isCsvExporting}
                                 onClick={() => void downloadCsv(resultFilter || undefined)}
-                                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-accent-text transition-colors bg-tint/5 rounded-lg border border-border flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20 disabled:cursor-wait disabled:opacity-60"
                             >
-                                <Sheet className="h-3.5 w-3.5" />
-                                CSV
-                            </button>
+                                <Sheet aria-hidden="true" />
+                                {t('audit_trail.export_csv')}
+                            </Button>
                         ) : null}
                     </>
                 )}
@@ -203,17 +204,18 @@ export function AuditTrailPage() {
                 />
             ) : null}
 
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 glass-card flex items-center gap-4 !py-3">
-                    <div className="flex items-center gap-3 px-4 py-2 bg-tint/5 rounded-xl border border-border group focus-within:border-accent/50 transition-all flex-1">
-                        <Filter className="h-4 w-4 text-muted-foreground group-focus-within:text-accent" />
+            <Card padding="compact" className="flex flex-wrap items-center gap-4">
+                <Filter aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <Field label={t('audit_trail.columns.result')} labelVisuallyHidden className="min-w-[14rem] flex-1">
+                    {(field) => (
                         <ThemedSelect
+                            {...field}
                             value={resultFilter}
                             onValueChange={(v) => setResultFilter(v as ExecutionResult | '')}
                             placeholder={t('audit_trail.all_results')}
                             allowEmpty
                             emptyLabel={t('audit_trail.all_results')}
-                            className="flex-1"
+                            className="w-full"
                             options={[
                                 { value: 'passed', label: t('results.passed') },
                                 { value: 'failed', label: t('results.failed') },
@@ -221,155 +223,135 @@ export function AuditTrailPage() {
                                 { value: 'not_applicable', label: t('results.not_applicable') },
                             ]}
                         />
-                    </div>
-
-                    <div className="h-8 w-px bg-tint/10 hidden md:block" />
-
-                    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground px-4">
-                        <ClipboardCheck className="h-4 w-4" />
-                        {t('audit_trail.total_records', { count: totalCount })}
-                    </div>
+                    )}
+                </Field>
+                <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                    <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
+                    {t('audit_trail.total_records', { count: totalCount })}
                 </div>
-            </div>
+            </Card>
 
-            <div className="glass-card !p-0 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-border bg-tint/[0.03]">
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('audit_trail.columns.date_time')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('audit_trail.columns.control')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('audit_trail.columns.owner')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('audit_trail.columns.risk')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('audit_trail.columns.executor')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">{t('audit_trail.columns.result')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('audit_trail.columns.key_finding')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">{t('audit_trail.columns.action')}</th>
-                            </tr>
-                        </thead>
-                        <tbody
-                            key={resultFilter}
-                        >
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={8} className="p-0">
-                                        <LoadingState
-                                            label={t('common:loading.data')}
-                                            skeleton={(
-                                                <div className="divide-y divide-border">
-                                                    {Array.from({ length: AUDIT_TRAIL_SKELETON_ROWS }, (_, i) => (
-                                                        <div key={`skeleton-${i}`} className="px-6 py-6">
-                                                            <Skeleton className="h-4 w-full max-w-3xl" />
+            <Card padding="none" className="overflow-hidden">
+                <Table>
+                    <THead>
+                        <TR>
+                            <TH>{t('audit_trail.columns.date_time')}</TH>
+                            <TH>{t('audit_trail.columns.control')}</TH>
+                            <TH>{t('audit_trail.columns.owner')}</TH>
+                            <TH>{t('audit_trail.columns.risk')}</TH>
+                            <TH>{t('audit_trail.columns.executor')}</TH>
+                            <TH align="center">{t('audit_trail.columns.result')}</TH>
+                            <TH>{t('audit_trail.columns.key_finding')}</TH>
+                            <TH align="right">{t('audit_trail.columns.action')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody key={resultFilter}>
+                        {isLoading ? (
+                            <TR>
+                                <TD colSpan={8} className="p-0">
+                                    <LoadingState
+                                        label={t('common:loading.data')}
+                                        skeleton={(
+                                            <div className="divide-y divide-border">
+                                                {Array.from({ length: AUDIT_TRAIL_SKELETON_ROWS }, (_, i) => (
+                                                    <div key={`skeleton-${i}`} className="px-6 py-6">
+                                                        <Skeleton className="h-4 w-full max-w-3xl" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    />
+                                </TD>
+                            </TR>
+                        ) : outcome.kind === 'empty' ? (
+                            <TR>
+                                <TD colSpan={8} className="p-0">
+                                    <EmptyState
+                                        layout="section"
+                                        kind={resultFilter ? 'no-results' : 'no-data'}
+                                        icon={History}
+                                        title={t('common:empty.no_executions')}
+                                        description={t('audit_trail.no_records_help')}
+                                    />
+                                </TD>
+                            </TR>
+                        ) : (
+                            executions.map((exec) => {
+                                const resultMeta = getExecutionResultMeta(exec.result);
+                                const controlName = exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control');
+                                return (
+                                    <TR
+                                        key={exec.id}
+                                        className="group cursor-pointer"
+                                        onClick={() => navigate(`/controls/${exec.control_id}`)}
+                                    >
+                                        <TD>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-foreground mb-0.5">
+                                                    {format.date(exec.executed_at)}
+                                                </span>
+                                                <span className="text-xs font-bold text-muted-foreground">
+                                                    {format.time(exec.executed_at)}
+                                                </span>
+                                            </div>
+                                        </TD>
+                                        <TD>
+                                            <span className="block max-w-[200px] truncate text-sm font-bold text-foreground transition-colors group-hover:text-accent-text">
+                                                {controlName}
+                                            </span>
+                                        </TD>
+                                        <TD>
+                                            <div className="flex items-center gap-2">
+                                                <Shield aria-hidden="true" className="h-3 w-3 text-muted-foreground" />
+                                                <span className="text-xs font-bold text-muted-foreground">{exec.control_owner_name || t('common:fallbacks.unassigned')}</span>
+                                            </div>
+                                        </TD>
+                                        <TD>
+                                            <div className="flex flex-col gap-1">
+                                                {exec.linked_risks && exec.linked_risks.length > 0 ? (
+                                                    exec.linked_risks.map((risk, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5">
+                                                            <Target aria-hidden="true" className="h-3 w-3 text-destructive/70" />
+                                                            <span className="text-xs font-medium text-muted-foreground">{risk}</span>
                                                         </div>
-                                                    ))}
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">{t('common:empty.no_linked_risks')}</span>
+                                                )}
+                                            </div>
+                                        </TD>
+                                        <TD>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex h-6 w-6 items-center justify-center rounded-full border border-accent/20 bg-accent/10 text-accent-text">
+                                                    <User aria-hidden="true" className="h-3 w-3" />
                                                 </div>
-                                            )}
-                                        />
-                                    </td>
-                                </tr>
-                            ) : outcome.kind === 'empty' ? (
-                                <tr>
-                                    <td colSpan={8} className="p-0">
-                                        <EmptyState
-                                            layout="section"
-                                            kind={resultFilter ? 'no-results' : 'no-data'}
-                                            icon={History}
-                                            title={t('common:empty.no_executions')}
-                                            description={t('audit_trail.no_records_help')}
-                                        />
-                                    </td>
-                                </tr>
-                            ) : (
-                                executions.map((exec) => {
-                                    const resultMeta = getExecutionResultMeta(exec.result);
-                                    const ResultIcon = resultMeta.icon;
-                                    return (
-                                        <tr
-                                            key={exec.id}
-                                            className="border-b border-border hover:bg-tint/[0.03] transition-colors group cursor-pointer"
-                                            onClick={() => navigate(`/controls/${exec.control_id}`)}
-                                        >
-                                            <td className="px-6 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-foreground mb-0.5">
-                                                        {format.date(exec.executed_at)}
-                                                    </span>
-                                                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
-                                                        {format.time(exec.executed_at)}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-foreground group-hover:text-accent-text transition-colors truncate max-w-[200px]">
-                                                        {exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control')}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-2">
-                                                    <Shield className="h-3 w-3 text-muted-foreground" />
-                                                    <span className="text-xs font-bold text-muted-foreground">{exec.control_owner_name || t('common:fallbacks.unassigned')}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex flex-col gap-1">
-                                                    {exec.linked_risks && exec.linked_risks.length > 0 ? (
-                                                        exec.linked_risks.map((risk, i) => (
-                                                            <div key={i} className="flex items-center gap-1.5">
-                                                                <Target className="h-3 w-3 text-destructive/70" />
-                                                                <span className="text-xs font-medium text-muted-foreground">{risk}</span>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground italic">{t('common:empty.no_linked_risks')}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent-text">
-                                                        <User className="h-3 w-3" />
-                                                    </div>
-                                                    <span className="text-xs font-bold text-muted-foreground">{exec.executed_by_name || exec.executed_by?.name || t('common:fallbacks.system')}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex justify-center">
-                                                    <div className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${resultMeta.badgeClassName}`}>
-                                                        <ResultIcon className={`h-4 w-4 ${resultMeta.iconClassName}`} />
-                                                        {t(resultMeta.labelKey)}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <p className="text-xs text-muted-foreground font-medium line-clamp-1 italic max-w-xs">
-                                                    "{exec.findings || t('audit_trail.no_findings')}"
-                                                </p>
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        void navigate(`/controls/${exec.control_id}`);
-                                                    }}
-                                                    aria-label={t('audit_trail.open_control', {
-                                                        name: exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control'),
-                                                    })}
-                                                    className="p-2 text-muted-foreground group-hover:text-foreground transition-colors"
-                                                >
-                                                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                                <span className="text-xs font-bold text-muted-foreground">{exec.executed_by_name || exec.executed_by?.name || t('common:fallbacks.system')}</span>
+                                            </div>
+                                        </TD>
+                                        <TD align="center">
+                                            <Badge tone={resultMeta.tone} icon={resultMeta.icon}>
+                                                {t(resultMeta.labelKey)}
+                                            </Badge>
+                                        </TD>
+                                        <TD>
+                                            <p className="text-xs text-muted-foreground font-medium line-clamp-1 italic max-w-xs">
+                                                "{exec.findings || t('audit_trail.no_findings')}"
+                                            </p>
+                                        </TD>
+                                        <TD align="right">
+                                            <RowActionButton
+                                                icon={ChevronRight}
+                                                label={t('audit_trail.open_control', { name: controlName })}
+                                                onClick={() => void navigate(`/controls/${exec.control_id}`)}
+                                            />
+                                        </TD>
+                                    </TR>
+                                );
+                            })
+                        )}
+                    </TBody>
+                </Table>
+            </Card>
 
             {/* Pagination */}
             <Pagination

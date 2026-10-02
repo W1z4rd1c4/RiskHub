@@ -113,7 +113,7 @@ export function ApprovalResolutionDialog({
 
                 {showChanges && (
                     <section className="rounded-xl border border-border bg-nested p-4">
-                        <h4 className="mb-3 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                        <h4 className="text-eyebrow mb-3">
                             {t('approvals:labels.proposed_changes')}
                         </h4>
                         {selectedApproval.governed_mutation ? (

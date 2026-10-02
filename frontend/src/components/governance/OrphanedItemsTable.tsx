@@ -1,31 +1,31 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert, ClipboardList, AlertTriangle, CheckCircle2, UserCheck, Filter, Building2, Database, Eye, Workflow, Truck } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, Eye, UserCheck } from 'lucide-react';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { ENTITY_ICON_BY_TYPE } from '@/constants/entityIcons';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { cn } from '@/lib/utils';
 import type { OrphanedItem } from '@/types/orphanedItem';
+import { RowActionButton } from '@/components/tables/RowActionButton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/state';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { isUncategorisedDepartment } from './resolveOrphanHelpers';
 
 interface OrphanedItemsTableProps {
+    /**
+     * Rows to list. The page's stat cards are the one type filter (SM-11), so the
+     * table renders exactly what it is given and carries no filter of its own.
+     */
     items: OrphanedItem[];
     onResolve: (item: OrphanedItem) => void;
     onView?: (item: OrphanedItem) => void;
 }
 
-const typeIcons: Record<string, typeof ShieldAlert> = {
-    risk: ShieldAlert,
-    control: ClipboardList,
-    kri: AlertTriangle,
-    threat: ShieldAlert,
-    process: Workflow,
-    asset: Database,
-    vendor: Truck,
-};
-
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
     const { t } = useTranslation('admin');
     const format = useFormat();
-    const [filter, setFilter] = useState<string>('all');
     const [now, setNow] = useState(() => Date.now());
 
     // Type labels with translations
@@ -38,10 +38,6 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         asset: t('governance.type_asset'),
         vendor: t('governance.type_vendor'),
     };
-
-    const filteredItems = filter === 'all'
-        ? items
-        : items.filter(item => item.item_type === filter);
 
     useEffect(() => {
         setNow(Date.now());
@@ -65,133 +61,106 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
     }
 
     return (
-        <div data-testid="governance-orphaned-table" className="glass-card !p-0 overflow-hidden">
-            <div className="p-4 border-b border-border flex items-center justify-between">
+        <Card data-testid="governance-orphaned-table" padding="none" className="overflow-hidden">
+            <div className="p-4 border-b border-border">
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-warning-text" />
-                    {t('governance.orphaned_items')} ({filteredItems.length})
+                    <AlertTriangle className="h-5 w-5 text-warning-text" aria-hidden="true" />
+                    {t('governance.orphaned_items')} ({items.length})
                 </h3>
-                <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
-                    <ThemedSelect
-                        value={filter}
-                        onValueChange={setFilter}
-                        options={[
-                            { value: 'all', label: t('governance.all_types') },
-                            { value: 'risk', label: t('governance.risks_only') },
-                            { value: 'control', label: t('governance.controls_only') },
-                            { value: 'kri', label: t('governance.kris_only') },
-                            { value: 'threat', label: t('governance.threats_only') },
-                            { value: 'process', label: t('governance.processes_only') },
-                            { value: 'asset', label: t('governance.assets_only') },
-                            { value: 'vendor', label: t('governance.vendors_only') },
-                        ]}
-                    />
-                </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-border">
-                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_type')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_name')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_description')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_department')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_previous_owner')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_orphaned')}</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">{t('governance.col_actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                        {filteredItems.map((item) => {
-                            const Icon = typeIcons[item.item_type] || AlertTriangle;
-                            const old = isOld(item.orphaned_at);
-                            const canResolve = resolveCapabilityFlag(item.capabilities, 'can_resolve');
-                            const canView = resolveCapabilityFlag(item.capabilities, 'can_view_detail');
+            <Table density="compact" regionLabel={t('governance.orphaned_items')}>
+                <THead>
+                    <TR>
+                        <TH>{t('governance.col_type')}</TH>
+                        <TH>{t('governance.col_name')}</TH>
+                        <TH>{t('governance.col_description')}</TH>
+                        <TH>{t('governance.col_department')}</TH>
+                        <TH>{t('governance.col_previous_owner')}</TH>
+                        <TH>{t('governance.col_orphaned')}</TH>
+                        <TH align="right">{t('governance.col_actions')}</TH>
+                    </TR>
+                </THead>
+                <TBody>
+                    {items.map((item) => {
+                        const Icon = ENTITY_ICON_BY_TYPE[item.item_type] ?? AlertTriangle;
+                        const old = isOld(item.orphaned_at);
+                        const canResolve = resolveCapabilityFlag(item.capabilities, 'can_resolve');
+                        const canView = resolveCapabilityFlag(item.capabilities, 'can_view_detail');
 
-                            return (
-                                <tr
-                                    key={item.id}
-                                    className={`group hover:bg-tint/5 transition-all relative ${old ? 'bg-warning/5' : ''}`}
-                                >
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`p-1.5 rounded-lg transition-transform group-hover:scale-110 ${item.item_type === 'risk' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent-text'}`}>
-                                                <Icon className="h-4 w-4" />
-                                            </div>
-                                            <span className="text-sm font-medium text-foreground">
-                                                {typeLabels[item.item_type] || item.item_type}
-                                            </span>
+                        return (
+                            <TR key={item.id} className={cn('group', old && 'bg-warning/5')}>
+                                <TD>
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn(
+                                            'p-1.5 rounded-lg transition-transform group-hover:scale-110',
+                                            item.item_type === 'risk' ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent-text',
+                                        )}>
+                                            <Icon className="h-4 w-4" aria-hidden="true" />
                                         </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div>
-                                            <p className="text-sm font-bold text-foreground group-hover:text-accent-text transition-colors">{item.item_name}</p>
-                                            {(item.item_type === 'asset' || item.item_type === 'vendor') && item.responsibility_role ? <p className="text-xs font-bold uppercase text-muted-foreground">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <p className="text-xs text-muted-foreground line-clamp-2 max-w-md">{item.item_description || '-'}</p>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {item.department_name === 'Uncategorised' ? (
-                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning text-warning-foreground border border-warning/20 w-fit">
-                                                <Building2 className="h-3 w-3" />
-                                                <span className="text-xs font-bold uppercase tracking-wider">{t('governance.uncategorised')}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground font-medium">
-                                                {item.department_name || 'N/A'}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-tint/5 flex items-center justify-center border border-border">
-                                                <UserCheck className="h-3 w-3 text-muted-foreground" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-foreground">{item.previous_owner_name}</p>
-                                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-tighter">{item.previous_owner_email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`text-xs font-bold uppercase tracking-widest ${old ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                            {format.relative(item.orphaned_at)}
+                                        <span className="text-sm font-medium text-foreground">
+                                            {typeLabels[item.item_type] || item.item_type}
                                         </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {canView && onView && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onView(item)}
-                                                    aria-label={`${t('common:actions.view')} ${item.item_name}`}
-                                                    className="inline-flex items-center justify-center p-2 bg-tint/5 hover:bg-accent-hover text-muted-foreground hover:text-accent-foreground rounded-xl transition-all border border-border hover:border-accent/50 shadow-sm active:scale-95"
-                                                >
-                                                    <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                                                </button>
-                                            )}
-                                            {canResolve && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onResolve(item)}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-tint/5 hover:bg-accent-hover text-foreground hover:text-accent-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-border group-hover:border-accent/50 shadow-sm active:scale-95"
-                                                >
-                                                    <UserCheck className="h-3.5 w-3.5" />
-                                                    {t('governance.resolve')}
-                                                </button>
-                                            )}
+                                    </div>
+                                </TD>
+                                <TD>
+                                    <div>
+                                        <p className="text-sm font-bold text-foreground group-hover:text-accent-text transition-colors">{item.item_name}</p>
+                                        {(item.item_type === 'asset' || item.item_type === 'vendor') && item.responsibility_role ? <p className="text-xs font-bold uppercase text-muted-foreground">{t(`governance.responsibility_role.${item.responsibility_role}`)}</p> : null}
+                                    </div>
+                                </TD>
+                                <TD>
+                                    <p className="text-xs text-muted-foreground line-clamp-2 max-w-md">{item.item_description || '-'}</p>
+                                </TD>
+                                <TD>
+                                    {isUncategorisedDepartment(item.department_name) ? (
+                                        <Badge tone="warning" icon={Building2} className="uppercase tracking-wider">
+                                            {t('governance.uncategorised')}
+                                        </Badge>
+                                    ) : (
+                                        <span className="text-sm text-muted-foreground font-medium">
+                                            {item.department_name || t('common:fallbacks.not_available')}
+                                        </span>
+                                    )}
+                                </TD>
+                                <TD>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-tint/5 flex items-center justify-center border border-border">
+                                            <UserCheck className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                                         </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-foreground">{item.previous_owner_name}</p>
+                                            <p className="text-xs text-muted-foreground">{item.previous_owner_email}</p>
+                                        </div>
+                                    </div>
+                                </TD>
+                                <TD>
+                                    <span className={cn('text-xs font-bold uppercase tracking-wide', old ? 'text-foreground' : 'text-muted-foreground')}>
+                                        {format.relative(item.orphaned_at)}
+                                    </span>
+                                </TD>
+                                <TD align="right">
+                                    <div className="flex items-center justify-end gap-2">
+                                        {canView && onView && (
+                                            <RowActionButton
+                                                icon={Eye}
+                                                label={`${t('common:actions.view')} ${item.item_name}`}
+                                                onClick={() => onView(item)}
+                                            />
+                                        )}
+                                        {canResolve && (
+                                            <Button variant="outline" size="compact" onClick={() => onResolve(item)}>
+                                                <UserCheck aria-hidden="true" />
+                                                {t('governance.resolve')}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </TD>
+                            </TR>
+                        );
+                    })}
+                </TBody>
+            </Table>
+        </Card>
     );
 }

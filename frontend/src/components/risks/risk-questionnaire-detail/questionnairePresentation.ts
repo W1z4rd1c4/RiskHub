@@ -123,6 +123,10 @@ export function buildWorstCaseImpactOptions(totalAssets: number, t: TranslateFn)
     }));
 }
 
+/**
+ * The display text of one answer, or `null` when the question is not answered
+ * (GAP-B-24: the caller renders the muted "Not answered" text, never "Unknown").
+ */
 export function formatQuestionnaireAnswer(
     key: string,
     value: unknown,
@@ -130,9 +134,9 @@ export function formatQuestionnaireAnswer(
         totalAssets: number;
         t: TranslateFn;
     },
-): string {
+): string | null {
     const { totalAssets, t } = options;
-    if (value === undefined || value === null) return t('labels.unknown');
+    if (isMissingAnswer(value)) return null;
     if (typeof value === 'boolean') return value ? t('actions.yes') : t('actions.no');
     if (key === LIKELIHOOD_12M_KEY) {
         const level = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value, 10) : NaN;

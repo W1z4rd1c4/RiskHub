@@ -76,7 +76,6 @@
     "send_success": "Questionnaire sent.",
     "send_open_exists": "An open questionnaire already exists. Opening it.",
     "send_requires_owner": "Set a risk owner to send a questionnaire.",
-    "owner_required": "Owner required",
     "open": "Open",
     "current_due": "Due",
     "empty": "No questionnaires have been sent for this risk yet.",
@@ -90,7 +89,7 @@
   },
   "questionnaire": {
     "title": "Risk Assessment Questionnaire",
-    "required": "Required",
+    "not_answered": "Not answered",
     "readonly_hint": "Read-only: you are not assigned to submit this questionnaire.",
     "validation_missing": "Please answer all required questions.",
     "validation_required": "This question is required.",
@@ -120,7 +119,8 @@
       "sent": "Pending",
       "in_progress": "In progress",
       "submitted": "Submitted",
-      "overdue": "Overdue"
+      "overdue": "Overdue",
+      "unknown": "Unknown status"
     },
     "actions": {
       "save": "Save progress"

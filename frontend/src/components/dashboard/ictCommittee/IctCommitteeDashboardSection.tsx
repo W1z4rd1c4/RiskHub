@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 
+import { CardTitle } from '@/components/ui/card';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+
 import type { IctCommitteePresentation } from '@/pages/ictRegisterCommittee/buildIctCommitteePresentation';
 
 type DashboardPresentation = IctCommitteePresentation['dashboard'];
@@ -8,31 +11,31 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
     return (
         <section className="space-y-4" data-testid="committee-dashboard">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                <h2 className="text-xl font-bold text-foreground">{presentation.title}</h2>
+                <CardTitle as="h2">{presentation.title}</CardTitle>
                 <div className="flex gap-4 text-sm font-semibold">
                     <Link
                         to={presentation.navigation.dqHref}
                         data-testid="committee-nav-dq"
-                        className="text-muted-foreground hover:text-accent-text transition-colors"
+                        className="rounded text-muted-foreground hover:text-accent-text transition-colors focus-ring"
                     >
                         {presentation.navigation.dqLabel}
                     </Link>
                     <a
                         href={presentation.navigation.croHref}
                         data-testid="committee-nav-cro"
-                        className="text-muted-foreground hover:text-accent-text transition-colors"
+                        className="rounded text-muted-foreground hover:text-accent-text transition-colors focus-ring"
                     >
                         {presentation.navigation.croLabel}
                     </a>
                 </div>
             </div>
 
-            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+            <h3 className="text-eyebrow">
                 {presentation.stateHeading}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
                 {presentation.stateTiles.map((tile) => (
-                    <Link key={tile.key} to={tile.href} className="glass-card block hover:bg-tint/5 transition-colors">
+                    <Link key={tile.key} to={tile.href} className="glass-card block hover:bg-tint/5 transition-colors focus-ring">
                         <div data-testid={`committee-state-${tile.key}`}>
                             <p className="text-muted-foreground text-xs font-medium min-h-8">{tile.label}</p>
                             <p className={`text-2xl font-bold mt-1 tabular-nums ${tile.countClass}`}>
@@ -43,50 +46,47 @@ export function IctCommitteeDashboardSection({ presentation }: { presentation: D
                 ))}
             </div>
 
-            <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+            <h3 className="text-eyebrow">
                 {presentation.metricsHeading}
             </h3>
-            <div className="glass-card overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-left text-muted-foreground text-xs uppercase tracking-wide">
-                            <th className="py-2 pr-3">{presentation.metricsColumns.metric}</th>
-                            <th className="py-2 pr-3 text-right">{presentation.metricsColumns.value}</th>
-                            <th className="py-2 pr-3">{presentation.metricsColumns.interpretation}</th>
-                            <th className="py-2 pr-3">{presentation.metricsColumns.source}</th>
-                            <th className="py-2">{presentation.metricsColumns.action}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div className="glass-card">
+                <Table density="compact" className="text-sm" regionLabel={presentation.metricsHeading}>
+                    <THead>
+                        <TR>
+                            <TH>{presentation.metricsColumns.metric}</TH>
+                            <TH align="right">{presentation.metricsColumns.value}</TH>
+                            <TH>{presentation.metricsColumns.interpretation}</TH>
+                            <TH>{presentation.metricsColumns.source}</TH>
+                            <TH>{presentation.metricsColumns.action}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {presentation.metrics.map((metric) => (
-                            <tr
-                                key={metric.key}
-                                data-testid={`committee-metric-${metric.key}`}
-                                className="border-t border-border"
-                            >
-                                <td className="py-2.5 pr-3 text-foreground font-semibold">{metric.label}</td>
-                                <td className="py-2.5 pr-3 text-right">
+                            <TR key={metric.key} data-testid={`committee-metric-${metric.key}`}>
+                                <TD className="text-foreground font-semibold">{metric.label}</TD>
+                                <TD align="right">
                                     <Link
                                         to={metric.href}
-                                        className={`text-lg font-bold tabular-nums hover:text-accent-text underline decoration-tint/20 hover:decoration-accent ${metric.countClass}`}
+                                        aria-label={`${metric.label}: ${metric.value}`}
+                                        className={`rounded text-lg font-bold tabular-nums hover:text-accent-text underline decoration-tint/20 hover:decoration-accent focus-ring ${metric.countClass}`}
                                     >
                                         {metric.value}
                                     </Link>
-                                </td>
-                                <td className="py-2.5 pr-3 text-muted-foreground">{metric.interpretation}</td>
-                                <td className="py-2.5 pr-3">
+                                </TD>
+                                <TD className="text-muted-foreground">{metric.interpretation}</TD>
+                                <TD>
                                     <Link
                                         to={metric.href}
-                                        className="text-muted-foreground hover:text-accent-text underline decoration-tint/20 hover:decoration-accent"
+                                        className="rounded text-muted-foreground hover:text-accent-text underline decoration-tint/20 hover:decoration-accent focus-ring"
                                     >
                                         {metric.source}
                                     </Link>
-                                </td>
-                                <td className="py-2.5 text-muted-foreground">{metric.action}</td>
-                            </tr>
+                                </TD>
+                                <TD className="text-muted-foreground">{metric.action}</TD>
+                            </TR>
                         ))}
-                    </tbody>
-                </table>
+                    </TBody>
+                </Table>
             </div>
         </section>
     );

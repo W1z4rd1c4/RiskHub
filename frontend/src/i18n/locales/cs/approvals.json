@@ -194,13 +194,6 @@
                 "annually": "Ročně",
                 "ad_hoc": "Dle potřeby",
                 "continuous": "Průběžně"
-            },
-            "unit": {
-                "percentage": "Procenta",
-                "count": "Počet",
-                "days": "Dny",
-                "hours": "Hodiny",
-                "ratio": "Poměr"
             }
         }
     },

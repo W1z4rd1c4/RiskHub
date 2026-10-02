@@ -1,5 +1,5 @@
 import type { SVGProps } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { renderWithoutProviders, screen } from '@test/render';
@@ -37,6 +37,24 @@ describe('Card', () => {
         const compact = screen.getByTestId('compact');
         expect(compact.tagName).toBe('ARTICLE');
         expect(compact).toHaveClass('p-4', 'interactive-card');
+    });
+
+    it('renders a whole-card native action with as="button" (keeps the card padding and radius)', () => {
+        const onClick = vi.fn();
+        renderWithoutProviders(
+            <Card as="button" interactive onClick={onClick} data-testid="group-card">
+                <span>Owner</span>
+                <FileText data-testid="icon" className="size-3" />
+            </Card>,
+        );
+        const card = screen.getByRole('button', { name: 'Owner' });
+        expect(card).toBe(screen.getByTestId('group-card'));
+        expect(card).toHaveAttribute('type', 'button');
+        expect(card).toHaveClass('glass', 'rounded-2xl', 'p-6', 'interactive-card', 'w-full', 'text-left', 'focus-ring');
+        // Unlike a restyled Button, no `[&_svg]:size-4` override and no 40px control height.
+        expect(card.className).not.toMatch(/\[&_svg\]|\bh-10\b|\bpx-4\b/);
+        card.click();
+        expect(onClick).toHaveBeenCalledTimes(1);
     });
 
     it('uses a solid nested surface instead of glass-in-glass', () => {

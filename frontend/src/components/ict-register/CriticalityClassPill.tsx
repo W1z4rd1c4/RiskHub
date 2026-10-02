@@ -41,7 +41,8 @@ function Pill({
         <span
             data-testid={testId}
             className={cn(
-                'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold',
+                // The `Badge` md geometry; colours come from lib/severity.ts (D1).
+                'inline-flex h-6 items-center whitespace-nowrap rounded-full border px-2.5 text-xs font-bold',
                 palette(value) ?? 'bg-muted text-muted-foreground border-border',
             )}
         >

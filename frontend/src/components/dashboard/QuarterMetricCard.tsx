@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { HelpCircle, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 
+import { useFormat } from '@/i18n/hooks';
 import type { DashboardMetricObservation } from '@/services/dashboardApi';
 
 import { getChangeColor, type MetricChange } from './quarterlyComparisonPresentation';
@@ -59,6 +60,7 @@ export function QuarterMetricCard({
     t,
     thisValue,
 }: QuarterMetricCardProps) {
+    const format = useFormat();
     const direction = change?.direction ?? 'same';
 
     if (thisValue === null && lastValue === null && direction !== 'unknown') {
@@ -97,38 +99,46 @@ export function QuarterMetricCard({
             role="group"
         >
             <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <p className="text-eyebrow">
                     {label || keyName}
                 </p>
                 {showUncertainty && (
-                    <span title={uncertaintyHint}>
-                        <HelpCircle className="h-3 w-3 text-warning-text" />
-                    </span>
+                    <HelpCircle aria-hidden="true" className="h-3 w-3 shrink-0 text-warning-text" />
                 )}
             </div>
             <div className="flex items-end gap-2 mb-1">
-                <span className="text-2xl font-black text-foreground">{displayThisValue}</span>
-                <span className="text-xs text-muted-foreground pb-1">vs {displayLastValue}</span>
+                <span className="font-heading text-2xl font-bold text-foreground">{displayThisValue}</span>
+                <span className="text-xs text-muted-foreground pb-1">{t('quarterly.vs', { ns: 'dashboard' })} {displayLastValue}</span>
             </div>
             <div className={`flex items-center gap-1 text-xs font-bold ${colorClass}`}>
-                {direction === 'up' && <TrendingUp className="h-3 w-3" />}
-                {direction === 'down' && <TrendingDown className="h-3 w-3" />}
-                {direction === 'same' && <Minus className="h-3 w-3" />}
-                {direction === 'unknown' && <HelpCircle className="h-3 w-3" />}
+                {direction === 'up' && <TrendingUp aria-hidden="true" className="h-3 w-3" />}
+                {direction === 'down' && <TrendingDown aria-hidden="true" className="h-3 w-3" />}
+                {direction === 'same' && <Minus aria-hidden="true" className="h-3 w-3" />}
+                {direction === 'unknown' && <HelpCircle aria-hidden="true" className="h-3 w-3" />}
                 <span>{getChangeLabel(change, t)}</span>
             </div>
+            {/* GAP-B-19: the uncertainty reason is visible text, not a `title` tooltip. */}
+            {showUncertainty ? (
+                <p className="mt-2 text-xs text-muted-foreground" data-testid={`quarter-metric-hint-${keyName}`}>
+                    {uncertaintyHint}
+                </p>
+            ) : null}
             {stockObservation && currentQuarter && compareQuarter ? (
                 <div
                     aria-label={t('quarterly.stock_observations', { ns: 'dashboard' })}
-                    className="mt-3 break-words border-t border-border pt-2 text-[10px] leading-4 text-muted-foreground"
+                    className="mt-3 break-words border-t border-border pt-2 text-xs text-muted-foreground"
                 >
                     <p>
                         {currentQuarter} · {t(`quarterly.source.${stockObservation.current.source}`)}{' '}
-                        {stockObservation.current.observed_at ?? t('quarterly.not_available')}
+                        {stockObservation.current.observed_at
+                            ? <time dateTime={stockObservation.current.observed_at}>{format.dateTime(stockObservation.current.observed_at)}</time>
+                            : t('quarterly.not_available')}
                     </p>
                     <p>
                         {compareQuarter} · {t(`quarterly.source.${stockObservation.compare.source}`)}{' '}
-                        {stockObservation.compare.observed_at ?? t('quarterly.not_available')}
+                        {stockObservation.compare.observed_at
+                            ? <time dateTime={stockObservation.compare.observed_at}>{format.dateTime(stockObservation.compare.observed_at)}</time>
+                            : t('quarterly.not_available')}
                     </p>
                 </div>
             ) : null}

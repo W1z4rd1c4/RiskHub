@@ -1,12 +1,10 @@
 import { useTranslation } from '@/i18n/hooks';
 import { vendorValueOptions } from '@/lib/vendorValues';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import {
-    VendorSectionHeader,
-    VendorSurface,
-} from '@/components/vendors/vendorRouteUi';
 
 import type { VendorFormField } from './vendorForm.types';
 import { vendorTypeOptions } from './vendorForm.types';
@@ -22,17 +20,19 @@ interface VendorIdentitySectionProps {
         website?: string | null;
     };
     onChange: (field: VendorFormField, value: unknown) => void;
+    /** Field-level validation message for the required name (announced through `Field`). */
+    nameError?: string | null;
 }
 
-export function VendorIdentitySection({ formData, onChange }: VendorIdentitySectionProps) {
+export function VendorIdentitySection({ formData, onChange, nameError }: VendorIdentitySectionProps) {
     const { t } = useTranslation('vendors');
 
     return (
-        <VendorSurface tone="emphasis" className="space-y-5">
-            <VendorSectionHeader title={t('form.sections.identity')} />
+        <Card as="section">
+            <CardHeader title={t('form.sections.identity')} />
 
-            <div className="vendor-form-grid">
-                <Field label={t('form.name')} labelClassName="vendor-label" className="vendor-field space-y-0">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label={t('form.name')} required error={nameError}>
                     {(control) => (
                         <Input
                             {...control}
@@ -44,7 +44,7 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                     )}
                 </Field>
 
-                <Field label={t('form.vendor_type.label')} labelClassName="vendor-label" className="vendor-field space-y-0">
+                <Field label={t('form.vendor_type.label')}>
                     {(control) => (
                         <ThemedSelect
                             {...control}
@@ -58,7 +58,7 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                     )}
                 </Field>
 
-                <Field label={t('form.legal_name')} labelClassName="vendor-label" className="vendor-field space-y-0">
+                <Field label={t('form.legal_name')}>
                     {(control) => (
                         <Input
                             {...control}
@@ -68,7 +68,7 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                     )}
                 </Field>
 
-                <Field label={t('form.registration_id')} labelClassName="vendor-label" className="vendor-field space-y-0">
+                <Field label={t('form.registration_id')}>
                     {(control) => (
                         <Input
                             {...control}
@@ -78,7 +78,7 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                     )}
                 </Field>
 
-                <Field label={t('form.country')} labelClassName="vendor-label" className="vendor-field space-y-0">
+                <Field label={t('form.country')}>
                     {(control) => (
                         <ThemedSelect
                             {...control}
@@ -92,7 +92,7 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                     )}
                 </Field>
 
-                <Field label={t('form.website')} labelClassName="vendor-label" className="vendor-field space-y-0">
+                <Field label={t('form.website')}>
                     {(control) => (
                         <Input
                             {...control}
@@ -102,18 +102,17 @@ export function VendorIdentitySection({ formData, onChange }: VendorIdentitySect
                     )}
                 </Field>
 
-                <Field label={t('form.description')} labelClassName="vendor-label" className="vendor-field space-y-0 md:col-span-2">
+                <Field label={t('form.description')} className="md:col-span-2">
                     {(control) => (
-                        <textarea
+                        <Textarea
                             {...control}
                             value={formData.description || ''}
                             onChange={(event) => onChange('description', event.target.value)}
                             rows={3}
-                            className="vendor-textarea"
                         />
                     )}
                 </Field>
             </div>
-        </VendorSurface>
+        </Card>
     );
 }

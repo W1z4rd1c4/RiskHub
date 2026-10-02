@@ -491,8 +491,9 @@ describe('ExecutionHistory', () => {
         expect(disclosure).toHaveAttribute('aria-expanded', 'false');
         expect(disclosure).toHaveAttribute('aria-controls', 'execution-details-31');
         expect(disclosure.contains(issueAction)).toBe(false);
-        expect(disclosure.className).toContain('focus-visible:ring-2');
-        expect(issueAction.className).toContain('focus-visible:ring-2');
+        // Both are `Button`s, which carry the shared keyboard focus ring (`focus-ring`).
+        expect(disclosure.className).toContain('focus-ring');
+        expect(issueAction.className).toContain('focus-ring');
 
         disclosure.focus();
         await user.keyboard('{Enter}');

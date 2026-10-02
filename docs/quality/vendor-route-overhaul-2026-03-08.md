@@ -121,3 +121,35 @@ Resolution:
 ## Residual Risks
 
 - Some vendor tab bodies still use older utility-class markup internally. They now inherit the vendor-route compatibility layer, but they are good candidates for a follow-up cleanup pass if you want the code itself, not just the rendered result, fully normalized.
+
+## Disposition — 2026-10-02: superseded by audit decision D13
+
+Additive record; the dated findings and fixes above are kept as written.
+
+The vendor-local surface system introduced by this overhaul, and its standing
+as a documented exception to the shared design system, are **superseded** by
+decision **D13** of the
+[frontend UI and UX consistency audit (2026-09-30)](../audits/2026-09-30-frontend-ui-consistency-audit.md)
+(findings SM-09, GAP-C-08, GAP-C-09, GAP-D-14; roadmap §5.5 row 3h and §5.6 row 4.2).
+The Vendor module now uses the same primitives as every other module:
+
+- `frontend/src/components/vendors/vendorRoute.css` and
+  `frontend/src/components/vendors/vendorRouteUi.tsx` (`VendorSurface`,
+  `VendorSectionHeader`, `VendorBadge`, the `.vendor-*` classes and the
+  `.vendor-route` input theming) are deleted. Sections are `Card` /
+  `CardHeader` (`DetailSection` / `DetailField` for read-only fields), pills
+  are `Badge` / `SeverityBadge`, messages are `InlineMessage`, form controls
+  are `Field` with the `components/ui` controls, and the 1520px cap is the
+  app-wide `PageContainer` (960px for the create/edit forms, D11).
+- The vendor pending-change panel is the shared
+  `components/approvals/PendingChangePanel` (`namespace="vendors"`), the
+  ownership banner is `pages/detail/OwnershipGovernanceAlert`, the register
+  filter cards are `components/ict-register/RegisterFilterCard`, row actions
+  are `RowActionButton` / `RowRestoreButton`, and link rows are
+  `components/linking/LinkedItemList`.
+- Workbook closed-list codes keep their stored values; their display labels
+  are translated (en + cs) through `frontend/src/lib/closedListLabels.ts` (PM-4).
+
+Regression guard: the G-RATCHET counts (`frontend/scripts/quality/ui-consistency-ratchet.mjs`)
+are 0 for the vendor paths, and no `className="vendor-` styling class remains in
+`frontend/src`.

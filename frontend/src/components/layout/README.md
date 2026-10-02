@@ -21,14 +21,24 @@ UI components for `layout` area.
   route's `activeNavHref`, NAV-02). Count badges keep the number visual-only and add sr-only context
   (`navigation:sidebar_badges.*`, AX-14); the notification bell carries the unread count in its name and
   `aria-current="page"` on `/notifications`.
-- `AuthFrame.tsx` — frame for public / pre-auth pages (audit 2026-09-30 §4.20, DS-24): `<main>` that
-  scrolls instead of clipping (RS-02), header with `BrandWordmark` + `LanguageSwitch`, one card with the
-  focused `h1` (mirrored into `document.title`), focused `role="alert"` error and a polite status line.
-  Without an explicit app theme (signed out, nothing stored under `riskhub-theme`) it follows the OS colour
-  scheme (D14: dark → `theme-riskhub`, light → `theme-light`) by scoping the theme class to its subtree; a
-  signed-in session (e.g. `/auth/local/security`) or a stored theme keeps the app theme `ThemeProvider` puts on
-  `<html>` (`data-theme-source="system" | "app"`). `busy` marks the page content `aria-busy`, never the status
-  line. First consumer: `pages/native/NativeFrame`.
+- `DestinationLauncher.tsx` — the sidebar "Go to" palette (Ctrl/⌘+K): a `DialogShell` with an `Input`
+  combobox (`aria-activedescendant`) over one listbox of destination and record options (ghost `Button`
+  rows with the entity icons from `constants/entityIcons`), debounced record search, polite status lines
+  and a retry `Button`.
+- `sidebar.css` — the active nav item colours (`.sidebar-nav-link--active`) per theme.
+- `AuthFrame.tsx` — frame for every public / pre-auth page (audit 2026-09-30 §4.20, DS-24): `<main>` that
+  scrolls instead of clipping (RS-02), header with `BrandWordmark` + `LanguageSwitch`, one card with an
+  optional `eyebrow`, the focused `h1` (mirrored into `document.title`, or `documentTitle` when the tab title
+  differs), an optional `subtitle`, focused `role="alert"` error and a polite status line, and an optional
+  quiet `footer` under the card; `size="wide"` widens the card for column layouts (demo persona grid).
+  The language switch activates and persists the local choice itself, unless the page passes `language`
+  (the production SSO login and its preview keep their own fixed-language copy). Without an explicit app
+  theme (signed out, nothing stored under `riskhub-theme`) it follows the OS colour scheme (D14: dark →
+  `theme-riskhub`, light → `theme-light`) by scoping the theme class to its subtree; a signed-in session
+  (e.g. `/auth/local/security`) or a stored theme keeps the app theme `ThemeProvider` puts on `<html>`
+  (`data-theme-source="system" | "app"`). `busy` marks the page content `aria-busy`, never the status line.
+  Consumers: the login views (SSO, demo, loading / error / not configured, native via
+  `pages/native/NativeFrame`), `SsoCallbackPage`, `HeroPage` and `ProdLoginPreviewPage`.
 - `BrandWordmark.tsx` — the single "Risk" + accented "Hub" wordmark (NAV-07); the only i18n-scanner
   exception for the product name.
 - `LanguageSwitch.tsx` — CS / EN `aria-pressed` segmented `Button` pair in a named group (GAP-C-22); the

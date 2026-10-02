@@ -55,6 +55,18 @@ vi.mock('@/i18n/hooks', async (importOriginal) => {
     };
 });
 
+const feedback = vi.hoisted(() => ({
+    success: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    dismiss: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFeedback', () => ({
+    useFeedback: () => feedback,
+}));
+
 vi.mock('@/hooks/useRiskHubConfig', () => ({
     useTotalAssetsValue: () => ({ totalAssets: 1_000_000 }),
 }));
@@ -207,6 +219,62 @@ describe('RiskDetailQuestionnairesTab', () => {
                 signal: expect.any(AbortSignal),
             });
         });
+    });
+
+    it('announces a sent questionnaire as a success toast, not as a warning on the tab (GAP-D-09)', async () => {
+        render(
+            <RiskDetailQuestionnairesTab
+                risk={makeRisk({ capabilities: makeCapabilities({ can_send_questionnaire: true }) })}
+            />,
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaires.send' }));
+
+        await waitFor(() => {
+            expect(feedback.success).toHaveBeenCalledWith({ title: 'risks:questionnaires.send_success' });
+        });
+        expect(screen.queryByText('risks:questionnaires.send_success')).not.toBeInTheDocument();
+        expect(feedback.warning).not.toHaveBeenCalled();
+    });
+
+    it('keeps "an open questionnaire already exists" on the tab as a warning status message (GAP-D-09)', async () => {
+        (riskQuestionnairesApi.sendForRisk as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+            new Error('An open questionnaire already exists for this risk'),
+        );
+        render(
+            <RiskDetailQuestionnairesTab
+                risk={makeRisk({ capabilities: makeCapabilities({ can_send_questionnaire: true }) })}
+            />,
+        );
+
+        await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaires.send' }));
+
+        const notice = await screen.findByText('risks:questionnaires.send_open_exists');
+        expect(notice.closest('[role="status"]')).not.toBeNull();
+        expect(feedback.success).not.toHaveBeenCalled();
+    });
+
+    it('explains a disabled send action when the risk has no owner', async () => {
+        render(
+            <RiskDetailQuestionnairesTab
+                risk={makeRisk({ owner_id: null, capabilities: makeCapabilities({ can_send_questionnaire: true }) })}
+            />,
+        );
+
+        const send = await screen.findByRole('button', { name: 'risks:questionnaires.send' });
+        expect(send).toBeDisabled();
+        expect(send).toHaveAccessibleDescription('risks:questionnaires.send_requires_owner');
+    });
+
+    it('renders the open questionnaire status as a translated badge, never the raw code (PG-03)', async () => {
+        (riskQuestionnairesApi.listForRisk as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+            questionnaire(41, 10, { status: 'in_progress', due_at: '2999-01-01T00:00:00Z' }),
+        ]);
+        render(<RiskDetailQuestionnairesTab risk={makeRisk()} />);
+
+        const badges = await screen.findAllByText('risks:questionnaire.status.in_progress');
+        expect(badges.length).toBeGreaterThan(0);
+        expect(screen.queryByText('in_progress')).not.toBeInTheDocument();
     });
 
     it('renders distinct score and questionnaire headings in English and Czech', async () => {

@@ -218,7 +218,7 @@ describe('buildIctCommitteePresentation', () => {
         expect(presentation.executiveSummary.migration.rows[0].cells[1]).toMatchObject({
             band: 'Střední',
             count: 2,
-            href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=St%C5%99edn%C3%AD',
+            href: '/risks?committee_scope=true&ict_linked=true&gross_band=critical&net_band=medium',
         });
         expect(presentation.executiveSummary.migration.rows[0].cells[3].heatClass).toBe('bg-heat-4 text-heat-4-foreground');
         expect(presentation.executiveSummary.migration.columnLabels).toEqual(['Low', 'Medium', 'High', 'Critical']);
@@ -236,8 +236,9 @@ describe('buildIctCommitteePresentation', () => {
         expect(presentation.executiveSummary.assetChart[0].label).toBe('Critical');
         expect(presentation.executiveSummary.riskBandChart[0]).toMatchObject({
             label: 'High',
-            grossHref: '/risks?committee_scope=true&ict_linked=true&gross_band=Vysok%C3%A9',
-            netHref: '/risks?committee_scope=true&ict_linked=true&net_band=Vysok%C3%A9',
+            // PG-40: band codes in URLs; the register maps them to the stored value.
+            grossHref: '/risks?committee_scope=true&ict_linked=true&gross_band=high',
+            netHref: '/risks?committee_scope=true&ict_linked=true&net_band=high',
         });
         expect(presentation.executiveSummary.topVendors[0]).toMatchObject({
             href: '/vendors/8',

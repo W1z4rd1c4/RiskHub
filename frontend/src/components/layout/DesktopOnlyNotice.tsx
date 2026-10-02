@@ -23,7 +23,7 @@ export function DesktopOnlyNotice() {
         >
             <div className="glass-card w-full max-w-md space-y-4 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15">
-                    <Monitor className="h-6 w-6 text-accent" aria-hidden="true" />
+                    <Monitor className="h-6 w-6 text-accent-text" aria-hidden="true" />
                 </div>
                 <h1 className="text-xl font-bold text-foreground">{t('desktop_only.title')}</h1>
                 <p className="text-sm text-foreground">{t('desktop_only.body')}</p>

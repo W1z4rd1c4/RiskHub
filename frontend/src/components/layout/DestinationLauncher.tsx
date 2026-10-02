@@ -1,8 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { FileText, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { ENTITY_ICONS } from '@/constants/entityIcons';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -27,6 +30,12 @@ const RECORD_STATUS_TRANSLATION_KEYS: Readonly<Record<string, string>> = {
     ready_for_validation: 'ready_for_validation',
     triaged: 'triaged',
 };
+
+/**
+ * Listbox option rows: full-width ghost buttons that keep the body text size, the
+ * 20px entity icon and the active-descendant highlight (`aria-selected`).
+ */
+const OPTION_CLASS = 'h-auto w-full justify-start gap-3 whitespace-normal rounded-xl px-3 py-3 text-left text-base font-normal hover:bg-muted aria-selected:bg-accent/15 [&_svg]:size-5';
 
 export function DestinationLauncher({ routes }: DestinationLauncherProps) {
     const { t } = useTranslation('navigation');
@@ -172,10 +181,10 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
 
     return (
         <>
-            <button
-                type="button"
+            <Button
+                variant="ghost"
                 onClick={open}
-                className="mb-4 flex w-full shrink-0 items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                className="mb-4 h-auto w-full shrink-0 justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2 text-foreground hover:bg-muted"
             >
                 <span className="flex items-center gap-2">
                     <Search aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
@@ -184,7 +193,7 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                 <kbd aria-hidden="true" className="text-xs text-muted-foreground">
                     {t('go_to.shortcut')}
                 </kbd>
-            </button>
+            </Button>
 
             <DialogShell
                 isOpen={isOpen}
@@ -205,7 +214,7 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                     <label htmlFor={`${listboxId}-search`} className="sr-only">
                         {t('go_to.search_label')}
                     </label>
-                    <input
+                    <Input
                         id={`${listboxId}-search`}
                         ref={searchRef}
                         role="combobox"
@@ -248,7 +257,7 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                             }
                         }}
                         placeholder={t('go_to.search_placeholder')}
-                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="h-12 rounded-xl text-base"
                     />
 
                     <div className="flex min-h-0 flex-1 flex-col">
@@ -266,10 +275,10 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                             </h3>
                                         </div>
                                         {filteredDestinations.map((destination, index) => (
-                                            <button
+                                            <Button
+                                                variant="ghost"
                                                 key={destination.href}
                                                 id={destinationOptions[index].id}
-                                                type="button"
                                                 role="option"
                                                 tabIndex={-1}
                                                 aria-selected={index === activeIndex}
@@ -277,7 +286,7 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                                     .filter(Boolean)
                                                     .join(' ')}
                                                 onClick={() => selectDestination(destination.href)}
-                                                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-muted aria-selected:bg-accent/15"
+                                                className={OPTION_CLASS}
                                             >
                                                 <destination.icon aria-hidden="true" className="h-5 w-5 shrink-0 text-muted-foreground" />
                                                 <span className="min-w-0">
@@ -290,7 +299,7 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                                         </span>
                                                     ) : null}
                                                 </span>
-                                            </button>
+                                            </Button>
                                         ))}
                                     </div>
                                 ) : null}
@@ -305,6 +314,8 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                         {records.map((record, index) => {
                                             const optionIndex = filteredDestinations.length + index;
                                             const entityLabel = t(`go_to.record_types.${record.entity_type}`);
+                                            // NAV-03: a record shows its entity's icon from the shared map.
+                                            const RecordIcon = ENTITY_ICONS[record.entity_type];
                                             const statusKey = RECORD_STATUS_TRANSLATION_KEYS[record.status];
                                             const statusLabel = statusKey
                                                 ? t(`go_to.record_statuses.${statusKey}`)
@@ -317,18 +328,18 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                             ].filter(Boolean).join(' ');
 
                                             return (
-                                                <button
+                                                <Button
+                                                    variant="ghost"
                                                     key={`${record.entity_type}-${index}`}
                                                     id={recordOptions[index].id}
-                                                    type="button"
                                                     role="option"
                                                     tabIndex={-1}
                                                     aria-selected={optionIndex === activeIndex}
                                                     aria-label={accessibleName}
                                                     onClick={() => selectDestination(record.destination)}
-                                                    className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-muted aria-selected:bg-accent/15"
+                                                    className={OPTION_CLASS}
                                                 >
-                                                    <FileText aria-hidden="true" className="h-5 w-5 shrink-0 text-muted-foreground" />
+                                                    <RecordIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-muted-foreground" />
                                                     <span className="min-w-0">
                                                         <span className="block truncate font-medium text-foreground">
                                                             {record.display_name}
@@ -339,7 +350,7 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                                                 .join(' · ')}
                                                         </span>
                                                     </span>
-                                                </button>
+                                                </Button>
                                             );
                                         })}
                                     </div>
@@ -359,16 +370,16 @@ export function DestinationLauncher({ routes }: DestinationLauncherProps) {
                                     {recordStatusMessage}
                                 </p>
                                 {recordSearchState === 'error' ? (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="ghost"
                                         onClick={() => {
                                             setRecordSearchState('loading');
                                             setRetryGeneration((current) => current + 1);
                                         }}
-                                        className="mt-2 rounded-lg px-3 py-1 font-medium text-foreground hover:bg-muted"
+                                        className="mt-2 h-auto px-3 py-1 text-foreground hover:bg-muted"
                                     >
                                         {t('go_to.records_retry')}
-                                    </button>
+                                    </Button>
                                 ) : null}
                             </div>
                         </div>

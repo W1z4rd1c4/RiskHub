@@ -679,7 +679,7 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 await expect(page.getByTestId('committee-top-vendor-1')).toContainText(journey.labels.ictControlled[3]);
                 await expect(page.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
                     'href',
-                    '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+                    '/risks?committee_scope=true&ict_linked=true&gross_band=critical',
                 );
                 await assertDesktopSurface(
                     page,

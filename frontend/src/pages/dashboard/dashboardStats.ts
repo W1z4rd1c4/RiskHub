@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 import type { DashboardOverview, DashboardSummary } from '@/types/dashboard';
-import { classifyRiskScore, severityClass } from '@/lib/severity';
+import { classifyRiskScore, severityClass, type SeverityBand } from '@/lib/severity';
 
 export type DashboardStat = {
     bg: string;
@@ -17,6 +17,8 @@ export type DashboardStat = {
     icon: LucideIcon;
     path: string;
     title: string;
+    /** D1: the band of a severity-coloured value; rendered as a visible label with `context`. */
+    band?: SeverityBand;
     context?: string;
     value: number;
 };
@@ -50,7 +52,7 @@ export function buildDashboardStats({
             title: t('stats.total_controls'),
             value: summary?.total_controls ?? 0,
             icon: ClipboardList,
-            color: 'text-accent',
+            color: 'text-accent-text',
             bg: 'bg-accent/10',
             path: '/controls',
         });
@@ -79,6 +81,7 @@ export function buildDashboardStats({
             icon: CheckCircle,
             color: averageBand ? severityClass('text', averageBand) : 'text-muted-foreground',
             bg: averageBand ? severityClass('card', averageBand) : 'bg-tint/5',
+            band: averageBand ?? undefined,
             context: averageBand ? t(`risk_levels.${averageBand}`) : undefined,
             path: '/risks',
         },

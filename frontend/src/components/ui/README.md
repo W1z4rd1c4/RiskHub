@@ -79,7 +79,9 @@ per file under **Contents**) plus the rules for using and extending it.
   `DialogShell`: Escape closes only the popover, and tabbing past either end of
   the list returns focus to the trigger instead of leaving the dialog.
 - `native-select.tsx` — `NativeSelect`, a styled native `<select>` with the
-  `Input` geometry for pre-auth, admin and simple filter forms.
+  `Input` geometry for pre-auth, admin and simple filter forms. `overlay`
+  renders only the transparent native `<select>` stretched over its positioned
+  parent, which draws the visible control (the register Add-filter chip).
 - `field.tsx` — `Field` owns the control id and hands `id` + `aria-labelledby`
   / `aria-describedby` / `aria-invalid` / `aria-required` to its child through
   a render-prop (spread it onto any control above). Props: `help`
@@ -106,7 +108,8 @@ per file under **Contents**) plus the rules for using and extending it.
   `SeverityBadge` paints a `SeverityBand` on the D1 scale via `lib/severity.ts`
   with the translated `common:severity.*` label (or a domain `label`).
 - `card.tsx` — `Card` on the canonical `glass` surface (D5; `tone="nested"` for
-  inner panels, `padding` none/compact/default, `interactive`), `CardHeader`
+  inner panels, `padding` none/compact/default, `interactive`; `as="button"`
+  for a whole-card action such as a drill-down group card), `CardHeader`
   (`h2` section title by default, eyebrow, description, actions), `CardTitle`,
   `CardBody`, `CardFooter`.
 - `inline-message.tsx` — `InlineMessage` banner (§4.10, AX-05): tone
@@ -160,6 +163,13 @@ per file under **Contents**) plus the rules for using and extending it.
 - `MetricGaugeSvg.tsx` — decorative (`aria-hidden`) linear gauge with a value
   pointer, zones and markers, behind the KRI and control gauge cards; the card
   renders the accessible value text.
+- `ChartFrame.tsx` — the one chart wrapper (§4.15, GAP-D-11): a `figure` named
+  by its translated `summary` (sr-only `figcaption`), an optional visually
+  hidden data `table`, a visible text `legend` (swatch + label + value on the AA
+  text tokens; `onLegendSelect` turns items into `aria-pressed` toggles, the
+  keyboard path for segment filters) and one `EmptyState` when `isEmpty`. Not
+  `role="img"`, so Recharts' keyboard layer and drill-down links stay
+  reachable. Series colours come from `useChartTheme` / `lib/cssTokens.ts`.
 - `CreatableCombobox.tsx` — `role="combobox"` text input with a suggestion
   listbox that also accepts a new free-text value; spread `Field`'s
   render-prop onto it.
@@ -199,7 +209,7 @@ the API-consistency block in
 
 | Need | Owner | Use |
 | --- | --- | --- |
-| Simple browser-native closed list used as a low-level interaction seam | Native `select` | Keep native semantics. The register toolbar's visually hidden Add-filter selector stays native because tests and keyboard activation rely on its stable value/change contract. |
+| Simple browser-native closed list used as a low-level interaction seam | `NativeSelect overlay` | Keep native semantics. The register toolbar's visually hidden Add-filter selector stays native because tests and keyboard activation rely on its stable value/change contract. |
 | Short closed list on pre-auth, admin or simple filter forms where native behaviour matters | `NativeSelect` | Spread `Field`'s render-prop; options are `<option>` children. |
 | Styled closed list from known options | `ThemedSelect` | Use with a visible `Field` label or an explicit `triggerAriaLabel`. |
 | Several values from a known list | `MultiSelect` | Popover checkbox list with a count summary and removable chips; name it through `Field` or `triggerAriaLabel`. |

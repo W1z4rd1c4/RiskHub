@@ -39,8 +39,9 @@ const TITLE_SOURCE_RE = /<PageHeader\b|<EntityDetailHeader\b|<AuthFrame\b|<Nativ
 
 /**
  * Files allowed to render a raw `<h1>`: the two header primitives, the public
- * frame, page-level fallbacks that replace the whole route, and public login
- * surfaces outside the app shell (Phase 3i folds them into `AuthFrame`).
+ * frame (every login, callback, landing and preview surface renders its `h1`
+ * through `AuthFrame` since Phase 3i), and page-level fallbacks that replace
+ * the whole route.
  */
 const H1_ALLOWLIST = new Set([
     'components/layout/PageHeader.tsx',
@@ -50,12 +51,6 @@ const H1_ALLOWLIST = new Set([
     'components/ErrorBoundary.tsx',
     'pages/NotFoundPage.tsx',
     'pages/detail/DetailLoadState.tsx',
-    'pages/HeroPage.tsx',
-    'pages/SsoCallbackPage.tsx',
-    'pages/ProdLoginPreviewPage.tsx',
-    'pages/login/DemoLoginView.tsx',
-    'pages/login/LoginStateViews.tsx',
-    'pages/login/SsoOnlyView.tsx',
 ]);
 
 function relative(file: string): string {

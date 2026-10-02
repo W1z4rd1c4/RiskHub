@@ -121,4 +121,47 @@ describe('OrphanedItemsTable capabilities', () => {
         expect(empty).toHaveTextContent('governance.no_orphans');
         expect(screen.queryByTestId('governance-orphaned-table')).not.toBeInTheDocument();
     });
+
+    it('lists exactly the rows it is given and carries no type filter of its own (SM-11)', () => {
+        render(
+            <OrphanedItemsTable
+                items={[
+                    { ...baseItem, id: 1, item_type: 'risk', item_name: 'Risk row' },
+                    { ...baseItem, id: 2, item_type: 'control', item_name: 'Control row' },
+                ]}
+                onResolve={() => {}}
+            />,
+        );
+
+        // The stat cards on the page are the single type filter; the table renders both types.
+        expect(screen.getByText('Risk row')).toBeInTheDocument();
+        expect(screen.getByText('Control row')).toBeInTheDocument();
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(screen.getByText(/governance\.orphaned_items/)).toHaveTextContent('(2)');
+    });
+
+    it('shows the translated Uncategorised badge for the catch-all department, not the English literal', () => {
+        render(
+            <OrphanedItemsTable
+                items={[
+                    { ...baseItem, id: 3, item_name: 'Uncat risk', department_name: 'Uncategorised' },
+                    { ...baseItem, id: 4, item_name: 'No department', department_name: null },
+                ]}
+                onResolve={() => {}}
+            />,
+        );
+
+        expect(screen.getByText('governance.uncategorised')).toBeInTheDocument();
+        expect(screen.queryByText('Uncategorised')).not.toBeInTheDocument();
+        // A missing department falls back to the translated "not available" label, never a literal "N/A".
+        expect(screen.getByText('common:fallbacks.not_available')).toBeInTheDocument();
+        expect(screen.queryByText('N/A')).not.toBeInTheDocument();
+    });
+
+    it('renders through the shared table primitives with a named scroll region', () => {
+        render(<OrphanedItemsTable items={[baseItem]} onResolve={() => {}} />);
+
+        expect(screen.getByRole('region', { name: 'governance.orphaned_items' })).toBeInTheDocument();
+        expect(screen.getAllByRole('columnheader')[0]).toHaveAttribute('scope', 'col');
+    });
 });

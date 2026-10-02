@@ -5,7 +5,13 @@ Shared presentation primitives for permission-scoped approval data.
 - `GovernedMutationDiff.tsx` renders server-projected before/after business
   values, derived impact, and readable impacted-resource labels. Callers must
   only render it when the backend capability permits viewing the proposal.
-- The component intentionally never falls back to raw resource IDs. Approval
+- `LegacyApprovalChanges.tsx` renders pre-governance `pending_changes` for
+  Risk, Control and KRI requests from an allowlist of business fields (KRI
+  units through `lib/kriUnits`).
+- `ApprovalValueChange.tsx` is the one before → after value pair of both diffs
+  (GAP-D-25): `<del>` / `<ins>` with visually hidden "Old value" / "New value"
+  prefixes, so a change never relies on colour and strike-through alone.
+- The diff components intentionally never fall back to raw resource IDs. Approval
   lifecycle actions and capability decisions remain owned by the calling page.
 - `ApprovalQueuedNotice.tsx` is the persistent pending-approval notice
   (D12 / PM-2, audit 2026-09-30 §4.16). Entity pages and registers render it;

@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Pagination } from '@/components/tables/Pagination';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ErrorState } from '@/components/ui/state';
 import { ApprovalList } from './approvals/ApprovalList';
@@ -176,13 +177,9 @@ export default function ApprovalsPage() {
                     {linkedApprovalState.kind === 'error' && (
                         <div role="alert" className="flex items-center justify-between gap-4 text-sm text-destructive">
                             <span>{t('workbench.linked_load_failed')}</span>
-                            <button
-                                type="button"
-                                onClick={retryLinkedApproval}
-                                className="rounded-lg border border-current px-3 py-2 font-semibold"
-                            >
+                            <Button variant="outline" size="compact" onClick={retryLinkedApproval}>
                                 {t('workbench.linked_retry')}
-                            </button>
+                            </Button>
                         </div>
                     )}
                     {linkedApprovalState.kind === 'content' && (

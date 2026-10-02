@@ -10,6 +10,7 @@ import { TableErrorState, useTableErrorContract } from '@/components/tables/tabl
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { Badge, SeverityBadge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import type { SeverityBand } from '@/lib/severity';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
@@ -105,9 +106,9 @@ function ViolatingRows({
             {detail?.hasError ? (
                 <div role="alert" className="flex items-center gap-3 text-sm text-destructive">
                     <span>{t('rows_error')}</span>
-                    <button type="button" className="underline" onClick={onRetry}>
+                    <Button variant="outline" size="compact" onClick={onRetry}>
                         {t('actions.retry_rows')}
-                    </button>
+                    </Button>
                 </div>
             ) : null}
             {showRows && rows.length === 0 ? (
@@ -362,7 +363,7 @@ export function IctRegisterDqPage() {
                     <>
                         {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
                             gated on the separate can_download_dora_register capability. */}
-                        <RegisterExportLink className="px-5 py-2.5 rounded-xl bg-accent border border-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit" />
+                        <RegisterExportLink className={buttonVariants({ variant: 'accent' })} />
                         <RefreshButton
                             label={t('actions.refresh')}
                             onRefresh={() => void fetchDq()}
@@ -456,8 +457,8 @@ export function IctRegisterDqPage() {
                         visibleCount < check.count && (visibleCount === 0 || isExpanded);
                     return (
                         <div key={check.check_id} className="glass-card">
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 data-testid={`dq-check-${check.check_id}`}
                                 aria-expanded={isExpandable ? isExpanded : undefined}
                                 aria-controls={
@@ -467,14 +468,14 @@ export function IctRegisterDqPage() {
                                 onClick={() =>
                                     updateExpandedCheck(isExpanded ? null : check.check_id)
                                 }
-                                className="w-full flex flex-col md:flex-row md:items-center gap-3 text-left disabled:cursor-default"
+                                className="h-auto w-full flex-col items-stretch justify-start gap-3 whitespace-normal p-0 text-left font-normal hover:bg-transparent disabled:cursor-default disabled:opacity-100 md:flex-row md:items-center"
                             >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                     {isExpandable ? (
                                         isExpanded ? (
-                                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground shrink-0" />
                                         ) : (
-                                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <ChevronRight aria-hidden="true" className="h-4 w-4 text-muted-foreground shrink-0" />
                                         )
                                     ) : (
                                         <span className="w-4 shrink-0" />
@@ -499,7 +500,7 @@ export function IctRegisterDqPage() {
                                     </span>
                                     <StatusPill check={check} />
                                 </div>
-                            </button>
+                            </Button>
                             {/* S12 (FR-P5-5): the count badge is global, while
                                 visible_count is RBAC-scoped. Keep that distinction
                                 visible even when zero visible rows make the details

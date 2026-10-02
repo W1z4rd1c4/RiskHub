@@ -1,13 +1,14 @@
 /**
  * KRIBreachHistoryChart - Area chart showing KRI breach trends over time.
- * Refined with smoother curves, premium tooltips, and vibrant accents.
- * Colours come from the theme tokens via useChartTheme (severity-coded series use the D1 band tokens).
+ * Colours come from the theme tokens via useChartTheme (the breach series uses the danger tone);
+ * the frame adds the summary, the data table, the token legend and the empty state (GAP-D-11).
  */
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { KRIBreachTrendPoint } from '@/types/dashboard';
+import { ChartFrame } from '@/components/ui/ChartFrame';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { getChartTooltipProps } from './chartTooltip';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 
 interface KRIBreachHistoryChartProps {
     data: KRIBreachTrendPoint[];
@@ -16,27 +17,43 @@ interface KRIBreachHistoryChartProps {
 
 export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryChartProps) {
     const { t } = useTranslation('dashboard');
+    const format = useFormat();
     const chartTheme = useChartTheme();
-    const resolvedEmptyMessage = emptyMessage ?? t('charts.no_kri_breach_data');
     const tooltipProps = getChartTooltipProps(chartTheme, {
         contentStyle: {
             backdropFilter: 'blur(12px)',
             padding: '12px 16px',
         },
         itemStyle: { fontWeight: 600, padding: '2px 0' },
-        labelStyle: { fontWeight: 800, letterSpacing: '0.05em', marginBottom: '8px' },
+        labelStyle: { letterSpacing: '0.05em', marginBottom: '8px' },
     });
-
-    if (data.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm italic font-medium">
-                {resolvedEmptyMessage}
-            </div>
-        );
-    }
+    const samplesLabel = t('charts.total_samples');
+    const breachesLabel = t('charts.breaches');
+    const totalSamples = data.reduce((sum, point) => sum + point.total_entries, 0);
+    const totalBreaches = data.reduce((sum, point) => sum + point.breached_entries, 0);
 
     return (
-        <div className="relative group/chart">
+        <ChartFrame
+            summary={t('charts.a11y.kri_breach_trend', {
+                total: format.number(totalSamples),
+                breaches: format.number(totalBreaches),
+            })}
+            isEmpty={data.length === 0}
+            emptyTitle={emptyMessage ?? t('charts.no_kri_breach_data')}
+            testId="kri-breach-history-chart"
+            legend={[
+                { key: 'total_entries', label: samplesLabel, color: chartTheme.series.primary },
+                { key: 'breached_entries', label: breachesLabel, color: chartTheme.series.danger },
+            ]}
+            table={{
+                columns: [t('charts.a11y.columns.period'), samplesLabel, breachesLabel],
+                rows: data.map((point) => ({
+                    key: point.period,
+                    header: point.period,
+                    cells: [format.number(point.total_entries), format.number(point.breached_entries)],
+                })),
+            }}
+        >
             <ResponsiveContainer width="100%" height={260} initialDimension={{ width: 1, height: 260 }}>
                 <AreaChart data={data} margin={{ top: 20, right: 10, left: -25, bottom: 0 }}>
                     <defs>
@@ -52,13 +69,13 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} opacity={0.5} />
                     <XAxis
                         dataKey="period"
-                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 600 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
                         axisLine={false}
                         tickLine={false}
                         dy={10}
                     />
                     <YAxis
-                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 600 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 11, fontWeight: 600 }}
                         axisLine={false}
                         tickLine={false}
                         allowDecimals={false}
@@ -68,25 +85,10 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                         {...tooltipProps}
                         cursor={{ stroke: chartTheme.cursorStroke, strokeWidth: 1 }}
                     />
-                    <Legend
-                        verticalAlign="top"
-                        align="right"
-                        iconType="circle"
-                        iconSize={8}
-                        wrapperStyle={{
-                            paddingBottom: '20px',
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            color: chartTheme.legendText
-                        }}
-                        labelStyle={{ color: chartTheme.legendText }}
-                    />
                     <Area
                         type="monotone"
                         dataKey="total_entries"
-                        name={t('charts.total_samples')}
+                        name={samplesLabel}
                         stroke={chartTheme.series.primary}
                         fill="url(#totalEntriesGradientNew)"
                         strokeWidth={2.5}
@@ -96,7 +98,7 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                     <Area
                         type="monotone"
                         dataKey="breached_entries"
-                        name={t('charts.breaches')}
+                        name={breachesLabel}
                         stroke={chartTheme.series.danger}
                         fill="url(#breachGradientNew)"
                         strokeWidth={2.5}
@@ -105,6 +107,6 @@ export function KRIBreachHistoryChart({ data, emptyMessage }: KRIBreachHistoryCh
                     />
                 </AreaChart>
             </ResponsiveContainer>
-        </div>
+        </ChartFrame>
     );
 }

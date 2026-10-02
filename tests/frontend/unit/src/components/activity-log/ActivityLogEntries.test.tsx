@@ -22,12 +22,13 @@ vi.mock('@/i18n/hooks', async () => {
     };
     return {
         useTranslation: () => ({
-            t: (key: string, fallback?: string) => {
+            t: (key: string, fallback?: string | { defaultValue?: string }) => {
                 const translations: Record<string, string> = {
                     'activity_log.select_risk': 'Select a risk to view activity.',
                     'activity_log.select_risk_hint': 'Choose a risk in the filter above to load entries.',
                 };
-                return translations[key] ?? fallback ?? key;
+                const defaultValue = typeof fallback === 'string' ? fallback : fallback?.defaultValue;
+                return translations[key] ?? defaultValue ?? key;
             },
             i18n: { language: 'en' },
         }),
@@ -224,5 +225,34 @@ describe('ActivityLogEntries', () => {
 
         expect(screen.getByText('empty.no_activity_logs')).toBeInTheDocument();
         expect(screen.getByText('activity_log.try_adjusting_filters')).toBeInTheDocument();
+    });
+
+    it('shows changed fields as words and the empty value through its translation key (GAP-D-02)', () => {
+        renderEntries([
+            {
+                id: 5,
+                entity_type: 'risk',
+                entity_id: 60,
+                entity_name: 'R-60',
+                action: 'status_change',
+                actor_id: 3,
+                actor_name: 'Actor',
+                department_id: 1,
+                changes: {
+                    some_new_field: { old: null, new: 'x' },
+                },
+                description: 'Changed',
+                created_at: '2026-04-06T13:00:00Z',
+            },
+        ]);
+
+        // Unknown codes fall back to humanised words; raw snake_case never reaches the screen.
+        expect(screen.getByText('Some new field')).toBeInTheDocument();
+        expect(screen.queryByText('some_new_field')).not.toBeInTheDocument();
+        expect(screen.queryByText('some new field')).not.toBeInTheDocument();
+        // The action label comes from the translated audit-event vocabulary (humanised fallback here).
+        expect(screen.getByText('Status change')).toBeInTheDocument();
+        expect(screen.getByText('activity_log.empty_value')).toBeInTheDocument();
+        expect(screen.queryByText('(empty)')).not.toBeInTheDocument();
     });
 });

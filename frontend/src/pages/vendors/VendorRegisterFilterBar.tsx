@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 
+import { RegisterFilterCard } from '@/components/ict-register/RegisterFilterCard';
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { Button } from '@/components/ui/button';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { vendorValueLabel } from '@/lib/vendorValues';
@@ -82,22 +84,21 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
     return (
         <fieldset className="space-y-2" data-testid={`vendors-filter-control-${definition.key}`}>
             <legend className="text-xs font-bold text-foreground">{label}</legend>
-            <input
+            <Input
                 type="search"
+                size="compact"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t('register.filters.search_options')}
                 aria-label={t('register.filters.search_options_for', { label })}
                 data-testid={`vendors-filter-${definition.key}-search`}
-                className="w-full rounded-lg border border-border bg-nested px-3 py-2 text-sm text-foreground outline-none focus:border-accent/50"
             />
             <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-border p-2" aria-busy={isLoading}>
                 {options.map((option) => {
                     const checked = selectedIds.includes(option.id);
                     return (
-                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-glass-hover">
-                            <input
-                                type="checkbox"
+                        <label key={option.id} className="flex items-start gap-2 rounded p-1.5 text-xs text-foreground hover:bg-tint/5">
+                            <Checkbox
                                 checked={checked}
                                 disabled={option.disabled && !checked}
                                 data-testid={`vendors-filter-${definition.key}-option-${option.id}`}
@@ -106,7 +107,7 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
                                         ? selectedIds.filter((id) => id !== option.id)
                                         : [...selectedIds, option.id],
                                 )}
-                                className="mt-0.5 accent-accent"
+                                className="mt-0.5"
                             />
                             <span className="min-w-0">
                                 <span className="block truncate">{option.label}</span>
@@ -116,7 +117,7 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
                     );
                 })}
                 {!isLoading && options.length === 0 ? (
-                    <p className="px-2 py-1 text-xs text-muted-foreground">{t('register.filters.no_options')}</p>
+                    <p className="p-1.5 text-xs text-muted-foreground">{t('register.filters.no_options')}</p>
                 ) : null}
             </div>
         </fieldset>
@@ -143,10 +144,9 @@ function FacetMultiFilter({
                 {options.map((option) => {
                     const checked = selected.includes(option.value);
                     return (
-                        <label key={option.value} className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-glass-hover">
+                        <label key={option.value} className="flex items-center justify-between gap-2 rounded p-1.5 text-xs text-foreground hover:bg-tint/5">
                             <span className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={checked}
                                     disabled={option.disabled && !checked}
                                     data-testid={`vendors-filter-${definition.key}-option-${option.value}`}
@@ -155,7 +155,6 @@ function FacetMultiFilter({
                                             ? selected.filter((value) => value !== option.value)
                                             : [...selected, option.value],
                                     )}
-                                    className="accent-accent"
                                 />
                                 {option.label}
                             </span>
@@ -268,16 +267,16 @@ export function VendorRegisterFilterBar({
             option ? `${t(translationKey)} (${option.count})` : t(translationKey)
         );
         return (
-            <label key={definition.key} className="space-y-2 text-xs font-bold text-foreground" data-testid={`vendors-filter-control-${definition.key}`}>
+            <label key={definition.key} className="block space-y-2 text-xs font-bold text-foreground" data-testid={`vendors-filter-control-${definition.key}`}>
                 <span>{label}</span>
-                <select
+                <NativeSelect
+                    size="compact"
                     value={current === null ? '' : String(current)}
                     data-testid={`vendors-filter-${definition.key}-select`}
                     onChange={(event) => onFilterChange(
                         definition.key,
                         event.target.value === '' ? null : event.target.value === 'true',
                     )}
-                    className="w-full rounded-lg border border-border bg-nested px-3 py-2 text-sm text-foreground"
                 >
                     <option value="">{t('register.boolean.any')}</option>
                     <option value="true" disabled={Boolean(trueFacet?.disabled && current !== true)}>
@@ -286,7 +285,7 @@ export function VendorRegisterFilterBar({
                     <option value="false" disabled={Boolean(falseFacet?.disabled && current !== false)}>
                         {optionLabel('register.boolean.no', falseFacet)}
                     </option>
-                </select>
+                </NativeSelect>
             </label>
         );
     };
@@ -335,18 +334,13 @@ export function VendorRegisterFilterBar({
             {activeKeys.map((key) => {
                 const definition = VENDOR_REGISTER_CONFIG.filters.find((item) => item.key === key);
                 return definition ? (
-                    <div key={key} className="relative rounded-xl border border-border bg-nested p-3 pr-12">
-                        <Button
-                            variant="secondary"
-                            size="iconCompact"
-                            onClick={() => removeFilter(key)}
-                            aria-label={t('register.filters.remove', { label: labels[key] })}
-                            className="absolute right-2 top-2"
-                        >
-                            <X aria-hidden="true" />
-                        </Button>
+                    <RegisterFilterCard
+                        key={key}
+                        removeLabel={t('register.filters.remove', { label: labels[key] })}
+                        onRemove={() => removeFilter(key)}
+                    >
                         {renderControl(definition)}
-                    </div>
+                    </RegisterFilterCard>
                 ) : null;
             })}
         </RegisterListToolbar>

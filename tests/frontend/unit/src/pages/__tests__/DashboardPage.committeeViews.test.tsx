@@ -269,17 +269,17 @@ describe('Overview summary export ownership (#178)', () => {
 
     it.each(['risk-committee', 'ict-committee'])('never offers Overview export on cold or warm %s views', async (view) => {
         renderDashboard([`/?view=${view}`]);
-        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'actions.export_overview_csv' })).not.toBeInTheDocument();
         expect(fetchOverviewMock).not.toHaveBeenCalled();
         fireEvent.click(screen.getByRole('tab', { name: 'views.overview' }));
-        expect(await screen.findByTitle('actions.export_overview_csv')).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'actions.export_overview_csv' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('tab', { name: `views.${view.replace('-', '_')}` }));
-        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'actions.export_overview_csv' })).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: '__back__' }));
-        expect(await screen.findByTitle('actions.export_overview_csv')).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'actions.export_overview_csv' })).toBeInTheDocument();
         const requests = fetchOverviewMock.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: '__forward__' }));
-        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'actions.export_overview_csv' })).not.toBeInTheDocument();
         expect(fetchOverviewMock).toHaveBeenCalledTimes(requests);
         expect(downloadSummaryCsvMock).not.toHaveBeenCalled();
     });
@@ -288,9 +288,9 @@ describe('Overview summary export ownership (#178)', () => {
         let rejectExport!: (reason: Error) => void;
         downloadSummaryCsvMock.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectExport = reject; }));
         renderDashboard(['/?departmentId=7&riskLevel=high&controlStatus=active&controlForm=manual']);
-        fireEvent.click(await screen.findByTitle('actions.export_overview_csv'));
+        fireEvent.click(await screen.findByRole('button', { name: 'actions.export_overview_csv' }));
         fireEvent.click(screen.getByRole('button', { name: '__change_filters__' }));
-        expect(await screen.findByTitle('actions.export_overview_csv')).toBeDisabled();
+        expect(await screen.findByRole('button', { name: 'actions.export_overview_csv' })).toBeDisabled();
         fireEvent.click(screen.getByRole('tab', { name: 'views.risk_committee' }));
         await act(async () => rejectExport(new Error('export unavailable')));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();

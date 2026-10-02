@@ -496,6 +496,8 @@
     "select_asset_placeholder": "Select an Asset...",
     "select_process_placeholder": "Select a Process...",
     "s_code": "ICT service (S-code)",
+    "asset_label": "Asset",
+    "process_label": "Process",
     "add": "Link",
     "remove": "Remove link",
     "no_metadata": "No link details",

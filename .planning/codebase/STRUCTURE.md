@@ -45,8 +45,8 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-01.
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 257 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 352 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, control-loading-overlay, the `ui/` design-system primitives, and the `layout/` page and public-frame primitives)
+- `frontend/src/pages/` - 256 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/components/` - 354 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, control-loading-overlay, the `ui/` design-system primitives, and the `layout/` page and public-frame primitives)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks

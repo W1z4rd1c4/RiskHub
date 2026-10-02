@@ -11,6 +11,7 @@ Vitest coverage for shared frontend library helpers.
 - `questionnaireStatus.test.ts` - questionnaire status → tone/label map and overdue derivation
 - `humanizeCode.test.ts` - readable fallback for untranslated machine codes
 - `cn.test.ts` - `cn()` conflict resolution for the named token scales (shadow, z, duration, max-w, eyebrow)
+- `closedListLabels.test.ts` - translated workbook closed-list labels (en + cs completeness, raw-code fallback, raw option values; GAP-C-09)
 
 ## Notes
 

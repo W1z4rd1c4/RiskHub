@@ -90,6 +90,8 @@ describe('VendorContractsSection archive confirmation (GAP-C-06)', () => {
 
         await waitFor(() => expect(vendorContractApi.archiveContract).toHaveBeenCalledWith(1, 5, ''));
         await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        // D9: a direct archive is confirmed with a success toast naming the contract.
+        expect(await screen.findByText(i18n.t('common:outcome.archived', { name: 'SML-2026-05' }))).toBeInTheDocument();
     });
 
     it('requires the reason when approval applies and surfaces the queued request on the vendor', async () => {

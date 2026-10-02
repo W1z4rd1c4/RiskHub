@@ -1,4 +1,8 @@
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/state';
+
 import type { DemoAccount } from './loginPageTypes';
 
 interface AccountButtonProps {
@@ -9,30 +13,11 @@ interface AccountButtonProps {
     translate: (key: string) => string;
 }
 
-const colorClasses = {
-    rose: 'hover:border-rose-400/50 hover:bg-rose-400/5',
-    purple: 'hover:border-purple-400/50 hover:bg-purple-400/5',
-    violet: 'hover:border-violet-400/50 hover:bg-violet-400/5',
-    amber: 'hover:border-amber-400/50 hover:bg-amber-400/5',
-    emerald: 'hover:border-emerald-400/50 hover:bg-emerald-400/5',
-    sky: 'hover:border-sky-400/50 hover:bg-sky-400/5',
-    teal: 'hover:border-teal-400/50 hover:bg-teal-400/5',
-    indigo: 'hover:border-indigo-400/50 hover:bg-indigo-400/5',
-    pink: 'hover:border-pink-400/50 hover:bg-pink-400/5',
-} as const;
-
-const badgeClasses = {
-    rose: 'bg-rose-400/10 border-rose-400/20 text-rose-400',
-    purple: 'bg-purple-400/10 border-purple-400/20 text-purple-400',
-    violet: 'bg-violet-400/10 border-violet-400/20 text-violet-400',
-    amber: 'bg-amber-400/10 border-amber-400/20 text-amber-400',
-    emerald: 'bg-emerald-400/10 border-emerald-400/20 text-emerald-400',
-    sky: 'bg-sky-400/10 border-sky-400/20 text-sky-400',
-    teal: 'bg-teal-400/10 border-teal-400/20 text-teal-400',
-    indigo: 'bg-indigo-400/10 border-indigo-400/20 text-indigo-400',
-    pink: 'bg-pink-400/10 border-pink-400/20 text-pink-400',
-} as const;
-
+/**
+ * One demo persona: an outline `Button` card named by the persona, role and department.
+ * The initials avatar is decorative and uses one accent token style for every persona
+ * (the persona colour carries no status meaning, so it is not mapped to a status tone).
+ */
 export function AccountButton({
     account,
     disabled,
@@ -40,30 +25,37 @@ export function AccountButton({
     onSelect,
     translate,
 }: AccountButtonProps) {
+    const initials = account.name.split(' ').map((name) => name[0]).join('');
     return (
-        <button
+        <Button
+            variant="outline"
+            size={null}
             onClick={() => onSelect(account.email)}
             disabled={disabled}
+            aria-busy={isLoading || undefined}
             data-testid={`demo-persona-${account.email}`}
-            className={`min-h-28 w-full p-3 flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl transition-all group disabled:opacity-50 ${colorClasses[account.color]}`}
+            className="group h-auto min-h-28 w-full justify-between whitespace-normal p-3 text-left hover:border-accent/50"
         >
-            <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold ${badgeClasses[account.color]}`}>
-                    {account.name.split(' ').map((name) => name[0]).join('')}
-                </div>
-                <div className="text-left">
-                    <p className="text-sm font-bold text-white">{account.name}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">{translate(account.role_key)}</p>
-                    <p className="text-[10px] text-slate-600 font-medium">
+            <span className="flex min-w-0 items-center gap-3">
+                <span
+                    aria-hidden="true"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full border border-accent/20 bg-accent/10 text-xs font-bold text-accent-text"
+                >
+                    {initials}
+                </span>
+                <span className="min-w-0">
+                    <span className="block text-sm font-bold text-foreground">{account.name}</span>
+                    <span className="block text-xs text-muted-foreground">{translate(account.role_key)}</span>
+                    <span className="block text-xs text-muted-foreground">
                         {account.dept_key ? translate(account.dept_key) : '—'}
-                    </p>
-                </div>
-            </div>
+                    </span>
+                </span>
+            </span>
             {isLoading ? (
-                <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
+                <Spinner size="sm" />
             ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-white transition-colors" />
+                <ChevronRight className="text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />
             )}
-        </button>
+        </Button>
     );
 }

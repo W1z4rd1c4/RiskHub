@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import {
     Shield,
     ChevronRight,
-    Loader2,
     LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +15,7 @@ import { getGroupedSidebarNav, resolveActiveSidebarHref } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BrandWordmark } from '@/components/layout/BrandWordmark';
+import { Button } from '@/components/ui/button';
 import { DestinationLauncher } from '@/components/layout/DestinationLauncher';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
 import './sidebar.css';
@@ -215,7 +215,7 @@ export function Sidebar() {
                                                 {item.label}
                                             </div>
                                             {item.badge !== undefined && (
-                                                <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                <span className="sidebar-nav-badge inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs font-bold">
                                                     {/* AX-14: the bare number reads as "Approvals 3"; the
                                                         sr-only text names what is counted. */}
                                                     <span aria-hidden="true">{item.badge}</span>
@@ -242,7 +242,7 @@ export function Sidebar() {
                 <div className="mt-4 shrink-0 space-y-4 border-t border-border pt-4">
                     {user && (
                         <div className="flex items-center gap-3 px-2">
-                            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+                            <div aria-hidden="true" className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
                                 <span className="text-xs font-bold text-accent-text">{user.name.charAt(0)}</span>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -251,15 +251,16 @@ export function Sidebar() {
                             </div>
                         </div>
                     )}
-                    <button
+                    <Button
+                        variant="ghost"
                         onClick={handleLogout}
                         data-testid="logout-button"
-                        disabled={logoutPending}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-xl transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        isLoading={logoutPending}
+                        className="h-auto w-full justify-start gap-3 rounded-xl px-3 py-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                        {logoutPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                        {logoutPending ? null : <LogOut aria-hidden="true" />}
                         {t('user_menu.logout')}
-                    </button>
+                    </Button>
                     {logoutErrorKey && (
                         <p className="px-3 text-xs text-destructive">{tErrors(logoutErrorKey)}</p>
                     )}

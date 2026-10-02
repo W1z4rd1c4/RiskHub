@@ -133,6 +133,9 @@ export interface IctCommitteePresentation {
     };
     executiveSummary: {
         assetChart: Array<{ band: string; count: number; href: string; label: string }>;
+        /** Text alternative of the asset chart (GAP-D-11): summary + data-table headers. */
+        assetChartSummary: string;
+        assetChartColumns: { band: string; count: string };
         assetChartTitle: string;
         heatmap: {
             axis: string;
@@ -174,6 +177,9 @@ export interface IctCommitteePresentation {
             netHref: string;
         }>;
         riskBandChartLabels: { gross: string; net: string };
+        /** Text alternative of the risk-band chart (GAP-D-11): summary + band column header. */
+        riskBandChartSummary: string;
+        riskBandChartBandColumn: string;
         riskBandChartTitle: string;
         title: string;
         emptyRiskRanks: number[];
@@ -412,8 +418,17 @@ function controlledLabel(
     return key ? translate(key) : value;
 }
 
+/**
+ * PG-40: the drill-down URL carries the language-neutral band code (`high`), which the
+ * risk register maps back to the stored workbook value before the request; an unknown
+ * band passes through unchanged.
+ */
+function riskBandCode(band: string): string {
+    return NET_BAND_SEVERITY[band] ?? band;
+}
+
 function riskBandPath(band: string, score: 'gross' | 'net'): string {
-    return committeeRiskPath({ [`${score}_band`]: band });
+    return committeeRiskPath({ [`${score}_band`]: riskBandCode(band) });
 }
 
 function roiGapPath(row: IctRoiGapRow): string | null {
@@ -500,7 +515,7 @@ function buildRoiTemplates(
         readinessLabel: template.readiness_pct === null ? '—' : `${template.readiness_pct} %`,
         readinessPct: template.readiness_pct,
         rowCount: template.row_count,
-        rowCountLabel: translate('roi.row_count', { n: template.row_count }),
+        rowCountLabel: translate('roi.row_count', { count: template.row_count }),
         showGapsLabel: translate('roi.show_gaps'),
         truncatedLabel:
             template.gap_rows.length < template.gap_row_count
@@ -590,6 +605,13 @@ export function buildIctCommitteePresentation(
                     criticality: canonicalAssetCriticality(entry.band) ?? entry.band,
                 }),
             })),
+            assetChartSummary: translate('cro.assets_chart_summary', {
+                total: snapshot.cro.assets_by_criticality.reduce((sum, entry) => sum + entry.count, 0),
+            }),
+            assetChartColumns: {
+                band: translate('cro.assets_chart_columns.criticality'),
+                count: translate('cro.assets_chart_columns.assets'),
+            },
             assetChartTitle: translate('cro.assets_chart_title'),
             heatmap: {
                 axis: translate('cro.heatmap_axis'),
@@ -639,7 +661,7 @@ export function buildIctCommitteePresentation(
                         band: NET_BANDS[index],
                         count,
                         heatClass: heatClassForCount(count, 5),
-                        href: committeeRiskPath({ gross_band: row.gross_band, net_band: NET_BANDS[index] }),
+                        href: committeeRiskPath({ gross_band: riskBandCode(row.gross_band), net_band: riskBandCode(NET_BANDS[index]) }),
                     })),
                 })),
                 title: translate('cro.migration_title'),
@@ -655,6 +677,11 @@ export function buildIctCommitteePresentation(
                 netHref: riskBandPath(entry.band, 'net'),
             })),
             riskBandChartLabels: { gross: translate('cro.risk_bands_gross'), net: translate('cro.risk_bands_net') },
+            riskBandChartSummary: translate('cro.risk_bands_chart_summary', {
+                gross: snapshot.cro.risks_by_band.reduce((sum, entry) => sum + entry.gross_count, 0),
+                net: snapshot.cro.risks_by_band.reduce((sum, entry) => sum + entry.net_count, 0),
+            }),
+            riskBandChartBandColumn: translate('top_risks_columns.band'),
             riskBandChartTitle: translate('cro.risk_bands_chart_title'),
             title: translate('cro.title'),
             emptyRiskRanks: Array.from(

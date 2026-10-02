@@ -1,12 +1,14 @@
 import { useState, useEffect, useId } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldAlert, ClipboardList, AlertTriangle, User, Target, Activity, Database, FileText, Calendar, Workflow } from 'lucide-react';
+import { User, Target, Activity, FileText, Calendar } from 'lucide-react';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import { threatApi } from '@/services/threatApi';
 import { processApi } from '@/services/processApi';
 import { assetApi } from '@/services/assetApi';
+import { ENTITY_ICON_BY_TYPE, ENTITY_ICON_FALLBACK } from '@/constants/entityIcons';
+import { translateCode } from '@/lib/humanizeCode';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
@@ -113,14 +115,6 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
 
     if (!orphan) return null;
 
-    const typeIcons = {
-        risk: ShieldAlert,
-        control: ClipboardList,
-        kri: AlertTriangle,
-        threat: ShieldAlert,
-        process: Workflow,
-        asset: Database,
-    };
     const typeLabels = {
         risk: t('governance.type_risk'),
         control: t('governance.type_control'),
@@ -128,17 +122,19 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
         threat: t('governance.type_threat'),
         process: t('governance.type_process'),
         asset: t('governance.type_asset'),
+        vendor: t('governance.type_vendor'),
     };
-    const Icon = typeIcons[orphan.item_type as keyof typeof typeIcons] || AlertTriangle;
+    const Icon = ENTITY_ICON_BY_TYPE[orphan.item_type] ?? ENTITY_ICON_FALLBACK;
 
     // Hue on the icon tile only; the type label stays text-foreground (AA in every theme).
     const typeTones = {
         risk: { icon: 'text-destructive', tile: 'bg-destructive/10' },
-        control: { icon: 'text-accent', tile: 'bg-accent/10' },
+        control: { icon: 'text-accent-text', tile: 'bg-accent/10' },
         kri: { icon: 'text-warning-text', tile: 'bg-warning/10' },
         threat: { icon: 'text-chart-3', tile: 'bg-chart-3/10' },
         process: { icon: 'text-accent-text', tile: 'bg-info/10' },
         asset: { icon: 'text-chart-2', tile: 'bg-chart-2/10' },
+        vendor: { icon: 'text-severity-high-text', tile: 'bg-severity-high/10' },
     };
     const typeTone = typeTones[orphan.item_type as keyof typeof typeTones] || { icon: 'text-muted-foreground', tile: 'bg-muted' };
 
@@ -184,11 +180,11 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                 </h4>
                                 <div className="flex items-center gap-6">
                                     <div className="flex items-center gap-2">
-                                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <User aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-xs text-muted-foreground font-medium">{orphan.previous_owner_name}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <Calendar aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-xs text-muted-foreground font-medium">
                                             {format.relative(orphan.orphaned_at)}
                                         </span>
@@ -200,7 +196,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                         {/* Detailed Description Panel */}
                         <div className="space-y-3">
                             <h5 className="text-eyebrow flex items-center gap-2">
-                                <FileText className="h-3.5 w-3.5" />
+                                <FileText aria-hidden="true" className="h-3.5 w-3.5" />
                                 {t('governance.quick_view.business_analysis')}
                             </h5>
                             <div className="p-5 rounded-2xl bg-tint/5 border border-border">
@@ -216,24 +212,28 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                 <>
                                     <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Activity className="h-3.5 w-3.5 text-accent" />
+                                            <Activity aria-hidden="true" className="h-3.5 w-3.5 text-accent-text" />
                                             <p className="text-eyebrow">
                                                 {t('governance.quick_view.methodology')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-foreground capitalize">
-                                            {itemDetails.control_form || t('governance.quick_view.defaults.manual')}
+                                        <p className="text-sm font-bold text-foreground">
+                                            {itemDetails.control_form
+                                                ? translateCode(t, 'controls:control_forms', itemDetails.control_form)
+                                                : t('governance.quick_view.defaults.manual')}
                                         </p>
                                     </div>
                                     <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Target className="h-3.5 w-3.5 text-accent" />
+                                            <Target aria-hidden="true" className="h-3.5 w-3.5 text-accent-text" />
                                             <p className="text-eyebrow">
                                                 {t('governance.quick_view.frequency')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-foreground capitalize">
-                                            {itemDetails.frequency || t('governance.quick_view.defaults.periodic')}
+                                        <p className="text-sm font-bold text-foreground">
+                                            {itemDetails.frequency
+                                                ? translateCode(t, 'controls:frequencies', itemDetails.frequency)
+                                                : t('governance.quick_view.defaults.periodic')}
                                         </p>
                                     </div>
                                 </>
@@ -242,18 +242,20 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                 <>
                                     <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Activity className="h-3.5 w-3.5 text-destructive" />
+                                            <Activity aria-hidden="true" className="h-3.5 w-3.5 text-destructive" />
                                             <p className="text-eyebrow">
                                                 {t('governance.quick_view.rating')}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-foreground capitalize">
-                                            {itemDetails.status || t('governance.quick_view.defaults.active')}
+                                        <p className="text-sm font-bold text-foreground">
+                                            {itemDetails.status
+                                                ? translateCode(t, 'risks:status', itemDetails.status)
+                                                : t('governance.quick_view.defaults.active')}
                                         </p>
                                     </div>
                                     <div className="p-4 rounded-xl bg-tint/5 border border-border">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Target className="h-3.5 w-3.5 text-destructive" />
+                                            <Target aria-hidden="true" className="h-3.5 w-3.5 text-destructive" />
                                             <p className="text-eyebrow">
                                                 {t('governance.quick_view.category')}
                                             </p>

@@ -173,8 +173,12 @@ describe('DashboardPage overview aggregation', () => {
         const generatedTime = screen.getByText((_, element) => element?.tagName === 'TIME');
         expect(generatedTime).toHaveAttribute('datetime', '2026-03-07T10:00:00Z');
         expect(generatedTime).not.toHaveTextContent('2026-03-07T10:00:00Z');
-        expect(screen.getByRole('button', { name: /risk_levels\.critical/ })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /risk_levels\.critical/ })).toBeInTheDocument();
         expect(screen.queryByText(/stats\.(live|stable|urgent|calculated)/)).not.toBeInTheDocument();
+        // D7: one h1; RS-01: KPI cards wrap by a minimum width instead of lg:grid-cols-6.
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByTestId('dashboard-stat-grid').className).toContain('auto-fit');
+        expect(screen.getByTestId('dashboard-stat-grid').className).not.toContain('lg:grid-cols-6');
     });
 
     it('hides the Total Controls card for a risk/report reader without controls:read', async () => {
@@ -189,7 +193,7 @@ describe('DashboardPage overview aggregation', () => {
         );
 
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-        expect(screen.queryByRole('button', { name: /stats\.total_controls/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /stats\.total_controls/ })).not.toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/');
     });
 
@@ -202,7 +206,7 @@ describe('DashboardPage overview aggregation', () => {
             { wrapper: createWrapper() },
         );
 
-        const controlsCard = await screen.findByRole('button', { name: /stats\.total_controls/ });
+        const controlsCard = await screen.findByRole('link', { name: /stats\.total_controls/ });
         fireEvent.click(controlsCard);
 
         expect(screen.getByTestId('location')).toHaveTextContent('/controls');
@@ -304,7 +308,7 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'actions.export_overview_csv' })).not.toBeInTheDocument();
         expect(screen.queryByText('issue summary')).not.toBeInTheDocument();
         expect(screen.getByText('department filter hidden')).toBeInTheDocument();
         expect(screen.getByText('department table focus disabled')).toBeInTheDocument();
@@ -444,7 +448,7 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/?viewMode=department'));
-        fireEvent.click(await screen.findByTitle('actions.export_overview_csv'));
+        fireEvent.click(await screen.findByRole('button', { name: 'actions.export_overview_csv' }));
 
         expect(downloadSummaryCsvMock).toHaveBeenCalledWith({
             controlForm: null,
@@ -469,7 +473,7 @@ describe('DashboardPage overview aggregation', () => {
         );
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
-        const exportButton = await screen.findByTitle('actions.export_overview_csv');
+        const exportButton = await screen.findByRole('button', { name: 'actions.export_overview_csv' });
         const initialUrl = screen.getByTestId('location').textContent;
         fireEvent.click(exportButton);
 

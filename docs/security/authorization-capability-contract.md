@@ -38,6 +38,21 @@ stored value before the request. The create-page gate
 (`role="alert"`, as before W7) with the same loading/denied/error outcomes. Backend
 authority is unchanged.
 
+Wave W9 (roadmap 3e–3i, 2026-10-02) migrates questionnaires, Governance/Activity log/Audit
+trail/Notifications/Departments/Docs, the dashboard and ICT committee, the Vendor module and
+the login/public surfaces with the same gates. The Vendor pending panel is folded into the
+shared `frontend/src/components/approvals/PendingChangePanel.tsx` (reason, requester and diff
+only with `pending_change.capabilities.can_view_diff`; cancel only when the page passes it on
+`can_cancel`); Vendor link removal blocked by a pending Process change stays visible but
+inert with its reason; Vendor contracts, sub-outsourcing and register links keep their
+capability flags and send the stored closed-list codes unchanged (only labels are
+translated). Report downloads keep `can_download_annual_report` /
+`can_download_dora_register`; Vendor ownership banners keep `authz.canViewGovernance`; the
+Sidebar logout, login SSO / sign-out recovery and dashboard export buttons keep their busy
+guard through the `Button` loading state. Login (SSO, demo, native, loading and error
+views) moves onto `AuthFrame`; the production SSO copy follows the active i18n language
+only, with no change to the auth flow. Backend authority is unchanged.
+
 Wave W7 (roadmap 2.4–2.13) adds confirmations and shared page patterns only.
 Archive, unlink, pending-creation cancel and batch-send actions open a
 `ConfirmDialog` that calls the same API with the same arguments; the archive reason

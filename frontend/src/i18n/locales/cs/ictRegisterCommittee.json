@@ -89,7 +89,13 @@
         "top_vendors_title": "Koncentrace: top 5 dodavatelů dle CIF vazeb (čl. 29)",
         "narratives_title": "CIF pokrytí, BCM a manažerské závěry",
         "assets_chart_title": "Aktiva dle výsledné kritičnosti",
+        "assets_chart_summary": "Sloupcový graf aktiv dle výsledné kritičnosti. Aktiv celkem: {{total}}.",
+        "assets_chart_columns": {
+            "criticality": "Kritičnost",
+            "assets": "Aktiva"
+        },
         "risk_bands_chart_title": "Rizika dle pásem: hrubé vs. čisté",
+        "risk_bands_chart_summary": "Sloupcový graf rizik dle pásem, hrubé vs. čisté. Hrubé: {{gross}}; čisté: {{net}}.",
         "risk_bands_gross": "Hrubé",
         "risk_bands_net": "Čisté"
     },
@@ -178,7 +184,10 @@
             "B_99.01": "Narativní definice; řádek R0070 právního textu míří po korigendu na B_06.01.0100 (v OJ zůstává zastaralý odkaz 0110)."
         },
         "no_rows": "Žádné zdrojové řádky",
-        "row_count": "{{n}} řádků",
+        "row_count": "{{count}} řádků",
+        "row_count_one": "{{count}} řádek",
+        "row_count_few": "{{count}} řádky",
+        "row_count_other": "{{count}} řádků",
         "gap_count": "{{n}} s mezerami",
         "no_gaps": "Bez mezer",
         "show_gaps": "Zobrazit mezery",

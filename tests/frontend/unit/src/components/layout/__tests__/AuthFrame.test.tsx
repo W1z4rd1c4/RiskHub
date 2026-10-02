@@ -185,4 +185,51 @@ describe('AuthFrame (DS-24, AX-15, RS-02, D14)', () => {
         expect(screen.getByRole('group', { name: 'Jazyk' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'CS' })).toHaveAttribute('aria-pressed', 'true');
     });
+
+    it('renders the eyebrow, subtitle and footer around the h1 and uses documentTitle for the tab title', () => {
+        stubColorScheme(true);
+        render(
+            <AuthFrame
+                title="RiskHub brings risks into one flow."
+                documentTitle="Sign in"
+                eyebrow="Risk operating system"
+                subtitle={<p>Manage risks and approvals.</p>}
+                footer="Synthetic demo data."
+            >
+                <p>Form</p>
+            </AuthFrame>,
+        );
+        const heading = screen.getByRole('heading', { level: 1, name: 'RiskHub brings risks into one flow.' });
+        expect(screen.getByText('Risk operating system')).toHaveClass('text-eyebrow');
+        expect(heading.parentElement).toContainElement(screen.getByText('Manage risks and approvals.'));
+        const footer = screen.getByText('Synthetic demo data.');
+        expect(screen.getByRole('main')).toContainElement(footer);
+        expect(footer.closest('section')).toBeNull();
+        expect(document.title).toBe('Sign in · RiskHub');
+    });
+
+    it('widens the card for column layouts', () => {
+        stubColorScheme(true);
+        render(<AuthFrame title="Demo" size="wide"><p>Grid</p></AuthFrame>);
+        const card = screen.getByRole('heading', { level: 1 }).closest('section');
+        expect(card).toHaveClass('max-w-6xl');
+        expect(card).not.toHaveClass('max-w-md');
+    });
+
+    it('lets the page own the language switch without touching the local language choice', async () => {
+        stubColorScheme(true);
+        const onChange = vi.fn();
+        render(
+            <AuthFrame title="Sign in" language={{ value: 'cs', onChange, label: 'Jazyk' }}>
+                <p>Form</p>
+            </AuthFrame>,
+        );
+        const group = screen.getByRole('group', { name: 'Jazyk' });
+        expect(within(group).getByRole('button', { name: 'CS' })).toHaveAttribute('aria-pressed', 'true');
+
+        await userEvent.setup().click(within(group).getByRole('button', { name: 'EN' }));
+        expect(onChange).toHaveBeenCalledWith('en');
+        expect(i18n.language).toBe('en');
+        expect(localStorage.getItem('riskhub-language')).not.toBe('en');
+    });
 });

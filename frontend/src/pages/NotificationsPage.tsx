@@ -12,6 +12,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Pagination } from '@/components/tables/Pagination';
 import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { TabList, TabPanel } from '@/components/ui/tabs';
 import { logError } from '@/services/logger';
@@ -294,11 +295,10 @@ export function NotificationsPage() {
                 actions={hasFreshSummary && unreadCount !== null && unreadCount > 0 ? (
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="secondary"
                         onClick={() => void handleMarkAllAsRead()}
                         aria-disabled={pendingMutation !== null}
                         aria-describedby={visibleMutationError?.target === 'all' ? 'notifications-mark-all-error' : undefined}
-                        className="rounded-xl bg-accent/10 text-accent-text hover:bg-accent/20 hover:text-accent-text"
                     >
                         <Check className="h-4 w-4" aria-hidden="true" />
                         {tCommon('actions.mark_all_read')}
@@ -306,9 +306,9 @@ export function NotificationsPage() {
                 ) : undefined}
             />
             {visibleMutationError?.target === 'all' && (
-                <p id="notifications-mark-all-error" role="alert" className="text-sm text-destructive text-right">
+                <InlineMessage id="notifications-mark-all-error" tone="danger">
                     {visibleMutationError.message}
-                </p>
+                </InlineMessage>
             )}
 
             <TabList
@@ -411,9 +411,9 @@ export function NotificationsPage() {
                                         {notification.is_read ? t('actions.mark_unread') : t('actions.mark_read')}
                                     </Button>
                                     {error && (
-                                        <p id={`notifications-${notification.id}-error`} role="alert" className="mt-1 text-sm text-destructive">
+                                        <InlineMessage id={`notifications-${notification.id}-error`} tone="danger" className="mt-2">
                                             {error}
-                                        </p>
+                                        </InlineMessage>
                                     )}
                                 </div>
                             );

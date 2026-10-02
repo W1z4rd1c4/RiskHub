@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 
-import { useTranslation } from '@/i18n/hooks';
+import { Card, CardHeader } from '@/components/ui/card';
+import { ErrorState, Spinner } from '@/components/ui/state';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 
 import { QuarterMetricCard } from './QuarterMetricCard';
 import { QuarterPeriodSelector } from './QuarterPeriodSelector';
@@ -15,10 +17,10 @@ import {
     getSnapshotAvailability,
 } from './quarterlyComparisonPresentation';
 import { useQuarterlyComparisonData } from './useQuarterlyComparisonData';
-import { Spinner } from '@/components/ui/state';
 
 export function QuarterlyComparisonWidget() {
     const { t } = useTranslation('dashboard');
+    const format = useFormat();
     const {
         actualCurrentQuarter,
         actualCurrentYear,
@@ -73,7 +75,7 @@ export function QuarterlyComparisonWidget() {
     if (error && !data) {
         return (
             <QuarterlyComparisonFrame title={t('sections.quarterly_comparison')}>
-                <p className="text-muted-foreground text-sm">{error || t('quarterly.no_data_available')}</p>
+                <ErrorState layout="inline" message={error || t('quarterly.no_data_available')} />
             </QuarterlyComparisonFrame>
         );
     }
@@ -90,80 +92,80 @@ export function QuarterlyComparisonWidget() {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card"
         >
-            {/* Header with title */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-foreground">{t('sections.quarterly_comparison')}</h3>
-                </div>
-                {isLoading && <Spinner size="sm" label={t('common:loading.generic')} />}
-            </div>
-
-            <QuarterPeriodSelector
-                compareQuarter={compareQuarter}
-                compareQuarterOptions={compareQuarterOptions}
-                compareYear={compareYear}
-                currentQuarter={currentQuarter}
-                currentQuarterOptions={currentQuarterOptions}
-                currentYear={currentYear}
-                onCompareQuarterChange={setCompareQuarter}
-                onCompareYearChange={setCompareYear}
-                onCurrentQuarterChange={setCurrentQuarter}
-                onCurrentYearChange={setCurrentYear}
-                t={t}
-                yearOptions={yearOptions}
-            />
-
-            {!snapshot.snapshotAvailable && (
-                <SnapshotAvailabilityNotice
-                    fallbackPeriod={data?.snapshot_info?.last_quarter ?? t('quarterly.last_quarter')}
-                    missingPeriods={snapshot.missingSnapshotPeriods}
-                    t={t}
+            <Card as="section">
+                <CardHeader
+                    title={t('sections.quarterly_comparison')}
+                    icon={Calendar}
+                    actions={isLoading ? <Spinner size="sm" label={t('common:loading.generic')} /> : null}
                 />
-            )}
 
-            {data && (
-                <>
-                    <div
-                        aria-label={t('quarterly.observation_evidence')}
-                        className="mb-4 break-words rounded-xl border border-border bg-tint/[0.03] px-4 py-3 text-xs text-muted-foreground"
-                    >
-                        <p>
-                            <span className="font-bold text-foreground">{data.snapshot_info?.current_quarter} · {sourceLabel(currentSource)}</span>
-                            {' '}{data.period.this_start} – {data.period.this_end}
-                        </p>
-                        <p>
-                            <span className="font-bold text-foreground">{data.snapshot_info?.last_quarter} · {sourceLabel(compareSource)}</span>
-                            {' '}{data.period.last_start} – {data.period.last_end}
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                        {metrics.map((key) => {
-                            return (
-                                <QuarterMetricCard
-                                    key={key}
-                                    change={data.changes?.[key]}
-                                    compareQuarter={data.snapshot_info?.last_quarter}
-                                    compareSnapshotAvailable={snapshot.compareSnapshotAvailable}
-                                    currentQuarter={data.snapshot_info?.current_quarter}
-                                    currentSnapshotAvailable={snapshot.currentSnapshotAvailable}
-                                    isSnapshotMetric={snapshot.snapshotMetrics.has(key)}
-                                    keyName={key}
-                                    label={metricLabels[key] ?? key}
-                                    lastValue={data.last_quarter?.[key] ?? null}
-                                    metricObservation={data.metric_observations?.[key]}
-                                    missingCompareSnapshotMetric={snapshot.missingCompareSnapshotMetrics.has(key)}
-                                    missingCurrentSnapshotMetric={snapshot.missingCurrentSnapshotMetrics.has(key)}
-                                    t={t}
-                                    thisValue={data.this_quarter?.[key] ?? null}
-                                />
-                            );
-                        })}
-                    </div>
-                </>
-            )}
+                <QuarterPeriodSelector
+                    compareQuarter={compareQuarter}
+                    compareQuarterOptions={compareQuarterOptions}
+                    compareYear={compareYear}
+                    currentQuarter={currentQuarter}
+                    currentQuarterOptions={currentQuarterOptions}
+                    currentYear={currentYear}
+                    onCompareQuarterChange={setCompareQuarter}
+                    onCompareYearChange={setCompareYear}
+                    onCurrentQuarterChange={setCurrentQuarter}
+                    onCurrentYearChange={setCurrentYear}
+                    t={t}
+                    yearOptions={yearOptions}
+                />
+
+                {!snapshot.snapshotAvailable && (
+                    <SnapshotAvailabilityNotice
+                        fallbackPeriod={data?.snapshot_info?.last_quarter ?? t('quarterly.last_quarter')}
+                        missingPeriods={snapshot.missingSnapshotPeriods}
+                        t={t}
+                    />
+                )}
+
+                {data && (
+                    <>
+                        <div
+                            aria-label={t('quarterly.observation_evidence')}
+                            className="mb-4 break-words rounded-xl border border-border bg-tint/[0.03] px-4 py-3 text-xs text-muted-foreground"
+                        >
+                            <p>
+                                <span className="font-bold text-foreground">{data.snapshot_info?.current_quarter} · {sourceLabel(currentSource)}</span>
+                                {' '}<time dateTime={data.period.this_start}>{format.date(data.period.this_start)}</time>
+                                {' – '}<time dateTime={data.period.this_end}>{format.date(data.period.this_end)}</time>
+                            </p>
+                            <p>
+                                <span className="font-bold text-foreground">{data.snapshot_info?.last_quarter} · {sourceLabel(compareSource)}</span>
+                                {' '}<time dateTime={data.period.last_start}>{format.date(data.period.last_start)}</time>
+                                {' – '}<time dateTime={data.period.last_end}>{format.date(data.period.last_end)}</time>
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {metrics.map((key) => {
+                                return (
+                                    <QuarterMetricCard
+                                        key={key}
+                                        change={data.changes?.[key]}
+                                        compareQuarter={data.snapshot_info?.last_quarter}
+                                        compareSnapshotAvailable={snapshot.compareSnapshotAvailable}
+                                        currentQuarter={data.snapshot_info?.current_quarter}
+                                        currentSnapshotAvailable={snapshot.currentSnapshotAvailable}
+                                        isSnapshotMetric={snapshot.snapshotMetrics.has(key)}
+                                        keyName={key}
+                                        label={metricLabels[key] ?? key}
+                                        lastValue={data.last_quarter?.[key] ?? null}
+                                        metricObservation={data.metric_observations?.[key]}
+                                        missingCompareSnapshotMetric={snapshot.missingCompareSnapshotMetrics.has(key)}
+                                        missingCurrentSnapshotMetric={snapshot.missingCurrentSnapshotMetrics.has(key)}
+                                        t={t}
+                                        thisValue={data.this_quarter?.[key] ?? null}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+            </Card>
         </motion.div>
     );
 }

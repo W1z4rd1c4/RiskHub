@@ -10,6 +10,13 @@ export interface NativeSelectProps
   extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "size" | "multiple"> {
   /** Control height: `default` (40px) or `compact` (32px), as `Input`. */
   size?: InputSize
+  /**
+   * Renders only the bare native `<select>`, transparent and stretched over its
+   * positioned parent (no recipe, no chevron). The parent draws the visible
+   * control and its focus ring (`focus-within`), e.g. the register toolbar's
+   * Add-filter chip, while the browser keeps the native picker and keyboard.
+   */
+  overlay?: boolean
 }
 
 /**
@@ -24,7 +31,15 @@ export interface NativeSelectProps
  *   </Field>
  */
 const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProps>(
-  ({ className, size = "default", children, ...props }, ref) => (
+  ({ className, size = "default", overlay = false, children, ...props }, ref) => overlay ? (
+    <select
+      ref={ref}
+      className={cn("absolute inset-0 cursor-pointer opacity-0", className)}
+      {...props}
+    >
+      {children}
+    </select>
+  ) : (
     <div className="relative w-full">
       <select
         ref={ref}

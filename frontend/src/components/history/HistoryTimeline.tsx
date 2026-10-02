@@ -3,9 +3,11 @@
  * Renders a visual rail with status-colored dots and event details.
  */
 import { cn } from '@/lib/utils';
+import type { Tone } from '@/lib/tones';
 import { Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState, LoadingState } from '@/components/ui/state';
 
@@ -32,11 +34,12 @@ const statusBorderColors: Record<HistoryStatus, string> = {
     neutral: 'border-border',
 };
 
-const metaToneColors: Record<HistoryStatus, string> = {
-    success: 'bg-success/10 text-success-text border-success/20',
-    warning: 'bg-warning/10 text-warning-text border-warning/20',
-    danger: 'bg-destructive/10 text-destructive border-destructive/20',
-    neutral: 'bg-secondary text-muted-foreground border-border',
+/** History statuses are the semantic tones the `Badge` primitive already knows. */
+const META_TONES: Record<HistoryStatus, Tone> = {
+    success: 'success',
+    warning: 'warning',
+    danger: 'danger',
+    neutral: 'neutral',
 };
 
 export function HistoryTimeline({
@@ -99,9 +102,7 @@ export function HistoryTimeline({
                                         <div className="flex items-center gap-2">
                                             <h4 className="text-sm font-bold text-foreground truncate">{item.title}</h4>
                                             {item.badge && (
-                                                <span className="px-1.5 py-0.5 text-xs font-bold rounded bg-accent/10 text-accent-text border border-accent/30">
-                                                    {item.badge}
-                                                </span>
+                                                <Badge tone="accent" shape="rounded">{item.badge}</Badge>
                                             )}
                                         </div>
                                         {item.subtitle && (
@@ -117,15 +118,9 @@ export function HistoryTimeline({
                                 {item.meta && item.meta.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5 mt-3">
                                         {item.meta.map((m, i) => (
-                                            <span
-                                                key={i}
-                                                className={cn(
-                                                    "px-2 py-0.5 text-xs font-medium rounded border",
-                                                    metaToneColors[m.tone || 'neutral']
-                                                )}
-                                            >
+                                            <Badge key={i} tone={META_TONES[m.tone || 'neutral']} shape="rounded">
                                                 {t('common:labels.label_value', { label: m.label, value: m.value })}
-                                            </span>
+                                            </Badge>
                                         ))}
                                     </div>
                                 )}

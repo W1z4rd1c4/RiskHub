@@ -18,6 +18,7 @@ Shared frontend UI helpers and presentation utilities used across pages and comp
 - `kriUnits.ts` - `formatKriUnitName(unit, t)` ("Days") and `formatKriUnit(unit, t, value)` ("5 dní"): translated KRI unit labels; `%`, currencies and unknown units pass through (GAP-D-03)
 - `roleLabels.ts` - `getRoleLabel(role, t)`: translated name of a seeded RBAC role code (`common:roles.*`), humanized fallback for custom roles; the code stays the filter value (GAP-D-06)
 - `cssTokens.ts` - runtime CSS custom-property reads for canvas/SVG/Recharts (`getCssToken`, `readCssColor`, `useCssTokens`, `useCssThemeKey`)
+- `closedListLabels.ts` - `closedListLabel(t, list, code)` / `closedListOptions(t, lists, list)`: translated display labels (`common:values.closed_lists.<List>.<slug>`) for the ICT Register workbook closed-list codes; the stored code stays the value and is the fallback label (GAP-C-09, PM-4)
 
 ## Notes
 

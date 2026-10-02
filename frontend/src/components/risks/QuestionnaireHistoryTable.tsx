@@ -1,11 +1,9 @@
 import { SortableTable, type Column } from '@/components/tables/SortableTable';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
+import { QuestionnaireStatusBadge } from './QuestionnaireStatusBadge';
 import type { TranslateFn } from './risk-questionnaire-detail/questionnairePresentation';
-import {
-    formatQuestionnaireDate,
-    questionnaireStatusBadge,
-} from './questionnairesTabPresentation';
+import { formatQuestionnaireDate } from './questionnairesTabPresentation';
 
 interface QuestionnaireHistoryTableProps {
     items: RiskQuestionnaireListItem[];
@@ -34,8 +32,7 @@ export function QuestionnaireHistoryTable({
         {
             key: 'status',
             label: t('common:labels.status'),
-            render: (questionnaire) =>
-                questionnaireStatusBadge(questionnaire, t),
+            render: (questionnaire) => <QuestionnaireStatusBadge questionnaire={questionnaire} />,
         },
         {
             key: 'sent_at',

@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Boxes, Plus, Unlink, Workflow } from 'lucide-react';
+import { Boxes, Plus, Workflow } from 'lucide-react';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { LinkedItemList, LinkedItemRow, LinkRemoveButton } from '@/components/linking/LinkedItemList';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAuthz } from '@/authz/useAuthz';
@@ -11,6 +15,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { closedListLabel } from '@/lib/closedListLabels';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
@@ -20,6 +25,7 @@ import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { VendorCapabilities } from '@/types/vendor';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
 import {
     processBusinessEditBlocked,
     processMutationRequiresApprovalReason,
@@ -50,6 +56,8 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     // D12 / PM-2: approval-routed changes keep the user on this page with
     // the pending notice plus a success toast.
     const announceApprovalQueued = useApprovalQueued();
+    // D9: a direct link removal is confirmed with a success toast.
+    const feedback = useFeedback();
     const authz = useAuthz();
     const queryClient = useQueryClient();
     const [sectionError, setSectionError] = useState<string | null>(null);
@@ -168,6 +176,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                 announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
+            feedback.success({ title: t('common:outcome.link_removed') });
             await refreshLinks();
         },
         onError: handleMutationError,
@@ -201,6 +210,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                 announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
+            feedback.success({ title: t('common:outcome.link_removed') });
             await refreshLinks();
         },
         onError: handleMutationError,
@@ -213,6 +223,8 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     const assetRows = buildVendorAssetLinkRows(
         assetLinksQuery.data ?? [],
         t('common:fallbacks.unknown_asset'),
+        // GAP-C-09 / PM-4: the role and reliance codes read in the user's language.
+        (list, value) => closedListLabel(t, list, value),
     );
     const processRows = buildVendorProcessLinkRows(
         processLinksQuery.data ?? [],
@@ -251,13 +263,8 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
     }));
 
     return (
-        <div className="glass-card space-y-6" data-testid="vendor-register-links-section">
-            <div className="flex items-center gap-3 border-b border-border pb-4">
-                <Workflow className="h-5 w-5 text-accent" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('register_links.title')}
-                </h2>
-            </div>
+        <Card as="section" className="space-y-6" data-testid="vendor-register-links-section">
+            <CardHeader icon={Workflow} title={t('register_links.title')} className="mb-0" />
 
             {sectionError && pendingProcessAction === null && pendingAssetAction === null ? (
                 <InlineMessage tone="danger">{sectionError}</InlineMessage>
@@ -265,8 +272,8 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
 
             {canReadAssetLinks ? (
                 <div className="space-y-4" data-testid="vendor-asset-links-block">
-                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                        <Boxes className="h-4 w-4 text-accent-text" />
+                    <h3 className="text-eyebrow flex items-center gap-2">
+                        <Boxes className="h-4 w-4 text-accent-text" aria-hidden="true" />
                         {t('register_links.assets_title')}
                     </h3>
                     {assetLinksQuery.isLoading ? (
@@ -281,22 +288,14 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                     ) : assetRows.length === 0 ? (
                         <EmptyState layout="inline" icon={null} title={t('register_links.assets_empty')} />
                     ) : (
-                        <ul className="space-y-2" data-testid="vendor-asset-links">
+                        <LinkedItemList testId="vendor-asset-links">
                             {assetRows.map((row) => (
-                                <li
+                                <LinkedItemRow
                                     key={row.link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-nested border border-border rounded-xl px-4 py-3"
-                                >
-                                    <div className="min-w-0">
-                                        <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
-                                        <p className="text-xs text-muted-foreground">
-                                            {row.meta || t('register_links.no_metadata')}
-                                        </p>
-                                    </div>
-                                    {row.canDelete ? (
-                                        <button
-                                            type="button"
-                                            data-testid={`vendor-asset-link-remove-${row.link.id}`}
+                                    actions={row.canDelete ? (
+                                        <LinkRemoveButton
+                                            name={row.name}
+                                            testId={`vendor-asset-link-remove-${row.link.id}`}
                                             onClick={() => {
                                                 setSectionError(null);
                                                 setPendingAssetAction({
@@ -305,53 +304,58 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                                                     linkId: row.link.id,
                                                 });
                                             }}
-                                            aria-label={t('common:links.remove_named', { name: row.name })}
-                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                            title={t('register_links.remove')}
-                                        >
-                                            <Unlink className="h-4 w-4" aria-hidden="true" />
-                                        </button>
-                                    ) : null}
-                                </li>
+                                        />
+                                    ) : undefined}
+                                >
+                                    <span className="truncate text-sm font-bold text-foreground">{row.name}</span>
+                                    <p className="text-xs text-muted-foreground">
+                                        {row.meta || t('register_links.no_metadata')}
+                                    </p>
+                                </LinkedItemRow>
                             ))}
-                        </ul>
+                        </LinkedItemList>
                     )}
 
                     {canManageAssetLinks ? (
-                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <div className="md:col-span-2">
-                                <SearchableEntitySelect
-                                    value={assetToLink}
-                                    onValueChange={setAssetToLink}
-                                    options={assetOptions}
-                                    placeholder={t('register_links.select_asset_placeholder')}
-                                    searchValue={assetSearch}
-                                    onSearchChange={setAssetSearch}
-                                    triggerTestId="vendor-asset-link-select"
-                                />
-                            </div>
-                            <div className="md:col-span-2">
-                                <ThemedSelect
-                                    value={assetLinkServiceCode}
-                                    onValueChange={setAssetLinkServiceCode}
-                                    options={ictServiceOptions}
-                                    placeholder={t('register_links.s_code')}
-                                    triggerTestId="vendor-asset-link-s-code"
-                                />
-                            </div>
-                            <button
-                                type="button"
+                        <div className="grid grid-cols-1 items-end gap-3 border-t border-border pt-4 md:grid-cols-5">
+                            <Field label={t('register_links.asset_label')} required className="md:col-span-2">
+                                {(field) => (
+                                    <SearchableEntitySelect
+                                        {...field}
+                                        value={assetToLink}
+                                        onValueChange={setAssetToLink}
+                                        options={assetOptions}
+                                        placeholder={t('register_links.select_asset_placeholder')}
+                                        searchValue={assetSearch}
+                                        onSearchChange={setAssetSearch}
+                                        triggerTestId="vendor-asset-link-select"
+                                    />
+                                )}
+                            </Field>
+                            <Field label={t('register_links.s_code')} required className="md:col-span-2">
+                                {(field) => (
+                                    <ThemedSelect
+                                        {...field}
+                                        value={assetLinkServiceCode}
+                                        onValueChange={setAssetLinkServiceCode}
+                                        options={ictServiceOptions}
+                                        placeholder={t('register_links.s_code')}
+                                        triggerTestId="vendor-asset-link-s-code"
+                                    />
+                                )}
+                            </Field>
+                            <Button
+                                variant="accent"
                                 data-testid="vendor-asset-link-add"
                                 disabled={!assetToLink || !assetLinkServiceCode || addAssetLink.isPending}
                                 onClick={() => {
                                     setSectionError(null);
                                     setPendingAssetAction({ kind: 'add' });
                                 }}
-                                className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                             >
-                                <Plus className="h-4 w-4" />
+                                <Plus aria-hidden="true" />
                                 {t('register_links.add')}
-                            </button>
+                            </Button>
                         </div>
                     ) : null}
                 </div>
@@ -359,8 +363,8 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
 
             {canReadProcessLinks ? (
                 <div className="space-y-4" data-testid="vendor-process-links-block">
-                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
-                        <Workflow className="h-4 w-4 text-success-text" />
+                    <h3 className="text-eyebrow flex items-center gap-2">
+                        <Workflow className="h-4 w-4 text-success-text" aria-hidden="true" />
                         {t('register_links.processes_title')}
                     </h3>
                     {processLinksQuery.isLoading ? (
@@ -375,75 +379,70 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                     ) : processRows.length === 0 ? (
                         <EmptyState layout="inline" icon={null} title={t('register_links.processes_empty')} />
                     ) : (
-                        <ul className="space-y-2" data-testid="vendor-process-links">
+                        <LinkedItemList testId="vendor-process-links">
                             {processRows.map((row) => (
-                                <li
+                                <LinkedItemRow
                                     key={row.link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-nested border border-border rounded-xl px-4 py-3"
-                                >
-                                    <div className="min-w-0">
-                                        <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
-                                        <p className="text-xs text-muted-foreground">
-                                            {row.meta || t('register_links.no_metadata')}
-                                        </p>
-                                        {row.processEditBlocked ? (
-                                            <p className="mt-1 text-xs font-medium text-warning-text">
-                                                {t('processes:pending_change.link_action_blocked')}
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                    {row.canDelete ? (
-                                        <button
-                                            type="button"
-                                            data-testid={`vendor-process-link-remove-${row.link.id}`}
-                                            disabled={row.processEditBlocked}
+                                    actions={row.canDelete ? (
+                                        <LinkRemoveButton
+                                            name={row.name}
+                                            testId={`vendor-process-link-remove-${row.link.id}`}
+                                            disabledReason={row.processEditBlocked
+                                                ? t('processes:pending_change.link_action_blocked')
+                                                : undefined}
                                             onClick={() => {
                                                 setSectionError(null);
-                                                setPendingProcessAction({ kind: 'remove',
+                                                setPendingProcessAction({
+                                                    kind: 'remove',
                                                     processId: row.link.process_id,
                                                     linkId: row.link.id,
                                                 });
                                             }}
-                                            aria-label={t('common:links.remove_named', { name: row.name })}
-                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                            title={row.processEditBlocked
-                                                ? t('processes:pending_change.link_action_blocked')
-                                                : t('register_links.remove')}
-                                        >
-                                            <Unlink className="h-4 w-4" aria-hidden="true" />
-                                        </button>
+                                        />
+                                    ) : undefined}
+                                >
+                                    <span className="truncate text-sm font-bold text-foreground">{row.name}</span>
+                                    <p className="text-xs text-muted-foreground">
+                                        {row.meta || t('register_links.no_metadata')}
+                                    </p>
+                                    {row.processEditBlocked ? (
+                                        <p className="mt-1 text-xs font-medium text-warning-text">
+                                            {t('processes:pending_change.link_action_blocked')}
+                                        </p>
                                     ) : null}
-                                </li>
+                                </LinkedItemRow>
                             ))}
-                        </ul>
+                        </LinkedItemList>
                     )}
 
                     {canManageProcessLinks ? (
-                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <div className="md:col-span-4">
-                                <SearchableEntitySelect
-                                    value={processToLink}
-                                    onValueChange={setProcessToLink}
-                                    options={processOptions}
-                                    placeholder={t('register_links.select_process_placeholder')}
-                                    searchValue={processSearch}
-                                    onSearchChange={setProcessSearch}
-                                    triggerTestId="vendor-process-link-select"
-                                />
-                            </div>
-                            <button
-                                type="button"
+                        <div className="grid grid-cols-1 items-end gap-3 border-t border-border pt-4 md:grid-cols-5">
+                            <Field label={t('register_links.process_label')} required className="md:col-span-4">
+                                {(field) => (
+                                    <SearchableEntitySelect
+                                        {...field}
+                                        value={processToLink}
+                                        onValueChange={setProcessToLink}
+                                        options={processOptions}
+                                        placeholder={t('register_links.select_process_placeholder')}
+                                        searchValue={processSearch}
+                                        onSearchChange={setProcessSearch}
+                                        triggerTestId="vendor-process-link-select"
+                                    />
+                                )}
+                            </Field>
+                            <Button
+                                variant="accent"
                                 data-testid="vendor-process-link-add"
                                 disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
                                 onClick={() => {
                                     setSectionError(null);
                                     setPendingProcessAction({ kind: 'add' });
                                 }}
-                                className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                             >
-                                <Plus className="h-4 w-4" />
+                                <Plus aria-hidden="true" />
                                 {t('register_links.add')}
-                            </button>
+                            </Button>
                             {addProcessBlocked ? (
                                 <p className="md:col-span-5 text-xs font-medium text-warning-text">
                                     {t('processes:pending_change.link_action_blocked')}
@@ -490,6 +489,6 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                     }
                 }}
             />
-        </div>
+        </Card>
     );
 }

@@ -129,6 +129,7 @@
     "title": "Control Execution History",
     "subtitle": "Global log of all control executions and compliance checks.",
     "open_control": "Open control {{name}}",
+    "export_csv": "Export CSV",
     "all_results": "All Results",
     "total_records": "{{count}} Total Records",
     "columns": {

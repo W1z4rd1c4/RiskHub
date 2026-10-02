@@ -36,6 +36,9 @@ Ratcheted by `npm run quality:ui-ratchet` (G-RATCHET, `frontend/scripts/quality/
    (`DESIGN_CLEAN_PATHS` in `frontend/eslint.config.js`): there `npx eslint` hard-bans the same
    class patterns and raw `<button>`/`<input>`/`<textarea>`/`<select>`/`<table>` elements, so a
    regression fails lint instead of only the ratchet. The list only grows (audit §4.1, §5.5).
+   Since W9 the clean paths are all of `frontend/src` with no pending exceptions: only the
+   `components/ui` primitives, which own the raw elements, keep the class bans without the
+   element bans (`DESIGN_CLASS_BAN_ONLY_PATHS`).
 
 ### Backend
 

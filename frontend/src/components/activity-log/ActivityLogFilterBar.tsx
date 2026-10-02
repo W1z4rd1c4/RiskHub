@@ -1,8 +1,10 @@
 import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { ACTION_LABELS } from '@/types/activityLog';
+import { translateCode } from '@/lib/humanizeCode';
 import type { ViewMode } from '@/hooks/useActivityLogPageState';
 import type { ActivityLogActorLookup } from '@/types/activityLog';
 import { useTranslation } from '@/i18n/hooks';
@@ -84,20 +86,19 @@ export function ActivityLogFilterBar({
     return (
         <>
             {/* View Mode Selector */}
-            <div className="flex flex-wrap items-center gap-4 p-4 glass-card rounded-2xl border border-border">
+            <Card padding="compact" className="flex flex-wrap items-center gap-4">
                 <span className="text-sm font-medium text-muted-foreground">{t('activity_log.view_label', { ns: 'admin' })}</span>
-                <div className="flex items-center gap-1">
+                <div role="group" aria-label={t('activity_log.view_modes_label')} className="flex flex-wrap items-center gap-1">
                     {viewModes.map(mode => (
-                        <button
+                        <Button
                             key={mode.id}
+                            size="compact"
+                            variant={viewMode === mode.id ? 'accent' : 'ghost'}
+                            aria-pressed={viewMode === mode.id}
                             onClick={() => onViewModeChange(mode.id)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === mode.id
-                                ? 'bg-accent/10 text-accent-text border border-accent/30'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-tint/5 border border-transparent'
-                                }`}
                         >
                             {mode.label}
-                        </button>
+                        </Button>
                     ))}
                 </div>
 
@@ -107,6 +108,7 @@ export function ActivityLogFilterBar({
                         value={selectedActorId?.toString() ?? ''}
                         onValueChange={(v) => onActorChange(v ? Number(v) : null)}
                         placeholder={t('filters.select_person')}
+                        triggerAriaLabel={t('filters.select_person')}
                         className="flex-1 min-w-[200px]"
                         options={actors.map(actor => ({ value: actor.id.toString(), label: actor.name }))}
                     />
@@ -117,6 +119,7 @@ export function ActivityLogFilterBar({
                         value={selectedDepartmentId?.toString() ?? ''}
                         onValueChange={(v) => onDepartmentChange(v ? Number(v) : null)}
                         placeholder={t('filters.select_department')}
+                        triggerAriaLabel={t('filters.select_department')}
                         className="flex-1 min-w-[200px]"
                         options={departments.map(d => ({ value: d.id.toString(), label: d.name }))}
                     />
@@ -127,61 +130,67 @@ export function ActivityLogFilterBar({
                         value={selectedRiskId?.toString() ?? ''}
                         onValueChange={(v) => onRiskChange(v ? Number(v) : null)}
                         placeholder={t('filters.select_risk')}
+                        triggerAriaLabel={t('filters.select_risk')}
                         className="flex-1 min-w-[200px]"
                         options={risks.map(r => ({ value: r.id.toString(), label: r.name }))}
                     />
                 )}
-            </div>
+            </Card>
 
             {/* Filters Section */}
             {canViewEntityFilters ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 glass-card rounded-3xl border border-border">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                        data-testid="activity-log-search-input"
-                        type="text"
-                        placeholder={t('filters.search_logs')}
-                        value={search}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full bg-nested border border-input rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-[border-color,box-shadow]"
-                    />
-                </div>
+                <Card className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Field label={t('filters.search_logs')} labelVisuallyHidden>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                data-testid="activity-log-search-input"
+                                type="text"
+                                leadingIcon={Search}
+                                placeholder={t('filters.search_logs')}
+                                value={search}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                            />
+                        )}
+                    </Field>
 
-                <div className="flex gap-2">
-                    <ThemedSelect
-                        value={action}
-                        onValueChange={onActionChange}
-                        placeholder={t('filters.all_actions')}
-                        allowEmpty
-                        emptyLabel={t('filters.all_actions')}
-                        className="w-full"
-                        options={actions.map(act => ({ value: act, label: ACTION_LABELS[act] || act }))}
-                    />
-                </div>
+                    <Field label={t('filters.action')} labelVisuallyHidden>
+                        {(field) => (
+                            <ThemedSelect
+                                {...field}
+                                value={action}
+                                onValueChange={onActionChange}
+                                placeholder={t('filters.all_actions')}
+                                allowEmpty
+                                emptyLabel={t('filters.all_actions')}
+                                className="w-full"
+                                options={actions.map(act => ({ value: act, label: translateCode(t, 'admin:audit.events', act) }))}
+                            />
+                        )}
+                    </Field>
 
-                <Field id="activity-log-date-from" label={t('filters.date_from')}>
-                    {(field) => (
-                        <Input
-                            {...field}
-                            type="date"
-                            value={dateFrom}
-                            onChange={(event) => onDateFromChange(event.target.value)}
-                        />
-                    )}
-                </Field>
+                    <Field id="activity-log-date-from" label={t('filters.date_from')}>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="date"
+                                value={dateFrom}
+                                onChange={(event) => onDateFromChange(event.target.value)}
+                            />
+                        )}
+                    </Field>
 
-                <Field id="activity-log-date-to" label={t('filters.date_to')}>
-                    {(field) => (
-                        <Input
-                            {...field}
-                            type="date"
-                            value={dateTo}
-                            onChange={(event) => onDateToChange(event.target.value)}
-                        />
-                    )}
-                </Field>
-            </div>
+                    <Field id="activity-log-date-to" label={t('filters.date_to')}>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="date"
+                                value={dateTo}
+                                onChange={(event) => onDateToChange(event.target.value)}
+                            />
+                        )}
+                    </Field>
+                </Card>
             ) : null}
         </>
     );

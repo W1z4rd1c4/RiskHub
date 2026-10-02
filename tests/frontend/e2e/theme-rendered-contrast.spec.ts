@@ -431,3 +431,27 @@ test('<html lang> follows the language switch on the public login view', async (
   await expect(english).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('en');
 });
+
+// D14 / DS-24 (Phase 3i): the production SSO login sits on AuthFrame, follows the OS colour scheme
+// (light → Light tokens, dark → RiskHub tokens) and every visible text element meets AA in both.
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`/login (SSO) with OS ${colorScheme} scheme: themed public frame, all text at AA`, async ({ page }, testInfo) => {
+    await routeSsoLogin(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ colorScheme });
+    await page.goto('/login');
+    const main = page.getByRole('main');
+    await expect(main).toHaveAttribute('data-theme-source', 'system');
+    await expect(main).toHaveClass(new RegExp(`(^|\\s)theme-${colorScheme === 'light' ? 'light' : 'riskhub'}(\\s|$)`));
+    await expect(page.getByRole('button', { name: 'Continue with Microsoft' })).toBeVisible();
+    await settle(page, main);
+    const audit = await auditRenderedContrast(main);
+    await testInfo.attach(`login-sso-${colorScheme}.json`, {
+      body: JSON.stringify(audit, null, 2),
+      contentType: 'application/json',
+    });
+    expect(audit.counts.total, 'measured text elements').toBeGreaterThan(10);
+    expect(audit.counts.skippedGradient, 'no gradient backdrop left on the login').toBe(0);
+    expect(audit.failures, `${colorScheme} login text below AA`).toEqual([]);
+  });
+}

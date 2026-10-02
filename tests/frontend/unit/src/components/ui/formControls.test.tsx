@@ -10,7 +10,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { render, renderWithoutProviders, screen, userEvent, within } from '@test/render';
+import { fireEvent, render, renderWithoutProviders, screen, userEvent, within } from '@test/render';
 
 /**
  * Audit 2026-09-30 §4.8 / roadmap 1.5 (DS-02, DS-04, DS-10, GAP-D-26):
@@ -252,6 +252,28 @@ describe('NativeSelect', () => {
             </NativeSelect>,
         );
         expect(screen.getByRole('combobox', { name: 'Status' }).className).toContain('h-8');
+    });
+
+    it('renders only the transparent native select in overlay mode (register Add-filter chip)', () => {
+        const onChange = vi.fn();
+        const { container } = renderWithoutProviders(
+            <label className="relative">
+                Add filter
+                <NativeSelect overlay aria-label="Add filter" value="" onChange={onChange} data-testid="add-filter">
+                    <option value="">Add filter</option>
+                    <option value="owner">Owner</option>
+                </NativeSelect>
+            </label>,
+        );
+        const select = screen.getByTestId('add-filter');
+        expect(select.tagName).toBe('SELECT');
+        expect(select).toHaveClass('absolute', 'inset-0', 'opacity-0', 'cursor-pointer');
+        expect(select.className).not.toContain('h-10');
+        // No recipe wrapper and no chevron: the positioned parent draws the visible control.
+        expect(select.parentElement?.tagName).toBe('LABEL');
+        expect(container.querySelector('svg')).toBeNull();
+        fireEvent.change(select, { target: { value: 'owner' } });
+        expect(onChange).toHaveBeenCalledTimes(1);
     });
 });
 

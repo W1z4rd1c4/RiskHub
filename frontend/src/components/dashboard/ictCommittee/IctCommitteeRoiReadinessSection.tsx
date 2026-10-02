@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
+import { CardTitle } from '@/components/ui/card';
 import type { IctCommitteePresentation } from '@/pages/ictRegisterCommittee/buildIctCommitteePresentation';
 
 type RoiPresentation = IctCommitteePresentation['roiReadiness'];
@@ -30,6 +32,7 @@ function RoiTemplateReadiness({
                 <div className="flex-1 h-2 rounded-full bg-tint/5 overflow-hidden">
                     <motion.div
                         data-testid={`committee-roi-bar-${template.code}`}
+                        aria-hidden="true"
                         className={`h-full rounded-full ${template.readinessBarClass}`}
                         initial={false}
                         animate={{ width: `${template.readinessPct ?? 0}%` }}
@@ -43,16 +46,16 @@ function RoiTemplateReadiness({
             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5 font-medium">
                 <span>{template.rowCountLabel}</span>
                 {template.gapRowCount > 0 ? (
-                    <button
-                        type="button"
+                    <Button
+                        variant="link"
                         data-testid={`committee-roi-toggle-${template.code}`}
                         aria-expanded={expanded}
                         aria-controls={`committee-roi-gaps-${template.code}`}
                         onClick={onToggle}
-                        className="text-muted-foreground hover:text-accent-text font-bold underline decoration-tint/20 hover:decoration-accent"
+                        className="h-auto p-0 text-xs font-bold text-muted-foreground underline decoration-tint/20 hover:text-accent-text hover:decoration-accent"
                     >
                         {expanded ? template.hideGapsLabel : template.showGapsLabel} ({template.gapCountLabel})
-                    </button>
+                    </Button>
                 ) : (
                     <span>{template.noGapsLabel}</span>
                 )}
@@ -71,8 +74,7 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                     <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-bold text-muted-foreground">{template.code}</span>
                         <span
-                            title={template.coverageHint}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${template.coverageClass}`}
+                            className={`inline-flex h-5 items-center rounded-full px-2 text-2xs font-bold uppercase tracking-wide whitespace-nowrap ${template.coverageClass}`}
                         >
                             {template.coverageLabel}
                         </span>
@@ -81,6 +83,10 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                         {template.name}
                     </p>
                     <p className="text-muted-foreground text-xs mt-0.5">{template.feedAndGate}</p>
+                    {/* GAP-B-19: the coverage explanation is visible help text, not a `title` tooltip. */}
+                    <p className="text-muted-foreground text-xs mt-0.5" data-testid={`committee-roi-coverage-hint-${template.code}`}>
+                        {template.coverageHint}
+                    </p>
                 </div>
                 <div className="flex-1">
                     <RoiTemplateReadiness
@@ -119,9 +125,10 @@ function RoiTemplateRow({ template }: { template: RoiTemplatePresentation }) {
                                     <span
                                         key={missing.key}
                                         title={missing.title}
-                                        className="px-2 py-0.5 rounded-lg bg-tint/5 text-foreground text-xs font-semibold font-mono whitespace-nowrap"
+                                        className="inline-flex h-6 items-center rounded-lg bg-tint/5 px-2 text-xs font-semibold font-mono whitespace-nowrap text-foreground"
                                     >
                                         {missing.label}
+                                        {missing.title !== missing.label ? <span className="sr-only"> ({missing.title})</span> : null}
                                     </span>
                                 ))}
                             </div>
@@ -137,7 +144,7 @@ export function IctCommitteeRoiReadinessSection({ presentation }: { presentation
     return (
         <section className="space-y-4" data-testid="committee-roi">
             <div>
-                <h2 className="text-xl font-bold text-foreground">{presentation.title}</h2>
+                <CardTitle as="h2">{presentation.title}</CardTitle>
                 <p className="text-muted-foreground text-sm font-medium mt-1">{presentation.subtitle}</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -8,6 +8,11 @@ UI components for `tables` area.
 
 - `__tests__/`
 - `index.ts`
+- `CollectionGroupDrillDown.tsx` — grouped register view: group cards are
+  whole-card actions (`Card as="button"`, `data-testid="register-group-card"`);
+  the selected group shows a destination-named `BackButton`
+  (`common:tables.back_to_groups`), a pluralised count `Badge`, the table and
+  the shared `Pagination`.
 - `Pagination.tsx` — the one pager (D14): named `<nav>`, `Button`-based
   controls, `aria-current="page"`; `mode` `pages` (default, page buttons),
   `compact` (previous/next + summary) or `cursor` (`hasPrevious`/`hasNext` for

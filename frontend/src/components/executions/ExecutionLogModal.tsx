@@ -9,6 +9,7 @@ import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/component
 import { Field } from '@/components/ui/field';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 
 interface ExecutionLogModalProps {
@@ -89,34 +90,29 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                         </InlineMessage>
                     )}
 
-                    {/* Result Selection */}
+                    {/* Result selection: one choice from four, so a radiogroup (GAP-D-13 pattern). */}
                     <Field label={t('executions.execution_result')} group>
                         {(field) => (
-                            <div className="grid grid-cols-2 gap-3" role="group" aria-labelledby={field['aria-labelledby']}>
-                                {RESULTS.map((res) => {
+                            <RadioGroup
+                                {...field}
+                                variant="card"
+                                value={formData.result}
+                                onValueChange={(result) => setFormData({ ...formData, result })}
+                                className="grid grid-cols-2 gap-3 space-y-0"
+                                options={RESULTS.map((res) => {
                                     const meta = getExecutionResultMeta(res);
                                     const ResultIcon = meta.icon;
-                                    const isSelected = formData.result === res;
-                                    return (
-                                        <button
-                                            key={res}
-                                            type="button"
-                                            aria-pressed={isSelected}
-                                            onClick={() => setFormData({ ...formData, result: res })}
-                                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                                                isSelected
-                                                    ? meta.badgeClassName
-                                                    : 'bg-tint/5 border-border hover:bg-tint/10 text-muted-foreground'
-                                            }`}
-                                        >
-                                            <ResultIcon aria-hidden="true" className={`h-5 w-5 ${isSelected ? meta.iconClassName : 'text-muted-foreground'}`} />
-                                            <span className={`text-sm font-bold ${isSelected ? 'text-foreground' : ''}`}>
-                                                {t(meta.labelKey)}
+                                    return {
+                                        value: res,
+                                        label: (
+                                            <span className="flex items-center gap-3">
+                                                <ResultIcon aria-hidden="true" className={`h-5 w-5 ${meta.iconClassName}`} />
+                                                <span className="text-sm font-bold">{t(meta.labelKey)}</span>
                                             </span>
-                                        </button>
-                                    );
+                                        ),
+                                    };
                                 })}
-                            </div>
+                            />
                         )}
                     </Field>
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
 import { useDashboardFilterMutators, useDashboardFilterSelector } from '../../contexts/DashboardFilterContext';
 import type { DepartmentMetrics } from '../../types/dashboard';
+import { EmptyState } from '@/components/ui/state';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useTranslation } from '@/i18n/hooks';
 import { DepartmentMetricRow } from './departmentTablePresentation';
@@ -77,8 +78,8 @@ export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentT
                     })}
                     {metrics.length === 0 && (
                         <TR>
-                            <TD colSpan={6} align="center" className="py-12">
-                                <span className="font-medium text-muted-foreground">{t('department_table.empty')}</span>
+                            <TD colSpan={6}>
+                                <EmptyState layout="section" title={t('department_table.empty')} className="py-8" />
                             </TD>
                         </TR>
                     )}

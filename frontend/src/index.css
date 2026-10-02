@@ -202,104 +202,6 @@
     border-color: hsl(var(--glass-hover-border));
   }
 
-  .docs-reader-surface {
-    @apply rounded-2xl border;
-    background-color: rgba(15, 23, 42, 0.7);
-    border-color: rgba(148, 163, 184, 0.3);
-    box-shadow: 0 18px 42px rgba(2, 6, 23, 0.3);
-  }
-
-  .docs-reader-meta {
-    @apply flex flex-wrap items-center gap-2;
-  }
-
-  .docs-reader-meta-chip {
-    @apply inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold tracking-wider uppercase;
-    background-color: rgba(15, 23, 42, 0.35);
-    border-color: rgba(148, 163, 184, 0.3);
-    color: #e2e8f0;
-  }
-
-  .docs-reader-meta-source {
-    @apply text-xs;
-    color: rgba(203, 213, 225, 0.9);
-  }
-
-  .docs-reader-prose {
-    @apply prose prose-slate max-w-none;
-    color: #e2e8f0;
-    font-size: 1rem;
-    line-height: 1.8;
-  }
-
-  .docs-reader-prose :where(h1, h2, h3, h4, h5, h6) {
-    color: #f8fafc;
-  }
-
-  .docs-reader-prose :where(p, li, td, th, blockquote) {
-    color: #dbe3f3;
-  }
-
-  .docs-reader-prose :where(strong) {
-    color: #f8fafc;
-    font-weight: 700;
-  }
-
-  .docs-reader-prose :where(li)::marker {
-    color: rgba(203, 213, 225, 0.95);
-  }
-
-  .docs-reader-prose :where(a) {
-    color: #38bdf8;
-    text-decoration-thickness: 1.5px;
-  }
-
-  .docs-reader-prose :where(pre) {
-    background-color: rgba(15, 23, 42, 0.88);
-    border-color: rgba(148, 163, 184, 0.24);
-    color: #e2e8f0;
-  }
-
-  .docs-reader-prose :where(code) {
-    color: #e2e8f0;
-  }
-
-  .docs-reader-prose :where(th) {
-    background-color: rgba(30, 41, 59, 0.6);
-  }
-
-  .docs-reader-prose :where(table, td, th) {
-    border-color: rgba(148, 163, 184, 0.24);
-  }
-
-  .docs-heading-anchor {
-    @apply ml-2 inline-flex items-center no-underline transition-opacity duration-150;
-    color: rgba(148, 163, 184, 0.85);
-    opacity: 0;
-  }
-
-  .docs-reader-prose :where(h1, h2, h3, h4, h5, h6):hover .docs-heading-anchor,
-  .docs-reader-prose :where(h1, h2, h3, h4, h5, h6):focus-within .docs-heading-anchor,
-  .docs-heading-anchor:focus-visible {
-    opacity: 1;
-  }
-
-  .docs-heading-anchor:hover {
-    color: #38bdf8;
-  }
-
-  .mesh-gradient {
-    background-color: hsla(222, 47%, 11%, 1);
-    background-image:
-      radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.15) 0px, transparent 50%);
-  }
-
-  .btn-primary {
-    @apply px-8 py-3 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-200 transition-colors duration-300 flex items-center gap-2;
-  }
-
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -426,32 +328,12 @@
   color: #f1f1f1 !important;
 }
 
-/* True Dark - Mesh gradient (very subtle) */
-.theme-dark .mesh-gradient {
-  background-color: #000000 !important;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
-}
-
 /* True Dark - Sidebar */
 .theme-dark aside,
 .theme-dark nav {
   background-color: rgba(0, 0, 0, 0.95) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
-
-.theme-dark .docs-reader-surface {
-  background-color: rgba(12, 18, 30, 0.86) !important;
-  border-color: rgba(148, 163, 184, 0.25) !important;
-}
-
-.theme-dark .docs-reader-meta-chip {
-  background-color: rgba(15, 23, 42, 0.55) !important;
-  border-color: rgba(148, 163, 184, 0.3) !important;
-}
-
 
 /* =================================
    LIGHT THEME
@@ -557,83 +439,11 @@
   color: #be123c !important;
 }
 
-/* Light theme - Mesh gradient background */
-.theme-light .mesh-gradient {
-  background-color: #f8fafc !important;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
-}
-
 /* Light theme - Form inputs are themed by the token-driven Input primitive
-   (bg-input/40, text-foreground) and by the vendor route (.vendor-route
-   inputs); select triggers are themed by tokens in ThemedSelect / select.tsx.
-   The former blanket `.theme-light input {…!important}` rule was removed
-   (FR-P5-10 / P4): being `!important` it overrode both the design-system Input
-   and the vendor-route field theming in the light theme. */
-
-.theme-light .docs-reader-surface {
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(15, 23, 42, 0.12) !important;
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
-}
-
-.theme-light .docs-reader-meta-chip {
-  background-color: rgba(241, 245, 249, 0.95) !important;
-  border-color: rgba(148, 163, 184, 0.4) !important;
-  color: #334155 !important;
-}
-
-.theme-light .docs-reader-meta-source {
-  color: #475569 !important;
-}
-
-.theme-light .docs-reader-prose {
-  color: #334155 !important;
-}
-
-.theme-light .docs-reader-prose :where(h1, h2, h3, h4, h5, h6) {
-  color: #0f172a !important;
-}
-
-.theme-light .docs-reader-prose :where(p, li, td, th, blockquote) {
-  color: #334155 !important;
-}
-
-.theme-light .docs-reader-prose :where(strong) {
-  color: #0f172a !important;
-}
-
-.theme-light .docs-reader-prose :where(li)::marker {
-  color: #64748b !important;
-}
-
-.theme-light .docs-reader-prose :where(pre) {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-.theme-light .docs-reader-prose :where(code) {
-  color: #1e293b !important;
-}
-
-.theme-light .docs-reader-prose :where(th) {
-  background-color: rgba(241, 245, 249, 0.95) !important;
-}
-
-.theme-light .docs-reader-prose :where(table, td, th) {
-  border-color: #e2e8f0 !important;
-}
-
-.theme-light .docs-heading-anchor {
-  color: #64748b !important;
-}
-
-.theme-light .docs-heading-anchor:hover {
-  color: #0ea5e9 !important;
-}
+   (bg-input/40, text-foreground); select triggers are themed by tokens in
+   ThemedSelect / select.tsx. The former blanket `.theme-light input {…!important}`
+   rule was removed (FR-P5-10 / P4): being `!important` it overrode the
+   design-system Input in the light theme. */
 
 /* Light theme - Sidebar & Navigation */
 .theme-light aside,

@@ -418,6 +418,7 @@
     "all_processes": "All Processes",
     "all_categories": "All Categories",
     "all_actions": "All Actions",
+    "action": "Action",
     "select_person": "Select a person...",
     "select_department": "Select a department...",
     "select_risk": "Select a risk...",
@@ -505,7 +506,50 @@
     },
     "select_risk": "Select a risk to view activity.",
     "select_risk_hint": "Choose a risk in the filter above to load entries.",
-    "entity_tabs_label": "Activity by entity type"
+    "entity_tabs_label": "Activity by entity type",
+    "view_modes_label": "Activity view",
+    "empty_value": "(empty)",
+    "entity_types": {
+      "risk": "Risk",
+      "control": "Control",
+      "kri": "KRI",
+      "risk_questionnaire": "Risk Questionnaire",
+      "vendor": "Vendor",
+      "vendor_assessment": "Vendor Assessment",
+      "vendor_incident": "Vendor Incident",
+      "vendor_sla": "Vendor SLA",
+      "vendor_remediation": "Vendor Remediation",
+      "issue": "Issue",
+      "issue_remediation": "Issue Remediation",
+      "issue_exception": "Issue Exception",
+      "user": "User",
+      "department": "Department",
+      "approval": "Approval",
+      "control_execution": "Control Execution",
+      "kri_value": "KRI Value",
+      "control_risk_link": "Control-Risk Link",
+      "role": "Role",
+      "config": "Configuration",
+      "process": "Process",
+      "asset": "Asset",
+      "threat": "Threat"
+    },
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "category": "Category",
+      "owner_id": "Owner",
+      "department_id": "Department",
+      "risk_type": "Risk type",
+      "risk_id_code": "Risk ID",
+      "frequency": "Frequency",
+      "control_form": "Control form",
+      "is_priority": "Priority",
+      "is_archived": "Archived",
+      "role": "Role",
+      "email": "Email"
+    }
   },
   "department_detail": {
     "back_to_departments": "Back to Departments",
@@ -560,7 +604,10 @@
     "no_matches_title": "No matching documents",
     "no_matches_subtitle": "Try another tag filter.",
     "view_manual": "View manual",
-    "maintainer_reference": "Maintainer reference:"
+    "maintainer_reference": "Maintainer reference:",
+    "anchor_link": "Anchor link for {{heading}}",
+    "anchor_link_untitled": "Anchor link for section",
+    "opens_in_new_tab": "opens in new tab"
   },
   "severity": {
     "low": "Low",
@@ -572,6 +619,10 @@
     "items": "Items",
     "active": "Active",
     "items_count": "{{count}} items",
+    "items_count_one": "{{count}} item",
+    "items_count_few": "{{count}} items",
+    "items_count_other": "{{count}} items",
+    "back_to_groups": "Back to groups",
     "high_risk": "High risk",
     "error": {
       "message": "We couldn't load this table. Please try again.",
@@ -753,5 +804,59 @@
   "error_boundary": {
     "title": "Something went wrong",
     "description": "The page could not be displayed."
+  },
+  "values": {
+    "closed_lists": {
+      "AnoNe": {
+        "yes": "Yes",
+        "no": "No"
+      },
+      "TypUjednani": {
+        "standalone": "Standalone arrangement",
+        "master": "Master (overarching) arrangement",
+        "subsequent": "Subsequent arrangement"
+      },
+      "SystemEvidence": {
+        "other": "Other"
+      },
+      "TypOsoby": {
+        "legal_person": "Legal person",
+        "individual_entrepreneur": "Individual acting in a business capacity"
+      },
+      "VyznamVazby": {
+        "critical_support": "Critical process support",
+        "significant_support": "Significant process support",
+        "supporting": "Supporting link",
+        "indirect_shared": "Indirect / shared link",
+        "bcm_dr": "BCM/DR link",
+        "not_assessed": "Not assessed"
+      },
+      "RoleDodavatele": {
+        "supplies": "Supplies",
+        "operates": "Operates",
+        "hosts": "Hosts",
+        "manages": "Manages",
+        "supports": "Supports",
+        "processes_data": "Processes data",
+        "backup_recovery": "Backup / recovery",
+        "security_service": "Security service",
+        "other": "Other"
+      },
+      "Reliance": {
+        "not_significant": "Not significant",
+        "low": "Low reliance",
+        "material": "Material reliance",
+        "full": "Full reliance"
+      },
+      "TypZavislostiAktiv": {
+        "runtime": "Runtime",
+        "data": "Data",
+        "network_infrastructure": "Network / infrastructure",
+        "security": "Security",
+        "backup_recovery": "Backup / recovery",
+        "operational": "Operational",
+        "other": "Other"
+      }
+    }
   }
 }

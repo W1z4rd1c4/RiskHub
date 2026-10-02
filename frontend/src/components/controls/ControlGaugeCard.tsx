@@ -1,9 +1,11 @@
 import type * as React from 'react';
 import { motion } from 'framer-motion';
 import type { RiskControlLink } from '@/types/risk';
+import { Badge } from '@/components/ui/badge';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import { useTranslation } from '@/i18n/hooks';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
+import { cn } from '@/lib/utils';
 import { formatControlFrequency } from '@/pages/controls/controlsPagePresentation';
 
 interface ControlGaugeCardProps {
@@ -55,10 +57,9 @@ export function ControlGaugeCard({ link, onClick, statusBadge }: ControlGaugeCar
                         {statusBadge}
                     </span>
                 </div>
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold text-xs uppercase tracking-wide shrink-0 ${monitoring.badgeClassName}`}>
-                    <MonitoringIcon className="h-4 w-4" aria-hidden="true" />
+                <Badge icon={MonitoringIcon} className={cn('shrink-0 uppercase tracking-wide', monitoring.badgeClassName)}>
                     {t(monitoring.labelKey)}
-                </div>
+                </Badge>
             </div>
 
             <div className="space-y-4 mt-auto">

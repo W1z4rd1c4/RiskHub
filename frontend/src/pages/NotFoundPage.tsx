@@ -2,6 +2,7 @@ import { ArrowLeft, LayoutDashboard, SearchX } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { PAGE_TITLE_CLASS } from '@/components/layout/PageHeader';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -20,21 +21,14 @@ export function NotFoundPage() {
                 <p className="max-w-md text-muted-foreground">{t('not_found_page.description')}</p>
             </div>
             <div className="flex flex-wrap justify-center gap-3">
-                <Link
-                    to="/"
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 font-bold text-accent-foreground"
-                >
-                    <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                <Link to="/" className={buttonVariants({ variant: 'accent' })}>
+                    <LayoutDashboard aria-hidden="true" />
                     {t('not_found_page.dashboard')}
                 </Link>
-                <button
-                    type="button"
-                    onClick={() => navigate(-1)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2 font-bold text-foreground"
-                >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <Button variant="secondary" onClick={() => { void navigate(-1); }}>
+                    <ArrowLeft aria-hidden="true" />
                     {t('not_found_page.back')}
-                </button>
+                </Button>
             </div>
         </div>
     );

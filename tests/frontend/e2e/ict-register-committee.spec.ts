@@ -231,7 +231,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
             },
             {
                 source: `committee-migration-link-${BAND_CRITICAL}-${BAND_CRITICAL}`,
-                href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=Kritick%C3%A9',
+                href: '/risks?committee_scope=true&ict_linked=true&gross_band=critical&net_band=critical',
                 summary: /Gross band: (Critical|Kritické)/,
             },
         ] as const;

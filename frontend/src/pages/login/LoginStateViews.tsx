@@ -1,6 +1,11 @@
-import { Loader2 } from 'lucide-react';
+import { AuthFrame } from '@/components/layout/AuthFrame';
+import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Spinner } from '@/components/ui/state';
 
 interface LoadingLoginViewProps {
+    /** The page `h1` while the auth configuration loads ("Sign in"). */
+    title: string;
     message: string;
 }
 
@@ -21,17 +26,18 @@ interface LoginNotConfiguredViewProps {
     description: string;
 }
 
-export function LoadingLoginView({ message }: LoadingLoginViewProps) {
+/** Auth configuration still loading: the frame's polite status line carries the message. */
+export function LoadingLoginView({ title, message }: LoadingLoginViewProps) {
     return (
-        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {message}
+        <AuthFrame title={title} busy status={message}>
+            <div className="flex justify-center py-2">
+                <Spinner size="lg" />
             </div>
-        </main>
+        </AuthFrame>
     );
 }
 
+/** The auth configuration could not be loaded: announced error, retry, optional SSO sign-out recovery. */
 export function AuthConfigErrorView({
     title,
     message,
@@ -44,44 +50,32 @@ export function AuthConfigErrorView({
     onRecoveryAction,
 }: AuthConfigErrorViewProps) {
     return (
-        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
-            <div className="w-full max-w-md text-center space-y-4">
-                <h1 className="text-xl font-bold mb-2">{title}</h1>
-                <p className="text-sm text-slate-300">{message}</p>
-                <p className="text-sm text-slate-500">{retryHint}</p>
-                <button
-                    type="button"
-                    onClick={onRetry}
-                    className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08]"
-                >
-                    {retryLabel}
-                </button>
-                {recoveryMessage && onRecoveryAction ? (
-                    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-left text-sm leading-6 text-amber-100">
-                        <p>{recoveryMessage}</p>
-                        <button
-                            type="button"
-                            onClick={onRecoveryAction}
-                            disabled={recoveryActionPending}
-                            className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition-colors hover:bg-amber-100/20 disabled:opacity-60"
-                        >
-                            {recoveryActionPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        <AuthFrame title={title} error={message}>
+            <p className="text-sm text-muted-foreground">{retryHint}</p>
+            <Button variant="accent" className="w-full" onClick={onRetry}>
+                {retryLabel}
+            </Button>
+            {recoveryMessage && onRecoveryAction ? (
+                <InlineMessage
+                    tone="warning"
+                    action={(
+                        <Button variant="outline" size="compact" onClick={onRecoveryAction} isLoading={recoveryActionPending}>
                             {recoveryActionLabel}
-                        </button>
-                    </div>
-                ) : null}
-            </div>
-        </main>
+                        </Button>
+                    )}
+                >
+                    {recoveryMessage}
+                </InlineMessage>
+            ) : null}
+        </AuthFrame>
     );
 }
 
+/** No sign-in method is enabled for this environment. */
 export function LoginNotConfiguredView({ title, description }: LoginNotConfiguredViewProps) {
     return (
-        <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
-            <div className="w-full max-w-md text-center">
-                <h1 className="text-xl font-bold mb-2">{title}</h1>
-                <p className="text-sm text-slate-300">{description}</p>
-            </div>
-        </main>
+        <AuthFrame title={title}>
+            <p className="text-sm text-muted-foreground">{description}</p>
+        </AuthFrame>
     );
 }

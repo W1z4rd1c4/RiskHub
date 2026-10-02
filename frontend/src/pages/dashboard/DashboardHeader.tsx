@@ -1,6 +1,7 @@
 import { FileText } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
 import { formatDateTimeValue } from '@/i18n/formatters';
 
 interface DashboardHeaderProps {
@@ -56,25 +57,18 @@ export function DashboardHeader({
             actions={hasActions ? (
                 <>
                     {canExport ? (
-                        <button
-                            onClick={onExport}
-                            disabled={isExporting}
-                            aria-busy={isExporting}
-                            type="button"
-                            className="inline-flex items-center gap-2 p-2.5 glass rounded-xl text-foreground hover:text-accent-text hover:bg-accent/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            title={exportLabel}
-                        >
-                            <FileText aria-hidden="true" className="h-5 w-5 shrink-0" />
-                            <span className="text-sm font-medium">{exportLabel}</span>
-                        </button>
+                        <Button variant="outline" onClick={onExport} isLoading={isExporting} data-testid="dashboard-overview-export">
+                            {!isExporting ? <FileText aria-hidden="true" /> : null}
+                            {exportLabel}
+                        </Button>
                     ) : null}
                     {showFreshness && (generatedAt || isUpdating) ? (
                         <div
                             aria-live="polite"
-                            className="flex items-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-widest bg-tint/5 px-3 py-1.5 rounded-full border border-border"
+                            className="text-eyebrow flex items-center gap-2 rounded-full border border-border bg-tint/5 px-3 py-1.5"
                             role="status"
                         >
-                            <div aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                            <span aria-hidden="true" className={`size-1.5 rounded-full ${dotClass}`} />
                             <span>{freshnessLabel}</span>
                             {!isUpdating && generatedAt ? <time dateTime={generatedAt}>{generatedAtLabel}</time> : null}
                         </div>

@@ -57,7 +57,7 @@ export function MetricGaugeSvg({
             })}
             {markers.map((marker, index) => (
                 <g key={`${marker.positionPct}-${index}`} className="fill-current">
-                    <title>{marker.title}</title>
+                    {marker.title ? <title>{marker.title}</title> : null}
                     <line
                         x1={clampPercent(marker.positionPct)}
                         x2={clampPercent(marker.positionPct)}

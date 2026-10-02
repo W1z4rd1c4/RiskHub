@@ -169,7 +169,8 @@ describe('DocumentationPage', () => {
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
 
-        const externalLink = await screen.findByRole('link', { name: 'External policy' });
+        // GAP-D-23: new-tab links announce it through an sr-only suffix.
+        const externalLink = await screen.findByRole('link', { name: /^External policy\s?\(opens in new tab\)$/ });
         expect(externalLink).toHaveAttribute('target', '_blank');
         expect(externalLink).toHaveAttribute('rel', expect.stringContaining('noopener'));
         expect(externalLink).toHaveAttribute('rel', expect.stringContaining('noreferrer'));

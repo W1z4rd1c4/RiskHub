@@ -141,7 +141,8 @@ describe('VendorOverviewTab linked-register capabilities', () => {
         renderOverview(vendorWithLinkedVisibility({ controls: true, kris: true, risks: true }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('links.errors.load_failed');
-        const connections = screen.getByText('detail.connections').closest('.glass-card');
+        // D13: the Connections block is a shared DetailSection card (section + h2).
+        const connections = screen.getByRole('heading', { level: 2, name: 'detail.connections' }).closest('section');
         expect(connections).not.toBeNull();
         const riskSummary = within(connections as HTMLElement).getByText('tabs.linked_risks').parentElement;
         const controlSummary = within(connections as HTMLElement).getByText('tabs.linked_controls').parentElement;

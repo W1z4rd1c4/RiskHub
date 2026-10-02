@@ -32,6 +32,11 @@ busy spinner/skeleton placeholder, skeleton label), `EmptyState`
 `messageKey`, retry, banner, actions), `AccessDeniedState` (heading level,
 `descriptionKey` + `ns`, the `ReadAccessDeniedState` alias) and an axe pass.
 
+Charts (§4.15, GAP-D-11): `ChartFrame.test.tsx` covers the figure named by
+its summary, the visually hidden data table, the token text legend (swatch
+fills, no colour-only series), legend toggles with `aria-pressed`, the empty
+state, the forwarded ref and an axe pass.
+
 Feedback (roadmap 1.12, §4.16): `feedbackToast.test.tsx` covers
 `FeedbackProvider` / `useFeedback` — the named viewport, popover surface and
 tone icons, polite vs assertive announcements, `errorKeys` translation,

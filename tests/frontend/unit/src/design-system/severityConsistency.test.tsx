@@ -11,7 +11,7 @@ import * as criticalityPillModule from '@/components/ict-register/CriticalityCla
 import { CriticalityClassPill, VendorTierPill } from '@/components/ict-register/CriticalityClassPill';
 import * as issueBadgesModule from '@/components/issues/IssueBadges';
 import { IssueSeverityBadge } from '@/components/issues/IssueBadges';
-import { scoreColor as vendorScoreColor } from '@/components/vendor-form/vendorForm.mappers';
+import { SeverityBadge } from '@/components/ui/badge';
 import * as useChartThemeModule from '@/hooks/useChartTheme';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
@@ -253,8 +253,10 @@ describe('severity consistency — every adapter uses the single source (roadmap
                 className: getControlRiskLevelColor(level),
                 tone: SEVERITY_BAND_TONE[ordinalSeverityBand(level)],
             })),
-            'vendorForm.scoreColor': ORDINAL_RATINGS.map((score) => ({
-                className: vendorScoreColor(score),
+            // D13: the vendor form, register and header render the 1-5 vendor
+            // risk score as a `SeverityBadge` on its ordinal band.
+            'vendor risk score SeverityBadge': ORDINAL_RATINGS.map((score) => ({
+                className: renderedClass(<SeverityBadge band={ordinalSeverityBand(score)} label={`${score} / 5`} />),
                 tone: SEVERITY_BAND_TONE[ordinalSeverityBand(score)],
             })),
             'useChartTheme.severity': SEVERITY_BANDS.map((band) => ({

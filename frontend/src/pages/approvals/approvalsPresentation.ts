@@ -1,37 +1,36 @@
-import type { SafeTFunction } from '@/i18n/hooks';
-import { getQuestionnaireStatusMeta, isQuestionnaireOverdue } from '@/lib/questionnaireStatus';
+import type { Tone } from '@/lib/tones';
 import type { ApprovalActionType, ApprovalStatus } from '@/types/approval';
-import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
-export function getApprovalStatusBadge(status: ApprovalStatus): string {
+/** Status pill tone (D1/§4.4: meaning only; `Badge` maps the tone to token classes). */
+export function getApprovalStatusTone(status: ApprovalStatus): Tone {
     switch (status) {
         case 'pending':
-            return 'text-warning-text border-warning/20 bg-warning/10';
+            return 'warning';
         case 'pending_privileged':
-            return 'text-accent-text border-accent/20 bg-accent/10';
+            return 'accent';
         case 'approved':
-            return 'text-success-text border-success/20 bg-success/10';
+            return 'success';
         case 'rejected':
-            return 'text-destructive border-destructive/20 bg-destructive/10';
+            return 'danger';
         case 'expired':
-            return 'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5';
         case 'cancelled':
         default:
-            return 'text-muted-foreground border-muted-foreground/20 bg-muted-foreground/5';
+            return 'neutral';
     }
 }
 
-export function getApprovalActionBadge(action: ApprovalActionType): string {
+/** Request-type pill tone. */
+export function getApprovalActionTone(action: ApprovalActionType): Tone {
     switch (action) {
         case 'delete':
         case 'archive':
-            return 'text-destructive bg-destructive/10 border-destructive/20';
+            return 'danger';
         case 'create':
-            return 'text-success-text bg-success/10 border-success/20';
+            return 'success';
         case 'edit':
-            return 'text-accent-text bg-info/10 border-info/20';
+            return 'info';
         default:
-            return 'text-muted-foreground bg-muted-foreground/10 border-muted-foreground/20';
+            return 'neutral';
     }
 }
 
@@ -77,20 +76,4 @@ export function getGovernedActionLabel(
     if (actionType === 'create') return 'create';
     if (actionType === 'archive' || actionType === 'delete') return 'archive';
     return 'update';
-}
-
-export { isQuestionnaireOverdue };
-
-/** Inbox status pill classes, from the single questionnaire status map (PG-20). */
-export function getQuestionnaireStatusBadge(questionnaire: RiskQuestionnaireListItem, now = Date.now()): string {
-    return getQuestionnaireStatusMeta(questionnaire, now).badgeClassName;
-}
-
-export function getQuestionnaireStatusLabel(
-    questionnaire: RiskQuestionnaireListItem,
-    t: SafeTFunction,
-    now = Date.now(),
-): string {
-    const { labelKey } = getQuestionnaireStatusMeta(questionnaire, now);
-    return labelKey ? t(labelKey) : questionnaire.status;
 }

@@ -8,27 +8,42 @@ import eslintConfig from '../../../../../frontend/eslint.config.js';
  * G-ESLINT (audit 2026-09-30 §4.1, §5.5): the design clean-path block bans the
  * G-RATCHET patterns (white text, raw palette, white/black alpha, sub-11px text,
  * font-black, `dark:`, arbitrary colours) and raw form/table elements on the
- * module paths that reached zero, while keeping the base raw-ID and ADR-008
- * selectors (flat-config rule arrays replace each other).
+ * module paths that reached zero (all of `src` since W9; the ui primitives keep
+ * the class bans only), while keeping the base raw-ID and ADR-008 selectors
+ * (flat-config rule arrays replace each other).
  */
 
 type FlatConfigBlock = { files?: string[]; ignores?: string[]; rules?: Record<string, unknown> };
 
+const blocks = eslintConfig as unknown as FlatConfigBlock[];
+
+/** The full-ban block: every `src` file except the class-ban-only paths. */
 function designBlock(): FlatConfigBlock {
-    const block = (eslintConfig as unknown as FlatConfigBlock[]).find(
-        (candidate) => candidate.files?.includes('src/pages/native/**/*.{ts,tsx}'),
+    const block = blocks.find(
+        (candidate) => candidate.files?.includes('src/**/*.{ts,tsx}')
+            && (candidate.ignores ?? []).includes('src/components/ui/**/*.{ts,tsx}'),
     );
     expect(block).toBeDefined();
     return block as FlatConfigBlock;
 }
 
-function lint(code: string): string[] {
+/** The class-ban-only block: the ui primitives, which own the raw elements. */
+function classOnlyBlock(): FlatConfigBlock {
+    const block = blocks.find(
+        (candidate) => candidate.files?.includes('src/components/ui/**/*.{ts,tsx}')
+            && candidate.rules?.['no-restricted-syntax'] !== undefined,
+    );
+    expect(block).toBeDefined();
+    return block as FlatConfigBlock;
+}
+
+function lint(code: string, block: FlatConfigBlock = designBlock()): string[] {
     const linter = new Linter({ configType: 'flat' });
     return linter.verify(code, [
         {
             files: ['**/*.jsx'],
             languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
-            rules: { 'no-restricted-syntax': designBlock().rules?.['no-restricted-syntax'] as Linter.RuleEntry },
+            rules: { 'no-restricted-syntax': block.rules?.['no-restricted-syntax'] as Linter.RuleEntry },
         },
     ], 'probe.jsx').map((message) => message.message);
 }
@@ -36,15 +51,20 @@ function lint(code: string): string[] {
 const jsx = (body: string) => `export const Probe = (props) => (<div>${body}</div>);`;
 
 describe('eslint.config.js — G-ESLINT design clean paths', () => {
-    it('covers pages/native and the W8 module paths, with the later-wave files excluded', () => {
+    it('covers all of src; only the ui primitives are class-ban-only (no pending exceptions)', () => {
         const block = designBlock();
-        expect(block.files).toEqual(expect.arrayContaining([
-            'src/components/riskhub/**/*.{ts,tsx}',
-            'src/pages/risks/**/*.{ts,tsx}',
-            'src/pages/admin-console/**/*.{ts,tsx}',
-            'src/pages/assets/**/*.{ts,tsx}',
-        ]));
-        expect(block.ignores).toContain('src/components/approvals/GovernedMutationDiff.tsx');
+        const classOnly = classOnlyBlock();
+        expect(block.files).toEqual(['src/**/*.{ts,tsx}']);
+        expect(block.ignores).toEqual(classOnly.files);
+        expect(classOnly.files).toEqual(['src/components/ui/**/*.{ts,tsx}']);
+    });
+
+    it('keeps the class bans, but not the element bans, on the class-ban-only paths', () => {
+        const classOnly = classOnlyBlock();
+        expect(lint(jsx('<span className="text-white font-black">x</span>'), classOnly).length).toBeGreaterThanOrEqual(2);
+        expect(lint(jsx('<button type="button">x</button>'), classOnly)).toEqual([]);
+        const messages = lint('export const label = `RISK-${1}`;', classOnly);
+        expect(messages.some((text) => /raw database IDs/.test(text))).toBe(true);
     });
 
     it.each([

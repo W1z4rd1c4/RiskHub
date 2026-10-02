@@ -66,6 +66,16 @@ export default function LoginPage() {
         prodLanguageActivationRef.current?.abort();
     }, []);
 
+    // Every login view sits on the public frame and its language switch (DS-24): the loading,
+    // error and demo views use the frame's own language choice, so the production copy follows
+    // the active language once a switch completes, whichever view it came from.
+    useEffect(() => {
+        if (typeof i18n.on !== 'function') return undefined;
+        const followActiveLanguage = (language: string) => setProdLanguage(normalizeSupportedLanguage(language));
+        i18n.on('languageChanged', followActiveLanguage);
+        return () => i18n.off('languageChanged', followActiveLanguage);
+    }, [i18n]);
+
     const {
         authConfig,
         authConfigError,
@@ -176,7 +186,7 @@ export default function LoginPage() {
     });
 
     if (isAuthConfigLoading) {
-        return <LoadingLoginView message={t('loading.generic', { ns: 'common' })} />;
+        return <LoadingLoginView title={t('login.title')} message={t('loading.generic', { ns: 'common' })} />;
     }
 
     if (authConfigError || !authConfig) {

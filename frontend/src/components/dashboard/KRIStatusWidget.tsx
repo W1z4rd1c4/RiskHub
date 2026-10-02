@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Clock, ArrowRight, CalendarClock, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Clock, ArrowRight, CalendarClock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardTitle } from '@/components/ui/card';
+import { translateCode } from '@/lib/humanizeCode';
 import { useDashboardFilterSelector } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import type { OverdueKRI, DueSoonKRI } from '@/types/kri';
@@ -14,10 +16,12 @@ import { TabList, TabPanel, type TabItem } from '@/components/ui/tabs';
 type TabType = 'upcoming' | 'overdue';
 
 const STATUS_TABS_ID_PREFIX = 'kri-status';
+// Register destinations of the footer link (route + query, not UI copy).
+const OVERDUE_KRIS_PATH = '/kris?monitoring_status=not_submitted';
+const DUE_SOON_KRIS_PATH = '/kris?timeliness_status=due_soon';
 
 export function KRIStatusWidget() {
-    const { t } = useTranslation('dashboard');
-    const navigate = useNavigate();
+    const { t } = useTranslation(['dashboard', 'kris']);
     const departmentId = useDashboardFilterSelector(state => state.filters.departmentId);
     const [activeTab, setActiveTab] = useState<TabType>('upcoming');
     const [overdueKRIs, setOverdueKRIs] = useState<OverdueKRI[]>([]);
@@ -116,24 +120,24 @@ export function KRIStatusWidget() {
             errorFallback={errorFallback}
             emptyFallback={emptyFallback}
         >
-            <div className="glass-card flex flex-col h-full !p-0 overflow-hidden">
+            <Card padding="none" className="flex h-full flex-col overflow-hidden">
                 {/* Header with tabs */}
                 <div className="p-3 border-b border-border bg-tint/[0.03]">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                            <CalendarClock className="h-4 w-4 text-accent" />
-                            <h3 className="text-xs font-black text-foreground uppercase tracking-widest">{t('kri.status_title')}</h3>
+                            <CalendarClock aria-hidden="true" className="h-4 w-4 text-accent-text" />
+                            <CardTitle className="text-base">{t('kri.status_title')}</CardTitle>
                         </div>
                         <div className="flex gap-1">
                             {dueSoonKRIs.length > 0 && (
-                                    <span className="px-2 py-0.5 bg-info/10 text-accent-text text-xs font-black rounded-full border border-info/20">
+                                <Badge tone="info">
                                     {t('kri.upcoming_count', { count: dueSoonKRIs.length })}
-                                </span>
+                                </Badge>
                             )}
                             {overdueKRIs.length > 0 && (
-                                    <span className="px-2 py-0.5 bg-warning/10 text-warning-text text-xs font-black rounded-full border border-warning/20">
+                                <Badge tone="warning">
                                     {t('kri.overdue_count', { count: overdueKRIs.length })}
-                                </span>
+                                </Badge>
                             )}
                         </div>
                     </div>
@@ -157,14 +161,10 @@ export function KRIStatusWidget() {
                     className="flex-1 overflow-auto divide-y divide-border"
                 >
                     {showUpcomingEmpty && (
-                        <div className="p-6 text-center">
-                            <p className="text-xs text-muted-foreground">{t('kri.no_due_next_7')}</p>
-                        </div>
+                        <EmptyState layout="inline" icon={CalendarClock} title={t('kri.no_due_next_7')} className="justify-center p-6" />
                     )}
                     {showOverdueEmpty && (
-                        <div className="p-6 text-center">
-                            <p className="text-xs text-success-text">{t('kri.no_overdue_short')}</p>
-                        </div>
+                        <EmptyState layout="inline" icon={CheckCircle2} title={t('kri.no_overdue_short')} className="justify-center p-6" />
                     )}
                     {currentItems.length > 5 ? (
                         <p className="p-3 text-xs font-semibold text-muted-foreground">
@@ -178,44 +178,41 @@ export function KRIStatusWidget() {
                             : (kri as DueSoonKRI).days_until_due;
 
                         return (
-                            <motion.div
+                            <Link
                                 key={kri.kri_id}
-                                className="p-4 cursor-pointer group flex items-center justify-between hover:bg-tint/5 transition-colors"
-                                onClick={() => navigate(`/kris/${kri.kri_id}`)}
+                                to={`/kris/${kri.kri_id}`}
+                                className="p-4 group flex items-center justify-between hover:bg-tint/5 transition-colors focus-ring"
                             >
                                 <div className="flex-1 min-w-0 mr-4">
-                                    <h4 className="text-xs font-bold text-foreground truncate mb-0.5 group-hover:text-accent-text transition-colors">
+                                    <p className="text-sm font-bold text-foreground truncate mb-0.5 group-hover:text-accent-text transition-colors">
                                         {kri.metric_name}
-                                    </h4>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-xs font-black uppercase tracking-tighter ${getUrgencyColor(days, isOverdue)}`}>
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-x-2">
+                                        <span className={`text-xs font-bold ${getUrgencyColor(days, isOverdue)}`}>
                                             {isOverdue
                                                 ? t('kri.days_overdue', { count: days })
                                                 : t('kri.days_until_due', { count: days })
                                             }
                                         </span>
                                         <span aria-hidden="true" className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                                        <span className="text-xs text-muted-foreground font-black uppercase tracking-tighter">
-                                            {kri.frequency}
+                                        <span className="text-xs text-muted-foreground">
+                                            {translateCode(t, 'kris:frequencies', kri.frequency)}
                                         </span>
                                     </div>
                                 </div>
-                                <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
-                            </motion.div>
+                                <ArrowRight aria-hidden="true" className="h-3 w-3 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
+                            </Link>
                         );
                     })}
                 </TabPanel>
 
-                <button
-                    type="button"
-                    onClick={() => navigate(activeTab === 'overdue'
-                        ? '/kris?monitoring_status=not_submitted'
-                        : '/kris?timeliness_status=due_soon')}
-                    className="w-full py-3 bg-tint/[0.03] hover:bg-tint/5 text-xs font-black text-muted-foreground uppercase tracking-widest border-t border-border transition-colors"
+                <Link
+                    to={activeTab === 'overdue' ? OVERDUE_KRIS_PATH : DUE_SOON_KRIS_PATH}
+                    className="text-eyebrow block w-full py-3 text-center bg-tint/[0.03] hover:bg-tint/5 hover:text-foreground border-t border-border transition-colors focus-ring"
                 >
                     {activeTab === 'overdue' ? t('kri.view_all_overdue') : t('kri.view_all')}
-                </button>
-            </div>
+                </Link>
+            </Card>
         </WidgetShell>
     );
 }

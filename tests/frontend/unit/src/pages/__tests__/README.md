@@ -14,6 +14,7 @@ Folder for `tests/frontend/unit/src/pages/__tests__` implementation assets.
 - `ControlsPage.archived-visibility.test.tsx`
 - `DepartmentDetailPage.kri-monitoring.test.tsx`
 - `DocumentationPage.test.tsx`
+- `HeroPage.test.tsx` (landing page on the public `AuthFrame`)
 - `IssueDetailPage.tabs.test.tsx`
 - `IssueNewPage.cancel.test.tsx`
 - `IssueNewPage.test.tsx`

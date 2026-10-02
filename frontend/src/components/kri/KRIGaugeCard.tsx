@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion';
 import type { KeyRiskIndicator, KRIMonitoringFields } from '@/types/kri';
+import { Badge } from '@/components/ui/badge';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { formatKriUnit } from '@/lib/kriUnits';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import { cn } from '@/lib/utils';
 
 export type KRIGaugeCardKri = Pick<
     KeyRiskIndicator,
@@ -72,17 +74,15 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                         {t('overview.metric_detail', { ns: 'kris' })}
                     </span>
                 </div>
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold text-xs uppercase tracking-wide ${monitoring.badgeClassName}`}>
-                    <MonitoringIcon className="h-4 w-4" aria-hidden="true" />
+                <Badge icon={MonitoringIcon} className={cn('shrink-0 uppercase tracking-wide', monitoring.badgeClassName)}>
                     {t(monitoring.labelKey)}
-                </div>
+                </Badge>
                 {showDaysOverdue && (
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning-text font-bold text-xs uppercase">
-                        <MonitoringIcon className="h-3 w-3" aria-hidden="true" />
+                    <Badge tone="warning" icon={MonitoringIcon} className="uppercase">
                         {resolvedDaysOverdue > 0
                             ? t('overdue.days_overdue', { ns: 'kris', count: resolvedDaysOverdue })
                             : t('monitoring.not_submitted', { ns: 'kris' })}
-                    </div>
+                    </Badge>
                 )}
             </div>
 

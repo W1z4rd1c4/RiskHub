@@ -1,9 +1,13 @@
 import type { ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { TabPanel } from '@/components/ui/tabs';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { getExecutionResultMeta } from '@/lib/executionResult';
+import type { ExecutionResult } from '@/types/execution';
 import type { TabView } from '@/hooks/useDepartmentDetail';
 import { ActivityLogPage } from '@/pages/ActivityLogPage';
 import { AssetsPage } from '@/pages/AssetsPage';
@@ -66,23 +70,30 @@ export function DepartmentTabContent({
                             )}
                             {recentExecutions && recentExecutions.length > 0 && (
                                 <ul className="divide-y divide-border">
-                                    {recentExecutions.map((entry) => (
-                                        <li key={entry.id}>
-                                            <button
-                                                type="button"
-                                                className="flex w-full items-center justify-between py-3 text-left text-sm text-foreground"
-                                                onClick={() => navigate(`/controls/${entry.control_id}`)}
-                                            >
-                                                <span>
-                                                    <strong>{entry.control_name}</strong>
-                                                    <span className="ml-2 text-xs text-muted-foreground">
-                                                        {t('labels.by')} {entry.executed_by} · {format.date(entry.executed_at)}
+                                    {recentExecutions.map((entry) => {
+                                        // The API types the result as a plain string; the known codes get the
+                                        // translated label and tone, anything else reads as "not available".
+                                        const resultMeta = getExecutionResultMeta(entry.result as ExecutionResult);
+                                        return (
+                                            <li key={entry.id}>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="h-auto w-full justify-between gap-4 whitespace-normal rounded-none px-0 py-3 text-left text-sm font-normal text-foreground hover:bg-tint/5"
+                                                    onClick={() => navigate(`/controls/${entry.control_id}`)}
+                                                >
+                                                    <span>
+                                                        <strong>{entry.control_name}</strong>
+                                                        <span className="ml-2 text-xs text-muted-foreground">
+                                                            {t('labels.by')} {entry.executed_by} · {format.date(entry.executed_at)}
+                                                        </span>
                                                     </span>
-                                                </span>
-                                                <span className="text-xs uppercase text-muted-foreground">{entry.result}</span>
-                                            </button>
-                                        </li>
-                                    ))}
+                                                    <Badge tone={resultMeta.tone} icon={resultMeta.icon}>
+                                                        {t(resultMeta.labelKey)}
+                                                    </Badge>
+                                                </Button>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             )}
                         </CardBody>

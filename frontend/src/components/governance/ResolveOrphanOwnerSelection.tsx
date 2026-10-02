@@ -1,6 +1,11 @@
-import { Check, Crown, Search, User } from 'lucide-react';
+import { useId } from 'react';
+import { Crown, Search, User } from 'lucide-react';
 
+import { UserAvatar } from '@/components/access/UserAvatar';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { EmptyState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 
 import type { OrphanUserOption } from './resolveOrphanHelpers';
@@ -28,13 +33,15 @@ export function ResolveOrphanOwnerSelection({
 }: ResolveOrphanOwnerSelectionProps) {
     const { t } = useTranslation('common');
     const { t: tAdmin } = useTranslation('admin');
+    const headingId = useId();
+    const isDepartmentFilterActive = selectedDeptFilter === orphanDepartmentName;
 
     return (
         <div className="space-y-4">
-            <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <User className="h-4 w-4 text-success-text" />
+            <h3 id={headingId} className="text-eyebrow flex items-center gap-2">
+                <User className="h-4 w-4 text-success-text" aria-hidden="true" />
                 {tAdmin('governance.resolve_modal.assign_new_owner')}
-            </h5>
+            </h3>
             <div className="space-y-4">
                 <div className="flex items-center gap-3">
                     <div className="flex-1">
@@ -49,40 +56,52 @@ export function ResolveOrphanOwnerSelection({
                         />
                     </div>
                     {orphanDepartmentName && (
-                        <button
+                        <Button
                             type="button"
-                            onClick={() => setSelectedDeptFilter(selectedDeptFilter === orphanDepartmentName ? null : orphanDepartmentName)}
-                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${selectedDeptFilter === orphanDepartmentName ? 'bg-success text-success-foreground border-success' : 'bg-success/10 text-success-text border-border hover:bg-success/20'}`}
+                            size="compact"
+                            variant={isDepartmentFilterActive ? 'success' : 'outline'}
+                            aria-pressed={isDepartmentFilterActive}
+                            onClick={() => setSelectedDeptFilter(isDepartmentFilterActive ? null : orphanDepartmentName)}
                         >
                             {orphanDepartmentName}
-                        </button>
+                        </Button>
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto custom-scrollbar">
-                    {sortedUsers.map((user) => (
-                        <button
-                            key={user.id}
-                            type="button"
-                            onClick={() => handleSelectUser(user)}
-                            className={`text-left p-3 rounded-xl border transition-all flex items-center gap-3 ${selectedUserId === user.id ? 'bg-success/10 border-success shadow-sm' : 'bg-tint/5 border-border hover:bg-tint/10'}`}
-                        >
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${selectedUserId === user.id ? 'bg-success text-success-foreground' : 'bg-tint/10 text-muted-foreground'}`}>
-                                {user.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <p className="text-sm font-bold text-foreground truncate">{user.name}</p>
-                                    {user.employee_type === 'head' && <Crown className="h-3 w-3 text-warning-text" />}
-                                </div>
-                                <p className="text-xs text-muted-foreground truncate">
-                                    {[user.email, user.department_name, user.role_name].filter(Boolean).join(' · ')}
-                                </p>
-                            </div>
-                            {selectedUserId === user.id && <Check className="h-4 w-4 text-success-text" />}
-                        </button>
-                    ))}
-                </div>
+                {sortedUsers.length === 0 ? (
+                    <EmptyState layout="inline" kind="no-results" title={t('empty.no_users_found')} />
+                ) : (
+                    // GAP-D-13: one radiogroup, so the chosen owner is exposed to assistive technology.
+                    <RadioGroup
+                        variant="card"
+                        aria-labelledby={headingId}
+                        value={selectedUserId === null ? '' : String(selectedUserId)}
+                        onValueChange={(value) => {
+                            const user = sortedUsers.find((candidate) => String(candidate.id) === value);
+                            if (user) handleSelectUser(user);
+                        }}
+                        className="custom-scrollbar grid max-h-[250px] grid-cols-1 gap-2 space-y-0 overflow-y-auto md:grid-cols-2"
+                        options={sortedUsers.map((user) => ({
+                            value: String(user.id),
+                            label: (
+                                <span className="flex items-center gap-3">
+                                    <UserAvatar name={user.name} className="h-8 w-8 text-xs" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="flex items-center gap-2">
+                                            <span className="truncate text-sm font-bold">{user.name}</span>
+                                            {user.employee_type === 'head' && (
+                                                <Crown className="h-3 w-3 shrink-0 text-warning-text" aria-hidden="true" />
+                                            )}
+                                        </span>{' '}
+                                        <span className="block truncate text-xs font-normal text-muted-foreground">
+                                            {[user.email, user.department_name, user.role_name].filter(Boolean).join(' · ')}
+                                        </span>
+                                    </span>
+                                </span>
+                            ),
+                        }))}
+                    />
+                )}
             </div>
         </div>
     );

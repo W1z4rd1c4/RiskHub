@@ -1,7 +1,10 @@
-import { Check, Target } from 'lucide-react';
+import { useId } from 'react';
+import { Target } from 'lucide-react';
 
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { EmptyState } from '@/components/ui/state';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import type { RiskSummary } from '@/types/risk';
 
@@ -28,18 +31,20 @@ export function ResolveOrphanRiskSelection({
 }: ResolveOrphanRiskSelectionProps) {
     const { t } = useTranslation('common');
     const { t: tAdmin } = useTranslation('admin');
+    const headingId = useId();
 
     return (
         <div className="space-y-4">
-            <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <Target className="h-4 w-4 text-accent" />
+            <h3 id={headingId} className="text-eyebrow flex items-center gap-2">
+                <Target className="h-4 w-4 text-accent-text" aria-hidden="true" />
                 {tAdmin('governance.resolve_modal.select_risk_to_link')}
-            </h5>
+            </h3>
             <div className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <ThemedSelect
                         value={selectedRiskDept}
                         onValueChange={setSelectedRiskDept}
+                        triggerAriaLabel={t('filters.all_departments')}
                         placeholder={t('filters.all_departments')}
                         allowEmpty
                         emptyLabel={t('filters.all_departments')}
@@ -56,24 +61,29 @@ export function ResolveOrphanRiskSelection({
                     </div>
                 </div>
 
-                <div className="max-h-[200px] overflow-y-auto rounded-xl border border-border divide-y divide-border custom-scrollbar">
-                    {filteredRisks.map((risk) => (
-                        <button
-                            key={risk.id}
-                            onClick={() => setSelectedRiskId(risk.id)}
-                            className={`w-full text-left p-3 flex items-center gap-3 transition-colors ${selectedRiskId === risk.id ? 'bg-accent/10' : 'hover:bg-tint/5'}`}
-                        >
-                            <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${selectedRiskId === risk.id ? 'bg-accent text-accent-foreground' : 'bg-tint/5 text-muted-foreground'}`}>
-                                <Target className="h-3.5 w-3.5" />
-                            </div>
-                            <div className="flex-1 min-w-0 flex flex-col">
-                                <p className="text-sm font-bold text-foreground leading-tight mb-1">{risk.name}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-1 italic">{risk.description}</p>
-                            </div>
-                            {selectedRiskId === risk.id && <Check className="h-4 w-4 text-accent" />}
-                        </button>
-                    ))}
-                </div>
+                {filteredRisks.length === 0 ? (
+                    <EmptyState layout="inline" kind="no-results" title={t('empty.no_risks_found')} />
+                ) : (
+                    // GAP-D-13: a radiogroup (single selection) in a scrollable list.
+                    <RadioGroup
+                        variant="card"
+                        aria-labelledby={headingId}
+                        value={selectedRiskId === null ? '' : String(selectedRiskId)}
+                        onValueChange={(value) => setSelectedRiskId(Number(value))}
+                        className="custom-scrollbar max-h-[200px] space-y-1 overflow-y-auto"
+                        options={filteredRisks.map((risk) => ({
+                            value: String(risk.id),
+                            label: (
+                                <>
+                                    <span className="block text-sm font-bold leading-tight">{risk.name}</span>{' '}
+                                    <span className="block line-clamp-1 text-xs font-normal italic text-muted-foreground">
+                                        {risk.description}
+                                    </span>
+                                </>
+                            ),
+                        }))}
+                    />
+                )}
             </div>
         </div>
     );

@@ -1,7 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Building2,
     Clock,
     Link as LinkIcon,
     ShieldCheck,
@@ -9,8 +8,9 @@ import {
     User,
 } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { useFormat, useTranslation } from '@/i18n/hooks';
-import { formatDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { vendorValueLabel } from '@/lib/vendorValues';
 import type { Vendor } from '@/types/vendor';
@@ -19,6 +19,8 @@ import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 import type { VendorLinkedRegionSummary } from '@/components/vendors/VendorLinkedEntitiesTab';
 
+import { DetailField, DetailFieldList } from '../detail/DetailField';
+import { DetailSection } from '../detail/DetailSection';
 import { VendorContractsSection } from './VendorContractsSection';
 import { VendorDerivedSection } from './VendorDerivedSection';
 import { VendorRegisterLinksSection } from './VendorRegisterLinksSection';
@@ -56,13 +58,6 @@ interface VendorOverviewTabProps {
     vendor: Vendor;
 }
 
-function formatDateTime(value?: string | null, locale?: string): string {
-    if (!value) {
-        return '—';
-    }
-    return formatDateValue(value, locale);
-}
-
 const container = {
     hidden: { opacity: 0 },
     show: {
@@ -75,6 +70,22 @@ const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
 };
+
+/** One headline figure of the overview summary (a nested panel inside the section card). */
+function SummaryTile({ label, value, hint, valueClassName = 'text-3xl' }: {
+    label: string;
+    value: ReactNode;
+    hint?: ReactNode;
+    valueClassName?: string;
+}) {
+    return (
+        <Card tone="nested" padding="compact" className="p-5">
+            <p className="text-eyebrow">{label}</p>
+            <div className={`mt-3 font-bold tabular-nums text-foreground ${valueClassName}`}>{value}</div>
+            {hint ? <p className="mt-2 text-xs text-muted-foreground">{hint}</p> : null}
+        </Card>
+    );
+}
 
 export function VendorOverviewTab({
     canCreateControl,
@@ -93,6 +104,7 @@ export function VendorOverviewTab({
 }: VendorOverviewTabProps) {
     const { t } = useTranslation(['vendors', 'common']);
     const format = useFormat();
+    const formatDate = (value?: string | null) => (value ? format.date(value) : '') || '—';
     const [summary, setSummary] = useState<VendorOverviewSummary>(() => (
         createVendorOverviewSummary(vendor.id)
     ));
@@ -161,41 +173,25 @@ export function VendorOverviewTab({
 
     return (
         <div className="space-y-8">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass-card"
-            >
-                <div className="flex items-center gap-3 border-b border-border pb-4 mb-6">
-                    <ShieldCheck className="h-5 w-5 text-accent" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.overview')}</h3>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl border border-border bg-nested p-5">
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                            {t('overview.summary.risk_score')}
-                        </p>
-                        <div className="mt-3 text-3xl font-black text-foreground">{vendor.risk_score_1_5}/5</div>
-                        <p className="mt-2 text-xs text-muted-foreground">{t('overview.summary.risk_score_hint')}</p>
-                    </div>
-                    <div className="rounded-2xl border border-border bg-nested p-5">
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                            {t('columns.status')}
-                        </p>
-                        <div className="mt-3 text-xl font-black text-foreground">
-                            {t(`status.${displayStatus}`, displayStatus)}
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">{t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}</p>
-                    </div>
-                    {canViewAnyLinkedExposure && linkedExposureCount !== null ? (
-                        <div className="rounded-2xl border border-border bg-nested p-5">
-                            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                                {t('overview.summary.linked_exposure')}
-                            </p>
-                            <div className="mt-3 text-3xl font-black text-foreground">{linkedExposureCount}</div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                                {t('overview.summary.linked_exposure_hint', {
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                <DetailSection title={t('detail.overview')} icon={ShieldCheck} testId="vendor-overview">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <SummaryTile
+                            label={t('overview.summary.risk_score')}
+                            value={`${vendor.risk_score_1_5}/5`}
+                            hint={t('overview.summary.risk_score_hint')}
+                        />
+                        <SummaryTile
+                            label={t('columns.status')}
+                            value={t(`status.${displayStatus}`, displayStatus)}
+                            valueClassName="text-xl"
+                            hint={t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}
+                        />
+                        {canViewAnyLinkedExposure && linkedExposureCount !== null ? (
+                            <SummaryTile
+                                label={t('overview.summary.linked_exposure')}
+                                value={linkedExposureCount}
+                                hint={t('overview.summary.linked_exposure_hint', {
                                     controls: canViewLinkedControls && currentSummary.linkedControls.status === 'success'
                                         ? currentSummary.linkedControls.activeCount
                                         : 0,
@@ -206,29 +202,22 @@ export function VendorOverviewTab({
                                         ? currentSummary.linkedRisks.activeCount
                                         : 0,
                                 })}
-                            </p>
-                        </div>
-                    ) : null}
-                    <div className="rounded-2xl border border-border bg-nested p-5">
-                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                            {t('overview.summary.flags')}
-                        </p>
-                        {vendorFlags.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                {vendorFlags.map((flag) => (
-                                    <span
-                                        key={flag}
-                                        className="px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-widest text-success-text bg-success/10 border border-success/20"
-                                    >
-                                        {flag}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="mt-3 text-sm text-muted-foreground">{t('overview.summary.no_flags')}</p>
-                        )}
+                            />
+                        ) : null}
+                        <Card tone="nested" padding="compact" className="p-5">
+                            <p className="text-eyebrow">{t('overview.summary.flags')}</p>
+                            {vendorFlags.length > 0 ? (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {vendorFlags.map((flag) => (
+                                        <Badge key={flag} tone="success">{flag}</Badge>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-3 text-sm text-muted-foreground">{t('overview.summary.no_flags')}</p>
+                            )}
+                        </Card>
                     </div>
-                </div>
+                </DetailSection>
             </motion.div>
 
             <motion.div
@@ -237,117 +226,77 @@ export function VendorOverviewTab({
                 animate="show"
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <Tag className="h-5 w-5 text-accent-text" />
-                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.classification')}</h3>
-                    </div>
-
-                    <div className="space-y-5">
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('columns.type')}</span>
-                            <span className="text-sm text-foreground font-medium">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.country')}</span>
-                            <span className="text-sm text-foreground font-medium">{vendorValueLabel(t, 'country', vendor.country)}</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.legal_name')}</span>
-                            <span className="text-sm text-foreground font-medium text-right">{vendor.legal_name || '—'}</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.registration_id')}</span>
-                            <span className="text-sm text-foreground font-medium">{vendor.registration_id || '—'}</span>
-                        </div>
-                    </div>
+                <motion.div variants={item} className="min-w-0">
+                    <DetailSection title={t('detail.classification')} icon={Tag} className="h-full">
+                        <DetailFieldList className="md:grid-cols-1">
+                            <DetailField label={t('columns.type')} value={t(`type.${vendor.vendor_type}`, vendor.vendor_type)} />
+                            <DetailField label={t('form.country')} value={vendorValueLabel(t, 'country', vendor.country)} />
+                            <DetailField label={t('form.legal_name')} value={vendor.legal_name} />
+                            <DetailField label={t('form.registration_id')} value={vendor.registration_id} />
+                        </DetailFieldList>
+                    </DetailSection>
                 </motion.div>
 
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <User className="h-5 w-5 text-accent" />
-                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.ownership')}</h3>
-                    </div>
-
-                    <div className="space-y-5">
-                        <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent-text text-xs font-bold">
-                                {ownerName[0] || 'U'}
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('columns.owner')}</p>
-                                <p className="text-sm font-bold text-foreground leading-snug">{ownerName}</p>
-                                <p className="text-xs text-muted-foreground">{vendorOwnerMetadata(vendor.outsourcing_owner, t)}</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-nested border border-border flex items-center justify-center text-muted-foreground">
-                                <Building2 className="h-4 w-4" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('columns.department')}</p>
-                                <p className="text-sm font-bold text-foreground leading-snug">{vendor.department_name || t('labels.unassigned')}</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.process')}</span>
-                            <span className="text-sm text-foreground font-medium text-right">
-                                {vendor.process}{vendor.subprocess ? ` / ${vendor.subprocess}` : ''}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('form.website')}</span>
-                            <span className="text-sm text-foreground font-medium text-right truncate">
-                                {vendor.website || '—'}
-                            </span>
-                        </div>
-                    </div>
+                <motion.div variants={item} className="min-w-0">
+                    <DetailSection title={t('detail.ownership')} icon={User} className="h-full">
+                        <DetailFieldList className="md:grid-cols-1">
+                            <DetailField
+                                label={t('columns.owner')}
+                                value={(
+                                    <>
+                                        <span className="block font-bold">{ownerName}</span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            {vendorOwnerMetadata(vendor.outsourcing_owner, t)}
+                                        </span>
+                                    </>
+                                )}
+                            />
+                            <DetailField
+                                label={t('columns.department')}
+                                value={vendor.department_name || t('labels.unassigned')}
+                            />
+                            <DetailField
+                                label={t('form.process')}
+                                value={`${vendor.process}${vendor.subprocess ? ` / ${vendor.subprocess}` : ''}`}
+                            />
+                            <DetailField label={t('form.website')} value={vendor.website} />
+                        </DetailFieldList>
+                    </DetailSection>
                 </motion.div>
 
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <LinkIcon className="h-5 w-5 text-accent-text" />
-                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('detail.connections')}</h3>
-                    </div>
-
-                    <div className="space-y-4">
-                        {canViewLinkedRisks ? (
-                            <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
-                                <span className="text-lg text-foreground font-black">
-                                    {renderLinkedCount(currentSummary.linkedRisks)}
-                                </span>
-                            </div>
-                        ) : null}
-                        {canViewLinkedControls ? (
-                            <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
-                                <span className="text-lg text-foreground font-black">
-                                    {renderLinkedCount(currentSummary.linkedControls)}
-                                </span>
-                            </div>
-                        ) : null}
-                        {canViewLinkedKris ? (
-                            <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
-                                <span className="text-lg text-foreground font-black">
-                                    {renderLinkedCount(currentSummary.linkedKRIs)}
-                                </span>
-                            </div>
-                        ) : null}
-                        {canViewAnyLinkedExposure && linkedExposureCount !== null ? (
-                            <div className="flex justify-between items-center gap-4">
-                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
-                                <span className="text-lg text-foreground font-black">{linkedExposureCount}</span>
-                            </div>
-                        ) : null}
-                        <div className="flex justify-between items-center gap-4">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('overview.summary.replaceability')}</span>
-                            <span className="text-sm text-foreground font-medium">
-                                {vendorValueLabel(t, 'replaceability', vendor.replaceability)}
-                            </span>
-                        </div>
-                    </div>
+                <motion.div variants={item} className="min-w-0">
+                    <DetailSection title={t('detail.connections')} icon={LinkIcon} className="h-full">
+                        <DetailFieldList className="md:grid-cols-1">
+                            {canViewLinkedRisks ? (
+                                <DetailField
+                                    label={t('tabs.linked_risks')}
+                                    value={renderLinkedCount(currentSummary.linkedRisks)}
+                                />
+                            ) : null}
+                            {canViewLinkedControls ? (
+                                <DetailField
+                                    label={t('tabs.linked_controls')}
+                                    value={renderLinkedCount(currentSummary.linkedControls)}
+                                />
+                            ) : null}
+                            {canViewLinkedKris ? (
+                                <DetailField
+                                    label={t('tabs.linked_kris')}
+                                    value={renderLinkedCount(currentSummary.linkedKRIs)}
+                                />
+                            ) : null}
+                            {canViewAnyLinkedExposure && linkedExposureCount !== null ? (
+                                <DetailField
+                                    label={t('overview.summary.linked_exposure')}
+                                    value={linkedExposureCount}
+                                />
+                            ) : null}
+                            <DetailField
+                                label={t('overview.summary.replaceability')}
+                                value={vendorValueLabel(t, 'replaceability', vendor.replaceability)}
+                            />
+                        </DetailFieldList>
+                    </DetailSection>
                 </motion.div>
             </motion.div>
 
@@ -429,14 +378,14 @@ export function VendorOverviewTab({
                 />
             </div>
 
-            <div className="flex items-center justify-end gap-6 text-xs text-muted-foreground font-medium">
+            <div className="flex items-center justify-end gap-6 text-xs font-medium text-muted-foreground">
                 <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {t('overview.meta.created_at')}: {formatDateTime(vendor.created_at, format.locale)}
+                    <Clock className="h-3 w-3" aria-hidden="true" />
+                    {t('overview.meta.created_at')}: {formatDate(vendor.created_at)}
                 </div>
                 <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {t('overview.meta.updated_at')}: {formatDateTime(vendor.updated_at, format.locale)}
+                    <Clock className="h-3 w-3" aria-hidden="true" />
+                    {t('overview.meta.updated_at')}: {formatDate(vendor.updated_at)}
                 </div>
             </div>
         </div>

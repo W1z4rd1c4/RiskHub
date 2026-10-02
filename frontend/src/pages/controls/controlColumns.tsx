@@ -7,6 +7,7 @@ import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
 import { Badge } from '@/components/ui/badge';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
+import { cn } from '@/lib/utils';
 import type { ControlSummary } from '@/types/control';
 
 import { formatControlFrequency, getControlRiskLevelColor } from './controlsPagePresentation';
@@ -65,9 +66,9 @@ export function buildControlColumns({
             className: 'text-center',
             render: (control) => (
                 <div className="flex justify-center">
-                    <span className={`rounded-full border px-2.5 py-1 text-xs font-bold tabular-nums ${getControlRiskLevelColor(control.risk_level)}`}>
+                    <Badge className={cn('tabular-nums', getControlRiskLevelColor(control.risk_level))}>
                         {translate('columns.risk_level_value', { level: control.risk_level })}
-                    </span>
+                    </Badge>
                 </div>
             ),
         },

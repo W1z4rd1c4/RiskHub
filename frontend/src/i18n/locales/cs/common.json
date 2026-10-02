@@ -418,6 +418,7 @@
     "all_processes": "Všechny procesy",
     "all_categories": "Všechny kategorie",
     "all_actions": "Všechny akce",
+    "action": "Akce",
     "select_person": "Vybrat osobu...",
     "select_department": "Vybrat oddělení...",
     "select_risk": "Vybrat riziko...",
@@ -505,7 +506,50 @@
     },
     "select_risk": "Vyberte riziko pro zobrazení aktivity.",
     "select_risk_hint": "Pro načtení záznamů vyberte riziko ve filtru výše.",
-    "entity_tabs_label": "Aktivita podle typu entity"
+    "entity_tabs_label": "Aktivita podle typu entity",
+    "view_modes_label": "Zobrazení aktivity",
+    "empty_value": "(prázdné)",
+    "entity_types": {
+      "risk": "Riziko",
+      "control": "Kontrola",
+      "kri": "KRI",
+      "risk_questionnaire": "Dotazník rizika",
+      "vendor": "Dodavatel",
+      "vendor_assessment": "Hodnocení dodavatele",
+      "vendor_incident": "Incident dodavatele",
+      "vendor_sla": "SLA dodavatele",
+      "vendor_remediation": "Náprava dodavatele",
+      "issue": "Nález",
+      "issue_remediation": "Náprava nálezu",
+      "issue_exception": "Výjimka nálezu",
+      "user": "Uživatel",
+      "department": "Oddělení",
+      "approval": "Schválení",
+      "control_execution": "Provedení kontroly",
+      "kri_value": "Hodnota KRI",
+      "control_risk_link": "Vazba kontrola–riziko",
+      "role": "Role",
+      "config": "Konfigurace",
+      "process": "Proces",
+      "asset": "Aktivum",
+      "threat": "Hrozba"
+    },
+    "fields": {
+      "name": "Název",
+      "description": "Popis",
+      "status": "Stav",
+      "category": "Kategorie",
+      "owner_id": "Vlastník",
+      "department_id": "Oddělení",
+      "risk_type": "Typ rizika",
+      "risk_id_code": "ID rizika",
+      "frequency": "Frekvence",
+      "control_form": "Forma kontroly",
+      "is_priority": "Priorita",
+      "is_archived": "Archivováno",
+      "role": "Role",
+      "email": "E-mail"
+    }
   },
   "department_detail": {
     "back_to_departments": "Zpět na oddělení",
@@ -560,7 +604,10 @@
     "no_matches_title": "Žádné odpovídající dokumenty",
     "no_matches_subtitle": "Zkuste jiný tag filtr.",
     "view_manual": "Zobrazit manuál",
-    "maintainer_reference": "Reference správce:"
+    "maintainer_reference": "Reference správce:",
+    "anchor_link": "Odkaz na sekci {{heading}}",
+    "anchor_link_untitled": "Odkaz na sekci",
+    "opens_in_new_tab": "otevře se v nové záložce"
   },
   "severity": {
     "low": "Nízká",
@@ -572,6 +619,10 @@
     "items": "Položky",
     "active": "Aktivní",
     "items_count": "{{count}} položek",
+    "items_count_one": "{{count}} položka",
+    "items_count_few": "{{count}} položky",
+    "items_count_other": "{{count}} položek",
+    "back_to_groups": "Zpět na skupiny",
     "high_risk": "Vysoké riziko",
     "error": {
       "message": "Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.",
@@ -753,5 +804,59 @@
   "error_boundary": {
     "title": "Něco se pokazilo",
     "description": "Stránku se nepodařilo zobrazit."
+  },
+  "values": {
+    "closed_lists": {
+      "AnoNe": {
+        "yes": "Ano",
+        "no": "Ne"
+      },
+      "TypUjednani": {
+        "standalone": "Samostatné",
+        "master": "Rámcové (master)",
+        "subsequent": "Navazující"
+      },
+      "SystemEvidence": {
+        "other": "Jiné"
+      },
+      "TypOsoby": {
+        "legal_person": "Právnická osoba",
+        "individual_entrepreneur": "Fyzická osoba podnikající"
+      },
+      "VyznamVazby": {
+        "critical_support": "Kritická podpora procesu",
+        "significant_support": "Významná podpora procesu",
+        "supporting": "Podpůrná vazba",
+        "indirect_shared": "Nepřímá / sdílená vazba",
+        "bcm_dr": "BCM/DR vazba",
+        "not_assessed": "Neposouzeno"
+      },
+      "RoleDodavatele": {
+        "supplies": "Dodává",
+        "operates": "Provozuje",
+        "hosts": "Hostuje",
+        "manages": "Spravuje",
+        "supports": "Podporuje",
+        "processes_data": "Zpracovává data",
+        "backup_recovery": "Zálohuje / obnova",
+        "security_service": "Bezpečnostní služba",
+        "other": "Jiné"
+      },
+      "Reliance": {
+        "not_significant": "Nevýznamná",
+        "low": "Nízká závislost",
+        "material": "Zásadní závislost",
+        "full": "Úplná závislost"
+      },
+      "TypZavislostiAktiv": {
+        "runtime": "Běhová (runtime)",
+        "data": "Datová",
+        "network_infrastructure": "Síťová / infrastrukturní",
+        "security": "Bezpečnostní",
+        "backup_recovery": "Zálohovací / recovery",
+        "operational": "Provozní",
+        "other": "Jiná"
+      }
+    }
   }
 }

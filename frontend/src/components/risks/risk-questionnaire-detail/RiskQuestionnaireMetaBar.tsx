@@ -1,9 +1,11 @@
 import { Calendar, Clock } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { cn } from '@/lib/utils';
 import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 
+import { QuestionnaireStatusBadge } from '../QuestionnaireStatusBadge';
 import type { TranslateFn } from './questionnairePresentation';
 
 interface RiskQuestionnaireMetaBarProps {
@@ -15,6 +17,13 @@ interface RiskQuestionnaireMetaBarProps {
     t: TranslateFn;
 }
 
+const META_ITEM_CLASS = 'flex items-center gap-1.5';
+
+/**
+ * Questionnaire meta line in the dialog header: a label/value list (sent, due,
+ * status, assignee, sender) and the compare toggle. The status is the shared
+ * translated badge (PG-03 / PG-20), which already reads "Overdue" past the due date.
+ */
 export function RiskQuestionnaireMetaBar({
     compareMode,
     isOverdue,
@@ -24,49 +33,50 @@ export function RiskQuestionnaireMetaBar({
     t,
 }: RiskQuestionnaireMetaBarProps) {
     return (
-        <div className="mt-2 text-xs text-muted-foreground space-y-1">
-            <div className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{t('risks:questionnaire.meta.sent')}:</span>
-                <span className="text-foreground">{formatDateTimeValue(questionnaire.sent_at, locale)}</span>
-                <span className="mx-2 opacity-30">•</span>
-                <Calendar className="h-3.5 w-3.5" />
-                <span>{t('risks:questionnaire.meta.due')}:</span>
-                <span className={cn('text-foreground', isOverdue && 'text-destructive font-bold')}>
-                    {formatDateValue(questionnaire.due_at, locale)}
-                </span>
-                {isOverdue && (
-                    <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-destructive/10 border-destructive/20 text-destructive">
-                        {t('risks:questionnaire.status.overdue')}
-                    </span>
-                )}
-            </div>
-            <div className="flex items-center gap-2">
-                <span>{t('risks:questionnaire.meta.status')}:</span>
-                <span className="text-foreground">{questionnaire.status}</span>
-                <span className="mx-2 opacity-30">•</span>
-                <span>{t('risks:questionnaire.meta.assignee')}:</span>
-                <span className="text-foreground">
-                    {questionnaire.assigned_to_user_name ?? t('common:fallbacks.unknown_user')}
-                </span>
-                <span className="mx-2 opacity-30">•</span>
-                <span>{t('risks:questionnaire.meta.sender')}:</span>
-                <span className="text-foreground">
-                    {questionnaire.sent_by_user_name ?? t('common:fallbacks.unknown_user')}
-                </span>
-                <span className="mx-2 opacity-30">•</span>
-                <button
-                    onClick={() => setCompareMode((value) => !value)}
-                    className={cn(
-                        'text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border transition-all',
-                        compareMode
-                            ? 'bg-accent/15 border-accent/30 text-accent-text hover:bg-accent/20'
-                            : 'bg-tint/5 border-border text-foreground hover:bg-tint/10',
-                    )}
-                >
-                    {t('risks:questionnaire.compare_toggle')}
-                </button>
-            </div>
+        <div className="mt-2 space-y-2 text-xs text-muted-foreground">
+            <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <div className={META_ITEM_CLASS}>
+                    <dt className={META_ITEM_CLASS}>
+                        <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t('risks:questionnaire.meta.sent')}:
+                    </dt>
+                    <dd className="text-foreground">{formatDateTimeValue(questionnaire.sent_at, locale)}</dd>
+                </div>
+                <div className={META_ITEM_CLASS}>
+                    <dt className={META_ITEM_CLASS}>
+                        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t('risks:questionnaire.meta.due')}:
+                    </dt>
+                    <dd className={cn('text-foreground', isOverdue && 'font-bold text-destructive')}>
+                        {formatDateValue(questionnaire.due_at, locale)}
+                    </dd>
+                </div>
+                <div className={META_ITEM_CLASS}>
+                    <dt>{t('risks:questionnaire.meta.status')}:</dt>
+                    <dd><QuestionnaireStatusBadge questionnaire={questionnaire} /></dd>
+                </div>
+                <div className={META_ITEM_CLASS}>
+                    <dt>{t('risks:questionnaire.meta.assignee')}:</dt>
+                    <dd className="text-foreground">
+                        {questionnaire.assigned_to_user_name ?? t('common:fallbacks.unknown_user')}
+                    </dd>
+                </div>
+                <div className={META_ITEM_CLASS}>
+                    <dt>{t('risks:questionnaire.meta.sender')}:</dt>
+                    <dd className="text-foreground">
+                        {questionnaire.sent_by_user_name ?? t('common:fallbacks.unknown_user')}
+                    </dd>
+                </div>
+            </dl>
+            <Button
+                variant="outline"
+                size="compact"
+                aria-pressed={compareMode}
+                onClick={() => setCompareMode((value) => !value)}
+                className="aria-pressed:border-accent/40 aria-pressed:bg-accent/15 aria-pressed:text-accent-text"
+            >
+                {t('risks:questionnaire.compare_toggle')}
+            </Button>
         </div>
     );
 }

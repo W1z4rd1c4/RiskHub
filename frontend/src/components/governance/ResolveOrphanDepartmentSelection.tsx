@@ -1,6 +1,9 @@
+import { useId } from 'react';
 import { Building2, Search } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { EmptyState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import type { OrphanDepartmentOption } from './resolveOrphanHelpers';
 
@@ -22,13 +25,14 @@ export function ResolveOrphanDepartmentSelection({
     setSelectedDepartmentId,
 }: ResolveOrphanDepartmentSelectionProps) {
     const { t: tAdmin } = useTranslation('admin');
+    const headingId = useId();
 
     return (
         <div className="space-y-4">
-            <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-accent-text" />
+            <h3 id={headingId} className="text-eyebrow flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-accent-text" aria-hidden="true" />
                 {tAdmin('governance.resolve_modal.select_department')}
-            </h5>
+            </h3>
             {isSearchable && (
                 <Input
                     type="search"
@@ -40,21 +44,28 @@ export function ResolveOrphanDepartmentSelection({
                     onChange={(event) => setSearchQuery(event.target.value)}
                 />
             )}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {departments.map((department) => (
-                    <button
-                        type="button"
-                        key={department.id}
-                        onClick={() => setSelectedDepartmentId(department.id)}
-                        className={`p-3 rounded-xl border text-center transition-all ${selectedDepartmentId === department.id ? 'bg-tint/10 border-tint/30' : 'bg-tint/5 border-border hover:bg-tint/10'}`}
-                    >
-                        <p className="text-eyebrow">{department.code}</p>
-                        <p className={`text-xs font-bold ${selectedDepartmentId === department.id ? 'text-foreground' : 'text-muted-foreground'}`}>
-                            {department.name}
-                        </p>
-                    </button>
-                ))}
-            </div>
+            {departments.length === 0 ? (
+                <EmptyState layout="inline" kind="no-results" title={tAdmin('common:labels.no_results')} />
+            ) : (
+                // GAP-D-13: one radiogroup, so the selection is exposed to assistive technology
+                // (a check mark and the card tint show it visually; colour is never the only cue).
+                <RadioGroup
+                    variant="card"
+                    aria-labelledby={headingId}
+                    value={selectedDepartmentId === null ? '' : String(selectedDepartmentId)}
+                    onValueChange={(value) => setSelectedDepartmentId(Number(value))}
+                    className="grid grid-cols-2 gap-2 space-y-0 md:grid-cols-4"
+                    options={departments.map((department) => ({
+                        value: String(department.id),
+                        label: (
+                            <>
+                                <span className="text-eyebrow block">{department.code}</span>{' '}
+                                <span className="block text-xs font-bold">{department.name}</span>
+                            </>
+                        ),
+                    }))}
+                />
+            )}
         </div>
     );
 }

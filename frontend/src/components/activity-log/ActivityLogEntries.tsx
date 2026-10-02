@@ -16,10 +16,11 @@ import {
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import type { ActivityLogEntry } from '@/types/activityLog';
-import { ACTION_COLORS, ACTION_LABELS, getActivityEntityLabel } from '@/types/activityLog';
+import { ACTION_COLORS } from '@/types/activityLog';
+import { translateCode } from '@/lib/humanizeCode';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
-import { getDiffPair } from './activityLogPresentation';
+import { getDiffPair, titleCaseCode } from './activityLogPresentation';
 
 interface ActivityLogEntriesProps {
     entries: ActivityLogEntry[];
@@ -31,25 +32,25 @@ interface ActivityLogEntriesProps {
 const getActionIcon = (action: string) => {
     switch (action) {
         case 'create':
-            return <Plus className="h-3 w-3" />;
+            return <Plus aria-hidden="true" className="h-3 w-3" />;
         case 'update':
-            return <Edit2 className="h-3 w-3" />;
+            return <Edit2 aria-hidden="true" className="h-3 w-3" />;
         case 'delete':
-            return <XCircle className="h-3 w-3" />;
+            return <XCircle aria-hidden="true" className="h-3 w-3" />;
         case 'archive':
-            return <Archive className="h-3 w-3" />;
+            return <Archive aria-hidden="true" className="h-3 w-3" />;
         case 'approve':
-            return <CheckCircle2 className="h-3 w-3" />;
+            return <CheckCircle2 aria-hidden="true" className="h-3 w-3" />;
         case 'reject':
-            return <XCircle className="h-3 w-3" />;
+            return <XCircle aria-hidden="true" className="h-3 w-3" />;
         case 'link':
-            return <LinkIcon className="h-3 w-3" />;
+            return <LinkIcon aria-hidden="true" className="h-3 w-3" />;
         case 'unlink':
-            return <Unlink className="h-3 w-3" />;
+            return <Unlink aria-hidden="true" className="h-3 w-3" />;
         case 'status_change':
-            return <RefreshCw className="h-3 w-3" />;
+            return <RefreshCw aria-hidden="true" className="h-3 w-3" />;
         default:
-            return <Activity className="h-3 w-3" />;
+            return <Activity aria-hidden="true" className="h-3 w-3" />;
     }
 };
 
@@ -132,7 +133,9 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                         className="relative overflow-hidden rounded-2xl border border-border p-5 glass-card"
                     >
                         {(() => {
-                            const entityTypeLabel = getActivityEntityLabel(entry.entity_type);
+                            const entityTypeLabel = t(`activity_log.entity_types.${entry.entity_type}`, {
+                                defaultValue: titleCaseCode(entry.entity_type),
+                            });
                             const showEntityName = normalizeActivityLabel(entry.entity_name) !== normalizeActivityLabel(entityTypeLabel);
 
                             return (
@@ -142,10 +145,10 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                             </div>
 
                             <div className="min-w-0 flex-1">
-                                <div className="mb-1 flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-sm">
+                                <div className="mb-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
                                         <span className="font-semibold text-foreground">{entry.actor_name}</span>
-                                        <span className="text-muted-foreground">{ACTION_LABELS[entry.action] ?? entry.action}</span>
+                                        <span className="text-muted-foreground">{translateCode(t, 'admin:audit.events', entry.action)}</span>
                                         <span className="font-medium text-accent-text">{entityTypeLabel}</span>
                                         {showEntityName ? (
                                             <span className="truncate font-medium text-foreground">{entry.entity_name}</span>
@@ -156,7 +159,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                                             className="flex items-center gap-1.5"
                                             title={format.dateTime(entry.created_at)}
                                         >
-                                            <Clock className="h-3 w-3" />
+                                            <Clock aria-hidden="true" className="h-3 w-3" />
                                             {format.relative(entry.created_at)}
                                         </div>
                                     </div>
@@ -166,14 +169,14 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                                 {entry.changes && Object.keys(entry.changes).length > 0 && (
                                     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                                         {Object.entries(entry.changes).map(([field, delta]) => {
-                                            const { old: oldValue, new: newValue } = getDiffPair(delta);
+                                            const { old: oldValue, new: newValue } = getDiffPair(delta, t('activity_log.empty_value'));
                                             return (
                                                 <div
                                                     key={field}
                                                     className="rounded-lg border border-border bg-muted p-2 text-xs"
                                                 >
                                                     <div className="mb-1 font-bold uppercase tracking-wider text-muted-foreground">
-                                                        {field.replace(/_/g, ' ')}
+                                                        {translateCode(t, 'activity_log.fields', field)}
                                                     </div>
                                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                                         <span
@@ -182,7 +185,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                                                         >
                                                             {oldValue}
                                                         </span>
-                                                        <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                                                        <ArrowRight aria-hidden="true" className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
                                                         <span className="truncate text-success-text" title={newValue}>
                                                             {newValue}
                                                         </span>

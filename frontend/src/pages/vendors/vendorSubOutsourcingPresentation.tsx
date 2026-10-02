@@ -2,8 +2,11 @@ import type { MouseEvent } from 'react';
 import { motion } from 'framer-motion';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
+import { RowActionButton } from '@/components/tables/RowActionButton';
 import type { Column } from '@/components/tables/SortableTable';
+import { Badge } from '@/components/ui/badge';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import type { Tone } from '@/lib/tones';
 import type { VendorSubOutsourcing, VendorSubOutsourcingWritePayload } from '@/types/vendorSubOutsourcing';
 
 export type SubOutsourcingDisplayStatus = 'active' | 'archived';
@@ -14,8 +17,9 @@ export function getSubOutsourcingDisplayStatus(
     return entry.is_archived ? 'archived' : 'active';
 }
 
-export function getSubOutsourcingStatusColor(status: SubOutsourcingDisplayStatus): string {
-    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
+/** Status badge tone (§4.9): active reads as success, archived as neutral. */
+export function getSubOutsourcingStatusTone(status: SubOutsourcingDisplayStatus): Extract<Tone, 'success' | 'neutral'> {
+    return status === 'archived' ? 'neutral' : 'success';
 }
 
 /**
@@ -224,25 +228,19 @@ export function buildVendorSubOutsourcingColumns({
                 const duplicate = entry.derived?.chain_check === CHAIN_CHECK_DUPLICATE;
                 return (
                     <div className="flex items-center gap-1.5" data-testid={`vendor-sub-outsourcing-rank-${entry.id}`}>
-                        <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${
-                                broken
-                                    ? 'text-destructive bg-destructive/10 border-destructive/30'
-                                    : 'text-accent-text bg-info/10 border-info/20'
-                            }`}
-                        >
+                        <Badge tone={broken ? 'danger' : 'info'}>
                             {entry.derived ? formatSubOutsourcingRank(entry) : '—'}
-                        </span>
+                        </Badge>
                         {broken ? (
                             <span
-                                className="text-xs font-black uppercase tracking-widest text-destructive"
+                                className="text-xs font-bold uppercase tracking-wide text-destructive"
                                 data-testid={`vendor-sub-outsourcing-chain-error-${entry.id}`}
                             >
                                 {t('vendors:sub_outsourcing.chain_status.chain_error')}
                             </span>
                         ) : null}
                         {duplicate ? (
-                            <span className="text-xs font-black uppercase tracking-widest text-warning-text">
+                            <span className="text-xs font-bold uppercase tracking-wide text-warning-text">
                                 {t('vendors:sub_outsourcing.chain_status.duplicate')}
                             </span>
                         ) : null}
@@ -257,12 +255,14 @@ export function buildVendorSubOutsourcingColumns({
                 <div className="flex flex-col gap-0.5">
                     <span className="text-sm text-foreground">{getContractLabel(entry)}</span>
                     {entry.derived?.critical_service === 'Ano' ? (
-                        <span
-                            className="inline-flex w-fit items-center rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-xs font-black uppercase tracking-widest text-destructive"
+                        <Badge
+                            tone="danger"
+                            size="sm"
+                            className="w-fit"
                             data-testid={`vendor-sub-outsourcing-critical-${entry.id}`}
                         >
                             {t('vendors:sub_outsourcing.columns.critical_service')}
-                        </span>
+                        </Badge>
                     ) : null}
                 </div>
             ),
@@ -287,13 +287,7 @@ export function buildVendorSubOutsourcingColumns({
             className: 'w-[120px]',
             render: ({ entry }) => {
                 const status = getSubOutsourcingDisplayStatus(entry);
-                return (
-                    <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getSubOutsourcingStatusColor(status)}`}
-                    >
-                        {t(`vendors:status.${status}`)}
-                    </span>
-                );
+                return <Badge tone={getSubOutsourcingStatusTone(status)}>{t(`vendors:status.${status}`)}</Badge>;
             },
         },
         {
@@ -303,40 +297,29 @@ export function buildVendorSubOutsourcingColumns({
             render: ({ entry }) => (
                 <div className="flex items-center justify-end gap-1">
                     {resolveCapabilityFlag(entry.capabilities, 'can_update') ? (
-                        <button
-                            type="button"
+                        <RowActionButton
+                            icon={Pencil}
+                            label={t('vendors:sub_outsourcing.actions.edit_named', { name: subProviderLabel(entry, t) })}
                             data-testid={`vendor-sub-outsourcing-edit-${entry.id}`}
                             onClick={(event) => onEdit(entry, event)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
-                            title={t('vendors:sub_outsourcing.actions.edit')}
-                            aria-label={t('vendors:sub_outsourcing.actions.edit_named', { name: subProviderLabel(entry, t) })}
-                        >
-                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        />
                     ) : null}
                     {resolveCapabilityFlag(entry.capabilities, 'can_archive') ? (
-                        <button
-                            type="button"
+                        <RowActionButton
+                            icon={Archive}
+                            tone="danger"
+                            label={t('vendors:sub_outsourcing.actions.archive_named', { name: subProviderLabel(entry, t) })}
                             data-testid={`vendor-sub-outsourcing-archive-${entry.id}`}
                             onClick={(event) => void onArchive(entry, event)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title={t('vendors:sub_outsourcing.actions.archive')}
-                            aria-label={t('vendors:sub_outsourcing.actions.archive_named', { name: subProviderLabel(entry, t) })}
-                        >
-                            <Archive className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        />
                     ) : null}
                     {resolveCapabilityFlag(entry.capabilities, 'can_restore') ? (
-                        <button
-                            type="button"
+                        <RowActionButton
+                            icon={ArchiveRestore}
+                            label={t('vendors:sub_outsourcing.actions.restore_named', { name: subProviderLabel(entry, t) })}
                             data-testid={`vendor-sub-outsourcing-restore-${entry.id}`}
                             onClick={(event) => void onRestore(entry, event)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
-                            title={t('vendors:sub_outsourcing.actions.restore')}
-                            aria-label={t('vendors:sub_outsourcing.actions.restore_named', { name: subProviderLabel(entry, t) })}
-                        >
-                            <ArchiveRestore className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        />
                     ) : null}
                 </div>
             ),

@@ -9,15 +9,24 @@ and `frontend/src/pages/VendorsPage.tsx`.
 ## Contents
 
 - `VendorContractsSection.tsx`
+- `VendorDerivedSection.tsx`
 - `VendorDetailHeader.tsx`
+- `VendorDetailStates.tsx`
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
-- `VendorSubOutsourcingSection.tsx`
 - `VendorRegisterFilterBar.tsx`
-- `vendorColumns.tsx`
+- `VendorRegisterLinksSection.tsx`
+- `VendorSubOutsourcingChainTable.tsx`
+- `VendorSubOutsourcingSection.tsx`
+- `useVendorContextOutcome.ts`
+- `useVendorDetailPageEffects.ts`
 - `useVendorDetailState.ts`
+- `useVendorsPageState.ts`
+- `vendorColumns.tsx`
 - `vendorContractsPresentation.tsx`
 - `vendorDetailPresentation.ts`
+- `vendorRegisterConfig.ts`
+- `vendorRegisterLinksPresentation.ts`
 - `vendorSubOutsourcingPresentation.tsx`
 - `vendorsPagePresentation.ts`
 
@@ -53,12 +62,20 @@ Vendor detail also owns lifecycle parity at the route shell level: active
 vendors can be archived from the hero, while inactive vendors expose restore
 in the same action cluster.
 
-The individual vendor route family (`view`, `edit`, `new`) shares the global
-semantic theme through vendor-specific layout primitives. Shell concerns stay
-here, while those primitives live in
-`frontend/src/components/vendors/vendorRouteUi.tsx`
-and
-`frontend/src/components/vendors/vendorRoute.css`.
+The individual vendor route family (`view`, `edit`, `new`) is built on the
+shared primitives (audit 2026-09-30 D13, SM-09; the vendor-route design system
+and its exemption are retired): `PageContainer` (1520px detail, 960px forms,
+D11), `PageHeader` / `EntityDetailHeader`, `Card` + `CardHeader` sections
+(`DetailSection` / `DetailField` for read-only fields), `Badge` /
+`SeverityBadge`, `InlineMessage`, `Field` with the `components/ui` controls,
+`RegisterFilterCard` in the register filter bar, `RowActionButton` row
+actions, `LinkedItemList` link rows, the shared `PendingChangePanel`
+(`namespace="vendors"`, `testIdPrefix="vendor"`) and `OwnershipGovernanceAlert`.
+
+Workbook closed-list codes (`AnoNe`, `TypUjednani`, `TypOsoby`,
+`RoleDodavatele`, `Reliance`, ...) are stored and sent verbatim; only their
+display labels are translated through `lib/closedListLabels.ts`
+(`common:values.closed_lists.*`, GAP-C-09 / PM-4).
 
 Create and edit flows are intentionally aligned with detail-page structure:
 

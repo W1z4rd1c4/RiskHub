@@ -1,5 +1,5 @@
 /**
- * FR-P4-6 (S9 demote): archived contracts are demoted into a dimmed, visually
+ * FR-P4-6 (S9 demote): archived contracts are demoted into a
  * separated section (the VendorLinkedEntitiesTab convention) rather than
  * interleaved with the active rows. Formatting (dates/currency) is out of scope
  * here (P5) — these tests only pin the demotion + separation.
@@ -70,7 +70,7 @@ afterEach(async () => {
 });
 
 describe('VendorContractsSection archived demotion (FR-P4-6 / S9)', () => {
-    it('separates archived contracts into a dimmed section, apart from active rows', async () => {
+    it('separates archived contracts into a demoted section, apart from active rows', async () => {
         mockGetContracts.mockResolvedValue([
             makeContract({ id: 1, contract_reference: 'SML-ACTIVE', is_archived: false }),
             makeContract({ id: 2, contract_reference: 'SML-ARCHIVED', is_archived: true }),
@@ -90,7 +90,9 @@ describe('VendorContractsSection archived demotion (FR-P4-6 / S9)', () => {
         // …and the active one does not (they are separated, not interleaved).
         expect(within(archivedSection).queryByText('SML-ACTIVE')).not.toBeInTheDocument();
 
-        // The section is labelled with the archived count and visually dimmed.
+        // The section is labelled with the archived count. GAP-D-14: it is no
+        // longer dimmed with group opacity (sub-AA text); each row states its
+        // status with a neutral Archived badge instead.
         expect(archivedSection).toHaveAttribute(
             'aria-label',
             i18n.t('vendors:contracts.archived_heading', { count: 1 }),
@@ -98,7 +100,11 @@ describe('VendorContractsSection archived demotion (FR-P4-6 / S9)', () => {
         expect(within(archivedSection).getByRole('region', {
             name: i18n.t('vendors:contracts.archived_table_label'),
         })).toBeVisible();
-        expect(archivedSection.querySelector('.opacity-60')).not.toBeNull();
+        expect(archivedSection.querySelector('[class*="opacity-"]')).toBeNull();
+        expect(within(archivedSection).getByText(i18n.t('vendors:status.archived'))).toHaveAttribute(
+            'data-tone',
+            'neutral',
+        );
     });
 
     it('localizes both table landmark names in Czech', async () => {

@@ -150,9 +150,10 @@ describe('VendorContractsSection form — Field migration (#59)', () => {
         expect(reason).toHaveAccessibleDescription(
             new RegExp(i18n.t('vendors:errors.request_reason_required')),
         );
-        expect(screen.getByRole('alert')).toHaveTextContent(
-            i18n.t('vendors:errors.request_reason_required'),
-        );
+        // GAP-C-08: the error renders once, at its field (focused + described),
+        // not again in a form-level alert.
+        expect(screen.getAllByText(i18n.t('vendors:errors.request_reason_required'))).toHaveLength(1);
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(mockCreateContract).not.toHaveBeenCalled();
         expect(form).toBeInTheDocument();
 

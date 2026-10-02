@@ -11,6 +11,7 @@ import { useDashboardFilterSelector } from '../../contexts/DashboardFilterContex
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { classifyRiskScore, riskScoreVariantClass } from '@/lib/severity';
 import { logError } from '@/services/logger';
+import { SeverityBadge } from '@/components/ui/badge';
 import { ErrorState } from '@/components/ui/state';
 
 interface RiskInCell {
@@ -113,43 +114,49 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                     )}
                 >
                     <div className="space-y-2">
-                        {risks.map((risk) => (
-                            <motion.button
-                                key={risk.id}
-                                onClick={() => handleRiskClick(risk.id)}
-                                className="w-full text-left p-4 rounded-lg bg-tint/5 hover:bg-tint/10 border border-border hover:border-border transition-colors group"
-                                whileHover={{ x: 4 }}
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-foreground group-hover:text-accent-text transition-colors">
-                                            {risk.name}
-                                        </h4>
-                                        {risk.description && (
-                                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                                {risk.description}
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-muted-foreground mt-2">
-                                            {risk.department_name}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1 shrink-0">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
-                                            >
-                                                {t('risk_drilldown.score_value', { score: risk.net_score })}
+                        {risks.map((risk) => {
+                            const band = classifyRiskScore(risk.net_score, thresholds);
+                            return (
+                                <motion.button
+                                    key={risk.id}
+                                    type="button"
+                                    onClick={() => handleRiskClick(risk.id)}
+                                    className="w-full text-left p-4 rounded-lg bg-tint/5 hover:bg-tint/10 border border-border transition-colors group focus-ring"
+                                    whileHover={{ x: 4 }}
+                                >
+                                    <span className="flex items-start justify-between gap-4">
+                                        <span className="block flex-1 min-w-0">
+                                            <span className="block font-bold text-foreground group-hover:text-accent-text transition-colors">
+                                                {risk.name}
                                             </span>
-                                            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            {risk.owner_name || t('issues:fallbacks.unassigned')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </motion.button>
-                        ))}
+                                            {risk.description && (
+                                                <span className="block text-sm text-muted-foreground mt-1 line-clamp-2">
+                                                    {risk.description}
+                                                </span>
+                                            )}
+                                            <span className="block text-xs text-muted-foreground mt-2">
+                                                {risk.department_name}
+                                            </span>
+                                        </span>
+                                        <span className="flex flex-col items-end gap-1 shrink-0">
+                                            <span className="flex items-center gap-2">
+                                                {/* D1: the band label travels with the band colour. */}
+                                                <SeverityBadge band={band} label={t(`risk_levels.${band}`)} size="sm" />
+                                                <span
+                                                    className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                                >
+                                                    {t('risk_drilldown.score_value', { score: risk.net_score })}
+                                                </span>
+                                                <ExternalLink aria-hidden="true" className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {risk.owner_name || t('issues:fallbacks.unassigned')}
+                                            </span>
+                                        </span>
+                                    </span>
+                                </motion.button>
+                            );
+                        })}
                     </div>
                 </WidgetShell>
             </DialogBody>

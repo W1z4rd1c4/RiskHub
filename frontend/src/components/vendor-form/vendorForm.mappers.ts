@@ -8,9 +8,8 @@ import type {
 } from '@/types/vendor';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 
-import type { DepartmentLookup, VendorFormData, VendorFormField } from './vendorForm.types';
+import type { DepartmentLookup, VendorFormData, VendorFormField, VendorOption } from './vendorForm.types';
 import { VENDOR_REGISTER_DATE_FIELDS, VENDOR_REGISTER_TEXT_FIELDS } from './vendorForm.types';
-import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 
 interface VendorApprovalScenario {
     isEnabled: boolean;
@@ -165,7 +164,29 @@ export function getSubprocessSuggestions(
     return filterSuggestions(subprocessesByProcess[process || ''] || [], subprocessQuery);
 }
 
-/** Vendor risk score (1-5) badge on the D1 severity scale. */
-export function scoreColor(score: number): string {
-    return severityClass('badge', ordinalSeverityBand(score));
+/** Keeps the record's current owner selectable when the lookup page does not include it. */
+export function withCurrentOwnerOption(options: VendorOption[], vendor: Vendor | undefined): VendorOption[] {
+    const owner = vendor?.outsourcing_owner;
+    const ownerId = vendor?.outsourcing_owner_user_id;
+    if (!ownerId || !owner || options.some((option) => option.value === String(ownerId))) {
+        return options;
+    }
+    return [
+        ...options,
+        {
+            value: String(ownerId),
+            label: [`${owner.name} — ${owner.email}`, owner.department_name, owner.role_name]
+                .filter(Boolean)
+                .join(' · '),
+        },
+    ];
+}
+
+/** Keeps the record's current department selectable when the lookup page does not include it. */
+export function withCurrentDepartmentOption(options: VendorOption[], vendor: Vendor | undefined): VendorOption[] {
+    const departmentId = vendor?.department_id;
+    if (!departmentId || !vendor?.department_name || options.some((option) => option.value === String(departmentId))) {
+        return options;
+    }
+    return [...options, { value: String(departmentId), label: vendor.department_name }];
 }

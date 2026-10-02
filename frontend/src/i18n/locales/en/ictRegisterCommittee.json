@@ -89,7 +89,13 @@
         "top_vendors_title": "Concentration: top 5 vendors by CIF links (art. 29)",
         "narratives_title": "CIF coverage, BCM and management conclusions",
         "assets_chart_title": "Assets by resulting criticality",
+        "assets_chart_summary": "Bar chart of assets by resulting criticality. Assets in total: {{total}}.",
+        "assets_chart_columns": {
+            "criticality": "Criticality",
+            "assets": "Assets"
+        },
         "risk_bands_chart_title": "Risks by band: gross vs. net",
+        "risk_bands_chart_summary": "Bar chart of risks by band, gross vs. net. Gross: {{gross}}; net: {{net}}.",
         "risk_bands_gross": "Gross",
         "risk_bands_net": "Net"
     },
@@ -178,7 +184,10 @@
             "B_99.01": "Narrative definitions; the legal text's row R0070 targets B_06.01.0100 post-corrigendum (the OJ still prints the stale 0110 reference)."
         },
         "no_rows": "No feeding rows",
-        "row_count": "{{n}} rows",
+        "row_count": "{{count}} rows",
+        "row_count_one": "{{count}} row",
+        "row_count_few": "{{count}} rows",
+        "row_count_other": "{{count}} rows",
         "gap_count": "{{n}} with gaps",
         "no_gaps": "No gaps",
         "show_gaps": "Show gaps",

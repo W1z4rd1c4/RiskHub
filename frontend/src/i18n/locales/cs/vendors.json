@@ -496,6 +496,8 @@
     "select_asset_placeholder": "Vyberte aktivum...",
     "select_process_placeholder": "Vyberte proces...",
     "s_code": "ICT služba (S-kód)",
+    "asset_label": "Aktivum",
+    "process_label": "Proces",
     "add": "Propojit",
     "remove": "Odebrat vazbu",
     "no_metadata": "Bez detailů vazby",

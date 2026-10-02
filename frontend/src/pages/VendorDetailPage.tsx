@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/i18n/hooks';
 import { useAuthz } from '@/authz/useAuthz';
-import { ArrowUpRight } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
+import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
-import { InlineMessage } from '@/components/ui/inline-message';
+import { PageContainer } from '@/components/layout/PageContainer';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -16,13 +16,13 @@ import { vendorApi } from '@/services/vendorApi';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { EditBlockedState } from './detail/EditBlockedState';
+import { OwnershipGovernanceAlert } from './detail/OwnershipGovernanceAlert';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
-import { VendorPendingChangePanel } from './vendors/VendorPendingChangePanel';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { logError } from '@/services/logger';
@@ -39,28 +39,33 @@ interface VendorDetailPageProps {
 
 interface VendorOwnershipPendingMessageProps {
     canViewGovernance: boolean;
+    onResolve: () => void;
+    testId?: string;
 }
 
-function VendorOwnershipPendingMessage({ canViewGovernance }: VendorOwnershipPendingMessageProps) {
+/**
+ * SM-05: the shared ownership banner. The governance action is offered only to
+ * users who can open the Governance queue; everyone else is told whom to ask.
+ */
+function VendorOwnershipPendingMessage({ canViewGovernance, onResolve, testId }: VendorOwnershipPendingMessageProps) {
     const { t } = useTranslation('vendors');
 
     return (
-        <InlineMessage tone="warning" title={t('ownership.pending_title')}>
-            <div className="space-y-3">
-                <p>{t('ownership.pending_help')}</p>
-                {canViewGovernance ? (
-                    <Link
-                        to="/governance?type=vendor"
-                        className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest"
-                    >
-                        {t('ownership.resolve_in_governance')}
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                    </Link>
-                ) : (
-                    <p className="text-xs font-semibold">{t('ownership.ask_governance')}</p>
-                )}
-            </div>
-        </InlineMessage>
+        <OwnershipGovernanceAlert
+            message={(
+                <>
+                    {t('ownership.pending_title')}
+                    <span className="mt-1 block font-normal">{t('ownership.pending_help')}</span>
+                    {canViewGovernance ? null : (
+                        <span className="mt-1 block font-normal">{t('ownership.ask_governance')}</span>
+                    )}
+                </>
+            )}
+            actionLabel={t('ownership.resolve_in_governance')}
+            onAction={canViewGovernance ? onResolve : undefined}
+            testId={testId}
+            actionTestId="vendor-orphan-governance"
+        />
     );
 }
 
@@ -70,7 +75,6 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const returnTo = resolveRegisterReturnTo(new URLSearchParams(location.search).get('return_to'), '/vendors');
     const vendorDetailPath = (vendorId: number) => appendRegisterReturnTo(`/vendors/${vendorId}`, returnTo);
     const { t } = useTranslation('vendors');
-    const format = useFormat();
     const authz = useAuthz();
 
     const {
@@ -169,17 +173,15 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             // D7 / D14: the page title, back control and breadcrumbs stay in
             // place while the create capability loads or is denied.
             return (
-                <div className="vendor-route">
-                    <div className="vendor-page space-y-8">
-                        <PageHeader
-                            title={t('actions.new')}
-                            description={t('subtitle')}
-                            back={{ label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) }}
-                            breadcrumbs={[{ label: t('title'), to: returnTo }, { label: t('actions.new') }]}
-                        />
-                        <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />
-                    </div>
-                </div>
+                <PageContainer size="form">
+                    <PageHeader
+                        title={t('actions.new')}
+                        description={t('subtitle')}
+                        back={{ label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) }}
+                        breadcrumbs={[{ label: t('title'), to: returnTo }, { label: t('actions.new') }]}
+                    />
+                    <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />
+                </PageContainer>
             );
         }
 
@@ -226,6 +228,19 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             onConfirm={() => void cancelPendingChange()}
         />
     );
+    // GAP-D-07 / SM-05: the shared pending-change panel (vendors namespace).
+    const pendingChangePanel = vendor.pending_change ? (
+        <PendingChangePanel
+            pendingChange={vendor.pending_change}
+            namespace="vendors"
+            testIdPrefix="vendor"
+            cancelling={isCancellingPendingChange}
+            onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
+                ? openPendingChangeCancellation
+                : undefined}
+        />
+    ) : null;
+    const resolveOwnershipInGovernance = () => void navigate('/governance?type=vendor');
 
     // D14 / AX-06: edit routes go back to the record and name it.
     const editBack = {
@@ -241,168 +256,148 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     if (mode === 'edit') {
         if (resolveCapabilityFlag(vendor.capabilities, 'business_edit_blocked')) {
             return (
-                <div className="vendor-route">
-                    <div className="vendor-page">
-                        <EditBlockedState
-                            notice={staleWarning}
-                            entityName={vendor.name}
-                            documentTitle={tCommon('page_title.edit', { name: vendor.name })}
-                            back={editBack}
-                            breadcrumbs={editBreadcrumbs}
-                            testId="vendor-edit-blocked"
-                        >
-                            {vendor.pending_change ? (
-                                <VendorPendingChangePanel
-                                    pendingChange={vendor.pending_change}
-                                    locale={format.locale}
-                                    cancelling={isCancellingPendingChange}
-                                    onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
-                                        ? openPendingChangeCancellation
-                                        : undefined}
-                                />
-                            ) : null}
-                        </EditBlockedState>
-                        {pendingCancellationDialog}
-                    </div>
-                </div>
+                <>
+                    <EditBlockedState
+                        notice={staleWarning}
+                        entityName={vendor.name}
+                        documentTitle={tCommon('page_title.edit', { name: vendor.name })}
+                        back={editBack}
+                        breadcrumbs={editBreadcrumbs}
+                        testId="vendor-edit-blocked"
+                    >
+                        {pendingChangePanel}
+                    </EditBlockedState>
+                    {pendingCancellationDialog}
+                </>
             );
         }
         if (vendor.owner_orphaned) {
             return (
-                <div className="vendor-route">
-                    <div className="vendor-page space-y-8">
-                        {staleWarning}
-                        <PageHeader
-                            title={t('actions.edit')}
-                            description={vendor.name}
-                            documentTitle={tCommon('page_title.edit', { name: vendor.name })}
-                            back={editBack}
-                            breadcrumbs={editBreadcrumbs}
-                        />
-                        <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
-                    </div>
-                </div>
+                <PageContainer>
+                    {staleWarning}
+                    <PageHeader
+                        title={t('actions.edit')}
+                        description={vendor.name}
+                        documentTitle={tCommon('page_title.edit', { name: vendor.name })}
+                        back={editBack}
+                        breadcrumbs={editBreadcrumbs}
+                    />
+                    <VendorOwnershipPendingMessage
+                        canViewGovernance={authz.canViewGovernance}
+                        onResolve={resolveOwnershipInGovernance}
+                        testId="vendor-orphan-edit-blocked"
+                    />
+                </PageContainer>
             );
         }
         if (canEdit !== true) {
             return (
-                <div className="vendor-route">
-                    <div className="vendor-page space-y-8">
-                        <PageHeader
-                            title={t('actions.edit')}
-                            description={vendor.name}
-                            documentTitle={tCommon('page_title.edit', { name: vendor.name })}
-                            back={editBack}
-                            breadcrumbs={editBreadcrumbs}
-                        />
-                        <FormCapabilityGateState state="denied" />
-                    </div>
-                </div>
+                <PageContainer size="form">
+                    <PageHeader
+                        title={t('actions.edit')}
+                        description={vendor.name}
+                        documentTitle={tCommon('page_title.edit', { name: vendor.name })}
+                        back={editBack}
+                        breadcrumbs={editBreadcrumbs}
+                    />
+                    <FormCapabilityGateState state="denied" />
+                </PageContainer>
             );
         }
 
         return (
-            <div className="space-y-6">
-                {staleWarning}
-                <VendorFormView
-                    mode="edit"
-                    vendor={vendor}
-                    back={editBack}
-                    breadcrumbs={editBreadcrumbs}
-                    onSaved={(saved) => navigate(vendorDetailPath(saved.id))}
-                    onApprovalQueued={(queued) => announceApprovalQueued({
-                        approvalId: queued.approval_id,
-                        to: vendorDetailPath(vendor.id),
-                    })}
-                    onCancel={() => navigate(vendorDetailPath(vendor.id))}
-                />
-            </div>
+            <VendorFormView
+                mode="edit"
+                vendor={vendor}
+                notice={staleWarning}
+                back={editBack}
+                breadcrumbs={editBreadcrumbs}
+                onSaved={(saved) => navigate(vendorDetailPath(saved.id))}
+                onApprovalQueued={(queued) => announceApprovalQueued({
+                    approvalId: queued.approval_id,
+                    to: vendorDetailPath(vendor.id),
+                })}
+                onCancel={() => navigate(vendorDetailPath(vendor.id))}
+            />
         );
     }
 
     return (
-        <div className="vendor-route">
-            <div className="vendor-page space-y-8">
-                {staleWarning}
-                <ApprovalQueuedNotice />
+        <PageContainer>
+            {staleWarning}
+            <ApprovalQueuedNotice />
 
-                {vendor.owner_orphaned ? (
-                    <VendorOwnershipPendingMessage canViewGovernance={authz.canViewGovernance} />
-                ) : null}
-
-                {vendor.pending_change ? (
-                    <VendorPendingChangePanel
-                        pendingChange={vendor.pending_change}
-                        locale={format.locale}
-                        cancelling={isCancellingPendingChange}
-                        onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
-                            ? openPendingChangeCancellation
-                            : undefined}
-                    />
-                ) : null}
-
-                <VendorDetailHeader
-                    vendor={vendor}
-                    canArchive={canArchive}
-                    canEdit={canEdit}
-                    canCreateIssue={canCreateIssue}
-                    canRestore={canRestore}
-                    onArchive={() => {
-                        setArchiveError(null);
-                        setIsDeleteDialogOpen(true);
-                    }}
-                    onBack={() => navigate(returnTo)}
-                    registerHref={returnTo}
-                    onOpenIssueModal={openIssueModal}
-                    onEdit={() => navigate(appendRegisterReturnTo(`/vendors/${vendor.id}/edit`, returnTo))}
-                    onRestore={() => void restoreVendor()}
+            {vendor.owner_orphaned ? (
+                <VendorOwnershipPendingMessage
+                    canViewGovernance={authz.canViewGovernance}
+                    onResolve={resolveOwnershipInGovernance}
+                    testId="vendor-orphan-banner"
                 />
+            ) : null}
 
-                <VendorOverviewTab
-                    vendor={vendor}
-                    canLinkControl={canLinkControl}
-                    canLinkKri={canLinkKri}
-                    canLinkRisk={canLinkRisk}
-                    canCreateControl={canCreateLinkedControl}
-                    canCreateKri={canCreateLinkedKri}
-                    canCreateRisk={canCreateLinkedRisk}
-                    onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
-                    onAddKri={() => navigate(`/kris/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
-                    onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
-                    onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
-                    onNavigateToKri={(kriId) => navigate(`/kris/${kriId}`)}
-                    onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
-                />
+            {pendingChangePanel}
 
-                <IssueQuickCreateModal
-                    isOpen={isIssueModalOpen}
-                    onClose={closeIssueModal}
-                    contextEntityType="vendor"
-                    contextEntityId={vendor.id}
-                    contextEntityLabel={vendor.name}
-                    onCreated={(issue) => navigate(`/issues/${issue.id}`)}
-                />
+            <VendorDetailHeader
+                vendor={vendor}
+                canArchive={canArchive}
+                canEdit={canEdit}
+                canCreateIssue={canCreateIssue}
+                canRestore={canRestore}
+                onArchive={() => {
+                    setArchiveError(null);
+                    setIsDeleteDialogOpen(true);
+                }}
+                onBack={() => navigate(returnTo)}
+                registerHref={returnTo}
+                onOpenIssueModal={openIssueModal}
+                onEdit={() => navigate(appendRegisterReturnTo(`/vendors/${vendor.id}/edit`, returnTo))}
+                onRestore={() => void restoreVendor()}
+            />
 
-                {/* D10 / PM-1: the vendor API takes a reason; it is required
-                    only when the archive is routed through approval. */}
-                <ConfirmDialog
-                    isOpen={isDeleteDialogOpen}
-                    onClose={() => setIsDeleteDialogOpen(false)}
-                    onConfirm={archiveVendor}
-                    intent="archive"
-                    entityLabel={tCommon('labels.vendor')}
-                    message={t('messages.archive_confirm', { vendorName: vendor.name })}
-                    isLoading={isDeleting}
-                    reason={resolveCapabilityFlag(vendor.capabilities, 'protected_change_requires_approval')
-                        ? 'required'
-                        : 'optional'}
-                    reasonLabel={t('form.request_reason')}
-                    reasonPlaceholder={t('form.request_reason_help')}
-                    errorText={archiveError}
-                />
-                {pendingCancellationDialog}
-            </div>
-        </div>
+            <VendorOverviewTab
+                vendor={vendor}
+                canLinkControl={canLinkControl}
+                canLinkKri={canLinkKri}
+                canLinkRisk={canLinkRisk}
+                canCreateControl={canCreateLinkedControl}
+                canCreateKri={canCreateLinkedKri}
+                canCreateRisk={canCreateLinkedRisk}
+                onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
+                onAddKri={() => navigate(`/kris/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
+                onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(vendorDetailPath(vendor.id))}`)}
+                onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                onNavigateToKri={(kriId) => navigate(`/kris/${kriId}`)}
+                onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
+            />
+
+            <IssueQuickCreateModal
+                isOpen={isIssueModalOpen}
+                onClose={closeIssueModal}
+                contextEntityType="vendor"
+                contextEntityId={vendor.id}
+                contextEntityLabel={vendor.name}
+                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+            />
+
+            {/* D10 / PM-1: the vendor API takes a reason; it is required
+                only when the archive is routed through approval. */}
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={archiveVendor}
+                intent="archive"
+                entityLabel={tCommon('labels.vendor')}
+                message={t('messages.archive_confirm', { vendorName: vendor.name })}
+                isLoading={isDeleting}
+                reason={resolveCapabilityFlag(vendor.capabilities, 'protected_change_requires_approval')
+                    ? 'required'
+                    : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
+                errorText={archiveError}
+            />
+            {pendingCancellationDialog}
+        </PageContainer>
     );
 }
 

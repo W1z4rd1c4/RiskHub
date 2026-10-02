@@ -6,7 +6,7 @@ import { useFormat, useTranslation } from '@/i18n/hooks';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { classifyRiskScore, severityClass, type SeverityBand } from '@/lib/severity';
 import { cn } from '@/lib/utils';
-import { Badge } from './ui/badge';
+import { Badge, SeverityBadge } from './ui/badge';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from './ui/dialog';
 
 const RISK_BAND_LABEL_KEYS: Record<SeverityBand, string> = {
@@ -37,14 +37,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
         return (
             <>
                 <span className={cn('text-2xl font-bold tabular-nums', severityClass('text', band))}>{score}</span>
-                <span
-                    className={cn(
-                        'px-2 py-0.5 rounded border text-xs font-bold uppercase tracking-wide',
-                        severityClass('badge', band),
-                    )}
-                >
-                    {t(RISK_BAND_LABEL_KEYS[band])}
-                </span>
+                <SeverityBadge band={band} label={t(RISK_BAND_LABEL_KEYS[band])} className="uppercase tracking-wide" />
             </>
         );
     };

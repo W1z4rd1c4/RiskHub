@@ -13,6 +13,7 @@ import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal
 import { controlApi } from '@/services/controlApi';
 import type { ControlExecution } from '@/types/execution';
 import type { Issue } from '@/types/issue';
+import { Button } from '@/components/ui/button';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
@@ -260,20 +261,21 @@ export function ExecutionHistory({
                             className={`glass-card !p-0 overflow-hidden border ${isExpanded ? 'border-border' : 'border-transparent'}`}
                         >
                             <div className="p-4 flex items-center gap-4">
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="ghost"
                                     aria-expanded={isExpanded}
                                     aria-controls={`execution-details-${exe.id}`}
-                                    className="flex flex-1 min-w-0 items-center justify-between gap-4 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    // The row keeps its own icon sizes (`!size-*`) over the Button's 16px default.
+                                    className="h-auto min-w-0 flex-1 justify-between gap-4 whitespace-normal p-0 text-left font-normal hover:bg-transparent"
                                     onClick={() => updateExpandedId(isExpanded ? null : exe.id)}
                                 >
                                     <span className="flex items-center gap-4 min-w-0">
                                         <span className={`p-2 rounded-lg border ${config.badgeClassName}`}>
-                                            <ResultIcon className={`h-5 w-5 ${config.iconClassName}`} />
+                                            <ResultIcon aria-hidden="true" className={`!size-5 ${config.iconClassName}`} />
                                         </span>
                                         <span className="min-w-0">
                                             <span className="flex items-center gap-2 mb-0.5">
-                                                <span className={`text-xs font-black uppercase tracking-widest ${config.iconClassName}`}>
+                                                <span className={`text-xs font-bold uppercase tracking-wide ${config.iconClassName}`}>
                                                     {t(config.labelKey)}
                                                 </span>
                                                 <span className="text-muted-foreground">•</span>
@@ -283,14 +285,14 @@ export function ExecutionHistory({
                                             </span>
                                             <span className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
                                                 <span className="flex items-center gap-1">
-                                                    <User className="h-3 w-3" />
+                                                    <User aria-hidden="true" className="!size-3" />
                                                     {exe.executed_by?.name || t('labels.unknown', { ns: 'common' })}
                                                 </span>
                                                 {exe.next_scheduled && (
                                                     <>
                                                         <span className="text-muted-foreground">|</span>
                                                         <span className="flex items-center gap-1 text-accent-text">
-                                                            <Calendar className="h-3 w-3" />
+                                                            <Calendar aria-hidden="true" className="!size-3" />
                                                             {t('executions.next')}: {format.date(exe.next_scheduled)}
                                                         </span>
                                                     </>
@@ -304,22 +306,21 @@ export function ExecutionHistory({
                                                 "{exe.findings}"
                                             </span>
                                         )}
-                                        <span className="p-1.5 hover:bg-tint/5 rounded-lg text-muted-foreground transition-colors">
-                                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                        <span className="p-1.5 rounded-lg text-muted-foreground">
+                                            {isExpanded ? <ChevronUp aria-hidden="true" className="h-4 w-4" /> : <ChevronDown aria-hidden="true" className="h-4 w-4" />}
                                         </span>
                                     </span>
-                                </button>
+                                </Button>
                                 {canCreateExecutionIssue && (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="outline"
+                                        size="compact"
                                         onClick={() => setIssueExecution(exe)}
-                                        className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-tint/5 text-xs font-black uppercase tracking-widest text-foreground hover:border-accent/50 hover:text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                                        className="shrink-0"
                                     >
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <PlusCircle className="h-3 w-3" />
-                                            {createIssueLabel ?? t('actions.new_issue', { ns: 'issues' })}
-                                        </span>
-                                    </button>
+                                        <PlusCircle aria-hidden="true" />
+                                        {createIssueLabel ?? t('actions.new_issue', { ns: 'issues' })}
+                                    </Button>
                                 )}
                             </div>
 
@@ -328,13 +329,13 @@ export function ExecutionHistory({
                                     <div className="grid md:grid-cols-2 gap-8 mt-2">
                                         {exe.findings && (
                                             <div className="space-y-2">
-                                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('executions.findings_evidence')}</h4>
+                                                <h4 className="text-eyebrow">{t('executions.findings_evidence')}</h4>
                                                 <p className="text-sm text-foreground leading-relaxed font-medium">
                                                     {exe.findings}
                                                 </p>
                                                 {exe.evidence_reference && (
                                                     <div className="flex items-center gap-2 p-2 rounded-lg bg-tint/5 border border-border w-fit mt-3">
-                                                        <FileText className="h-3.5 w-3.5 text-accent" />
+                                                        <FileText aria-hidden="true" className="h-3.5 w-3.5 text-accent-text" />
                                                         <span className="text-xs font-bold text-muted-foreground truncate max-w-[200px]">
                                                             {exe.evidence_reference}
                                                         </span>
@@ -344,7 +345,7 @@ export function ExecutionHistory({
                                         )}
                                         {exe.notes && (
                                             <div className="space-y-2">
-                                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('executions.additional_notes')}</h4>
+                                                <h4 className="text-eyebrow">{t('executions.additional_notes')}</h4>
                                                 <p className="text-sm text-muted-foreground leading-relaxed italic">
                                                     {exe.notes}
                                                 </p>

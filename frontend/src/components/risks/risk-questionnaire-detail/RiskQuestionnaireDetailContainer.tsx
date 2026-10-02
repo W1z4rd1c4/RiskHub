@@ -51,7 +51,7 @@ export function RiskQuestionnaireDetail({
         () => buildWorstCaseImpactOptions(totalAssets, t),
         [t, totalAssets],
     );
-    const renderAnswer = (key: string, value: unknown): string => formatQuestionnaireAnswer(
+    const renderAnswer = (key: string, value: unknown): string | null => formatQuestionnaireAnswer(
         key,
         value,
         { totalAssets, t },

@@ -1,11 +1,10 @@
 import { useTranslation } from '@/i18n/hooks';
 import { vendorValueOptions, type VendorControlledField } from '@/lib/vendorValues';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import {
-    VendorSectionHeader,
-    VendorSurface,
-} from '@/components/vendors/vendorRouteUi';
 
 import type { VendorFormData, VendorFormField } from './vendorForm.types';
 
@@ -109,12 +108,7 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
         if (kind === 'select') {
             const options = controlledField ? vendorValueOptions(t, controlledField) : [];
             return (
-                <Field
-                    key={field}
-                    label={label}
-                    labelClassName="vendor-label"
-                    className="vendor-field space-y-0"
-                >
+                <Field key={field} label={label}>
                     {(control) => (
                         <ThemedSelect
                             {...control}
@@ -132,34 +126,23 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
         }
         if (kind === 'textarea') {
             return (
-                <Field
-                    key={field}
-                    label={label}
-                    labelClassName="vendor-label"
-                    className="vendor-field space-y-0 md:col-span-2"
-                >
+                <Field key={field} label={label} className="md:col-span-2">
                     {(control) => (
-                        <textarea
+                        <Textarea
                             {...control}
                             data-testid={`vendor-register-${field}`}
                             value={fieldValue(field)}
                             onChange={(event) => onChange(field, event.target.value)}
                             rows={2}
-                            className="vendor-textarea"
                         />
                     )}
                 </Field>
             );
         }
         return (
-            <Field
-                key={field}
-                label={label}
-                labelClassName="vendor-label"
-                className="vendor-field space-y-0"
-            >
+            <Field key={field} label={label}>
                 {(control) => (
-                    <input
+                    <Input
                         {...control}
                         type={kind === 'date' ? 'date' : kind === 'count' ? 'number' : 'text'}
                         min={kind === 'count' ? 0 : undefined}
@@ -173,7 +156,6 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
                             }
                             onChange(field, event.target.value);
                         }}
-                        className="vendor-input"
                     />
                 )}
             </Field>
@@ -181,17 +163,17 @@ export function VendorRegisterSection({ formData, onChange }: VendorRegisterSect
     };
 
     return (
-        <VendorSurface className="space-y-6">
-            <VendorSectionHeader title={t('form.sections.register')} />
+        <Card as="section">
+            <CardHeader title={t('form.sections.register')} />
 
-            {REGISTER_BLOCKS.map((block) => (
-                <div className="space-y-3" key={block.titleKey}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        {t(block.titleKey)}
-                    </p>
-                    <div className="vendor-form-grid">{block.fields.map(renderField)}</div>
-                </div>
-            ))}
-        </VendorSurface>
+            <div className="space-y-6">
+                {REGISTER_BLOCKS.map((block) => (
+                    <div className="space-y-3" key={block.titleKey}>
+                        <h3 className="text-eyebrow">{t(block.titleKey)}</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{block.fields.map(renderField)}</div>
+                    </div>
+                ))}
+            </div>
+        </Card>
     );
 }

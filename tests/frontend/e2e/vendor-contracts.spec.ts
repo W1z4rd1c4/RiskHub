@@ -587,11 +587,11 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         // Substitutability offers EXACTLY the four Substituce values (+ the
         // empty choice) — the seeded value is already on the closed list, so
         // no legacy easy/medium/hard entry is prepended.
-        const substitutabilityField = riskManagerPage
-            .locator('.vendor-field')
-            .filter({ hasText: /^(Replaceability|Nahraditelnost)/ })
+        // D13: the field is a shared `Field`, so its select is named by the visible label.
+        const substitutabilityCombobox = riskManagerPage
+            .getByRole('combobox', { name: /^(Replaceability|Nahraditelnost)/ })
             .first();
-        await substitutabilityField.getByRole('combobox').click();
+        await substitutabilityCombobox.click();
         await expect(riskManagerPage.getByRole('option')).toHaveCount(SUBSTITUCE.length + 1);
         for (const value of SUBSTITUCE) {
             await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
@@ -611,7 +611,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('vendor-register-identifier_type')).toContainText('EUID');
         await expect(riskManagerPage.getByTestId('vendor-register-identifier_value')).toHaveValue('E2E-EUID-0001');
-        await expect(substitutabilityField.getByRole('combobox')).toContainText('Easily substitutable');
+        await expect(substitutabilityCombobox).toContainText('Easily substitutable');
 
     });
 });

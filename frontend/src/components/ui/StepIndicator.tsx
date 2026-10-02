@@ -64,7 +64,7 @@ export function StepIndicator({
                             )}
                         </div>
                         <span
-                            className={`text-[10px] font-black uppercase tracking-widest ${isActive
+                            className={`text-2xs font-bold uppercase tracking-widest ${isActive
                                     ? 'text-foreground'
                                     : isClickable
                                         ? 'text-muted-foreground group-hover:text-foreground'

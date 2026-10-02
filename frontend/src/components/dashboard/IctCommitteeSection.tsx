@@ -17,7 +17,7 @@ import type { IctCommittee } from '@/types/ictRegisterCommittee';
 import { IctCommitteeDashboardSection } from './ictCommittee/IctCommitteeDashboardSection';
 import { IctCommitteeExecutiveSummarySection } from './ictCommittee/IctCommitteeExecutiveSummarySection';
 import { IctCommitteeRoiReadinessSection } from './ictCommittee/IctCommitteeRoiReadinessSection';
-import { LoadingState } from '@/components/ui/state';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 function renderCommitteeSection(section: IctCommitteePresentationSection): ReactElement {
     switch (section.key) {
@@ -121,7 +121,7 @@ export function IctCommitteeSection() {
             {presentation?.sections.map(renderCommitteeSection)}
 
             {!isLoading && !data && !errorKey && (
-                <div className="glass-card text-muted-foreground text-center py-8">{t('empty')}</div>
+                <EmptyState layout="section" title={t('empty')} className="glass-card" testId="committee-empty" />
             )}
         </div>
     );

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/state';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTranslation } from '@/i18n/hooks';
-import { cn } from '@/lib/utils';
 
 interface DetailLoadUnavailableStateProps {
     backLabel: string;
@@ -48,8 +47,8 @@ export function DetailLoadUnavailableState({
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3">
                 {onRetry ? (
-                    <Button type="button" onClick={onRetry} disabled={isRetrying}>
-                        <RefreshCw className={cn('h-4 w-4', isRetrying && 'animate-spin')} aria-hidden="true" />
+                    <Button onClick={onRetry} isLoading={isRetrying}>
+                        {isRetrying ? null : <RefreshCw aria-hidden="true" />}
                         {t('actions.retry')}
                     </Button>
                 ) : null}

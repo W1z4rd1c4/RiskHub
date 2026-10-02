@@ -182,8 +182,26 @@ describe('VendorForm', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
-        expect(await screen.findByText('errors.name_required')).toBeInTheDocument();
+        // §4.16: the form-top InlineMessage plus the failing field's own error.
+        expect(await screen.findAllByText('errors.name_required')).toHaveLength(2);
+        const name = screen.getByRole('textbox', { name: 'form.name' });
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(name).toHaveAttribute('aria-required', 'true');
+        expect(name).toHaveAccessibleDescription('errors.name_required');
         expect(createVendorMock).not.toHaveBeenCalled();
+    });
+
+    it('clears the field-level error once the invalid field is edited', async () => {
+        renderWithQueryClient(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+        const name = await screen.findByRole('textbox', { name: 'form.name' });
+        await waitFor(() => expect(name).toHaveAttribute('aria-invalid', 'true'));
+
+        fireEvent.change(name, { target: { value: 'Acme' } });
+
+        expect(name).not.toHaveAttribute('aria-invalid');
+        expect(screen.getAllByText('errors.name_required')).toHaveLength(1);
     });
 
     it('announces a form-level validation error through a danger InlineMessage (AX-05)', async () => {
@@ -191,8 +209,8 @@ describe('VendorForm', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
-        const alert = (await screen.findByText('errors.name_required')).closest('[role="alert"]');
-        expect(alert).not.toBeNull();
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('errors.name_required');
         expect(alert).toHaveAttribute('data-tone', 'danger');
     });
 
@@ -241,8 +259,9 @@ describe('VendorForm', () => {
             target: { value: 'Tri' },
         });
 
-        expect(await screen.findByRole('button', { name: 'Triage' })).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Triage' }));
+        // The shared CreatableCombobox offers existing subprocesses as listbox options.
+        expect(await screen.findByRole('option', { name: 'Triage' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('option', { name: 'Triage' }));
 
         fireEvent.change(screen.getByLabelText('form.owner_placeholder'), {
             target: { value: '7' },
@@ -529,7 +548,7 @@ describe('VendorForm', () => {
 
             await user.clear(screen.getByTestId('vendor-form-name'));
             await user.click(screen.getByRole('button', { name: 'actions.save' }));
-            expect(await screen.findByText('errors.name_required')).toBeInTheDocument();
+            expect((await screen.findAllByText('errors.name_required'))[0]).toBeInTheDocument();
             await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
 
             expect(await screen.findByRole('alertdialog')).toBeInTheDocument();

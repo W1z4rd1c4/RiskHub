@@ -515,15 +515,17 @@ test.describe('UX-24 audited theme matrix', () => {
       throw new Error('No vendor detail route was available for the theme-token check');
     }
     await visit(page, vendorRoute);
-    const vendorStaticCard = page.locator('main .vendor-route .glass-card:not(.interactive-card)').first();
+    // D13: the vendor route's static sections are the shared (non-interactive) `Card`.
+    const vendorStaticCard = page.locator('main [data-testid="vendor-overview"]').first();
     await expect(vendorStaticCard).toBeVisible();
     const vendorBefore = await vendorStaticCard.evaluate((element) => {
       const style = getComputedStyle(element);
-      return { backgroundColor: style.backgroundColor, transitionProperty: style.transitionProperty };
+      return { backgroundColor: style.backgroundColor, transitionDuration: style.transitionDuration };
     });
     const vendorGlassColor = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--glass))');
     expect(vendorBefore.backgroundColor).toBe(vendorGlassColor);
-    expect(vendorBefore.transitionProperty).toBe('none');
+    // A static Card never animates (no `interactive-card` transition).
+    expect(vendorBefore.transitionDuration).toBe('0s');
     await vendorStaticCard.hover();
     expect(await vendorStaticCard.evaluate((element) => getComputedStyle(element).backgroundColor))
       .toBe(vendorBefore.backgroundColor);

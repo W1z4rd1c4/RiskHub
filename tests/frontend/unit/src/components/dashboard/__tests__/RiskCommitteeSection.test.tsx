@@ -1,10 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
 import { dashboardApi, type DashboardCommitteeSummary } from '@/services/dashboardApi';
-
-const mockNavigate = vi.fn();
 
 vi.mock('@/i18n/hooks', async () => {
     const { formatRelativeDateValue } = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
@@ -45,13 +44,19 @@ vi.mock('@/services/dashboardApi', () => ({
     },
 }));
 
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-    return {
-        ...actual,
-        useNavigate: () => mockNavigate,
-    };
-});
+function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{location.pathname}{location.search}</output>;
+}
+
+function renderSection() {
+    return render(
+        <MemoryRouter>
+            <RiskCommitteeSection />
+            <LocationProbe />
+        </MemoryRouter>,
+    );
+}
 
 const emptySummary: DashboardCommitteeSummary = {
     critical_risks: [],
@@ -117,7 +122,7 @@ describe('RiskCommitteeSection', () => {
     it('shows the quarterly widget while committee summary is loading', () => {
         vi.mocked(dashboardApi.fetchCommitteeSummary).mockReturnValue(new Promise(() => undefined));
 
-        render(<RiskCommitteeSection />);
+        renderSection();
 
         expect(screen.getByText('quarterly comparison')).toBeInTheDocument();
         expect(dashboardApi.fetchCommitteeSummary).toHaveBeenCalledTimes(1);
@@ -126,7 +131,7 @@ describe('RiskCommitteeSection', () => {
     it('renders a committee summary load error without hiding quarterly comparison', async () => {
         vi.mocked(dashboardApi.fetchCommitteeSummary).mockRejectedValue(new Error('boom'));
 
-        render(<RiskCommitteeSection />);
+        renderSection();
 
         expect(await screen.findByText('errors.load_failed')).toBeInTheDocument();
         expect(screen.getByText('quarterly comparison')).toBeInTheDocument();
@@ -135,7 +140,7 @@ describe('RiskCommitteeSection', () => {
     it('renders empty-state messages for each committee section', async () => {
         vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(emptySummary);
 
-        render(<RiskCommitteeSection />);
+        renderSection();
 
         expect(await screen.findByText('risk_committee.no_critical_risks')).toBeInTheDocument();
         expect(screen.getByText('risk_committee.no_vendors_in_scope')).toBeInTheDocument();
@@ -147,7 +152,7 @@ describe('RiskCommitteeSection', () => {
         vi.setSystemTime(new Date('2026-04-26T12:00:00Z'));
         vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(populatedSummary());
 
-        render(<RiskCommitteeSection />);
+        renderSection();
 
         expect(await screen.findByText('Solvency Stress')).toBeInTheDocument();
         expect(screen.getByText('Capital Planning')).toBeInTheDocument();
@@ -165,17 +170,23 @@ describe('RiskCommitteeSection', () => {
         expect(screen.getByText('Risk approval')).toBeInTheDocument();
         expect(screen.getByText('3 days ago')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'risk_committee.view_all_critical_risks' }));
-        expect(mockNavigate).toHaveBeenCalledWith('/risks?net_band=critical');
+        // D1: severity-coloured scores carry their band label (configured thresholds 20/12/6).
+        // Risk net score 16 and vendor rating 4/5 are both in the high band.
+        expect(screen.getAllByText('risk_levels.high', { selector: '[data-severity="high"]' })).toHaveLength(2);
 
-        fireEvent.click(screen.getByRole('button', { name: 'risk_committee.view_all_high_risk_vendors' }));
-        expect(mockNavigate).toHaveBeenCalledWith('/vendors?risk_scores=4&risk_scores=5');
+        expect(screen.getByRole('link', { name: 'risk_committee.view_all_critical_risks' })).toHaveAttribute(
+            'href',
+            '/risks?net_band=critical',
+        );
+        expect(screen.getByRole('link', { name: 'risk_committee.view_all_high_risk_vendors' })).toHaveAttribute(
+            'href',
+            '/vendors?risk_scores=4&risk_scores=5',
+        );
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /Claims Cloud/ }));
+        fireEvent.click(screen.getByRole('link', { name: /Claims Cloud/ }));
 
-        await waitFor(() => {
-            expect(mockNavigate).toHaveBeenCalledWith('/vendors/42?tab=assessments&section=schedule');
-        });
+        expect(screen.getByTestId('location')).toHaveTextContent('/vendors/42?tab=assessments&section=schedule');
     });
 
     it('does not present a permission-hidden vendor population as zero', async () => {
@@ -185,7 +196,7 @@ describe('RiskCommitteeSection', () => {
             can_view_vendors: false,
         });
 
-        render(<RiskCommitteeSection />);
+        renderSection();
 
         expect(await screen.findByText('risk_committee.restricted_by_access_scope')).toBeInTheDocument();
         expect(screen.queryByText('risk_committee.no_vendors_in_scope')).not.toBeInTheDocument();
@@ -196,7 +207,7 @@ describe('RiskCommitteeSection', () => {
         summary.critical_risks[0].net_score = 15;
         vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(summary);
 
-        render(<RiskCommitteeSection />);
+        renderSection();
 
         expect(await screen.findByText('Solvency Stress')).toBeInTheDocument();
         expect(screen.getByText('15')).toBeInTheDocument();

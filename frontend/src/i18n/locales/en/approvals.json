@@ -194,13 +194,6 @@
                 "annually": "Annually",
                 "ad_hoc": "Ad hoc",
                 "continuous": "Continuous"
-            },
-            "unit": {
-                "percentage": "Percentage",
-                "count": "Count",
-                "days": "Days",
-                "hours": "Hours",
-                "ratio": "Ratio"
             }
         }
     },

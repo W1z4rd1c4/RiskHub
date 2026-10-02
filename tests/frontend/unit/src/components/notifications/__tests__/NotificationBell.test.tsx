@@ -90,6 +90,35 @@ describe('NotificationBell read-state controls', () => {
         await i18n.changeLanguage('en');
     });
 
+    it('exposes the popover state on the bell and names the panel (AX-10)', async () => {
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+
+        const bell = screen.getByRole('button', { name: bellName() });
+        expect(bell).toHaveAttribute('aria-haspopup', 'dialog');
+        expect(bell).toHaveAttribute('aria-expanded', 'false');
+        expect(bell).not.toHaveAttribute('aria-controls');
+
+        const user = await openBell();
+        expect(bell).toHaveAttribute('aria-expanded', 'true');
+        const panel = screen.getByRole('dialog', { name: i18n.t('notifications:title') });
+        expect(bell).toHaveAttribute('aria-controls', panel.id);
+
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        expect(bell).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('closes on Escape and returns focus to the bell (AX-10)', async () => {
+        render(<MemoryRouter><BellHarness /></MemoryRouter>);
+
+        const user = await openBell();
+        // Focus sits inside the panel when Escape is pressed.
+        screen.getByRole('button', { name: 'Close' }).focus();
+        await user.keyboard('{Escape}');
+
+        expect(screen.queryByTestId('notification-dropdown-panel')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: bellName() })).toHaveFocus();
+    });
+
     it('shows a compact focus-stable retry instead of an empty dropdown when the initial list request fails', async () => {
         let listRequests = 0;
         let releaseRetry!: () => void;

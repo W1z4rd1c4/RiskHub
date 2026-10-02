@@ -171,7 +171,8 @@ describe('DepartmentDetailPage operational workspace', () => {
         expect(screen.getByTestId('department-overview-activity')).toBeInTheDocument();
         expect(screen.getByText('Quarterly access review')).toBeInTheDocument();
         expect(screen.getByText(/Alex Auditor/)).toBeInTheDocument();
-        expect(screen.getByText('passed')).toBeInTheDocument();
+        // The result code is shown as its translated label, never the raw enum.
+        expect(screen.getByText('controls:results.passed')).toBeInTheDocument();
 
     });
 

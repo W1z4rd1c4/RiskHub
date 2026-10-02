@@ -15,6 +15,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
+import { closedListOptions } from '@/lib/closedListLabels';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
@@ -163,8 +164,8 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
 
     const listOptions = useMemo(() => {
         const lists = closedListsQuery.data ?? {};
-        const toOptions = (name: string) =>
-            (lists[name] ?? []).map((value) => ({ value: String(value), label: String(value) }));
+        // GAP-C-09 / PM-4: translated labels, raw workbook codes as values.
+        const toOptions = (name: string) => closedListOptions(t, lists, name);
         return {
             significances: toOptions('VyznamVazby'),
             yesNo: toOptions('AnoNe'),
@@ -172,7 +173,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             vendorRoles: toOptions('RoleDodavatele'),
             reliances: toOptions('Reliance'),
         };
-    }, [closedListsQuery.data]);
+    }, [closedListsQuery.data, t]);
 
     const ictServiceOptions = useMemo(
         () =>

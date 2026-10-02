@@ -1,8 +1,6 @@
-import { Badge } from '@/components/ui/badge';
 import { formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { formatDateValue } from '@/i18n/formatters';
-import { getQuestionnaireStatusMeta } from '@/lib/questionnaireStatus';
-import type { RiskQuestionnaireDetail, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
+import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 
 import { getRiskOwnerReassessmentQuestionKeys } from './riskQuestionnaireQuestions';
 import { getChangedAnswerCount, normalizeForCompare, type TranslateFn } from './risk-questionnaire-detail/questionnairePresentation';
@@ -10,16 +8,6 @@ import { getChangedAnswerCount, normalizeForCompare, type TranslateFn } from './
 export function formatQuestionnaireDate(value: string | null | undefined, locale: string): string {
     if (!value) return '—';
     return formatDateValue(value, locale);
-}
-
-/** Status pill for a questionnaire, from the single status map (PG-20). */
-export function questionnaireStatusBadge(questionnaire: RiskQuestionnaireListItem, t: TranslateFn) {
-    const meta = getQuestionnaireStatusMeta(questionnaire);
-    return (
-        <Badge tone={meta.tone} size="sm">
-            {meta.labelKey ? t(meta.labelKey) : questionnaire.status}
-        </Badge>
-    );
 }
 
 export function getLatestQuestionnaireChangedCount(latestSubmitted: RiskQuestionnaireDetail | null): number | null {

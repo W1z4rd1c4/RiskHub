@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
@@ -22,8 +22,10 @@ import {
 } from './dashboard/DashboardViewTabs';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { TabPanel } from '@/components/ui/tabs';
-import { exportDashboardSummary, openDashboardPath } from './dashboard/dashboardNavigation';
+import { exportDashboardSummary } from './dashboard/dashboardNavigation';
 import { useDashboardOverviewState } from './dashboard/useDashboardOverviewState';
 import {
     buildDashboardFilterUrlParams,
@@ -152,7 +154,6 @@ interface DashboardPageContentProps {
 }
 
 function DashboardPageContent({ isExporting, exportError, onExport }: DashboardPageContentProps) {
-    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { filters } = useDashboardFilters();
     const authz = useAuthz();
@@ -198,12 +199,6 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
             setSearchParams(next, { replace: true });
         }
     }, [requestedView, activeView, searchParams, setSearchParams]);
-
-    const handleStatSelect = (path: string) => {
-        openDashboardPath((nextPath) => {
-            void navigate(nextPath);
-        }, path);
-    };
 
     const {
         breachTrends,
@@ -308,7 +303,6 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
                 setSelectedCell({ probability, impact, riskType: 'net' })
             }
             onRiskModalClose={() => setSelectedCell(null)}
-            onStatSelect={handleStatSelect}
             riskCreationTitle={t('sections.risk_creation_trends')}
             riskModal={{
                 impact: selectedCell?.impact ?? 0,
@@ -343,20 +337,22 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
             />
 
             {exportError && canExport ? (
-                <div
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                    role="alert"
+                <InlineMessage
+                    data-testid="dashboard-overview-export-error"
+                    tone="danger"
+                    action={(
+                        <Button
+                            variant="outline"
+                            size="compact"
+                            isLoading={isExporting}
+                            onClick={() => void onExport(exportError)}
+                        >
+                            {tCommon('actions.retry')}
+                        </Button>
+                    )}
                 >
-                    <p className="font-medium">{t('errors.export_summary_failed')}</p>
-                    <button
-                        type="button"
-                        disabled={isExporting}
-                        onClick={() => void onExport(exportError)}
-                        className="rounded-lg border border-destructive/30 px-3 py-1.5 font-bold hover:bg-destructive/10 disabled:opacity-60"
-                    >
-                        {tCommon('actions.retry')}
-                    </button>
-                </div>
+                    {t('errors.export_summary_failed')}
+                </InlineMessage>
             ) : null}
 
             <DashboardViewTabs

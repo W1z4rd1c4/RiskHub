@@ -178,4 +178,19 @@ describe('KRIStatusWidget drilldown', () => {
         expect(screen.getByText('Due Soon 5')).toBeInTheDocument();
         expect(screen.queryByText('Due Soon 6')).not.toBeInTheDocument();
     });
+
+    it('links each KRI row and shows its translated frequency, not the raw code', async () => {
+        render(
+            <MemoryRouter>
+                <KRIStatusWidget />
+            </MemoryRouter>,
+        );
+
+        const row = await screen.findByRole('link', { name: /Due Soon KRI/ });
+        expect(row).toHaveAttribute('href', '/kris/11');
+        // The mocked `t` echoes keys: the frequency goes through `kris:frequencies.*` (GAP-D-02).
+        expect(row).toHaveTextContent('kris:frequencies.quarterly');
+        expect(row).toHaveTextContent('kri.days_until_due');
+        expect(screen.getByRole('heading', { level: 2, name: 'kri.status_title' })).toBeInTheDocument();
+    });
 });

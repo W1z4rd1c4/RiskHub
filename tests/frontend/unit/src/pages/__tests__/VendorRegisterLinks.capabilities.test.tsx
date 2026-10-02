@@ -272,7 +272,14 @@ describe('Vendor register-link backend capability gates', () => {
         });
 
         expect(await screen.findByText('Locked payments')).toBeInTheDocument();
-        expect(screen.getByTestId('vendor-process-link-remove-51')).toBeDisabled();
+        // The shared LinkRemoveButton stays focusable but inert (aria-disabled)
+        // and explains why through its tooltip / description.
+        const remove = screen.getByTestId('vendor-process-link-remove-51');
+        expect(remove).toHaveAttribute('aria-disabled', 'true');
+        expect(remove).toHaveAttribute('title', 'processes:pending_change.link_action_blocked');
+        expect(remove).toHaveAccessibleName('links.remove_named');
+        fireEvent.click(remove);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(screen.getByText('processes:pending_change.link_action_blocked')).toBeInTheDocument();
         expect(processApi.removeVendorLink).not.toHaveBeenCalled();
     });

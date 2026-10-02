@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAuthz } from '@/authz/useAuthz';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
 import { useVendorReportCapabilities } from '@/hooks/useVendorReportCapabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -49,13 +50,9 @@ function EvidenceCard({ icon: Icon, linkLabel, question, retry, state, title, to
             ) : (
                 <div role="alert" className="flex flex-wrap items-center justify-between gap-3">
                     <span className="text-sm font-semibold text-destructive">{t('availability.unavailable')}</span>
-                    <button
-                        type="button"
-                        onClick={retry}
-                        className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
-                    >
+                    <Button variant="outline" size="compact" onClick={retry}>
                         {t('availability.retry')}
-                    </button>
+                    </Button>
                 </div>
             )}
         </article>

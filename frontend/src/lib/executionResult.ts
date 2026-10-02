@@ -7,6 +7,7 @@ import {
     XCircle,
 } from 'lucide-react';
 
+import type { Tone } from '@/lib/tones';
 import type { ExecutionResult } from '@/types/execution';
 
 type ExecutionResultMeta = {
@@ -15,6 +16,8 @@ type ExecutionResultMeta = {
     icon: LucideIcon;
     labelKey: string;
     status: ExecutionResult | 'unknown';
+    /** Semantic tone for `Badge` (the class strings above are for callers not yet on `Badge`). */
+    tone: Tone;
 };
 
 const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
@@ -24,6 +27,7 @@ const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
         iconClassName: 'text-success-text',
         icon: CheckCircle,
         labelKey: 'controls:results.passed',
+        tone: 'success',
     },
     failed: {
         status: 'failed',
@@ -31,6 +35,7 @@ const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
         iconClassName: 'text-destructive',
         icon: XCircle,
         labelKey: 'controls:results.failed',
+        tone: 'danger',
     },
     warning: {
         status: 'warning',
@@ -38,6 +43,7 @@ const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
         iconClassName: 'text-warning-text',
         icon: AlertTriangle,
         labelKey: 'controls:executions.issues_found',
+        tone: 'warning',
     },
     not_applicable: {
         status: 'not_applicable',
@@ -45,6 +51,7 @@ const EXECUTION_RESULT_META: Record<ExecutionResult, ExecutionResultMeta> = {
         iconClassName: 'text-muted-foreground',
         icon: MinusCircle,
         labelKey: 'controls:results.not_applicable',
+        tone: 'neutral',
     },
 };
 
@@ -54,6 +61,7 @@ const UNKNOWN_EXECUTION_RESULT_META: ExecutionResultMeta = {
     iconClassName: 'text-foreground',
     icon: HelpCircle,
     labelKey: 'common:labels.not_available',
+    tone: 'neutral',
 };
 
 export function getExecutionResultMeta(result?: ExecutionResult | null) {

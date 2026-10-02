@@ -1,5 +1,6 @@
-import { Calendar, ClipboardList, Database, ShieldAlert, User, Workflow } from 'lucide-react';
+import { Calendar, User } from 'lucide-react';
 
+import { ENTITY_ICON_BY_TYPE, ENTITY_ICON_FALLBACK } from '@/constants/entityIcons';
 import { formatRelativeDateValue } from '@/i18n/formatters';
 import { useTranslation } from '@/i18n/hooks';
 import type { OrphanedItem } from '@/types/orphanedItem';
@@ -11,20 +12,14 @@ interface ResolveOrphanSummaryProps {
 
 export function ResolveOrphanSummary({ language, orphan }: ResolveOrphanSummaryProps) {
     const { t } = useTranslation('admin');
-    const Icon = orphan.item_type === 'risk'
-        ? ShieldAlert
-        : orphan.item_type === 'asset'
-            ? Database
-        : orphan.item_type === 'process'
-            ? Workflow
-            : ClipboardList;
+    const Icon = ENTITY_ICON_BY_TYPE[orphan.item_type] ?? ENTITY_ICON_FALLBACK;
     const typeColor = orphan.item_type === 'risk' ? 'text-destructive' : 'text-accent-text';
     const typeBg = orphan.item_type === 'risk' ? 'bg-destructive/10' : 'bg-accent/10';
 
     return (
         <div className="p-5 rounded-2xl bg-tint/5 border border-border flex items-start gap-5">
             <div className={`p-3 rounded-xl ${typeBg} border border-border shrink-0`}>
-                <Icon className={`h-6 w-6 ${typeColor}`} />
+                <Icon aria-hidden="true" className={`h-6 w-6 ${typeColor}`} />
             </div>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3 mb-1">
@@ -32,19 +27,19 @@ export function ResolveOrphanSummary({ language, orphan }: ResolveOrphanSummaryP
                         {t(`governance.type_${orphan.item_type}`)}
                     </span>
                 </div>
-                <h4 className="text-lg font-bold text-foreground mb-3 truncate">
+                <h3 className="text-lg font-bold text-foreground mb-3 truncate">
                     {orphan.item_name}
-                </h4>
+                </h3>
                 {(orphan.item_type === 'asset' || orphan.item_type === 'vendor') && orphan.responsibility_role ? (
                     <p className="mb-3 text-xs font-bold text-warning-text">{t(`governance.responsibility_role.${orphan.responsibility_role}`)}</p>
                 ) : null}
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <User aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground font-medium">{orphan.previous_owner_name}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Calendar aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground font-medium">
                             {formatRelativeDateValue(orphan.orphaned_at, language)}
                         </span>

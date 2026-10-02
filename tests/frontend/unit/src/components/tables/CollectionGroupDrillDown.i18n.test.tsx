@@ -165,4 +165,43 @@ describe('CollectionGroupDrillDown localization', () => {
         );
         expect(screen.getByRole('heading', { name: specialLabel })).toBeInTheDocument();
     });
+
+    it.each([
+        ['en', 'Back to groups', 3, '3 items', 1, '1 item'],
+        ['cs', 'Zpět na skupiny', 3, '3 položky', 5, '5 položek'],
+    ] as const)('names the %s back action by its destination and pluralises the item count', async (
+        language,
+        backLabel,
+        count,
+        countLabel,
+        otherCount,
+        otherCountLabel,
+    ) => {
+        await i18n.changeLanguage(language);
+        const user = userEvent.setup();
+        const onBack = vi.fn();
+        const renderSelected = (totalCount: number) => (
+            <CollectionGroupDrillDown
+                currentPage={1}
+                groups={[{ value: 'owner:1', label: 'Owner', count: totalCount }]}
+                items={[]}
+                itemsPerPage={20}
+                onBack={onBack}
+                onPageChange={vi.fn()}
+                onSelectGroup={vi.fn()}
+                renderTable={() => null}
+                selectedGroupLabel="Owner"
+                selectedGroupValue="owner:1"
+                totalCount={totalCount}
+                totalPages={1}
+            />
+        );
+        const { rerender } = render(renderSelected(count));
+        expect(screen.getByText(countLabel)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: backLabel }));
+        expect(onBack).toHaveBeenCalledTimes(1);
+
+        rerender(renderSelected(otherCount));
+        expect(screen.getByText(otherCountLabel)).toBeInTheDocument();
+    });
 });

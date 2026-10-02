@@ -28,7 +28,13 @@ export type CardPadding = keyof typeof CARD_PADDING;
 export type CardTone = keyof typeof CARD_TONE;
 
 export interface CardProps extends React.HTMLAttributes<HTMLElement> {
-    as?: 'section' | 'div' | 'article';
+    /**
+     * Rendered element. `button` makes the whole card one native action (group
+     * cards that open a drill-down): it gets `type="button"`, a full-width
+     * left-aligned layout and the shared focus ring, and keeps the card's own
+     * padding, radius and icon sizes (unlike a `Button` restyled as a card).
+     */
+    as?: 'section' | 'div' | 'article' | 'button';
     /** `none` p-0 · `compact` p-4 · `default` p-6. */
     padding?: CardPadding;
     /** Hover lift for clickable cards (the `interactive-card` recipe). */
@@ -38,18 +44,23 @@ export interface CardProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 export const Card = React.forwardRef<HTMLElement, CardProps>(
-    ({ as: Component = 'div', padding = 'default', interactive = false, tone = 'default', className, ...props }, ref) => (
-        <Component
-            ref={ref as React.Ref<HTMLDivElement>}
-            {...props}
-            className={cn(
-                CARD_TONE[tone],
-                CARD_PADDING[padding],
-                interactive && 'interactive-card',
-                className,
-            )}
-        />
-    ),
+    ({ as: Component = 'div', padding = 'default', interactive = false, tone = 'default', className, ...props }, ref) => {
+        const isButton = Component === 'button';
+        return (
+            <Component
+                ref={ref as React.Ref<HTMLButtonElement & HTMLDivElement>}
+                {...(isButton ? { type: 'button' as const } : null)}
+                {...props}
+                className={cn(
+                    CARD_TONE[tone],
+                    CARD_PADDING[padding],
+                    interactive && 'interactive-card',
+                    isButton && 'block w-full text-left focus-ring',
+                    className,
+                )}
+            />
+        );
+    },
 );
 Card.displayName = 'Card';
 

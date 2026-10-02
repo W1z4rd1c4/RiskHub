@@ -45,7 +45,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             <div className="flex gap-2">
                 {/* Y-axis label */}
                 <div className="flex flex-col items-center justify-center mr-2">
-                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] -rotate-90 whitespace-nowrap">
+                    <span className="text-eyebrow -rotate-90 whitespace-nowrap">
                         {t('risk_distribution_matrix.axis.probability')}
                     </span>
                 </div>
@@ -56,19 +56,20 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                             {[1, 2, 3, 4, 5].map((i) => {
                                 const count = getCountForCell(p, i);
                                 const isClickable = count > 0 && !!onCellClick;
+                                const level = t(`risk_levels.${classifyRiskScore(p * i, thresholds)}`);
                                 const cellContent = count > 0 ? (
                                     <>
-                                        <span className="text-foreground font-black text-2xl leading-none">{count}</span>
-                                        <span className="text-[9px] text-foreground font-bold uppercase mt-1">{t('risk_distribution_matrix.risks')}</span>
+                                        <span className="font-heading text-2xl font-bold leading-none text-foreground">{count}</span>
+                                        <span className="text-eyebrow mt-1 text-foreground">{t('risk_distribution_matrix.risks', { count })}</span>
                                     </>
                                 ) : null;
                                 const cellClassName = cn(
-                                    'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-border backdrop-blur-xl transition-all duration-300',
+                                    'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-border backdrop-blur-xl transition-[transform,opacity] duration-300',
                                     getCellClasses(p, i),
-                                    count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95',
-                                    isClickable && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent hover:opacity-80',
+                                    count > 0 ? 'scale-100 shadow-md' : 'scale-95',
+                                    isClickable && 'cursor-pointer focus-ring hover:opacity-80',
                                 );
-                                const cellTitle = `${t('risk_distribution_matrix.cell_title', { probability: p, impact: i, count })}${isClickable ? t('risk_distribution_matrix.click_to_view') : ''}`;
+                                const cellTitle = `${t('risk_distribution_matrix.cell_title', { probability: p, impact: i, count, level })}${isClickable ? t('risk_distribution_matrix.click_to_view') : ''}`;
 
                                 return isClickable ? (
                                     <motion.button
@@ -78,7 +79,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
                                         onClick={() => handleCellClick(p, i)}
-                                        aria-label={t('risk_distribution_matrix.cell_aria', { count, probability: p, impact: i })}
+                                        aria-label={t('risk_distribution_matrix.cell_aria', { count, probability: p, impact: i, level })}
                                         className={cellClassName}
                                         title={cellTitle}
                                         whileHover={{ scale: 1.08, y: -3 }}
@@ -105,19 +106,19 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             </div>
 
             {/* X-axis label */}
-            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-4">
+            <span className="text-eyebrow mt-4">
                 {t('risk_distribution_matrix.axis.impact')}
             </span>
 
             {/* Legend (D1 bands, labelled with the risk-level keys) */}
-            <div className="flex gap-4 mt-8">
+            <ul className="mt-8 flex flex-wrap justify-center gap-4" aria-label={t('risk_distribution_matrix.legend')}>
                 {SEVERITY_BANDS.map((band) => (
-                    <div key={band} className="flex items-center gap-2">
+                    <li key={band} className="flex items-center gap-2">
                         <span aria-hidden="true" className={cn('size-3 shrink-0 rounded-sm', severityClass('dot', band))} />
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t(`risk_levels.${band}`)}</span>
-                    </div>
+                        <span className="text-eyebrow">{t(`risk_levels.${band}`)}</span>
+                    </li>
                 ))}
-            </div>
+            </ul>
 
         </div>
     );

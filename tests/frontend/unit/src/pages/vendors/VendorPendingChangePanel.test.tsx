@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { VendorPendingChangePanel } from '@/pages/vendors/VendorPendingChangePanel';
+import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import type { VendorPendingChangeRead } from '@/types/vendor';
 
 const safePendingChange: VendorPendingChangeRead = {
@@ -26,16 +26,28 @@ const safePendingChange: VendorPendingChangeRead = {
     },
 };
 
-describe('VendorPendingChangePanel', () => {
+/**
+ * D13 / GAP-D-07: the Vendor detail and blocked-edit views render the shared
+ * `PendingChangePanel` with the vendors namespace (the former
+ * `VendorPendingChangePanel` is folded into it).
+ */
+describe('Vendor pending change (shared PendingChangePanel)', () => {
     it('shows the authorized Vendor diff and exposes an accessible cancel action', () => {
         const onCancel = vi.fn();
 
         render(
-            <VendorPendingChangePanel
+            <PendingChangePanel
                 pendingChange={safePendingChange}
+                namespace="vendors"
+                testIdPrefix="vendor"
                 onCancel={onCancel}
             />,
         );
+
+        const panel = screen.getByTestId('vendor-pending-change');
+        expect(panel).toHaveAttribute('aria-labelledby', 'vendor-pending-change-title');
+        expect(screen.getByTestId('vendor-pending-change-diff')).toBeInTheDocument();
+        expect(screen.getByText('Protected change')).toBeInTheDocument();
 
         expect(screen.getByRole('heading', { name: 'Pending approval' })).toBeInTheDocument();
         expect(screen.getByText('Critical service scope changed')).toBeInTheDocument();
@@ -51,7 +63,9 @@ describe('VendorPendingChangePanel', () => {
 
     it('fails closed when the requester cannot view the proposal diff', () => {
         render(
-            <VendorPendingChangePanel
+            <PendingChangePanel
+                namespace="vendors"
+                testIdPrefix="vendor"
                 pendingChange={{
                     ...safePendingChange,
                     reason: '',

@@ -1,7 +1,16 @@
-import { ArrowRight, Loader2, Shield } from 'lucide-react';
-import { BrandWordmark } from '@/components/layout/BrandWordmark';
-import { LanguageSwitch } from '@/components/layout/LanguageSwitch';
+import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react';
+
+import { AuthFrame } from '@/components/layout/AuthFrame';
+import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
+
 import type { ProdAuthCopy, ProdLanguage } from './loginPageTypes';
+
+/** Preview-route-only copy (GAP-B-01): passed by `ProdLoginPreviewPage`, never by the live login. */
+export interface SsoPreviewNotes {
+    buttonHint: string;
+    note: string;
+}
 
 interface SsoOnlyViewProps {
     showBootstrapUnavailableBanner: boolean;
@@ -17,8 +26,17 @@ interface SsoOnlyViewProps {
     onRetrySsoLogout: () => void;
     onSsoLogin: () => void;
     translate: (key: string) => string;
+    /** Only the standalone preview passes these; the production `/login` never renders them. */
+    previewNotes?: SsoPreviewNotes;
 }
 
+/**
+ * The production Microsoft SSO login on the shared public frame (audit 2026-09-30 §4.20,
+ * DS-24, RS-02, D14): `AuthFrame` owns the scrolling `<main>`, the wordmark, the CS / EN
+ * switch (driven by the login's own fixed-language copy) and the OS colour scheme, so the
+ * page reads the same in light and dark. The provider panel and its states use tokens and
+ * `ui` primitives only. `ProdLoginPreviewPage` renders this same view with `previewNotes`.
+ */
 export function SsoOnlyView({
     showBootstrapUnavailableBanner,
     ssoLogoutRecoveryMessage,
@@ -33,122 +51,70 @@ export function SsoOnlyView({
     onRetrySsoLogout,
     onSsoLogin,
     translate,
+    previewNotes,
 }: SsoOnlyViewProps) {
     return (
-        // RS-02: the frame grows with its content and the page scrolls on short
-        // viewports instead of clipping the headline and occluding the language switch.
-        // `theme-riskhub` pins the token scope to this view's bespoke dark palette until
-        // the login moves onto AuthFrame (audit §5.5 3i), which follows the OS scheme when no app
-        // theme is stored (D14).
-        <main className="theme-riskhub relative min-h-screen overflow-y-auto bg-[#07111b] text-slate-100">
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(56,189,248,0.16),transparent_26%),radial-gradient(circle_at_84%_18%,rgba(8,145,178,0.12),transparent_22%),linear-gradient(180deg,#07111b_0%,#09131f_100%)]"
-            />
+        <AuthFrame
+            title={prodCopy.title}
+            documentTitle={prodCopy.sign_in_label}
+            eyebrow={prodCopy.eyebrow}
+            subtitle={(
+                <>
+                    <p className="text-base text-foreground">{prodCopy.description}</p>
+                    <p>{prodCopy.detail}</p>
+                </>
+            )}
+            language={{ value: prodLanguage, onChange: onChangeLanguage, label: prodCopy.switch_label }}
+            error={prodErrorMessage || null}
+            footer={previewNotes?.note}
+        >
+            {showBootstrapUnavailableBanner ? (
+                <InlineMessage tone="danger">{translate('login.unavailable_bootstrap_error')}</InlineMessage>
+            ) : null}
 
-            <div className="relative mx-auto flex min-h-screen w-full max-w-[1320px] flex-col px-6 py-5 sm:px-8 lg:px-12">
-                <header className="relative z-10 flex items-center justify-between py-3">
-                    <div className="inline-flex items-center gap-4 text-slate-100">
-                        <span className="flex h-12 w-12 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sky-300 shadow-[0_12px_28px_rgba(14,165,233,0.12)]">
-                            <Shield className="h-5 w-5" />
-                        </span>
-                        <BrandWordmark className="text-lg font-semibold tracking-[0.34em] uppercase" accentClassName="text-sky-300" />
+            {ssoLogoutRecoveryMessage ? (
+                <InlineMessage
+                    tone="warning"
+                    action={(
+                        <Button variant="outline" size="compact" onClick={onRetrySsoLogout} isLoading={isSsoLogoutRecoveryPending}>
+                            {translate('logout.complete_microsoft_sign_out')}
+                        </Button>
+                    )}
+                >
+                    {ssoLogoutRecoveryMessage}
+                </InlineMessage>
+            ) : null}
+
+            <div className="space-y-4 rounded-lg border border-border bg-nested p-5">
+                <p className="text-eyebrow">{prodCopy.sign_in_label}</p>
+                <div className="flex items-center gap-3">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent-text">
+                        <KeyRound className="size-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                        <h2 className="font-heading text-lg font-semibold text-foreground">{prodCopy.card_title}</h2>
+                        <p className="text-xs text-muted-foreground">{prodCopy.provider_label}</p>
                     </div>
+                </div>
+                <p className="text-sm text-foreground">{prodCopy.card_body}</p>
+                <p className="flex items-start gap-2 rounded-lg bg-tint/5 p-3 text-xs text-muted-foreground">
+                    <ShieldCheck className="size-4 shrink-0 text-success-text" aria-hidden="true" />
+                    {prodCopy.security_note}
+                </p>
 
-                    <LanguageSwitch
-                        label={prodCopy.switch_label}
-                        showLabel
-                        value={prodLanguage}
-                        onChange={onChangeLanguage}
-                    />
-                </header>
+                {ssoEnabled ? (
+                    <Button variant="accent" size="lg" className="w-full" onClick={onSsoLogin} isLoading={isSsoLoading}>
+                        {prodCopy.button_label}
+                        <ArrowRight aria-hidden="true" />
+                    </Button>
+                ) : (
+                    <InlineMessage tone="danger">{ssoError || prodCopy.not_configured}</InlineMessage>
+                )}
 
-                <section className="flex flex-1 items-center justify-center">
-                    <div className="grid w-full max-w-[1180px] gap-12 py-6 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-20">
-                        <div className="flex max-w-2xl flex-col justify-center">
-                            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/80">
-                                {prodCopy.eyebrow}
-                            </div>
-                            <h1 className="mt-6 max-w-2xl text-4xl font-semibold leading-[1.01] text-white sm:text-5xl lg:text-[4.2rem]">
-                                {prodCopy.title}
-                            </h1>
-                            <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">{prodCopy.description}</p>
-                            <p className="mt-4 max-w-xl text-base leading-7 text-slate-500">{prodCopy.detail}</p>
-                        </div>
-
-                        <div className="flex items-center justify-end">
-                            <section className="w-full max-w-[500px] rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,21,31,0.98),rgba(8,16,26,0.96))] p-8 shadow-[0_36px_120px_rgba(0,0,0,0.42)] backdrop-blur sm:p-10">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">
-                                    {prodCopy.sign_in_label}
-                                </p>
-
-                                {showBootstrapUnavailableBanner ? (
-                                    <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-300">
-                                        {translate('login.unavailable_bootstrap_error')}
-                                    </div>
-                                ) : null}
-
-                                {ssoLogoutRecoveryMessage ? (
-                                    <div className="mt-6 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-100">
-                                        <p>{ssoLogoutRecoveryMessage}</p>
-                                        <button
-                                            type="button"
-                                            onClick={onRetrySsoLogout}
-                                            disabled={isSsoLogoutRecoveryPending}
-                                            className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition-colors hover:bg-amber-100/20 disabled:opacity-60"
-                                        >
-                                            {isSsoLogoutRecoveryPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                            {translate('logout.complete_microsoft_sign_out')}
-                                        </button>
-                                    </div>
-                                ) : null}
-
-                                <div className="mt-6 rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(9,21,34,0.96),rgba(8,17,27,0.98))] p-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#185abc] text-xl font-bold shadow-[0_12px_28px_rgba(255,255,255,0.08)]">
-                                            M
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/70">
-                                                {prodCopy.provider_label}
-                                            </p>
-                                            <h2 className="mt-2 text-[1.45rem] font-semibold text-white">{prodCopy.card_title}</h2>
-                                        </div>
-                                    </div>
-
-                                    <p className="mt-5 text-base leading-7 text-slate-300">{prodCopy.card_body}</p>
-
-                                    <div className="mt-5 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm leading-6 text-slate-400">
-                                        {prodCopy.security_note}
-                                    </div>
-
-                                    {prodErrorMessage ? (
-                                        <div className="mt-5 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-300">
-                                            {prodErrorMessage}
-                                        </div>
-                                    ) : null}
-
-                                    {ssoEnabled ? (
-                                        <button
-                                            onClick={onSsoLogin}
-                                            disabled={isSsoLoading}
-                                            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 text-base font-semibold text-slate-950 transition-colors hover:bg-white disabled:opacity-60"
-                                        >
-                                            {isSsoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                            {prodCopy.button_label}
-                                            <ArrowRight className="h-4 w-4" />
-                                        </button>
-                                    ) : (
-                                        <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-4 text-sm leading-6 text-rose-300">
-                                            {ssoError || prodCopy.not_configured}
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                </section>
+                {previewNotes ? (
+                    <p className="text-center text-xs text-muted-foreground">{previewNotes.buttonHint}</p>
+                ) : null}
             </div>
-        </main>
+        </AuthFrame>
     );
 }
