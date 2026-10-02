@@ -1,10 +1,6 @@
-import { useId } from 'react';
-import { AlertCircle, Archive } from 'lucide-react';
-
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useTranslation } from '@/i18n/hooks';
 import type { RoleHubRead } from '@/services/riskHubApi';
-import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
-import { InlineMessage } from '@/components/ui/inline-message';
 
 interface RoleDeleteDialogProps {
     onCancel: () => void;
@@ -17,49 +13,25 @@ interface RoleDeleteDialogProps {
 }
 
 /**
- * Role archive confirmation. Roles are soft-deleted and restorable, so this is
- * an archive (D10: `Archive` icon and wording, never `Trash2`).
+ * Role archive confirmation: `ConfirmDialog intent="archive"` (PM-1, D10).
+ * Roles are soft-deleted and restorable, so the action is an archive (`Archive`
+ * icon and wording, never `Trash2`); the role API takes no reason. A role with
+ * assigned users never reaches this dialog: `RolesTable` disables its Archive
+ * action with the reason (GAP-B-03).
  */
 export function RoleDeleteDialog({ onCancel, onConfirm, role, isBusy = false, errorText = null }: RoleDeleteDialogProps) {
     const { t } = useTranslation(['admin', 'common']);
-    const titleId = useId();
-    const descriptionId = useId();
-
-    if (!role) {
-        return null;
-    }
 
     return (
-        <DialogShell
-            isOpen
+        <ConfirmDialog
+            isOpen={role !== null}
             onClose={onCancel}
-            titleId={titleId}
-            descriptionIds={[descriptionId]}
-            role="alertdialog"
-            size="sm"
-            isBusy={isBusy}
-        >
-            <DialogHeader title={t('confirmations.archive_role')} icon={Archive} tone="danger" />
-            <DialogBody className="text-sm text-muted-foreground">
-                <p id={descriptionId}>
-                    {t('admin:roles_panel.archive_confirm', { name: role.display_name })}
-                </p>
-                {role.user_count > 0 && (
-                    <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive">
-                        <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                        <span>
-                            {t('admin:roles_panel.cannot_archive_assigned', { count: role.user_count })}
-                        </span>
-                    </div>
-                )}
-                {errorText ? <InlineMessage tone="danger">{errorText}</InlineMessage> : null}
-            </DialogBody>
-            <DialogFooter
-                cancelLabel={t('common:actions.cancel')}
-                intent="destructive"
-                submitLabel={role.user_count === 0 ? t('common:actions.archive') : undefined}
-                onSubmit={onConfirm}
-            />
-        </DialogShell>
+            onConfirm={onConfirm}
+            intent="archive"
+            title={t('admin:confirmations.archive_role')}
+            message={role ? t('admin:roles_panel.archive_confirm', { name: role.display_name }) : undefined}
+            isLoading={isBusy}
+            errorText={errorText}
+        />
     );
 }

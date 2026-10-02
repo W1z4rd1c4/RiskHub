@@ -1,12 +1,14 @@
 import type { FormEvent } from 'react';
 import { useEffect, useId, useMemo, useState } from 'react';
-import { AlertCircle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Field } from '@/components/ui/field';
+import { labelTextClassName } from '@/components/ui/label';
 import { ErrorState, LoadingState } from '@/components/ui/state';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +23,7 @@ import {
     normalizeRoleIdentifier,
     selectedPermissionIdsForRole,
 } from './rolePermissions';
+import { RiskHubFieldError } from '../panelPrimitives';
 
 interface RoleModalProps {
     allPermissions: PermissionRead[];
@@ -48,6 +51,7 @@ export function RoleModal({
 }: RoleModalProps) {
     const { t } = useTranslation(['admin', 'common', 'settings']);
     const titleId = useId();
+    const permissionsLabelId = useId();
     const [description, setDescription] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -164,8 +168,8 @@ export function RoleModal({
                         )}
                     </Field>
 
-                    <div>
-                        <span className="block text-sm font-medium text-foreground mb-3">
+                    <div role="group" aria-labelledby={permissionsLabelId}>
+                        <span id={permissionsLabelId} className={cn('mb-3 block', labelTextClassName)}>
                             {t('admin:roles_panel.modal.fields.permissions')}
                         </span>
                         {permissionsLoading ? (
@@ -184,34 +188,33 @@ export function RoleModal({
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
                                 {Object.entries(permissionsByResource).map(([resource, permissions]) => (
-                                    <div key={resource} className="bg-tint/5 rounded-lg p-3 border border-border">
-                                        <h4 className="text-xs font-bold text-accent-text uppercase mb-2 tracking-wider">
-                                            {getPermissionResourceLabel(resource, t)}
-                                        </h4>
-                                        <div className="space-y-2">
+                                    <Card key={resource} as="div" tone="nested" padding="compact">
+                                        <fieldset className="space-y-2">
+                                            <legend className="text-eyebrow mb-2">
+                                                {getPermissionResourceLabel(resource, t)}
+                                            </legend>
                                             {permissions.map((permission) => {
                                                 const permissionToken = `${permission.resource}:${permission.action}`;
-                                                const permissionLabel = getPermissionLabel(permissionToken, t);
                                                 return (
-                                                    <label key={permission.id} htmlFor={`role-perm-${permission.id}`} className="flex items-start gap-2 cursor-pointer group">
-                                                        <input
-                                                            id={`role-perm-${permission.id}`}
-                                                            type="checkbox"
-                                                            aria-label={permissionLabel}
-                                                            checked={selectedPermissionIds.includes(permission.id)}
-                                                            onChange={() => togglePermission(permission.id)}
-                                                            className="mt-0.5 rounded border-tint/20 bg-tint/5 text-accent focus:ring-accent"
-                                                        />
-                                                        <div>
-                                                            <span className="block text-sm text-foreground">
-                                                                {permissionLabel}
-                                                            </span>
-                                                        </div>
-                                                    </label>
+                                                    <Field
+                                                        key={permission.id}
+                                                        id={`role-perm-${permission.id}`}
+                                                        layout="inline"
+                                                        label={getPermissionLabel(permissionToken, t)}
+                                                        labelClassName="font-normal leading-snug"
+                                                    >
+                                                        {(field) => (
+                                                            <Checkbox
+                                                                {...field}
+                                                                checked={selectedPermissionIds.includes(permission.id)}
+                                                                onCheckedChange={() => togglePermission(permission.id)}
+                                                            />
+                                                        )}
+                                                    </Field>
                                                 );
                                             })}
-                                        </div>
-                                    </div>
+                                        </fieldset>
+                                    </Card>
                                 ))}
                             </div>
                         )}
@@ -230,12 +233,7 @@ export function RoleModal({
                         )}
                     </div>
 
-                    {errorKey && (
-                        <div className="flex items-center gap-2 text-destructive text-sm">
-                            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                            {t(errorKey, { ns: 'errorKeys' })}
-                        </div>
-                    )}
+                    <RiskHubFieldError errorKey={errorKey} />
                 </DialogBody>
                 <DialogFooter
                     onCancel={onClose}

@@ -16,7 +16,9 @@ import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { TabList, TabPanel } from '@/components/ui/tabs';
 import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
 import { translateUiMessage, useTranslation } from '@/i18n/hooks';
@@ -29,7 +31,7 @@ import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/D
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
 import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
-import { getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
+import { CONTROL_STATUS_LABEL_KEYS, getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
 import { LoadingState } from '@/components/ui/state';
 
@@ -121,13 +123,12 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                 title={control.name}
                 statuses={(
                     <>
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-border ${getControlStatusColor(displayStatus)}`}>
-                            {t(`controls:status.${displayStatus}`)}
-                        </span>
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
-                            <MonitoringIcon className="h-3 w-3" />
+                        <Badge className={getControlStatusColor(displayStatus)} data-status={displayStatus}>
+                            {t(CONTROL_STATUS_LABEL_KEYS[displayStatus])}
+                        </Badge>
+                        <Badge icon={MonitoringIcon} className={monitoring.badgeClassName}>
                             {t(monitoring.labelKey)}
-                        </span>
+                        </Badge>
                     </>
                 )}
                 description={control.description}
@@ -222,22 +223,21 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >
-                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-border">
-                        <h3 className="font-bold text-foreground uppercase tracking-widest text-xs flex items-center gap-2">
-                            <History className="h-4 w-4 text-accent" />
-                            {t('controls:detail.execution_audit_trail')}
-                        </h3>
-                        {canLogExecution && (
-                            <button
+                    <CardHeader
+                        icon={History}
+                        title={t('controls:detail.execution_audit_trail')}
+                        className="mb-8 border-b border-border pb-4"
+                        actions={canLogExecution ? (
+                            <Button
+                                variant="accent"
                                 data-testid="control-log-execution"
                                 onClick={() => workflow.setIsLogModalOpen(true)}
-                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent hover:text-accent-foreground transition-[background-color,color,box-shadow] flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
                             >
-                                <Plus className="h-3.5 w-3.5" />
+                                <Plus aria-hidden="true" />
                                 {t('controls:execution.log_execution')}
-                            </button>
-                        )}
-                    </div>
+                            </Button>
+                        ) : undefined}
+                    />
 
                     <ExecutionHistory
                         controlId={control.id}

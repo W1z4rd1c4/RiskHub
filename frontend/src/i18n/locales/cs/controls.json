@@ -33,7 +33,12 @@
     "quarterly": "Čtvrtletně",
     "annually": "Ročně",
     "ad_hoc": "Dle potřeby",
-    "continuous": "Průběžně"
+    "continuous": "Průběžně",
+    "semi-annually": "Pololetně"
+  },
+  "control_forms": {
+    "manual": "Ruční",
+    "automatic": "Automatická"
   },
   "status": {
     "active": "Aktivní",
@@ -83,7 +88,7 @@
   },
   "register": {
     "views": { "all": "Vše", "category": "Podle formy kontroly", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "risk": "Podle rizika", "vendor": "Podle dodavatele" },
-    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "process": "Proces", "category": "Forma kontroly" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "process": "Proces", "category": "Forma kontroly", "monitoring_status": "Stav monitoringu" },
     "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
     "export": { "title": "Export filtrovaných kontrol" }
   },
@@ -110,7 +115,8 @@
     "risk_level": "Úroveň rizika",
     "status": "Stav",
     "pending": "Čeká",
-    "pending_changes_title": "Změny čekají na schválení"
+    "pending_changes_title": "Změny čekají na schválení",
+    "risk_level_value": "{{level}} / 5"
   },
   "actions": {
     "link_risk": "Propojit riziko",
@@ -160,6 +166,8 @@
     "labels": {
       "owner_position": "Pozice vlastníka",
       "data_source_methodology": "Zdroj dat a metodologie",
+      "data_source": "Zdroj dat",
+      "methodology_reference": "Odkaz na metodiku",
       "inherent_risk_level": "Inherentní úroveň rizika (1-5)",
       "initial_status": "Výchozí stav",
       "link_to_risk_optional": "Propojit s rizikem (volitelné)",

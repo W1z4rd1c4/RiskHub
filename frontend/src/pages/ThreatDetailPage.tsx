@@ -1,16 +1,19 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, Archive, ArchiveRestore, Pencil } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
+import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useAuthz } from '@/authz/useAuthz';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 import { approvalsApi } from '@/services/approvalsApi';
@@ -19,56 +22,22 @@ import type { Threat } from '@/types/threat';
 
 import { DetailField, DetailFieldList } from './detail/DetailField';
 import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { DetailSection } from './detail/DetailSection';
 import { EditBlockedState } from './detail/EditBlockedState';
 import { EntityDetailHeader } from './detail/EntityDetailHeader';
+import { OwnershipGovernanceAlert } from './detail/OwnershipGovernanceAlert';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ThreatForm } from './threats/ThreatForm';
-import { ThreatPendingChangePanel } from './threats/ThreatPendingChangePanel';
 import { ThreatRiskLinksSection } from './threats/ThreatRiskLinksSection';
 import { getThreatDisplayStatus, threatCategoryLabel } from './threats/threatsPagePresentation';
-import { getThreatStatusColor } from './threats/threatColumns';
+import { getThreatStatusTone } from './threats/threatColumns';
 import { useThreatDetailState, type ThreatDetailMode } from './threats/useThreatDetailState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { LoadingState } from '@/components/ui/state';
 
 interface ThreatDetailPageProps {
     mode?: ThreatDetailMode;
-}
-
-function StewardshipAlert({
-    actionLabel,
-    message,
-    onResolve,
-    testId,
-}: {
-    actionLabel?: string;
-    message: string;
-    onResolve?: () => void;
-    testId?: string;
-}) {
-    return (
-        <div
-            role="alert"
-            data-testid={testId}
-            className="glass-card flex flex-col items-start gap-4 border border-warning/30 text-warning-text sm:flex-row sm:justify-between"
-        >
-            <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                <p className="text-sm font-medium">{message}</p>
-            </div>
-            {onResolve ? (
-                <button
-                    type="button"
-                    onClick={onResolve}
-                    data-testid="threat-orphan-governance"
-                    className="shrink-0 rounded-xl border border-warning/30 px-4 py-2 text-sm font-bold text-warning-text transition-colors hover:bg-warning/10"
-                >
-                    {actionLabel}
-                </button>
-            ) : null}
-        </div>
-    );
 }
 
 export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
@@ -78,7 +47,6 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const threatDetailPath = (threatId: number) => appendRegisterReturnTo(`/threats/${threatId}`, returnTo);
     const authz = useAuthz();
     const { t } = useTranslation('threats');
-    const format = useFormat();
     const { t: tCommon } = useTranslation('common');
     // D14 / AX-06: every back control names its destination.
     const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
@@ -183,7 +151,10 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
             <PageContainer size="form">
                 {newHeader}
                 <ThreatForm
-                    onSaved={(saved: Threat) => navigate(threatDetailPath(saved.id))}
+                    onSaved={(saved: Threat) => {
+                        feedback.success({ title: tCommon('success.created'), description: saved.name });
+                        void navigate(threatDetailPath(saved.id));
+                    }}
                     onCancel={() => navigate(returnTo)}
                 />
             </PageContainer>
@@ -224,6 +195,40 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         />
     );
 
+    const pendingChangePanel = threat.pending_change ? (
+        <PendingChangePanel
+            pendingChange={threat.pending_change}
+            namespace="threats"
+            testIdPrefix="threat"
+            cancelling={isCancellingPendingChange}
+            onCancel={openPendingChangeCancellation}
+        />
+    ) : null;
+    // SM-05: one ownership banner for pending-governance / legacy / invalid
+    // stewardship; only the governance case offers the queue action.
+    const stewardshipAlert = (testId?: string) => {
+        if (threat.stewardship_status === 'pending_governance') {
+            return (
+                <OwnershipGovernanceAlert
+                    message={t(authz.canViewGovernance
+                        ? 'messages.steward_orphaned_governance'
+                        : 'messages.steward_orphaned_request')}
+                    actionLabel={t('actions.resolve_in_governance')}
+                    onAction={authz.canViewGovernance ? () => navigate('/governance?type=threat') : undefined}
+                    testId={testId}
+                    actionTestId="threat-orphan-governance"
+                />
+            );
+        }
+        if (threat.stewardship_status === 'legacy_unassigned') {
+            return <OwnershipGovernanceAlert message={t('messages.stewardship_legacy_unassigned')} />;
+        }
+        if (threat.stewardship_status === 'invalid_assignment') {
+            return <OwnershipGovernanceAlert message={t('messages.stewardship_invalid_assignment')} />;
+        }
+        return null;
+    };
+
     const editHeader = (
         <PageHeader
             title={t('actions.edit')}
@@ -260,16 +265,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         ]}
                         testId="threat-edit-blocked"
                     >
-                        {threat.pending_change ? (
-                            <ThreatPendingChangePanel
-                                pendingChange={threat.pending_change}
-                                locale={format.locale}
-                                cancelling={isCancellingPendingChange}
-                                onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
-                                    ? openPendingChangeCancellation
-                                    : undefined}
-                            />
-                        ) : null}
+                        {pendingChangePanel}
                     </EditBlockedState>
                     {pendingCancellationDialog}
                 </>
@@ -280,16 +276,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 <PageContainer>
                     {staleWarning}
                     {editHeader}
-                    <StewardshipAlert
-                        actionLabel={t('actions.resolve_in_governance')}
-                        message={t(authz.canViewGovernance
-                            ? 'messages.steward_orphaned_governance'
-                            : 'messages.steward_orphaned_request')}
-                        onResolve={authz.canViewGovernance
-                            ? () => navigate('/governance?type=threat')
-                            : undefined}
-                        testId="threat-orphan-edit-blocked"
-                    />
+                    {stewardshipAlert('threat-orphan-edit-blocked')}
                 </PageContainer>
             );
         }
@@ -305,12 +292,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
             <PageContainer size="form">
                 {staleWarning}
                 {editHeader}
-                {threat.stewardship_status === 'legacy_unassigned' ? (
-                    <StewardshipAlert message={t('messages.stewardship_legacy_unassigned')} />
-                ) : null}
-                {threat.stewardship_status === 'invalid_assignment' ? (
-                    <StewardshipAlert message={t('messages.stewardship_invalid_assignment')} />
-                ) : null}
+                {stewardshipAlert()}
                 <ThreatForm
                     initialData={threat.stewardship_status === 'invalid_assignment'
                         ? { ...threat, threat_steward_user_id: null }
@@ -326,6 +308,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         // navigating so the saved controlled values render
                         // immediately instead of waiting for stale-time expiry.
                         setThreat(saved);
+                        feedback.success({ title: tCommon('success.updated'), description: saved.name });
                         void navigate(threatDetailPath(saved.id));
                     }}
                     onCancel={() => navigate(threatDetailPath(threat.id))}
@@ -340,44 +323,15 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         <PageContainer>
             {staleWarning}
             <ApprovalQueuedNotice />
-            {threat.pending_change ? (
-                <ThreatPendingChangePanel
-                    pendingChange={threat.pending_change}
-                    locale={format.locale}
-                    cancelling={isCancellingPendingChange}
-                    onCancel={resolveCapabilityFlag(threat.pending_change.capabilities, 'can_cancel')
-                        ? openPendingChangeCancellation
-                        : undefined}
-                />
-            ) : null}
-            {threat.stewardship_status === 'pending_governance' ? (
-                <StewardshipAlert
-                    actionLabel={t('actions.resolve_in_governance')}
-                    message={t(authz.canViewGovernance
-                        ? 'messages.steward_orphaned_governance'
-                        : 'messages.steward_orphaned_request')}
-                    onResolve={authz.canViewGovernance
-                        ? () => navigate('/governance?type=threat')
-                        : undefined}
-                />
-            ) : null}
-            {threat.stewardship_status === 'legacy_unassigned' ? (
-                <StewardshipAlert message={t('messages.stewardship_legacy_unassigned')} />
-            ) : null}
-            {threat.stewardship_status === 'invalid_assignment' ? (
-                <StewardshipAlert message={t('messages.stewardship_invalid_assignment')} />
-            ) : null}
+            {pendingChangePanel}
+            {stewardshipAlert()}
 
             <EntityDetailHeader
                 back={{ ...backToRegister, testId: 'threat-detail-back' }}
                 breadcrumbs={[{ label: t('title'), to: returnTo }, { label: threat.name }]}
                 title={threat.name}
                 statuses={(
-                    <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
-                    >
-                        {t(`status.${status}`)}
-                    </span>
+                    <Badge tone={getThreatStatusTone(status)}>{t(`status.${status}`)}</Badge>
                 )}
                 metadata={threat.category ? (
                     <span className="font-bold text-accent-text">{threatCategoryLabel(t, threat.category)}</span>
@@ -386,46 +340,40 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 actions={(
                     <>
                         {canRestore && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="outline"
                                 onClick={() => void restoreThreat()}
                                 data-testid="threat-detail-restore"
-                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                             >
-                                <ArchiveRestore className="h-4 w-4" />
+                                <ArchiveRestore aria-hidden="true" />
                                 {t('actions.restore')}
-                            </button>
+                            </Button>
                         )}
                         {canEdit && !threat.pending_change && threat.stewardship_status !== 'pending_governance' && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="outline"
                                 onClick={() => navigate(appendRegisterReturnTo(`/threats/${threat.id}/edit`, returnTo))}
                                 data-testid="threat-detail-edit"
-                                className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-tint/10 transition-colors flex items-center gap-2 text-sm font-semibold"
                             >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil aria-hidden="true" />
                                 {t('actions.edit')}
-                            </button>
+                            </Button>
                         )}
                         {canArchive && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="destructive"
                                 onClick={() => setIsArchiveDialogOpen(true)}
                                 data-testid="threat-detail-archive"
-                                className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
                             >
-                                <Archive className="h-4 w-4" aria-hidden="true" />
+                                <Archive aria-hidden="true" />
                                 {tCommon('actions.archive')}
-                            </button>
+                            </Button>
                         )}
                     </>
                 )}
             />
 
-            <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('form.sections.details')}
-                </h2>
+            <DetailSection title={t('form.sections.details')}>
                 <DetailFieldList>
                     <DetailField label={t('form.category')} value={threatCategoryLabel(t, threat.category)} testId="threat-detail-category" />
                     <DetailField
@@ -442,7 +390,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         <DetailField label={t('form.notes')} value={threat.notes} className="md:col-span-2" />
                     ) : null}
                 </DetailFieldList>
-            </div>
+            </DetailSection>
 
             <ThreatRiskLinksSection
                 threat={threat}

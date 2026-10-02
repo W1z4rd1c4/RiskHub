@@ -1,9 +1,13 @@
+import type * as React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Link as LinkIcon, Plus } from 'lucide-react';
 
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
 import type { ControlEffectiveness, RiskControlLink } from '@/types/risk';
 
@@ -60,36 +64,37 @@ export function RiskLinkedControlsSection({
             transition={{ delay: 0.5 }}
             className="glass-card"
         >
-            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-success-text" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.mitigating_controls', { ns: 'risks' })}</h3>
-                </div>
-                {canLinkControls && (
-                    <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
-                        <button
+            <CardHeader
+                icon={CheckCircle2}
+                title={t('overview.mitigating_controls', { ns: 'risks' })}
+                className="mb-6 border-b border-border pb-4"
+                actions={canLinkControls ? (
+                    <>
+                        <Button
+                            variant="outline"
+                            size="compact"
                             onClick={() => {
                                 setDialogMode('search-only');
                                 setIsLinkDialogOpen(true);
                             }}
-                            className="flex items-center gap-2 px-4 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors border-r border-accent/20"
                         >
-                            <LinkIcon className="h-3 w-3" />
+                            <LinkIcon aria-hidden="true" />
                             {t('overview.link_existing', { ns: 'risks' })}
-                        </button>
+                        </Button>
                         {canCreateLinkedControl && (
-                            <button
+                            <Button
+                                variant="outline"
+                                size="compact"
                                 onClick={onOpenCreateControl}
-                                className="flex items-center gap-2 px-3 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors"
                                 title={t('overview.create_new_control', { ns: 'risks' })}
                             >
-                                <Plus className="h-3.5 w-3.5" />
-                                <span>{t('common:actions.add_control')}</span>
-                            </button>
+                                <Plus aria-hidden="true" />
+                                {t('common:actions.add_control')}
+                            </Button>
                         )}
-                    </div>
-                )}
-            </div>
+                    </>
+                ) : undefined}
+            />
 
             {!hasControls ? (
                 <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
@@ -100,30 +105,31 @@ export function RiskLinkedControlsSection({
                     <ControlGroup links={activeControls} onNavigateToControl={onNavigateToControl} gapClassName="gap-6" />
                     {draftControls.length > 0 && (
                         <div className="mt-8">
-                            <h4 className="text-xs font-black text-warning-text uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-warning/50" />
+                            <h3 className="text-eyebrow mb-4 flex items-center gap-2">
+                                <span aria-hidden="true" className="w-2 h-2 rounded-full bg-warning" />
                                 {t('overview.draft_controls', { ns: 'risks', count: draftControls.length })}
-                            </h4>
+                            </h3>
+                            {/* GAP-D-14: no whole-group opacity; each card carries its own status badge. */}
                             <ControlGroup
                                 links={draftControls}
                                 onNavigateToControl={onNavigateToControl}
                                 gapClassName="gap-4"
-                                className="opacity-60"
+                                statusBadge={<Badge size="sm" tone="warning">{t('controls:status.draft')}</Badge>}
                             />
                             <p className="text-xs text-muted-foreground italic mt-3">{t('overview.draft_controls_help', { ns: 'risks' })}</p>
                         </div>
                     )}
                     {archivedControls.length > 0 && (
                         <div className="mt-8">
-                            <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h3 className="text-eyebrow mb-4 flex items-center gap-2">
                                 <span aria-hidden="true" className="w-2 h-2 rounded-full bg-muted-foreground" />
                                 {t('overview.archived_controls', { ns: 'risks', count: archivedControls.length })}
-                            </h4>
+                            </h3>
                             <ControlGroup
                                 links={archivedControls}
                                 onNavigateToControl={onNavigateToControl}
                                 gapClassName="gap-4"
-                                className="opacity-40 hover:opacity-100 transition-opacity"
+                                statusBadge={<Badge size="sm" tone="neutral">{t('controls:status.archived')}</Badge>}
                             />
                         </div>
                     )}
@@ -131,15 +137,16 @@ export function RiskLinkedControlsSection({
             )}
 
             {canUnlinkControls && (
-                <button
+                <Button
+                    variant="outline"
+                    className="mt-6 w-full border-dashed"
                     onClick={() => {
                         setDialogMode('links-only');
                         setIsLinkDialogOpen(true);
                     }}
-                    className="w-full mt-6 py-3 border border-dashed border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-tint/5 transition-colors"
                 >
                     {t('overview.manage_existing_links', { ns: 'risks' })}
-                </button>
+                </Button>
             )}
 
             <LinkManagementDialog
@@ -171,23 +178,24 @@ function ControlGroup({
     links,
     onNavigateToControl,
     gapClassName,
-    className,
+    statusBadge,
 }: {
     links: RiskControlLink[];
     onNavigateToControl: (controlId: number) => void;
     gapClassName: string;
-    className?: string;
+    statusBadge?: React.ReactNode;
 }) {
     if (links.length === 0) {
         return null;
     }
 
     return (
-        <div className={`grid ${gapClassName} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${className ?? ''}`}>
+        <div className={`grid ${gapClassName} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}>
             {links.map((link) => (
                 <ControlGaugeCard
                     key={link.id}
                     link={link}
+                    statusBadge={statusBadge}
                     onClick={() => link.control && onNavigateToControl(link.control.id)}
                 />
             ))}

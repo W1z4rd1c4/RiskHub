@@ -193,8 +193,8 @@ describe('DepartmentDetailPage operational workspace', () => {
         renderPage('/departments/7?tab=overview&q=capital&page=4&group=warning');
 
         const actions = [
-            ['risks', 'department_detail.health.high_risks', { net_band: 'Vysoké' }],
-            ['risks', 'department_detail.health.critical_risks', { net_band: 'Kritické' }],
+            ['risks', 'department_detail.health.high_risks', { net_band: 'high' }],
+            ['risks', 'department_detail.health.critical_risks', { net_band: 'critical' }],
             ['controls', 'department_detail.health.attention_controls', { monitoring_status: 'needs_review' }],
             ['kris', 'department_detail.health.kri_breaches', { monitoring_status: 'breach' }],
             ['kris', 'department_detail.health.kri_overdue', { monitoring_status: 'not_submitted' }],

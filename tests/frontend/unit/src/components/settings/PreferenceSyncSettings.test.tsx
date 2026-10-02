@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
@@ -118,6 +118,30 @@ describe('account preference synchronization', () => {
         expect(screen.queryByText('Unsynced')).not.toBeInTheDocument();
     });
 
+    it('exposes the language choice as a named radio group with the selection and a hidden flag (GAP-C-15)', async () => {
+        saveLanguageMock.mockResolvedValue(undefined);
+        const user = userEvent.setup();
+
+        render(
+            <LanguageProvider>
+                <LocalizationSettings />
+            </LanguageProvider>,
+        );
+
+        const group = screen.getByRole('radiogroup', { name: 'Display Language' });
+        const english = within(group).getByRole('radio', { name: 'English' });
+        const czech = within(group).getByRole('radio', { name: 'Czech' });
+        expect(english).toBeChecked();
+        expect(czech).not.toBeChecked();
+        // The flag emoji is decorative: it is not part of the radio's accessible name.
+        expect(czech).toHaveAccessibleName('Czech');
+        expect(group.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThanOrEqual(2);
+
+        await user.click(czech);
+        expect(czech).toBeChecked();
+        expect(english).not.toBeChecked();
+    });
+
     it('uses the same truthful latest-intent states for language in Czech', async () => {
         saveLanguageMock.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined);
         const user = userEvent.setup();
@@ -161,7 +185,7 @@ describe('account preference synchronization', () => {
         );
 
         expect(instance.language).toBe('cs-CZ');
-        expect(screen.getByTestId('language-cs')).toHaveClass('border-accent');
+        expect(screen.getByTestId('language-cs')).toBeChecked();
         expect(screen.getByText('Czech (Čeština)')).toBeInTheDocument();
         expect(screen.queryByText('English (English)')).not.toBeInTheDocument();
     });
@@ -201,7 +225,7 @@ describe('account preference synchronization', () => {
         await user.click(screen.getByTestId('language-cs'));
 
         expect(await screen.findByText('Unsynced')).toBeInTheDocument();
-        expect(screen.getByTestId('language-en')).toHaveClass('border-accent');
+        expect(screen.getByTestId('language-en')).toBeChecked();
         expect(localStorage.getItem('riskhub-language')).toBe('en');
         expect(saveLanguageMock).not.toHaveBeenCalled();
         expect(screen.queryByText('Saved')).not.toBeInTheDocument();
@@ -213,7 +237,7 @@ describe('account preference synchronization', () => {
         expect(saveLanguageMock).toHaveBeenCalledTimes(1);
         expect(saveLanguageMock).toHaveBeenLastCalledWith('cs');
         expect(localStorage.getItem('riskhub-language')).toBe('cs');
-        expect(screen.getByTestId('language-cs')).toHaveClass('border-accent');
+        expect(screen.getByTestId('language-cs')).toBeChecked();
     });
 
     it('keeps one rapid language lane and preserves Unsynced actions across settings remounts', async () => {

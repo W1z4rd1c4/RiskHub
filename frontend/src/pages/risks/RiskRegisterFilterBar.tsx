@@ -1,27 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 
+import { RegisterFilterCard } from '@/components/ict-register/RegisterFilterCard';
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
+import { buildFilterChip } from '@/components/ict-register/registerFilterChips';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { Button } from '@/components/ui/button';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
 import type { CollectionFacetOption } from '@/types/collection';
 import type { RiskFacets } from '@/types/risk';
 
 import {
+    parseRiskNetBand,
     resolveRiskTypeDisplayName,
+    RISK_NET_BAND_CODES,
     type RiskLifecycleFilter,
+    type RiskNetBand,
     type RiskRegisterFilters,
 } from './riskRegisterConfig';
 
-type OptionalRiskFilter = 'has_breach' | 'critical';
+type OptionalRiskFilter = 'has_breach' | 'critical' | 'net_band';
 
-const NET_BAND_LABEL_KEYS: Readonly<Record<string, string>> = {
-    'Nízké': 'low',
-    'Střední': 'medium',
-    'Vysoké': 'high',
-    'Kritické': 'critical',
+/** Literal keys so the i18n usage validator sees every band label. */
+const NET_BAND_LABEL_KEYS: Readonly<Record<RiskNetBand, string>> = {
+    low: 'register.net_bands.low',
+    medium: 'register.net_bands.medium',
+    high: 'register.net_bands.high',
+    critical: 'register.net_bands.critical',
 };
 
 interface Props {
@@ -36,35 +41,7 @@ interface Props {
     isPopulationLocked?: boolean;
 }
 
-function booleanControl({
-    current,
-    anyLabel,
-    label,
-    noLabel,
-    onChange,
-    options,
-    yesLabel,
-}: {
-    anyLabel: string;
-    current: boolean | null;
-    label: string;
-    noLabel: string;
-    onChange: (value: boolean | null) => void;
-    options: CollectionFacetOption[];
-    yesLabel: string;
-}) {
-    const count = (value: boolean) => options.find((option) => option.value === (value ? 'yes' : 'no'));
-    return (
-        <label className="space-y-2 text-xs font-bold text-foreground">
-            <span>{label}</span>
-            <select value={current === null ? '' : String(current)} onChange={(event) => onChange(event.target.value === '' ? null : event.target.value === 'true')} className="w-full rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground">
-                <option value="">{anyLabel}</option>
-                <option value="true" disabled={Boolean(count(true)?.disabled && current !== true)}>{yesLabel}{count(true) ? ` (${count(true)?.count})` : ''}</option>
-                <option value="false" disabled={Boolean(count(false)?.disabled && current !== false)}>{noLabel}{count(false) ? ` (${count(false)?.count})` : ''}</option>
-            </select>
-        </label>
-    );
-}
+const optionCount = (option: CollectionFacetOption | undefined) => (option ? ` (${option.count})` : '');
 
 export function RiskRegisterFilterBar({
     facets, filters, isLoading, onClearAll, onFilterChange, onRefresh, onSearchChange, search,
@@ -80,29 +57,26 @@ export function RiskRegisterFilterBar({
     const selectedOptional = useMemo<OptionalRiskFilter[]>(() => [
         ...(filters.has_breach !== null ? ['has_breach' as const] : []),
         ...(filters.critical ? ['critical' as const] : []),
-    ], [filters.critical, filters.has_breach]);
+        ...(filters.net_band ? ['net_band' as const] : []),
+    ], [filters.critical, filters.has_breach, filters.net_band]);
     const [activeKeys, setActiveKeys] = useState<OptionalRiskFilter[]>(selectedOptional);
     useEffect(() => setActiveKeys((current) => [...new Set([...current, ...selectedOptional])]), [selectedOptional]);
-    const labels: Record<OptionalRiskFilter, string> = {
+    const labels = useMemo<Record<OptionalRiskFilter, string>>(() => ({
         has_breach: t('register.filters.has_breach'),
         critical: t('register.filters.critical'),
-    };
-    const netBandLabel = t('register.filters.net_band');
-    const selectedNetBandLabel = filters.net_band
-        ? t(`register.net_bands.${NET_BAND_LABEL_KEYS[filters.net_band]}`, filters.net_band)
-        : '';
+        net_band: t('register.filters.net_band'),
+    }), [t]);
+    const yesNo = useCallback((value: boolean) => (value ? t('common:actions.yes') : t('common:actions.no')), [t]);
+    // PG-05: every chip reads "Label: value" through one whole-phrase key.
     const chips = useMemo<RegisterFilterChip[]>(() => [
-        ...(filters.lifecycle !== 'active' ? [{ key: 'lifecycle', label: `${t('register.filters.lifecycle')}: ${t(`register.lifecycle.${filters.lifecycle}`)}` }] : []),
-        ...(filters.status !== 'active' ? [{ key: 'status', label: `${t('fields.status')}: ${filters.status ? t(`status.${filters.status}`) : t('filters.all_statuses')}` }] : []),
-        ...(filters.risk_type ? [{ key: 'risk_type', label: `${t('fields.type')}: ${riskTypeLabel(filters.risk_type)}` }] : []),
-        ...(filters.is_priority !== null ? [{ key: 'is_priority', label: `${t('filters.priority_only')}: ${filters.is_priority ? t('common:actions.yes') : t('common:actions.no')}` }] : []),
-        ...(filters.has_breach !== null ? [{
-            key: 'has_breach',
-            label: `${labels.has_breach}: ${filters.has_breach ? t('common:actions.yes') : t('common:actions.no')}`,
-        }] : []),
+        ...(filters.lifecycle !== 'active' ? [buildFilterChip(t, 'lifecycle', t('register.filters.lifecycle'), t(`register.lifecycle.${filters.lifecycle}`))] : []),
+        ...(filters.status !== 'active' ? [buildFilterChip(t, 'status', t('fields.status'), filters.status ? t(`status.${filters.status}`) : t('filters.all_statuses'))] : []),
+        ...(filters.risk_type ? [buildFilterChip(t, 'risk_type', t('fields.type'), riskTypeLabel(filters.risk_type))] : []),
+        ...(filters.is_priority !== null ? [buildFilterChip(t, 'is_priority', t('filters.priority_only'), yesNo(filters.is_priority))] : []),
+        ...(filters.has_breach !== null ? [buildFilterChip(t, 'has_breach', labels.has_breach, yesNo(filters.has_breach))] : []),
         ...(filters.critical ? [{ key: 'critical', label: labels.critical }] : []),
-        ...(filters.net_band ? [{ key: 'net_band', label: `${netBandLabel}: ${selectedNetBandLabel}` }] : []),
-    ], [filters, labels.critical, labels.has_breach, netBandLabel, riskTypeLabel, selectedNetBandLabel, t]);
+        ...(filters.net_band ? [buildFilterChip(t, 'net_band', labels.net_band, t(NET_BAND_LABEL_KEYS[filters.net_band]))] : []),
+    ], [filters, labels, riskTypeLabel, t, yesNo]);
     const remove = (key: string) => {
         if (key === 'lifecycle') onFilterChange('lifecycle', 'active');
         else if (key === 'status') onFilterChange('status', 'active');
@@ -111,11 +85,46 @@ export function RiskRegisterFilterBar({
         else if (key === 'has_breach') onFilterChange('has_breach', null);
         else if (key === 'critical') onFilterChange('critical', false);
         else if (key === 'net_band') onFilterChange('net_band', '');
-        if (key === 'has_breach' || key === 'critical') setActiveKeys((current) => current.filter((item) => item !== key));
+        if (key === 'has_breach' || key === 'critical' || key === 'net_band') setActiveKeys((current) => current.filter((item) => item !== key));
     };
     const facetOption = (option: CollectionFacetOption, label: string) => ({
         value: option.value, label: `${label} (${option.count})`, disabled: option.disabled,
     });
+    const renderOptional = (key: OptionalRiskFilter) => {
+        if (key === 'critical') {
+            return <label className="flex items-center gap-2 text-sm font-medium text-foreground"><Checkbox checked={filters.critical} onCheckedChange={(checked) => onFilterChange('critical', checked)} />{labels.critical}</label>;
+        }
+        if (key === 'has_breach') {
+            const breachOption = (value: boolean) => (facets.has_breach ?? []).find((option) => option.value === (value ? 'yes' : 'no'));
+            return <ThemedSelect
+                value={filters.has_breach === null ? '' : String(filters.has_breach)}
+                onValueChange={(value) => onFilterChange('has_breach', value === '' ? null : value === 'true')}
+                allowEmpty
+                emptyLabel={t('common:filters.all')}
+                triggerAriaLabel={labels.has_breach}
+                triggerTestId="risks-has-breach-filter-trigger"
+                options={[true, false].map((value) => ({
+                    value: String(value),
+                    label: `${yesNo(value)}${optionCount(breachOption(value))}`,
+                    disabled: Boolean(breachOption(value)?.disabled && filters.has_breach !== value),
+                }))}
+            />;
+        }
+        const bandOption = (band: RiskNetBand) => (facets.net_band ?? []).find((option) => parseRiskNetBand(option.value) === band);
+        return <ThemedSelect
+            value={filters.net_band}
+            onValueChange={(value) => onFilterChange('net_band', parseRiskNetBand(value))}
+            allowEmpty
+            emptyLabel={t('common:filters.all')}
+            triggerAriaLabel={labels.net_band}
+            triggerTestId="risks-net-band-filter-trigger"
+            options={RISK_NET_BAND_CODES.map((band) => ({
+                value: band,
+                label: `${t(NET_BAND_LABEL_KEYS[band])}${optionCount(bandOption(band))}`,
+                disabled: Boolean(bandOption(band)?.disabled && filters.net_band !== band),
+            }))}
+        />;
+    };
 
     return (
         <RegisterListToolbar
@@ -142,9 +151,9 @@ export function RiskRegisterFilterBar({
                 { value: 'active', label: t('status.active'), count: 0, selected: false, disabled: false },
                 { value: 'emerging', label: t('status.emerging'), count: 0, selected: false, disabled: false },
             ]).filter((option) => option.value !== 'archived').map((option) => facetOption(option, t(`status.${option.value}`, option.label)))} />
-            <ThemedSelect value={filters.risk_type} onValueChange={(value) => onFilterChange('risk_type', value)} allowEmpty emptyLabel={t('filters.all_types')} triggerAriaLabel={t('filters.all_types')} options={(facets.risk_type?.length ? facets.risk_type.map((option) => facetOption(option, riskTypeLabel(option.value, option.label))) : riskTypes.map((type) => ({ value: type.code, label: riskTypeLabel(type.code, type.display_name) })))} />
-            <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-tint/5 px-3 text-xs font-bold text-foreground"><input type="checkbox" checked={filters.is_priority === true} onChange={(event) => onFilterChange('is_priority', event.target.checked ? true : null)} className="accent-accent" />{t('filters.priority_only')}</label>
-            {activeKeys.map((key) => <div key={key} className="relative rounded-xl border border-border bg-tint/[0.03] p-3 pr-12"><Button variant="secondary" size="iconCompact" aria-label={t('register.filters.remove', { label: labels[key] })} onClick={() => remove(key)} className="absolute right-2 top-2"><X aria-hidden="true" /></Button>{key === 'has_breach' ? booleanControl({ anyLabel: t('common:filters.all'), current: filters.has_breach, label: labels[key], noLabel: t('common:actions.no'), onChange: (value) => onFilterChange('has_breach', value), options: facets.has_breach ?? [], yesLabel: t('common:actions.yes') }) : <label className="flex items-center gap-2 text-xs font-bold text-foreground"><input type="checkbox" checked={filters.critical} onChange={(event) => onFilterChange('critical', event.target.checked)} className="accent-accent" />{labels[key]}</label>}</div>)}
+            <ThemedSelect value={filters.risk_type} onValueChange={(value) => onFilterChange('risk_type', value)} allowEmpty emptyLabel={t('filters.all_types')} triggerAriaLabel={t('fields.type')} triggerTestId="risks-type-filter-trigger" contentTestId="risks-type-filter-content" optionTestIdPrefix="risks-type-filter-option" options={(facets.risk_type?.length ? facets.risk_type.map((option) => facetOption(option, riskTypeLabel(option.value, option.label))) : riskTypes.map((type) => ({ value: type.code, label: riskTypeLabel(type.code, type.display_name) })))} />
+            <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-tint/5 px-3 text-sm font-medium text-foreground"><Checkbox checked={filters.is_priority === true} onCheckedChange={(checked) => onFilterChange('is_priority', checked ? true : null)} data-testid="risks-priority-filter" />{t('filters.priority_only')}</label>
+            {activeKeys.map((key) => <RegisterFilterCard key={key} removeLabel={t('register.filters.remove', { label: labels[key] })} onRemove={() => remove(key)}>{renderOptional(key)}</RegisterFilterCard>)}
         </RegisterListToolbar>
     );
 }

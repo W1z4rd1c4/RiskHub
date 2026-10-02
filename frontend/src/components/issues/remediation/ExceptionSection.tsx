@@ -1,16 +1,9 @@
+import { Button } from '@/components/ui/button';
+import { Card, CardFooter, CardHeader } from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useTranslation } from '@/i18n/hooks';
-
-import {
-    ISSUE_ACTION_ROW,
-    ISSUE_FIELD,
-    ISSUE_LABEL,
-    ISSUE_SECONDARY_BUTTON,
-    ISSUE_SECTION_CARD,
-    ISSUE_SECTION_HEADER,
-    ISSUE_SECTION_TITLE,
-    ISSUE_TEXTAREA,
-    ISSUE_WARNING_BUTTON,
-} from '../issueUi';
 
 interface ExceptionSectionProps {
     canApprove: boolean;
@@ -40,60 +33,57 @@ export function ExceptionSection({
     requestedExceptionId,
 }: ExceptionSectionProps) {
     const { t } = useTranslation('issues');
+    const canApproveRequested = canApprove && Boolean(requestedExceptionId);
 
     return (
-        <section className={ISSUE_SECTION_CARD} data-testid="workflow-exception-card">
-            <div className={ISSUE_SECTION_HEADER}>
-                <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.exception_handling')}</h4>
-            </div>
+        <Card as="section" className="space-y-5" data-testid="workflow-exception-card">
+            <CardHeader title={t('workflow.sections.exception_handling')} />
             <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('workflow.fields.exception_reason')}</label>
-                    <textarea
-                        value={exceptionReason}
-                        onChange={(event) => onExceptionReasonChange(event.target.value)}
-                        className={ISSUE_TEXTAREA}
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-                {canApprove && requestedExceptionId && (
-                    <div className="space-y-1.5">
-                        <label className={ISSUE_LABEL}>{t('workflow.fields.approve_until')}</label>
-                        <input
-                            type="datetime-local"
-                            value={exceptionExpiresAt}
-                            onChange={(event) => onExceptionExpiresAtChange(event.target.value)}
-                            className={`${ISSUE_FIELD} h-10`}
-                            disabled={isSubmitting}
+                <Field label={t('workflow.fields.exception_reason')} className="md:col-span-2">
+                    {(field) => (
+                        <Textarea
+                            {...field}
+                            value={exceptionReason}
+                            onChange={(event) => onExceptionReasonChange(event.target.value)}
+                            disabled={!canWrite || isSubmitting}
                         />
-                    </div>
+                    )}
+                </Field>
+                {canApproveRequested && (
+                    <Field label={t('workflow.fields.approve_until')}>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="datetime-local"
+                                value={exceptionExpiresAt}
+                                onChange={(event) => onExceptionExpiresAtChange(event.target.value)}
+                                disabled={isSubmitting}
+                            />
+                        )}
+                    </Field>
                 )}
             </div>
-            <div className={ISSUE_ACTION_ROW}>
-                {canWrite && (
-                    <button
-                        type="button"
-                        onClick={onRequestException}
-                        disabled={isSubmitting}
-                        className={isInProgress ? ISSUE_WARNING_BUTTON : ISSUE_SECONDARY_BUTTON}
-                    >
-                        {t('actions.request_exception')}
-                    </button>
-                )}
-                {canApprove && requestedExceptionId && (
-                    <button
-                        type="button"
-                        onClick={onApproveException}
-                        disabled={isSubmitting}
-                        className={ISSUE_SECONDARY_BUTTON}
-                    >
-                        {t('actions.approve_exception')}
-                    </button>
-                )}
-            </div>
+            {(canWrite || canApproveRequested) && (
+                <CardFooter className="justify-start">
+                    {canWrite && (
+                        <Button
+                            variant={isInProgress ? 'warning' : 'secondary'}
+                            onClick={onRequestException}
+                            disabled={isSubmitting}
+                        >
+                            {t('actions.request_exception')}
+                        </Button>
+                    )}
+                    {canApproveRequested && (
+                        <Button variant="secondary" onClick={onApproveException} disabled={isSubmitting}>
+                            {t('actions.approve_exception')}
+                        </Button>
+                    )}
+                </CardFooter>
+            )}
             {canApprove && !requestedExceptionId && (
                 <p className="text-sm text-muted-foreground">{t('workflow.messages.no_requested_exception')}</p>
             )}
-        </section>
+        </Card>
     );
 }

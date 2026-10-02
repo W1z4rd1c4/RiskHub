@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
 import { Handshake } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
 import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 import type { Vendor } from '@/types/vendor';
@@ -23,12 +26,7 @@ export function RiskLinkedVendorsSection({
             transition={{ delay: 0.55 }}
             className="glass-card"
         >
-            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                    <Handshake className="h-5 w-5 text-chart-2" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.linked_vendors', { ns: 'risks' })}</h3>
-                </div>
-            </div>
+            <CardHeader icon={Handshake} title={t('overview.linked_vendors', { ns: 'risks' })} className="mb-6 border-b border-border pb-4" />
 
             {linkedVendors.length === 0 ? (
                 <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
@@ -37,33 +35,40 @@ export function RiskLinkedVendorsSection({
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {linkedVendors.map((vendor) => (
-                        <button
+                        <Button
                             key={vendor.id}
+                            variant="ghost"
                             onClick={() => onNavigateToVendor(vendor.id)}
-                            className="group text-left bg-tint/5 border border-border rounded-2xl p-4 hover:bg-tint/10 hover:border-accent/30 transition-all"
+                            className="h-auto w-full flex-col items-stretch justify-start gap-3 whitespace-normal rounded-xl border border-border bg-nested p-4 text-left font-normal hover:border-accent/30"
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-bold text-foreground truncate">{vendor.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">{vendor.department_name || t('overview.unassigned', { ns: 'risks' })}</p>
-                                </div>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${severityClass('badge', ordinalSeverityBand(vendor.risk_score_1_5))}`}>
-                                    {vendor.risk_score_1_5}/5
+                            <span className="flex items-start justify-between gap-3">
+                                <span className="min-w-0">
+                                    <span className="block truncate text-sm font-bold text-foreground">{vendor.name}</span>
+                                    <span className="block truncate text-xs text-muted-foreground">{vendor.department_name || t('overview.unassigned', { ns: 'risks' })}</span>
                                 </span>
-                            </div>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                {vendor.dora_relevant && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black border text-accent-text bg-info/10 border-info/20">
-                                        DORA
-                                    </span>
-                                )}
-                                {vendor.supports_important_core_insurance_function && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black border text-success-text bg-success/10 border-success/20">
-                                        {t('overview.core_function_badge', { ns: 'risks' })}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
+                                <Badge
+                                    size="sm"
+                                    className={severityClass('badge', ordinalSeverityBand(vendor.risk_score_1_5))}
+                                    title={t('overview.vendor_risk_score', { ns: 'risks', score: vendor.risk_score_1_5 })}
+                                >
+                                    {t('overview.score_of_five', { ns: 'risks', score: vendor.risk_score_1_5 })}
+                                </Badge>
+                            </span>
+                            {vendor.dora_relevant || vendor.supports_important_core_insurance_function ? (
+                                <span className="flex flex-wrap gap-2">
+                                    {vendor.dora_relevant && (
+                                        <Badge size="sm" tone="info">
+                                            DORA
+                                        </Badge>
+                                    )}
+                                    {vendor.supports_important_core_insurance_function && (
+                                        <Badge size="sm" tone="success">
+                                            {t('overview.core_function_badge', { ns: 'risks' })}
+                                        </Badge>
+                                    )}
+                                </span>
+                            ) : null}
+                        </Button>
                     ))}
                 </div>
             )}

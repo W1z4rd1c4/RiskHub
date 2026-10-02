@@ -3,6 +3,7 @@ import { History } from 'lucide-react';
 import type { HistoryTimelineItem } from '@/types/history';
 import { HistoryTimeline } from '@/components/history';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import { CardHeader } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
@@ -32,11 +33,14 @@ export function RiskDetailKriHistoryTab({
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
         >
-            <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
-                <History className="h-4 w-4 text-accent" />
-                {t('history_tab.aggregated_kri_history', { ns: 'risks' })}
-                {items.length > 0 && <span className="text-muted-foreground font-normal">({t('history_tab.entries_count', { ns: 'kris', count: items.length })})</span>}
-            </h3>
+            <CardHeader
+                icon={History}
+                title={t('history_tab.aggregated_kri_history', { ns: 'risks' })}
+                className="mb-6"
+                actions={items.length > 0 ? (
+                    <span className="text-sm text-muted-foreground">{t('history_tab.entries_count', { ns: 'kris', count: items.length })}</span>
+                ) : undefined}
+            />
 
             {outcome.kind === 'fatal-error' || outcome.kind === 'denied' ? (
                 <TableErrorState

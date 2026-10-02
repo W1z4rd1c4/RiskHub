@@ -1,9 +1,12 @@
 import { Plus, Search, User, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/ui/state';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import type { SafeTFunction } from '@/i18n/hooks';
+import { getRoleLabel } from '@/lib/roleLabels';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Control } from '@/types/control';
 
@@ -23,6 +26,8 @@ interface ControlFormOwnershipStepProps {
   t: TranslateFn;
   isLoadingLookups: boolean;
   formData: Partial<Control>;
+  /** Per-field validation messages (AX-04). */
+  fieldErrors?: Partial<Record<keyof Control, string>>;
   departments: DepartmentOption[];
   users: UserLookupItem[];
   filteredUsers: UserLookupItem[];
@@ -38,6 +43,7 @@ export function ControlFormOwnershipStep({
   t,
   isLoadingLookups,
   formData,
+  fieldErrors = {},
   departments,
   users,
   filteredUsers,
@@ -48,56 +54,68 @@ export function ControlFormOwnershipStep({
   setOwnerSearch,
   handleInputChange,
 }: ControlFormOwnershipStepProps) {
+  const roleLabel = (role: string | null | undefined) => getRoleLabel(role, t as SafeTFunction);
+  const selectedOwner = formData.control_owner_id ? users.find((u) => u.id === formData.control_owner_id) : undefined;
+
   if (isLoadingLookups) {
     return <LoadingState layout="inline" label={t('loading.generic', { ns: 'common' })} />;
   }
 
   return (
     <div className="grid md:grid-cols-2 gap-8">
-      <div>
-        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">{t('common:labels.department')}</label>
-        <div className="grid grid-cols-1 gap-2">
-          <ThemedSelect
-            value={formData.department_id?.toString() ?? ''}
-            onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v, 10) : undefined)}
-            placeholder={t('form.placeholders.select_department')}
-            allowEmpty
-            emptyLabel={t('form.placeholders.select_department')}
-            className="w-full"
-            options={departments.map((dept) => ({ value: dept.id.toString(), label: `${dept.name} (${dept.code})` }))}
-          />
-          <Field label={t('controls:form.labels.owner_position')} className="mt-4">
-            {(field) => (
-              <Input
-                {...field}
-                type="text"
-                value={formData.process_owner_position || ''}
-                onChange={(e) => handleInputChange('process_owner_position', e.target.value)}
-                placeholder={t('form.placeholders.process_owner_position')}
-              />
-            )}
-          </Field>
-        </div>
+      <div className="space-y-4">
+        <Field label={t('common:labels.department')} required error={fieldErrors.department_id}>
+          {(field) => (
+            <ThemedSelect
+              {...field}
+              value={formData.department_id?.toString() ?? ''}
+              onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v, 10) : undefined)}
+              placeholder={t('form.placeholders.select_department')}
+              allowEmpty
+              emptyLabel={t('form.placeholders.select_department')}
+              className="w-full"
+              options={departments.map((dept) => ({ value: dept.id.toString(), label: `${dept.name} (${dept.code})` }))}
+            />
+          )}
+        </Field>
+        <Field label={t('controls:form.labels.owner_position')} required error={fieldErrors.process_owner_position}>
+          {(field) => (
+            <Input
+              {...field}
+              type="text"
+              value={formData.process_owner_position || ''}
+              onChange={(e) => handleInputChange('process_owner_position', e.target.value)}
+              placeholder={t('form.placeholders.process_owner_position')}
+            />
+          )}
+        </Field>
       </div>
 
       <div>
-        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">{t('controls:fields.owner')}</label>
+        <h3 className="mb-3 text-sm font-medium text-foreground">
+          {t('controls:fields.owner')}
+          <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
+        </h3>
+        {fieldErrors.control_owner_id ? (
+          <p role="alert" className="mb-3 text-xs font-medium text-destructive">{fieldErrors.control_owner_id}</p>
+        ) : null}
 
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          <button
-            type="button"
+        {/* GAP-D-06: role chips show the translated role name; the code stays the filter value. */}
+        <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label={t('risks:form.owner_search.role_filter')}>
+          <Button
+            size="compact"
+            variant={!roleFilter ? 'accent' : 'secondary'}
+            aria-pressed={!roleFilter}
             onClick={() => setRoleFilter('')}
-            className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${!roleFilter
-              ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
-              : 'bg-tint/5 text-muted-foreground hover:bg-tint/10'
-              }`}
           >
             {t('common:labels.all')}
-          </button>
+          </Button>
           {uniqueRoles.map((role) => (
-            <button
+            <Button
               key={role}
-              type="button"
+              size="compact"
+              variant={roleFilter === role ? 'accent' : 'secondary'}
+              aria-pressed={roleFilter === role}
               onClick={() => {
                 setRoleFilter(role);
                 const usersWithRole = users.filter((u) => u.role_name === role);
@@ -108,13 +126,9 @@ export function ControlFormOwnershipStep({
                   handleInputChange('department_id', undefined);
                 }
               }}
-              className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${roleFilter === role
-                ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
-                : 'bg-tint/5 text-muted-foreground hover:bg-tint/10'
-                }`}
             >
-              {role}
-            </button>
+              {roleLabel(role)}
+            </Button>
           ))}
         </div>
 
@@ -122,28 +136,27 @@ export function ControlFormOwnershipStep({
           <div className="flex items-center justify-between bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                <User className="h-4 w-4 text-accent" />
+                <User className="h-4 w-4 text-accent-text" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">
-                  {users.find((u) => u.id === formData.control_owner_id)?.name}
+                  {selectedOwner?.name}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {users.find((u) => u.id === formData.control_owner_id)?.email}
+                <p className="text-xs text-muted-foreground">
+                  {selectedOwner?.email}
                 </p>
               </div>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="iconCompact"
               onClick={() => handleInputChange('control_owner_id', undefined)}
               aria-label={t('common:actions.clear_selection_named', {
-                name: users.find((u) => u.id === formData.control_owner_id)?.name
-                  ?? t('common:fallbacks.unknown_user'),
+                name: selectedOwner?.name ?? t('common:fallbacks.unknown_user'),
               })}
-              className="p-1 hover:bg-tint/5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
             >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
+              <X aria-hidden="true" />
+            </Button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -160,18 +173,18 @@ export function ControlFormOwnershipStep({
                 <div className="p-4 text-center text-xs text-muted-foreground italic">{t('common:empty.no_owners_found')}</div>
               ) : (
                 filteredUsers.map((user) => (
-                  <button
+                  <Button
                     key={user.id}
-                    type="button"
+                    variant="ghost"
                     onClick={() => handleInputChange('control_owner_id', user.id)}
-                    className="w-full px-4 py-2.5 text-left hover:bg-tint/5 transition-all flex items-center justify-between group"
+                    className="group h-auto w-full justify-between rounded-none px-4 py-2.5 text-left font-normal"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{user.name}</p>
-                      <p className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors uppercase tracking-widest">{user.role_name}</p>
-                    </div>
-                    <Plus className="h-3 w-3 text-muted-foreground group-hover:text-accent transition-colors" />
-                  </button>
+                    <span>
+                      <span className="block text-sm font-medium text-foreground">{user.name}</span>
+                      <span className="block text-xs text-muted-foreground group-hover:text-foreground transition-colors">{roleLabel(user.role_name)}</span>
+                    </span>
+                    <Plus className="h-3 w-3 text-muted-foreground group-hover:text-accent-text transition-colors" aria-hidden="true" />
+                  </Button>
                 ))
               )}
             </div>

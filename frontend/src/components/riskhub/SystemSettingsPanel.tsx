@@ -1,15 +1,20 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings2, Save, AlertCircle } from 'lucide-react';
+import { Settings2, Save } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { riskHubKeys } from '@/lib/queryKeys';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useFeedback } from '@/hooks/useFeedback';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/state';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string }> = {
     risk_thresholds: {
@@ -32,6 +37,12 @@ interface ConfigInputProps {
     onSave: (key: string, value: string) => Promise<void>;
 }
 
+/**
+ * One editable setting (DS-04 rewrite): `Field` names the control after the
+ * setting and describes it with the setting description and allowed range;
+ * `Switch` for booleans, `Input` for numbers and text, a "Save {name}" `Button`,
+ * a success toast (D9) and the server error as an `InlineMessage` (AX-05).
+ */
 function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const { t } = useTranslation(['admin', 'common']);
     const format = useFormat();
@@ -39,12 +50,22 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const feedback = useFeedback();
     const [saving, setSaving] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-    const fieldId = useId();
-    const nameId = `${fieldId}-name`;
-    const descriptionId = config.description ? `${fieldId}-description` : undefined;
     const isReadOnly = !config.is_editable || !canUpdate;
 
     const hasChanged = value !== config.value;
+    const hasRange = config.min_value !== null && config.max_value !== null;
+    const help = config.description || hasRange ? (
+        <>
+            {config.description}
+            {config.description && hasRange ? ' ' : null}
+            {hasRange
+                ? t('admin:system_settings.range', {
+                    min: format.number(config.min_value),
+                    max: format.number(config.max_value),
+                })
+                : null}
+        </>
+    ) : undefined;
 
     const handleSave = async () => {
         if (!hasChanged || !canUpdate) return;
@@ -61,99 +82,79 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         }
     };
 
-    const renderInput = () => {
-        if (config.value_type === 'bool') {
-            const checked = value.toLowerCase() === 'true';
-            return (
-                <Switch
-                    checked={checked}
-                    onCheckedChange={(next) => setValue(next ? 'true' : 'false')}
-                    aria-labelledby={nameId}
-                    aria-describedby={descriptionId}
-                    disabled={isReadOnly}
-                />
-            );
-        }
+    const saveButton = hasChanged && canUpdate && config.is_editable ? (
+        <Button
+            variant="accent"
+            size="compact"
+            onClick={() => void handleSave()}
+            isLoading={saving}
+            aria-label={t('admin:system_settings.save_named', { name: config.display_name })}
+        >
+            {saving ? null : <Save aria-hidden="true" />}
+            {t('common:actions.save')}
+        </Button>
+    ) : null;
 
-        if (config.value_type === 'int') {
-            // PG-38: group digits in the UI language ("10,000,000" en / "10 000 000" cs);
-            // the change handler strips every separator back to the raw number.
-            const numValue = parseInt(value) || 0;
-            const displayValue = format.number(numValue);
+    const errorMessage = errorKey ? (
+        <InlineMessage tone="danger">{translateUiMessage(t, errorKey)}</InlineMessage>
+    ) : null;
 
-            return (
-                <input
-                    type="text"
-                    inputMode="numeric"
-                    aria-labelledby={nameId}
-                    aria-describedby={descriptionId}
-                    value={displayValue}
-                    onChange={(e) => {
-                        // Strip spaces and non-numeric chars, store raw number
-                        const cleaned = e.target.value.replace(/[^0-9]/g, '');
-                        setValue(cleaned);
-                    }}
-                    className="w-24 md:w-32 px-3 py-1.5 bg-tint/5 border border-input rounded-lg text-foreground text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                    disabled={isReadOnly}
-                />
-            );
-        }
-
+    if (config.value_type === 'bool') {
+        const checked = value.toLowerCase() === 'true';
         return (
-            <input
-                type="text"
-                aria-labelledby={nameId}
-                aria-describedby={descriptionId}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="flex-1 px-3 py-1.5 bg-tint/5 border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isReadOnly}
-            />
+            <div className="space-y-2 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Field layout="inline" label={config.display_name} help={help} className="min-w-0 flex-1">
+                        {(field) => (
+                            <Switch
+                                {...field}
+                                checked={checked}
+                                onCheckedChange={(next) => setValue(next ? 'true' : 'false')}
+                                disabled={isReadOnly}
+                            />
+                        )}
+                    </Field>
+                    {saveButton}
+                </div>
+                {errorMessage}
+            </div>
         );
-    };
+    }
 
     return (
-        <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
-            <div className="flex-1">
-                <div className="flex items-center gap-2">
-                    <span id={nameId} className="text-foreground font-medium">{config.display_name}</span>
-                    {config.min_value !== null && config.max_value !== null && (
-                        <span className="text-xs text-muted-foreground">
-                            ({config.min_value} - {config.max_value})
-                        </span>
-                    )}
-                </div>
-                {config.description && (
-                    <p id={descriptionId} className="text-sm text-muted-foreground mt-0.5">{config.description}</p>
-                )}
-            </div>
-
-            <div className="flex items-center gap-3">
-                {renderInput()}
-
-                {hasChanged && canUpdate && config.is_editable && (
-                    <button
-                        type="button"
-                        onClick={() => void handleSave()}
-                        disabled={saving}
-                        aria-label={t('admin:system_settings.save_named', { name: config.display_name })}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                    >
-                        {saving ? (
-                            <Spinner size="sm" className="size-3.5 text-current" />
+        <div className="space-y-2 py-3">
+            <Field label={config.display_name} help={help}>
+                {(field) => (
+                    <div className="flex flex-wrap items-center gap-3">
+                        {config.value_type === 'int' ? (
+                            <Input
+                                {...field}
+                                type="text"
+                                size="compact"
+                                inputMode="numeric"
+                                // PG-38: group digits in the UI language ("10,000,000" en /
+                                // "10 000 000" cs); the change handler strips every separator.
+                                value={format.number(parseInt(value) || 0)}
+                                onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+                                className="w-32 text-right font-mono"
+                                disabled={isReadOnly}
+                            />
                         ) : (
-                            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Input
+                                {...field}
+                                type="text"
+                                size="compact"
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
+                                className="min-w-0 flex-1"
+                                disabled={isReadOnly}
+                            />
                         )}
-                        {t('common:actions.save')}
-                    </button>
+                        {saveButton}
+                    </div>
                 )}
-
-                {errorKey && (
-                    <span role="alert" className="flex items-center gap-1 text-destructive text-sm">
-                        <AlertCircle className="h-4 w-4" aria-hidden="true" /> {t(errorKey, { ns: 'errorKeys' })}
-                    </span>
-                )}
-            </div>
+            </Field>
+            {errorMessage}
         </div>
     );
 }
@@ -197,27 +198,30 @@ export function SystemSettingsPanel() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <Settings2 className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold text-foreground">{t('admin:system_settings.title')}</h3>
-            </div>
+            <CardHeader className="mb-0" icon={Settings2} title={t('admin:system_settings.title')} />
+
+            {error ? (
+                <ErrorState variant="banner" onRetry={() => void refetch()} isRetrying={isFetching} />
+            ) : null}
+
+            {categories.length === 0 ? (
+                <EmptyState title={t('admin:system_settings.empty')} testId="system-settings-empty" />
+            ) : null}
 
             {categories.map((category) => {
                 const categoryInfo = CATEGORY_LABELS[category];
                 const categoryConfigs = configs?.[category] || [];
 
                 return (
-                    <div key={category} className="bg-tint/5 rounded-xl p-4">
-                        <div className="mb-4">
-                            <h4 className="text-foreground font-medium">
-                                {categoryInfo ? t(categoryInfo.labelKey) : category}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                                {categoryInfo ? t(categoryInfo.descriptionKey) : ''}
-                            </p>
-                        </div>
+                    <Card as="section" key={category} tone="nested" padding="compact">
+                        <CardHeader
+                            className="mb-2"
+                            titleAs="h3"
+                            title={categoryInfo ? t(categoryInfo.labelKey) : category}
+                            description={categoryInfo ? t(categoryInfo.descriptionKey) : undefined}
+                        />
 
-                        <div className="space-y-1">
+                        <div className="divide-y divide-border">
                             {categoryConfigs.map((config) => (
                                 <ConfigInput
                                     key={config.key}
@@ -227,7 +231,7 @@ export function SystemSettingsPanel() {
                                 />
                             ))}
                         </div>
-                    </div>
+                    </Card>
                 );
             })}
         </div>

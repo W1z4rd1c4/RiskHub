@@ -38,8 +38,8 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
             key: 'risks',
             count: department.risk_count,
             health: [
-                { key: 'high', count: department.risk_distribution?.high, labelKey: 'department_detail.health.high_risks', filters: { net_band: 'Vysoké' } },
-                { key: 'critical', count: department.risk_distribution?.critical, labelKey: 'department_detail.health.critical_risks', filters: { net_band: 'Kritické' } },
+                { key: 'high', count: department.risk_distribution?.high, labelKey: 'department_detail.health.high_risks', filters: { net_band: 'high' } },
+                { key: 'critical', count: department.risk_distribution?.critical, labelKey: 'department_detail.health.critical_risks', filters: { net_band: 'critical' } },
             ],
             icon: ShieldAlert,
         },

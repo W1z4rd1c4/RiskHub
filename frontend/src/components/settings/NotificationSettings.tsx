@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Bell, AlertTriangle } from 'lucide-react';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { NotificationPreferences } from '@/types/notification';
-import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
 import { ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
+import { Switch } from '@/components/ui/switch';
 
 interface ToggleItemProps {
     label: string;
@@ -18,32 +18,21 @@ interface ToggleItemProps {
 }
 
 function ToggleItem({ label, description, checked, onChange, loading }: ToggleItemProps) {
+    const labelId = useId();
+    const descriptionId = useId();
     return (
         <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
             <div className="flex-1 pr-4">
-                <p className="text-foreground font-medium">{label}</p>
-                <p className="text-muted-foreground text-sm">{description}</p>
+                <p id={labelId} className="text-foreground font-medium">{label}</p>
+                <p id={descriptionId} className="text-muted-foreground text-sm">{description}</p>
             </div>
-            <button
-                type="button"
-                role="switch"
-                aria-checked={checked}
-                aria-label={label}
-                onClick={() => onChange(!checked)}
+            <Switch
+                checked={checked}
+                onCheckedChange={onChange}
+                aria-labelledby={labelId}
+                aria-describedby={descriptionId}
                 disabled={loading}
-                className={cn(
-                    "relative w-12 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50",
-                    checked ? "bg-accent" : "bg-muted-foreground/40",
-                    loading && "opacity-50 cursor-not-allowed"
-                )}
-            >
-                <span
-                    className={cn(
-                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform",
-                        checked && "translate-x-6"
-                    )}
-                />
-            </button>
+            />
         </div>
     );
 }
@@ -151,7 +140,7 @@ export function NotificationSettings() {
     return (
         <div className="space-y-8">
             <div>
-                <h3 className="text-lg font-semibold mb-2">{t('notifications.title')}</h3>
+                <h2 className="text-lg font-semibold mb-2">{t('notifications.title')}</h2>
                 <p className="text-muted-foreground text-sm">
                     {t('notifications.subtitle')}
                 </p>
@@ -161,11 +150,11 @@ export function NotificationSettings() {
             <section className="bg-tint/5 rounded-xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                        <Bell className="h-4 w-4 text-accent" />
+                        <Bell aria-hidden="true" className="h-4 w-4 text-accent-text" />
                     </div>
-                    <h4 className="text-md font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground">
                         {t('notifications.section_approval')}
-                    </h4>
+                    </h3>
                 </div>
                 <div className="space-y-1">
                     {approvalSettings.map(({ key, labelKey, descKey }) => (
@@ -187,9 +176,9 @@ export function NotificationSettings() {
                     <div className="w-8 h-8 rounded-lg bg-warning/20 flex items-center justify-center">
                         <AlertTriangle className="h-4 w-4 text-warning-text" />
                     </div>
-                    <h4 className="text-md font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground">
                         {t('notifications.section_kri')}
-                    </h4>
+                    </h3>
                 </div>
                 <div className="space-y-1">
                     {kriSettings.map(({ key, labelKey, descKey }) => (
@@ -211,9 +200,9 @@ export function NotificationSettings() {
                     <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center">
                         <Bell className="h-4 w-4 text-success-text" />
                     </div>
-                    <h4 className="text-md font-semibold text-foreground">
+                    <h3 className="text-base font-semibold text-foreground">
                         {t('notifications.section_questionnaires')}
-                    </h4>
+                    </h3>
                 </div>
                 <div className="space-y-1">
                     {questionnaireSettings.map(({ key, labelKey, descKey }) => (

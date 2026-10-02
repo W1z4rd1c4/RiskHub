@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
+import { LoadingState } from '@/components/ui/state';
 import { apiClient, ApiClientError } from '@/services/apiClient';
 import { directoryApi } from '@/services/directoryApi';
 import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
@@ -124,9 +126,7 @@ export function DirectoryUserImportPanel({
 
             <div className="max-h-96 overflow-y-auto rounded-xl border border-border">
                 {isSearching ? (
-                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                        {t('users.directory_searching')}
-                    </div>
+                    <LoadingState layout="section" label={t('users.directory_searching')} />
                 ) : hasResults ? (
                     <ul className="divide-y divide-border">
                         {visibleResults.map((entry) => (
@@ -141,18 +141,19 @@ export function DirectoryUserImportPanel({
                                         {entry.job_title ? ` • ${entry.job_title}` : ''}
                                     </p>
                                 </div>
-                                <button
+                                <Button
                                     type="button"
+                                    variant="accent"
+                                    size="compact"
                                     onClick={() => void handleImport(entry)}
                                     aria-busy={isImportingOid === entry.external_id}
                                     aria-disabled={isImportingOid !== null}
-                                    className={`inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-hover ${isImportingOid !== null ? 'cursor-not-allowed opacity-60' : ''}`}
                                 >
-                                    <UserPlus className="h-3.5 w-3.5" />
+                                    <UserPlus aria-hidden="true" />
                                     {isImportingOid === entry.external_id
                                         ? t('users.importing')
                                         : t('users.import')}
-                                </button>
+                                </Button>
                             </li>
                         ))}
                     </ul>

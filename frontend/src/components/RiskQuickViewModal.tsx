@@ -6,6 +6,7 @@ import { useFormat, useTranslation } from '@/i18n/hooks';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { classifyRiskScore, severityClass, type SeverityBand } from '@/lib/severity';
 import { cn } from '@/lib/utils';
+import { Badge } from './ui/badge';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from './ui/dialog';
 
 const RISK_BAND_LABEL_KEYS: Record<SeverityBand, string> = {
@@ -35,7 +36,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
         const band = classifyRiskScore(score, thresholds);
         return (
             <>
-                <span className={cn('text-2xl font-black', severityClass('text', band))}>{score}</span>
+                <span className={cn('text-2xl font-bold tabular-nums', severityClass('text', band))}>{score}</span>
                 <span
                     className={cn(
                         'px-2 py-0.5 rounded border text-xs font-bold uppercase tracking-wide',
@@ -55,16 +56,18 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                 description={risk.process || undefined}
                 icon={Shield}
             >
-                <span className="mt-2 inline-flex rounded border border-border bg-tint/10 px-2 py-0.5 text-eyebrow">
-                    {risk.category}
-                </span>
+                {risk.category ? (
+                    <Badge size="sm" shape="rounded" className="mt-2">
+                        {risk.category}
+                    </Badge>
+                ) : null}
             </DialogHeader>
 
             {/* Body */}
             <DialogBody className="custom-scrollbar space-y-8">
                 {/* Description */}
                 <div>
-                    <h4 className="text-eyebrow mb-3">{t('common:labels.description')}</h4>
+                    <h3 className="text-eyebrow mb-3">{t('common:labels.description')}</h3>
                     <p className="text-sm text-foreground leading-relaxed font-medium">
                         {risk.description}
                     </p>
@@ -73,24 +76,24 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                 {/* Matrix */}
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-tint/5 rounded-xl p-4 border border-border">
-                        <h4 className="text-eyebrow mb-3 flex items-center gap-2">
-                            <BarChart className="h-3 w-3" /> {t('risks:fields.gross_score')}
-                        </h4>
+                        <h3 className="text-eyebrow mb-3 flex items-center gap-2">
+                            <BarChart aria-hidden="true" className="h-3 w-3" /> {t('risks:fields.gross_score')}
+                        </h3>
                         <div className="flex items-baseline gap-2">
                             {renderScore(risk.gross_score)}
                             <span className="text-xs text-muted-foreground font-bold">
-                                (P: {risk.gross_probability} × I: {risk.gross_impact})
+                                {t('risks:scoring.factors_short', { probability: risk.gross_probability, impact: risk.gross_impact })}
                             </span>
                         </div>
                     </div>
                     <div className="bg-tint/5 rounded-xl p-4 border border-border">
-                        <h4 className="text-eyebrow mb-3 flex items-center gap-2">
-                            <BarChart className="h-3 w-3" /> {t('risks:fields.net_score')}
-                        </h4>
+                        <h3 className="text-eyebrow mb-3 flex items-center gap-2">
+                            <BarChart aria-hidden="true" className="h-3 w-3" /> {t('risks:fields.net_score')}
+                        </h3>
                         <div className="flex items-baseline gap-2">
                             {renderScore(risk.net_score)}
                             <span className="text-xs text-muted-foreground font-bold">
-                                (P: {risk.net_probability} × I: {risk.net_impact})
+                                {t('risks:scoring.factors_short', { probability: risk.net_probability, impact: risk.net_impact })}
                             </span>
                         </div>
                     </div>
@@ -99,28 +102,28 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                 {/* Details Grid */}
                 <div className="grid grid-cols-2 gap-y-6 gap-x-12">
                     <div>
-                        <h4 className="text-eyebrow mb-2 flex items-center gap-2">
-                            <User className="h-3 w-3" /> {t('risks:fields.owner')}
-                        </h4>
+                        <h3 className="text-eyebrow mb-2 flex items-center gap-2">
+                            <User aria-hidden="true" className="h-3 w-3" /> {t('risks:fields.owner')}
+                        </h3>
                         <p className="text-sm font-bold text-foreground">{risk.owner?.name || t('common:labels.unknown')}</p>
                         <p className="text-xs text-muted-foreground">{risk.owner?.email}</p>
                     </div>
                     <div>
-                        <h4 className="text-eyebrow mb-2 flex items-center gap-2">
-                            <Target className="h-3 w-3" /> {t('risks:fields.department')}
-                        </h4>
+                        <h3 className="text-eyebrow mb-2 flex items-center gap-2">
+                            <Target aria-hidden="true" className="h-3 w-3" /> {t('risks:fields.department')}
+                        </h3>
                         <p className="text-sm font-bold text-foreground">{risk.department?.name || t('common:labels.unknown')}</p>
                     </div>
                     <div>
-                        <h4 className="text-eyebrow mb-2 flex items-center gap-2">
-                            <Shield className="h-3 w-3" /> {t('risks:fields.type')}
-                        </h4>
+                        <h3 className="text-eyebrow mb-2 flex items-center gap-2">
+                            <Shield aria-hidden="true" className="h-3 w-3" /> {t('risks:fields.type')}
+                        </h3>
                         <p className="text-sm font-bold text-foreground">{getRiskTypeName(risk.risk_type)}</p>
                     </div>
                     <div>
-                        <h4 className="text-eyebrow mb-2 flex items-center gap-2">
-                            <Calendar className="h-3 w-3" /> {t('common:labels.updated_at')}
-                        </h4>
+                        <h3 className="text-eyebrow mb-2 flex items-center gap-2">
+                            <Calendar aria-hidden="true" className="h-3 w-3" /> {t('common:labels.updated_at')}
+                        </h3>
                         <p className="text-sm font-bold text-foreground">
                             {format.date(risk.updated_at)}
                         </p>

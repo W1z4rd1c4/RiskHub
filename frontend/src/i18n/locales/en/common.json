@@ -4,6 +4,7 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
+    "edit_named": "Edit {{name}}",
     "create": "Create",
     "close": "Close",
     "confirm": "Confirm",
@@ -42,7 +43,9 @@
     "clear_selection_named": "Clear selection: {{name}}",
     "remove": "Remove",
     "remove_named": "Remove {{name}}",
-    "back_to_detail": "Back to {{name}}"
+    "back_to_detail": "Back to {{name}}",
+    "restore": "Restore",
+    "restore_named": "Restore {{name}}"
   },
   "links": {
     "remove_named": "Remove link: {{name}}"
@@ -168,7 +171,24 @@
     "by": "by",
     "approved_on": "Approved on",
     "proposed_changes": "Proposed changes",
-    "rejected_on": "Rejected on"
+    "rejected_on": "Rejected on",
+    "label_value": "{{label}}: {{value}}",
+    "quoted": "“{{text}}”"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "cro": "Chief Risk Officer",
+    "ceo": "Chief Executive Officer",
+    "cfo": "Chief Financial Officer",
+    "coo": "Chief Operating Officer",
+    "ciso": "Chief Information Security Officer",
+    "risk_manager": "Risk Manager",
+    "actuarial": "Actuarial Function",
+    "compliance": "Compliance Officer",
+    "internal_audit": "Internal Audit",
+    "department_head": "Department Head",
+    "employee": "Employee",
+    "viewer": "Viewer"
   },
   "errors": {
     "generic": "An error occurred. Please try again.",
@@ -446,8 +466,10 @@
     "create_link": "Create Link",
     "search_results": "Search results",
     "initial_suggestions": "Initial suggestions",
-    "result_singular": "item",
-    "result_plural": "items"
+    "result_count": "{{count}} items",
+    "result_count_one": "{{count}} item",
+    "result_count_few": "{{count}} items",
+    "result_count_other": "{{count}} items"
   },
   "approval": {
     "submitted_for_approval": "Submitted for approval",
@@ -583,7 +605,8 @@
     "unknown_asset": "Unknown asset",
     "unknown_threat": "Unknown threat",
     "unknown_contract": "Unknown contract",
-    "unknown_sub_outsourcing": "Unknown sub-outsourcing provider"
+    "unknown_sub_outsourcing": "Unknown sub-outsourcing provider",
+    "uncategorized": "Uncategorized"
   },
   "audit": {
     "columns": {

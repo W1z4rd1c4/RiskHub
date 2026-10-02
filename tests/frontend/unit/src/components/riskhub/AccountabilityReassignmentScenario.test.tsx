@@ -88,19 +88,19 @@ describe('accountability reassignment approval scenario', () => {
             /admin:approval_scenarios\.fixed_policy\.triggers\.accountable_user_or_owning_department_change/,
         )).toHaveTextContent('admin:approval_scenarios.fixed_policy.self_approval.false');
 
-        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.modal.configure:Accountability reassignments' }));
         expect(screen.getByTestId('accountability-reassignment-fixed-policy')).toBeInTheDocument();
         expect(screen.getByRole('switch', { name: 'admin:approval_scenarios.requires_approval' })).toBeChecked();
 
         fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
-        expect(screen.getByRole('checkbox', { name: 'Risk Manager' })).toBeInTheDocument();
-        expect(screen.getByRole('checkbox', { name: 'CRO' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'common:roles.risk_manager' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'common:roles.cro' })).toBeInTheDocument();
         expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
         expect(screen.queryByText('admin:approval_scenarios.special_roles.risk_owner_dynamic')).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('checkbox', { name: 'Risk Manager' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'common:roles.risk_manager' }));
         expect(screen.getByRole('button', { name: 'common:actions.save' })).toBeDisabled();
-        fireEvent.click(screen.getByRole('checkbox', { name: 'CRO' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'common:roles.cro' }));
         expect(screen.getByRole('button', { name: 'common:actions.save' })).toBeEnabled();
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
 

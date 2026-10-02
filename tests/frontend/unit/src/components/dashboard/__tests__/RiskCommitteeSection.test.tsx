@@ -166,7 +166,7 @@ describe('RiskCommitteeSection', () => {
         expect(screen.getByText('3 days ago')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'risk_committee.view_all_critical_risks' }));
-        expect(mockNavigate).toHaveBeenCalledWith('/risks?net_band=Kritick%C3%A9');
+        expect(mockNavigate).toHaveBeenCalledWith('/risks?net_band=critical');
 
         fireEvent.click(screen.getByRole('button', { name: 'risk_committee.view_all_high_risk_vendors' }));
         expect(mockNavigate).toHaveBeenCalledWith('/vendors?risk_scores=4&risk_scores=5');

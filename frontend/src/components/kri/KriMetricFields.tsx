@@ -19,7 +19,7 @@ export function KriMetricFields({
 }: KriMetricFieldsProps) {
     return (
         <>
-            <Field label={t('modal.metric_name', { ns: 'kris' })}>
+            <Field label={t('modal.metric_name', { ns: 'kris' })} required>
                 {(field) => (
                     <Input
                         {...field}
@@ -34,7 +34,7 @@ export function KriMetricFields({
                 )}
             </Field>
 
-            <Field label={t('fields.description', { ns: 'kris' })}>
+            <Field label={t('fields.description', { ns: 'kris' })} required>
                 {(field) => (
                     <Textarea
                         {...field}

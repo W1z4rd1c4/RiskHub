@@ -46,6 +46,24 @@ describe('ICT register semantic query filters', () => {
         });
     });
 
+    it('accepts language-neutral risk band codes and sends the stored band value (PG-40)', () => {
+        const cases = [
+            ['critical', 'Kritické'],
+            ['high', 'Vysoké'],
+            ['medium', 'Střední'],
+            ['low', 'Nízké'],
+            ['Kritické', 'Kritické'],
+            ['unexpected', 'unexpected'],
+        ];
+
+        for (const [queryValue, expected] of cases) {
+            const filters = parseRiskSemanticFilters(new URLSearchParams({ net_band: queryValue, gross_band: queryValue }));
+            expect(filters.net_band).toBe(expected);
+            expect(filters.gross_band).toBe(expected);
+        }
+        expect(parseRiskSemanticFilters(new URLSearchParams()).net_band).toBeUndefined();
+    });
+
     it('normalizes legacy localized Asset criticality links to canonical request codes', () => {
         const cases = [
             ['Nízká', 'low'],

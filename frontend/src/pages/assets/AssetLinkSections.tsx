@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Link2, Plus, Star, Unlink, Workflow } from 'lucide-react';
+import { Building2, Link2, Plus, Star, Workflow } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { LinkedItemList, LinkedItemRow, LinkRemoveButton } from '@/components/linking/LinkedItemList';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -24,6 +30,7 @@ import {
     processMutationRequiresApprovalReason,
 } from '@/pages/processes/processProtectedEdit';
 
+import { DetailSection } from '../detail/DetailSection';
 import {
     assetVendorLinkRowName,
     buildAssetVendorLinkPayload,
@@ -53,22 +60,6 @@ type PendingProcessAction =
     | { kind: 'add' }
     | { kind: 'update'; processId: number }
     | { kind: 'remove'; processId: number };
-
-function sectionShell(
-    icon: React.ReactNode,
-    title: string,
-    children: React.ReactNode,
-) {
-    return (
-        <div className="glass-card space-y-5">
-            <div className="flex items-center gap-3 border-b border-border pb-4">
-                {icon}
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">{title}</h2>
-            </div>
-            {children}
-        </div>
-    );
-}
 
 export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: AssetLinkSectionsProps) {
     const { t } = useTranslation(['assets', 'common']);
@@ -441,14 +432,10 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 && pendingProcessAction === null
                 && pendingAssetAction === null
                 && pendingRemoval === null ? (
-                <div role="alert" className="glass-card border border-destructive/30 text-destructive text-sm font-medium">
-                    {linkError}
-                </div>
+                <InlineMessage tone="danger">{linkError}</InlineMessage>
             ) : null}
 
-            {sectionShell(
-                <Workflow className="h-5 w-5 text-accent" />,
-                t('links.processes.title'),
+            <DetailSection title={t('links.processes.title')} icon={Workflow}>
                 <div className="space-y-4">
                     {processLinksQuery.isLoading ? (
                         <LoadingState layout="inline" />
@@ -458,151 +445,154 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     ) : processLinks.length === 0 ? (
                         <EmptyState layout="inline" icon={null} title={t('links.processes.empty')} />
                     ) : (
-                        <ul className="space-y-2" data-testid="asset-process-links">
+                        <LinkedItemList testId="asset-process-links">
                             {processLinks.map((link) => {
                                 const processActionBlocked = link.process_business_edit_blocked;
                                 const primarySwapBlocked = !link.is_primary
                                     && currentPrimaryLink?.process_business_edit_blocked === true;
+                                const processName = link.process_name ?? t('common:fallbacks.unknown_process');
+                                const blockedReason = t('processes:pending_change.link_action_blocked');
                                 return (
-                                <li
-                                    key={link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
-                                >
-                                    <div className="min-w-0">
+                                    <LinkedItemRow
+                                        key={link.id}
+                                        actions={canManageLinks ? (
+                                            <>
+                                                {!link.is_primary ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="compact"
+                                                        data-testid={`asset-process-link-set-primary-${link.process_id}`}
+                                                        disabled={processActionBlocked || primarySwapBlocked}
+                                                        onClick={() => openProcessAction({
+                                                            kind: 'update',
+                                                            processId: link.process_id,
+                                                        })}
+                                                        title={(processActionBlocked || primarySwapBlocked)
+                                                            ? blockedReason
+                                                            : undefined}
+                                                    >
+                                                        {t('links.processes.set_primary')}
+                                                    </Button>
+                                                ) : null}
+                                                <LinkRemoveButton
+                                                    name={processName}
+                                                    testId={`asset-process-link-remove-${link.process_id}`}
+                                                    disabledReason={processActionBlocked ? blockedReason : undefined}
+                                                    onClick={() => openProcessAction({
+                                                        kind: 'remove',
+                                                        processId: link.process_id,
+                                                    })}
+                                                />
+                                            </>
+                                        ) : undefined}
+                                    >
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-foreground truncate">
-                                                {link.process_name ?? t('common:fallbacks.unknown_process')}
-                                            </span>
+                                            <span className="truncate text-sm font-bold text-foreground">{processName}</span>
                                             {link.is_primary ? (
-                                                <span
+                                                <Badge
+                                                    tone="warning"
+                                                    size="sm"
+                                                    icon={Star}
                                                     data-testid={`asset-process-link-primary-${link.process_id}`}
-                                                    className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-black uppercase tracking-widest text-warning-text"
                                                 >
-                                                    <Star className="h-3 w-3" />
                                                     {t('links.processes.primary')}
-                                                </span>
+                                                </Badge>
                                             ) : null}
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            {[link.significance, link.spof ? `SPOF: ${link.spof}` : null]
+                                            {[link.significance, link.spof ? `${t('links.spof')}: ${link.spof}` : null]
                                                 .filter(Boolean)
                                                 .join(' · ') || t('links.processes.no_metadata')}
                                         </p>
                                         {processActionBlocked ? (
                                             <p className="mt-1 text-xs font-medium text-warning-text">
-                                                {t('processes:pending_change.link_action_blocked')}
+                                                {blockedReason}
                                             </p>
                                         ) : null}
-                                    </div>
-                                    {canManageLinks ? (
-                                        <div className="flex items-center gap-2">
-                                            {!link.is_primary ? (
-                                                <button
-                                                    type="button"
-                                                    data-testid={`asset-process-link-set-primary-${link.process_id}`}
-                                                    disabled={processActionBlocked || primarySwapBlocked}
-                                                    onClick={() => openProcessAction({
-                                                        kind: 'update',
-                                                        processId: link.process_id,
-                                                    })}
-                                                    title={(processActionBlocked || primarySwapBlocked)
-                                                        ? t('processes:pending_change.link_action_blocked')
-                                                        : undefined}
-                                                    className="px-3 py-1.5 glass rounded-lg text-xs font-semibold text-foreground hover:bg-tint/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    {t('links.processes.set_primary')}
-                                                </button>
-                                            ) : null}
-                                            <button
-                                                type="button"
-                                                data-testid={`asset-process-link-remove-${link.process_id}`}
-                                                disabled={processActionBlocked}
-                                                onClick={() => openProcessAction({
-                                                    kind: 'remove',
-                                                    processId: link.process_id,
-                                                })}
-                                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                                title={processActionBlocked
-                                                    ? t('processes:pending_change.link_action_blocked')
-                                                    : t('links.remove')}
-                                            >
-                                                <Unlink className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        </div>
-                                    ) : null}
-                                </li>
+                                    </LinkedItemRow>
                                 );
                             })}
-                        </ul>
+                        </LinkedItemList>
                     )}
 
                     {canManageLinks ? (
-                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <div className="md:col-span-2">
-                                <SearchableEntitySelect
-                                    value={processToLink}
-                                    onValueChange={setProcessToLink}
-                                    options={processOptions}
-                                    placeholder={t('links.processes.select_placeholder')}
-                                    searchValue={processSearch}
-                                    onSearchChange={setProcessSearch}
-                                    triggerTestId="asset-process-link-select"
-                                />
+                        <div className="space-y-3 border-t border-border pt-4">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                                <Field label={t('links.processes.select_label')} className="md:col-span-2">
+                                    {(field) => (
+                                        <SearchableEntitySelect
+                                            {...field}
+                                            value={processToLink}
+                                            onValueChange={setProcessToLink}
+                                            options={processOptions}
+                                            placeholder={t('links.processes.select_placeholder')}
+                                            searchValue={processSearch}
+                                            onSearchChange={setProcessSearch}
+                                            triggerTestId="asset-process-link-select"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.processes.significance')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={processLinkSignificance}
+                                            onValueChange={setProcessLinkSignificance}
+                                            options={listOptions.significances}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-process-link-significance"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.spof')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={processLinkSpof}
+                                            onValueChange={setProcessLinkSpof}
+                                            options={listOptions.yesNo}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-process-link-spof"
+                                        />
+                                    )}
+                                </Field>
                             </div>
-                            <ThemedSelect
-                                value={processLinkSignificance}
-                                onValueChange={setProcessLinkSignificance}
-                                options={listOptions.significances}
-                                allowEmpty
-                                emptyLabel={t('form.not_set')}
-                                placeholder={t('links.processes.significance')}
-                                triggerTestId="asset-process-link-significance"
-                            />
-                            <ThemedSelect
-                                value={processLinkSpof}
-                                onValueChange={setProcessLinkSpof}
-                                options={listOptions.yesNo}
-                                allowEmpty
-                                emptyLabel={t('form.not_set')}
-                                placeholder={t('links.spof')}
-                                triggerTestId="asset-process-link-spof"
-                            />
-                            <div className="flex items-center gap-3">
-                                <label htmlFor="asset-process-link-is-primary" className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
-                                    <input
-                                        id="asset-process-link-is-primary"
-                                        type="checkbox"
-                                        data-testid="asset-process-link-is-primary"
-                                        checked={processLinkIsPrimary}
-                                        onChange={(event) => setProcessLinkIsPrimary(event.target.checked)}
-                                        className="accent-accent"
-                                    />
-                                    {t('links.processes.primary')}
-                                </label>
-                                <button
-                                    type="button"
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <Field label={t('links.processes.primary')} layout="inline">
+                                    {(field) => (
+                                        <Checkbox
+                                            {...field}
+                                            data-testid="asset-process-link-is-primary"
+                                            checked={processLinkIsPrimary}
+                                            onCheckedChange={setProcessLinkIsPrimary}
+                                        />
+                                    )}
+                                </Field>
+                                <Button
+                                    variant="accent"
                                     data-testid="asset-process-link-add"
                                     disabled={!processToLink || addProcessBlocked || addProcessLink.isPending}
                                     onClick={() => openProcessAction({ kind: 'add' })}
-                                    className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus aria-hidden="true" />
                                     {t('links.add')}
-                                </button>
+                                </Button>
                             </div>
                             {addProcessBlocked ? (
-                                <p className="md:col-span-5 text-xs font-medium text-warning-text">
+                                <p className="text-xs font-medium text-warning-text">
                                     {t('processes:pending_change.link_action_blocked')}
                                 </p>
                             ) : null}
                         </div>
                     ) : null}
                 </div>
-            )}
+            </DetailSection>
 
-            {sectionShell(
-                <Link2 className="h-5 w-5 text-accent-text" />,
-                t('links.assets.title'),
+            <DetailSection title={t('links.assets.title')} icon={Link2}>
                 <div className="space-y-4">
                     {assetLinksQuery.isLoading ? (
                         <LoadingState layout="inline" />
@@ -612,128 +602,119 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     ) : assetLinks.length === 0 ? (
                         <EmptyState layout="inline" icon={null} title={t('links.assets.empty')} />
                     ) : (
-                        <ul className="space-y-2" data-testid="asset-asset-links">
+                        <LinkedItemList testId="asset-asset-links">
                             {assetLinks.map((link) => {
                                 const isDependent = link.dependent_asset_id === asset.id;
+                                const otherAssetName = (isDependent
+                                    ? link.supporting_asset_name
+                                    : link.dependent_asset_name) ?? t('common:fallbacks.unknown_asset');
                                 return (
-                                    <li
+                                    <LinkedItemRow
                                         key={link.id}
-                                        className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
-                                    >
-                                        <div className="min-w-0">
-                                            <span className="text-sm text-foreground">
-                                                {t(
-                                                    isDependent
-                                                        ? 'links.assets.depends_on'
-                                                        : 'links.assets.supports',
-                                                )}{' '}
-                                                <span className="font-bold text-foreground">
-                                                    {(isDependent
-                                                        ? link.supporting_asset_name
-                                                        : link.dependent_asset_name) ??
-                                                        t('common:fallbacks.unknown_asset')}
-                                                </span>
-                                            </span>
-                                            <p className="text-xs text-muted-foreground">
-                                                {[link.dependency_type, link.spof ? `SPOF: ${link.spof}` : null]
-                                                    .filter(Boolean)
-                                                    .join(' · ') || t('links.assets.no_metadata')}
-                                            </p>
-                                        </div>
-                                        {canManageLinks ? (
-                                            <button
-                                                type="button"
-                                                data-testid={`asset-asset-link-remove-${link.id}`}
-                                                onClick={() =>
-                                                    setPendingRemoval({
-                                                        kind: 'asset',
-                                                        id: link.id,
-                                                        name:
-                                                            (isDependent
-                                                                ? link.supporting_asset_name
-                                                                : link.dependent_asset_name) ??
-                                                            t('common:fallbacks.unknown_asset'),
-                                                    })
-                                                }
-                                                aria-label={t('common:links.remove_named', {
-                                                    name:
-                                                        (isDependent
-                                                            ? link.supporting_asset_name
-                                                            : link.dependent_asset_name) ??
-                                                        t('common:fallbacks.unknown_asset'),
+                                        actions={canManageLinks ? (
+                                            <LinkRemoveButton
+                                                name={otherAssetName}
+                                                testId={`asset-asset-link-remove-${link.id}`}
+                                                onClick={() => setPendingRemoval({
+                                                    kind: 'asset',
+                                                    id: link.id,
+                                                    name: otherAssetName,
                                                 })}
-                                                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                title={t('links.remove')}
-                                            >
-                                                <Unlink className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        ) : null}
-                                    </li>
+                                            />
+                                        ) : undefined}
+                                    >
+                                        <span className="text-sm text-foreground">
+                                            {t(isDependent ? 'links.assets.depends_on' : 'links.assets.supports')}{' '}
+                                            <span className="font-bold text-foreground">{otherAssetName}</span>
+                                        </span>
+                                        <p className="text-xs text-muted-foreground">
+                                            {[link.dependency_type, link.spof ? `${t('links.spof')}: ${link.spof}` : null]
+                                                .filter(Boolean)
+                                                .join(' · ') || t('links.assets.no_metadata')}
+                                        </p>
+                                    </LinkedItemRow>
                                 );
                             })}
-                        </ul>
+                        </LinkedItemList>
                     )}
 
                     {canManageLinks ? (
-                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                            <ThemedSelect
-                                value={assetLinkDirection}
-                                onValueChange={(value) => setAssetLinkDirection(value as 'depends_on' | 'supports')}
-                                options={[
-                                    { value: 'depends_on', label: t('links.assets.direction_depends_on') },
-                                    { value: 'supports', label: t('links.assets.direction_supports') },
-                                ]}
-                                triggerTestId="asset-asset-link-direction"
-                            />
-                            <div className="md:col-span-2">
-                                <SearchableEntitySelect
-                                    value={assetToLink}
-                                    onValueChange={setAssetToLink}
-                                    options={assetOptions}
-                                    placeholder={t('links.assets.select_placeholder')}
-                                    searchValue={assetSearch}
-                                    onSearchChange={setAssetSearch}
-                                    triggerTestId="asset-asset-link-select"
-                                />
+                        <div className="space-y-3 border-t border-border pt-4">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                                <Field label={t('links.assets.direction_label')}>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={assetLinkDirection}
+                                            onValueChange={(value) => setAssetLinkDirection(value as 'depends_on' | 'supports')}
+                                            options={[
+                                                { value: 'depends_on', label: t('links.assets.direction_depends_on') },
+                                                { value: 'supports', label: t('links.assets.direction_supports') },
+                                            ]}
+                                            triggerTestId="asset-asset-link-direction"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.assets.select_label')} className="md:col-span-2">
+                                    {(field) => (
+                                        <SearchableEntitySelect
+                                            {...field}
+                                            value={assetToLink}
+                                            onValueChange={setAssetToLink}
+                                            options={assetOptions}
+                                            placeholder={t('links.assets.select_placeholder')}
+                                            searchValue={assetSearch}
+                                            onSearchChange={setAssetSearch}
+                                            triggerTestId="asset-asset-link-select"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.assets.dependency_type')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={assetLinkDependencyType}
+                                            onValueChange={setAssetLinkDependencyType}
+                                            options={listOptions.dependencyTypes}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-asset-link-dependency-type"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.spof')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={assetLinkSpof}
+                                            onValueChange={setAssetLinkSpof}
+                                            options={listOptions.yesNo}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-asset-link-spof"
+                                        />
+                                    )}
+                                </Field>
                             </div>
-                            <ThemedSelect
-                                value={assetLinkDependencyType}
-                                onValueChange={setAssetLinkDependencyType}
-                                options={listOptions.dependencyTypes}
-                                allowEmpty
-                                emptyLabel={t('form.not_set')}
-                                placeholder={t('links.assets.dependency_type')}
-                                triggerTestId="asset-asset-link-dependency-type"
-                            />
-                            <div className="flex items-center gap-3">
-                                <ThemedSelect
-                                    value={assetLinkSpof}
-                                    onValueChange={setAssetLinkSpof}
-                                    options={listOptions.yesNo}
-                                    allowEmpty
-                                    emptyLabel={t('form.not_set')}
-                                    placeholder={t('links.spof')}
-                                    triggerTestId="asset-asset-link-spof"
-                                />
-                                <button
-                                    type="button"
+                            <div className="flex justify-end">
+                                <Button
+                                    variant="accent"
                                     data-testid="asset-asset-link-add"
                                     disabled={!assetToLink || addAssetLink.isPending}
                                     onClick={() => openAssetAction('asset_add')}
-                                    className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus aria-hidden="true" />
                                     {t('links.add')}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     ) : null}
                 </div>
-            )}
+            </DetailSection>
 
-            {sectionShell(
-                <Building2 className="h-5 w-5 text-success-text" />,
-                t('links.vendors.title'),
+            <DetailSection title={t('links.vendors.title')} icon={Building2}>
                 <div className="space-y-4">
                     {vendorLinksQuery.isLoading ? (
                         <LoadingState layout="inline" />
@@ -743,117 +724,124 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                     ) : vendorLinks.length === 0 ? (
                         <EmptyState layout="inline" icon={null} title={t('links.vendors.empty')} />
                     ) : (
-                        <ul className="space-y-2" data-testid="asset-vendor-links">
-                            {vendorLinks.map((link) => (
-                                <li
-                                    key={link.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
-                                >
-                                    <div className="min-w-0">
-                                        <span className="text-sm font-bold text-foreground truncate">
-                                            {assetVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'))}
-                                        </span>
+                        <LinkedItemList testId="asset-vendor-links">
+                            {vendorLinks.map((link) => {
+                                const vendorName = assetVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'));
+                                return (
+                                    <LinkedItemRow
+                                        key={link.id}
+                                        actions={canManageLinks && canDeleteAssetVendorLink(link) ? (
+                                            <LinkRemoveButton
+                                                name={vendorName}
+                                                testId={`asset-vendor-link-remove-${link.id}`}
+                                                onClick={() => setPendingRemoval({
+                                                    kind: 'vendor',
+                                                    id: link.id,
+                                                    name: vendorName,
+                                                })}
+                                            />
+                                        ) : undefined}
+                                    >
+                                        <span className="truncate text-sm font-bold text-foreground">{vendorName}</span>
                                         <p className="text-xs text-muted-foreground">
                                             {formatAssetVendorLinkMeta(link) || t('links.vendors.no_metadata')}
                                         </p>
-                                    </div>
-                                    {canManageLinks && canDeleteAssetVendorLink(link) ? (
-                                        <button
-                                            type="button"
-                                            data-testid={`asset-vendor-link-remove-${link.id}`}
-                                            onClick={() =>
-                                                setPendingRemoval({
-                                                    kind: 'vendor',
-                                                    id: link.id,
-                                                    name: assetVendorLinkRowName(
-                                                        link,
-                                                        t('common:fallbacks.unknown_vendor'),
-                                                    ),
-                                                })
-                                            }
-                                            aria-label={t('common:links.remove_named', {
-                                                name: assetVendorLinkRowName(
-                                                    link,
-                                                    t('common:fallbacks.unknown_vendor'),
-                                                ),
-                                            })}
-                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                            title={t('links.remove')}
-                                        >
-                                            <Unlink className="h-4 w-4" aria-hidden="true" />
-                                        </button>
-                                    ) : null}
-                                </li>
-                            ))}
-                        </ul>
+                                    </LinkedItemRow>
+                                );
+                            })}
+                        </LinkedItemList>
                     )}
 
                     {canManageLinks ? (
-                        <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-                            <div className="md:col-span-2">
-                                <SearchableEntitySelect
-                                    value={vendorToLink}
-                                    onValueChange={(value) => {
-                                        setVendorToLink(value);
-                                        setVendorLinkContractRef('');
-                                    }}
-                                    options={vendorOptions}
-                                    placeholder={t('links.vendors.select_placeholder')}
-                                    searchValue={vendorSearch}
-                                    onSearchChange={setVendorSearch}
-                                    triggerTestId="asset-vendor-link-select"
-                                />
+                        <div className="space-y-3 border-t border-border pt-4">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                <Field label={t('links.vendors.select_label')}>
+                                    {(field) => (
+                                        <SearchableEntitySelect
+                                            {...field}
+                                            value={vendorToLink}
+                                            onValueChange={(value) => {
+                                                setVendorToLink(value);
+                                                setVendorLinkContractRef('');
+                                            }}
+                                            options={vendorOptions}
+                                            placeholder={t('links.vendors.select_placeholder')}
+                                            searchValue={vendorSearch}
+                                            onSearchChange={setVendorSearch}
+                                            triggerTestId="asset-vendor-link-select"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.vendors.s_code')} required>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={vendorLinkServiceCode}
+                                            onValueChange={setVendorLinkServiceCode}
+                                            options={ictServiceOptions}
+                                            placeholder={t('links.vendors.s_code_placeholder')}
+                                            triggerTestId="asset-vendor-link-s-code"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.vendors.role')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={vendorLinkRole}
+                                            onValueChange={setVendorLinkRole}
+                                            options={listOptions.vendorRoles}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-vendor-link-role"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.vendors.reliance')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={vendorLinkReliance}
+                                            onValueChange={setVendorLinkReliance}
+                                            options={listOptions.reliances}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-vendor-link-reliance"
+                                        />
+                                    )}
+                                </Field>
+                                <Field label={t('links.vendors.contract_ref')} optional>
+                                    {(field) => (
+                                        <ThemedSelect
+                                            {...field}
+                                            value={vendorLinkContractRef}
+                                            onValueChange={setVendorLinkContractRef}
+                                            options={contractRefOptions}
+                                            allowEmpty
+                                            emptyLabel={t('form.not_set')}
+                                            placeholder={t('form.not_set')}
+                                            triggerTestId="asset-vendor-link-contract-ref"
+                                        />
+                                    )}
+                                </Field>
                             </div>
-                            <ThemedSelect
-                                value={vendorLinkServiceCode}
-                                onValueChange={setVendorLinkServiceCode}
-                                options={ictServiceOptions}
-                                placeholder={t('links.vendors.s_code')}
-                                triggerTestId="asset-vendor-link-s-code"
-                            />
-                            <ThemedSelect
-                                value={vendorLinkRole}
-                                onValueChange={setVendorLinkRole}
-                                options={listOptions.vendorRoles}
-                                allowEmpty
-                                emptyLabel={t('form.not_set')}
-                                placeholder={t('links.vendors.role')}
-                                triggerTestId="asset-vendor-link-role"
-                            />
-                            <ThemedSelect
-                                value={vendorLinkReliance}
-                                onValueChange={setVendorLinkReliance}
-                                options={listOptions.reliances}
-                                allowEmpty
-                                emptyLabel={t('form.not_set')}
-                                placeholder={t('links.vendors.reliance')}
-                                triggerTestId="asset-vendor-link-reliance"
-                            />
-                            <div className="flex items-center gap-3">
-                                <ThemedSelect
-                                    value={vendorLinkContractRef}
-                                    onValueChange={setVendorLinkContractRef}
-                                    options={contractRefOptions}
-                                    allowEmpty
-                                    emptyLabel={t('form.not_set')}
-                                    placeholder={t('links.vendors.contract_ref')}
-                                    triggerTestId="asset-vendor-link-contract-ref"
-                                />
-                                <button
-                                    type="button"
+                            <div className="flex justify-end">
+                                <Button
+                                    variant="accent"
                                     data-testid="asset-vendor-link-add"
                                     disabled={!vendorLinkPayload || addVendorLink.isPending}
                                     onClick={() => openAssetAction('vendor_add')}
-                                    className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus aria-hidden="true" />
                                     {t('links.add')}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     ) : null}
                 </div>
-            )}
+            </DetailSection>
 
             <ConfirmDialog
                 isOpen={pendingRemoval !== null}

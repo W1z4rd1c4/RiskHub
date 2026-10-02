@@ -2,6 +2,7 @@
   "title": "Risk Register",
   "page_subtitle": "Track and manage organizational risks with gross/net scoring from OS 18.",
   "new_risk": "New Risk",
+  "priority_label": "Priority risk",
   "create_risk": "Create Risk",
   "edit_risk": "Edit Risk",
   "view_risk": "View Risk",
@@ -173,7 +174,8 @@
   "scoring": {
     "inherent_risk": "Inherent Risk",
     "residual_risk": "Residual Risk",
-    "risk_score": "Risk Score"
+    "risk_score": "Risk Score",
+    "factors_short": "(P {{probability}} × I {{impact}})"
   },
   "filters": {
     "all_categories": "All Categories",
@@ -216,7 +218,16 @@
     "controls": "Controls",
     "kris": "KRIs",
     "pending": "Pending",
-    "pending_tooltip": "Changes Pending Approval"
+    "pending_tooltip": "Changes Pending Approval",
+    "control_count": "{{count}} controls",
+    "control_count_one": "{{count}} control",
+    "control_count_few": "{{count}} controls",
+    "control_count_other": "{{count}} controls",
+    "kri_count": "{{count}} KRIs",
+    "kri_count_one": "{{count}} KRI",
+    "kri_count_few": "{{count}} KRIs",
+    "kri_count_other": "{{count}} KRIs",
+    "kri_breach": "KRI breach"
   },
   "actions": {
     "link_control": "Link Control",
@@ -236,7 +247,8 @@
       "loading": "Searching owners…",
       "failed": "Owner search failed. Your selected owner is unchanged.",
       "no_visible_matches": "No matching owners in this result set. Refine the search or choose All roles.",
-      "refine": "Showing up to 50 matching owners. Refine your search to find other owners."
+      "refine": "Showing up to 50 matching owners. Refine your search to find other owners.",
+      "role_filter": "Filter owners by role"
     },
     "steps": {
       "identity": "Identity",
@@ -245,7 +257,11 @@
     },
     "errors": {
       "process_required": "Process is required",
-      "category_required": "Category is required"
+      "category_required": "Category is required",
+      "name_required": "Risk Name is required.",
+      "description_required": "Risk Description is required.",
+      "department_required": "Department is required.",
+      "owner_required": "Risk Owner is required."
     },
     "financial": {
       "loss": "Loss",
@@ -332,7 +348,9 @@
     "manage_existing_links": "Manage Existing Links",
     "linked_vendors": "Linked Vendors",
     "no_vendors_linked": "No vendors linked to this risk.",
-    "core_function_badge": "Core"
+    "core_function_badge": "Core",
+    "vendor_risk_score": "Vendor risk score: {{score}} of 5",
+    "score_of_five": "{{score}}/5"
   },
   "history": {
     "recorded_by": "Recorded by",

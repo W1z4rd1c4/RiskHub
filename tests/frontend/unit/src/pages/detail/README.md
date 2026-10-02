@@ -10,6 +10,8 @@ Use this directory for route-detail shell behavior shared across domains. Entity
 `DetailActionBanner.test.tsx` covers the banner's `InlineMessage` roles (alert
 for failures, status for queued approvals) and the approvals link.
 
+`DetailSection.test.tsx` and `OwnershipGovernanceAlert.test.tsx` cover the section card and the ownership banner.
+
 `EntityDetailHeader.test.tsx` also covers the D7 title recipe, the labelled
 `back` link, breadcrumbs, the default separator name and `document.title`;
 `EditBlockedState.test.tsx` covers the blocked-edit route (one `h1`, labelled

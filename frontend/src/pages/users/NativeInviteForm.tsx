@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useFeedback } from '@/hooks/useFeedback';
@@ -37,7 +39,7 @@ export function NativeInviteForm() {
     const [retry, setRetry] = useState(0);
     const [result, setResult] = useState<InvitationResponse | null>(null);
     const [uncertain, setUncertain] = useState(false);
-    const notice = useRef<HTMLParagraphElement>(null);
+    const notice = useRef<HTMLDivElement>(null);
     const action = useNativeAction(() => { setName(''); setEmail(''); setResult(null); setManagers([]); setManagerQuery(''); setManagerId(null); setRoleId(null); setDepartmentId(null); setUncertain(false); });
     const guard = useDirtyTaskGuard({ currentSnapshot: JSON.stringify({ name, email, roleId, departmentId, managerId }), busy: action.pending, enabled: !result && !uncertain });
     const normalizedQuery = managerQuery.trim().toLowerCase();
@@ -86,35 +88,37 @@ export function NativeInviteForm() {
         else feedback.success(options);
     };
     if (result) return <section className="glass-card space-y-4 p-6">
-        <p ref={notice} tabIndex={-1} role="status">{t('native_users.created', { name, email })}</p>
-        <p role={result.delivery_status === 'failed' ? 'alert' : 'status'}>{t(`native_users.delivery.${result.delivery_status}`)}</p>
+        <InlineMessage ref={notice} tabIndex={-1} tone="success">{t('native_users.created', { name, email })}</InlineMessage>
+        <InlineMessage tone={result.delivery_status === 'failed' ? 'warning' : 'info'} live={result.delivery_status === 'failed' ? 'assertive' : 'polite'}>
+            {t(`native_users.delivery.${result.delivery_status}`)}
+        </InlineMessage>
         <p>{t('native_users.recipient_chooses_password')}</p>
-        <Link className="underline" to="/users" onClick={announceInvitation}>{t('native_users.view_users')}</Link>
+        <Link className="font-medium text-accent-text underline" to="/users" onClick={announceInvitation}>{t('native_users.view_users')}</Link>
     </section>;
     return <><form onSubmit={submit} className="glass-card space-y-5 p-6" aria-busy={action.pending || loading}>
-        <p>{t('native_users.recipient_chooses_password')}</p>
-        {action.error && <p ref={notice} tabIndex={-1} role="alert">{t(`native_users.errors.${action.error}`)}</p>}
-        {loadError && <p role="alert">{t('native_users.options_failed')}</p>}
+        <p className="text-sm text-muted-foreground">{t('native_users.recipient_chooses_password')}</p>
+        {action.error && <InlineMessage ref={notice} tabIndex={-1} tone="danger">{t(`native_users.errors.${action.error}`)}</InlineMessage>}
+        {loadError && <InlineMessage tone="danger">{t('native_users.options_failed')}</InlineMessage>}
         {(loadError || managerError) && <Button type="button" variant="outline" onClick={() => setRetry((value) => value + 1)}>{t('native_users.retry')}</Button>}
-        {uncertain ? <Link className="block underline" to="/users">{t('native_users.check_users_before_retry')}</Link> : <>
+        {uncertain ? <Link className="block font-medium text-accent-text underline" to="/users">{t('native_users.check_users_before_retry')}</Link> : <>
             <Field label={t('user_new.full_name')} required>{(field) => <Input {...field} value={name} onChange={(event) => setName(event.target.value)} required maxLength={255} disabled={action.pending} />}</Field>
             <Field label={t('native_users.email')} required>{(field) => <Input {...field} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="off" disabled={action.pending} />}</Field>
-            <Field label={t('user_new.platform_role')} required>{(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={roleId ?? ''} onChange={(event) => setRoleId(Number(event.target.value))} required disabled={loading || action.pending}>
+            <Field label={t('user_new.platform_role')} required>{(field) => <NativeSelect {...field} value={roleId ?? ''} onChange={(event) => setRoleId(Number(event.target.value))} required disabled={loading || action.pending}>
                 <option value="" disabled>{t('native_users.choose_role')}</option>{roles.map((role) => <option key={role.id} value={role.id}>{role.display_name}</option>)}
-            </select>}</Field>
-            <Field label={t('native_users.department')}>{(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={departmentId ?? ''} onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)} disabled={loading || action.pending}>
+            </NativeSelect>}</Field>
+            <Field label={t('native_users.department')} optional>{(field) => <NativeSelect {...field} value={departmentId ?? ''} onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)} disabled={loading || action.pending}>
                 <option value="">{t('native_users.no_assignment')}</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
-            </select>}</Field>
-            <Field label={t('native_users.manager_search')}>{(field) => <Input {...field} value={managerQuery} disabled={action.pending} onChange={(event) => {
+            </NativeSelect>}</Field>
+            <Field label={t('native_users.manager_search')} optional>{(field) => <Input {...field} value={managerQuery} disabled={action.pending} onChange={(event) => {
                 const value = event.target.value;
                 if (value.trim().toLowerCase() !== normalizedQuery) { setManagerId(null); setManagers([]); }
                 setManagerQuery(value);
             }} />}</Field>
-            {managerError && <p role="alert">{t('native_users.manager_failed')}</p>}
-            <Field label={t('native_users.manager')}>{(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={managerId ?? ''} onChange={(event) => setManagerId(event.target.value ? Number(event.target.value) : null)} disabled={managerPending || managerError || action.pending}>
+            {managerError && <InlineMessage tone="danger">{t('native_users.manager_failed')}</InlineMessage>}
+            <Field label={t('native_users.manager')} optional>{(field) => <NativeSelect {...field} value={managerId ?? ''} onChange={(event) => setManagerId(event.target.value ? Number(event.target.value) : null)} disabled={managerPending || managerError || action.pending}>
                 <option value="">{t('native_users.no_assignment')}</option>{managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name} ({manager.email})</option>)}
-            </select>}</Field>
-            <Button type="submit" disabled={loading || loadError || action.pending}>{t('native_users.create_account')}</Button>
+            </NativeSelect>}</Field>
+            <Button type="submit" variant="accent" disabled={loading || loadError || action.pending}>{t('native_users.create_account')}</Button>
         </>}
     </form>{guard.confirmationDialog}</>;
 }

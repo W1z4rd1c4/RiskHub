@@ -69,7 +69,9 @@ describe('FR-P5-9 — icon/control aria-label sweep (S8 / P5 / P7)', () => {
             canRestoreAsset: () => true,
         }).find((column) => column.key === 'status');
         render(assetStatus?.render?.(archivedAsset, 0) as ReactElement);
-        expect(screen.getByTestId('asset-restore-7')).toHaveAttribute('aria-label', 'assets:actions.restore');
+        // PG-28: the shared `RowRestoreButton` names the restore action after its row
+        // (`common:actions.restore_named`; this hook mock echoes the key).
+        expect(screen.getByTestId('asset-restore-7')).toHaveAccessibleName('actions.restore_named');
 
         const archivedProcess: Process = {
             id: 8,
@@ -86,7 +88,7 @@ describe('FR-P5-9 — icon/control aria-label sweep (S8 / P5 / P7)', () => {
             canRestoreProcess: () => true,
         }).find((column) => column.key === 'status');
         render(processStatus?.render?.(archivedProcess, 0) as ReactElement);
-        expect(screen.getByTestId('process-restore-8')).toHaveAttribute('aria-label', 'processes:actions.restore');
+        expect(screen.getByTestId('process-restore-8')).toHaveAccessibleName('actions.restore_named');
 
         const archivedThreat: Threat = { id: 9, name: 'T', is_archived: true, created_at: TS, updated_at: TS };
         const threatStatus = buildThreatColumns({
@@ -95,7 +97,7 @@ describe('FR-P5-9 — icon/control aria-label sweep (S8 / P5 / P7)', () => {
             canRestoreThreat: () => true,
         }).find((column) => column.key === 'status');
         render(threatStatus?.render?.(archivedThreat, 0) as ReactElement);
-        expect(screen.getByTestId('threat-restore-9')).toHaveAttribute('aria-label', 'threats:actions.restore');
+        expect(screen.getByTestId('threat-restore-9')).toHaveAccessibleName('actions.restore_named');
     });
 
     it('labels every vendor-contract action icon button (S8)', () => {

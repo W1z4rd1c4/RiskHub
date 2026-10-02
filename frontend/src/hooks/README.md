@@ -17,6 +17,10 @@ Folder for `frontend/src/hooks` implementation assets.
 - `useApprovalQueued.ts` — D12 / PM-2 approval-queued rule: `announce({ approvalId, to })`
   raises the success toast and returns to (or stays on) the entity page with the router state
   that `components/approvals/ApprovalQueuedNotice` renders as the persistent pending notice.
+- `useFocusFirstInvalidField.ts` — audit §4.8 / AX-04 "focus on the first invalid field": returns a
+  container ref and, whenever its trigger changes to a truthy value (a failed-check counter or the
+  error of that check — never on edits), focuses the first `[aria-invalid="true"]` control inside
+  it. The Risk, Control and KRI wizards use it.
 - `useFeedback.ts` — toast feedback channel (audit §4.16, D9): `success` /
   `info` / `warning` (polite) and `error` (assertive, `messageKey` translated
   through `translateUiMessage`), `dismiss(id?)`; stable API. Reads the

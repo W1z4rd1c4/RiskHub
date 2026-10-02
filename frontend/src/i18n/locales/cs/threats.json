@@ -82,6 +82,7 @@
         "risks": {
             "title": "Provázaná rizika",
             "empty": "K této hrozbě zatím nejsou provázána žádná rizika.",
+            "select_label": "Riziko",
             "select_placeholder": "Vyberte riziko k provázání..."
         },
         "errors": {

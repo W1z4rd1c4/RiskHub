@@ -11,7 +11,6 @@ import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 import { AuditLogsPanel } from './admin-console/sections/AdminConsoleAuditPanels';
 import { HealthPanel, LogsPanel, SessionsPanel } from './admin-console/sections/AdminConsoleOpsPanels';
-import './admin-console/adminConsoleRoute.css';
 import { LoadingState } from '@/components/ui/state';
 
 const tabDefs = [
@@ -38,7 +37,7 @@ export function AdminConsolePage() {
 
     if (isLoading) {
         return (
-            <PageContainer className="admin-console-route">
+            <PageContainer>
                 {pageHeader}
                 <LoadingState layout="page" label={t('console.loading')} />
             </PageContainer>
@@ -55,7 +54,7 @@ export function AdminConsolePage() {
     }
 
     return (
-        <PageContainer className="admin-console-route">
+        <PageContainer>
             {pageHeader}
 
             <TabList

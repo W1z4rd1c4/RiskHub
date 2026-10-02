@@ -1,6 +1,7 @@
 import { Users } from 'lucide-react';
 
 import { EmptyState, LoadingState, Skeleton } from '@/components/ui/state';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useTranslation } from '@/i18n/hooks';
 import type { AccessUserRead } from '@/types/access';
 import type { UserDirectoryEntry } from '@/types/user';
@@ -29,8 +30,8 @@ interface UsersTableProps {
 
 function LoadingRows({ columnCount }: { columnCount: number }) {
     return (
-        <tr>
-            <td colSpan={columnCount} className="p-0">
+        <TR>
+            <TD colSpan={columnCount} className="p-0">
                 <LoadingState
                     skeleton={(
                         <div className="space-y-2 p-2">
@@ -40,8 +41,8 @@ function LoadingRows({ columnCount }: { columnCount: number }) {
                         </div>
                     )}
                 />
-            </td>
-        </tr>
+            </TD>
+        </TR>
     );
 }
 
@@ -66,62 +67,60 @@ export function UsersTable({
     const columnCount = isAccessMode ? 6 : 4;
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-                <thead>
-                    <tr className="border-b border-border">
-                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.user')}</th>
-                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.role_department')}</th>
-                        {isAccessMode && (
-                            <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.scope')}</th>
-                        )}
-                        {isAccessMode && (
-                            <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.permissions')}</th>
-                        )}
-                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground">{t('access.table.status')}</th>
-                        <th className="py-4 px-4 text-sm font-semibold text-muted-foreground text-right">{t('access.table.actions')}</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                    {isLoading ? (
-                        <LoadingRows columnCount={columnCount} />
-                    ) : isAccessMode && accessUsers.length > 0 ? (
-                        accessUsers.map((user) => {
-                            const actionModel = actionModelsByUserId.get(user.id);
-                            const presentationModel = presentationModelsByUserId.get(user.id);
-                            if (!actionModel || !presentationModel) {
-                                return null;
-                            }
+        <Table
+            density="compact"
+            regionLabel={isAccessMode ? t('access.title') : t('users.title')}
+            className="text-left"
+        >
+            <THead>
+                <TR>
+                    <TH>{t('access.table.user')}</TH>
+                    <TH>{t('access.table.role_department')}</TH>
+                    {isAccessMode && <TH>{t('access.table.scope')}</TH>}
+                    {isAccessMode && <TH>{t('access.table.permissions')}</TH>}
+                    <TH>{t('access.table.status')}</TH>
+                    <TH align="right">{t('access.table.actions')}</TH>
+                </TR>
+            </THead>
+            <TBody>
+                {isLoading ? (
+                    <LoadingRows columnCount={columnCount} />
+                ) : isAccessMode && accessUsers.length > 0 ? (
+                    accessUsers.map((user) => {
+                        const actionModel = actionModelsByUserId.get(user.id);
+                        const presentationModel = presentationModelsByUserId.get(user.id);
+                        if (!actionModel || !presentationModel) {
+                            return null;
+                        }
 
-                            return (
-                                <AccessUserRow
-                                    key={user.id}
-                                    actionModel={actionModel}
-                                    canRunDirectoryChecks={canRunDirectoryChecks}
-                                    checkingDirectoryUserId={checkingDirectoryUserId}
-                                    expandedUserId={expandedUserId}
-                                    onBreakGlassEnable={onBreakGlassEnable}
-                                    onCheckDirectory={onCheckDirectory}
-                                    onEditAccess={onEditAccess}
-                                    onManageIdentity={onManageIdentity}
-                                    onToggleExpand={onToggleExpand}
-                                    onToggleStatus={onToggleStatus}
-                                    presentationModel={presentationModel}
-                                    user={user}
-                                />
-                            );
-                        })
-                    ) : !isAccessMode && directoryUsers.length > 0 ? (
-                        directoryUsers.map((user) => <DirectoryUserRow key={user.id} user={user} />)
-                    ) : (
-                        <tr>
-                            <td colSpan={columnCount} className="p-0">
-                                <EmptyState layout="section" icon={Users} title={t('access.table.no_users_found')} />
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
+                        return (
+                            <AccessUserRow
+                                key={user.id}
+                                actionModel={actionModel}
+                                canRunDirectoryChecks={canRunDirectoryChecks}
+                                checkingDirectoryUserId={checkingDirectoryUserId}
+                                expandedUserId={expandedUserId}
+                                onBreakGlassEnable={onBreakGlassEnable}
+                                onCheckDirectory={onCheckDirectory}
+                                onEditAccess={onEditAccess}
+                                onManageIdentity={onManageIdentity}
+                                onToggleExpand={onToggleExpand}
+                                onToggleStatus={onToggleStatus}
+                                presentationModel={presentationModel}
+                                user={user}
+                            />
+                        );
+                    })
+                ) : !isAccessMode && directoryUsers.length > 0 ? (
+                    directoryUsers.map((user) => <DirectoryUserRow key={user.id} user={user} />)
+                ) : (
+                    <TR>
+                        <TD colSpan={columnCount} className="p-0">
+                            <EmptyState layout="section" icon={Users} title={t('access.table.no_users_found')} />
+                        </TD>
+                    </TR>
+                )}
+            </TBody>
+        </Table>
     );
 }

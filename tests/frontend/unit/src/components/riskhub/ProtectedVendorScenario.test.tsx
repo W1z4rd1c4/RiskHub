@@ -80,18 +80,18 @@ describe('protected Vendor approval scenario', () => {
         renderPanel();
 
         await screen.findByText('Protected Vendor mutations');
-        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.modal.configure:Protected Vendor mutations' }));
 
         expect(screen.getByTestId('protected-vendor-fixed-policy')).toBeInTheDocument();
         expect(screen.getByText(
             'admin:approval_scenarios.fixed_policy.triggers.current_or_proposed_tier_critical_or_significant',
         )).toBeInTheDocument();
         fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
-        expect(screen.getByRole('checkbox', { name: 'Risk Manager' })).toBeInTheDocument();
-        expect(screen.getByRole('checkbox', { name: 'CRO' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'common:roles.risk_manager' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'common:roles.cro' })).toBeInTheDocument();
         expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('checkbox', { name: 'CRO' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'common:roles.cro' }));
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
         await waitFor(() => {
             expect(riskHubApi.updateApprovalScenario).toHaveBeenCalledWith('protected_vendor_edit', {

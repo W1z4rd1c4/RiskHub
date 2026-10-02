@@ -9,6 +9,7 @@ import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { formatKriUnit } from '@/lib/kriUnits';
 import { formatKriPeriodDate } from '@/lib/kriHistory';
 
 interface KRIHistoryEditModalProps {
@@ -106,7 +107,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
                             {t('values.original_value', { ns: 'kris' })}
                         </span>
                         <div className="px-4 py-3 bg-tint/5 rounded-lg text-foreground font-mono">
-                            {entry.value} {entry.unit}
+                            {format.metric(entry.value)} {formatKriUnit(entry.unit, t, entry.value)}
                         </div>
                     </div>
 

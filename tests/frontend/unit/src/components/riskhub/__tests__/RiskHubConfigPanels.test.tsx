@@ -266,7 +266,8 @@ describe('Risk Hub config panels', () => {
         renderWithQueryClient(<DepartmentsPanel />);
 
         await screen.findByText('Operations');
-        fireEvent.click(screen.getByRole('button', { name: 'common:actions.edit' }));
+        // PM (W8): the row edit names its row.
+        fireEvent.click(screen.getByRole('button', { name: 'common:actions.edit_named:Operations' }));
         await screen.findByText('Dana Manager (dana@example.test)');
         expect(accessApi.listAccessUsers).toHaveBeenCalledWith({ department_id: 3 });
         expect(screen.queryByText('Inactive Manager (inactive@example.test)')).not.toBeInTheDocument();
@@ -289,15 +290,18 @@ describe('Risk Hub config panels', () => {
         renderWithQueryClient(<ApprovalScenariosPanel />);
 
         await screen.findByText('Risk update');
-        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        // GAP-D-06: approver badges read translated role names, never the raw code.
+        expect(screen.getByText('admin:approval_scenarios.special_roles.risk_owner')).toBeInTheDocument();
+        expect(screen.queryByText('risk_owner')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.modal.configure:Risk update' }));
         // GAP-B-07: the approver picker is a named MultiSelect (combobox + checkbox list).
         const rolePicker = screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' });
         expect(rolePicker).toHaveTextContent('admin:approval_scenarios.modal.roles_selected:1');
         fireEvent.click(rolePicker);
-        fireEvent.click(await screen.findByRole('checkbox', { name: 'CRO' }));
+        fireEvent.click(await screen.findByRole('checkbox', { name: 'common:roles.cro' }));
         expect(rolePicker).toHaveTextContent('admin:approval_scenarios.modal.roles_selected:2');
         // Chip removal is worded "Remove", not "Delete".
-        expect(screen.getByRole('button', { name: 'actions.remove_named:CRO' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'actions.remove_named:common:roles.cro' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
 
         await waitFor(() => {
@@ -335,11 +339,11 @@ describe('Risk Hub config panels', () => {
         renderWithQueryClient(<ApprovalScenariosPanel />);
 
         await screen.findByText('Risk update');
-        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.modal.configure:Risk update' }));
         fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
 
-        expect(await screen.findByRole('checkbox', { name: 'CRO' })).toBeInTheDocument();
-        expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
+        expect(await screen.findByRole('checkbox', { name: 'common:roles.cro' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'common:roles.department_head' })).not.toBeInTheDocument();
     });
 
     it('keeps risk type archive confirmation open and shows an error when archive fails', async () => {
@@ -352,9 +356,12 @@ describe('Risk Hub config panels', () => {
         const rowAction = screen.getByRole('button', { name: 'common:actions.archive_named:Operational' });
         expect(rowAction.querySelector('svg.lucide-archive')).not.toBeNull();
         fireEvent.click(rowAction);
+        // PM-1: the archive goes through ConfirmDialog intent="archive" (no reason: the API takes none).
         const modal = await screen.findByRole('alertdialog', { name: 'confirmations.archive_risk_type' });
+        expect(within(modal).queryByRole('textbox')).not.toBeInTheDocument();
+        expect(within(modal).getByText('admin:risk_types_panel.archive_confirm:Operational')).toBeInTheDocument();
 
-        fireEvent.click(within(modal).getByRole('button', { name: 'common:actions.archive' }));
+        fireEvent.click(within(modal).getByRole('button', { name: 'actions.archive' }));
 
         await waitFor(() => {
             expect(within(modal).getByRole('alert')).toHaveTextContent('errors.failed');
@@ -372,7 +379,7 @@ describe('Risk Hub config panels', () => {
         fireEvent.click(rowAction);
         const modal = await screen.findByRole('alertdialog', { name: 'confirmations.archive_department' });
 
-        fireEvent.click(within(modal).getByRole('button', { name: 'common:actions.archive' }));
+        fireEvent.click(within(modal).getByRole('button', { name: 'actions.archive' }));
 
         await waitFor(() => {
             expect(within(modal).getByRole('alert')).toHaveTextContent('errors.failed');
@@ -386,7 +393,7 @@ describe('Risk Hub config panels', () => {
         renderWithQueryClient(<ApprovalScenariosPanel />);
 
         await screen.findByText('Risk update');
-        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.modal.configure:Risk update' }));
         await screen.findByText('admin:approval_scenarios.modal.configure:Risk update');
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
 
@@ -408,6 +415,62 @@ describe('Risk Hub config panels', () => {
         renderWithQueryClient(<RiskTypesPanel />);
         await screen.findByText('Operational');
         expect(screen.queryByRole('button', { name: 'admin:risk_types_panel.add_type' })).not.toBeInTheDocument();
+    });
+
+    it('keeps an edit the user cannot make visible with its reason (GAP-B-03)', async () => {
+        const [riskType] = await riskHubApi.getRiskTypes(false);
+        vi.mocked(riskHubApi.getRiskTypes).mockResolvedValue([
+            { ...riskType, capabilities: { can_create: true, can_update: false, can_delete: false, can_restore: false } },
+        ]);
+        renderWithQueryClient(<RiskTypesPanel />);
+
+        await screen.findByText('Operational');
+        const edit = screen.getByRole('button', { name: 'common:actions.edit_named:Operational' });
+        expect(edit).toHaveAttribute('aria-disabled', 'true');
+        expect(edit).toHaveAccessibleDescription('admin:risk_types_panel.actions.edit_disabled:Operational');
+        fireEvent.click(edit);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('warns in the archive confirmation how many risks lose their type', async () => {
+        const [riskType] = await riskHubApi.getRiskTypes(false);
+        vi.mocked(riskHubApi.getRiskTypes).mockResolvedValue([{ ...riskType, risk_count: 3 }]);
+        renderWithQueryClient(<RiskTypesPanel />);
+
+        await screen.findByText('Operational');
+        fireEvent.click(screen.getByRole('button', { name: 'common:actions.archive_named:Operational' }));
+        const modal = await screen.findByRole('alertdialog', { name: 'confirmations.archive_risk_type' });
+        expect(modal).toHaveTextContent('admin:risk_types_panel.delete_warning:3');
+    });
+
+    it('explains a blocked department archive on the row action instead of opening a dead-end dialog', async () => {
+        const [department] = await riskHubApi.getDepartments(false);
+        vi.mocked(riskHubApi.getDepartments).mockResolvedValue([{ ...department, risk_count: 2, kri_count: 1 }]);
+        renderWithQueryClient(<DepartmentsPanel />);
+
+        await screen.findByText('Operations');
+        const archive = screen.getByRole('button', { name: 'common:actions.archive_named:Operations' });
+        expect(archive).toHaveAttribute('aria-disabled', 'true');
+        expect(archive).toHaveAccessibleDescription('admin:departments_panel.archive_blocked_reason');
+        fireEvent.click(archive);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(riskHubApi.deleteDepartment).not.toHaveBeenCalled();
+    });
+
+    it('renders an empty list through the shared EmptyState, not an empty table (DS-17)', async () => {
+        vi.mocked(riskHubApi.getRiskTypes).mockResolvedValue([]);
+        renderWithQueryClient(<RiskTypesPanel />);
+
+        expect(await screen.findByTestId('risk-types-empty')).toHaveTextContent('admin:risk_types_panel.empty');
+        expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+
+    it('names the show-archived filter and reloads with archived rows (AX-04)', async () => {
+        renderWithQueryClient(<DepartmentsPanel />);
+
+        await screen.findByText('Operations');
+        fireEvent.click(screen.getByRole('checkbox', { name: 'admin:departments_panel.show_deleted' }));
+        await waitFor(() => expect(riskHubApi.getDepartments).toHaveBeenLastCalledWith(true));
     });
 
     it('routes config panel mutation workflow through the shared resource hook', () => {

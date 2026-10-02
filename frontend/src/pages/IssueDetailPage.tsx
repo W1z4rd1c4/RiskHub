@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { History, RefreshCw, Target, Wrench, type LucideIcon } from 'lucide-react';
 
-import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
+import { IssueSeverityBadge, IssueStatusBadge } from '@/components/issues/IssueBadges';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
 import { TabList, TabPanel } from '@/components/ui/tabs';
@@ -10,7 +10,6 @@ import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
-import type { IssueSeverity, IssueStatus } from '@/types/issue';
 
 import { IssueHistoryTab } from './issues/issue-detail/IssueHistoryTab';
 import { IssueOverviewTab } from './issues/issue-detail/IssueOverviewTab';
@@ -47,18 +46,10 @@ export function IssueDetailPage() {
         issue,
     });
 
-    const statusLabel = useCallback(
-        (status: IssueStatus): string => t(`status.${status}`, status.replaceAll('_', ' ')),
-        [t],
-    );
-    const severityLabel = useCallback(
-        (severity: IssueSeverity): string => t(`severity.${severity}`, severity),
-        [t],
-    );
     const sourceLabel = useCallback(
         (sourceType: string): string => {
             const key = sourceType as 'manual' | 'control_execution' | 'kri_breach' | 'audit';
-            return t(`source.${key}`, sourceType.replaceAll('_', ' '));
+            return t(`source.${key}`, t('common:fallbacks.unknown'));
         },
         [t],
     );
@@ -101,12 +92,8 @@ export function IssueDetailPage() {
                 title={issue.title}
                 statuses={(
                     <>
-                        <span className={issuePill(issueStatusClass(issue.status))}>
-                            {statusLabel(issue.status)}
-                        </span>
-                        <span className={issuePill(issueSeverityClass(issue.severity))}>
-                            {severityLabel(issue.severity)}
-                        </span>
+                        <IssueStatusBadge status={issue.status} />
+                        <IssueSeverityBadge severity={issue.severity} />
                     </>
                 )}
                 description={formattedDescription}

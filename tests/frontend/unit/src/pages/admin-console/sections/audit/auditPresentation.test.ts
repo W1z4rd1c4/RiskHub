@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     formatAuditEvent,
     formatAuditUser,
-    getAuditEventClassName,
+    getAuditEventTone,
     getAuditEventTypes,
 } from '@/pages/admin-console/sections/audit/auditPresentation';
 
@@ -19,18 +19,28 @@ describe('auditPresentation', () => {
     });
 
     it.each([
-        ['risk_create', 'bg-success/10 text-success-text'],
-        ['risk_update', 'bg-warning/10 text-warning-text'],
-        ['risk_delete', 'bg-destructive/10 text-destructive'],
-        ['risk_archive', 'bg-info/10 text-accent-text'],
-        [null, 'bg-info/10 text-accent-text'],
-    ])('maps audit event %s to a badge class', (event, expected) => {
-        expect(getAuditEventClassName(event)).toBe(expected);
+        ['risk_create', 'success'],
+        ['risk_update', 'warning'],
+        ['risk_delete', 'danger'],
+        ['failed_login', 'danger'],
+        ['risk_archive', 'info'],
+        [null, 'info'],
+    ])('maps audit event %s to the %s badge tone', (event, expected) => {
+        expect(getAuditEventTone(event)).toBe(expected);
     });
 
-    it('formats audit event names and falls back for missing events', () => {
-        expect(formatAuditEvent('risk_create', 'Unknown')).toBe('risk create');
+    it('humanizes audit event names and falls back for missing events', () => {
+        expect(formatAuditEvent('risk_create', 'Unknown')).toBe('Risk create');
         expect(formatAuditEvent(null, 'Unknown')).toBe('Unknown');
+    });
+
+    it('prefers the translation and passes the humanized code as the default (GAP-D-02)', () => {
+        const t = (key: string, options?: Record<string, unknown>) =>
+            key === 'audit.events.create' ? 'Created' : String(options?.defaultValue ?? key);
+
+        expect(formatAuditEvent('create', 'Unknown', t)).toBe('Created');
+        expect(formatAuditEvent('some_new_event', 'Unknown', t)).toBe('Some new event');
+        expect(formatAuditEvent(null, 'Unknown', t)).toBe('Unknown');
     });
 
     it('uses the system label when no user id exists', () => {

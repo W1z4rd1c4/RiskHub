@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, ShieldAlert, Unlink } from 'lucide-react';
+import { Plus, ShieldAlert } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { LinkedItemList, LinkedItemRow, LinkRemoveButton } from '@/components/linking/LinkedItemList';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
@@ -15,6 +18,7 @@ import { riskApi } from '@/services/riskApi';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
+import { DetailSection } from '../detail/DetailSection';
 import {
     buildLinkTargetOptions,
     canDeleteThreatRiskLink,
@@ -106,16 +110,9 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
     );
 
     return (
-        <div className="glass-card space-y-5" data-testid="threat-risk-links-section">
-            <div className="flex items-center gap-3 border-b border-border pb-4">
-                <ShieldAlert className="h-5 w-5 text-destructive" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('links.risks.title')}
-                </h2>
-            </div>
-
+        <DetailSection title={t('links.risks.title')} icon={ShieldAlert} testId="threat-risk-links-section">
             {linkError ? (
-                <InlineMessage tone="danger">{linkError}</InlineMessage>
+                <InlineMessage tone="danger" className="mb-4">{linkError}</InlineMessage>
             ) : null}
 
             <div className="space-y-4">
@@ -132,60 +129,52 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                 ) : riskLinks.length === 0 ? (
                     <EmptyState layout="inline" icon={null} title={t('links.risks.empty')} />
                 ) : (
-                    <ul className="space-y-2" data-testid="threat-risk-links">
-                        {riskLinks.map((link) => (
-                            <li
-                                key={link.id}
-                                className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
-                            >
-                                <span className="text-sm font-bold text-foreground truncate">
-                                    {threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk'))}
-                                </span>
-                                {canManageLinks && canDeleteThreatRiskLink(link) ? (
-                                    <button
-                                        type="button"
-                                        data-testid={`threat-risk-link-remove-${link.id}`}
-                                        onClick={() => setPendingRemoval({
-                                            linkId: link.id,
-                                            name: threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk')),
-                                        })}
-                                        aria-label={t('common:links.remove_named', {
-                                            name: threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk')),
-                                        })}
-                                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                        title={t('links.remove')}
-                                    >
-                                        <Unlink className="h-4 w-4" aria-hidden="true" />
-                                    </button>
-                                ) : null}
-                            </li>
-                        ))}
-                    </ul>
+                    <LinkedItemList testId="threat-risk-links">
+                        {riskLinks.map((link) => {
+                            const rowLabel = threatRiskLinkRowLabel(link, t('common:fallbacks.unknown_risk'));
+                            return (
+                                <LinkedItemRow
+                                    key={link.id}
+                                    actions={canManageLinks && canDeleteThreatRiskLink(link) ? (
+                                        <LinkRemoveButton
+                                            name={rowLabel}
+                                            testId={`threat-risk-link-remove-${link.id}`}
+                                            onClick={() => setPendingRemoval({ linkId: link.id, name: rowLabel })}
+                                        />
+                                    ) : undefined}
+                                >
+                                    <span className="truncate text-sm font-bold text-foreground">{rowLabel}</span>
+                                </LinkedItemRow>
+                            );
+                        })}
+                    </LinkedItemList>
                 )}
 
                 {canManageLinks ? (
-                    <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                        <div className="md:col-span-3">
-                            <SearchableEntitySelect
-                                value={riskToLink}
-                                onValueChange={setRiskToLink}
-                                options={riskOptions}
-                                placeholder={t('links.risks.select_placeholder')}
-                                searchValue={riskSearch}
-                                onSearchChange={setRiskSearch}
-                                triggerTestId="threat-risk-link-select"
-                            />
-                        </div>
-                        <button
-                            type="button"
+                    <div className="grid grid-cols-1 items-end gap-3 border-t border-border pt-4 md:grid-cols-4">
+                        <Field label={t('links.risks.select_label')} className="md:col-span-3">
+                            {(field) => (
+                                <SearchableEntitySelect
+                                    {...field}
+                                    value={riskToLink}
+                                    onValueChange={setRiskToLink}
+                                    options={riskOptions}
+                                    placeholder={t('links.risks.select_placeholder')}
+                                    searchValue={riskSearch}
+                                    onSearchChange={setRiskSearch}
+                                    triggerTestId="threat-risk-link-select"
+                                />
+                            )}
+                        </Field>
+                        <Button
+                            variant="accent"
                             data-testid="threat-risk-link-add"
                             disabled={targetRiskId === null || addRiskLink.isPending}
                             onClick={() => addRiskLink.mutate()}
-                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
-                            <Plus className="h-4 w-4" />
+                            <Plus aria-hidden="true" />
                             {t('links.add')}
-                        </button>
+                        </Button>
                     </div>
                 ) : null}
             </div>
@@ -197,6 +186,6 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
                 entityName={pendingRemoval?.name}
                 isLoading={removeRiskLink.isPending}
             />
-        </div>
+        </DetailSection>
     );
 }

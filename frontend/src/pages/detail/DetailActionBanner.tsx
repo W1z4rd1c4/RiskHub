@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { InlineMessage } from '@/components/ui/inline-message';
 
 import { buildDetailMutationPresentation } from './detailMutationPresentation';
@@ -44,9 +45,14 @@ export function DetailActionBanner({
             {presentation.showApprovalLink ? (
                 <p className="mt-1 text-xs">
                     {pendingText}{' '}
-                    <button type="button" onClick={onNavigateApprovals} className="rounded underline hover:no-underline focus-ring">
+                    <Button
+                        variant="link"
+                        size={null}
+                        onClick={onNavigateApprovals}
+                        className="h-auto whitespace-normal p-0 align-baseline text-xs font-normal text-current underline hover:no-underline"
+                    >
                         {approvalsLabel}
-                    </button>
+                    </Button>
                     {sectionSuffix ? ` ${sectionSuffix}` : null}
                 </p>
             ) : null}

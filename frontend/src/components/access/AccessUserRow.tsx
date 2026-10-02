@@ -13,14 +13,18 @@ import {
     UserX,
 } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { TD, TR } from '@/components/ui/table';
 import { useFormat, useTranslation } from '@/i18n/hooks';
-import { cn } from '@/lib/utils';
+import { toneClass } from '@/lib/tones';
 import type { AccessUserRead } from '@/types/access';
 
 import { PermissionChips } from './PermissionMatrix';
 import { ExpandedAccessDetailsRow } from './ExpandedAccessDetailsRow';
+import { UserAvatar } from './UserAvatar';
 import type { AccessUserActionModel, AccessUserPresentationModel } from './useAccessUsersWorkflow';
-import { userScopeBadgeClassName } from './usersTablePresentation';
+import { accessDetailsRowId, userScopeTone } from './usersTablePresentation';
 
 interface AccessUserRowProps {
     actionModel: AccessUserActionModel;
@@ -37,47 +41,49 @@ interface AccessUserRowProps {
     user: AccessUserRead;
 }
 
+function ExpandToggle({ expandedUserId, onToggleExpand, user, label }: Pick<AccessUserRowProps, 'expandedUserId' | 'onToggleExpand' | 'user'> & { label: string }) {
+    const isExpanded = expandedUserId === user.id;
+    // AX-10: the disclosure state is exposed (`aria-expanded`) and the controlled
+    // details row is named (`aria-controls`) while it is on screen.
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="iconCompact"
+            onClick={() => onToggleExpand(user.id)}
+            title={label}
+            aria-label={label}
+            aria-expanded={isExpanded}
+            aria-controls={isExpanded ? accessDetailsRowId(user.id) : undefined}
+        >
+            {isExpanded ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
+        </Button>
+    );
+}
+
 function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<AccessUserRowProps, 'expandedUserId' | 'onToggleExpand' | 'user'>) {
     const { t } = useTranslation('admin');
-    const isExpanded = expandedUserId === user.id;
-    const expandIcon = isExpanded
-        ? <ChevronDown className="h-4 w-4" aria-hidden="true" />
-        : <ChevronRight className="h-4 w-4" aria-hidden="true" />;
 
     if (user.role.name === 'admin') {
         return (
-            <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.user_management')}</span>
-                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.system_health')}</span>
-                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.technical_logs')}</span>
-                <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs border border-border">{t('access.capabilities.session_management')}</span>
-                <button
-                    onClick={() => onToggleExpand(user.id)}
-                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                    title={t('access.matrix.show_all_capabilities')}
-                    aria-label={t('access.matrix.show_all_capabilities')}
-                >
-                    {expandIcon}
-                </button>
+            <div className="flex flex-wrap items-center gap-2">
+                <Badge shape="rounded" tone="neutral">{t('access.capabilities.user_management')}</Badge>
+                <Badge shape="rounded" tone="neutral">{t('access.capabilities.system_health')}</Badge>
+                <Badge shape="rounded" tone="neutral">{t('access.capabilities.technical_logs')}</Badge>
+                <Badge shape="rounded" tone="neutral">{t('access.capabilities.session_management')}</Badge>
+                <ExpandToggle expandedUserId={expandedUserId} onToggleExpand={onToggleExpand} user={user} label={t('access.matrix.show_all_capabilities')} />
             </div>
         );
     }
 
     if (user.role.name === 'cro') {
         return (
-            <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-warning/10 text-warning-text rounded text-xs border border-warning/30">{t('access.capabilities.risk_types')}</span>
-                <span className="px-2 py-0.5 bg-warning/10 text-warning-text rounded text-xs border border-warning/30">{t('access.capabilities.global_config')}</span>
-                <span className="px-2 py-0.5 bg-warning/10 text-warning-text rounded text-xs border border-warning/30">{t('access.capabilities.approval_rules')}</span>
-                <span className="px-2 py-0.5 bg-accent/10 text-accent-text rounded text-xs border border-accent/30">{t('access.capabilities.all_business_data')}</span>
-                <button
-                    onClick={() => onToggleExpand(user.id)}
-                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                    title={t('access.matrix.show_all_capabilities')}
-                    aria-label={t('access.matrix.show_all_capabilities')}
-                >
-                    {expandIcon}
-                </button>
+            <div className="flex flex-wrap items-center gap-2">
+                <Badge shape="rounded" tone="warning">{t('access.capabilities.risk_types')}</Badge>
+                <Badge shape="rounded" tone="warning">{t('access.capabilities.global_config')}</Badge>
+                <Badge shape="rounded" tone="warning">{t('access.capabilities.approval_rules')}</Badge>
+                <Badge shape="rounded" tone="accent">{t('access.capabilities.all_business_data')}</Badge>
+                <ExpandToggle expandedUserId={expandedUserId} onToggleExpand={onToggleExpand} user={user} label={t('access.matrix.show_all_capabilities')} />
             </div>
         );
     }
@@ -85,14 +91,7 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
     return (
         <div className="flex items-center gap-2">
             <PermissionChips permissions={user.effective_permissions} maxVisible={4} />
-            <button
-                onClick={() => onToggleExpand(user.id)}
-                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                title={t('access.matrix.show_all_permissions')}
-                aria-label={t('access.matrix.show_all_permissions')}
-            >
-                {expandIcon}
-            </button>
+            <ExpandToggle expandedUserId={expandedUserId} onToggleExpand={onToggleExpand} user={user} label={t('access.matrix.show_all_permissions')} />
         </div>
     );
 }
@@ -117,29 +116,27 @@ export function AccessUserRow({
 
     return (
         <Fragment>
-            <tr className="group hover:bg-tint/5 transition-colors">
-                <td className="py-4 px-4">
+            <TR className="group">
+                <TD>
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent-text font-bold">
-                            {presentationModel.safeName.charAt(0)}
-                        </div>
+                        <UserAvatar name={presentationModel.safeName} />
                         <div>
                             <p className="font-medium text-foreground group-hover:text-accent-text transition-colors">{presentationModel.safeName}</p>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
+                                <Mail aria-hidden="true" className="h-3 w-3" />
                                 {presentationModel.emailText}
                             </p>
                         </div>
                     </div>
-                </td>
-                <td className="py-4 px-4">
+                </TD>
+                <TD>
                     <div className="space-y-1">
                         <p className="text-sm text-foreground flex items-center gap-1.5">
-                            <Shield className="h-3.5 w-3.5 text-chart-2" />
+                            <Shield aria-hidden="true" className="h-3.5 w-3.5 text-chart-2" />
                             {presentationModel.roleText}
                         </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <Building2 aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
                             {user.department_name || t('access.table.no_department')}
                         </p>
                         {user.external_id && (
@@ -157,100 +154,95 @@ export function AccessUserRow({
                             </p>
                         )}
                     </div>
-                </td>
-                <td className="py-4 px-4">
-                    <span
-                        className={cn(
-                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-                            userScopeBadgeClassName(user),
-                        )}
-                    >
+                </TD>
+                <TD>
+                    <Badge tone={userScopeTone(user)}>
                         {user.role.name === 'admin' ? (
-                            <Server className="h-3 w-3 mr-1" />
+                            <Server aria-hidden="true" className="h-3 w-3" />
                         ) : user.access_scope === 'global' ? (
-                            <Crown className="h-3 w-3 mr-1" />
+                            <Crown aria-hidden="true" className="h-3 w-3" />
                         ) : null}
                         {user.role.name === 'admin'
                             ? t('access.scopes.platform')
                             : t(`access.scopes.${user.access_scope}`, user.scope_label)}
-                    </span>
-                </td>
-                <td className="py-4 px-4">
+                    </Badge>
+                </TD>
+                <TD>
                     <UserCapabilitySummary
                         expandedUserId={expandedUserId}
                         onToggleExpand={onToggleExpand}
                         user={user}
                     />
-                </td>
-                <td className="py-4 px-4">
-                    <span
-                        className={cn(
-                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                            user.is_active
-                                ? 'bg-success/10 text-success-text border border-success/20'
-                                : 'bg-destructive/10 text-destructive border border-destructive/20',
-                        )}
-                    >
+                </TD>
+                <TD>
+                    <Badge tone={user.is_active ? 'success' : 'danger'}>
                         {user.is_active ? t('access.status.active') : t('access.status.inactive')}
-                        {onManageIdentity && user.local_enrollment_state && <span className="ml-2">{t(`native_users.states.${user.local_enrollment_state}`)}</span>}
-                    </span>
-                </td>
-                <td className="py-4 px-4 text-right">
+                        {onManageIdentity && user.local_enrollment_state && <span className="ml-1">{t(`native_users.states.${user.local_enrollment_state}`)}</span>}
+                    </Badge>
+                </TD>
+                <TD align="right">
                     <div className="flex items-center justify-end gap-2">
                         {actionModel.canEdit && (
-                            <button
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="iconCompact"
                                 onClick={() => onEditAccess(user)}
-                                className="p-2 text-muted-foreground hover:text-foreground hover:bg-nested rounded-lg transition-colors"
                                 title={t('access.actions.edit_access')}
                                 aria-label={t('access.actions.edit_access')}
                             >
-                                <Edit2 className="h-4 w-4" aria-hidden="true" />
-                            </button>
+                                <Edit2 aria-hidden="true" />
+                            </Button>
                         )}
-                        {onManageIdentity && <button type="button" className="rounded-md border px-2 py-1 text-sm" onClick={() => onManageIdentity(user)}>{t('native_users.lifecycle')}</button>}
+                        {onManageIdentity && (
+                            <Button type="button" variant="outline" size="compact" onClick={() => onManageIdentity(user)}>
+                                {t('native_users.lifecycle')}
+                            </Button>
+                        )}
                         {canChangeActiveStatus && !onManageIdentity && (
-                            <button
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="iconCompact"
                                 onClick={() => onToggleStatus(user)}
-                                className={cn(
-                                    'p-2 rounded-lg transition-colors',
-                                    user.is_active
-                                        ? 'text-destructive hover:bg-destructive/10'
-                                        : 'text-success-text hover:bg-success/10',
-                                )}
+                                className={toneClass(user.is_active ? 'danger' : 'success', 'text')}
                                 title={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                                 aria-label={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                             >
-                                {user.is_active ? <UserX className="h-4 w-4" aria-hidden="true" /> : <UserCheck className="h-4 w-4" aria-hidden="true" />}
-                            </button>
+                                {user.is_active ? <UserX aria-hidden="true" /> : <UserCheck aria-hidden="true" />}
+                            </Button>
                         )}
                         {actionModel.canBreakGlassEnable && onBreakGlassEnable && (
-                            <button
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="compact"
                                 onClick={() => onBreakGlassEnable(user)}
-                                className="rounded-lg border border-warning/30 px-2.5 py-1.5 text-xs text-warning-text transition hover:bg-warning/10"
+                                className="text-warning-text hover:text-warning-text"
                                 title={t('users.break_glass_enable')}
                             >
-                                <span className="inline-flex items-center gap-1.5">
-                                    <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                                    {t('users.break_glass')}
-                                </span>
-                            </button>
+                                <ShieldAlert aria-hidden="true" />
+                                {t('users.break_glass')}
+                            </Button>
                         )}
                         {canRunDirectoryChecks && actionModel.canRunDirectoryCheck && onCheckDirectory && (
-                            <button
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="compact"
                                 onClick={() => onCheckDirectory(user)}
                                 aria-busy={checkingDirectoryUserId === user.id}
                                 aria-disabled={checkingDirectoryUserId !== null}
-                                className="rounded-lg border border-accent/30 px-2.5 py-1.5 text-xs text-accent-text transition hover:bg-accent/10 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                                 title={t('users.check_directory_status')}
                             >
                                 {checkingDirectoryUserId === user.id
                                     ? t('users.checking_directory')
                                     : t('users.check_directory')}
-                            </button>
+                            </Button>
                         )}
                     </div>
-                </td>
-            </tr>
+                </TD>
+            </TR>
             {expandedUserId === user.id && <ExpandedAccessDetailsRow user={user} />}
         </Fragment>
     );

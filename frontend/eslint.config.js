@@ -70,6 +70,112 @@ const ADR008_THRESHOLD_RESTRICTIONS = [
   message: "Do not hardcode risk-score thresholds (ADR-008); use useRiskThresholds() with riskScoreVariantClass() from @/lib/severity.",
 }));
 
+// G-ESLINT (audit 2026-09-30 §4.1, D15, §5.5 per-module exit): hard design bans on
+// the paths that reached zero for the G-RATCHET patterns. The list only grows: a
+// module joins once its ratchet counts are 0. The regexes mirror
+// scripts/quality/ui-consistency-ratchet.mjs and run on both string literals and
+// template-literal chunks, so class strings built with `cn()` or templates are
+// covered. Flat-config rule arrays replace each other, so the block re-includes
+// the raw-ID and ADR-008 selectors of the base block.
+const classBan = (pattern, message) => [
+  { selector: `Literal[value=/${pattern}/]`, message },
+  { selector: `TemplateElement[value.raw=/${pattern}/]`, message },
+];
+const DESIGN_CLASS_RESTRICTIONS = [
+  ...classBan("(?<![\\w-])(?:[a-z-]+:)*text-white(?![\\w/-])", "Use text-foreground or a *-foreground token (§4.3)."),
+  ...classBan(
+    "(?<![\\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|from|to|via|fill|stroke|divide|outline|shadow|placeholder|decoration|accent|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3}\\b",
+    "Raw palette colour. Use a semantic token (§4.2-4.4).",
+  ),
+  ...classBan(
+    "(?<![\\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|divide|from|to|via|fill|stroke)-(?:white|black)\\/[\\w.\\[\\]]+",
+    "White/black alpha. Use tint/overlay tokens (§4.2).",
+  ),
+  ...classBan("text-\\[(?:[0-9]|10)(?:\\.\\d+)?px\\]", "Below the 11px floor. Use text-eyebrow or text-xs (§4.5)."),
+  ...classBan("(?<![\\w-])(?:[a-z-]+:)*font-black(?![\\w-])", "font-black is retired (D6). Use font-semibold or font-bold (§4.5)."),
+  ...classBan("(?<![\\w-])dark:(?=[!a-z\\[-])", "No dark: variants. Theme through tokens (§4.2)."),
+  ...classBan("-\\[[^\\] \"]*(?:#[0-9a-fA-F]{3}|rgba?\\(|hsla?\\()", "Arbitrary colour literal. Add a token (§4.2)."),
+];
+// Raw elements outside the primitives (components/ui and components/tables are
+// never clean paths). `<input>` stays legal only for types without a drop-in
+// primitive: range sliders, colour pickers, hidden/file inputs and the
+// sr-only radios of custom card pickers.
+const DESIGN_ELEMENT_RESTRICTIONS = [
+  { selector: "JSXOpeningElement[name.name='button']", message: "Use <Button> from components/ui/button (§4.7)." },
+  {
+    selector: "JSXOpeningElement[name.name='input']:not(:has(> JSXAttribute[name.name='type'][value.value=/^(?:radio|hidden|range|color|file)$/]))",
+    message: "Use <Input> or <Checkbox> inside <Field> (§4.8).",
+  },
+  { selector: "JSXOpeningElement[name.name='textarea']", message: "Use <Textarea> inside <Field> (§4.8)." },
+  { selector: "JSXOpeningElement[name.name='select']", message: "Use <ThemedSelect> or <NativeSelect> inside <Field> (§4.8)." },
+  { selector: "JSXOpeningElement[name.name='table']", message: "Use <SortableTable> or ui/table (§4.13)." },
+  {
+    selector: "JSXOpeningElement[name.name='tr'] > JSXAttribute[name.name='onClick']",
+    message: "Mouse-only row activation (AX-02). Use SortableTable row activation.",
+  },
+  {
+    selector:
+      "JSXElement[openingElement.name.name='label']:not(:has(JSXAttribute[name.name='htmlFor'])):not(:has(JSXOpeningElement[name.name=/^(?:input|select|textarea|Input|NativeSelect|ThemedSelect|Textarea|Checkbox|Switch)$/]))",
+    message: "Unassociated label (AX-04). Use <Field>.",
+  },
+];
+const DESIGN_CLEAN_PATHS = [
+  "src/pages/native/**/*.{ts,tsx}",
+  // 3a Risk Hub admin
+  "src/components/riskhub/**/*.{ts,tsx}",
+  "src/pages/RiskHubPage.tsx",
+  // 3b Risk, Control, KRI, Issue
+  "src/components/risks/**/*.{ts,tsx}",
+  "src/components/risk-form/**/*.{ts,tsx}",
+  "src/components/RiskForm.tsx",
+  "src/components/RiskQuickViewModal.tsx",
+  "src/components/RiskScoreMatrix.tsx",
+  "src/components/controls/**/*.{ts,tsx}",
+  "src/components/control-form/**/*.{ts,tsx}",
+  "src/components/ControlCreateDialog.tsx",
+  "src/components/kri/**/*.{ts,tsx}",
+  "src/components/kri-form/**/*.{ts,tsx}",
+  "src/components/kris/**/*.{ts,tsx}",
+  "src/components/issues/**/*.{ts,tsx}",
+  "src/components/history/**/*.{ts,tsx}",
+  "src/components/ict-register/RegisterFilterCard.tsx",
+  "src/components/ict-register/registerFilterChips.ts",
+  "src/pages/risks/**/*.{ts,tsx}",
+  "src/pages/controls/**/*.{ts,tsx}",
+  "src/pages/kris/**/*.{ts,tsx}",
+  "src/pages/issues/**/*.{ts,tsx}",
+  "src/pages/{Risks,RiskDetail,RiskNew,RiskEdit}Page.tsx",
+  "src/pages/{Controls,ControlDetail,ControlNew,ControlEdit}Page.tsx",
+  "src/pages/{KRIs,KRIDetail,KRINew}Page.tsx",
+  "src/pages/{Issues,IssueDetail,IssueNew}Page.tsx",
+  "src/lib/{humanizeCode,kriUnits,roleLabels}.ts",
+  // 3c Settings, Users, Access, Admin console
+  "src/components/settings/**/*.{ts,tsx}",
+  "src/components/users/**/*.{ts,tsx}",
+  "src/components/access/**/*.{ts,tsx}",
+  "src/pages/admin-console/**/*.{ts,tsx}",
+  "src/pages/users/**/*.{ts,tsx}",
+  "src/pages/{Settings,Users,UserNew,AdminConsole}Page.tsx",
+  // 3d Asset, Process, Threat and link sections
+  "src/pages/assets/**/*.{ts,tsx}",
+  "src/pages/processes/**/*.{ts,tsx}",
+  "src/pages/threats/**/*.{ts,tsx}",
+  "src/pages/detail/**/*.{ts,tsx}",
+  "src/pages/shared/**/*.{ts,tsx}",
+  "src/pages/{Assets,AssetDetail,Processes,ProcessDetail,Threats,ThreatDetail}Page.tsx",
+  "src/components/linking/**/*.{ts,tsx}",
+  "src/components/LinkManagementDialog.tsx",
+  "src/components/approvals/**/*.{ts,tsx}",
+];
+// Inside the clean directories, files that migrate with a later module (W9 3e:
+// risk questionnaires and the legacy approval diff).
+const DESIGN_CLEAN_PATH_EXCEPTIONS = [
+  "src/components/risks/QuestionnaireAssessmentSummary.tsx",
+  "src/components/risks/RiskDetailQuestionnairesTab.tsx",
+  "src/components/risks/risk-questionnaire-detail/**",
+  "src/components/approvals/GovernedMutationDiff.tsx",
+];
+
 const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
   "src/components/vendor-form/**/*.{ts,tsx}",
@@ -179,6 +285,19 @@ export default defineConfig([
         { max: 200, skipBlankLines: true, skipComments: true, IIFEs: true },
       ],
       complexity: ["error", 20],
+    },
+  },
+  {
+    files: DESIGN_CLEAN_PATHS,
+    ignores: DESIGN_CLEAN_PATH_EXCEPTIONS,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        RAW_ID_LABEL_RESTRICTION,
+        ...ADR008_THRESHOLD_RESTRICTIONS,
+        ...DESIGN_CLASS_RESTRICTIONS,
+        ...DESIGN_ELEMENT_RESTRICTIONS,
+      ],
     },
   },
   {

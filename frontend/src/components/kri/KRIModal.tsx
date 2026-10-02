@@ -97,8 +97,10 @@ export function KRIModal(props: KRIModalProps) {
 
                     <div className="flex items-center gap-2 px-4 py-3 bg-tint/[0.03] border border-border rounded-xl text-xs text-muted-foreground font-bold">
                         <Calendar aria-hidden="true" className="h-3.5 w-3.5" />
-                        {t('modal.last_updated', { ns: 'kris' })}:{' '}
-                        {format.dateTime(kri.last_updated)}
+                        {t('common:labels.label_value', {
+                            label: t('modal.last_updated', { ns: 'kris' }),
+                            value: format.dateTime(kri.last_updated),
+                        })}
                     </div>
                 </fieldset>
             </DialogBody>

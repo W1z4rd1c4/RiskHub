@@ -1,21 +1,30 @@
-import { useState, useEffect, useId } from 'react';
-import { Archive, Palette, Plus, Edit, RotateCcw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Archive, Palette, Plus, Edit } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { RowActionButton } from '@/components/tables/RowActionButton';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
-import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { DialogBody } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
-import { cn } from '@/lib/utils';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys } from '@/lib/queryKeys';
-import { useTranslation } from '@/i18n/hooks';
-import { ErrorState, LoadingState } from '@/components/ui/state';
-import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame, RiskHubShowArchivedToggle } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import { useRiskHubConfigResource } from './useRiskHubConfigResource';
+
+/** Stored default colour of a new risk type (data, not a UI colour). */
+const DEFAULT_RISK_TYPE_COLOR = '#64748b';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -29,7 +38,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
     const [code, setCode] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
-    const [color, setColor] = useState('#64748b');
+    const [color, setColor] = useState(DEFAULT_RISK_TYPE_COLOR);
     const [sortOrder, setSortOrder] = useState(0);
     const [saving, setSaving] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -39,7 +48,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
             setCode(riskType?.code || '');
             setDisplayName(riskType?.display_name || '');
             setDescription(riskType?.description || '');
-            setColor(riskType?.color || '#64748b');
+            setColor(riskType?.color || DEFAULT_RISK_TYPE_COLOR);
             setSortOrder(riskType?.sort_order || 0);
             setErrorKey(null);
         }
@@ -124,7 +133,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                                         aria-labelledby={field['aria-labelledby']}
                                         value={color}
                                         onChange={(e) => setColor(e.target.value)}
-                                        className="h-10 w-10 cursor-pointer rounded"
+                                        className="h-10 w-10 cursor-pointer rounded-lg border border-input bg-transparent focus-ring"
                                     />
                                     <Input
                                         type="text"
@@ -164,9 +173,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 
 export function RiskTypesPanel() {
     const { t } = useTranslation(['admin', 'common']);
-    const deleteTitleId = useId();
-    const deleteDescriptionId = useId();
-    const showDeletedId = useId();
+    const format = useFormat();
     const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
         queryKey: riskHubKeys.riskTypes(),
         load: (showInactive) => riskHubApi.getRiskTypes(showInactive),
@@ -175,6 +182,7 @@ export function RiskTypesPanel() {
         delete: (id) => riskHubApi.deleteRiskType(Number(id)),
         restore: (id) => riskHubApi.restoreRiskType(Number(id)),
         itemId: (item) => item.id,
+        itemName: (item) => item.display_name,
         panelCapabilityKey: 'risk_types',
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
@@ -195,137 +203,114 @@ export function RiskTypesPanel() {
         );
     }
 
+    const archiveTarget = panel.deleteConfirm;
+
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Palette className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-foreground">{t('admin:risk_types_panel.title')}</h3>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <label htmlFor={showDeletedId} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <input
-                            id={showDeletedId}
-                            type="checkbox"
+            {panel.error ? (
+                <ErrorState variant="banner" onRetry={panel.retry} isRetrying={panel.isFetching} />
+            ) : null}
+            <CardHeader
+                className="mb-0"
+                icon={Palette}
+                title={t('admin:risk_types_panel.title')}
+                actions={(
+                    <>
+                        <RiskHubShowArchivedToggle
                             checked={panel.showInactive}
-                            onChange={(e) => panel.setShowInactive(e.target.checked)}
-                            className="rounded border-border bg-background text-accent focus:ring-accent"
+                            onCheckedChange={panel.setShowInactive}
+                            label={t('admin:risk_types_panel.show_deleted')}
                         />
-                        {t('admin:risk_types_panel.show_deleted')}
-                    </label>
+                        {canCreate ? (
+                            <Button variant="accent" onClick={panel.openCreate}>
+                                <Plus aria-hidden="true" />
+                                {t('admin:risk_types_panel.add_type')}
+                            </Button>
+                        ) : null}
+                    </>
+                )}
+            />
 
-                    {canCreate ? (
-                        <button
-                            onClick={panel.openCreate}
-                            className="flex items-center gap-2 px-3 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors"
-                        >
-                            <Plus className="h-4 w-4" />
-                            {t('admin:risk_types_panel.add_type')}
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-border">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.color')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.code')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.display_name')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.description')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.risks')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.status')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            {panel.items.length === 0 ? (
+                <EmptyState title={t('admin:risk_types_panel.empty')} testId="risk-types-empty" />
+            ) : (
+                <Table density="compact" regionLabel={t('admin:risk_types_panel.title')}>
+                    <THead>
+                        <TR>
+                            <TH>{t('admin:risk_types_panel.columns.color')}</TH>
+                            <TH>{t('admin:risk_types_panel.columns.code')}</TH>
+                            <TH>{t('admin:risk_types_panel.columns.display_name')}</TH>
+                            <TH>{t('common:labels.description')}</TH>
+                            <TH align="center">{t('admin:risk_types_panel.columns.risks')}</TH>
+                            <TH align="center">{t('common:labels.status')}</TH>
+                            <TH align="right">{t('common:labels.actions')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {panel.items.map((type) => {
                             const canUpdate = resolveCapabilityFlag(type.capabilities, 'can_update');
                             const canDelete = resolveCapabilityFlag(type.capabilities, 'can_delete');
                             const canRestore = resolveCapabilityFlag(type.capabilities, 'can_restore');
 
                             return (
-                            <tr
-                                key={type.id}
-                                className={cn(
-                                    "border-b border-border hover:bg-muted/50 transition-colors",
-                                    !type.is_active && "opacity-50"
-                                )}
-                            >
-                                <td className="py-3 px-4">
-                                    <ColorSwatch color={type.color} className="h-6 w-6" />
-                                </td>
-                                <td className="py-3 px-4">
-                                    <code className="text-sm font-mono text-foreground">{type.code}</code>
-                                </td>
-                                <td className="py-3 px-4 text-foreground font-medium">{type.display_name}</td>
-                                <td className="py-3 px-4 text-muted-foreground text-sm max-w-xs truncate">
-                                    {type.description || '—'}
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    <span className="px-2 py-0.5 bg-muted rounded-full text-xs text-foreground">
-                                        {type.risk_count}
-                                    </span>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    {type.is_system ? (
-                                        <span className="px-2 py-0.5 bg-info/10 text-accent-text rounded-full text-xs">
-                                            {t('admin:risk_types_panel.badges.system')}
-                                        </span>
-                                    ) : type.is_active ? (
-                                        <span className="px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs">
-                                            {t('admin:risk_types_panel.badges.active')}
-                                        </span>
-                                    ) : (
-                                        <span className="px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs">
-                                            {t('admin:risk_types_panel.badges.deleted')}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {canUpdate ? (
-                                            <button
+                                <TR key={type.id} data-archived={type.is_active ? undefined : 'true'}>
+                                    <TD>
+                                        <ColorSwatch color={type.color} className="h-6 w-6" />
+                                    </TD>
+                                    <TD>
+                                        <code className="text-sm font-mono text-foreground">{type.code}</code>
+                                    </TD>
+                                    <TD className="font-medium text-foreground">{type.display_name}</TD>
+                                    <TD className="max-w-xs truncate text-sm text-muted-foreground">
+                                        {type.description || '—'}
+                                    </TD>
+                                    <TD align="center">
+                                        <Badge tone="neutral">{format.number(type.risk_count)}</Badge>
+                                    </TD>
+                                    <TD align="center">
+                                        {type.is_system ? (
+                                            <Badge tone="info">{t('admin:risk_types_panel.badges.system')}</Badge>
+                                        ) : type.is_active ? (
+                                            <Badge tone="success">{t('admin:risk_types_panel.badges.active')}</Badge>
+                                        ) : (
+                                            <Badge tone="neutral">{t('admin:risk_types_panel.badges.deleted')}</Badge>
+                                        )}
+                                    </TD>
+                                    <TD align="right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            {/* GAP-B-03: an edit the user cannot make stays visible with its reason. */}
+                                            <RowActionButton
+                                                icon={Edit}
+                                                label={t('common:actions.edit_named', { name: type.display_name })}
                                                 onClick={() => panel.openEdit(type)}
-                                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                                                title={t('common:actions.edit')}
-                                                aria-label={t('common:actions.edit')}
-                                            >
-                                                <Edit className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        ) : null}
+                                                disabledReason={canUpdate
+                                                    ? undefined
+                                                    : t('admin:risk_types_panel.actions.edit_disabled', { name: type.display_name })}
+                                            />
 
-                                        {canDelete && (
-                                            <button
-                                                onClick={() => panel.requestDelete(type)}
-                                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                title={t('common:actions.archive_named', { name: type.display_name })}
-                                                aria-label={t('common:actions.archive_named', { name: type.display_name })}
-                                            >
-                                                <Archive className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        )}
+                                            {canDelete && (
+                                                <RowActionButton
+                                                    icon={Archive}
+                                                    tone="danger"
+                                                    label={t('common:actions.archive_named', { name: type.display_name })}
+                                                    onClick={() => panel.requestDelete(type)}
+                                                />
+                                            )}
 
-                                        {canRestore && (
-                                            <button
-                                                onClick={() => panel.handleRestore(type)}
-                                                className="p-1.5 text-muted-foreground hover:text-success-text hover:bg-success/10 rounded transition-colors"
-                                                title={t('admin:risk_types_panel.actions.restore')}
-                                                aria-label={t('admin:risk_types_panel.actions.restore')}
-                                            >
-                                                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
+                                            {canRestore && (
+                                                <RowRestoreButton
+                                                    itemName={type.display_name}
+                                                    onClick={() => panel.handleRestore(type)}
+                                                />
+                                            )}
+                                        </div>
+                                    </TD>
+                                </TR>
                             );
                         })}
-                    </tbody>
-                </table>
-            </div>
+                    </TBody>
+                </Table>
+            )}
 
             {/* Create/Edit Modal */}
             <RiskTypeModal
@@ -335,38 +320,25 @@ export function RiskTypesPanel() {
                 onSave={panel.handleSave}
             />
 
-            {/* Archive confirmation (D10): risk types are soft-deleted and
-                restorable, so this is an archive; busy and errors stay here. */}
-            {panel.deleteConfirm && (
-                <DialogShell
-                    isOpen
-                    onClose={panel.closeDelete}
-                    titleId={deleteTitleId}
-                    descriptionIds={[deleteDescriptionId]}
-                    role="alertdialog"
-                    size="sm"
-                    isBusy={panel.isDeleting}
-                >
-                    <DialogHeader title={t('confirmations.archive_risk_type')} icon={Archive} tone="danger" />
-                    <DialogBody className="text-sm text-muted-foreground">
-                        <p id={deleteDescriptionId}>
-                            {t('admin:risk_types_panel.archive_confirm', { name: panel.deleteConfirm.display_name })}
-                            {panel.deleteConfirm.risk_count > 0 && (
-                                <span className="mt-2 block text-warning-text">
-                                    {t('admin:risk_types_panel.delete_warning', { count: panel.deleteConfirm.risk_count })}
-                                </span>
-                            )}
-                        </p>
-                        <RiskHubFieldError errorKey={panel.actionErrorKey} />
-                    </DialogBody>
-                    <DialogFooter
-                        cancelLabel={t('common:actions.cancel')}
-                        intent="destructive"
-                        submitLabel={t('common:actions.archive')}
-                        onSubmit={() => void panel.handleDelete()}
-                    />
-                </DialogShell>
-            )}
+            {/* PM-1 / D10: risk types are soft-deleted and restorable, so this is an
+                archive; the API takes no reason. Busy and errors stay in the dialog. */}
+            <ConfirmDialog
+                isOpen={archiveTarget !== null}
+                onClose={panel.closeDelete}
+                onConfirm={() => void panel.handleDelete()}
+                intent="archive"
+                title={t('confirmations.archive_risk_type')}
+                message={archiveTarget
+                    ? [
+                        t('admin:risk_types_panel.archive_confirm', { name: archiveTarget.display_name }),
+                        archiveTarget.risk_count > 0
+                            ? t('admin:risk_types_panel.delete_warning', { count: archiveTarget.risk_count })
+                            : '',
+                    ].filter(Boolean).join('\n\n')
+                    : undefined}
+                isLoading={panel.isDeleting}
+                errorText={archiveTarget ? translateUiMessage(t, panel.actionErrorKey) || null : null}
+            />
         </div>
     );
 }

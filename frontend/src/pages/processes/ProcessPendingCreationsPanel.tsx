@@ -1,5 +1,8 @@
 import { Clock, RotateCcw } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { ProcessPendingCreationRead } from '@/types/process';
@@ -30,17 +33,17 @@ export function ProcessPendingCreationsPanel({
     if (items.length === 0) return null;
 
     return (
-        <section
+        <Card
+            as="section"
             aria-labelledby="process-pending-creations-heading"
-            className="glass-card space-y-4 border border-warning/20"
+            className="border-warning/20"
             data-testid="process-pending-creations"
         >
-            <div>
-                <h2 id="process-pending-creations-heading" className="text-sm font-black uppercase tracking-widest text-warning-text">
-                    {t('pending_creation.title')}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">{t('pending_creation.description')}</p>
-            </div>
+            <CardHeader
+                title={t('pending_creation.title')}
+                titleId="process-pending-creations-heading"
+                description={t('pending_creation.description')}
+            />
             <ul className="space-y-3">
                 {items.map((item) => {
                     const canViewDiff = resolveCapabilityFlag(item.capabilities, 'can_view_diff');
@@ -54,16 +57,14 @@ export function ProcessPendingCreationsPanel({
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="min-w-0 space-y-2">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full border border-warning/20 bg-warning/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-warning-text">
-                                        {t('pending_creation.badge')}
-                                    </span>
-                                    {resolveCapabilityFlag(item.capabilities, 'can_view_diff') ? (
-                                        <span className="rounded-full border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-foreground">
+                                    <Badge tone="warning">{t('pending_creation.badge')}</Badge>
+                                    {canViewDiff ? (
+                                        <Badge tone="neutral" variant="outline">
                                             {t('derived.cif')}: {t(`values.cif_override.${item.derived.cif}`)}
-                                        </span>
+                                        </Badge>
                                     ) : null}
                                 </div>
-                                {resolveCapabilityFlag(item.capabilities, 'can_view_diff') ? (
+                                {canViewDiff ? (
                                     <>
                                         <h3 id={headingId} className="text-base font-bold text-foreground">
                                             {itemName}
@@ -93,8 +94,9 @@ export function ProcessPendingCreationsPanel({
                                 )}
                             </div>
                             <div className="flex shrink-0 gap-2">
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="outline"
+                                    size="compact"
                                     aria-describedby={headingId}
                                     onClick={() => onOpenRequest(
                                         item.approval_id,
@@ -104,23 +106,20 @@ export function ProcessPendingCreationsPanel({
                                                 ? 'pending'
                                                 : 'mine',
                                     )}
-                                    className="rounded-xl border border-border px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-tint/5 hover:text-foreground"
                                 >
                                     {t('pending_creation.open_request')}
-                                </button>
+                                </Button>
                                 {resolveCapabilityFlag(item.capabilities, 'can_cancel') ? (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="outline"
+                                        size="compact"
                                         disabled={cancellingApprovalId === item.approval_id}
                                         aria-describedby={headingId}
                                         onClick={() => onCancel(item.approval_id, itemName)}
-                                        className="rounded-xl border border-destructive/20 px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 disabled:opacity-50"
                                     >
-                                        <span className="flex items-center gap-1.5">
-                                            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                                            {t('pending_change.cancel')}
-                                        </span>
-                                    </button>
+                                        <RotateCcw aria-hidden="true" />
+                                        {t('pending_change.cancel')}
+                                    </Button>
                                 ) : null}
                             </div>
                         </div>
@@ -128,6 +127,6 @@ export function ProcessPendingCreationsPanel({
                     );
                 })}
             </ul>
-        </section>
+        </Card>
     );
 }

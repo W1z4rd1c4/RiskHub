@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import type { KeyRiskIndicator, KRIMonitoringFields } from '@/types/kri';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { formatKriUnit } from '@/lib/kriUnits';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 
 export type KRIGaugeCardKri = Pick<
@@ -64,21 +65,23 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
         >
             <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                    <h4 className="text-foreground font-bold text-sm leading-tight mb-1 group-hover:text-accent-text transition-colors">
+                    <span className="block text-foreground font-bold text-sm leading-tight mb-1 group-hover:text-accent-text transition-colors">
                         {metric_name}
-                    </h4>
-                    <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
+                    </span>
+                    <span className="text-eyebrow">
                         {t('overview.metric_detail', { ns: 'kris' })}
                     </span>
                 </div>
                 <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold text-xs uppercase tracking-wide ${monitoring.badgeClassName}`}>
-                    <MonitoringIcon className="h-4 w-4" />
+                    <MonitoringIcon className="h-4 w-4" aria-hidden="true" />
                     {t(monitoring.labelKey)}
                 </div>
                 {showDaysOverdue && (
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning-text font-bold text-xs uppercase">
-                        <MonitoringIcon className="h-3 w-3" />
-                        {resolvedDaysOverdue > 0 ? `${resolvedDaysOverdue}d` : t('monitoring.not_submitted', { ns: 'kris' })}
+                        <MonitoringIcon className="h-3 w-3" aria-hidden="true" />
+                        {resolvedDaysOverdue > 0
+                            ? t('overdue.days_overdue', { ns: 'kris', count: resolvedDaysOverdue })
+                            : t('monitoring.not_submitted', { ns: 'kris' })}
                     </div>
                 )}
             </div>
@@ -86,9 +89,9 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
             <div className="space-y-4">
                 <div className="flex items-end justify-between">
                     <div>
-                        <div className="text-2xl font-black text-foreground flex items-baseline gap-2">
+                        <div className="text-2xl font-bold tabular-nums text-foreground flex items-baseline gap-2">
                             {formatNumber(current_value)}
-                            <span className="text-xs text-muted-foreground font-bold">{unit}</span>
+                            <span className="text-xs text-muted-foreground font-bold">{formatKriUnit(unit, t, current_value)}</span>
                         </div>
                     </div>
                 </div>
@@ -111,8 +114,8 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                 />
 
                 <div className="flex justify-between text-xs font-bold uppercase tracking-tighter text-muted-foreground">
-                    <span>{t('overview.min_value', { ns: 'kris', value: formatNumber(lower_limit), unit })}</span>
-                    <span>{t('overview.max_value', { ns: 'kris', value: formatNumber(upper_limit), unit })}</span>
+                    <span>{t('overview.min_value', { ns: 'kris', value: formatNumber(lower_limit), unit: formatKriUnit(unit, t, lower_limit) })}</span>
+                    <span>{t('overview.max_value', { ns: 'kris', value: formatNumber(upper_limit), unit: formatKriUnit(unit, t, upper_limit) })}</span>
                 </div>
             </div>
         </motion.button>

@@ -41,7 +41,7 @@ describe('risk register restore row action', () => {
             capabilities: { can_restore: true },
         } as Partial<RiskSummary>);
 
-        const restore = screen.getByRole('button', { name: 'actions.unarchive' });
+        const restore = screen.getByRole('button', { name: 'Restore' });
         expect(restore).toHaveAttribute('type', 'button');
         expect(restore).toHaveAttribute('data-testid', 'risk-unarchive-7');
         expect(restore.className).not.toMatch(/emerald/);

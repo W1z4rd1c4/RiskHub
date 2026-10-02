@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { RegisterFilterCard } from '@/components/ict-register/RegisterFilterCard';
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
+import { buildFacetChip, buildFilterChip } from '@/components/ict-register/registerFilterChips';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 import type { CollectionFacetOption } from '@/types/collection';
 import type { IssueFacets, IssueSeverityFilter, IssueStatus } from '@/types/issue';
@@ -40,15 +41,19 @@ export function IssuesFilterBar({ facets, filters, isLoading, onClearAll, onFilt
         owner_user_id: t('columns.owner'),
         remediation_status: t('workflow.fields.remediation_status'),
     }), [t]);
-    const facetFor = (key: OptionalIssueFilter) => key === 'department_id' ? facets.department ?? [] : key === 'owner_user_id' ? facets.owner ?? [] : facets.remediation_status ?? [];
+    const facetFor = useCallback((key: OptionalIssueFilter) => key === 'department_id' ? facets.department ?? [] : key === 'owner_user_id' ? facets.owner ?? [] : facets.remediation_status ?? [], [facets]);
+    const optionalValueLabel = useCallback((key: OptionalIssueFilter, value: string, fallback: string) => (
+        key === 'remediation_status' ? t(`remediation_status.${value}`, fallback) : fallback
+    ), [t]);
+    // PG-05: every chip reads "Label: value" (never an "All …" prefix, never a bare label).
     const chips = useMemo<RegisterFilterChip[]>(() => [
-        ...(filters.status ? [{ key: 'status', label: `${t('filters.all_statuses')}: ${t(`status.${filters.status}`)}` }] : []),
-        ...(filters.severity ? [{ key: 'severity', label: `${t('filters.all_severities')}: ${t(`severity.${filters.severity}`)}` }] : []),
+        ...(filters.status ? [buildFilterChip(t, 'status', t('columns.status'), t(`status.${filters.status}`))] : []),
+        ...(filters.severity ? [buildFilterChip(t, 'severity', t('columns.severity'), t(`severity.${filters.severity}`))] : []),
         ...(filters.include_closed ? [{ key: 'include_closed', label: t('filters.include_closed') }] : []),
         ...(filters.overdue ? [{ key: 'overdue', label: t('filters.overdue_only') }] : []),
         ...(filters.exclude_active_exceptions ? [{ key: 'exclude_active_exceptions', label: t('filters.exclude_active_exceptions') }] : []),
-        ...selected.map((key) => ({ key, label: labels[key] })),
-    ], [filters, labels, selected, t]);
+        ...selected.map((key) => buildFacetChip(t, key, labels[key], facetFor(key), filters[key], (value, fallback) => optionalValueLabel(key, value, fallback))),
+    ], [facetFor, filters, labels, optionalValueLabel, selected, t]);
     const remove = (key: string) => {
         if (key === 'status') onFilterChange('status', '');
         else if (key === 'severity') onFilterChange('severity', '');
@@ -70,9 +75,9 @@ export function IssuesFilterBar({ facets, filters, isLoading, onClearAll, onFilt
         filtersLabel={t('register.filters.add')}
         isLoading={isLoading}
         lifecycleControl={<div className="flex flex-wrap gap-3">
-            <ThemedSelect value={filters.status} onValueChange={(value) => onFilterChange('status', value as IssueStatus | '')} allowEmpty emptyLabel={t('filters.all_statuses')} triggerAriaLabel={t('filters.all_statuses')} triggerTestId="issues-status-filter-trigger" contentTestId="issues-status-filter-content" optionTestIdPrefix="issues-status-filter-option" options={issueStatusFacetOptions(facets.status, filters.status).map((option) => ({ value: option.value, label: `${t(`status.${option.value}`, option.label)} (${option.count})`, disabled: option.disabled }))} />
-            <ThemedSelect value={filters.severity} onValueChange={(value) => onFilterChange('severity', value as IssueSeverityFilter | '')} allowEmpty emptyLabel={t('filters.all_severities')} triggerAriaLabel={t('filters.all_severities')} triggerTestId="issues-severity-filter-trigger" contentTestId="issues-severity-filter-content" optionTestIdPrefix="issues-severity-filter-option" options={issueSeverityFacetOptions(facets.severity, filters.severity).map((option) => ({ value: option.value, label: `${t(`severity.${option.value}`, option.label)} (${option.count})`, disabled: option.disabled }))} />
-            <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-tint/5 px-3 text-sm text-foreground"><input type="checkbox" checked={filters.include_closed} onChange={(event) => onFilterChange('include_closed', event.target.checked)} className="accent-accent" />{t('filters.include_closed')}</label>
+            <ThemedSelect value={filters.status} onValueChange={(value) => onFilterChange('status', value as IssueStatus | '')} allowEmpty emptyLabel={t('filters.all_statuses')} triggerAriaLabel={t('columns.status')} triggerTestId="issues-status-filter-trigger" contentTestId="issues-status-filter-content" optionTestIdPrefix="issues-status-filter-option" options={issueStatusFacetOptions(facets.status, filters.status).map((option) => ({ value: option.value, label: `${t(`status.${option.value}`, option.label)} (${option.count})`, disabled: option.disabled }))} />
+            <ThemedSelect value={filters.severity} onValueChange={(value) => onFilterChange('severity', value as IssueSeverityFilter | '')} allowEmpty emptyLabel={t('filters.all_severities')} triggerAriaLabel={t('columns.severity')} triggerTestId="issues-severity-filter-trigger" contentTestId="issues-severity-filter-content" optionTestIdPrefix="issues-severity-filter-option" options={issueSeverityFacetOptions(facets.severity, filters.severity).map((option) => ({ value: option.value, label: `${t(`severity.${option.value}`, option.label)} (${option.count})`, disabled: option.disabled }))} />
+            <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-tint/5 px-3 text-sm text-foreground"><Checkbox checked={filters.include_closed} onCheckedChange={(checked) => onFilterChange('include_closed', checked)} data-testid="issues-include-closed-filter" />{t('filters.include_closed')}</label>
         </div>}
         onAddFilter={(key) => setActiveKeys((current) => [...new Set([...current, key as OptionalIssueFilter])])}
         onClearAll={() => { setActiveKeys([]); onClearAll(); }}
@@ -85,8 +90,10 @@ export function IssuesFilterBar({ facets, filters, isLoading, onClearAll, onFilt
         searchPlaceholder={t('filters.search_placeholder')}
         testIdPrefix="issues"
     >
-        <label className="flex items-center gap-2 rounded-xl border border-border bg-tint/[0.03] p-3 text-sm text-foreground"><input type="checkbox" checked={filters.overdue} onChange={(event) => onFilterChange('overdue', event.target.checked)} className="accent-accent" />{t('filters.overdue_only')}</label>
-        <label className="flex items-center gap-2 rounded-xl border border-border bg-tint/[0.03] p-3 text-sm text-foreground"><input type="checkbox" checked={filters.exclude_active_exceptions} onChange={(event) => onFilterChange('exclude_active_exceptions', event.target.checked)} className="accent-accent" />{t('filters.exclude_active_exceptions')}</label>
-        {activeKeys.map((key) => <div key={key} className="relative rounded-xl border border-border bg-tint/[0.03] p-3 pr-12"><Button variant="secondary" size="iconCompact" aria-label={t('register.filters.remove', { label: labels[key] })} onClick={() => remove(key)} className="absolute right-2 top-2"><X aria-hidden="true" /></Button><ThemedSelect value={String(filters[key] ?? '')} onValueChange={(value) => key === 'remediation_status' ? onFilterChange('remediation_status', value as IssueRegisterFilters['remediation_status']) : onFilterChange(key, value ? Number(value) : null)} allowEmpty emptyLabel={t('common:filters.all')} triggerAriaLabel={labels[key]} options={withCounts(facetFor(key)).map((option) => key === 'remediation_status' ? { ...option, label: t(`remediation_status.${option.value}`, option.label) } : option)} /></div>)}
+        <label className="flex items-center gap-2 rounded-xl border border-border bg-nested p-3 text-sm text-foreground"><Checkbox checked={filters.overdue} onCheckedChange={(checked) => onFilterChange('overdue', checked)} data-testid="issues-overdue-filter" />{t('filters.overdue_only')}</label>
+        <label className="flex items-center gap-2 rounded-xl border border-border bg-nested p-3 text-sm text-foreground"><Checkbox checked={filters.exclude_active_exceptions} onCheckedChange={(checked) => onFilterChange('exclude_active_exceptions', checked)} data-testid="issues-exclude-exceptions-filter" />{t('filters.exclude_active_exceptions')}</label>
+        {activeKeys.map((key) => <RegisterFilterCard key={key} removeLabel={t('register.filters.remove', { label: labels[key] })} onRemove={() => remove(key)}>
+            <ThemedSelect value={String(filters[key] ?? '')} onValueChange={(value) => key === 'remediation_status' ? onFilterChange('remediation_status', value as IssueRegisterFilters['remediation_status']) : onFilterChange(key, value ? Number(value) : null)} allowEmpty emptyLabel={t('common:filters.all')} triggerAriaLabel={labels[key]} options={withCounts(facetFor(key)).map((option) => key === 'remediation_status' ? { ...option, label: t(`remediation_status.${option.value}`, option.label) } : option)} />
+        </RegisterFilterCard>)}
     </RegisterListToolbar>;
 }

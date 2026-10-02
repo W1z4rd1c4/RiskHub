@@ -82,6 +82,7 @@
         "risks": {
             "title": "Linked risks",
             "empty": "No risks are linked to this threat yet.",
+            "select_label": "Risk",
             "select_placeholder": "Select a risk to link..."
         },
         "errors": {

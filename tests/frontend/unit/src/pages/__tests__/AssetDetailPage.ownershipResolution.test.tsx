@@ -27,17 +27,26 @@ vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({ canViewGovernance: mocks.canViewGovernance }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
-            if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
-            if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
-            return key;
-        },
-        i18n: { language: 'cs' },
-    }),
-    useFormat: () => ({ locale: 'cs', date: (value?: string | null) => value ?? '' }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    return {
+        useTranslation: () => ({
+            t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
+                if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
+                if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
+                return key;
+            },
+            i18n: { language: 'cs' },
+        }),
+        // The real formatters with the active (Czech) locale, so the timestamp assertions below
+        // prove that `useFormat()` carries the locale into the pending-change panel.
+        useFormat: () => ({
+            locale: 'cs',
+            date: (value?: string | null) => formatters.formatDateValue(value, 'cs'),
+            time: (value?: string | null) => formatters.formatTimeValue(value, 'cs'),
+        }),
+    };
+});
 
 vi.mock('@/pages/assets/useAssetDetailState', () => ({
     useAssetDetailState: () => ({

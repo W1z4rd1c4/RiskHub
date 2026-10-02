@@ -32,6 +32,10 @@ Ratcheted by `npm run quality:ui-ratchet` (G-RATCHET, `frontend/scripts/quality/
    and may only go down: any increase, or a new file with a count above 0, fails.
 3. `npm run quality:ui-ratchet -- --update-baseline` locks in decreases and refuses increases;
    `--force` is reserved for pure file moves/renames and needs explicit PR review.
+4. Module paths whose counts reached zero join the G-ESLINT clean paths
+   (`DESIGN_CLEAN_PATHS` in `frontend/eslint.config.js`): there `npx eslint` hard-bans the same
+   class patterns and raw `<button>`/`<input>`/`<textarea>`/`<select>`/`<table>` elements, so a
+   regression fails lint instead of only the ratchet. The list only grows (audit §4.1, §5.5).
 
 ### Backend
 

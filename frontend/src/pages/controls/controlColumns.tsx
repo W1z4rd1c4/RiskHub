@@ -1,12 +1,15 @@
 import type { MouseEvent } from 'react';
-import { Calendar, Lock } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
 import type { Column } from '@/components/tables';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import type { ControlSummary } from '@/types/control';
 
-import { ARCHIVED_CONTROL_BADGE_CLASS_NAME, getControlRiskLevelColor } from './controlsPagePresentation';
+import { formatControlFrequency, getControlRiskLevelColor } from './controlsPagePresentation';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -29,13 +32,7 @@ export function buildControlColumns({
                     <span className="text-sm font-bold text-foreground">{control.name}</span>
                     {(resolveCapabilityFlag(control.capabilities, 'has_pending_delete_approval')
                         || resolveCapabilityFlag(control.capabilities, 'has_pending_update_approval')) ? (
-                        <div
-                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-warning/10 text-warning-text border border-warning/20"
-                            title={translate('columns.pending_changes_title')}
-                        >
-                            <Lock className="h-2.5 w-2.5" aria-hidden="true" />
-                            {translate('columns.pending')}
-                        </div>
+                        <PendingChangeBadge data-testid={`control-pending-${control.id}`} />
                     ) : null}
                 </div>
             ),
@@ -55,9 +52,9 @@ export function buildControlColumns({
             label: translate('columns.frequency'),
             sortable: true,
             render: (control) => (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground capitalize">
-                    <Calendar className="h-3 w-3 text-accent" aria-hidden="true" />
-                    {translate(`frequencies.${control.frequency}`, { defaultValue: control.frequency })}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3 text-accent-text" aria-hidden="true" />
+                    {formatControlFrequency(control.frequency, (key, fallback) => translate(key, { defaultValue: fallback }))}
                 </div>
             ),
         },
@@ -68,9 +65,9 @@ export function buildControlColumns({
             className: 'text-center',
             render: (control) => (
                 <div className="flex justify-center">
-                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getControlRiskLevelColor(control.risk_level)}`}>
-                        {control.risk_level} / 5
-                    </div>
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-bold tabular-nums ${getControlRiskLevelColor(control.risk_level)}`}>
+                        {translate('columns.risk_level_value', { level: control.risk_level })}
+                    </span>
                 </div>
             ),
         },
@@ -83,14 +80,13 @@ export function buildControlColumns({
                 const MonitoringIcon = monitoring.icon;
                 return (
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}>
-                            <MonitoringIcon className="h-3 w-3" aria-hidden="true" />
+                        <Badge size="sm" shape="rounded" icon={MonitoringIcon} className={monitoring.badgeClassName}>
                             {translate(monitoring.labelKey)}
-                        </span>
+                        </Badge>
                         {control.is_archived ? (
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${ARCHIVED_CONTROL_BADGE_CLASS_NAME}`}>
+                            <Badge size="sm" shape="rounded" tone="neutral">
                                 {translate('status.archived')}
-                            </span>
+                            </Badge>
                         ) : null}
                     </div>
                 );
@@ -102,14 +98,11 @@ export function buildControlColumns({
             render: (control) => (
                 <div className="text-right flex items-center justify-end gap-2">
                     {control.is_archived && resolveCapabilityFlag(control.capabilities, 'can_restore') ? (
-                        <button
-                            type="button"
+                        <RowRestoreButton
+                            itemName={control.name}
                             onClick={(event) => onRestore(control.id, event)}
                             data-testid={`control-unarchive-${control.id}`}
-                            className="px-2 py-1 rounded-md border border-success/30 text-success-text hover:bg-success/10 text-[10px] font-black uppercase tracking-wider"
-                        >
-                            {translate('actions.unarchive')}
-                        </button>
+                        />
                     ) : null}
                 </div>
             ),

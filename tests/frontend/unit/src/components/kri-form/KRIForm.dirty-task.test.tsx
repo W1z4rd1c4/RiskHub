@@ -296,4 +296,16 @@ describe('KRI create dirty-task protection', () => {
 
         expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     });
+
+    it('shows a missing name on its field and focuses it (§4.8, AX-04)', async () => {
+        renderKriCreate({ data: { ...initialData, metric_name: '' } });
+        await screen.findByText('Authentication Drift');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Create KRI' }));
+        const name = await screen.findByRole('textbox', { name: /KRI Name/i });
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(name).toHaveAccessibleDescription('Please enter a KRI name.');
+        await waitFor(() => expect(name).toHaveFocus());
+    });
 });

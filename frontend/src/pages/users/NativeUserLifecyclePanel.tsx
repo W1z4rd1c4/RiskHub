@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { useTranslation } from '@/i18n/hooks';
@@ -13,6 +14,8 @@ import type { AssistedRecoveryRequest, LocalAccountSecurityResponse, LocalIdenti
 import { useNativeAction } from '@/pages/native/useNativeAction';
 
 type Operation = 'resend' | 'cancel' | 'reset' | 'recover' | 'suspend' | 'resume';
+// GAP-D-18: operations that withdraw access or an invitation read as destructive.
+const DESTRUCTIVE_OPERATIONS: ReadonlySet<Operation> = new Set<Operation>(['suspend', 'cancel']);
 export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh, blocked = false, unresolved = false, onUnknown }: {
     user: AccessUserRead;
     onBusy: (busy: boolean) => void;
@@ -42,7 +45,7 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh,
     const [uncertain, setUncertain] = useState(false);
     const reasonInput = useRef<HTMLInputElement>(null);
     useEffect(() => { if (operation) reasonInput.current?.focus(); }, [operation]);
-    const focus = useRef<HTMLParagraphElement>(null);
+    const focus = useRef<HTMLDivElement>(null);
     const action = useNativeAction(() => { setStatus(null); setPassword(''); setFactor(''); setOperation(null); setOutcome(null); });
     const pending = action.pending;
     useEffect(() => { onBusy(pending); return () => onBusy(false); }, [pending, onBusy]);
@@ -106,27 +109,27 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh,
         });
     };
     return <section className="mt-6 space-y-4 border-t pt-5" aria-busy={loading || pending}>
-        <h3 className="font-semibold">{t('native_users.lifecycle')}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{t('native_users.lifecycle')}</h3>
         <p>{user.name} ({user.email})</p>
-        {loading && <p role="status">{t('native_users.loading')}</p>}
-        {loadFailed && <p role="alert">{t('native_users.status_failed')}</p>}
+        {loading && <InlineMessage tone="info">{t('native_users.loading')}</InlineMessage>}
+        {loadFailed && <InlineMessage tone="danger">{t('native_users.status_failed')}</InlineMessage>}
         {status && !loading && <dl className="grid grid-cols-2 gap-2 text-sm">
             <dt>{t('native_users.enrollment')}</dt><dd>{t(`native_users.states.${status.enrollment_state ?? 'unknown'}`)}</dd>
             <dt>{t('native_users.delivery_label')}</dt><dd>{t(`native_users.message_delivery.${status.delivery_status ?? 'none'}`)}</dd>
             <dt>{t('native_users.suspension')}</dt><dd>{t(status.local_suspended ? 'native_users.suspended' : 'native_users.not_suspended')}</dd>
             <dt>{t('native_users.recovery')}</dt><dd>{t(status.recovery_pending ? 'native_users.recovery_pending' : 'native_users.no_recovery')}</dd>
         </dl>}
-        {outcome && <p ref={focus} tabIndex={-1} role="status">{outcome}</p>}
-        {action.error && <p ref={focus} tabIndex={-1} role="alert">{t(`native_users.errors.${action.error}`)}</p>}
-        {uncertain && <p role="alert">{t('native_users.unknown_action')}</p>}
-        <Button variant="outline" disabled={loading || pending || blocked} onClick={refresh}>{t('native_users.refresh_status')}</Button>
-        {resolveCapabilityFlag(user.capabilities, 'recovery_offline_required') && <p>{t('native_users.offline_recovery')}</p>}
-        {user.capabilities?.active_status_block_reason && <p>{t('native_users.status_blocked')}</p>}
+        {outcome && <InlineMessage ref={focus} tabIndex={-1} tone="success">{outcome}</InlineMessage>}
+        {action.error && <InlineMessage ref={focus} tabIndex={-1} tone="danger">{t(`native_users.errors.${action.error}`)}</InlineMessage>}
+        {uncertain && <InlineMessage tone="danger">{t('native_users.unknown_action')}</InlineMessage>}
+        <Button type="button" variant="outline" disabled={loading || pending || blocked} onClick={refresh}>{t('native_users.refresh_status')}</Button>
+        {resolveCapabilityFlag(user.capabilities, 'recovery_offline_required') && <InlineMessage tone="warning">{t('native_users.offline_recovery')}</InlineMessage>}
+        {user.capabilities?.active_status_block_reason && <InlineMessage tone="warning">{t('native_users.status_blocked')}</InlineMessage>}
         {!operation && !uncertain && <div className="flex flex-wrap gap-2">{(['resend', 'cancel', 'reset', 'recover', 'suspend', 'resume'] as const).filter(allowed).map((next) =>
-            <Button key={next} variant="outline" disabled={loading || loadFailed || !status || pending || blocked || unresolved} onClick={() => { setOperation(next); setOutcome(null); action.setError(null); }}>{t(`native_users.actions.${next}`)}</Button>)}</div>}
+            <Button key={next} type="button" variant={DESTRUCTIVE_OPERATIONS.has(next) ? 'destructive' : 'outline'} disabled={loading || loadFailed || !status || pending || blocked || unresolved} onClick={() => { setOperation(next); setOutcome(null); action.setError(null); }}>{t(`native_users.actions.${next}`)}</Button>)}</div>}
         {operation && <form onSubmit={submit} className="space-y-4">
             <p>{t(`native_users.effects.${operation}`, { name: user.name, email: user.email })}</p>
-            {!allowed(operation) && <p role="alert">{t('native_users.capability_changed')}</p>}
+            {!allowed(operation) && <InlineMessage tone="danger">{t('native_users.capability_changed')}</InlineMessage>}
             <fieldset disabled={pending || blocked} className="space-y-4">
                 <Field label={t('native_users.reason')} required>{(field) => <Input {...field} ref={reasonInput} value={reason} onChange={(event) => setReason(event.target.value)} required maxLength={2000} />}</Field>
                 {operation === 'recover' && <>
@@ -144,7 +147,7 @@ export function NativeUserLifecyclePanel({ user, onBusy, onCommitted, onRefresh,
                     </>}
                 </>}
                 <div className="flex gap-3">
-                    <Button type="submit" disabled={!allowed(operation) || loading || loadFailed || uncertain || unresolved}>{t('native_users.confirm_action')}</Button>
+                    <Button type="submit" variant={DESTRUCTIVE_OPERATIONS.has(operation) ? 'destructive' : 'accent'} disabled={!allowed(operation) || loading || loadFailed || uncertain || unresolved}>{t('native_users.confirm_action')}</Button>
                     <Button type="button" variant="outline" onClick={() => { setOperation(null); setPassword(''); setFactor(''); }}>{t('common:actions.cancel')}</Button>
                 </div>
             </fieldset>

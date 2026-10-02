@@ -34,6 +34,15 @@
     "process_memory": "Využití paměti procesu",
     "active_users": "Aktivní uživatelé",
     "in_last_24h": "Za posledních 24 hodin",
+    "job_status": {
+      "running": "Běží",
+      "succeeded": "Úspěšně dokončeno",
+      "failed": "Selhalo",
+      "stopped": "Zastaveno",
+      "pending": "Čeká",
+      "processing": "Zpracovává se",
+      "dead_letter": "Nedoručitelné"
+    },
     "scheduler": {
       "title": "Běh plánovače",
       "subtitle": "Vlastnictví, stav zámku a poslední spuštění plánovaných úloh.",
@@ -101,7 +110,8 @@
     "details_modal": {
       "title": "Detail auditní události",
       "copy": "Kopírovat JSON",
-      "copied": "Zkopírováno"
+      "copied": "Zkopírováno",
+      "copy_failed": "Podrobnosti auditu se nepodařilo zkopírovat."
     },
     "columns": {
       "timestamp": "Časové razítko",
@@ -109,13 +119,37 @@
       "user": "Uživatel",
       "client_ip": "IP klienta",
       "details": "Podrobnosti"
+    },
+    "events": {
+      "create": "Vytvořeno",
+      "update": "Upraveno",
+      "delete": "Smazáno",
+      "archive": "Archivováno",
+      "approve": "Schváleno",
+      "reject": "Zamítnuto",
+      "escalate": "Eskalováno",
+      "status_change": "Změna stavu",
+      "link": "Propojeno",
+      "unlink": "Odpojeno",
+      "login": "Přihlášení",
+      "failed_login": "Neúspěšné přihlášení",
+      "refresh": "Obnovení relace",
+      "failed_refresh": "Neúspěšné obnovení relace",
+      "logout": "Odhlášení",
+      "logout_all": "Odhlášení ze všech zařízení",
+      "cancel": "Zrušeno",
+      "refresh_session_context_changed": "Změna kontextu relace při obnovení",
+      "jwks_fallback_exhausted": "Vyčerpána záložní cesta klíčů poskytovatele identity"
     }
   },
   "sessions": {
     "title": "Aktivní relace",
     "description": "Uživatelé s aktivitou za posledních 24 hodin",
     "loading": "Načítání relací...",
-    "devices": "zařízení",
+    "devices_count": "{{count}} zařízení",
+    "devices_count_one": "{{count}} zařízení",
+    "devices_count_few": "{{count}} zařízení",
+    "devices_count_other": "{{count}} zařízení",
     "revoke_failed": "Nepodařilo se zrušit relaci.",
     "online": "Online",
     "offline": "Offline",
@@ -351,6 +385,7 @@
       "resource": "Zdroj",
       "permissions_capabilities": "Oprávnění a schopnosti",
       "click_to_toggle": "Kliknutím přepnete oprávnění.",
+      "granted": "Uděleno",
       "resources": {
         "users": {
           "label": "Uživatelé",
@@ -571,6 +606,10 @@
       "empty": "Pro aktuální filtry nebyla nalezena žádná rizika.",
       "select_all_hint": "Odešle se všem rizikům odpovídajícím filtrům.",
       "selected_count": "Vybráno: {{count}}",
+      "selected_count_one": "Vybráno: {{count}}",
+      "selected_count_few": "Vybráno: {{count}}",
+      "selected_count_other": "Vybráno: {{count}}",
+      "loading": "Načítání rizik…",
       "send": "Odeslat dotazníky",
       "confirm_title": "Odeslat dotazníky pro {{count}} rizik?",
       "confirm_title_one": "Odeslat dotazník pro {{count}} riziko?",
@@ -585,6 +624,7 @@
     "title": "Role platformy",
     "show_deleted": "Zobrazit archivované",
     "add_role": "Přidat roli",
+    "empty": "Zatím nejsou žádné role.",
     "columns": {
       "role_name": "Název role",
       "permissions": "Oprávnění",
@@ -598,8 +638,7 @@
       "deleted": "Archivované"
     },
     "actions": {
-      "edit_disabled": "Roli {{role}} nelze upravit",
-      "restore": "Obnovit"
+      "edit_disabled": "Roli {{role}} nelze upravit"
     },
     "archive_confirm": "Archivovat roli {{name}}? Později ji lze obnovit.",
     "cannot_archive_assigned": "Nelze archivovat: k této roli je přiřazeno {{count}} uživatelů.",
@@ -634,6 +673,7 @@
     "title": "Oddělení",
     "show_deleted": "Zobrazit archivované",
     "add_department": "Přidat oddělení",
+    "empty": "Zatím nejsou žádná oddělení.",
     "columns": {
       "name_code": "Název / Kód",
       "manager": "Vedoucí",
@@ -646,10 +686,10 @@
       "deleted": "Archivované"
     },
     "actions": {
-      "restore": "Obnovit"
+      "edit_disabled": "Oddělení {{name}} nelze upravit"
     },
     "archive_confirm": "Archivovat oddělení {{name}}? Později je lze obnovit.",
-    "archive_blocked_title": "Nelze archivovat kvůli navázaným položkám:",
+    "archive_blocked_reason": "Nelze archivovat kvůli navázaným položkám: {{items}}",
     "linked_counts": {
       "users": "Uživatelé: {{count}}",
       "risks": "Rizika: {{count}}",
@@ -684,6 +724,7 @@
     "title": "Typy rizik",
     "show_deleted": "Zobrazit archivované",
     "add_type": "Přidat typ",
+    "empty": "Zatím nejsou žádné typy rizik.",
     "columns": {
       "color": "Barva",
       "code": "Kód",
@@ -696,9 +737,12 @@
       "deleted": "Archivované"
     },
     "actions": {
-      "restore": "Obnovit"
+      "edit_disabled": "Typ rizika {{name}} nelze upravit"
     },
-    "delete_warning": "⚠️ {{count}} rizik bude bez kategorie.",
+    "delete_warning": "{{count}} rizik zůstane bez kategorie.",
+    "delete_warning_one": "{{count}} riziko zůstane bez kategorie.",
+    "delete_warning_few": "{{count}} rizika zůstanou bez kategorie.",
+    "delete_warning_other": "{{count}} rizik zůstane bez kategorie.",
     "archive_confirm": "Archivovat typ rizika {{name}}? Později jej lze obnovit.",
     "modal": {
       "edit_title": "Upravit typ rizika",
@@ -726,6 +770,7 @@
   "approval_scenarios": {
     "title": "Scénáře schvalování",
     "subtitle": "Nastavte, které obchodní akce vyžadují schválení před provedením.",
+    "empty": "Nejsou nastaveny žádné scénáře schvalování.",
     "requires_approval": "Vyžaduje schválení",
     "approver_roles": "Role schvalovatelů",
     "enabled": "Povoleno",
@@ -736,6 +781,7 @@
       "approvers": "Schvalovatelé"
     },
     "special_roles": {
+      "risk_owner": "Vlastník rizika",
       "risk_owner_dynamic": "Vlastník rizika (dynamický)"
     },
     "modal": {
@@ -773,6 +819,8 @@
   "system_settings": {
     "title": "Nastavení systému",
     "save_named": "Uložit nastavení {{name}}",
+    "range": "Povolený rozsah: {{min}}–{{max}}",
+    "empty": "Nejsou k dispozici žádná nastavení systému.",
     "errors": {
       "save_failed": "Uložení se nezdařilo"
     },

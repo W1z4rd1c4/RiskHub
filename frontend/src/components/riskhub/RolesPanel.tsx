@@ -1,8 +1,11 @@
 import { Plus, Shield } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 
+import { RiskHubShowArchivedToggle } from './panelPrimitives';
 import { RoleDeleteDialog } from './roles/RoleDeleteDialog';
 import { RoleModal } from './roles/RoleModal';
 import { RolesTable } from './roles/RolesTable';
@@ -25,38 +28,33 @@ export function RolesPanel() {
 
     return (
         <div className="space-y-4">
+            {rolesPanel.rolesError ? (
+                <ErrorState variant="banner" onRetry={rolesPanel.retryRoles} isRetrying={rolesPanel.rolesRefetching} />
+            ) : null}
             {rolesPanel.actionErrorKey && !rolesPanel.deleteConfirm && (
                 <InlineMessage tone="danger">{translateUiMessage(t, rolesPanel.actionErrorKey)}</InlineMessage>
             )}
 
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-foreground">{t('admin:roles_panel.title')}</h3>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <input
-                            type="checkbox"
+            <CardHeader
+                className="mb-0"
+                icon={Shield}
+                title={t('admin:roles_panel.title')}
+                actions={(
+                    <>
+                        <RiskHubShowArchivedToggle
                             checked={rolesPanel.showInactive}
-                            onChange={(event) => rolesPanel.setShowInactive(event.target.checked)}
-                            className="rounded border-input bg-tint/5 accent-accent focus:ring-accent"
+                            onCheckedChange={rolesPanel.setShowInactive}
+                            label={t('admin:roles_panel.show_deleted')}
                         />
-                        {t('admin:roles_panel.show_deleted')}
-                    </label>
-
-                    {canCreate ? (
-                        <button
-                            onClick={rolesPanel.openCreateModal}
-                            className="flex items-center gap-2 px-3 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors"
-                        >
-                            <Plus className="h-4 w-4" />
-                            {t('admin:roles_panel.add_role')}
-                        </button>
-                    ) : null}
-                </div>
-            </div>
+                        {canCreate ? (
+                            <Button variant="accent" onClick={rolesPanel.openCreateModal}>
+                                <Plus aria-hidden="true" />
+                                {t('admin:roles_panel.add_role')}
+                            </Button>
+                        ) : null}
+                    </>
+                )}
+            />
 
             <RolesTable
                 onDelete={rolesPanel.setDeleteConfirm}

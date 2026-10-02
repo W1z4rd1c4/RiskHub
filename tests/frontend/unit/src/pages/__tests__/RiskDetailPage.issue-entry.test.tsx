@@ -167,7 +167,9 @@ describe('RiskDetailPage issue entry', () => {
         render(<RiskDetailPage />);
 
         await screen.findByRole('heading', { level: 1, name: 'Archived Liquidity Risk' });
-        expect(screen.getByText('archived')).toBeInTheDocument();
+        // PG-03: the translated status badge, never the raw enum.
+        expect(screen.getByText('Archived')).toHaveAttribute('data-status', 'archived');
+        expect(screen.queryByText('archived')).not.toBeInTheDocument();
     });
 
     it('renders the non-leaky unavailable state when risk detail is forbidden', async () => {

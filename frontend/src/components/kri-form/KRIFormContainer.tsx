@@ -6,14 +6,14 @@ import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 
 import { KriCreateDialogs } from './KriCreateDialogs';
-import { KriFormErrorAlert } from './KriFormErrorAlert';
-import { KriFormNavigation } from './KriFormNavigation';
 import { KriFormStepContent } from './KriFormStepContent';
+import { KriFormErrorBanner, KriFormFooter, KriFormStepIndicator } from './KriFormSteps';
 import { KriVendorContextBanner } from './KriVendorContextBanner';
 import { buildDepartmentOptions, filterRisksForSelection, getDisplayedRisks, getEffectiveVendorIds, getKnownRisks, getUniqueCategories, getUniqueProcesses, isRiskLinkedToVendor } from './kriForm.selectors';
 import type { KRIFormProps } from './kriForm.types';
-import { mergeVendorOptions, syncSelectedVendorOptions, validateKriDetails, validateRiskSelection } from './kriForm.utils';
+import { mergeVendorOptions, syncSelectedVendorOptions, validateRiskSelection } from './kriForm.utils';
 import { createKriFormSnapshot, useKriFormState } from './useKriFormState';
+import { useKriDetailValidation } from './useKriDetailValidation';
 import { useKriLookups } from './useKriLookups';
 import { useKriSubmit } from './useKriSubmit';
 
@@ -118,7 +118,12 @@ export function KRIFormContainer({
 
     const setFormError = (error: string | null) => setStatePatch({ error });
     const validateStep1 = () => validateRiskSelection(state.formData.risk_id, setFormError, t);
-    const validateStep2 = () => validateKriDetails(state.formData, setFormError, t);
+    const { detailErrors, formRef, handleInputChange, validateDetails: validateStep2 } = useKriDetailValidation({
+        formData: state.formData,
+        setFormError,
+        setFormField: state.setFormField,
+        t,
+    });
     const handleSelectedVendorIdsChange = (vendorIds: number[]) => {
         setStatePatch({
             error: null,
@@ -151,9 +156,10 @@ export function KRIFormContainer({
 
     return (
         <>
-            <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-8">
+            <form ref={formRef} onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-8">
+                <KriFormStepIndicator currentStep={state.currentStep} isSubmitting={state.isSubmitting} onStepClick={(index) => setStatePatch({ currentStep: index, error: null })} />
                 <div className="glass-card flex min-h-[560px] flex-col">
-                    {visibleError ? <KriFormErrorAlert error={visibleError} /> : null}
+                    {visibleError ? <KriFormErrorBanner error={visibleError} /> : null}
                     {vendorContext ? <KriVendorContextBanner vendorName={vendorContext.vendorName} /> : null}
 
                     <fieldset disabled={state.isSubmitting} className="min-w-0 flex-1 space-y-8">
@@ -165,7 +171,8 @@ export function KRIFormContainer({
                             isLoadingVendors={lookups.isLoadingVendors}
                             isSelectedRiskLinkedToVendor={isSelectedRiskLinkedToVendor}
                             onClearSelectedRisk={() => state.setFormField('risk_id', undefined)}
-                            onInputChange={state.setFormField}
+                            fieldErrors={detailErrors}
+                            onInputChange={handleInputChange}
                             onRiskSearchChange={(riskSearch) => setStatePatch({ riskSearch })}
                             onRiskSelect={(riskId) => state.setFormField('risk_id', riskId)}
                             onSelectedCategoryChange={(selectedCategory) => setStatePatch({ selectedCategory })}
@@ -194,15 +201,14 @@ export function KRIFormContainer({
                         />
                     </fieldset>
 
-                    <KriFormNavigation
+                    <KriFormFooter
                         cancelLabel={cancelLabel}
                         currentStep={state.currentStep}
                         isEdit={isEdit}
                         isSubmitting={state.isSubmitting}
-                        navigate={navigate}
                         onCancel={cancelForm}
-                        setStatePatch={setStatePatch}
-                        validateStep1={validateStep1}
+                        onBack={() => setStatePatch({ currentStep: 0, error: null })}
+                        onNext={() => { if (validateStep1()) setStatePatch({ currentStep: 1, error: null }); }}
                     />
                 </div>
             </form>

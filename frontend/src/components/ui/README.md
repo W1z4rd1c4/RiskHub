@@ -88,7 +88,12 @@ per file under **Contents**) plus the rules for using and extending it.
   (Checkbox/Switch rows), `group` (text label for `RadioGroup`).
 - `label.tsx` — `Label` on `@radix-ui/react-label` with the required `*`.
 - `select.tsx` — Radix select primitives with the same 40px default geometry.
-- `StepIndicator.tsx` — step list for the multi-step Risk and Control forms;
+- `WizardFooter.tsx` — the multi-step form footer (§4.8, DS-10): Cancel (first
+  step) or Back on the left as `secondary`, Next or the `type="submit"`
+  primary on the right as `accent`; while `isSubmitting` the actions stay
+  focusable but inert (`aria-disabled`) and the submit is `aria-busy`. Used by
+  the Risk, Control and KRI wizards.
+- `StepIndicator.tsx` — step list for the multi-step Risk, Control and KRI forms;
   marks the current step, and steps for which `isStepClickable` is true can be
   revisited through `onStepClick`.
 - `ThemedSelect.tsx` — closed-list convenience API built on `select.tsx`. Name

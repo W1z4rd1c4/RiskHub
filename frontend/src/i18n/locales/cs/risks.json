@@ -2,6 +2,7 @@
   "title": "Registr rizik",
   "page_subtitle": "Sledování a řízení organizačních rizik s hrubým/čistým skórováním dle OS 18.",
   "new_risk": "Nové riziko",
+  "priority_label": "Prioritní riziko",
   "create_risk": "Vytvořit riziko",
   "edit_risk": "Upravit riziko",
   "view_risk": "Zobrazit riziko",
@@ -173,7 +174,8 @@
   "scoring": {
     "inherent_risk": "Inherentní riziko",
     "residual_risk": "Reziduální riziko",
-    "risk_score": "Rizikové skóre"
+    "risk_score": "Rizikové skóre",
+    "factors_short": "(P {{probability}} × D {{impact}})"
   },
   "filters": {
     "all_categories": "Všechny kategorie",
@@ -216,7 +218,16 @@
     "controls": "Kontroly",
     "kris": "KRI",
     "pending": "Čeká",
-    "pending_tooltip": "Změny čekají na schválení"
+    "pending_tooltip": "Změny čekají na schválení",
+    "control_count": "{{count}} kontrol",
+    "control_count_one": "{{count}} kontrola",
+    "control_count_few": "{{count}} kontroly",
+    "control_count_other": "{{count}} kontrol",
+    "kri_count": "{{count}} KRI",
+    "kri_count_one": "{{count}} KRI",
+    "kri_count_few": "{{count}} KRI",
+    "kri_count_other": "{{count}} KRI",
+    "kri_breach": "Překročení KRI"
   },
   "actions": {
     "link_control": "Propojit kontrolu",
@@ -236,7 +247,8 @@
       "loading": "Vyhledávání vlastníků…",
       "failed": "Vyhledávání vlastníků selhalo. Vybraný vlastník zůstává beze změny.",
       "no_visible_matches": "V této sadě výsledků nejsou odpovídající vlastníci. Upřesněte hledání nebo vyberte všechny role.",
-      "refine": "Zobrazeno nejvýše 50 odpovídajících vlastníků. Další vlastníky najdete upřesněním hledání."
+      "refine": "Zobrazeno nejvýše 50 odpovídajících vlastníků. Další vlastníky najdete upřesněním hledání.",
+      "role_filter": "Filtrovat vlastníky podle role"
     },
     "steps": {
       "identity": "Identita",
@@ -245,7 +257,11 @@
     },
     "errors": {
       "process_required": "Proces je povinný",
-      "category_required": "Kategorie je povinná"
+      "category_required": "Kategorie je povinná",
+      "name_required": "Název rizika je povinný.",
+      "description_required": "Popis rizika je povinný.",
+      "department_required": "Oddělení je povinné.",
+      "owner_required": "Vlastník rizika je povinný."
     },
     "financial": {
       "loss": "Ztráta",
@@ -332,7 +348,9 @@
     "manage_existing_links": "Spravovat existující propojení",
     "linked_vendors": "Propojení dodavatelé",
     "no_vendors_linked": "K tomuto riziku nejsou propojeni žádní dodavatelé.",
-    "core_function_badge": "Klíčová funkce"
+    "core_function_badge": "Klíčová funkce",
+    "vendor_risk_score": "Rizikové skóre dodavatele: {{score}} z 5",
+    "score_of_five": "{{score}}/5"
   },
   "history": {
     "recorded_by": "Zaznamenal",

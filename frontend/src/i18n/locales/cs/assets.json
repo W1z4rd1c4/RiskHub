@@ -166,6 +166,7 @@
             "empty": "Zatím žádné vazby na procesy.",
             "primary": "Primární proces",
             "set_primary": "Nastavit jako primární",
+            "select_label": "Proces",
             "select_placeholder": "Vyberte proces...",
             "significance": "Význam vazby",
             "no_metadata": "Bez podrobností vazby"
@@ -177,6 +178,8 @@
             "supports": "Podporuje",
             "direction_depends_on": "Toto aktivum závisí na...",
             "direction_supports": "Toto aktivum podporuje...",
+            "direction_label": "Směr vazby",
+            "select_label": "Aktivum",
             "select_placeholder": "Vyberte aktivum...",
             "dependency_type": "Typ závislosti",
             "no_metadata": "Bez podrobností vazby"
@@ -184,8 +187,10 @@
         "vendors": {
             "title": "Závislosti na dodavatelích",
             "empty": "Zatím žádní propojení dodavatelé.",
+            "select_label": "Dodavatel",
             "select_placeholder": "Vyberte dodavatele...",
             "s_code": "ICT služba (S-kód)",
+            "s_code_placeholder": "Vyberte ICT službu...",
             "role": "Role dodavatele",
             "reliance": "Míra závislosti (u CIF)",
             "contract_ref": "Ref. smlouvy",

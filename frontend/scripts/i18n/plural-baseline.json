@@ -2,15 +2,14 @@
   "version": 1,
   "description": "Locale families that interpolate {{count}} without full plural forms (GAP-B-14). May only shrink; regenerate with `npm run i18n:validate:plurals -- --update-baseline`.",
   "totals": {
-    "cs": 34,
-    "en": 44
+    "cs": 32,
+    "en": 41
   },
   "violations": {
     "cs": [
       "admin:access.modal.permissions_count",
       "admin:access.of_users",
       "admin:audit.last_n",
-      "admin:risk_types_panel.delete_warning",
       "common:department_detail.health.accountability_gaps",
       "common:department_detail.health.active_users",
       "common:department_detail.health.attention_controls",
@@ -39,15 +38,12 @@
       "dashboard:risk_distribution_matrix.cell_title",
       "ictRegisterDq:all_clear.body",
       "ictRegisterDq:rows_scoped",
-      "kris:history_tab.entries_count",
       "notifications:subtitle.unread_count"
     ],
     "en": [
       "admin:access.modal.permissions_count",
       "admin:access.of_users",
       "admin:audit.last_n",
-      "admin:risk_types_panel.delete_warning",
-      "admin:riskhub.questionnaires.selected_count",
       "approvals:workbench.incomplete",
       "assets:register.filters.active_count",
       "common:department_detail.health.accountability_gaps",
@@ -80,7 +76,6 @@
       "ictRegisterDq:all_clear.body",
       "ictRegisterDq:rows_scoped",
       "issues:register.filters.active_count",
-      "kris:history_tab.entries_count",
       "kris:register.filters.active_count",
       "notifications:subtitle.unread_count",
       "processes:register.filters.active_count",

@@ -13,6 +13,9 @@ Header and state primitives (audit 2026-09-30 §4.14, D7, D14):
 - `EditBlockedState.tsx` — the edit route of a record whose business edits are blocked: `PageHeader`
   (one `h1`, labelled back, breadcrumbs), a warning `InlineMessage` reason and the module's
   pending-change panel as children (SM-05). Used by the Threat, Process, Asset and Vendor edit routes.
+- `DetailSection.tsx` — titled section card (`Card` + `CardHeader`, section `h2`) for the field groups of a detail page.
+- `OwnershipGovernanceAlert.tsx` — ownership / stewardship banner (orphaned, unassigned, invalid owner) on warning
+  tokens, with an optional governance action; used by the Asset, Process and Threat detail and edit routes (SM-05).
 - `DetailField.tsx` — `DetailFieldList` (`dl` grid) and `DetailField` (`dt` with `.text-eyebrow`,
   `dd` value; empty values show a hidden dash announced as `common:fallbacks.not_set`).
 

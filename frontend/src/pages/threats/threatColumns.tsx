@@ -1,7 +1,11 @@
 import type { MouseEvent } from 'react';
-import { ArchiveRestore } from 'lucide-react';
 
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
 import type { Column } from '@/components/tables/SortableTable';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
+import type { Tone } from '@/lib/tones';
 import type { ThreatListItem } from '@/types/threat';
 
 import { getThreatDisplayStatus, threatCategoryLabel, type ThreatDisplayStatus } from './threatsPagePresentation';
@@ -14,8 +18,9 @@ type BuildThreatColumnsParams = {
     canRestoreThreat: (threat: ThreatListItem) => boolean;
 };
 
-export function getThreatStatusColor(status: ThreatDisplayStatus): string {
-    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
+/** Lifecycle status tone (D1): active reads success, archived neutral. */
+export function getThreatStatusTone(status: ThreatDisplayStatus): Tone {
+    return status === 'archived' ? 'neutral' : 'success';
 }
 
 export function buildThreatColumns({
@@ -101,27 +106,19 @@ export function buildThreatColumns({
                 const status = getThreatDisplayStatus(threat);
                 return (
                     <div className="flex items-center gap-2">
-                        <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getThreatStatusColor(status)}`}
-                        >
-                            {t(`threats:status.${status}`)}
-                        </span>
+                        <Badge tone={getThreatStatusTone(status)}>{t(`threats:status.${status}`)}</Badge>
+                        {resolveCapabilityFlag(threat.capabilities, 'has_pending_change') ? (
+                            <PendingChangeBadge data-testid={`threat-pending-change-${threat.id}`} />
+                        ) : null}
                         {threat.stewardship_status === 'pending_governance' ? (
-                            <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-bold text-warning-text">
-                                {t('threats:status.pending_governance')}
-                            </span>
+                            <Badge tone="warning">{t('threats:status.pending_governance')}</Badge>
                         ) : null}
                         {status === 'archived' && canRestoreThreat(threat) ? (
-                            <button
-                                type="button"
+                            <RowRestoreButton
+                                itemName={threat.name}
                                 data-testid={`threat-restore-${threat.id}`}
                                 onClick={(event) => void onRestore(threat.id, event)}
-                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-tint/10 transition-colors"
-                                aria-label={t('threats:actions.restore')}
-                                title={t('threats:actions.restore')}
-                            >
-                                <ArchiveRestore className="h-4 w-4" />
-                            </button>
+                            />
                         ) : null}
                     </div>
                 );

@@ -80,7 +80,7 @@ export function IssuesPage() {
             hideActive: true,
             groupLabel: (group) => formatIssueGroupLabel(group, {
                 unlinkedVendor: t('fallbacks.unlinked_vendor'),
-                uncategorized: t('fallbacks.uncategorized'),
+                uncategorized: t('common:fallbacks.uncategorized'),
                 unknownDepartment: t('fallbacks.unknown_department'),
                 noProcess: t('fallbacks.no_process'),
                 unknownRiskType: t('common:fallbacks.unknown_type'),

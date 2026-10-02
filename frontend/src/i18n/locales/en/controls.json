@@ -33,7 +33,12 @@
     "quarterly": "Quarterly",
     "annually": "Annually",
     "ad_hoc": "Ad Hoc",
-    "continuous": "Continuous"
+    "continuous": "Continuous",
+    "semi-annually": "Semi-annually"
+  },
+  "control_forms": {
+    "manual": "Manual",
+    "automatic": "Automatic"
   },
   "status": {
     "active": "Active",
@@ -83,7 +88,7 @@
   },
   "register": {
     "views": { "all": "All", "category": "By Control Form", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "risk": "By Risk", "vendor": "By Vendor" },
-    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "process": "Process", "category": "Control Form" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "process": "Process", "category": "Control Form", "monitoring_status": "Monitoring status" },
     "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
     "export": { "title": "Export filtered controls" }
   },
@@ -110,7 +115,8 @@
     "risk_level": "Risk Level",
     "status": "Status",
     "pending": "Pending",
-    "pending_changes_title": "Changes Pending Approval"
+    "pending_changes_title": "Changes Pending Approval",
+    "risk_level_value": "{{level}} / 5"
   },
   "actions": {
     "link_risk": "Link Risk",
@@ -160,6 +166,8 @@
     "labels": {
       "owner_position": "Owner Position",
       "data_source_methodology": "Data Source & Methodology",
+      "data_source": "Data source",
+      "methodology_reference": "Methodology reference",
       "inherent_risk_level": "Inherent Risk Level (1-5)",
       "initial_status": "Initial Status",
       "link_to_risk_optional": "Link to Risk (Optional)",

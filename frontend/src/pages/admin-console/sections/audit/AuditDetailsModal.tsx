@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
+import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
@@ -14,6 +15,7 @@ interface AuditDetailsModalProps {
 export function AuditDetailsModal({ extra, onClose }: AuditDetailsModalProps) {
     const { t } = useTranslation('admin');
     const titleId = useId();
+    const feedback = useFeedback();
     const [copied, setCopied] = useState(false);
     const detailsJson = useMemo(() => (extra ? JSON.stringify(extra, null, 2) : ''), [extra]);
 
@@ -30,6 +32,8 @@ export function AuditDetailsModal({ extra, onClose }: AuditDetailsModalProps) {
             setCopied(true);
         } catch (err) {
             logError('Failed to copy audit log details:', err);
+            // GAP-D-27: a failed copy is announced, not only logged.
+            feedback.error({ title: t('audit.details_modal.copy_failed') });
         }
     };
 
@@ -37,6 +41,8 @@ export function AuditDetailsModal({ extra, onClose }: AuditDetailsModalProps) {
         <DialogShell isOpen={Boolean(extra)} onClose={onClose} titleId={titleId} size="lg">
             <DialogHeader title={t('audit.details_modal.title')} hideClose />
             <DialogBody>
+                {/* GAP-D-27: the "Copied" confirmation is announced politely. */}
+                <p role="status" className="sr-only">{copied ? t('audit.details_modal.copied') : ''}</p>
                 <pre className="whitespace-pre-wrap break-all rounded-xl border border-border bg-nested p-4 text-xs text-nested-foreground">
                     {detailsJson}
                 </pre>

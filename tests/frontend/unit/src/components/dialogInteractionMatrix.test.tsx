@@ -910,7 +910,7 @@ describe('Dialog interaction matrix — RiskHubModalFrame consumers (FR-P2c-1)',
             http.get('*/api/v1/access/users', () => HttpResponse.json([])),
         );
         await assertTriggeredDialogContract('dialog', <DepartmentsPanel />, async (user) => {
-            const edit = await screen.findByRole('button', { name: 'Edit' });
+            const edit = await screen.findByRole('button', { name: 'Edit IT' });
             edit.focus();
             await user.click(edit);
             return edit;
@@ -923,7 +923,7 @@ describe('Dialog interaction matrix — RiskHubModalFrame consumers (FR-P2c-1)',
             http.get('*/api/v1/riskhub/risk-types', () => HttpResponse.json([riskTypeHubFixture])),
         );
         await assertTriggeredDialogContract('dialog', <RiskTypesPanel />, async (user) => {
-            const edit = await screen.findByRole('button', { name: 'Edit' });
+            const edit = await screen.findByRole('button', { name: 'Edit Operational' });
             edit.focus();
             await user.click(edit);
             return edit;
@@ -937,7 +937,7 @@ describe('Dialog interaction matrix — RiskHubModalFrame consumers (FR-P2c-1)',
             http.get('*/api/v1/riskhub/roles', () => HttpResponse.json([roleFixture])),
         );
         await assertTriggeredDialogContract('dialog', <ApprovalScenariosPanel />, async (user) => {
-            const configure = await screen.findByRole('button', { name: 'Configure' });
+            const configure = await screen.findByRole('button', { name: 'Configure: Risk update' });
             configure.focus();
             await user.click(configure);
             return configure;

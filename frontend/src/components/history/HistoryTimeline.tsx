@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
 import { EmptyState, LoadingState } from '@/components/ui/state';
 
 interface HistoryTimelineProps {
@@ -98,7 +99,7 @@ export function HistoryTimeline({
                                         <div className="flex items-center gap-2">
                                             <h4 className="text-sm font-bold text-foreground truncate">{item.title}</h4>
                                             {item.badge && (
-                                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-accent/10 text-accent-text border border-accent/30">
+                                                <span className="px-1.5 py-0.5 text-xs font-bold rounded bg-accent/10 text-accent-text border border-accent/30">
                                                     {item.badge}
                                                 </span>
                                             )}
@@ -107,7 +108,7 @@ export function HistoryTimeline({
                                             <p className="text-xs text-muted-foreground mt-0.5">{item.subtitle}</p>
                                         )}
                                     </div>
-                                    <time className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">
+                                    <time className="text-eyebrow shrink-0">
                                         {format.relative(item.timestamp)}
                                     </time>
                                 </div>
@@ -119,11 +120,11 @@ export function HistoryTimeline({
                                             <span
                                                 key={i}
                                                 className={cn(
-                                                    "px-2 py-0.5 text-[10px] font-medium rounded border",
+                                                    "px-2 py-0.5 text-xs font-medium rounded border",
                                                     metaToneColors[m.tone || 'neutral']
                                                 )}
                                             >
-                                                {m.label}: {m.value}
+                                                {t('common:labels.label_value', { label: m.label, value: m.value })}
                                             </span>
                                         ))}
                                     </div>
@@ -131,16 +132,18 @@ export function HistoryTimeline({
 
                                 {/* Action button */}
                                 {onItemAction && (
-                                    <button
+                                    <Button
+                                        variant="outline"
+                                        size="compact"
+                                        className="mt-3"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onItemAction(item);
                                         }}
-                                        className="mt-3 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary hover:bg-secondary border border-border hover:border-input rounded-lg transition-colors flex items-center gap-1.5"
                                     >
-                                        <Edit3 className="h-3 w-3" />
+                                        <Edit3 aria-hidden="true" />
                                         {resolvedActionLabel}
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>

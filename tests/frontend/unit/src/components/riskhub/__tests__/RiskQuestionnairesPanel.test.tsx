@@ -170,8 +170,27 @@ describe('RiskQuestionnairesPanel', () => {
             });
         });
         await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-        // The post-send refresh keeps the send outcome on screen.
-        expect(await screen.findByText('riskhub.questionnaires.results')).toBeInTheDocument();
+        // The post-send refresh keeps the send outcome on screen, as an announced
+        // summary whose counts are term/value pairs (no "Label: value" concatenation).
+        const outcome = (await screen.findByText('riskhub.questionnaires.results')).closest('[role="status"]');
+        expect(outcome).not.toBeNull();
+        const created = within(outcome as HTMLElement).getByText('riskhub.questionnaires.created');
+        expect(created.tagName).toBe('DT');
+        expect(created.nextElementSibling).toHaveTextContent('1');
+    });
+
+    it('labels the free-text filters visibly instead of with placeholders only (AX-04)', async () => {
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        const process = screen.getByRole('textbox', { name: 'riskhub.questionnaires.process' });
+        expect(process).not.toHaveAttribute('placeholder');
+        fireEvent.change(process, { target: { value: 'Payments' } });
+        fireEvent.change(screen.getByRole('textbox', { name: 'riskhub.questionnaires.category' }), { target: { value: 'IT' } });
+
+        await waitFor(() => {
+            expect(mockGetRisks).toHaveBeenLastCalledWith(expect.objectContaining({ process: 'Payments', category: 'IT' }));
+        });
     });
 
     it('confirms a select-all send against the filters and keeps a failure inside the dialog', async () => {

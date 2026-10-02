@@ -25,7 +25,7 @@ export function RisksPage() {
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/risks');
     const { language } = useLanguage();
-    const { t } = useTranslation('risks');
+    const { t } = useTranslation(['risks', 'common']);
     const { getColor, getDisplayName, getInitials } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } = useIctRegisterSemanticPageState(parseRiskSemanticFilters);
@@ -41,7 +41,7 @@ export function RisksPage() {
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate(appendRegisterReturnTo('/risks/new', returnTo))} createLabel={t('new_risk')} exportLabel={t('actions.export')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/risks/new', returnTo))} createLabel={t('new_risk')} exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentRisks(); onClose(); }}
             onSubmit={async (payload) => { await state.exportRiskSnapshot(payload); onClose(); }}
@@ -62,7 +62,7 @@ export function RisksPage() {
                     (key, fallback) => t(key, fallback),
                 )
                 : formatRiskGroupLabel(group, {
-                    unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.not_available'),
+                    unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.uncategorized'),
                     unknownDepartment: t('common:fallbacks.unassigned'), noProcess: t('common:fallbacks.not_available'),
                     unknownRiskType: t('common:fallbacks.unknown_type'),
                 }),

@@ -1,8 +1,10 @@
 import { useId, type ReactNode } from 'react';
-import { AlertCircle } from 'lucide-react';
 
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 
 interface RiskHubModalFrameProps {
     children: ReactNode;
@@ -62,14 +64,33 @@ interface RiskHubFieldErrorProps {
     errorKey: string | null;
 }
 
+/**
+ * The server error of a Risk Hub form, inside the open dialog (§4.16 "Error
+ * inside an open dialog"; AX-05 / GAP-B-11: `InlineMessage` danger is
+ * `role="alert"`, so a rejected admin action is announced).
+ */
 export function RiskHubFieldError({ errorKey }: RiskHubFieldErrorProps) {
-    const { t } = useTranslation(['errorKeys']);
+    const { t } = useTranslation(['admin', 'common']);
     if (!errorKey) return null;
+    return <InlineMessage tone="danger">{translateUiMessage(t, errorKey)}</InlineMessage>;
+}
+
+interface RiskHubShowArchivedToggleProps {
+    checked: boolean;
+    onCheckedChange: (checked: boolean) => void;
+    label: string;
+}
+
+/** "Show archived" filter of a Risk Hub list, named through `Field` (AX-04). */
+export function RiskHubShowArchivedToggle({ checked, onCheckedChange, label }: RiskHubShowArchivedToggleProps) {
     return (
-        // AX-05: a rejected admin action is announced.
-        <div role="alert" className="flex items-center gap-2 text-destructive text-sm">
-            <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            {t(errorKey, { ns: 'errorKeys' })}
-        </div>
+        <Field
+            layout="inline"
+            label={label}
+            className="items-center gap-2"
+            labelClassName="font-normal text-muted-foreground"
+        >
+            {(field) => <Checkbox {...field} checked={checked} onCheckedChange={onCheckedChange} />}
+        </Field>
     );
 }

@@ -4,6 +4,7 @@
     "cancel": "Zrušit",
     "delete": "Smazat",
     "edit": "Upravit",
+    "edit_named": "Upravit {{name}}",
     "create": "Vytvořit",
     "close": "Zavřít",
     "confirm": "Potvrdit",
@@ -42,7 +43,9 @@
     "clear_selection_named": "Zrušit výběr: {{name}}",
     "remove": "Odebrat",
     "remove_named": "Odebrat {{name}}",
-    "back_to_detail": "Zpět na {{name}}"
+    "back_to_detail": "Zpět na {{name}}",
+    "restore": "Obnovit",
+    "restore_named": "Obnovit {{name}}"
   },
   "links": {
     "remove_named": "Odebrat vazbu: {{name}}"
@@ -168,7 +171,24 @@
     "by": "od",
     "approved_on": "Schváleno dne",
     "proposed_changes": "Navržené změny",
-    "rejected_on": "Zamítnuto dne"
+    "rejected_on": "Zamítnuto dne",
+    "label_value": "{{label}}: {{value}}",
+    "quoted": "„{{text}}“"
+  },
+  "roles": {
+    "admin": "Administrátor",
+    "cro": "Chief Risk Officer",
+    "ceo": "Generální ředitel",
+    "cfo": "Finanční ředitel",
+    "coo": "Provozní ředitel",
+    "ciso": "Chief Information Security Officer",
+    "risk_manager": "Risk manažer",
+    "actuarial": "Aktuárská funkce",
+    "compliance": "Compliance officer",
+    "internal_audit": "Interní audit",
+    "department_head": "Vedoucí oddělení",
+    "employee": "Zaměstnanec",
+    "viewer": "Čtenář"
   },
   "errors": {
     "generic": "Došlo k chybě. Zkuste to prosím znovu.",
@@ -446,8 +466,10 @@
     "create_link": "Vytvořit propojení",
     "search_results": "Výsledky hledání",
     "initial_suggestions": "Počáteční návrhy",
-    "result_singular": "položka",
-    "result_plural": "položek"
+    "result_count": "{{count}} položek",
+    "result_count_one": "{{count}} položka",
+    "result_count_few": "{{count}} položky",
+    "result_count_other": "{{count}} položek"
   },
   "approval": {
     "submitted_for_approval": "Odesláno ke schválení",
@@ -583,7 +605,8 @@
     "unknown_asset": "Neznámé aktivum",
     "unknown_threat": "Neznámá hrozba",
     "unknown_contract": "Neznámá smlouva",
-    "unknown_sub_outsourcing": "Neznámý subdodavatel"
+    "unknown_sub_outsourcing": "Neznámý subdodavatel",
+    "uncategorized": "Bez kategorie"
   },
   "audit": {
     "columns": {

@@ -339,7 +339,7 @@ describe('LinkManagementDialog', () => {
             })}
         />);
 
-        const row = screen.getByText('Existing control').closest('.group');
+        const row = screen.getByText('Existing control').closest('li');
         expect(row).not.toBeNull();
         fireEvent.click(within(row as HTMLElement).getByRole('button'));
         // GAP-B-13 / D10: the confirmation is an unlink, never "Delete".
@@ -363,7 +363,7 @@ describe('LinkManagementDialog', () => {
             })}
         />);
 
-        const row = screen.getByText('Existing control').closest('.group');
+        const row = screen.getByText('Existing control').closest('li');
         fireEvent.click(within(row as HTMLElement).getByRole('button'));
         const confirmation = screen.getByRole('alertdialog');
         fireEvent.click(within(confirmation).getByRole('button', { name: 'Remove link' }));

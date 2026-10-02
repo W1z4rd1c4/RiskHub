@@ -18,10 +18,10 @@ export function KriVendorContextBanner({
         >
             <div className="flex items-start gap-3">
                 <div className="rounded-xl border border-accent/20 bg-accent/10 p-2.5">
-                    <Building2 className="h-4 w-4 text-accent" />
+                    <Building2 className="h-4 w-4 text-accent-text" aria-hidden="true" />
                 </div>
                 <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-accent-text">
+                    <p className="text-eyebrow text-accent-text">
                         {t('vendor_assignment.vendor_context_label')}
                     </p>
                     <p className="mt-1 text-sm font-medium text-foreground">

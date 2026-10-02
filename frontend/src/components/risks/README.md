@@ -8,6 +8,12 @@ UI components for `risks` area.
 
 - `__tests__/`
 - `detail-overview/`
+- `RiskGroupMetaBody.tsx` — risk type / department / owner of a "grouped by
+  risk" register card (Controls and KRIs registers, PG-31).
+- `RiskPickerOption.tsx` — one selectable risk row in the Control and KRI
+  "link a risk" pickers (`Button`, CSS-clamped description).
+- `RiskStatusBadge.tsx` — `RiskStatusBadge` (translated `risks:status.*` on
+  `Badge`, PG-03) and `RiskPriorityBadge` (named priority star, PG-46).
 - `RiskDetailKriHistoryTab.tsx`
 - `RiskDetailOverviewTab.tsx`
 - `RiskDetailQuestionnairesTab.tsx`

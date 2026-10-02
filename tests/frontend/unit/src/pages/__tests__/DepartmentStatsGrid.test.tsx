@@ -100,8 +100,8 @@ describe('DepartmentStatsGrid', () => {
         render(<DepartmentStatsGrid department={department} onSelectTab={onSelectTab} />);
 
         const actions = [
-            ['risks', 'Risks 5 high', { net_band: 'Vysoké' }],
-            ['risks', 'Risks 4 critical', { net_band: 'Kritické' }],
+            ['risks', 'Risks 5 high', { net_band: 'high' }],
+            ['risks', 'Risks 4 critical', { net_band: 'critical' }],
             ['controls', 'Controls 3 attention', { monitoring_status: 'needs_review' }],
             ['kris', 'KRIs 1 breaches', { monitoring_status: 'breach' }],
             ['kris', 'KRIs 2 overdue', { monitoring_status: 'not_submitted' }],

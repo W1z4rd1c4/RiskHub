@@ -1,9 +1,11 @@
 import { Crown, Server } from 'lucide-react';
 
+import { TD, TR } from '@/components/ui/table';
 import { useTranslation } from '@/i18n/hooks';
 import type { AccessUserRead } from '@/types/access';
 
 import { PermissionMatrix } from './PermissionMatrix';
+import { accessDetailsRowId } from './usersTablePresentation';
 
 interface ExpandedAccessDetailsRowProps {
     user: AccessUserRead;
@@ -11,12 +13,13 @@ interface ExpandedAccessDetailsRowProps {
 
 export function ExpandedAccessDetailsRow({ user }: ExpandedAccessDetailsRowProps) {
     const { t } = useTranslation('admin');
+    const rowId = accessDetailsRowId(user.id);
 
     if (user.role.name === 'admin') {
         return (
-            <tr>
-                <td colSpan={6} className="bg-tint/5 px-8 py-4">
-                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">
+            <TR id={rowId}>
+                <TD colSpan={6} className="bg-tint/5 px-8 py-4">
+                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                         {t('access.capabilities.platform_admin')}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -38,19 +41,19 @@ export function ExpandedAccessDetailsRow({ user }: ExpandedAccessDetailsRowProps
                         </div>
                     </div>
                     <div className="mt-3 text-xs text-warning-text">
-                        <Server className="h-3 w-3 inline mr-1" />
+                        <Server aria-hidden="true" className="h-3 w-3 inline mr-1" />
                         {t('access.capabilities.platform_admin_note')}
                     </div>
-                </td>
-            </tr>
+                </TD>
+            </TR>
         );
     }
 
     if (user.role.name === 'cro') {
         return (
-            <tr>
-                <td colSpan={6} className="bg-tint/5 px-8 py-4">
-                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">
+            <TR id={rowId}>
+                <TD colSpan={6} className="bg-tint/5 px-8 py-4">
+                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                         {t('access.capabilities.riskhub')}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -72,22 +75,22 @@ export function ExpandedAccessDetailsRow({ user }: ExpandedAccessDetailsRowProps
                         </div>
                     </div>
                     <div className="mt-3 text-xs text-warning-text">
-                        <Crown className="h-3 w-3 inline mr-1" />
+                        <Crown aria-hidden="true" className="h-3 w-3 inline mr-1" />
                         {t('access.capabilities.cro_note')}
                     </div>
-                </td>
-            </tr>
+                </TD>
+            </TR>
         );
     }
 
     return (
-        <tr>
-            <td colSpan={6} className="bg-tint/5 px-8 py-4">
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">
+        <TR id={rowId}>
+            <TD colSpan={6} className="bg-tint/5 px-8 py-4">
+                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                     {t('access.capabilities.effective_permissions')}
                 </div>
                 <PermissionMatrix permissions={user.effective_permissions} />
-            </td>
-        </tr>
+            </TD>
+        </TR>
     );
 }

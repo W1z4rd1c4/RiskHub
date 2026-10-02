@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useFormat, type SafeTFunction } from '@/i18n/hooks';
 import type { ActivityLogEntry } from '@/types/activityLog';
@@ -12,9 +13,21 @@ interface IssueHistoryTabProps {
     t: SafeTFunction;
 }
 
-function humanizeAction(action: string): string {
-    return action.replaceAll('_', ' ');
-}
+/** Literal keys so the i18n usage validator sees every action label (PG-03 / GAP-D-02). */
+const ISSUE_HISTORY_ACTION_KEYS: Readonly<Record<string, string>> = {
+    create: 'issues:detail.history_actions.create',
+    update: 'issues:detail.history_actions.update',
+    delete: 'issues:detail.history_actions.delete',
+    archive: 'issues:detail.history_actions.archive',
+    restore: 'issues:detail.history_actions.restore',
+    approve: 'issues:detail.history_actions.approve',
+    reject: 'issues:detail.history_actions.reject',
+    cancel: 'issues:detail.history_actions.cancel',
+    status_change: 'issues:detail.history_actions.status_change',
+    link: 'issues:detail.history_actions.link',
+    unlink: 'issues:detail.history_actions.unlink',
+    comment: 'issues:detail.history_actions.comment',
+};
 
 export function IssueHistoryTab({
     canViewActivityHistory,
@@ -27,7 +40,7 @@ export function IssueHistoryTab({
 }: IssueHistoryTabProps) {
     const format = useFormat();
     return (
-        <section className="glass-card p-6 space-y-4" data-testid="issue-history-panel">
+        <Card as="section" className="space-y-4" data-testid="issue-history-panel">
             {!canViewActivityHistory ? (
                 <AccessDeniedState layout="section" descriptionKey="permissions.history_denied" ns="issues" />
             ) : isHistoryLoading ? (
@@ -39,10 +52,12 @@ export function IssueHistoryTab({
             ) : (
                 <ul className="space-y-2">
                     {historyItems.map((entry) => (
-                        <li key={entry.id} className="rounded-xl border border-border bg-tint/5 px-4 py-3">
+                        <li key={entry.id} className="rounded-xl border border-border bg-nested px-4 py-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-sm font-semibold text-foreground">
-                                    {t(`detail.history_actions.${entry.action}`, { defaultValue: humanizeAction(entry.action) })}
+                                    {ISSUE_HISTORY_ACTION_KEYS[entry.action]
+                                        ? t(ISSUE_HISTORY_ACTION_KEYS[entry.action])
+                                        : t('issues:detail.history_actions.other')}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                     {format.dateTime(entry.created_at) || t('fallbacks.not_set')}
@@ -56,6 +71,6 @@ export function IssueHistoryTab({
                     ))}
                 </ul>
             )}
-        </section>
+        </Card>
     );
 }

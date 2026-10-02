@@ -9,6 +9,7 @@ import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
 import { isApprovalCreatedResponse } from '@/types/approval';
 import { useFormat, useTranslation } from '@/i18n/hooks';
+import { formatKriUnit } from '@/lib/kriUnits';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 
@@ -127,11 +128,11 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                         <div className="px-4 py-3 bg-tint/[0.03] border border-border rounded-xl">
                             <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{t('value_modal.current_value', { ns: 'kris' })}</span>
-                                <span className="font-bold text-foreground">{kri.current_value} {kri.unit}</span>
+                                <span className="font-bold text-foreground">{format.metric(kri.current_value)} {formatKriUnit(kri.unit, t, kri.current_value)}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                                 <span>{t('common:labels.limits')}</span>
-                                <span className="font-bold text-foreground">{kri.lower_limit} – {kri.upper_limit}</span>
+                                <span className="font-bold text-foreground">{format.metric(kri.lower_limit)} – {format.metric(kri.upper_limit)}</span>
                             </div>
                             {kri.last_period_end && (
                                 <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">

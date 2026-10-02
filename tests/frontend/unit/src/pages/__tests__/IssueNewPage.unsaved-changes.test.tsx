@@ -71,7 +71,7 @@ function renderIssueNewPage() {
 }
 
 async function selectDepartment(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByRole('combobox', { name: 'Select department' }));
+    await user.click(screen.getByRole('combobox', { name: 'Department' }));
     await user.click(await screen.findByRole('option', { name: 'Operations (OPS)' }));
 }
 

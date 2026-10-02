@@ -42,7 +42,9 @@
     "owner": "Owner",
     "source": "Source",
     "due": "Due",
-    "opened": "Opened"
+    "opened": "Opened",
+    "status": "Status",
+    "severity": "Severity"
   },
   "status": {
     "open": "Open",
@@ -136,10 +138,12 @@
         "status_change": "Status changed",
         "link": "Linked",
         "unlink": "Unlinked",
-        "comment": "Commented"
+        "comment": "Commented",
+        "other": "Other change"
     }
   },
   "form": {
+    "owner_option": "{{name}} – {{role}}",
     "fields": {
       "title": "Title",
       "severity": "Severity",
@@ -169,6 +173,7 @@
     },
     "sections": {
       "assignment": "Assignment",
+      "assignment_description": "Owner and due date",
       "remediation_progress": "Remediation Progress",
       "exception_handling": "Exception Handling",
       "closure": "Closure",

@@ -13,7 +13,7 @@ import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from 
 import type { ControlEffectiveness } from '@/types/risk';
 
 import { getOwnerAutoDepartmentId } from './controlFormFilters';
-import { getControlFormSubmissionError, getControlFormStepError } from './controlFormValidation';
+import { getControlFormStepFieldError, getControlFormSubmissionError, type ControlFormFieldError } from './controlFormValidation';
 
 const getControlFormErrorKey = (error: unknown, fallback = 'errorKeys.unknown'): string => {
     if (error instanceof ApiClientError) {
@@ -73,6 +73,8 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, approva
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // AX-04: a step validation failure is shown on its field, not in the banner.
+    const [fieldError, setFieldError] = useState<ControlFormFieldError | null>(null);
     const [formData, setFormData] = useState<Partial<Control>>({
         name: '',
         description: '',
@@ -97,14 +99,17 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, approva
             return nextData;
         });
         setError(null);
+        setFieldError(null);
     };
 
     const validateStep = (stepIndex: number) => {
-        const nextError = getControlFormStepError(stepIndex, formData, t);
+        const nextError = getControlFormStepFieldError(stepIndex, formData, t);
         if (nextError) {
-            setError(nextError);
+            setError(null);
+            setFieldError(nextError);
             return false;
         }
+        setFieldError(null);
         return true;
     };
 
@@ -182,6 +187,7 @@ export function useControlFormWorkflow({ initialData, isEdit, onSuccess, approva
     return {
         currentStep,
         error,
+        fieldError,
         formData,
         isSubmitting,
         handleInputChange,

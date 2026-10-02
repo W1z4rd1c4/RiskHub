@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { IssueCreateForm } from '@/components/issues/IssueCreateForm';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Card } from '@/components/ui/card';
 import { issuesApi } from '@/services/issuesApi';
 import type { Issue } from '@/types/issue';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
@@ -30,9 +31,9 @@ export function IssueNewPage() {
     // D7 / D14: the page title, a labelled back control and breadcrumbs stay in
     // place while the create capability loads or is denied.
     const body = createGate.state === 'allowed' ? (
-        <section className="glass-card p-8 space-y-6">
+        <Card as="section" className="space-y-6">
             <IssueCreateForm onCreated={handleCreated} onCancel={() => navigate(returnTo)} />
-        </section>
+        </Card>
     ) : (
         <FormCapabilityGateState
             state={createGate.state}

@@ -1,10 +1,9 @@
-import { ISSUE_LABEL } from '../issueUi';
-
+/** A read-only label/value pair (render inside a `<dl>`; §4.5: `<dt>/<dd>`, never `<label>`). */
 export function SummaryField({ label, value }: { label: string; value: string }) {
     return (
         <div className="space-y-1">
-            <p className={ISSUE_LABEL}>{label}</p>
-            <p className="text-sm text-foreground break-words">{value}</p>
+            <dt className="text-eyebrow">{label}</dt>
+            <dd className="text-sm text-foreground break-words">{value}</dd>
         </div>
     );
 }

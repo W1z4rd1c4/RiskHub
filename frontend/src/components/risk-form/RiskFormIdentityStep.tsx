@@ -1,8 +1,8 @@
-import { AlertCircle } from 'lucide-react';
-
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { CreatableCombobox } from '@/components/ui/CreatableCombobox';
 import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import type { Risk } from '@/types/risk';
 import { resolveRiskTypeCode } from './riskTypeDefaults';
 
@@ -41,45 +41,40 @@ export function RiskFormIdentityStep({
   handleInputChange,
 }: RiskFormIdentityStepProps) {
   const selectedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypes);
-  const processError = fieldErrors.process ? t(fieldErrors.process, fieldErrors.process) : undefined;
-  const categoryError = fieldErrors.category ? t(fieldErrors.category, fieldErrors.category) : undefined;
+  // PG-04: validation errors are i18n keys (`risks:form.errors.*`), shown per field.
+  const errorText = (field: string) => (fieldErrors[field] ? t(fieldErrors[field], fieldErrors[field]) : undefined);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-      <div>
-        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
-          {t('risks:fields.name')} <span className="text-destructive">*</span>
-        </label>
-        <input
-          type="text"
-          value={formData.name || ''}
-          onChange={(e) => handleInputChange('name', e.target.value)}
-          className={`w-full bg-input/40 border rounded-xl px-4 py-3 text-foreground outline-none focus:border-accent/50 transition-all ${fieldErrors.name ? 'border-destructive' : 'border-input'
-            }`}
-          placeholder={t('form.placeholders.name')}
-        />
-        {fieldErrors.name && (
-          <p className="text-destructive text-xs mt-1.5 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" /> {fieldErrors.name}
-          </p>
-        )}
-      </div>
-      <div className="grid md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">{t('risks:form.labels.risk_type')}</label>
-          <ThemedSelect
-            value={selectedRiskType}
-            onValueChange={(v) => handleInputChange('risk_type', v)}
-            disabled={riskTypesLoading}
-            className="w-full"
-            options={riskTypes.map((rt) => ({ value: rt.code, label: rt.display_name }))}
+      <Field label={t('risks:fields.name')} required error={errorText('name')}>
+        {(field) => (
+          <Input
+            {...field}
+            type="text"
+            value={formData.name || ''}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            placeholder={t('form.placeholders.name')}
+            data-testid="risk-name-input"
           />
-        </div>
+        )}
+      </Field>
+      <div className="grid md:grid-cols-2 gap-6">
+        <Field label={t('risks:form.labels.risk_type')}>
+          {(field) => (
+            <ThemedSelect
+              {...field}
+              value={selectedRiskType}
+              onValueChange={(v) => handleInputChange('risk_type', v)}
+              disabled={riskTypesLoading}
+              className="w-full"
+              options={riskTypes.map((rt) => ({ value: rt.code, label: rt.display_name }))}
+            />
+          )}
+        </Field>
         <Field
           label={t('risks:form.labels.main_process')}
           required
-          error={processError}
-          labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
+          error={errorText('process')}
         >
           {(field) => (
             <CreatableCombobox
@@ -96,10 +91,7 @@ export function RiskFormIdentityStep({
         </Field>
       </div>
       <div className="grid md:grid-cols-2 gap-6">
-        <Field
-          label={t('risks:form.labels.subprocess_optional')}
-          labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
-        >
+        <Field label={t('risks:form.labels.subprocess_optional')}>
           {(field) => (
             <CreatableCombobox
               {...field}
@@ -118,8 +110,7 @@ export function RiskFormIdentityStep({
         <Field
           label={t('common:labels.category')}
           required
-          error={categoryError}
-          labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
+          error={errorText('category')}
         >
           {(field) => (
             <CreatableCombobox
@@ -135,28 +126,19 @@ export function RiskFormIdentityStep({
           )}
         </Field>
       </div>
-      <div>
-        <label htmlFor="risk-description" className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
-          {t('risks:form.labels.risk_description')} <span className="text-destructive">*</span>
-        </label>
-        <textarea
-          id="risk-description"
-          name="description"
-          data-testid="risk-description-input"
-          rows={3}
-          value={formData.description}
-          onChange={(e) => handleInputChange('description', e.target.value)}
-          aria-invalid={fieldErrors.description ? 'true' : 'false'}
-          className={`w-full bg-input/40 border rounded-xl px-4 py-3 text-foreground outline-none focus:border-accent/50 transition-all resize-none ${fieldErrors.description ? 'border-destructive' : 'border-input'
-            }`}
-          placeholder={t('form.placeholders.description')}
-        />
-        {fieldErrors.description && (
-          <p className="text-destructive text-xs mt-1.5 flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" /> {fieldErrors.description}
-          </p>
+      <Field id="risk-description" label={t('risks:form.labels.risk_description')} required error={errorText('description')}>
+        {(field) => (
+          <Textarea
+            {...field}
+            name="description"
+            data-testid="risk-description-input"
+            rows={3}
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            placeholder={t('form.placeholders.description')}
+          />
         )}
-      </div>
+      </Field>
     </div>
   );
 }

@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest';
 
 import * as criticalityPillModule from '@/components/ict-register/CriticalityClassPill';
 import { CriticalityClassPill, VendorTierPill } from '@/components/ict-register/CriticalityClassPill';
-import * as issueUiModule from '@/components/issues/issueUi';
-import { issueSeverityClass } from '@/components/issues/issueUi';
+import * as issueBadgesModule from '@/components/issues/IssueBadges';
+import { IssueSeverityBadge } from '@/components/issues/IssueBadges';
 import { scoreColor as vendorScoreColor } from '@/components/vendor-form/vendorForm.mappers';
 import * as useChartThemeModule from '@/hooks/useChartTheme';
 import { useChartTheme } from '@/hooks/useChartTheme';
@@ -184,7 +184,7 @@ describe('severity consistency — no ambiguous same-named exports', () => {
     const canonical: Record<string, unknown> = { ...tonesModule, ...severityModule };
     const adapterModules: Record<string, Record<string, unknown>> = {
         'lib/monitoringStatus': monitoringStatusModule,
-        'components/issues/issueUi': issueUiModule,
+        'components/issues/IssueBadges': issueBadgesModule,
         'components/ict-register/CriticalityClassPill': criticalityPillModule,
         'hooks/useChartTheme': useChartThemeModule,
     };
@@ -237,8 +237,8 @@ describe('severity consistency — every adapter uses the single source (roadmap
     function adapterCases(): Record<string, Case[]> {
         const chartTheme = renderHook(() => useChartTheme()).result.current;
         return {
-            'issueUi.issueSeverityClass': (Object.keys(ISSUE_SEVERITY_BAND) as IssueSeverity[]).map((severity) => ({
-                className: issueSeverityClass(severity),
+            IssueSeverityBadge: (Object.keys(ISSUE_SEVERITY_BAND) as IssueSeverity[]).map((severity) => ({
+                className: renderedClass(<IssueSeverityBadge severity={severity} />),
                 tone: SEVERITY_BAND_TONE[ISSUE_SEVERITY_BAND[severity]],
             })),
             CriticalityClassPill: CRITICALITY_CLASSES.map((criticality) => ({

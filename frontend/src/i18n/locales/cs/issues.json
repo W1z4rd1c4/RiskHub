@@ -42,7 +42,9 @@
     "owner": "Vlastník",
     "source": "Zdroj",
     "due": "Termín",
-    "opened": "Otevřeno"
+    "opened": "Otevřeno",
+    "status": "Stav",
+    "severity": "Závažnost"
   },
   "status": {
     "open": "Otevřený",
@@ -136,10 +138,12 @@
         "status_change": "Změna stavu",
         "link": "Propojeno",
         "unlink": "Odpojeno",
-        "comment": "Komentováno"
+        "comment": "Komentováno",
+        "other": "Jiná změna"
     }
   },
   "form": {
+    "owner_option": "{{name}} – {{role}}",
     "fields": {
       "title": "Název",
       "severity": "Závažnost",
@@ -169,6 +173,7 @@
     },
     "sections": {
       "assignment": "Přiřazení",
+      "assignment_description": "Vlastník a termín",
       "remediation_progress": "Průběh nápravy",
       "exception_handling": "Práce s výjimkami",
       "closure": "Uzavření",

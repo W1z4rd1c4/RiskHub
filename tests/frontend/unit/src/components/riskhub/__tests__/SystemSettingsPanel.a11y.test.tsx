@@ -172,6 +172,39 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         expect(toast).toHaveTextContent('Require dual approval');
     });
 
+    it('describes a bounded setting with its allowed range through Field (DS-04 rewrite)', async () => {
+        vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({ system_settings: { can_update: true } } as never);
+        vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({
+            approvals: [config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days', min_value: 1, max_value: 30 })],
+        } as never);
+        render(
+            <QueryClientProvider client={createTestQueryClient()}>
+                <FeedbackProvider>
+                    <SystemSettingsPanel />
+                </FeedbackProvider>
+            </QueryClientProvider>,
+        );
+
+        const input = await screen.findByRole('textbox', { name: 'Approval SLA days' });
+        expect(input).toHaveAccessibleDescription('admin:system_settings.range');
+        expect(screen.getByText('Approval SLA days').tagName).toBe('LABEL');
+    });
+
+    it('announces a failed save next to the setting and keeps the edit (AX-05)', async () => {
+        const user = userEvent.setup();
+        vi.mocked(riskHubApi.updateConfig).mockRejectedValue(new Error('offline'));
+        renderPanel();
+
+        const mailbox = await screen.findByRole('textbox', { name: 'Approval mailbox' });
+        await user.clear(mailbox);
+        await user.type(mailbox, 'ops@example.test');
+        await user.click(screen.getByRole('button', { name: 'admin:system_settings.save_named:Approval mailbox' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('unknown');
+        expect(mailbox).toHaveValue('ops@example.test');
+        expect(screen.getByRole('button', { name: 'admin:system_settings.save_named:Approval mailbox' })).toBeEnabled();
+    });
+
     it('keeps the switch disabled without update capability', async () => {
         renderPanel({ canUpdate: false });
 

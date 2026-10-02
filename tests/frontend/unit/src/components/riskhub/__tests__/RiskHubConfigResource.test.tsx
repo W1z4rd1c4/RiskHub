@@ -50,6 +50,7 @@ function renderResourceHarness(
             delete: deleteResource,
             restore: (id) => restoreResource(Number(id)),
             itemId: (item) => item.id,
+            itemName: (item) => item.name,
         });
         const item = resource.items[0];
 
@@ -64,6 +65,9 @@ function renderResourceHarness(
                 ) : null}
                 <button type="button" onClick={() => void resource.handleDelete()}>
                     Confirm delete
+                </button>
+                <button type="button" onClick={() => void resource.handleSave({ id: 8, name: 'Saved item' })}>
+                    Save
                 </button>
                 {item ? (
                     <button type="button" onClick={() => resource.handleRestore(item)}>
@@ -98,6 +102,7 @@ describe('useRiskHubConfigResource', () => {
     });
 
     it('keeps delete confirmation open and sets the UI error key when delete fails', async () => {
+        feedback.success.mockClear();
         const deleteResource = vi.fn().mockRejectedValue(new Error('delete failed'));
         renderResourceHarness(deleteResource);
 
@@ -110,6 +115,29 @@ describe('useRiskHubConfigResource', () => {
         });
         expect(screen.getByTestId('confirm-name')).toHaveTextContent('Retained item');
         expect(deleteResource).toHaveBeenCalledWith(7);
+        expect(feedback.success).not.toHaveBeenCalled();
+    });
+
+    it('closes the confirmation and toasts a successful archive with the record name (D9)', async () => {
+        feedback.success.mockClear();
+        const deleteResource = vi.fn().mockResolvedValue(undefined);
+        renderResourceHarness(deleteResource);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Request delete' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
+
+        await waitFor(() => expect(feedback.success).toHaveBeenCalledWith({ title: 'Archived: Retained item' }));
+        expect(screen.getByTestId('confirm-name')).toHaveTextContent('');
+        expect(screen.getByTestId('action-error')).toHaveTextContent('');
+    });
+
+    it('toasts a successful save (D9)', async () => {
+        feedback.success.mockClear();
+        renderResourceHarness(vi.fn());
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(feedback.success).toHaveBeenCalledWith({ title: 'Changes saved successfully.' }));
     });
 
     it('reports a failed row restore as an error toast without an unhandled rejection', async () => {

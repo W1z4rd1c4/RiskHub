@@ -237,4 +237,47 @@ describe('UsersTable', () => {
 
         expect(screen.getByRole('status')).toHaveTextContent('access.table.no_users_found');
     });
+
+    it('exposes the expand toggle state and the controlled details row (AX-10)', async () => {
+        const onToggleExpand = vi.fn();
+        renderUsersTable({ onToggleExpand });
+
+        const collapsed = screen.getByRole('button', { name: 'access.matrix.show_all_permissions' });
+        expect(collapsed).toHaveAttribute('aria-expanded', 'false');
+        expect(collapsed).not.toHaveAttribute('aria-controls');
+
+        await userEvent.click(collapsed);
+        expect(onToggleExpand).toHaveBeenCalledWith(7);
+    });
+
+    it('links an expanded row to its details through aria-expanded and aria-controls (AX-10)', () => {
+        renderUsersTable({ expandedUserId: 7 });
+
+        const toggle = screen.getByRole('button', { name: 'access.matrix.show_all_permissions' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        const controlled = toggle.getAttribute('aria-controls');
+        expect(controlled).toBeTruthy();
+        expect(document.getElementById(controlled!)).toHaveTextContent('access.capabilities.effective_permissions');
+    });
+
+    it('names the table scroll region and uses the shared table header recipe (DS-11)', () => {
+        renderUsersTable();
+
+        expect(screen.getByRole('region', { name: 'access.title' })).toBeInTheDocument();
+        const headers = screen.getAllByRole('columnheader');
+        expect(headers.length).toBeGreaterThan(0);
+        for (const header of headers) expect(header).toHaveAttribute('scope', 'col');
+    });
+
+    it('shows the directory status as a tone badge, not a hand-rolled pill (GAP-D-27)', () => {
+        renderUsersTable({
+            isAccessMode: false,
+            accessUsers: [],
+            directoryUsers: [makeDirectoryUser({ name: 'Žofie Directory' })],
+        });
+
+        expect(screen.getByText('access.status.active')).toHaveAttribute('data-tone', 'success');
+        // One avatar recipe: a decorative initial next to the visible name.
+        expect(screen.getByText('Ž')).toHaveAttribute('aria-hidden', 'true');
+    });
 });

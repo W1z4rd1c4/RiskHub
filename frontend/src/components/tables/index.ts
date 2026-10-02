@@ -7,3 +7,5 @@ export { CollectionGroupDrillDown } from './CollectionGroupDrillDown';
 export { Pagination } from './Pagination';
 export { RowActionButton } from './RowActionButton';
 export type { RowActionButtonProps } from './RowActionButton';
+export { RowRestoreButton } from './RowRestoreButton';
+export type { RowRestoreButtonProps } from './RowRestoreButton';

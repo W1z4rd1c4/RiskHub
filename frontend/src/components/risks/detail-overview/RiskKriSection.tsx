@@ -2,6 +2,8 @@ import { motion } from 'framer-motion';
 import { FileText, Plus } from 'lucide-react';
 
 import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
 import type { OverdueKRI } from '@/types/kri';
 import type { Risk } from '@/types/risk';
@@ -25,20 +27,17 @@ export function RiskKriSection({
 
     return (
         <motion.div variants={item} className="glass-card flex flex-col gap-6 md:col-span-2 lg:col-span-3">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-warning-text" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.risk_appetite_indicators', { ns: 'risks' })}</h3>
-                </div>
-                {canCreateKri && (
-                    <button
-                        onClick={onNavigateToNewKri}
-                        className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/20 transition-colors font-bold"
-                    >
-                        <Plus className="h-3 w-3 inline mr-1" /> {t('overview.add_kri', { ns: 'risks' })}
-                    </button>
-                )}
-            </div>
+            <CardHeader
+                icon={FileText}
+                title={t('overview.risk_appetite_indicators', { ns: 'risks' })}
+                className="mb-0 border-b border-border pb-4"
+                actions={canCreateKri ? (
+                    <Button variant="outline" size="compact" onClick={onNavigateToNewKri}>
+                        <Plus aria-hidden="true" />
+                        {t('overview.add_kri', { ns: 'risks' })}
+                    </Button>
+                ) : undefined}
+            />
 
             {risk.kris && risk.kris.length > 0 ? (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

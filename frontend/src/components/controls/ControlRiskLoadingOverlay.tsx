@@ -20,11 +20,11 @@ export function ControlRiskLoadingOverlay({ isVisible }: ControlRiskLoadingOverl
                     exit={{ opacity: 0 }}
                     role="status"
                     aria-busy="true"
-                    className="fixed inset-0 z-[10000] flex items-center justify-center bg-overlay backdrop-blur-[2px]"
+                    className="fixed inset-0 z-modal-overlay flex items-center justify-center bg-overlay backdrop-blur-[2px]"
                 >
                     <div className="glass-card !p-6 shadow-2xl flex flex-col items-center gap-4">
                         <Spinner size="lg" />
-                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
+                        <p className="text-eyebrow">
                             {t('detail.fetching_risk_details')}
                         </p>
                     </div>

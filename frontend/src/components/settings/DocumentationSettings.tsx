@@ -14,6 +14,9 @@ import {
     getMaintainerReference,
     shouldShowRawVersion,
 } from '@/components/documentation/documentationPresentation';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 export function DocumentationSettings() {
@@ -108,13 +111,15 @@ export function DocumentationSettings() {
     if (activeDoc) {
         return (
             <div ref={docTopRef} className="space-y-6">
-                <button
+                <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setSelectedDocId(null)}
-                    className="flex items-center gap-2 px-4 py-2 bg-tint/5 hover:bg-tint/10 text-muted-foreground hover:text-foreground text-sm font-medium rounded-xl transition-all border border-border"
+                    className="self-start"
                 >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft aria-hidden="true" />
                     {t('documentation.back')}
-                </button>
+                </Button>
 
                 <div className="docs-reader-surface min-h-[500px] flex flex-col overflow-hidden">
                     <div className="px-8 py-6 border-b border-border space-y-3">
@@ -185,48 +190,45 @@ export function DocumentationSettings() {
     return (
         <div className="space-y-8">
             <section>
-                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                    <BookOpen aria-hidden="true" className="h-5 w-5 text-accent-text" />
                     {t('documentation.title')}
-                </h3>
+                </h2>
                 <p className="text-muted-foreground text-sm mb-6">
                     {t('documentation.subtitle', { role: user?.role_display_name || 'User' })}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-1 rounded-md text-xs font-semibold bg-info/20 text-accent-text" data-testid="settings-docs-audience">
+                    <Badge tone="info" shape="rounded" data-testid="settings-docs-audience">
                         {audienceLabel}
-                    </span>
+                    </Badge>
                 </div>
             </section>
 
             {availableTags.length > 0 && (
                 <section className="flex items-center gap-2 flex-wrap">
-                    <button
+                    <Button
+                        type="button"
+                        size="compact"
+                        variant={selectedTag === 'all' ? 'accent' : 'outline'}
+                        aria-pressed={selectedTag === 'all'}
                         onClick={() => setSelectedTag('all')}
                         data-testid="settings-docs-filter-all"
-                        className={[
-                            'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                            selectedTag === 'all'
-                                ? 'bg-accent/20 text-accent-text border-accent/50'
-                                : 'bg-tint/5 text-foreground border-border hover:bg-tint/10',
-                        ].join(' ')}
                     >
                         {t('documentation.filter_all')}
-                    </button>
+                    </Button>
                     {availableTags.map((tag) => (
-                        <button
+                        <Button
                             key={tag}
+                            type="button"
+                            size="compact"
+                            variant={selectedTag === tag ? 'accent' : 'outline'}
+                            aria-pressed={selectedTag === tag}
                             onClick={() => setSelectedTag(tag)}
                             data-testid={`settings-docs-filter-${sanitizeTag(tag)}`}
-                            className={[
-                                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors uppercase tracking-wider',
-                                selectedTag === tag
-                                    ? 'bg-accent/20 text-accent-text border-accent/50'
-                                    : 'bg-tint/5 text-foreground border-border hover:bg-tint/10',
-                            ].join(' ')}
+                            className="uppercase tracking-wider"
                         >
                             {tag}
-                        </button>
+                        </Button>
                     ))}
                 </section>
             )}
@@ -242,18 +244,28 @@ export function DocumentationSettings() {
             ) : (
                 <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {filteredDocs.map((doc) => (
-                        <button
+                        <Card
+                            as="article"
                             key={doc.id}
-                            onClick={() => openDoc(doc.id)}
-                            data-testid={`settings-doc-card-${doc.id}`}
-                            className="glass-card p-6 flex flex-col text-left group hover:border-accent/50 hover:bg-accent/5 transition-all duration-300"
+                            interactive
+                            className="group relative flex flex-col text-left hover:border-accent/50 hover:bg-accent/5"
                         >
                             <div className="bg-tint/5 p-3 rounded-xl w-fit mb-4 group-hover:bg-accent/20 transition-colors">
-                                <FileText className="h-6 w-6 text-muted-foreground group-hover:text-accent transition-colors" />
+                                <FileText aria-hidden="true" className="h-6 w-6 text-muted-foreground group-hover:text-accent-text transition-colors" />
                             </div>
 
-                            <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-accent-text transition-colors">
-                                {doc.title}
+                            <h3 className="mb-2 text-lg font-bold text-foreground">
+                                {/* The title button stretches over the whole card (after:inset-0), so
+                                    the card is one keyboard-reachable control named by the title. */}
+                                <Button
+                                    type="button"
+                                    variant="link"
+                                    onClick={() => openDoc(doc.id)}
+                                    data-testid={`settings-doc-card-${doc.id}`}
+                                    className="h-auto whitespace-normal p-0 text-left text-lg font-bold text-foreground after:absolute after:inset-0 after:content-[''] group-hover:text-accent-text"
+                                >
+                                    {doc.title}
+                                </Button>
                             </h3>
 
                             <p className="text-sm text-muted-foreground mb-5 flex-1 line-clamp-3">
@@ -262,21 +274,21 @@ export function DocumentationSettings() {
 
                             <div className="flex flex-wrap gap-1.5 mb-4">
                                 {doc.tags.map((tag) => (
-                                    <span
+                                    <Badge
                                         key={`${doc.id}-${tag}`}
+                                        size="sm"
                                         data-testid={`settings-doc-tag-${doc.id}-${sanitizeTag(tag)}`}
-                                        className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-tint/5 text-foreground"
                                     >
                                         {formatDocumentationTag(tag)}
-                                    </span>
+                                    </Badge>
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2 text-accent-text text-sm font-semibold mt-auto">
+                            <div aria-hidden="true" className="flex items-center gap-2 text-accent-text text-sm font-semibold mt-auto">
                                 {t('documentation.view_manual')}
                                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                             </div>
-                        </button>
+                        </Card>
                     ))}
                 </section>
             )}

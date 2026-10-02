@@ -10,6 +10,8 @@ import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMut
 import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFeedback } from '@/hooks/useFeedback';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
 import { LoadingState } from '@/components/ui/state';
@@ -190,8 +192,8 @@ function LinkBlock({
     return (
         <div className="space-y-4" data-testid={`${testIdPrefix}-block`}>
             <div className="flex items-center gap-2">
-                <Icon className={`h-4 w-4 ${iconClass}`} />
-                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">{title}</h3>
+                <Icon aria-hidden="true" className={`h-4 w-4 ${iconClass}`} />
+                <h3 className="text-eyebrow">{title}</h3>
             </div>
             {rows.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{emptyLabel}</p>
@@ -207,19 +209,20 @@ function LinkBlock({
                                 <p className="text-xs font-medium text-warning-text">{processBlockedLabel}</p>
                             ) : null}
                             {canManageLinks && row.canDelete ? (
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="ghost"
+                                    size="iconCompact"
                                     disabled={row.processEditBlocked}
                                     data-testid={`${testIdPrefix}-remove-${row.id}`}
                                     onClick={() => onRemove(row.id)}
                                     aria-label={t('common:links.remove_named', { name: row.name })}
-                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                     title={row.processEditBlocked && processBlockedLabel
                                         ? processBlockedLabel
                                         : removeLabel}
                                 >
-                                    <Unlink className="h-4 w-4" aria-hidden="true" />
-                                </button>
+                                    <Unlink aria-hidden="true" />
+                                </Button>
                             ) : null}
                         </li>
                     ))}
@@ -238,8 +241,8 @@ function LinkBlock({
                             triggerTestId={`${testIdPrefix}-select`}
                         />
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        variant="accent"
                         data-testid={`${testIdPrefix}-add`}
                         disabled={targetId === null || selectedTargetBlocked || isAddPending}
                         onClick={() => {
@@ -248,11 +251,10 @@ function LinkBlock({
                                 setTargetToLink('');
                             }
                         }}
-                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus aria-hidden="true" />
                         {addLabel}
-                    </button>
+                    </Button>
                     {selectedTargetBlocked && processBlockedLabel ? (
                         <p className="md:col-span-4 text-xs font-medium text-warning-text">
                             {processBlockedLabel}
@@ -477,11 +479,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
 
     return (
         <div className="glass-card space-y-6" data-testid="risk-register-links-section">
-            <div className="flex items-center gap-3 border-b border-border pb-4">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('register_links.title')}
-                </h2>
-            </div>
+            <CardHeader title={t('register_links.title')} className="mb-0 border-b border-border pb-4" />
 
             {linkError && pendingProcessAction === null && pendingAssetAction === null ? (
                 <InlineMessage tone="danger">{linkError}</InlineMessage>

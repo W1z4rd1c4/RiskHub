@@ -1,5 +1,4 @@
-import { Search } from 'lucide-react';
-
+import { EmptyState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 
 import { LinkSearchResultItem } from './LinkSearchResultItem';
@@ -29,18 +28,13 @@ export function LinkSearchResults({
 }: LinkSearchResultsProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
     const listHeading = searchQuery ? t('linking.search_results') : t('linking.initial_suggestions');
-    const resultCountLabel = searchResults.length === 1
-        ? t('linking.result_singular')
-        : t('linking.result_plural');
 
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                    {listHeading}
-                </span>
-                <span className="text-xs text-foreground font-medium">
-                    {searchResults.length} {resultCountLabel}
+                <span className="text-eyebrow">{listHeading}</span>
+                <span className="text-xs font-medium text-foreground">
+                    {t('linking.result_count', { count: searchResults.length })}
                 </span>
             </div>
 
@@ -59,15 +53,12 @@ export function LinkSearchResults({
             )}
 
             {searchResults.length === 0 && !isSearching && !isLoadingLookups && !selectedTargetId && (
-                <div className="py-12 flex flex-col items-center justify-center bg-tint/[0.03] border border-dashed border-border rounded-2xl">
-                    <div className="p-4 rounded-full bg-tint/5 mb-4">
-                        <Search className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <p className="text-sm font-bold text-muted-foreground">
-                        {getEmptyResultsLabel(mode, t)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">{t('common:linking.try_adjust_filters')}</p>
-                </div>
+                <EmptyState
+                    kind="no-results"
+                    layout="section"
+                    title={getEmptyResultsLabel(mode, t)}
+                    description={t('common:linking.try_adjust_filters')}
+                />
             )}
         </div>
     );

@@ -1,5 +1,8 @@
 import { User, Mail, Building, Shield, Key, BriefcaseBusiness } from 'lucide-react';
 import { getPermissionLabel } from '@/components/access/permissionPresentation';
+import { UserAvatar } from '@/components/access/UserAvatar';
+import { Badge } from '@/components/ui/badge';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
 
 interface ProfileSettingsProps {
@@ -25,79 +28,73 @@ export function ProfileSettings({ user, nativeAccount = false }: ProfileSettings
     const effectivePermissions = user.effective_permissions ?? user.permissions ?? [];
     const listedPermissions = effectivePermissions.filter((permission) => permission !== '*:*');
 
+    const fieldLabelClass = 'flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground';
+
     return (
         <div className="space-y-8">
             {/* User Identity Section */}
             <section>
-                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <User className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <User aria-hidden="true" className="h-5 w-5 text-accent-text" />
                     {t('profile.your_identity')}
-                </h3>
+                </h2>
                 <div className="bg-tint/5 border border-border rounded-xl p-6">
                     <div className="flex items-center gap-4 mb-6">
-                        {/* Avatar */}
-                        <div className="h-16 w-16 rounded-2xl bg-accent flex items-center justify-center text-accent-foreground text-2xl font-bold">
-                            {user.name.charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar name={user.name} size="lg" />
                         <div>
-                            <h4 className="text-xl font-bold text-foreground">{user.name}</h4>
+                            <h3 className="text-xl font-bold text-foreground">{user.name}</h3>
                             <p className="text-muted-foreground">{user.role_display_name}</p>
                         </div>
                     </div>
 
-                    {/* Info Grid */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {/* Email */}
+                    {/* Read-only values are a description list, not form labels (AX-04). */}
+                    <dl className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Mail aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.email')}
-                            </label>
-                            <p className="text-foreground font-medium">{user.email}</p>
+                            </dt>
+                            <dd className="text-foreground font-medium">{user.email}</dd>
                         </div>
 
-                        {/* Department */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <Building className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Building aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.department')}
-                            </label>
-                            <p className="text-foreground font-medium">{user.department_name || t('common:fallbacks.unassigned')}</p>
+                            </dt>
+                            <dd className="text-foreground font-medium">{user.department_name || t('common:fallbacks.unassigned')}</dd>
                         </div>
 
-                        {/* Role */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <Shield className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Shield aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.role')}
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 bg-accent/10 text-accent-text rounded-full text-sm font-medium">
+                            </dt>
+                            <dd>
+                                <Badge tone="accent" className="px-3">
                                     {user.role_display_name}
-                                </span>
-                            </div>
+                                </Badge>
+                            </dd>
                         </div>
 
-                        {/* Organizational Role */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <BriefcaseBusiness className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <BriefcaseBusiness aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.organizational_role')}
-                            </label>
-                            <p className="text-foreground font-medium">
+                            </dt>
+                            <dd className="text-foreground font-medium">
                                 {user.entra_business_role || t('common:fallbacks.unassigned')}
-                            </p>
+                            </dd>
                         </div>
 
-                        {/* Access Scope */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                                <Key className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Key aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.access_scope')}
-                            </label>
-                            <p className="text-foreground font-medium">{user.scope_label}</p>
+                            </dt>
+                            <dd className="text-foreground font-medium">{user.scope_label}</dd>
                         </div>
-                    </div>
+                    </dl>
                 </div>
 
                 {/* AD Notice */}
@@ -108,15 +105,15 @@ export function ProfileSettings({ user, nativeAccount = false }: ProfileSettings
 
             {/* Permissions Section */}
             <section>
-                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <Key className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Key aria-hidden="true" className="h-5 w-5 text-accent-text" />
                     {t('profile.your_permissions')}
-                </h3>
+                </h2>
                 <div className="bg-tint/5 border border-border rounded-xl p-6">
                     {effectivePermissions.includes('*:*') && (
-                        <div className="mb-4 px-3 py-2 rounded-lg border border-warning/20 bg-warning/10 text-warning-text text-sm font-medium">
+                        <InlineMessage tone="warning" icon={null} className="mb-4 px-3 py-2 font-medium">
                             {getPermissionLabel('*:*', t)}
-                        </div>
+                        </InlineMessage>
                     )}
                     {effectivePermissions.length === 0 ? (
                         <p className="text-muted-foreground text-center py-4">{t('profile.no_permissions_assigned')}</p>

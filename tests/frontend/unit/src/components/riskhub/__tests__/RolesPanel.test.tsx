@@ -124,14 +124,17 @@ describe('RolesPanel', () => {
 
         const adminRow = screen.getByText('Admin').closest('tr');
         expect(adminRow).not.toBeNull();
-        expect(within(adminRow as HTMLTableRowElement).getByRole('button', {
-            name: /admin role cannot be edited/i,
-        })).toBeDisabled();
+        // GAP-B-03: the unavailable edit stays visible and inert, and says why.
+        const adminEdit = within(adminRow as HTMLTableRowElement).getByRole('button', { name: 'Edit Admin' });
+        expect(adminEdit).toHaveAttribute('aria-disabled', 'true');
+        expect(adminEdit).toHaveAccessibleDescription(/admin role cannot be edited/i);
+        fireEvent.click(adminEdit);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(within(adminRow as HTMLTableRowElement).queryByLabelText(/archive/i)).not.toBeInTheDocument();
 
         const archivedRow = screen.getByText('Archived Role').closest('tr');
         expect(archivedRow).not.toBeNull();
-        fireEvent.click(within(archivedRow as HTMLTableRowElement).getByLabelText(/restore/i));
+        fireEvent.click(within(archivedRow as HTMLTableRowElement).getByRole('button', { name: 'Restore Archived Role' }));
 
         await waitFor(() => expect(mockRestoreRole).toHaveBeenCalledWith(4));
     });
@@ -163,7 +166,7 @@ describe('RolesPanel', () => {
 
         const row = screen.getByText('Risk Owner').closest('tr');
         expect(row).not.toBeNull();
-        fireEvent.click(within(row as HTMLTableRowElement).getByLabelText(/^edit$/i));
+        fireEvent.click(within(row as HTMLTableRowElement).getByRole('button', { name: 'Edit Risk Owner' }));
         fireEvent.change(screen.getByLabelText(/display name/i), { target: { value: 'Risk Owner Updated' } });
         fireEvent.click(screen.getByLabelText(/Can view controls/i));
         fireEvent.click(screen.getByRole('button', { name: /save role/i }));
@@ -177,7 +180,7 @@ describe('RolesPanel', () => {
         });
     });
 
-    it('blocks archiving assigned roles in the confirmation dialog', async () => {
+    it('explains a blocked archive of an assigned role on the row action (GAP-B-03)', async () => {
         renderRolesPanel();
         await waitForRoles();
 
@@ -187,13 +190,21 @@ describe('RolesPanel', () => {
         const archiveButton = within(row as HTMLTableRowElement).getByRole('button', { name: 'Archive Assigned Custom' });
         expect(archiveButton.querySelector('svg.lucide-archive')).not.toBeNull();
         expect(archiveButton.querySelector('svg.lucide-trash-2')).toBeNull();
+        expect(archiveButton).toHaveAttribute('aria-disabled', 'true');
+        expect(archiveButton).toHaveAccessibleDescription(/Cannot archive: 2 users/i);
         fireEvent.click(archiveButton);
 
-        const dialog = await screen.findByRole('alertdialog', { name: 'Archive role?' });
-        expect(within(dialog).getByText(/Assigned Custom/)).toBeInTheDocument();
-        expect(within(dialog).getByText(/Cannot archive: 2 users/i)).toBeInTheDocument();
-        expect(within(dialog).queryByRole('button', { name: /^archive$/i })).not.toBeInTheDocument();
-        expect(within(dialog).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(mockDeleteRole).not.toHaveBeenCalled();
+    });
+
+    it('shows permissions as task labels, never raw resource:action tokens (PG-03)', async () => {
+        renderRolesPanel();
+        await waitForRoles();
+
+        const row = screen.getByText('Risk Owner').closest('tr') as HTMLTableRowElement;
+        expect(within(row).getByText('Can view risks')).toBeInTheDocument();
+        expect(within(row).queryByText('risks:read')).not.toBeInTheDocument();
     });
 
     it('renders archive errors inside the open confirmation dialog', async () => {

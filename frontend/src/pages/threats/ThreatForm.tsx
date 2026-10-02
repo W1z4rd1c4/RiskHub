@@ -1,29 +1,23 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { ictRegisterKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
 import { lookupApi } from '@/services/lookupApi';
 import { threatApi } from '@/services/threatApi';
 import { logError } from '@/services/logger';
 import { isApprovalCreatedResponse, type ApprovalCreatedResponse } from '@/types/approval';
 import type { Threat } from '@/types/threat';
 
+import { FormActions, FormErrorSummary, FormLoadFailedNotice, FormSection } from '../shared/EntityFormChrome';
 import { buildThreatWritePayload, THREAT_CATEGORY_CODES } from './threatsPagePresentation';
-
-// Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
-// primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
-// the error visual with no extra class.
-const TEXTAREA_CLASS =
-    'flex min-h-[4.5rem] w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground hover:border-ring/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive resize-y';
 
 interface ThreatFormProps {
     initialData?: Threat;
@@ -200,23 +194,19 @@ export function ThreatForm({
         }
     };
 
-    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-muted-foreground';
-
     const textAreaField = (
         field: keyof FormFields,
         label: string,
         testId: string,
     ) => (
-        <Field label={label} error={fieldErrors[field]} labelClassName={labelClassName}>
+        <Field label={label} error={fieldErrors[field]}>
             {(control) => (
-                <textarea
+                <Textarea
                     {...control}
                     data-testid={testId}
                     value={fields[field]}
-                    disabled={isSubmitting}
                     rows={3}
                     onChange={(event) => setField(field, event.target.value)}
-                    className={TEXTAREA_CLASS}
                 />
             )}
         </Field>
@@ -226,56 +216,38 @@ export function ThreatForm({
 
     return (
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+            <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error || hasFieldErrors ? (
-                <div role="alert" className="glass-card flex items-start gap-3 border border-destructive/30 text-destructive">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
-                </div>
+                <FormErrorSummary message={error ?? t('form.errors.fix_fields')} />
             ) : null}
 
             {cisoQuery.isError ? (
-                <div
-                    role="status"
-                    className="glass-card flex items-center justify-between gap-3 border border-warning/30 text-warning-text"
-                >
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                        <p className="text-sm font-medium">{t('form.errors.lists_failed')}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => void cisoQuery.refetch()}
-                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-warning-text transition-colors hover:bg-tint/10"
-                    >
-                        {t('actions.retry')}
-                    </button>
-                </div>
+                <FormLoadFailedNotice
+                    message={t('form.errors.lists_failed')}
+                    retryLabel={t('actions.retry')}
+                    onRetry={() => void cisoQuery.refetch()}
+                />
             ) : null}
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('form.sections.identity')}
-                </h2>
+            <FormSection title={t('form.sections.identity')}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Field label={t('form.name')} required error={fieldErrors.name} labelClassName={labelClassName}>
+                    <Field label={t('form.name')} required error={fieldErrors.name}>
                         {(control) => (
                             <Input
                                 {...control}
                                 ref={registerFieldRef('name')}
                                 data-testid="threat-form-name"
                                 value={fields.name}
-                                disabled={isSubmitting}
                                 required
                                 onChange={(event) => setField('name', event.target.value)}
                             />
                         )}
                     </Field>
-                    <Field label={t('form.category')} labelClassName={labelClassName}>
+                    <Field label={t('form.category')}>
                         {(control) => (
                             <ThemedSelect
                                 {...control}
                                 value={fields.category}
-                                disabled={isSubmitting}
                                 onValueChange={(value) => setField('category', value)}
                                 options={categoryOptions}
                                 allowEmpty
@@ -289,7 +261,6 @@ export function ThreatForm({
                         label={t('form.steward')}
                         required
                         error={fieldErrors.threat_steward_user_id}
-                        labelClassName={labelClassName}
                     >
                         {(control) => (
                             <SearchableEntitySelect
@@ -299,7 +270,6 @@ export function ThreatForm({
                                 options={stewardOptions}
                                 searchValue={stewardSearch}
                                 onSearchChange={setStewardSearch}
-                                disabled={isSubmitting}
                                 placeholder={t('form.steward_placeholder')}
                                 searchPlaceholder={t('form.steward_search')}
                                 triggerTestId="threat-form-steward"
@@ -307,24 +277,20 @@ export function ThreatForm({
                             />
                         )}
                     </Field>
-                    <Field label={t('form.relevant_subject')} labelClassName={labelClassName}>
+                    <Field label={t('form.relevant_subject')}>
                         {(control) => (
                             <Input
                                 {...control}
                                 data-testid="threat-form-relevant-subject"
                                 value={fields.relevant_subject}
-                                disabled={isSubmitting}
                                 onChange={(event) => setField('relevant_subject', event.target.value)}
                             />
                         )}
                     </Field>
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('form.sections.details')}
-                </h2>
+            <FormSection title={t('form.sections.details')}>
                 <div className="grid grid-cols-1 gap-5">
                     {textAreaField('description', t('form.description'), 'threat-form-description')}
                     {textAreaField('typical_weaknesses', t('form.typical_weaknesses'), 'threat-form-typical-weaknesses')}
@@ -334,47 +300,31 @@ export function ThreatForm({
                         required={stewardChangeRequiresApproval}
                         error={fieldErrors.request_reason}
                         help={t('form.request_reason_help')}
-                        labelClassName={labelClassName}
                     >
                         {(control) => (
-                            <textarea
+                            <Textarea
                                 {...control}
                                 ref={registerFieldRef('request_reason')}
                                 data-testid="threat-form-request-reason"
                                 value={fields.request_reason}
-                                disabled={isSubmitting}
                                 rows={3}
                                 onChange={(event) => setField('request_reason', event.target.value)}
-                                className={TEXTAREA_CLASS}
                             />
                         )}
                     </Field>
                 </div>
-            </section>
+            </FormSection>
 
-            <div className="flex items-center justify-end gap-3">
-                {onCancel ? (
-                    <button
-                        type="button"
-                        onClick={() => requestLocalLeave(onCancel)}
-                        disabled={isSubmitting}
-                        data-testid="threat-form-cancel"
-                        className="px-5 py-2.5 glass rounded-xl text-muted-foreground hover:text-foreground transition-colors text-sm font-semibold flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <X className="h-4 w-4" />
-                        {t('actions.cancel')}
-                    </button>
-                ) : null}
-                <button
-                    type="submit"
-                    disabled={isSubmitting || accountabilityScenarioUnavailable}
-                    data-testid="threat-form-submit"
-                    className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2 text-sm"
-                >
-                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {submitLabel}
-                </button>
-            </div>
+            <FormActions
+                submitLabel={submitLabel}
+                submitTestId="threat-form-submit"
+                isSubmitting={isSubmitting}
+                submitDisabled={accountabilityScenarioUnavailable}
+                onCancel={onCancel ? () => requestLocalLeave(onCancel) : undefined}
+                cancelLabel={t('actions.cancel')}
+                cancelTestId="threat-form-cancel"
+            />
+            </fieldset>
             {confirmationDialog}
         </form>
     );

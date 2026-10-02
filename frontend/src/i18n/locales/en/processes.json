@@ -294,6 +294,7 @@
         "vendors": {
             "title": "Direct Vendor dependencies",
             "empty": "No Vendors linked yet.",
+            "select_label": "Vendor",
             "select_placeholder": "Select a Vendor...",
             "description": "Direct service description",
             "no_metadata": "No link details"

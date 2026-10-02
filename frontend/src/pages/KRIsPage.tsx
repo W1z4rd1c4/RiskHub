@@ -1,7 +1,7 @@
-import { Building2, Shield, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
+import { RiskGroupMetaBody } from '@/components/risks/RiskGroupMetaBody';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
 import { useTranslation, useFormat } from '@/i18n/hooks';
@@ -10,9 +10,10 @@ import type { KeyRiskIndicator } from '@/types/kri';
 
 import { KriRegisterFilterBar } from './kris/KriRegisterFilterBar';
 import { buildKriColumns } from './kris/kriColumns';
-import { formatKriGroupLabel } from './kris/kriPagePresentation';
+import { formatKriGroupLabel, KRI_GROUP_UNKNOWN_RISK_TYPE } from './kris/kriPagePresentation';
 import { KRI_REGISTER_CONFIG, type KriRegisterView } from './kris/kriRegisterConfig';
 import { useKrisPageState } from './kris/useKrisPageState';
+import { useRiskTypeLabel } from './risks/useRiskTypeLabel';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
@@ -21,6 +22,7 @@ export function KRIsPage() {
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/kris');
     const { t } = useTranslation(['kris', 'common']);
+    const riskTypeLabel = useRiskTypeLabel();
     // PG-35: one normalized UI language (the value LanguageProvider reports).
     const { locale: language } = useFormat();
     const state = useKrisPageState(language);
@@ -43,7 +45,7 @@ export function KRIsPage() {
         canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
         onCreate={() => void navigate(appendRegisterReturnTo('/kris/new', returnTo))}
         createLabel={t('new_kri')}
-        exportLabel={t('actions.export')}
+        exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog
             isOpen={isOpen}
             onClose={onClose}
@@ -82,19 +84,18 @@ export function KRIsPage() {
             onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel,
             selectedGroupValue: state.selectedGroupValue,
-            groupLabel: (group) => formatKriGroupLabel(group, {
-                unlinkedVendor: t('grouping.unlinked_vendor'),
-                uncategorized: t('common:fallbacks.not_available'),
-                unknownDepartment: t('common:fallbacks.unassigned'),
-                noProcess: t('common:fallbacks.not_available'),
-                unknownRiskType: t('common:fallbacks.unknown_type'),
-                unknownRisk: t('common:fallbacks.unknown_risk'),
-            }),
-            renderGroupBody: state.viewMode === 'risk' ? (group) => <div className="grid grid-cols-2 gap-y-2 pb-2 border-b border-border">
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest truncate"><Shield className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_type || '') || t('common:fallbacks.unknown_type')}</span></div>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest truncate"><Building2 className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_department_name || '') || t('common:fallbacks.unassigned')}</span></div>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest truncate"><User className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_owner_name || '') || t('common:fallbacks.no_owner')}</span></div>
-            </div> : undefined,
+            // Risk-type groups show the same translated display name as the Risk register.
+            groupLabel: (group) => state.viewMode === 'risk_type' && group.value !== KRI_GROUP_UNKNOWN_RISK_TYPE
+                ? riskTypeLabel(group.value, group.label)
+                : formatKriGroupLabel(group, {
+                    unlinkedVendor: t('grouping.unlinked_vendor'),
+                    uncategorized: t('common:fallbacks.uncategorized'),
+                    unknownDepartment: t('common:fallbacks.unassigned'),
+                    noProcess: t('common:fallbacks.not_available'),
+                    unknownRiskType: t('common:fallbacks.unknown_type'),
+                    unknownRisk: t('common:fallbacks.unknown_risk'),
+                }),
+            renderGroupBody: state.viewMode === 'risk' ? (group) => <RiskGroupMetaBody group={group} /> : undefined,
         }}
         testIdPrefix="kris"
         toolbar={<KriRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchKris()} onSearchChange={state.updateSearch} search={state.search} />}

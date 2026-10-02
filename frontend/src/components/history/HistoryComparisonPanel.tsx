@@ -4,13 +4,38 @@
  */
 import { useState, useMemo } from 'react';
 import { formatKriPeriodDate } from '@/lib/kriHistory';
+import { formatKriUnit } from '@/lib/kriUnits';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { HistoryChangeCard } from './HistoryChangeCard';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation, type SafeTFunction } from '@/i18n/hooks';
+
+/** GAP-D-04: translated breach status (never the raw upper-cased enum). Literal keys for the usage validator. */
+const BREACH_STATUS_LABEL_KEYS: Readonly<Record<string, string>> = {
+    within: 'kris:breach_status.within',
+    above: 'kris:breach_status.above',
+    below: 'kris:breach_status.below',
+};
+
+function breachStatusLabel(status: string, t: SafeTFunction): string {
+    const key = BREACH_STATUS_LABEL_KEYS[status];
+    return key ? t(key) : status;
+}
+
+/** GAP-D-03: a value with its translated unit suffix (which agrees with the value). */
+function formatWithUnit(
+    value: number,
+    unit: string | null | undefined,
+    formatValue: (n: number) => string,
+    t: SafeTFunction,
+): string {
+    const suffix = formatKriUnit(unit, t, value);
+    return suffix ? `${formatValue(value)} ${suffix}` : formatValue(value);
+}
 
 interface HistoryComparisonPanelProps {
     entries: KRIHistoryEntry[];
@@ -96,16 +121,16 @@ export function HistoryComparisonPanel({
         return [
             {
                 label: t('common:labels.value'),
-                before: `${resolvedFormatValue(leftEntry.value)} ${leftEntry.unit}`,
-                after: `${resolvedFormatValue(rightEntry.value)} ${rightEntry.unit}`,
-                delta: `${valueDeltaStr} ${rightEntry.unit}`,
+                before: formatWithUnit(leftEntry.value, leftEntry.unit, resolvedFormatValue, t),
+                after: formatWithUnit(rightEntry.value, rightEntry.unit, resolvedFormatValue, t),
+                delta: `${valueDeltaStr} ${formatKriUnit(rightEntry.unit, t, rightEntry.value - leftEntry.value)}`.trim(),
                 direction: valueDirection as 'up' | 'down' | 'flat',
                 tone: getValueTone(),
             },
             {
                 label: t('comparison.breach_status', { ns: 'kris' }),
-                before: leftEntry.breach_status.toUpperCase(),
-                after: rightEntry.breach_status.toUpperCase(),
+                before: breachStatusLabel(leftEntry.breach_status, t),
+                after: breachStatusLabel(rightEntry.breach_status, t),
                 tone: getBreachTone(),
             },
             {
@@ -115,8 +140,8 @@ export function HistoryComparisonPanel({
             },
             {
                 label: t('comparison.lower_limit', { ns: 'kris' }),
-                before: `${resolvedFormatValue(leftEntry.lower_limit)} ${leftEntry.unit}`,
-                after: `${resolvedFormatValue(rightEntry.lower_limit)} ${rightEntry.unit}`,
+                before: formatWithUnit(leftEntry.lower_limit, leftEntry.unit, resolvedFormatValue, t),
+                after: formatWithUnit(rightEntry.lower_limit, rightEntry.unit, resolvedFormatValue, t),
                 delta: leftEntry.lower_limit !== rightEntry.lower_limit
                     ? `${rightEntry.lower_limit - leftEntry.lower_limit >= 0 ? '+' : ''}${resolvedFormatValue(rightEntry.lower_limit - leftEntry.lower_limit)}`
                     : undefined,
@@ -124,8 +149,8 @@ export function HistoryComparisonPanel({
             },
             {
                 label: t('comparison.upper_limit', { ns: 'kris' }),
-                before: `${resolvedFormatValue(leftEntry.upper_limit)} ${leftEntry.unit}`,
-                after: `${resolvedFormatValue(rightEntry.upper_limit)} ${rightEntry.unit}`,
+                before: formatWithUnit(leftEntry.upper_limit, leftEntry.unit, resolvedFormatValue, t),
+                after: formatWithUnit(rightEntry.upper_limit, rightEntry.unit, resolvedFormatValue, t),
                 delta: leftEntry.upper_limit !== rightEntry.upper_limit
                     ? `${rightEntry.upper_limit - leftEntry.upper_limit >= 0 ? '+' : ''}${resolvedFormatValue(rightEntry.upper_limit - leftEntry.upper_limit)}`
                     : undefined,
@@ -142,7 +167,7 @@ export function HistoryComparisonPanel({
     // Format option label
     const formatOptionLabel = (entry: KRIHistoryEntry) => {
         const date = formatKriPeriodDate(entry.period_end, format.locale);
-        return `${date} (${resolvedFormatValue(entry.value)} ${entry.unit})`;
+        return `${date} (${formatWithUnit(entry.value, entry.unit, resolvedFormatValue, t)})`;
     };
 
     if (sortedEntries.length < 2) {
@@ -159,11 +184,11 @@ export function HistoryComparisonPanel({
             <div className="flex items-center justify-between gap-6 flex-wrap">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-accent/10 rounded-lg">
-                        <ArrowRight className="h-4 w-4 text-accent-text rotate-45" />
+                        <ArrowRight aria-hidden="true" className="h-4 w-4 text-accent-text rotate-45" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">{t('comparison.compare_records', { ns: 'kris' })}</h4>
-                        <p className="text-[10px] text-muted-foreground font-medium">{t('comparison.analyze_changes', { ns: 'kris' })}</p>
+                        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">{t('comparison.compare_records', { ns: 'kris' })}</h3>
+                        <p className="text-xs text-muted-foreground font-medium">{t('comparison.analyze_changes', { ns: 'kris' })}</p>
                     </div>
                 </div>
 
@@ -171,6 +196,8 @@ export function HistoryComparisonPanel({
                     {/* Left selector (previous/baseline) */}
                     <ThemedSelect
                         value={leftId?.toString() ?? ''}
+                        triggerAriaLabel={t('comparison.baseline', { ns: 'kris' })}
+                        triggerTestId="kri-comparison-baseline"
                         onValueChange={(v) => setSelectedLeftId(v ? parseInt(v) : null)}
                         className="min-w-[180px]"
                         options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
@@ -181,6 +208,8 @@ export function HistoryComparisonPanel({
                     {/* Right selector (current/target) */}
                     <ThemedSelect
                         value={rightId?.toString() ?? ''}
+                        triggerAriaLabel={t('comparison.target', { ns: 'kris' })}
+                        triggerTestId="kri-comparison-target"
                         onValueChange={(v) => setSelectedRightId(v ? parseInt(v) : null)}
                         className="min-w-[180px]"
                         options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
@@ -190,10 +219,9 @@ export function HistoryComparisonPanel({
 
             {/* Warning if same selection */}
             {isSameSelection && (
-                <div className="flex items-center gap-3 px-4 py-3 bg-warning/10 border border-warning/20 rounded-xl text-warning-text text-xs font-medium backdrop-blur-sm">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>{t('comparison.distinct_periods_required', { ns: 'kris' })}</span>
-                </div>
+                <InlineMessage tone="warning" icon={AlertTriangle}>
+                    {t('comparison.distinct_periods_required', { ns: 'kris' })}
+                </InlineMessage>
             )}
 
             {/* Comparison card */}

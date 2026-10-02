@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 
+import { RegisterFilterCard } from '@/components/ict-register/RegisterFilterCard';
 import { RegisterListToolbar, type RegisterFilterChip } from '@/components/ict-register/RegisterListToolbar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { Button } from '@/components/ui/button';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 import { threatApi } from '@/services/threatApi';
@@ -66,29 +68,28 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteM
     return (
         <fieldset className="space-y-2" data-testid={`threats-filter-control-${definition.key}`}>
             <legend className="text-xs font-bold text-foreground">{label}</legend>
-            <input
+            <Input
                 type="search"
+                size="compact"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t('register.filters.search_options')}
                 aria-label={t('register.filters.search_options_for', { label })}
                 data-testid={`threats-filter-${definition.key}-search`}
-                className="w-full rounded-lg border border-border bg-tint/5 px-3 py-2 text-sm text-foreground outline-none focus:border-accent/50"
             />
             <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-border p-2" aria-busy={isLoading}>
                 {options.map((option) => {
                     const checked = selectedIds.includes(option.id);
                     return (
-                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-tint/5">
-                            <input
-                                type="checkbox"
+                        <label key={option.id} className="flex items-start gap-2 rounded p-1.5 text-xs text-foreground hover:bg-tint/5">
+                            <Checkbox
                                 checked={checked}
                                 disabled={option.disabled && !checked}
                                 data-testid={`threats-filter-${definition.key}-option-${option.id}`}
                                 onChange={() => onChange(checked
                                     ? selectedIds.filter((id) => id !== option.id)
                                     : [...selectedIds, option.id])}
-                                className="mt-0.5 accent-accent"
+                                className="mt-0.5"
                             />
                             <span className="min-w-0">
                                 <span className="block truncate">{option.label}</span>
@@ -97,7 +98,7 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteM
                         </label>
                     );
                 })}
-                {!isLoading && options.length === 0 ? <p className="px-2 py-1 text-xs text-muted-foreground">{t('register.filters.no_options')}</p> : null}
+                {!isLoading && options.length === 0 ? <p className="p-1.5 text-xs text-muted-foreground">{t('register.filters.no_options')}</p> : null}
             </div>
         </fieldset>
     );
@@ -123,16 +124,14 @@ function FacetMultiFilter({
                 {options.map((option) => {
                     const checked = selected.includes(option.value);
                     return (
-                        <label key={option.value} className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-foreground hover:bg-tint/5">
+                        <label key={option.value} className="flex items-center justify-between gap-2 rounded p-1.5 text-xs text-foreground hover:bg-tint/5">
                             <span className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={checked}
                                     disabled={option.disabled && !checked}
                                     onChange={() => onChange(checked
                                         ? selected.filter((value) => value !== option.value)
                                         : [...selected, option.value])}
-                                    className="accent-accent"
                                 />
                                 {option.label}
                             </span>
@@ -245,15 +244,15 @@ export function ThreatRegisterFilterBar({
         return (
             <label key={definition.key} className="space-y-2 text-xs font-bold text-foreground" data-testid="threats-filter-control-has_linked_risk">
                 <span>{label}</span>
-                <select
+                <NativeSelect
+                    size="compact"
                     value={current === null ? '' : String(current)}
                     onChange={(event) => onFilterChange('has_linked_risk', event.target.value === '' ? null : event.target.value === 'true')}
-                    className="w-full rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground"
                 >
                     <option value="">{t('register.boolean.any')}</option>
                     <option value="true" disabled={Boolean(trueFacet?.disabled && current !== true)}>{withCount('register.boolean.yes', trueFacet)}</option>
                     <option value="false" disabled={Boolean(falseFacet?.disabled && current !== false)}>{withCount('register.boolean.no', falseFacet)}</option>
-                </select>
+                </NativeSelect>
             </label>
         );
     };
@@ -309,18 +308,9 @@ export function ThreatRegisterFilterBar({
                 const definition = THREAT_REGISTER_CONFIG.filters.find((candidate) => candidate.key === key);
                 if (!definition) return null;
                 return (
-                    <div key={key} className="relative rounded-xl border border-border bg-tint/[0.03] p-3 pr-12">
-                        <Button
-                            variant="secondary"
-                            size="iconCompact"
-                            onClick={() => removeFilter(key)}
-                            aria-label={t('register.filters.remove', { label: labels[key] })}
-                            className="absolute right-2 top-2"
-                        >
-                            <X aria-hidden="true" />
-                        </Button>
+                    <RegisterFilterCard key={key} removeLabel={t('register.filters.remove', { label: labels[key] })} onRemove={() => removeFilter(key)}>
                         {renderControl(definition)}
-                    </div>
+                    </RegisterFilterCard>
                 );
             })}
         </RegisterListToolbar>

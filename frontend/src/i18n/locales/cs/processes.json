@@ -294,6 +294,7 @@
         "vendors": {
             "title": "Přímé závislosti na dodavatelích",
             "empty": "Zatím žádní propojení dodavatelé.",
+            "select_label": "Dodavatel",
             "select_placeholder": "Vyberte dodavatele...",
             "description": "Popis přímé služby",
             "no_metadata": "Bez detailů vazby"

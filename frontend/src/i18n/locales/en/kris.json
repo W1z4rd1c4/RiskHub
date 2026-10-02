@@ -2,6 +2,23 @@
   "title": "KRIs",
   "page_subtitle": "Risk appetite monitoring",
   "new_kri": "New KRI",
+  "unit_suffix": {
+    "count": "count",
+    "days_one": "day",
+    "days_few": "days",
+    "days_many": "days",
+    "days_other": "days",
+    "hours_one": "hour",
+    "hours_few": "hours",
+    "hours_many": "hours",
+    "hours_other": "hours",
+    "ratio": "ratio"
+  },
+  "breach_status": {
+    "within": "Within limits",
+    "above": "Above upper limit",
+    "below": "Below lower limit"
+  },
   "create_kri": "Create KRI",
   "edit_kri": "Edit KRI",
   "view_kri": "View KRI",
@@ -129,6 +146,11 @@
       "ratio": "Ratio"
     },
     "reporting_owner_hint": "Leave empty to use Risk owner as default",
+    "details_heading": "KRI details",
+    "steps": {
+      "risk": "Linked risk",
+      "details": "Details"
+    },
     "placeholders": {
       "metric_name": "e.g. Customer complaint rate",
       "description": "Describe what this KRI measures and why it matters...",
@@ -149,6 +171,7 @@
     "vendor_context_label": "Vendor context",
     "vendor_context_active": "Vendor-selected KRI creation",
     "vendor_context_help": "This KRI is being created from the vendor page and the current vendor will be included in the same save.",
+    "risk_scope": "Risk scope",
     "vendor_context_auto_linked": "The current vendor is included automatically in this save. Use the selector above for additional vendors.",
     "vendor_risks_only": "Vendor risks",
     "all_readable_risks": "All readable risks",
@@ -179,7 +202,10 @@
   },
   "overdue": {
     "badge": "Overdue",
-    "days_overdue": "{{days}} days overdue",
+    "days_overdue": "{{count}} days overdue",
+    "days_overdue_one": "{{count}} day overdue",
+    "days_overdue_few": "{{count}} days overdue",
+    "days_overdue_other": "{{count}} days overdue",
     "last_submission": "Last submission: {{date}}"
   },
   "labels": {
@@ -197,7 +223,9 @@
     "compare_records": "Compare Records",
     "analyze_changes": "Analyze changes between two reporting periods",
     "distinct_periods_required": "Difference calculation requires two distinct periods.",
-    "delta_analysis": "Delta Analysis"
+    "delta_analysis": "Delta Analysis",
+    "baseline": "Baseline record",
+    "target": "Compared record"
   },
   "modal": {
     "framework": "Key Risk Indicator Framework",
@@ -236,7 +264,8 @@
     "lower_limit": "Lower limit: {{value}}",
     "upper_limit": "Upper limit: {{value}}",
     "min_value": "{{value}} {{unit}} min",
-    "max_value": "{{value}} {{unit}} max"
+    "max_value": "{{value}} {{unit}} max",
+    "limits_range": "Limits: {{lower}} – {{upper}} {{unit}}"
   },
   "history_edit": {
     "request_correction": "Request Correction",
@@ -250,6 +279,9 @@
     "empty_message": "No history entries found.",
     "record_timeline": "Record Timeline",
     "entries_count": "{{count}} entries",
+    "entries_count_one": "{{count}} entry",
+    "entries_count_few": "{{count}} entries",
+    "entries_count_other": "{{count}} entries",
     "compare_periods": "Compare Periods",
     "need_two_entries_compare": "Select at least two entries to compare.",
     "pagination": "History pages",

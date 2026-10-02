@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Unlink } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { LinkedItemList, LinkedItemRow, LinkRemoveButton } from '@/components/linking/LinkedItemList';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
 import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
@@ -15,6 +19,8 @@ import { vendorApi } from '@/services/vendorApi';
 import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { processMutationRequiresApprovalReason } from '@/pages/processes/processProtectedEdit';
+
+import { DetailSection } from '../detail/DetailSection';
 
 import {
     buildProcessVendorLinkPayload,
@@ -117,16 +123,9 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
         .map((vendor) => ({ value: String(vendor.id), label: vendor.name }));
 
     return (
-        <div className="glass-card space-y-5" data-testid="process-vendor-links-section">
-            <div className="flex items-center gap-3 border-b border-border pb-4">
-                <Building2 className="h-5 w-5 text-success-text" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('links.vendors.title')}
-                </h2>
-            </div>
-
+        <DetailSection title={t('links.vendors.title')} icon={Building2} testId="process-vendor-links-section">
             {linkError && pendingAction === null ? (
-                <InlineMessage tone="danger">{linkError}</InlineMessage>
+                <InlineMessage tone="danger" className="mb-4">{linkError}</InlineMessage>
             ) : null}
 
             <div className="space-y-4">
@@ -138,78 +137,72 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                 ) : vendorLinks.length === 0 ? (
                     <EmptyState layout="inline" icon={null} title={t('links.vendors.empty')} />
                 ) : (
-                    <ul className="space-y-2" data-testid="process-vendor-links">
-                        {vendorLinks.map((link) => (
-                            <li
-                                key={link.id}
-                                className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-3"
-                            >
-                                <div className="min-w-0">
-                                    <span className="text-sm font-bold text-foreground truncate">
-                                        {processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'))}
-                                    </span>
+                    <LinkedItemList testId="process-vendor-links">
+                        {vendorLinks.map((link) => {
+                            const rowName = processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor'));
+                            return (
+                                <LinkedItemRow
+                                    key={link.id}
+                                    actions={canManageLinks && canDeleteProcessVendorLink(link) ? (
+                                        <LinkRemoveButton
+                                            name={rowName}
+                                            testId={`process-vendor-link-remove-${link.id}`}
+                                            onClick={() => {
+                                                setLinkError(null);
+                                                setPendingAction({ kind: 'remove', linkId: link.id });
+                                            }}
+                                        />
+                                    ) : undefined}
+                                >
+                                    <span className="truncate text-sm font-bold text-foreground">{rowName}</span>
                                     <p className="text-xs text-muted-foreground">
                                         {formatProcessVendorLinkMeta(link) || t('links.vendors.no_metadata')}
                                     </p>
-                                </div>
-                                {canManageLinks && canDeleteProcessVendorLink(link) ? (
-                                    <button
-                                        type="button"
-                                        data-testid={`process-vendor-link-remove-${link.id}`}
-                                        onClick={() => {
-                                            setLinkError(null);
-                                            setPendingAction({ kind: 'remove', linkId: link.id });
-                                        }}
-                                        aria-label={t('common:links.remove_named', {
-                                            name: processVendorLinkRowName(link, t('common:fallbacks.unknown_vendor')),
-                                        })}
-                                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                        title={t('links.remove')}
-                                    >
-                                        <Unlink className="h-4 w-4" aria-hidden="true" />
-                                    </button>
-                                ) : null}
-                            </li>
-                        ))}
-                    </ul>
+                                </LinkedItemRow>
+                            );
+                        })}
+                    </LinkedItemList>
                 )}
 
                 {canManageLinks ? (
-                    <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                        <div className="md:col-span-2">
-                            <SearchableEntitySelect
-                                value={vendorToLink}
-                                onValueChange={setVendorToLink}
-                                options={vendorOptions}
-                                placeholder={t('links.vendors.select_placeholder')}
-                                searchValue={vendorSearch}
-                                onSearchChange={setVendorSearch}
-                                triggerTestId="process-vendor-link-select"
-                            />
-                        </div>
-                        <div className="md:col-span-2">
-                            <input
-                                type="text"
-                                data-testid="process-vendor-link-description"
-                                value={serviceDescription}
-                                onChange={(event) => setServiceDescription(event.target.value)}
-                                placeholder={t('links.vendors.description')}
-                                className="w-full glass rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground bg-tint/5 border border-border focus:outline-none focus:border-accent/50"
-                            />
-                        </div>
-                        <button
-                            type="button"
+                    <div className="grid grid-cols-1 items-end gap-3 border-t border-border pt-4 md:grid-cols-5">
+                        <Field label={t('links.vendors.select_label')} className="md:col-span-2">
+                            {(field) => (
+                                <SearchableEntitySelect
+                                    {...field}
+                                    value={vendorToLink}
+                                    onValueChange={setVendorToLink}
+                                    options={vendorOptions}
+                                    placeholder={t('links.vendors.select_placeholder')}
+                                    searchValue={vendorSearch}
+                                    onSearchChange={setVendorSearch}
+                                    triggerTestId="process-vendor-link-select"
+                                />
+                            )}
+                        </Field>
+                        <Field label={t('links.vendors.description')} optional className="md:col-span-2">
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    type="text"
+                                    data-testid="process-vendor-link-description"
+                                    value={serviceDescription}
+                                    onChange={(event) => setServiceDescription(event.target.value)}
+                                />
+                            )}
+                        </Field>
+                        <Button
+                            variant="accent"
                             data-testid="process-vendor-link-add"
                             disabled={!linkPayload || addVendorLink.isPending}
                             onClick={() => {
                                 setLinkError(null);
                                 setPendingAction({ kind: 'add' });
                             }}
-                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                         >
-                            <Plus className="h-4 w-4" />
+                            <Plus aria-hidden="true" />
                             {t('links.add')}
-                        </button>
+                        </Button>
                     </div>
                 ) : null}
             </div>
@@ -232,6 +225,6 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
                     }
                 }}
             />
-        </div>
+        </DetailSection>
     );
 }

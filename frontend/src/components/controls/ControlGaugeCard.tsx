@@ -1,15 +1,19 @@
+import type * as React from 'react';
 import { motion } from 'framer-motion';
 import type { RiskControlLink } from '@/types/risk';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import { useTranslation } from '@/i18n/hooks';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
+import { formatControlFrequency } from '@/pages/controls/controlsPagePresentation';
 
 interface ControlGaugeCardProps {
     link: RiskControlLink;
     onClick?: () => void;
+    /** Lifecycle marker (draft / archived) shown on the card instead of dimming it (GAP-D-14). */
+    statusBadge?: React.ReactNode;
 }
 
-export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
+export function ControlGaugeCard({ link, onClick, statusBadge }: ControlGaugeCardProps) {
     const { t } = useTranslation(['controls', 'common']);
     const {
         control,
@@ -17,8 +21,9 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
     } = link;
 
     const controlName = control?.name || t('common:fallbacks.unknown_control');
+    // PG-03: translated frequency (no raw enum).
     const frequency = control?.frequency
-        ? t(`controls:frequencies.${control.frequency}`, { defaultValue: control.frequency })
+        ? formatControlFrequency(control.frequency, (key, fallback) => t(key, { defaultValue: fallback }))
         : '—';
     const riskLevel = control?.risk_level || 0;
     const maxRiskLevel = 5;
@@ -43,12 +48,15 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                     <h4 className="text-foreground font-bold text-sm leading-tight mb-1 group-hover:text-accent-text transition-colors truncate" title={controlName}>
                         {controlName}
                     </h4>
-                    <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
-                        {t('detail.control_badge', { ns: 'controls' })}
+                    <span className="flex flex-wrap items-center gap-2">
+                        <span className="text-eyebrow">
+                            {t('detail.control_badge', { ns: 'controls' })}
+                        </span>
+                        {statusBadge}
                     </span>
                 </div>
                 <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold text-xs uppercase tracking-wide shrink-0 ${monitoring.badgeClassName}`}>
-                    <MonitoringIcon className="h-4 w-4" />
+                    <MonitoringIcon className="h-4 w-4" aria-hidden="true" />
                     {t(monitoring.labelKey)}
                 </div>
             </div>
@@ -56,15 +64,18 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
             <div className="space-y-4 mt-auto">
                 <div className="flex items-end justify-between">
                     <div>
-                        <div className="text-2xl font-black text-foreground flex items-baseline gap-2">
+                        <div className="text-2xl font-bold tabular-nums text-foreground flex items-baseline gap-2">
                             {riskLevel}
                             <span className="text-xs text-muted-foreground font-bold">/ {maxRiskLevel}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">
-                            {t('common:labels.frequency')}: {frequency}
+                        <p className="text-eyebrow mt-1">
+                            {t('common:labels.label_value', { label: t('common:labels.frequency'), value: frequency })}
                         </p>
-                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">
-                            {t('form.labels.effectiveness', { ns: 'controls' })}: {t(`form.effectiveness.${link.effectiveness}`, { ns: 'controls' })}
+                        <p className="text-eyebrow mt-1">
+                            {t('common:labels.label_value', {
+                                label: t('form.labels.effectiveness', { ns: 'controls' }),
+                                value: t(`form.effectiveness.${link.effectiveness}`, { ns: 'controls' }),
+                            })}
                         </p>
                     </div>
                 </div>

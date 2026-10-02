@@ -6,6 +6,7 @@ Folder for `tests/frontend/unit/src/pages/admin-console/sections/audit` implemen
 
 ## Contents
 
+- `auditEventTranslations.test.ts` - every backend audit event has an en and cs name; unknown codes humanize
 - `auditExport.test.ts`
 - `auditPresentation.test.ts`
 

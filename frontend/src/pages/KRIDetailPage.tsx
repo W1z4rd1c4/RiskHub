@@ -4,6 +4,8 @@ import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TabList, TabPanel } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -18,6 +20,7 @@ import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/D
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { kriDetailTabs, useKriDetailState } from '@/pages/detail/useKriDetailState';
+import { hasPendingKriApproval } from '@/pages/kris/kriColumns';
 import { resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
 import { LoadingState, Skeleton } from '@/components/ui/state';
 
@@ -138,15 +141,16 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 title={kri.metric_name}
                 statuses={(
                     <>
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase ${monitoring.badgeClassName}`}>
-                            <MonitoringIcon aria-hidden="true" className="h-3 w-3" />
+                        <Badge icon={MonitoringIcon} className={monitoring.badgeClassName}>
                             {t(monitoring.labelKey)}
-                        </span>
+                        </Badge>
                         {isOverdue && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase bg-warning/10 text-warning-text border border-warning/20">
-                                <Clock aria-hidden="true" className="h-3 w-3" /> {t('kris:overdue.days_overdue', { days: kri.days_overdue ?? 0 })}
-                            </span>
+                            <Badge tone="warning" icon={Clock}>
+                                {t('kris:overdue.days_overdue', { count: kri.days_overdue ?? 0 })}
+                            </Badge>
                         )}
+                        {/* PG-29: the same pending-approval badge as the register row. */}
+                        {hasPendingKriApproval(kri) ? <PendingChangeBadge /> : null}
                     </>
                 )}
                 description={kri.description || undefined}
@@ -154,7 +158,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     <>
                         {canRecordValue && (
                             <Button variant="success" onClick={() => setIsValueModalOpen(true)}>
-                                <Plus className="h-4 w-4 mr-1" /> {t('kris:value_modal.title')}
+                                <Plus aria-hidden="true" /> {t('kris:value_modal.title')}
                             </Button>
                         )}
                         <ContextualIssueAction
@@ -170,7 +174,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                         />
                         {canUpdateKri && (
                             <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
-                                <Edit2 className="h-4 w-4 mr-1" /> {t('common:actions.edit')}
+                                <Edit2 aria-hidden="true" /> {t('common:actions.edit')}
                             </Button>
                         )}
                         {kri.is_archived ? (
@@ -180,9 +184,8 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                                 disabled={!restoreState.canSubmit}
                                 isLoading={restoreState.outcome === 'pending'}
                                 aria-describedby={restoreState.outcome !== 'idle' ? 'kri-restore-feedback' : undefined}
-                                className="text-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground"
                             >
-                                <RotateCcw aria-hidden="true" className="h-4 w-4 mr-1" />
+                                <RotateCcw aria-hidden="true" />
                                 {restoreState.outcome === 'pending' ? t('kris:restore.pending')
                                     : ['rejected', 'archived'].includes(restoreState.outcome) ? t('kris:restore.retry')
                                         : t('common:actions.unarchive')}
@@ -196,7 +199,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                                 }}
                                 disabled={isDeleting}
                             >
-                                <Archive aria-hidden="true" className="h-4 w-4 mr-1" /> {isDeleting ? t('common:confirm.archive.busy') : t('common:actions.archive')}
+                                <Archive aria-hidden="true" /> {isDeleting ? t('common:confirm.archive.busy') : t('common:actions.archive')}
                             </Button>
                         )}
                     </>
@@ -211,8 +214,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     id="kri-restore-feedback"
                     tone={KRI_RESTORE_TONE[restoreState.outcome]}
                     action={['unknown', 'denied'].includes(restoreState.outcome) && restoreState.canReconcile ? (
-                        <Button variant="outline" className="text-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground"
-                            onClick={() => void restoreState.reconcile()} isLoading={restoreState.isReconciling}>
+                        <Button variant="outline" onClick={() => void restoreState.reconcile()} isLoading={restoreState.isReconciling}>
                             {restoreState.isReconciling ? t('kris:restore.refreshing') : t('kris:restore.refresh')}
                         </Button>
                     ) : null}

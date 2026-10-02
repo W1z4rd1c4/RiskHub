@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/tables/Pagination';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
 import { useAuth } from '@/contexts/AuthContext';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { ErrorState } from '@/components/ui/state';
 import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -290,15 +291,14 @@ export function UsersPage() {
             )}
 
             {outcome && (
-                <div
-                    role={outcome.kind}
-                    className={`rounded-xl border px-4 py-3 text-sm ${outcome.kind === 'alert'
-                        ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                        : 'border-success/30 bg-success/10 text-success-text'
-                    }`}
+                // SM-15: success and failure outcomes share the tone-driven banner
+                // (role=status for success, role=alert for failure).
+                <InlineMessage
+                    tone={outcome.kind === 'alert' ? 'danger' : 'success'}
+                    onDismiss={() => setOutcome(null)}
                 >
                     {outcome.message}
-                </div>
+                </InlineMessage>
             )}
 
             {showAccessStats && (
@@ -333,7 +333,6 @@ export function UsersPage() {
 
                 {loadErrorKey && !isLoading ? (
                     <ErrorState
-                        className="glass-card"
                         title={translateUiMessage(t, loadErrorKey)}
                         message={t('users.load_failed_help', { ns: 'admin' })}
                         onRetry={() => void fetchUsers()}

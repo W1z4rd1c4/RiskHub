@@ -3,6 +3,7 @@ import { Building2, Link as LinkIcon, Star, Tag, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
+import { CardHeader } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
 import type { Risk } from '@/types/risk';
 
@@ -49,32 +50,29 @@ export function RiskSummaryCards({
             className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
         >
             <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                <div className="flex items-center gap-3 border-b border-border pb-4">
-                    <Tag className="h-5 w-5 text-chart-2" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.classification', { ns: 'risks' })}</h3>
-                </div>
+                <CardHeader icon={Tag} title={t('overview.classification', { ns: 'risks' })} className="mb-0 border-b border-border pb-4" />
 
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('common:labels.type')}</span>
+                        <span className="text-eyebrow">{t('common:labels.type')}</span>
                         <RiskTypeBadge testId="risk-type-badge" label={getDisplayName(risk.risk_type)} color={typeColor} />
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('common:labels.category')}</span>
+                        <span className="text-eyebrow">{t('common:labels.category')}</span>
                         <span className="text-sm text-foreground font-medium">{risk.category || '—'}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('common:labels.process')}</span>
+                        <span className="text-eyebrow">{t('common:labels.process')}</span>
                         <span className="text-sm text-foreground font-medium">{risk.process}</span>
                     </div>
                     {risk.subprocess && (
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('overview.subprocess', { ns: 'risks' })}</span>
+                            <span className="text-eyebrow">{t('overview.subprocess', { ns: 'risks' })}</span>
                             <span className="text-sm text-muted-foreground font-medium">{risk.subprocess}</span>
                         </div>
                     )}
                     <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('fields.is_priority', { ns: 'risks' })}</span>
+                        <span className="text-eyebrow">{t('fields.is_priority', { ns: 'risks' })}</span>
                         <span className={`flex items-center gap-1 text-sm font-bold ${risk.is_priority ? 'text-warning-text' : 'text-muted-foreground'}`}>
                             {risk.is_priority ? <><Star className="h-3 w-3 fill-warning-text" /> {t('common:actions.yes')}</> : t('common:actions.no')}
                         </span>
@@ -83,10 +81,7 @@ export function RiskSummaryCards({
             </motion.div>
 
             <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                <div className="flex items-center gap-3 border-b border-border pb-4">
-                    <User className="h-5 w-5 text-accent" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.ownership', { ns: 'risks' })}</h3>
-                </div>
+                <CardHeader icon={User} title={t('overview.ownership', { ns: 'risks' })} className="mb-0 border-b border-border pb-4" />
 
                 <div className="space-y-5">
                     <div className="flex gap-3 items-start">
@@ -94,7 +89,7 @@ export function RiskSummaryCards({
                             {risk.owner?.name?.[0] || 'U'}
                         </div>
                         <div>
-                            <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('fields.owner', { ns: 'risks' })}</p>
+                            <p className="text-eyebrow">{t('fields.owner', { ns: 'risks' })}</p>
                             <p className="text-sm font-bold text-foreground leading-snug">{risk.owner?.name || t('overview.unassigned', { ns: 'risks' })}</p>
                             <p className="text-xs text-muted-foreground">{risk.owner?.email || ''}</p>
                         </div>
@@ -104,7 +99,7 @@ export function RiskSummaryCards({
                             <Building2 className="h-4 w-4" />
                         </div>
                         <div>
-                            <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('common:labels.department')}</p>
+                            <p className="text-eyebrow">{t('common:labels.department')}</p>
                             <p className="text-sm font-bold text-foreground leading-snug">{risk.department?.name || t('overview.no_department', { ns: 'risks' })}</p>
                             <p className="text-xs text-muted-foreground font-mono">{risk.department?.code || ''}</p>
                         </div>
@@ -113,29 +108,26 @@ export function RiskSummaryCards({
             </motion.div>
 
             <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                <div className="flex items-center gap-3 border-b border-border pb-4">
-                    <LinkIcon className="h-5 w-5 text-chart-2" />
-                    <h3 className="font-bold text-foreground uppercase tracking-widest text-xs">{t('overview.connections', { ns: 'risks' })}</h3>
-                </div>
+                <CardHeader icon={LinkIcon} title={t('overview.connections', { ns: 'risks' })} className="mb-0 border-b border-border pb-4" />
 
                 <div className="space-y-4">
                     <div className="flex justify-between items-center gap-4">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                        <span className="text-eyebrow">
                             {t('overview.mitigating_controls', { ns: 'risks' })}
                         </span>
-                        <span className="text-lg text-foreground font-black">{activeControlCount ?? '—'}</span>
+                        <span className="text-lg text-foreground font-bold tabular-nums">{activeControlCount ?? '—'}</span>
                     </div>
                     <div className="flex justify-between items-center gap-4">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                        <span className="text-eyebrow">
                             {t('overview.risk_appetite_indicators', { ns: 'risks' })}
                         </span>
-                        <span className="text-lg text-foreground font-black">{linkedKriCount}</span>
+                        <span className="text-lg text-foreground font-bold tabular-nums">{linkedKriCount}</span>
                     </div>
                     <div className="flex justify-between items-center gap-4">
-                        <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                        <span className="text-eyebrow">
                             {t('overview.linked_vendors', { ns: 'risks' })}
                         </span>
-                        <span className="text-lg text-foreground font-black">{linkedVendorCount ?? '—'}</span>
+                        <span className="text-lg text-foreground font-bold tabular-nums">{linkedVendorCount ?? '—'}</span>
                     </div>
                 </div>
             </motion.div>

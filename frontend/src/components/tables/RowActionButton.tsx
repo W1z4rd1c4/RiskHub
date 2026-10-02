@@ -23,12 +23,14 @@ export interface RowActionButtonProps {
     disabledReason?: string;
     /** `danger` for destructive row actions (delete, remove). */
     tone?: 'default' | 'danger';
+    /** The action is in flight: the icon becomes the button spinner and the button is disabled. */
+    isLoading?: boolean;
     className?: string;
     'data-testid'?: string;
 }
 
 export const RowActionButton = React.forwardRef<HTMLButtonElement, RowActionButtonProps>(
-    ({ icon: Icon, label, onClick, disabledReason, tone = 'default', className, 'data-testid': testId }, ref) => {
+    ({ icon: Icon, label, onClick, disabledReason, tone = 'default', isLoading = false, className, 'data-testid': testId }, ref) => {
         const isDisabled = Boolean(disabledReason);
 
         const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -54,6 +56,7 @@ export const RowActionButton = React.forwardRef<HTMLButtonElement, RowActionButt
                 aria-label={label}
                 aria-disabled={isDisabled || undefined}
                 title={disabledReason ?? label}
+                isLoading={isLoading}
                 onClick={handleClick}
                 onKeyDown={handleKeyDown}
                 data-testid={testId}

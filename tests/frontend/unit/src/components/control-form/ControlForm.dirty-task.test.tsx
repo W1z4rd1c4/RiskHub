@@ -332,4 +332,14 @@ describe('ControlForm dirty-task protection', () => {
         fireEvent.click(screen.getByRole('link', { name: 'Leave route' }));
         expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     });
+
+    it('shows a failed step check on its field and moves focus there (AX-04)', async () => {
+        renderControlEdit({ ...initialControl, description: '' });
+        await screen.findByTestId('control-form-lookups-ready');
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        const description = await screen.findByRole('textbox', { name: /Description/ });
+        expect(description).toHaveAttribute('aria-invalid', 'true');
+        expect(description).toHaveAccessibleDescription('Description is required.');
+        await waitFor(() => expect(description).toHaveFocus());
+    });
 });

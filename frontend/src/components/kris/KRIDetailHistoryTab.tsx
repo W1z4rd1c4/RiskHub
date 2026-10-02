@@ -4,11 +4,13 @@ import { History, TrendingUp } from 'lucide-react';
 import { HistoryTimeline, HistoryTrendChart, HistoryComparisonPanel } from '@/components/history';
 import { Pagination } from '@/components/tables/Pagination';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import { CardHeader } from '@/components/ui/card';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryTimelineItem, HistoryTrendPoint } from '@/types/history';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import { formatKriPeriodDate, KRI_HISTORY_PAGE_SIZE } from '@/lib/kriHistory';
+import { formatKriUnitName } from '@/lib/kriUnits';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,9 +163,7 @@ export function KRIDetailHistoryTab({
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-accent-text" /> {t('history_tab.value_trend', { ns: 'kris' })}
-                    </h3>
+                    <CardHeader icon={TrendingUp} title={t('history_tab.value_trend', { ns: 'kris' })} />
                     <p className="mb-4 text-sm text-muted-foreground">
                         {dateWindow ? t('history_tab.trend_window', dateWindow) : t('history_tab.no_window')}
                     </p>
@@ -171,7 +171,7 @@ export function KRIDetailHistoryTab({
                         data={historyChartData}
                         lowerLimit={lowerLimit}
                         upperLimit={upperLimit}
-                        valueLabel={unit || t('common:labels.value')}
+                        valueLabel={formatKriUnitName(unit, t) || t('common:labels.value')}
                         formatValue={(val) => formatNumber(val, format.locale)}
                         emptyMessage={t('history_tab.empty_message', { ns: 'kris' })}
                     />
@@ -184,10 +184,13 @@ export function KRIDetailHistoryTab({
                     transition={{ delay: 0.1 }}
                     className="glass-card"
                 >
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <History className="h-4 w-4 text-accent-text" /> {t('history_tab.record_timeline', { ns: 'kris' })}
-                        {historyTotal > 0 && <span className="text-muted-foreground font-normal">({t('history_tab.entries_count', { ns: 'kris', count: historyTotal })})</span>}
-                    </h3>
+                    <CardHeader
+                        icon={History}
+                        title={t('history_tab.record_timeline', { ns: 'kris' })}
+                        actions={historyTotal > 0 ? (
+                            <span className="text-sm text-muted-foreground">{t('history_tab.entries_count', { ns: 'kris', count: historyTotal })}</span>
+                        ) : undefined}
+                    />
                     <HistoryTimeline
                         items={timelineItems}
                         loading={isLoadingHistory}
@@ -207,9 +210,7 @@ export function KRIDetailHistoryTab({
                     transition={{ delay: 0.2 }}
                     className="glass-card"
                 >
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-accent-text" /> {t('history_tab.compare_periods', { ns: 'kris' })}
-                    </h3>
+                    <CardHeader icon={TrendingUp} title={t('history_tab.compare_periods', { ns: 'kris' })} />
                     <p className="mb-4 text-sm text-muted-foreground">{t('history_tab.comparison_window')}</p>
                     {history.length >= 2 ? (
                         <HistoryComparisonPanel

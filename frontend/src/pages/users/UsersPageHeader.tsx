@@ -1,6 +1,7 @@
 import { Building2, UserPlus, Users } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -42,16 +43,12 @@ export function UsersPageHeader({
                             isFetching={isCheckingAllDirectory}
                         />
                     )}
-                    <button
-                        type="button"
-                        onClick={onAddUser}
-                        className="bg-accent hover:bg-accent-hover text-accent-foreground px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-[background-color,transform] active:scale-95"
-                    >
-                        {isDirectoryFirstMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                    <Button type="button" variant="accent" onClick={onAddUser}>
+                        {isDirectoryFirstMode ? <Building2 aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
                         {isDirectoryFirstMode
                             ? t('users.add_from_ad')
                             : t('access.add_user')}
-                    </button>
+                    </Button>
                 </>
             ) : undefined}
         />

@@ -2,7 +2,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Archive,
     Edit,
-    Star,
     History,
     FileText,
     Target,
@@ -16,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { TabList, TabPanel } from '@/components/ui/tabs';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
+import { RiskPriorityBadge, RiskStatusBadge } from '@/components/risks/RiskStatusBadge';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { useTranslation } from '@/i18n/hooks';
@@ -84,15 +84,6 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
         setLinkErrorKey,
     } = useRiskDetailState({ rawId, returnTo });
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'active': return 'text-success-text border-success/20 bg-success/10';
-            case 'emerging': return 'text-warning-text border-warning/20 bg-warning/10';
-            default: return 'text-muted-foreground border-border bg-muted';
-        }
-    };
-
-
     if (loadOutcome === 'loading') {
         return (
             <div data-loading="true">
@@ -154,14 +145,8 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                 identifier={risk.risk_id_code}
                 identifierSeparatorLabel={t('detail_header.identifier_separator')}
                 title={risk.name}
-                titleAdornment={risk.is_priority ? <Star className="h-5 w-5 text-warning-text fill-warning" /> : undefined}
-                statuses={(
-                    <>
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
-                            {displayStatus}
-                        </span>
-                    </>
-                )}
+                titleAdornment={risk.is_priority ? <RiskPriorityBadge /> : undefined}
+                statuses={<RiskStatusBadge status={displayStatus} />}
                 metadata={<span>{risk.process}</span>}
                 description={risk.description}
                 actions={(

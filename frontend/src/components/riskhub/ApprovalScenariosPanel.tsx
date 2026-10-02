@@ -4,6 +4,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys } from '@/lib/queryKeys';
+import { getRoleLabel } from '@/lib/roleLabels';
 import {
     APPROVAL_SCENARIO_APPROVER_ROLES,
     type ApprovalScenario,
@@ -11,11 +12,16 @@ import {
     type ApprovalScenarioFixedPolicyDefinition,
     type ApprovalScenarioUpdate,
 } from '@/services/riskHubApi';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 import { DialogBody } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Switch } from '@/components/ui/switch';
-import { ErrorState, LoadingState } from '@/components/ui/state';
-import { useState, useMemo, useEffect, useId } from 'react';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
@@ -61,8 +67,6 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-    const requiresApprovalLabelId = useId();
-    const approverRolesLabelId = useId();
     const isFixedProtectedScenario = scenario != null && FIXED_PROTECTED_SCENARIO_KEYS.has(scenario.key);
     const fixedPolicyDefinition = isFixedProtectedScenario && scenario?.fixed_policy
         ? scenario.fixed_policy_definition ?? LEGACY_PROTECTED_PROCESS_FIXED_POLICY
@@ -108,18 +112,20 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
         <RiskHubModalFrame onClose={onClose} isBusy={saving} title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
             <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
                 <DialogBody className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <span id={requiresApprovalLabelId} className="text-foreground">{t('admin:approval_scenarios.requires_approval')}</span>
-                        <Switch
-                            checked={requiresApproval}
-                            onCheckedChange={setRequiresApproval}
-                            aria-labelledby={requiresApprovalLabelId}
-                        />
-                    </div>
+                    <Field layout="inline" label={t('admin:approval_scenarios.requires_approval')}>
+                        {(field) => (
+                            <Switch
+                                {...field}
+                                checked={requiresApproval}
+                                onCheckedChange={setRequiresApproval}
+                            />
+                        )}
+                    </Field>
 
                     {fixedPolicyDefinition ? (
-                        <div
-                            className="rounded-xl border border-border bg-tint/5 p-4"
+                        <Card
+                            tone="nested"
+                            padding="compact"
                             data-testid={
                                 scenario.key === 'accountability_reassignment'
                                     ? 'accountability-reassignment-fixed-policy'
@@ -136,7 +142,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                             </p>
                             <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                                 <div>
-                                    <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    <dt className="text-eyebrow">
                                         {t('admin:approval_scenarios.fixed_policy.threshold')}
                                     </dt>
                                     <dd className="mt-1 text-foreground">
@@ -144,7 +150,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    <dt className="text-eyebrow">
                                         {t('admin:approval_scenarios.fixed_policy.actions')}
                                     </dt>
                                     <dd className="mt-1 text-foreground">
@@ -154,7 +160,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                    <dt className="text-eyebrow">
                                         {t('admin:approval_scenarios.fixed_policy.separation')}
                                     </dt>
                                     <dd className="mt-1 text-foreground">
@@ -162,25 +168,24 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                                     </dd>
                                 </div>
                             </dl>
-                        </div>
+                        </Card>
                     ) : null}
 
                     {requiresApproval && (
-                        <div className="space-y-2">
-                            <span id={approverRolesLabelId} className="block text-foreground font-medium">{t('admin:approval_scenarios.approver_roles')}</span>
-                            {rolesLoading ? (
-                                <div className="text-muted-foreground text-sm py-2">{t('common:loading.roles')}</div>
+                        <Field label={t('admin:approval_scenarios.approver_roles')} required>
+                            {(field) => (rolesLoading ? (
+                                <LoadingState layout="inline" label={t('common:loading.roles')} />
                             ) : (
                                 <MultiSelect
-                                    aria-labelledby={approverRolesLabelId}
+                                    {...field}
                                     options={selectableRoles}
                                     value={selectedRoles}
                                     onChange={setSelectedRoles}
                                     placeholder={t('admin:approval_scenarios.modal.select_roles')}
                                     formatSummary={(count) => t('admin:approval_scenarios.modal.roles_selected', { count })}
                                 />
-                            )}
-                        </div>
+                            ))}
+                        </Field>
                     )}
 
                     <RiskHubFieldError errorKey={errorKey} />
@@ -233,11 +238,13 @@ export function ApprovalScenariosPanel() {
             risk_owner: t('admin:approval_scenarios.special_roles.risk_owner_dynamic'),
         };
 
+        // GAP-D-06: approver roles are seeded RBAC codes; show their translated
+        // names (`lib/roleLabels`) rather than the stored English display name.
         const fromHub: RoleOption[] = (hubRoles || [])
             .filter(r => isApprovalScenarioApproverRole(r.name))
             .map(r => ({
                 value: r.name,
-                label: r.display_name,
+                label: getRoleLabel(r.name, t),
             }));
         // Merge special roles (like risk_owner) and deduplicate
         const specialEntries: RoleOption[] = SPECIAL_ROLE_VALUES.map((value) => ({
@@ -249,11 +256,12 @@ export function ApprovalScenariosPanel() {
         return merged;
     }, [hubRoles, t]);
 
-    // Helper to get role label
-    const getRoleLabel = (roleValue: string): string => {
-        const found = roleOptions.find(r => r.value === roleValue);
-        return found?.label.split('(')[0].trim() || roleValue;
-    };
+    // Scenario badges: the dynamic risk owner reads without its "(dynamic)" hint.
+    const approverRoleLabel = (roleValue: string): string => (
+        roleValue === 'risk_owner'
+            ? t('admin:approval_scenarios.special_roles.risk_owner')
+            : getRoleLabel(roleValue, t)
+    );
 
     // DS-17 / GAP-C-11: shared loading and error (with retry) states.
     if (scenariosResource.isLoading) {
@@ -272,83 +280,75 @@ export function ApprovalScenariosPanel() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold text-foreground">{t('admin:approval_scenarios.title')}</h3>
-            </div>
+            {scenariosResource.error ? (
+                <ErrorState variant="banner" onRetry={scenariosResource.retry} isRetrying={scenariosResource.isFetching} />
+            ) : null}
+            <CardHeader
+                className="mb-0"
+                icon={ShieldCheck}
+                title={t('admin:approval_scenarios.title')}
+                description={t('admin:approval_scenarios.subtitle')}
+            />
 
-            <p className="text-muted-foreground text-sm">
-                {t('admin:approval_scenarios.subtitle')}
-            </p>
-
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-border">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:approval_scenarios.columns.scenario')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.description')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.status')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:approval_scenarios.columns.approvers')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            {scenariosResource.items.length === 0 ? (
+                <EmptyState title={t('admin:approval_scenarios.empty')} testId="approval-scenarios-empty" />
+            ) : (
+                <Table density="compact" regionLabel={t('admin:approval_scenarios.title')}>
+                    <THead>
+                        <TR>
+                            <TH>{t('admin:approval_scenarios.columns.scenario')}</TH>
+                            <TH>{t('common:labels.description')}</TH>
+                            <TH align="center">{t('common:labels.status')}</TH>
+                            <TH>{t('admin:approval_scenarios.columns.approvers')}</TH>
+                            <TH align="right">{t('common:labels.actions')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {scenariosResource.items.map((scenario) => (
-                            <tr
-                                key={scenario.key}
-                                className="border-b border-border hover:bg-tint/5 transition-colors"
-                            >
-                                <td className="py-3 px-4">
+                            <TR key={scenario.key}>
+                                <TD>
                                     <span className="text-foreground font-medium">{scenario.display_name}</span>
-                                </td>
-                                <td className="py-3 px-4 text-muted-foreground text-sm max-w-xs">
+                                </TD>
+                                <TD className="max-w-xs text-sm text-muted-foreground">
                                     {scenario.description}
                                     {fixedPolicySummary(scenario) ? (
                                         <p className="mt-1 text-xs text-muted-foreground">
                                             {fixedPolicySummary(scenario)}
                                         </p>
                                     ) : null}
-                                </td>
-                                <td className="py-3 px-4 text-center">
+                                </TD>
+                                <TD align="center">
                                     {scenario.requires_approval ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs">
-                                            <Check className="h-3 w-3" />
-                                            {t('admin:approval_scenarios.enabled')}
-                                        </span>
+                                        <Badge tone="success" icon={Check}>{t('admin:approval_scenarios.enabled')}</Badge>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs">
-                                            <X className="h-3 w-3" />
-                                            {t('admin:approval_scenarios.disabled')}
-                                        </span>
+                                        <Badge tone="neutral" icon={X}>{t('admin:approval_scenarios.disabled')}</Badge>
                                     )}
-                                </td>
-                                <td className="py-3 px-4">
+                                </TD>
+                                <TD>
                                     <div className="flex flex-wrap gap-1">
-                                        {scenario.approver_roles.map(role => (
-                                            <span
-                                                key={role}
-                                                className="px-2 py-0.5 bg-tint/10 text-foreground text-xs rounded-full"
-                                            >
-                                                {getRoleLabel(role)}
-                                            </span>
+                                        {scenario.approver_roles.map((role) => (
+                                            <Badge key={role} tone="neutral">{approverRoleLabel(role)}</Badge>
                                         ))}
                                     </div>
-                                </td>
-                                <td className="py-3 px-4 text-right">
+                                </TD>
+                                <TD align="right">
                                     {canUpdateScenarios && resolveCapabilityFlag(scenario.capabilities, 'can_update') ? (
-                                        <button
+                                        <Button
+                                            variant="outline"
+                                            size="compact"
+                                            // The row edit names its row ("Configure: {{name}}"); the visible word leads it.
+                                            aria-label={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}
                                             onClick={() => scenariosResource.openEdit(scenario)}
-                                            className="px-3 py-1.5 text-sm text-accent-text hover:bg-accent/20 rounded-lg transition-colors"
                                         >
                                             {t('admin:approval_scenarios.configure')}
-                                        </button>
+                                        </Button>
                                     ) : null}
-                                </td>
-                            </tr>
+                                </TD>
+                            </TR>
                         ))}
-                    </tbody>
-                </table>
-            </div>
+                    </TBody>
+                </Table>
+            )}
 
             <EditScenarioModal
                 isOpen={!!scenariosResource.editingItem}

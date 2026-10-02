@@ -15,7 +15,11 @@ UI components for `tables` area.
   (`aria-disabled`), so the pressed control keeps keyboard focus.
 - `RowActionButton.tsx` — icon-only row action: required `label` (accessible
   name + tooltip), optional `disabledReason` (inert via `aria-disabled`, reason
-  as tooltip/description), never bubbles to row activation.
+  as tooltip/description), optional `isLoading` (spinner in place of the icon,
+  same element), never bubbles to row activation.
+- `RowRestoreButton.tsx` — `RowActionButton` + `ArchiveRestore` with the shared
+  `common:actions.restore` / `restore_named` vocabulary: the register row
+  "restore from archive" action (PG-28).
 - `SortableTable.tsx` — data table on the `components/ui/table.tsx` primitives:
   sortable headers, loading skeleton, error contract, `rowHref` (navigation
   link), `onRowActivate` (in-page selection: named first-cell button with

@@ -22,7 +22,8 @@ vi.mock('@/i18n/hooks', async (importOriginal) => ({
     }),
 }));
 
-vi.mock('@/i18n/formatters', () => ({
+vi.mock('@/i18n/formatters', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/i18n/formatters')>()),
     formatDateValue: (value: string) => value,
 }));
 

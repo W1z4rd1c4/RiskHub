@@ -166,6 +166,7 @@
             "empty": "No Processes linked yet.",
             "primary": "Primary Process",
             "set_primary": "Set as primary",
+            "select_label": "Process",
             "select_placeholder": "Select a Process...",
             "significance": "Link significance",
             "no_metadata": "No link details"
@@ -177,6 +178,8 @@
             "supports": "Supports",
             "direction_depends_on": "This asset depends on...",
             "direction_supports": "This asset supports...",
+            "direction_label": "Direction",
+            "select_label": "Asset",
             "select_placeholder": "Select an Asset...",
             "dependency_type": "Dependency type",
             "no_metadata": "No link details"
@@ -184,8 +187,10 @@
         "vendors": {
             "title": "Vendor dependencies",
             "empty": "No Vendors linked yet.",
+            "select_label": "Vendor",
             "select_placeholder": "Select a Vendor...",
             "s_code": "ICT service (S-code)",
+            "s_code_placeholder": "Select an ICT service...",
             "role": "Vendor role",
             "reliance": "Reliance (for CIF)",
             "contract_ref": "Contract reference",

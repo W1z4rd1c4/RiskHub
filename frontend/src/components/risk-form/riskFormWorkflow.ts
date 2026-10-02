@@ -87,17 +87,17 @@ export function getUniqueRiskOwnerRoles(users: UserLookupItem[]): string[] {
 
 export function validateRiskIdentity(formData: Partial<Risk>): Record<string, string> {
     const errors: Record<string, string> = {};
-    if (!formData.name?.trim()) errors.name = 'Risk Name is required';
+    if (!formData.name?.trim()) errors.name = 'risks:form.errors.name_required';
     if (!formData.process?.trim()) errors.process = 'risks:form.errors.process_required';
     if (!formData.category?.trim()) errors.category = 'risks:form.errors.category_required';
-    if (!formData.description?.trim()) errors.description = 'Risk Description is required';
+    if (!formData.description?.trim()) errors.description = 'risks:form.errors.description_required';
     return errors;
 }
 
 export function validateRiskOwnership(formData: Partial<Risk>): Record<string, string> {
     const errors: Record<string, string> = {};
-    if (!formData.department_id) errors.department_id = 'Department is required';
-    if (!formData.owner_id) errors.owner_id = 'Risk Owner is required';
+    if (!formData.department_id) errors.department_id = 'risks:form.errors.department_required';
+    if (!formData.owner_id) errors.owner_id = 'risks:form.errors.owner_required';
     return errors;
 }
 
@@ -128,6 +128,8 @@ export function useRiskFormWorkflow({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    // Bumped on every failed step check so the form can focus the first invalid field (§4.8).
+    const [failedValidationCount, setFailedValidationCount] = useState(0);
     const [formData, setFormData] = useState<Partial<Risk>>(() => createInitialRiskFormData(initialData));
     const {
         acceptCurrentSnapshot,
@@ -197,17 +199,16 @@ export function useRiskFormWorkflow({
         setFieldErrors((prev) => ({ ...prev, owner_id: '', department_id: '' }));
     };
 
-    const validateStep1 = (): boolean => {
-        const errors = validateRiskIdentity(formData);
+    const applyStepErrors = (errors: Record<string, string>): boolean => {
         setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
+        const isValid = Object.keys(errors).length === 0;
+        if (!isValid) setFailedValidationCount((count) => count + 1);
+        return isValid;
     };
 
-    const validateStep2 = (): boolean => {
-        const errors = validateRiskOwnership(formData);
-        setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
+    const validateStep1 = (): boolean => applyStepErrors(validateRiskIdentity(formData));
+
+    const validateStep2 = (): boolean => applyStepErrors(validateRiskOwnership(formData));
 
     const submit = async () => {
         if (!validateStep1()) {
@@ -295,6 +296,7 @@ export function useRiskFormWorkflow({
         confirmationDialog,
         currentStep,
         error,
+        failedValidationCount,
         fieldErrors,
         formData,
         isSubmitting,

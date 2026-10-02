@@ -5,18 +5,12 @@ const ONLINE_THRESHOLD_MINUTES = 10;
 export type SessionStatusKey = 'sessions.revoked' | 'sessions.online' | 'sessions.offline';
 
 export interface SessionPresentation {
-    durationText: string;
+    /** Minutes online (or since the last activity when offline); formatted by the caller with `useFormat`. */
+    durationMinutes: number | null;
     isRevoked: boolean;
     lastActivityDate: Date;
     statusColor: string;
     statusKey: SessionStatusKey;
-}
-
-function formatDuration(minutes: number): string {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
 }
 
 export function getSessionPresentation(session: ActiveSession, now: Date): SessionPresentation {
@@ -28,7 +22,7 @@ export function getSessionPresentation(session: ActiveSession, now: Date): Sessi
 
     if (isRevoked) {
         return {
-            durationText: '',
+            durationMinutes: null,
             isRevoked,
             lastActivityDate,
             statusColor: 'bg-destructive',
@@ -42,7 +36,7 @@ export function getSessionPresentation(session: ActiveSession, now: Date): Sessi
             : null;
 
         return {
-            durationText: onlineMinutes != null ? formatDuration(onlineMinutes) : '',
+            durationMinutes: onlineMinutes,
             isRevoked,
             lastActivityDate,
             statusColor: 'bg-success',
@@ -51,7 +45,7 @@ export function getSessionPresentation(session: ActiveSession, now: Date): Sessi
     }
 
     return {
-        durationText: formatDuration(minutesSinceActivity),
+        durationMinutes: minutesSinceActivity,
         isRevoked,
         lastActivityDate,
         statusColor: 'bg-muted-foreground',

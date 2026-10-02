@@ -81,7 +81,7 @@ function CriticalRisksCard({
                     <button
                         type="button"
                         className="text-xs font-bold text-accent-text hover:underline"
-                        onClick={() => navigate('/risks?net_band=Kritick%C3%A9')}
+                        onClick={() => navigate('/risks?net_band=critical')}
                     >
                         {t('risk_committee.view_all_critical_risks', { ns: 'dashboard' })}
                     </button>

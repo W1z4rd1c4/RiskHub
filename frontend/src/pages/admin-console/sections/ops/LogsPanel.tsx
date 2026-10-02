@@ -1,12 +1,20 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
+import { Badge } from '@/components/ui/badge';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { adminKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
+import type { Tone } from '@/lib/tones';
 import { adminApi } from '@/services/adminApi';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+
+const LOG_LEVEL_TONES: Readonly<Record<string, Tone>> = {
+    INFO: 'info',
+    WARNING: 'warning',
+    ERROR: 'danger',
+};
 
 export function LogsPanel() {
     const { t } = useTranslation('admin');
@@ -57,8 +65,9 @@ export function LogsPanel() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="admin-title text-lg font-semibold">{t('application_logs.title')}</h3>
+                <h2 className="text-lg font-semibold text-foreground">{t('application_logs.title')}</h2>
                 <ThemedSelect
+                    triggerAriaLabel={t('application_logs.columns.event')}
                     value={eventFilter}
                     onValueChange={setEventFilter}
                     placeholder={t('application_logs.all_events')}
@@ -73,42 +82,37 @@ export function LogsPanel() {
             ) : null}
 
             {logsRegion ?? (
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                <table className="w-full text-sm">
-                    <thead className="admin-table-head sticky top-0">
-                        <tr className="border-b border-border">
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.time')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.level')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.event')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.user')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.details')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div className="max-h-96 overflow-y-auto">
+                <Table density="compact" regionLabel={t('application_logs.title')} className="text-sm">
+                    <THead>
+                        <TR>
+                            <TH>{t('application_logs.columns.time')}</TH>
+                            <TH>{t('application_logs.columns.level')}</TH>
+                            <TH>{t('application_logs.columns.event')}</TH>
+                            <TH>{t('application_logs.columns.user')}</TH>
+                            <TH>{t('application_logs.columns.details')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {logs?.map((log) => (
-                            <tr key={log.id} className="border-b border-border hover:bg-tint/5">
-                                <td className="admin-subtle whitespace-nowrap py-2 px-3">
+                            <TR key={log.id}>
+                                <TD className="whitespace-nowrap text-muted-foreground">
                                     {format.dateTime(log.timestamp)}
-                                </td>
-                                <td className="py-2 px-3">
-                                    <span className={cn(
-                                        'px-2 py-0.5 rounded text-xs font-medium',
-                                        log.level === 'INFO' && 'bg-info/10 text-accent-text',
-                                        log.level === 'WARNING' && 'bg-warning/10 text-warning-text',
-                                        log.level === 'ERROR' && 'bg-destructive/10 text-destructive',
-                                    )}>
+                                </TD>
+                                <TD>
+                                    <Badge shape="rounded" tone={LOG_LEVEL_TONES[log.level] ?? 'neutral'}>
                                         {log.level}
-                                    </span>
-                                </td>
-                                <td className="admin-title py-2 px-3">{log.event_type}</td>
-                                <td className="admin-muted py-2 px-3">{log.user_name || t('common:fallbacks.unknown_user')}</td>
-                                <td className="admin-subtle max-w-xs truncate py-2 px-3" title={log.description || ''}>
+                                    </Badge>
+                                </TD>
+                                <TD className="text-foreground">{log.event_type}</TD>
+                                <TD className="text-muted-foreground">{log.user_name || t('common:fallbacks.unknown_user')}</TD>
+                                <TD className="max-w-xs truncate text-muted-foreground" title={log.description || ''}>
                                     {log.description || t('common:fallbacks.not_available')}
-                                </td>
-                            </tr>
+                                </TD>
+                            </TR>
                         ))}
-                    </tbody>
-                </table>
+                    </TBody>
+                </Table>
             </div>
             )}
         </div>

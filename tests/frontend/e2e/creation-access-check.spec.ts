@@ -29,7 +29,7 @@ for (const theme of ['light', 'riskhub', 'dark']) for (const locale of ['en', 'c
         await expect(page.getByRole('alert')).toContainText(failedText);
         await expect(page.locator('form')).toHaveCount(0);
         await expect(page.getByText('private', { exact: false })).toHaveCount(0);
-        expect(await renderedContrast(page.getByRole('alert').locator('span'))).toBeGreaterThanOrEqual(4.5);
+        expect(await renderedContrast(page.getByRole('alert').getByText(failedText))).toBeGreaterThanOrEqual(4.5);
         expect(await renderedContrast(retry)).toBeGreaterThanOrEqual(4.5);
         await retry.hover();
         expect(await renderedContrast(retry)).toBeGreaterThanOrEqual(4.5);
@@ -47,7 +47,12 @@ for (const theme of ['light', 'riskhub', 'dark']) for (const locale of ['en', 'c
         expect(riskAttempts).toBe(2);
         await expect(page.getByRole('alert')).not.toContainText(failedText);
         await expect(page.locator('form')).toHaveCount(0);
-        expect(await renderedContrast(page.getByRole('alert').locator('span'))).toBeGreaterThanOrEqual(4.5);
+        // The linked-vendor 404 is a denial (AccessDeniedState, announced): heading + explanation.
+        const deniedText = page.getByRole('alert').locator('h2, p');
+        await expect(deniedText).toHaveCount(2);
+        for (const text of await deniedText.all()) {
+            expect(await renderedContrast(text)).toBeGreaterThanOrEqual(4.5);
+        }
         const axe = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa']).analyze();
         expect(axe.violations).toEqual([]);
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -95,7 +100,8 @@ for (const failedGate of ['create', 'vendor']) {
         const url = page.url();
         await expect(page.getByRole('alert')).toContainText('Could not check access');
         await page.getByRole('button', { name: 'Retry', exact: true }).click();
-        await expect(page.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+        // LoadingState: the polite status carries the label; the spinner placeholder is the busy element.
+        await expect(page.locator('[data-loading-placeholder]')).toHaveAttribute('aria-busy', 'true');
         await expect(page.getByRole('status')).toContainText('Checking access');
         await expect(page.locator('form')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Retry', exact: true })).toHaveCount(0);

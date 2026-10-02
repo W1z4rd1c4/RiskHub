@@ -277,4 +277,15 @@ describe('RiskForm dirty-task protection', () => {
         expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
         expect(router.state.location.pathname).toBe('/edit');
     });
+
+    it('moves focus to the first invalid field when a step check fails (§4.8, AX-04)', async () => {
+        renderRiskForm({ ...initialRisk, name: '', description: '' });
+        await screen.findByTestId('risk-name-input');
+        fireEvent.click(screen.getByTestId('risk-form-next-button'));
+        const name = screen.getByTestId('risk-name-input');
+        await waitFor(() => expect(name).toHaveFocus());
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(name).toHaveAccessibleDescription('Risk Name is required.');
+        expect(screen.getByTestId('risk-description-input')).toHaveAttribute('aria-invalid', 'true');
+    });
 });

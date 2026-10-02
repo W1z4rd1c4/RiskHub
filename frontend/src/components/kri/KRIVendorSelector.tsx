@@ -1,6 +1,8 @@
 import { useId, useMemo } from 'react';
 import { Building2, Search, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/i18n/hooks';
 import { EmptyState, LoadingState } from '@/components/ui/state';
@@ -35,6 +37,7 @@ export function KRIVendorSelector({
 }: KRIVendorSelectorProps) {
     const { t } = useTranslation(['kris', 'vendors']);
     const labelId = useId();
+    const optionIdPrefix = useId();
 
     const selectedVendors = useMemo(
         () => (selectedVendorOptions ?? vendors.filter((vendor) => selectedVendorIds.includes(vendor.id))),
@@ -85,15 +88,17 @@ export function KRIVendorSelector({
             {selectedVendors.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                     {selectedVendors.map((vendor) => (
-                        <button
+                        <Button
                             key={vendor.id}
-                            type="button"
+                            variant="outline"
+                            size="compact"
                             onClick={() => toggleVendor(vendor.id)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-eyebrow text-accent-text"
+                            aria-label={t('common:actions.remove_named', { name: vendor.name })}
+                            className="rounded-full border-accent/30 bg-accent/10 text-accent-text"
                         >
                             {vendor.name}
-                            <X className="h-3 w-3" />
-                        </button>
+                            <X aria-hidden="true" />
+                        </Button>
                     ))}
                 </div>
             ) : null}
@@ -114,18 +119,18 @@ export function KRIVendorSelector({
                         return (
                             <label
                                 key={vendor.id}
+                                htmlFor={`${optionIdPrefix}-${vendor.id}`}
                                 className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-tint/5 transition-colors"
                             >
-                                <input
-                                    type="checkbox"
+                                <Checkbox
+                                    id={`${optionIdPrefix}-${vendor.id}`}
                                     checked={checked}
-                                    onChange={() => toggleVendor(vendor.id)}
+                                    onCheckedChange={() => toggleVendor(vendor.id)}
                                     aria-label={vendor.name}
-                                    className="h-4 w-4 rounded border-input bg-input/40 text-accent focus:ring-accent/40"
                                 />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <Building2 aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="truncate text-sm font-medium text-foreground">
                                             {vendor.name}
                                         </span>

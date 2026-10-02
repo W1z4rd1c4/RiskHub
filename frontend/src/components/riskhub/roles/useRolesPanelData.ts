@@ -18,6 +18,7 @@ export function useRolesPanelData() {
         delete: (id) => riskHubApi.deleteRole(Number(id)),
         restore: (id) => riskHubApi.restoreRole(Number(id)),
         itemId: (role) => role.id,
+        itemName: (role) => role.display_name,
         panelCapabilityKey: 'roles',
     });
 

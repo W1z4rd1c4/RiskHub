@@ -331,7 +331,13 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         }]);
         renderSection();
 
-        expect(await screen.findByTestId('asset-process-link-remove-100')).toBeDisabled();
+        // The icon-only remove action stays focusable (RowActionButton `disabledReason`):
+        // it is inert through `aria-disabled` and explains why in its tooltip.
+        const remove = await screen.findByTestId('asset-process-link-remove-100');
+        expect(remove).toHaveAttribute('aria-disabled', 'true');
+        expect(remove).toHaveAttribute('title', expect.stringMatching(/pending governed change/i));
+        fireEvent.click(remove);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(screen.getByTestId('asset-process-link-set-primary-100')).toBeDisabled();
         expect(screen.getByText(/pending governed change/i)).toBeInTheDocument();
         expect(mockRemoveProcessLink).not.toHaveBeenCalled();

@@ -1,5 +1,8 @@
 import { Filter, RotateCcw, Search } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -74,60 +77,73 @@ export function LinkSearchFilters({
                 )}
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-foreground">
-                <Filter className="h-3 w-3" />
+            <div className="text-eyebrow flex items-center gap-2">
+                <Filter aria-hidden="true" className="size-3" />
                 {t('common:actions.filter')}
                 {isLoadingLookups && <Spinner size="sm" className="ml-auto" />}
             </div>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
-                <input
-                    type="checkbox"
-                    checked={includeArchived}
-                    onChange={(event) => onIncludeArchivedChange(event.target.checked)}
-                />
-                {t('filters.include_archived')}
-            </label>
+            <Field label={t('filters.include_archived')} layout="inline">
+                {(field) => (
+                    <Checkbox
+                        {...field}
+                        checked={includeArchived}
+                        onCheckedChange={onIncludeArchivedChange}
+                    />
+                )}
+            </Field>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ThemedSelect
-                    value={selectedDeptId?.toString() ?? ''}
-                    onValueChange={(value) => onDeptIdChange(value ? Number(value) : null)}
-                    placeholder={t('filters.all_departments')}
-                    allowEmpty
-                    emptyLabel={t('filters.all_departments')}
-                    options={departments.map((department) => ({
-                        value: department.id.toString(),
-                        label: department.name,
-                    }))}
-                />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <Field label={t('labels.department')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={selectedDeptId?.toString() ?? ''}
+                            onValueChange={(value) => onDeptIdChange(value ? Number(value) : null)}
+                            placeholder={t('filters.all_departments')}
+                            allowEmpty
+                            emptyLabel={t('filters.all_departments')}
+                            options={departments.map((department) => ({
+                                value: department.id.toString(),
+                                label: department.name,
+                            }))}
+                        />
+                    )}
+                </Field>
 
-                <ThemedSelect
-                    value={selectedProcess}
-                    onValueChange={onProcessChange}
-                    placeholder={t('filters.all_processes')}
-                    allowEmpty
-                    emptyLabel={t('filters.all_processes')}
-                    options={processes.map((process) => ({ value: process, label: process }))}
-                />
+                <Field label={t('labels.process')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={selectedProcess}
+                            onValueChange={onProcessChange}
+                            placeholder={t('filters.all_processes')}
+                            allowEmpty
+                            emptyLabel={t('filters.all_processes')}
+                            options={processes.map((process) => ({ value: process, label: process }))}
+                        />
+                    )}
+                </Field>
 
-                <ThemedSelect
-                    value={selectedCategory}
-                    onValueChange={onCategoryChange}
-                    placeholder={t('filters.all_categories')}
-                    allowEmpty
-                    emptyLabel={t('filters.all_categories')}
-                    options={categories.map((category) => ({ value: category, label: category }))}
-                />
+                <Field label={t('labels.category')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={selectedCategory}
+                            onValueChange={onCategoryChange}
+                            placeholder={t('filters.all_categories')}
+                            allowEmpty
+                            emptyLabel={t('filters.all_categories')}
+                            options={categories.map((category) => ({ value: category, label: category }))}
+                        />
+                    )}
+                </Field>
             </div>
 
             {hasActiveFilters && (
-                <button
-                    onClick={clearAllFilters}
-                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-accent-text transition-colors mt-1 ml-1 self-start group"
-                >
-                    <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
+                <Button variant="ghost" size="compact" onClick={clearAllFilters} className="self-start">
+                    <RotateCcw aria-hidden="true" />
                     {t('common:actions.clear')}
-                </button>
+                </Button>
             )}
         </div>
     );

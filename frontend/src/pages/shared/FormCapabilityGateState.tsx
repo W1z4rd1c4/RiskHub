@@ -27,5 +27,7 @@ export function FormCapabilityGateState({
         return <ErrorState layout="section" messageKey="access.check_failed" onRetry={onRetry} />;
     }
 
-    return <AccessDeniedState layout="section" descriptionKey={deniedDescriptionKey} ns={deniedNs} />;
+    // The denial replaces the access check (or a retried error) already on
+    // screen, so it is announced like the error state (role="alert").
+    return <AccessDeniedState layout="section" live descriptionKey={deniedDescriptionKey} ns={deniedNs} />;
 }

@@ -107,9 +107,9 @@ export function SessionsPanel() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="admin-title text-lg font-semibold">{t('sessions.title')}</h3>
+                <h2 className="text-lg font-semibold text-foreground">{t('sessions.title')}</h2>
                 <div className="flex items-center gap-3">
-                    <p className="admin-subtle text-sm">
+                    <p className="text-sm text-muted-foreground">
                         {t('sessions.description')}
                     </p>
                     {canRunDirectoryCheckAll && (

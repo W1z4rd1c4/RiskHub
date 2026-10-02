@@ -1,6 +1,8 @@
-import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
+import { IssueSeverityBadge, IssueStatusBadge } from '@/components/issues/IssueBadges';
 import type { Column } from '@/components/tables';
 import type { FormatApi, SafeTFunction } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { IssueSummary } from '@/types/issue';
 
 export function buildIssueColumns({
@@ -19,12 +21,12 @@ export function buildIssueColumns({
             render: (issue) => <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">{issue.title}</p>
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className={issuePill(issueStatusClass(issue.status))}>
-                        {t(`issues:status.${issue.status}`, issue.status.replaceAll('_', ' '))}
-                    </span>
-                    <span className={issuePill(issueSeverityClass(issue.severity))}>
-                        {t(`issues:severity.${issue.severity}`, issue.severity)}
-                    </span>
+                    <IssueStatusBadge status={issue.status} size="sm" />
+                    <IssueSeverityBadge severity={issue.severity} size="sm" />
+                    {/* PG-29: an exception request waiting for approval. */}
+                    {resolveCapabilityFlag(issue.capabilities, 'has_pending_exception_request')
+                        ? <PendingChangeBadge data-testid={`issue-pending-${issue.id}`} />
+                        : null}
                 </div>
             </div>,
         },
@@ -36,13 +38,13 @@ export function buildIssueColumns({
         {
             key: 'owner_user_name',
             label: t('issues:columns.owner'),
-            render: (issue) => <span className="text-sm text-foreground">{issue.owner_user_name || t('issues:fallbacks.unassigned')}</span>,
+            render: (issue) => <span className="text-sm text-foreground">{issue.owner_user_name || t('common:fallbacks.unassigned')}</span>,
         },
         {
             key: 'source_type',
             label: t('issues:columns.source'),
             render: (issue) => <span className="text-sm text-foreground">
-                {issue.source_display || t(`issues:source.${issue.source_type}`, issue.source_type.replaceAll('_', ' '))}
+                {issue.source_display || t(`issues:source.${issue.source_type}`, t('common:fallbacks.unknown'))}
             </span>,
         },
         {

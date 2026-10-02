@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { PreferenceSyncStatus as SyncStatus } from '@/hooks/useLatestPreferenceSync';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -21,12 +22,12 @@ export function PreferenceSyncStatus({
             <span>{t(`sync.${status}`)}</span>
             {status === 'unsynced' ? (
                 <>
-                    <button type="button" className="font-medium text-accent-text hover:underline" onClick={onRetry}>
+                    <Button type="button" variant="outline" size="compact" onClick={onRetry}>
                         {t('sync.retry')}
-                    </button>
-                    <button type="button" className="font-medium text-muted-foreground hover:underline" onClick={onRevert}>
+                    </Button>
+                    <Button type="button" variant="ghost" size="compact" onClick={onRevert}>
                         {t('sync.revert')}
-                    </button>
+                    </Button>
                 </>
             ) : null}
         </div>

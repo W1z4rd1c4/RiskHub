@@ -398,9 +398,11 @@ describe('UsersPage mode selection', () => {
         await user.click(await screen.findByLabelText('Activate'));
         await user.click(screen.getByRole('button', { name: 'Reactivate' }));
 
-        expect(
-            await screen.findByText('Directory-deprovisioned users require break-glass enable before reactivation.')
-        ).toBeInTheDocument();
+        const rejection = await screen.findByText('Directory-deprovisioned users require break-glass enable before reactivation.');
+        expect(rejection).toBeInTheDocument();
+        // SM-15: failures use the shared tone-driven banner (role=alert).
+        expect(rejection.closest('[data-tone]')).toHaveAttribute('data-tone', 'danger');
+        expect(rejection.closest('[role="alert"]')).not.toBeNull();
     });
 
     it('submits break-glass enable for eligible directory users', async () => {
@@ -765,7 +767,10 @@ describe('UsersPage mode selection', () => {
             },
         });
 
-        await screen.findByText('Imported User imported from directory.');
+        const imported = await screen.findByText('Imported User imported from directory.');
+        // SM-15: the success outcome is the shared success banner (role=status, success tone).
+        expect(imported.closest('[data-tone]')).toHaveAttribute('data-tone', 'success');
+        expect(imported.closest('[role="status"]')).not.toBeNull();
         expect(await screen.findByDisplayValue('Imported User')).toBeInTheDocument();
     });
 });

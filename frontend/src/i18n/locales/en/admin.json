@@ -34,6 +34,15 @@
     "process_memory": "Process memory usage",
     "active_users": "Active Users",
     "in_last_24h": "In last 24 hours",
+    "job_status": {
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "stopped": "Stopped",
+      "pending": "Pending",
+      "processing": "Processing",
+      "dead_letter": "Dead letter"
+    },
     "scheduler": {
       "title": "Scheduler Runtime",
       "subtitle": "Ownership, lock state, and the latest scheduled job executions.",
@@ -101,7 +110,8 @@
     "details_modal": {
       "title": "Audit Event Details",
       "copy": "Copy JSON",
-      "copied": "Copied"
+      "copied": "Copied",
+      "copy_failed": "Could not copy the audit details."
     },
     "columns": {
       "timestamp": "Timestamp",
@@ -109,13 +119,37 @@
       "user": "User",
       "client_ip": "Client IP",
       "details": "Details"
+    },
+    "events": {
+      "create": "Created",
+      "update": "Updated",
+      "delete": "Deleted",
+      "archive": "Archived",
+      "approve": "Approved",
+      "reject": "Rejected",
+      "escalate": "Escalated",
+      "status_change": "Status changed",
+      "link": "Linked",
+      "unlink": "Unlinked",
+      "login": "Signed in",
+      "failed_login": "Sign-in failed",
+      "refresh": "Session refreshed",
+      "failed_refresh": "Session refresh failed",
+      "logout": "Signed out",
+      "logout_all": "Signed out everywhere",
+      "cancel": "Cancelled",
+      "refresh_session_context_changed": "Session context changed on refresh",
+      "jwks_fallback_exhausted": "Identity provider key fallback exhausted"
     }
   },
     "sessions": {
         "title": "Active Sessions",
         "description": "Users with activity in the last 24 hours",
         "loading": "Loading sessions...",
-        "devices": "devices",
+        "devices_count": "{{count}} devices",
+        "devices_count_one": "{{count}} device",
+        "devices_count_few": "{{count}} devices",
+        "devices_count_other": "{{count}} devices",
         "revoke_failed": "Failed to revoke session.",
         "online": "Online",
         "offline": "Offline",
@@ -351,6 +385,7 @@
       "resource": "Resource",
       "permissions_capabilities": "Permissions & Capabilities",
       "click_to_toggle": "Click items to toggle permissions.",
+      "granted": "Granted",
       "resources": {
         "users": {
           "label": "Users",
@@ -571,6 +606,10 @@
       "empty": "No risks found for the current filters.",
       "select_all_hint": "Will send to all matching filtered risks.",
       "selected_count": "{{count}} selected",
+      "selected_count_one": "{{count}} selected",
+      "selected_count_few": "{{count}} selected",
+      "selected_count_other": "{{count}} selected",
+      "loading": "Loading risks…",
       "send": "Send questionnaires",
       "confirm_title": "Send questionnaires for {{count}} risks?",
       "confirm_title_one": "Send a questionnaire for {{count}} risk?",
@@ -585,6 +624,7 @@
     "title": "Platform Roles",
     "show_deleted": "Show archived",
     "add_role": "Add Role",
+    "empty": "No roles yet.",
     "columns": {
       "role_name": "Role Name",
       "permissions": "Permissions",
@@ -598,8 +638,7 @@
       "deleted": "Archived"
     },
     "actions": {
-      "edit_disabled": "{{role}} role cannot be edited",
-      "restore": "Restore"
+      "edit_disabled": "{{role}} role cannot be edited"
     },
     "archive_confirm": "Archive role {{name}}? It can be restored later.",
     "cannot_archive_assigned": "Cannot archive: {{count}} users are assigned to this role.",
@@ -634,6 +673,7 @@
     "title": "Departments",
     "show_deleted": "Show archived",
     "add_department": "Add Department",
+    "empty": "No departments yet.",
     "columns": {
       "name_code": "Name / Code",
       "manager": "Manager",
@@ -646,10 +686,10 @@
       "deleted": "Archived"
     },
     "actions": {
-      "restore": "Restore"
+      "edit_disabled": "Department {{name}} cannot be edited"
     },
     "archive_confirm": "Archive department {{name}}? It can be restored later.",
-    "archive_blocked_title": "Cannot archive because of linked items:",
+    "archive_blocked_reason": "Cannot archive because of linked items: {{items}}",
     "linked_counts": {
       "users": "Users: {{count}}",
       "risks": "Risks: {{count}}",
@@ -684,6 +724,7 @@
     "title": "Risk Types",
     "show_deleted": "Show archived",
     "add_type": "Add Type",
+    "empty": "No risk types yet.",
     "columns": {
       "color": "Color",
       "code": "Code",
@@ -696,9 +737,12 @@
       "deleted": "Archived"
     },
     "actions": {
-      "restore": "Restore"
+      "edit_disabled": "Risk type {{name}} cannot be edited"
     },
-    "delete_warning": "⚠️ {{count}} risks will become uncategorized.",
+    "delete_warning": "{{count}} risks will become uncategorized.",
+    "delete_warning_one": "{{count}} risk will become uncategorized.",
+    "delete_warning_few": "{{count}} risks will become uncategorized.",
+    "delete_warning_other": "{{count}} risks will become uncategorized.",
     "archive_confirm": "Archive risk type {{name}}? It can be restored later.",
     "modal": {
       "edit_title": "Edit Risk Type",
@@ -726,6 +770,7 @@
   "approval_scenarios": {
     "title": "Approval Scenarios",
     "subtitle": "Configure which business actions require approval before execution.",
+    "empty": "No approval scenarios are configured.",
     "requires_approval": "Requires Approval",
     "approver_roles": "Approver Roles",
     "enabled": "Enabled",
@@ -736,6 +781,7 @@
       "approvers": "Approvers"
     },
     "special_roles": {
+      "risk_owner": "Risk Owner",
       "risk_owner_dynamic": "Risk Owner (Dynamic)"
     },
     "modal": {
@@ -773,6 +819,8 @@
   "system_settings": {
     "title": "System Settings",
     "save_named": "Save {{name}}",
+    "range": "Allowed range: {{min}}–{{max}}",
+    "empty": "No system settings are available.",
     "errors": {
       "save_failed": "Failed to save"
     },

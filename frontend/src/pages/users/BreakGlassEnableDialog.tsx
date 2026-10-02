@@ -6,6 +6,7 @@ import type { AccessUserRead } from '@/types/access';
 import { Button } from '@/components/ui/button';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -91,9 +92,9 @@ export function BreakGlassEnableDialog({
                     )}
                 </Field>
                 {errorMessage && (
-                    <p id="break-glass-submit-error" role="alert" className="text-sm text-destructive">
+                    <InlineMessage id="break-glass-submit-error" tone="danger">
                         {errorMessage}
-                    </p>
+                    </InlineMessage>
                 )}
             </DialogBody>
             <DialogFooter>

@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { NativeUserLifecyclePanel } from '@/pages/users/NativeUserLifecyclePanel';
 import { getSessionOwnershipSnapshot, isSessionOwnershipCurrent } from '@/services/session';
 import { DialogBody, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient, ApiClientError } from '@/services/apiClient';
 import { accessApi } from '@/services/accessApi';
@@ -155,7 +156,11 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
                 {isOpen && nativeLifecycle && <NativeUserLifecyclePanel key={user.id} user={user} onBusy={setLifecycleBusy} blocked={isSubmitting} unresolved={unknownOutcome || lifecycleUnknown} onUnknown={setLifecycleUnknown} onCommitted={onSaved} onRefresh={onRefresh} />}
             </DialogBody>
 
-            {unknownOutcome && <p role="alert" className="p-4">{t('native_users.unknown_action', { ns: 'admin' })}</p>}
+            {unknownOutcome && (
+                <div className="px-6 pb-4">
+                    <InlineMessage tone="danger">{t('native_users.unknown_action', { ns: 'admin' })}</InlineMessage>
+                </div>
+            )}
             <AccessEditFooter
                 hasChanges={hasChanges}
                 isSubmitting={busy}
