@@ -2,6 +2,7 @@
   "title": "Registr rizik",
   "page_subtitle": "Sledování a řízení organizačních rizik s hrubým/čistým skórováním dle OS 18.",
   "new_risk": "Nové riziko",
+  "priority_label": "Prioritní riziko",
   "create_risk": "Vytvořit riziko",
   "edit_risk": "Upravit riziko",
   "view_risk": "Zobrazit riziko",
@@ -64,6 +65,7 @@
   "questionnaires": {
     "title": "Hodnoticí dotazníky",
     "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
+    "open_row": "Otevřít dotazník odeslaný {{date}}",
     "assessment_summary_title": "Souhrn hodnocení",
     "assessment_summary_empty": "Zatím žádné odevzdané hodnocení.",
     "assessment_summary_submitted_at": "Odevzdáno",
@@ -74,7 +76,6 @@
     "send_success": "Dotazník byl odeslán.",
     "send_open_exists": "Otevřený dotazník již existuje. Otevírám ho.",
     "send_requires_owner": "Pro odeslání dotazníku nastavte vlastníka rizika.",
-    "owner_required": "Vyžaduje vlastníka",
     "open": "Otevřít",
     "current_due": "Termín",
     "empty": "Pro toto riziko zatím nebyl odeslán žádný dotazník.",
@@ -88,7 +89,7 @@
   },
   "questionnaire": {
     "title": "Dotazník k hodnocení rizika",
-    "required": "Povinné",
+    "not_answered": "Nezodpovězeno",
     "readonly_hint": "Pouze pro čtení: nemáte oprávnění tento dotazník odevzdat.",
     "validation_missing": "Vyplňte prosím všechny povinné otázky.",
     "validation_required": "Tato otázka je povinná.",
@@ -118,7 +119,8 @@
       "sent": "Čeká",
       "in_progress": "Rozpracováno",
       "submitted": "Odevzdáno",
-      "overdue": "Po termínu"
+      "overdue": "Po termínu",
+      "unknown": "Neznámý stav"
     },
     "actions": {
       "save": "Uložit průběžně"
@@ -172,7 +174,8 @@
   "scoring": {
     "inherent_risk": "Inherentní riziko",
     "residual_risk": "Reziduální riziko",
-    "risk_score": "Rizikové skóre"
+    "risk_score": "Rizikové skóre",
+    "factors_short": "(P {{probability}} × D {{impact}})"
   },
   "filters": {
     "all_categories": "Všechny kategorie",
@@ -187,7 +190,7 @@
   },
   "register": {
     "views": { "all": "Vše", "category": "Podle kategorie", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "vendor": "Podle dodavatele" },
-    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo" },
     "net_bands": { "low": "Nízké", "medium": "Střední", "high": "Vysoké", "critical": "Kritické" },
     "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
     "export": { "title": "Export filtrovaných rizik" }
@@ -215,16 +218,24 @@
     "controls": "Kontroly",
     "kris": "KRI",
     "pending": "Čeká",
-    "pending_tooltip": "Změny čekají na schválení"
+    "pending_tooltip": "Změny čekají na schválení",
+    "control_count": "{{count}} kontrol",
+    "control_count_one": "{{count}} kontrola",
+    "control_count_few": "{{count}} kontroly",
+    "control_count_other": "{{count}} kontrol",
+    "kri_count": "{{count}} KRI",
+    "kri_count_one": "{{count}} KRI",
+    "kri_count_few": "{{count}} KRI",
+    "kri_count_other": "{{count}} KRI",
+    "kri_breach": "Překročení KRI"
   },
   "actions": {
     "link_control": "Propojit kontrolu",
     "link_kri": "Propojit KRI",
-    "unlink": "Odpojit",
     "unarchive": "Obnovit z archivu",
     "export": "Export",
     "export_excel": "Exportovat CSV",
-    "back_to_register": "Zpět do registru"
+    "back_to_register": "Zpět na rizika"
   },
   "form": {
     "owner_search": {
@@ -236,7 +247,8 @@
       "loading": "Vyhledávání vlastníků…",
       "failed": "Vyhledávání vlastníků selhalo. Vybraný vlastník zůstává beze změny.",
       "no_visible_matches": "V této sadě výsledků nejsou odpovídající vlastníci. Upřesněte hledání nebo vyberte všechny role.",
-      "refine": "Zobrazeno nejvýše 50 odpovídajících vlastníků. Další vlastníky najdete upřesněním hledání."
+      "refine": "Zobrazeno nejvýše 50 odpovídajících vlastníků. Další vlastníky najdete upřesněním hledání.",
+      "role_filter": "Filtrovat vlastníky podle role"
     },
     "steps": {
       "identity": "Identita",
@@ -245,7 +257,11 @@
     },
     "errors": {
       "process_required": "Proces je povinný",
-      "category_required": "Kategorie je povinná"
+      "category_required": "Kategorie je povinná",
+      "name_required": "Název rizika je povinný.",
+      "description_required": "Popis rizika je povinný.",
+      "department_required": "Oddělení je povinné.",
+      "owner_required": "Vlastník rizika je povinný."
     },
     "financial": {
       "loss": "Ztráta",
@@ -317,7 +333,6 @@
     "subprocess": "Podproces",
     "ownership": "Vlastnictví",
     "connections": "Vazby",
-    "unassigned": "Nepřiřazeno",
     "no_department": "Bez oddělení",
     "risk_appetite_indicators": "Indikátory rizikového apetitu",
     "add_kri": "Přidat KRI",
@@ -331,7 +346,10 @@
     "archived_controls": "Archivované kontroly ({{count}})",
     "manage_existing_links": "Spravovat existující propojení",
     "linked_vendors": "Propojení dodavatelé",
-    "no_vendors_linked": "K tomuto riziku nejsou propojeni žádní dodavatelé."
+    "no_vendors_linked": "K tomuto riziku nejsou propojeni žádní dodavatelé.",
+    "core_function_badge": "Klíčová funkce",
+    "vendor_risk_score": "Rizikové skóre dodavatele: {{score}} z 5",
+    "score_of_five": "{{score}}/5"
   },
   "history": {
     "recorded_by": "Zaznamenal",
@@ -340,13 +358,10 @@
   "tooltips": {
     "unarchive_risk": "Obnovit archivované riziko"
   },
-  "confirmation": {
-    "archive_title": "Archivovat riziko",
-    "archive_message": "\"{{riskName}}\"\n\nTímto přesunete riziko do archivovaného stavu."
-  },
   "messages": {
     "archive_submitted_for_approval": "Požadavek na archivaci byl odeslán ke schválení. Riziko zatím nebylo archivováno.",
     "restore_success": "Riziko bylo úspěšně obnoveno.",
+    "restore_failed": "Riziko se nepodařilo obnovit.",
     "view_pending_approvals_prefix": "Zobrazit čekající schválení v sekci",
     "view_pending_approvals_suffix": "."
   },

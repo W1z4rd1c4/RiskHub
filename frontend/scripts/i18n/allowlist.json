@@ -18,5 +18,12 @@
     "^ISO\\s?27001$",
     "^[A-Z0-9_:-]{2,}$",
     "^[-+*/→•|:()\\[\\]{}.,\\s0-9]+$"
+  ],
+  "scopedExceptions": [
+    {
+      "path": "src/components/layout/BrandWordmark.tsx",
+      "text": "Risk",
+      "reason": "Brand wordmark (the single implementation, NAV-07): 'Risk' + styled 'Hub' span render the untranslated product name RiskHub."
+    }
   ]
 }

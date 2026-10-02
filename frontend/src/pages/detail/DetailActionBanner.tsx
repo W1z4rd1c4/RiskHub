@@ -1,4 +1,5 @@
-import { AlertCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
 
 import { buildDetailMutationPresentation } from './detailMutationPresentation';
 
@@ -17,6 +18,11 @@ interface DetailActionBannerProps {
     onNavigateApprovals?: () => void;
 }
 
+/**
+ * Detail-page mutation outcome (AX-05, §4.10): keeps its API and renders
+ * `InlineMessage`, so a failure is announced (`role="alert"`) and a queued
+ * approval is a polite status with a link to the approvals queue.
+ */
 export function DetailActionBanner({
     approvalsLabel,
     message,
@@ -34,26 +40,22 @@ export function DetailActionBanner({
     });
 
     return (
-        <div className={`p-4 rounded-xl border flex items-start gap-3 ${presentation.className}`}>
-            <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-            <div>
-                <p className="text-sm font-medium">{messageText}</p>
-                {presentation.showApprovalLink ? (
-                    <p className="text-xs mt-1 opacity-75">
-                        {pendingText}{' '}
-                        <button onClick={onNavigateApprovals} className="underline hover:no-underline">
-                            {approvalsLabel}
-                        </button>
-                        {sectionSuffix ? ` ${sectionSuffix}` : null}
-                    </p>
-                ) : null}
-            </div>
-            <button
-                onClick={onClose}
-                className="ml-auto text-current opacity-50 hover:opacity-100"
-            >
-                <XCircle className="h-4 w-4" />
-            </button>
-        </div>
+        <InlineMessage tone={presentation.tone === 'error' ? 'danger' : 'warning'} onDismiss={onClose}>
+            <p className="font-medium">{messageText}</p>
+            {presentation.showApprovalLink ? (
+                <p className="mt-1 text-xs">
+                    {pendingText}{' '}
+                    <Button
+                        variant="link"
+                        size={null}
+                        onClick={onNavigateApprovals}
+                        className="h-auto whitespace-normal p-0 align-baseline text-xs font-normal text-current underline hover:no-underline"
+                    >
+                        {approvalsLabel}
+                    </Button>
+                    {sectionSuffix ? ` ${sectionSuffix}` : null}
+                </p>
+            ) : null}
+        </InlineMessage>
     );
 }

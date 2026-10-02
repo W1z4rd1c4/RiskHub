@@ -130,6 +130,31 @@ describe('KRIStatusWidget drilldown', () => {
         });
     });
 
+    it('switches the upcoming and overdue panels through an accessible tablist', async () => {
+        render(
+            <MemoryRouter>
+                <KRIStatusWidget />
+            </MemoryRouter>,
+        );
+
+        await screen.findByText('Due Soon KRI');
+        expect(screen.getByRole('tablist', { name: 'kri.status_views_label' })).toBeInTheDocument();
+        const upcomingTab = screen.getByRole('tab', { name: 'kri.upcoming' });
+        const overdueTab = screen.getByRole('tab', { name: 'kri.overdue' });
+        expect(upcomingTab).toHaveAttribute('aria-selected', 'true');
+        expect(overdueTab).toHaveAttribute('aria-selected', 'false');
+        expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', upcomingTab.id);
+
+        const ui = userEvent.setup();
+        await ui.click(overdueTab);
+
+        expect(overdueTab).toHaveAttribute('aria-selected', 'true');
+        expect(upcomingTab).toHaveAttribute('aria-selected', 'false');
+        expect(await screen.findByText('Overdue KRI')).toBeInTheDocument();
+        expect(screen.queryByText('Due Soon KRI')).not.toBeInTheDocument();
+        expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', overdueTab.id);
+    });
+
     it('keeps the exact total while showing only the first five upcoming KRIs', async () => {
         getDueSoonMock.mockResolvedValue(
             Array.from({ length: 6 }, (_, index) => ({
@@ -152,5 +177,20 @@ describe('KRIStatusWidget drilldown', () => {
         expect(await screen.findByText('Showing 5 of 6')).toBeInTheDocument();
         expect(screen.getByText('Due Soon 5')).toBeInTheDocument();
         expect(screen.queryByText('Due Soon 6')).not.toBeInTheDocument();
+    });
+
+    it('links each KRI row and shows its translated frequency, not the raw code', async () => {
+        render(
+            <MemoryRouter>
+                <KRIStatusWidget />
+            </MemoryRouter>,
+        );
+
+        const row = await screen.findByRole('link', { name: /Due Soon KRI/ });
+        expect(row).toHaveAttribute('href', '/kris/11');
+        // The mocked `t` echoes keys: the frequency goes through `kris:frequencies.*` (GAP-D-02).
+        expect(row).toHaveTextContent('kris:frequencies.quarterly');
+        expect(row).toHaveTextContent('kri.days_until_due');
+        expect(screen.getByRole('heading', { level: 2, name: 'kri.status_title' })).toBeInTheDocument();
     });
 });

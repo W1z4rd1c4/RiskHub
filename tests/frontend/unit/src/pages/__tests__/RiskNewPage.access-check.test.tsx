@@ -44,7 +44,7 @@ it('ignores a delayed allowed response after changing the linked vendor route', 
     await waitFor(() => expect(vendorApi.getVendor).toHaveBeenCalledWith(7));
     fireEvent.click(screen.getByRole('button', { name: 'Change vendor' }));
     await waitFor(() => expect(vendorApi.getVendor).toHaveBeenCalledWith(8));
-    await screen.findByRole('alert');
+    await screen.findByRole('heading', { name: 'Access Denied' });
     await act(async () => resolveOld({ id: 7, name: 'Old', capabilities: { can_create_linked_risk: true } } as Vendor));
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();

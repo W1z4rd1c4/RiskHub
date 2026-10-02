@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 import { Filter, RefreshCw, Search, X } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 
 interface RegisterFilterOption {
     value: string;
@@ -78,24 +80,24 @@ export function RegisterListToolbar({
                         <Filter className="h-4 w-4" aria-hidden="true" />
                         <span>{filtersLabel}</span>
                         {activeFilterCount > 0 ? (
-                            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-text" aria-label={filterCountLabel}>
+                            <Badge tone="accent" srLabel={filterCountLabel}>
                                 {activeFilterCount}
-                            </span>
+                            </Badge>
                         ) : null}
-                        <select
+                        <NativeSelect
+                            overlay
                             data-testid={`${testIdPrefix}-add-filter`}
                             aria-label={filtersLabel}
                             value=""
                             onChange={(event) => {
                                 if (event.target.value) onAddFilter(event.target.value);
                             }}
-                            className="absolute inset-0 cursor-pointer opacity-0"
                         >
                             <option value="">{filtersLabel}</option>
                             {availableFilters.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
-                        </select>
+                        </NativeSelect>
                     </label>
                     <Button
                         variant="secondary"

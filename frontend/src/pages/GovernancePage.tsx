@@ -1,20 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateTimeValue } from '@/i18n/formatters';
-import {
-    Scale,
-    ClipboardList,
-    AlertTriangle,
-    ShieldAlert,
-    RefreshCw,
-    TrendingUp,
-    Building2,
-    Workflow,
-    Database,
-    Truck,
-} from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { TrendingUp } from 'lucide-react';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
@@ -22,8 +10,17 @@ import type { ApprovalCreatedResponse } from '@/types/approval';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { governanceKeys } from '@/lib/queryKeys';
-import { useAuthz } from '@/authz/useAuthz';
-import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { ErrorState, LoadingState } from '@/components/ui/state';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ENTITY_ICONS } from '@/constants/entityIcons';
+import { translateCode } from '@/lib/humanizeCode';
+import { cn } from '@/lib/utils';
 
 const container = {
     hidden: { opacity: 0 },
@@ -40,23 +37,38 @@ const item = {
     show: { opacity: 1, y: 0 }
 };
 
+type GovernanceItemType = 'risk' | 'control' | 'kri' | 'threat' | 'process' | 'asset' | 'vendor';
+const GOVERNANCE_ITEM_TYPES: readonly GovernanceItemType[] = [
+    'risk',
+    'control',
+    'kri',
+    'threat',
+    'process',
+    'asset',
+    'vendor',
+];
+
+/** The orphan table's heading per type: the stat cards are the page's one type filter (SM-11). */
+const SECTION_TITLE_KEYS: Readonly<Record<GovernanceItemType, string>> = {
+    risk: 'governance.orphaned_risks_section',
+    control: 'governance.orphaned_controls_section',
+    kri: 'governance.orphaned_kris_section',
+    threat: 'governance.orphaned_threats_section',
+    process: 'governance.orphaned_processes_section',
+    asset: 'governance.orphaned_assets_section',
+    vendor: 'governance.orphaned_vendors_section',
+};
+
 function GovernancePageInner() {
-    const { t, i18n } = useTranslation('admin');
-    const navigate = useNavigate();
+    const { t } = useTranslation('admin');
+    const format = useFormat();
+    const announceApprovalQueued = useApprovalQueued();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
-    type GovernanceItemType = 'risk' | 'control' | 'kri' | 'threat' | 'process' | 'asset' | 'vendor';
     const requestedType = searchParams.get('type');
-    const activeTab: GovernanceItemType = requestedType === 'control'
-        || requestedType === 'kri'
-        || requestedType === 'threat'
-        || requestedType === 'process'
-        || requestedType === 'asset'
-        || requestedType === 'vendor'
-        ? requestedType
-        : 'risk';
+    const activeTab: GovernanceItemType = GOVERNANCE_ITEM_TYPES.find((type) => type === requestedType) ?? 'risk';
 
     const selectTab = (type: GovernanceItemType) => {
         setSearchParams((current) => {
@@ -86,48 +98,44 @@ function GovernancePageInner() {
         void overviewQuery.refresh();
     };
 
+    // D12 / PM-2: the user stays on Governance (the orphan row stays pending)
+    // with the persistent pending notice deep-linking to the request in My
+    // Requests, plus a success toast.
     const handleApprovalQueued = (response: ApprovalCreatedResponse) => {
-        void navigate(`/approvals?tab=mine&approvalId=${String(response.approval_id)}`);
+        setIsModalOpen(false);
+        announceApprovalQueued({ approvalId: response.approval_id });
+        void overviewQuery.refresh();
     };
 
+    // D7: the page title is the route's `h1` and `document.title` in every state.
     if (overviewQuery.isLoading && !stats) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="flex flex-col items-center gap-4">
-                    <RefreshCw className="h-8 w-8 text-accent animate-spin" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
-                </div>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('governance.title')} description={t('governance.subtitle')} />
+                <LoadingState layout="page" label={t('governance.loading')} />
+            </PageContainer>
         );
     }
 
     if (overviewQuery.isError && !stats) {
         return (
-            <div
-                role="alert"
-                className="glass-card mx-auto flex min-h-[18rem] max-w-2xl flex-col items-center justify-center gap-4 p-8 text-center"
-            >
-                <ShieldAlert className="h-10 w-10 text-rose-400" aria-hidden="true" />
-                <h2 className="text-lg font-bold text-white">{t('governance.load_failed')}</h2>
-                <p className="text-sm text-slate-400">{t('governance.load_failed_help')}</p>
-                <button
-                    type="button"
-                    onClick={() => { void overviewQuery.refresh(); }}
-                    disabled={overviewQuery.isFetching}
-                    className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground disabled:opacity-50"
-                    aria-label={t('governance.refresh')}
-                >
-                    <RefreshCw
-                        className={`h-4 w-4 ${overviewQuery.isFetching ? 'animate-spin' : ''}`}
-                        aria-hidden="true"
-                    />
-                    {t('governance.refresh')}
-                </button>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('governance.title')} description={t('governance.subtitle')} />
+                <ErrorState
+                    layout="page"
+                    title={t('governance.load_failed')}
+                    message={t('governance.load_failed_help')}
+                    onRetry={() => { void overviewQuery.refresh(); }}
+                    retryLabel={t('governance.refresh')}
+                    isRetrying={overviewQuery.isFetching}
+                />
+            </PageContainer>
         );
     }
 
     const filteredOrphans = orphans.filter(o => o.item_type === activeTab);
+    // A poll that failed after data was loaded keeps the last list on screen, flagged as stale.
+    const isStale = overviewQuery.isError && stats !== null;
 
     const statBars = [
         {
@@ -135,9 +143,9 @@ function GovernancePageInner() {
             title: t('governance.pending_orphans'),
             subtitle: t('governance.risks'),
             value: stats?.risk_count ?? 0,
-            icon: Scale,
-            color: 'text-amber-400',
-            bg: 'bg-amber-400/10',
+            icon: ENTITY_ICONS.risk,
+            color: 'text-warning-text',
+            bg: 'bg-warning/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -146,9 +154,9 @@ function GovernancePageInner() {
             title: t('governance.orphaned_controls'),
             subtitle: t('governance.controls'),
             value: stats?.control_count ?? 0,
-            icon: ClipboardList,
-            color: 'text-rose-400',
-            bg: 'bg-rose-400/10',
+            icon: ENTITY_ICONS.control,
+            color: 'text-destructive',
+            bg: 'bg-destructive/10',
             trend: t('governance.critical'),
             clickable: true,
         },
@@ -157,8 +165,8 @@ function GovernancePageInner() {
             title: t('governance.orphaned_kris'),
             subtitle: t('governance.kris'),
             value: stats?.kri_count ?? 0,
-            icon: AlertTriangle,
-            color: 'text-accent',
+            icon: ENTITY_ICONS.kri,
+            color: 'text-accent-text',
             bg: 'bg-accent/10',
             trend: t('governance.needs_linkage'),
             clickable: true,
@@ -168,9 +176,9 @@ function GovernancePageInner() {
             title: t('governance.orphaned_threats'),
             subtitle: t('governance.threats'),
             value: stats?.threat_count ?? 0,
-            icon: ShieldAlert,
-            color: 'text-teal-400',
-            bg: 'bg-teal-400/10',
+            icon: ENTITY_ICONS.threat,
+            color: 'text-chart-3',
+            bg: 'bg-chart-3/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -179,9 +187,9 @@ function GovernancePageInner() {
             title: t('governance.orphaned_processes'),
             subtitle: t('governance.processes'),
             value: stats?.process_count ?? 0,
-            icon: Workflow,
-            color: 'text-sky-400',
-            bg: 'bg-sky-400/10',
+            icon: ENTITY_ICONS.process,
+            color: 'text-accent-text',
+            bg: 'bg-info/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -190,9 +198,9 @@ function GovernancePageInner() {
             title: t('governance.orphaned_assets'),
             subtitle: t('governance.assets'),
             value: stats?.asset_count ?? 0,
-            icon: Database,
-            color: 'text-violet-400',
-            bg: 'bg-violet-400/10',
+            icon: ENTITY_ICONS.asset,
+            color: 'text-chart-2',
+            bg: 'bg-chart-2/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -201,9 +209,9 @@ function GovernancePageInner() {
             title: t('governance.orphaned_vendors'),
             subtitle: t('governance.vendors'),
             value: stats?.vendor_count ?? 0,
-            icon: Truck,
-            color: 'text-orange-400',
-            bg: 'bg-orange-400/10',
+            icon: ENTITY_ICONS.vendor,
+            color: 'text-severity-high-text',
+            bg: 'bg-severity-high/10',
             trend: t('governance.action_required'),
             clickable: true,
         },
@@ -212,9 +220,9 @@ function GovernancePageInner() {
             title: t('governance.uncategorised'),
             subtitle: t('governance.total'),
             value: stats?.total_count ?? 0,
-            icon: Building2,
-            color: 'text-slate-400',
-            bg: 'bg-slate-400/10',
+            icon: ENTITY_ICONS.department,
+            color: 'text-muted-foreground',
+            bg: 'bg-muted-foreground/10',
             trend: t('governance.grand_total'),
             clickable: false,
         },
@@ -229,8 +237,8 @@ function GovernancePageInner() {
                 />
             )}
             <div className="flex justify-between items-start mb-6 relative z-10">
-                <div className={`${bar.bg} p-3 rounded-xl`}>
-                    <bar.icon className={`h-6 w-6 ${bar.color}`} aria-hidden="true" />
+                <div className={cn(bar.bg, 'p-3 rounded-xl')}>
+                    <bar.icon className={cn('h-6 w-6', bar.color)} aria-hidden="true" />
                 </div>
                 <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" aria-hidden="true" />
@@ -238,71 +246,105 @@ function GovernancePageInner() {
                 </div>
             </div>
             <div className="relative z-10">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{bar.subtitle}</p>
+                <p className="text-eyebrow mb-1">{bar.subtitle}</p>
                 <p className="text-sm font-bold text-muted-foreground mb-2">{bar.title}</p>
-                <h3 className="text-4xl font-black text-foreground tracking-tighter">{bar.value}</h3>
+                <p className="text-4xl font-bold text-foreground tracking-tight">{bar.value}</p>
             </div>
         </>
     );
 
     return (
-        <div className="space-y-10">
-            <div className="flex justify-between items-end">
-                <div>
-                    <h2 className="text-3xl font-black text-foreground mb-2">{t('governance.title')}</h2>
-                    <p className="text-muted-foreground font-medium">{t('governance.subtitle')}</p>
-                    {(lastScanAt || scanStatus) && (
-                        <p className="text-xs text-slate-500 mt-2">
-                            {scanStatus ? `${scanStatus}` : ''}
-                            {lastScanAt ? ` • ${formatDateTimeValue(lastScanAt, i18n.language)}` : ''}
-                        </p>
-                    )}
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => { void overviewQuery.refresh(); }}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
-                        title={t('governance.refresh')}
-                        aria-label={t('governance.refresh')}
-                    >
-                        <RefreshCw className="h-5 w-5" aria-hidden="true" />
-                    </button>
-                    <div className="flex items-center gap-2 text-xs font-black text-muted-foreground uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        {t('governance.live_status')}
-                    </div>
-                </div>
-            </div>
+        <PageContainer>
+            <PageHeader
+                title={t('governance.title')}
+                description={(
+                    <>
+                        <p>{t('governance.subtitle')}</p>
+                        {(lastScanAt || scanStatus) && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {[
+                                    scanStatus
+                                        ? t('governance.scan_status_label', {
+                                            status: translateCode(t, 'governance.scan_status', scanStatus),
+                                        })
+                                        : null,
+                                    lastScanAt ? t('governance.last_scan_at', { date: format.dateTime(lastScanAt) }) : null,
+                                ].filter(Boolean).join(' • ')}
+                            </p>
+                        )}
+                    </>
+                )}
+                documentTitle={t('governance.title')}
+                actions={(
+                    <>
+                        <RefreshButton
+                            iconOnly
+                            variant="outline"
+                            label={t('governance.refresh')}
+                            onRefresh={() => { void overviewQuery.refresh(); }}
+                            isFetching={overviewQuery.isFetching}
+                        />
+                        {/* FB-02: the dot pulses only while a fetch is in flight and turns
+                            danger when the last poll failed, instead of pulsing forever. */}
+                        <Badge
+                            tone={isStale ? 'danger' : 'success'}
+                            dot
+                            data-testid="governance-live-status"
+                            className={cn(
+                                'uppercase tracking-wide',
+                                overviewQuery.isFetching && !isStale && '[&_[data-badge-dot]]:animate-pulse',
+                            )}
+                        >
+                            {isStale ? t('governance.live_status_stale') : t('governance.live_status')}
+                        </Badge>
+                    </>
+                )}
+            />
+
+            <ApprovalQueuedNotice />
+
+            {isStale ? (
+                <ErrorState
+                    layout="section"
+                    variant="banner"
+                    message={t('governance.may_be_out_of_date')}
+                    onRetry={() => { void overviewQuery.refresh(); }}
+                    retryLabel={t('governance.refresh')}
+                    isRetrying={overviewQuery.isFetching}
+                />
+            ) : null}
 
             <motion.div
                 variants={container}
                 initial={false}
                 animate="show"
-                className="grid gap-6 md:grid-cols-2 lg:grid-cols-6"
+                // RS-01: auto-fit columns instead of a fixed six at `lg` (92px cards at 1024px).
+                className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]"
             >
                 {statBars.map((bar) => {
                     const isActive = activeTab === bar.id;
                     return bar.clickable ? (
-                        <motion.button
+                        // A pressed-card toggle: the whole card is one action (Card as="button", §4.10).
+                        <Card
                             key={bar.id}
-                            type="button"
-                            variants={item}
+                            as="button"
+                            interactive
                             onClick={() => selectTab(bar.id as GovernanceItemType)}
                             aria-pressed={isActive}
                             data-testid={`governance-filter-card-${bar.id}`}
-                            className={`glass-card interactive-card group flex flex-col justify-between relative overflow-hidden cursor-pointer text-left ${isActive
-                                ? 'ring-2 ring-accent shadow-[0_0_20px_rgba(var(--accent-rgb),0.2)]'
-                                : 'grayscale-[0.5] opacity-70 hover:opacity-100 hover:grayscale-0'
-                            }`}
+                            className={cn(
+                                'group relative flex flex-col justify-between overflow-hidden',
+                                isActive && 'ring-2 ring-accent',
+                            )}
                         >
                             {statCardContents(bar, isActive)}
-                        </motion.button>
+                        </Card>
                     ) : (
                         <motion.div
                             key={bar.id}
                             variants={item}
                             data-testid={`governance-filter-card-${bar.id}`}
-                            className="glass-card group flex flex-col justify-between relative overflow-hidden cursor-default grayscale-0 opacity-100"
+                            className="glass-card group flex flex-col justify-between relative overflow-hidden cursor-default"
                         >
                             {statCardContents(bar, false)}
                         </motion.div>
@@ -317,23 +359,9 @@ function GovernancePageInner() {
                 key={activeTab} // Animate on tab swap
             >
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    <span className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">
-                        {activeTab === 'risk'
-                            ? t('governance.orphaned_risks_section')
-                            : activeTab === 'control'
-                                ? t('governance.orphaned_controls_section')
-                                : activeTab === 'kri'
-                                    ? t('governance.orphaned_kris_section')
-                                    : activeTab === 'threat'
-                                        ? t('governance.orphaned_threats_section')
-                                        : activeTab === 'process'
-                                            ? t('governance.orphaned_processes_section')
-                                            : activeTab === 'asset'
-                                                ? t('governance.orphaned_assets_section')
-                                                : t('governance.orphaned_vendors_section')}
-                    </span>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-tint/10 to-transparent" />
+                    <h2 className="text-eyebrow">{t(SECTION_TITLE_KEYS[activeTab])}</h2>
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-tint/10 to-transparent" />
                 </div>
                 <OrphanedItemsTable
                     items={filteredOrphans}
@@ -355,17 +383,15 @@ function GovernancePageInner() {
                 onClose={() => setViewingOrphan(null)}
                 orphan={viewingOrphan}
             />
-        </div>
+        </PageContainer>
     );
 }
 
+/**
+ * CRO-only business route. Access is owned by the route-level `GovernanceRouteGuard`
+ * (`routing/business.tsx`); the page does not duplicate it (audit NAV-05). The backend
+ * still authorises every orphan API call.
+ */
 export default function GovernancePage() {
-    const authz = useAuthz();
-
-    // CRO-only business route. Keep a local guard so direct page mounts never hit orphan APIs for blocked roles.
-    if (!authz.canViewGovernance) {
-        return <ReadAccessDeniedState />;
-    }
-
     return <GovernancePageInner />;
 }

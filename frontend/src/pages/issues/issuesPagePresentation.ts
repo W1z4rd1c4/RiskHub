@@ -25,6 +25,9 @@ export const ISSUE_SORT_FIELDS: NonNullable<IssueListFilters['sort_by']>[] = [
     'due_at',
     'updated_at',
     'created_at',
+    // PG-42: Department and Owner sort by display name (backend `/issues` sort fields).
+    'department_name',
+    'owner_user_name',
 ];
 
 export interface IssuesPageInitialState {
@@ -168,27 +171,4 @@ export function formatIssueGroupLabel(
         default:
             return group.label;
     }
-}
-
-export function formatIssueDateTime(
-    value: string | null,
-    locale: string,
-    notSetLabel: string,
-): string {
-    if (!value) {
-        return notSetLabel;
-    }
-
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat(locale, {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    }).format(parsed);
 }

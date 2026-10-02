@@ -1,17 +1,28 @@
-import { useState, useEffect, useId } from 'react';
-import { Palette, Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Archive, Palette, Plus, Edit } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { RowActionButton } from '@/components/tables/RowActionButton';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
-import { cn } from '@/lib/utils';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys } from '@/lib/queryKeys';
-import { useTranslation } from '@/i18n/hooks';
-import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame, RiskHubShowArchivedToggle } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import { useRiskHubConfigResource } from './useRiskHubConfigResource';
+import { DEFAULT_RISK_TYPE_COLOR } from '@/hooks/useRiskHubConfig';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -22,15 +33,10 @@ interface RiskTypeModalProps {
 
 function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps) {
     const { t } = useTranslation(['admin', 'common']);
-    const codeLabelId = useId();
-    const displayNameLabelId = useId();
-    const descriptionLabelId = useId();
-    const colorLabelId = useId();
-    const sortOrderLabelId = useId();
     const [code, setCode] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
-    const [color, setColor] = useState('#64748b');
+    const [color, setColor] = useState(DEFAULT_RISK_TYPE_COLOR);
     const [sortOrder, setSortOrder] = useState(0);
     const [saving, setSaving] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -40,7 +46,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
             setCode(riskType?.code || '');
             setDisplayName(riskType?.display_name || '');
             setDescription(riskType?.description || '');
-            setColor(riskType?.color || '#64748b');
+            setColor(riskType?.color || DEFAULT_RISK_TYPE_COLOR);
             setSortOrder(riskType?.sort_order || 0);
             setErrorKey(null);
         }
@@ -69,98 +75,103 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
     if (!isOpen) return null;
 
     return (
-        <RiskHubModalFrame onClose={onClose} title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
-                <form onSubmit={handleSubmit} className="space-y-4">
+        <RiskHubModalFrame onClose={onClose} isBusy={saving} title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <DialogBody>
                     {!riskType && (
-                        <div>
-                            <span id={codeLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.code')}</span>
-                            <input
-                                type="text"
-                                aria-labelledby={codeLabelId}
-                                value={code}
-                                onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                                placeholder={t('admin:risk_types_panel.modal.placeholders.code')}
-                                required
-                            />
-                            <p className="text-xs text-slate-500 mt-1">{t('admin:risk_types_panel.modal.hints.code')}</p>
-                        </div>
+                        <Field
+                            label={t('admin:risk_types_panel.modal.fields.code')}
+                            help={t('admin:risk_types_panel.modal.hints.code')}
+                            required
+                        >
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    type="text"
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                    placeholder={t('admin:risk_types_panel.modal.placeholders.code')}
+                                    required
+                                />
+                            )}
+                        </Field>
                     )}
 
-                    <div>
-                        <span id={displayNameLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.display_name')}</span>
-                        <input
-                            type="text"
-                            aria-labelledby={displayNameLabelId}
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:risk_types_panel.modal.placeholders.display_name')}
-                            required
-                        />
-                    </div>
+                    <Field label={t('admin:risk_types_panel.modal.fields.display_name')} required>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="text"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                placeholder={t('admin:risk_types_panel.modal.placeholders.display_name')}
+                                required
+                            />
+                        )}
+                    </Field>
 
-                    <div>
-                        <span id={descriptionLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.description')}</span>
-                        <textarea
-                            aria-labelledby={descriptionLabelId}
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:risk_types_panel.modal.placeholders.description')}
-                            rows={3}
-                        />
-                    </div>
+                    <Field label={t('common:labels.description')}>
+                        {(field) => (
+                            <Textarea
+                                {...field}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder={t('admin:risk_types_panel.modal.placeholders.description')}
+                                rows={3}
+                            />
+                        )}
+                    </Field>
 
                     <div className="flex gap-4">
-                        <div className="flex-1">
-                            <span id={colorLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.color')}</span>
-                            <div className="flex items-center gap-2" role="group" aria-labelledby={colorLabelId}>
-                                <input
-                                    type="color"
-                                    aria-labelledby={colorLabelId}
-                                    value={color}
-                                    onChange={(e) => setColor(e.target.value)}
-                                    className="w-10 h-10 rounded cursor-pointer"
-                                />
-                                <input
-                                    type="text"
-                                    aria-labelledby={colorLabelId}
-                                    value={color}
-                                    onChange={(e) => setColor(e.target.value)}
-                                    className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                                    pattern="^#[0-9a-fA-F]{6}$"
-                                />
-                            </div>
-                        </div>
+                        <Field label={t('admin:risk_types_panel.modal.fields.color')} group className="flex-1">
+                            {(field) => (
+                                <div className="flex items-center gap-2" role="group" aria-labelledby={field['aria-labelledby']}>
+                                    <input
+                                        type="color"
+                                        aria-labelledby={field['aria-labelledby']}
+                                        value={color}
+                                        onChange={(e) => setColor(e.target.value)}
+                                        className="h-10 w-10 cursor-pointer rounded-lg border border-input bg-transparent focus-ring"
+                                    />
+                                    <Input
+                                        type="text"
+                                        aria-labelledby={field['aria-labelledby']}
+                                        value={color}
+                                        onChange={(e) => setColor(e.target.value)}
+                                        className="flex-1 font-mono"
+                                        pattern="^#[0-9a-fA-F]{6}$"
+                                    />
+                                </div>
+                            )}
+                        </Field>
 
-                        <div className="w-24">
-                            <span id={sortOrderLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.sort_order')}</span>
-                            <input
-                                type="number"
-                                aria-labelledby={sortOrderLabelId}
-                                value={sortOrder}
-                                onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
-                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                            />
-                        </div>
+                        <Field label={t('admin:risk_types_panel.modal.fields.sort_order')} className="w-24">
+                            {(field) => (
+                                <Input
+                                    {...field}
+                                    type="number"
+                                    value={sortOrder}
+                                    onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
+                                />
+                            )}
+                        </Field>
                     </div>
 
                     <RiskHubFieldError errorKey={errorKey} />
-                    <RiskHubModalActions
-                        onCancel={onClose}
-                        saving={saving}
-                        savingLabel={t('admin:risk_types_panel.modal.saving')}
-                    />
-                </form>
+                </DialogBody>
+                <RiskHubModalActions
+                    onCancel={onClose}
+                    saving={saving}
+                    savingLabel={t('admin:risk_types_panel.modal.saving')}
+                />
+            </form>
         </RiskHubModalFrame>
     );
 }
 
 export function RiskTypesPanel() {
     const { t } = useTranslation(['admin', 'common']);
-    const deleteTitleId = useId();
-    const showDeletedId = useId();
+    const format = useFormat();
     const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
         queryKey: riskHubKeys.riskTypes(),
         load: (showInactive) => riskHubApi.getRiskTypes(showInactive),
@@ -169,150 +180,135 @@ export function RiskTypesPanel() {
         delete: (id) => riskHubApi.deleteRiskType(Number(id)),
         restore: (id) => riskHubApi.restoreRiskType(Number(id)),
         itemId: (item) => item.id,
+        itemName: (item) => item.display_name,
         panelCapabilityKey: 'risk_types',
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
 
+    // DS-17 / GAP-C-11: shared loading and error (with retry) states.
     if (panel.isLoading) {
-        return <div className="text-muted-foreground text-center py-8">{t('common:loading.risk_types')}</div>;
+        return <LoadingState label={t('common:loading.risk_types')} />;
     }
 
-    if (panel.error) {
-        return <div className="text-destructive text-center py-8">{t('errors.failed_to_load_risk_types')}</div>;
+    if (panel.error && !panel.hasData) {
+        return (
+            <ErrorState
+                message={t('errors.failed_to_load_risk_types')}
+                onRetry={panel.retry}
+                isRetrying={panel.isFetching}
+            />
+        );
     }
+
+    const archiveTarget = panel.deleteConfirm;
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Palette className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-foreground">{t('admin:risk_types_panel.title')}</h3>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <label htmlFor={showDeletedId} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <input
-                            id={showDeletedId}
-                            type="checkbox"
+            {panel.error ? (
+                <ErrorState variant="banner" onRetry={panel.retry} isRetrying={panel.isFetching} />
+            ) : null}
+            <CardHeader
+                className="mb-0"
+                icon={Palette}
+                title={t('admin:risk_types_panel.title')}
+                actions={(
+                    <>
+                        <RiskHubShowArchivedToggle
                             checked={panel.showInactive}
-                            onChange={(e) => panel.setShowInactive(e.target.checked)}
-                            className="rounded border-border bg-background text-accent focus:ring-accent"
+                            onCheckedChange={panel.setShowInactive}
+                            label={t('admin:risk_types_panel.show_deleted')}
                         />
-                        {t('admin:risk_types_panel.show_deleted')}
-                    </label>
+                        {canCreate ? (
+                            <Button variant="accent" onClick={panel.openCreate}>
+                                <Plus aria-hidden="true" />
+                                {t('admin:risk_types_panel.add_type')}
+                            </Button>
+                        ) : null}
+                    </>
+                )}
+            />
 
-                    {canCreate ? (
-                        <button
-                            onClick={panel.openCreate}
-                            className="flex items-center gap-2 px-3 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors"
-                        >
-                            <Plus className="h-4 w-4" />
-                            {t('admin:risk_types_panel.add_type')}
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-border">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.color')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.code')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.display_name')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.description')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('admin:risk_types_panel.columns.risks')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.status')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">{t('common:labels.actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            {panel.items.length === 0 ? (
+                <EmptyState title={t('admin:risk_types_panel.empty')} testId="risk-types-empty" />
+            ) : (
+                <Table density="compact" regionLabel={t('admin:risk_types_panel.title')}>
+                    <THead>
+                        <TR>
+                            <TH>{t('admin:risk_types_panel.columns.color')}</TH>
+                            <TH>{t('admin:risk_types_panel.columns.code')}</TH>
+                            <TH>{t('admin:risk_types_panel.columns.display_name')}</TH>
+                            <TH>{t('common:labels.description')}</TH>
+                            <TH align="center">{t('admin:risk_types_panel.columns.risks')}</TH>
+                            <TH align="center">{t('common:labels.status')}</TH>
+                            <TH align="right">{t('common:labels.actions')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {panel.items.map((type) => {
                             const canUpdate = resolveCapabilityFlag(type.capabilities, 'can_update');
                             const canDelete = resolveCapabilityFlag(type.capabilities, 'can_delete');
                             const canRestore = resolveCapabilityFlag(type.capabilities, 'can_restore');
 
                             return (
-                            <tr
-                                key={type.id}
-                                className={cn(
-                                    "border-b border-border hover:bg-muted/50 transition-colors",
-                                    !type.is_active && "opacity-50"
-                                )}
-                            >
-                                <td className="py-3 px-4">
-                                    <ColorSwatch color={type.color} className="h-6 w-6" />
-                                </td>
-                                <td className="py-3 px-4">
-                                    <code className="text-sm font-mono text-foreground">{type.code}</code>
-                                </td>
-                                <td className="py-3 px-4 text-foreground font-medium">{type.display_name}</td>
-                                <td className="py-3 px-4 text-muted-foreground text-sm max-w-xs truncate">
-                                    {type.description || '—'}
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    <span className="px-2 py-0.5 bg-muted rounded-full text-xs text-foreground">
-                                        {type.risk_count}
-                                    </span>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    {type.is_system ? (
-                                        <span className="px-2 py-0.5 bg-info/10 text-accent-text rounded-full text-xs">
-                                            {t('admin:risk_types_panel.badges.system')}
-                                        </span>
-                                    ) : type.is_active ? (
-                                        <span className="px-2 py-0.5 bg-success/10 text-success-text rounded-full text-xs">
-                                            {t('admin:risk_types_panel.badges.active')}
-                                        </span>
-                                    ) : (
-                                        <span className="px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs">
-                                            {t('admin:risk_types_panel.badges.deleted')}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {canUpdate ? (
-                                            <button
+                                <TR key={type.id} data-archived={type.is_active ? undefined : 'true'}>
+                                    <TD>
+                                        <ColorSwatch color={type.color} className="h-6 w-6" />
+                                    </TD>
+                                    <TD>
+                                        <code className="text-sm font-mono text-foreground">{type.code}</code>
+                                    </TD>
+                                    <TD className="font-medium text-foreground">{type.display_name}</TD>
+                                    <TD className="max-w-xs truncate text-sm text-muted-foreground">
+                                        {type.description || '—'}
+                                    </TD>
+                                    <TD align="center">
+                                        <Badge tone="neutral">{format.number(type.risk_count)}</Badge>
+                                    </TD>
+                                    <TD align="center">
+                                        {type.is_system ? (
+                                            <Badge tone="info">{t('admin:risk_types_panel.badges.system')}</Badge>
+                                        ) : type.is_active ? (
+                                            <Badge tone="success">{t('admin:risk_types_panel.badges.active')}</Badge>
+                                        ) : (
+                                            <Badge tone="neutral">{t('admin:risk_types_panel.badges.deleted')}</Badge>
+                                        )}
+                                    </TD>
+                                    <TD align="right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            {/* GAP-B-03: an edit the user cannot make stays visible with its reason. */}
+                                            <RowActionButton
+                                                icon={Edit}
+                                                label={t('common:actions.edit_named', { name: type.display_name })}
                                                 onClick={() => panel.openEdit(type)}
-                                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-                                                title={t('common:actions.edit')}
-                                                aria-label={t('common:actions.edit')}
-                                            >
-                                                <Edit className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        ) : null}
+                                                disabledReason={canUpdate
+                                                    ? undefined
+                                                    : t('admin:risk_types_panel.actions.edit_disabled', { name: type.display_name })}
+                                            />
 
-                                        {canDelete && (
-                                            <button
-                                                onClick={() => panel.requestDelete(type)}
-                                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                                                title={t('common:actions.delete')}
-                                                aria-label={t('common:actions.delete')}
-                                            >
-                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        )}
+                                            {canDelete && (
+                                                <RowActionButton
+                                                    icon={Archive}
+                                                    tone="danger"
+                                                    label={t('common:actions.archive_named', { name: type.display_name })}
+                                                    onClick={() => panel.requestDelete(type)}
+                                                />
+                                            )}
 
-                                        {canRestore && (
-                                            <button
-                                                onClick={() => panel.handleRestore(type)}
-                                                className="p-1.5 text-muted-foreground hover:text-success-text hover:bg-success/10 rounded transition-colors"
-                                                title={t('admin:risk_types_panel.actions.restore')}
-                                                aria-label={t('admin:risk_types_panel.actions.restore')}
-                                            >
-                                                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
+                                            {canRestore && (
+                                                <RowRestoreButton
+                                                    itemName={type.display_name}
+                                                    onClick={() => panel.handleRestore(type)}
+                                                />
+                                            )}
+                                        </div>
+                                    </TD>
+                                </TR>
                             );
                         })}
-                    </tbody>
-                </table>
-            </div>
+                    </TBody>
+                </Table>
+            )}
 
             {/* Create/Edit Modal */}
             <RiskTypeModal
@@ -322,42 +318,25 @@ export function RiskTypesPanel() {
                 onSave={panel.handleSave}
             />
 
-            {/* Delete Confirmation */}
-            {panel.deleteConfirm && (
-                <DialogShell
-                    isOpen
-                    onClose={panel.closeDelete}
-                    titleId={deleteTitleId}
-                    role="alertdialog"
-                    backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                    contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
-                >
-                        <h3 id={deleteTitleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
-                        <p className="text-slate-400 text-sm mb-4">
-                            {t('admin:risk_types_panel.delete_confirm', { name: panel.deleteConfirm.display_name })}
-                            {panel.deleteConfirm.risk_count > 0 && (
-                                <span className="block mt-2 text-amber-400">
-                                    {t('admin:risk_types_panel.delete_warning', { count: panel.deleteConfirm.risk_count })}
-                                </span>
-                            )}
-                        </p>
-                        <RiskHubFieldError errorKey={panel.actionErrorKey} />
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={panel.closeDelete}
-                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                            >
-                                {t('common:actions.cancel')}
-                            </button>
-                            <button
-                                onClick={() => void panel.handleDelete()}
-                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                            >
-                                {t('common:actions.delete')}
-                            </button>
-                        </div>
-                </DialogShell>
-            )}
+            {/* PM-1 / D10: risk types are soft-deleted and restorable, so this is an
+                archive; the API takes no reason. Busy and errors stay in the dialog. */}
+            <ConfirmDialog
+                isOpen={archiveTarget !== null}
+                onClose={panel.closeDelete}
+                onConfirm={() => void panel.handleDelete()}
+                intent="archive"
+                title={t('confirmations.archive_risk_type')}
+                message={archiveTarget
+                    ? [
+                        t('admin:risk_types_panel.archive_confirm', { name: archiveTarget.display_name }),
+                        archiveTarget.risk_count > 0
+                            ? t('admin:risk_types_panel.delete_warning', { count: archiveTarget.risk_count })
+                            : '',
+                    ].filter(Boolean).join('\n\n')
+                    : undefined}
+                isLoading={panel.isDeleting}
+                errorText={archiveTarget ? translateUiMessage(t, panel.actionErrorKey) || null : null}
+            />
         </div>
     );
 }

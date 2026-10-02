@@ -29,7 +29,7 @@ describe('NotFoundPage', () => {
 
         expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/');
-        expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to previous page' })).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent(
             '/unknown/private-looking-path?view=detail#section',
         );

@@ -5,6 +5,7 @@ import type { Vendor } from '@/types/vendor';
 
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import { useTranslation } from '@/i18n/hooks';
+import { LoadingState } from '@/components/ui/state';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
@@ -96,9 +97,7 @@ function SidecarSection({
                     isRetrying={isRetrying}
                 />
             ) : outcome.kind === 'initial-loading' ? (
-                <div className="glass-card py-12 text-center text-sm text-muted-foreground" role="status">
-                    {t('common:loading.generic')}
-                </div>
+                <LoadingState className="glass-card" />
             ) : <>
             {outcome.kind === 'stale-with-error' ? (
                 <TableErrorState

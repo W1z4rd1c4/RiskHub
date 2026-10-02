@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings2, Save, Check, AlertCircle } from 'lucide-react';
+import { Settings2, Save } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
-import { cn } from '@/lib/utils';
 import { riskHubKeys } from '@/lib/queryKeys';
-import { useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { useFeedback } from '@/hooks/useFeedback';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string }> = {
     risk_thresholds: {
@@ -30,14 +37,35 @@ interface ConfigInputProps {
     onSave: (key: string, value: string) => Promise<void>;
 }
 
+/**
+ * One editable setting (DS-04 rewrite): `Field` names the control after the
+ * setting and describes it with the setting description and allowed range;
+ * `Switch` for booleans, `Input` for numbers and text, a "Save {name}" `Button`,
+ * a success toast (D9) and the server error as an `InlineMessage` (AX-05).
+ */
 function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const { t } = useTranslation(['admin', 'common']);
+    const format = useFormat();
     const [value, setValue] = useState(config.value);
+    const feedback = useFeedback();
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const isReadOnly = !config.is_editable || !canUpdate;
 
     const hasChanged = value !== config.value;
+    const hasRange = config.min_value !== null && config.max_value !== null;
+    const help = config.description || hasRange ? (
+        <>
+            {config.description}
+            {config.description && hasRange ? ' ' : null}
+            {hasRange
+                ? t('admin:system_settings.range', {
+                    min: format.number(config.min_value),
+                    max: format.number(config.max_value),
+                })
+                : null}
+        </>
+    ) : undefined;
 
     const handleSave = async () => {
         if (!hasChanged || !canUpdate) return;
@@ -45,8 +73,8 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         setSaving(true);
         try {
             await onSave(config.key, value);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
+            // D9 / GAP-B-10: the save outcome is a toast, not a 2 s inline flash.
+            feedback.success({ title: t('common:success.saved'), description: config.display_name });
         } catch (err) {
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
@@ -54,110 +82,79 @@ function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
         }
     };
 
-    const renderInput = () => {
-        if (config.value_type === 'bool') {
-            return (
-                <button
-                    onClick={() => {
-                        if (!config.is_editable || !canUpdate) return;
-                        const newVal = value.toLowerCase() === 'true' ? 'false' : 'true';
-                        setValue(newVal);
-                    }}
-                    disabled={!config.is_editable || !canUpdate}
-                    className={cn(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        value.toLowerCase() === 'true' ? "bg-accent" : "bg-white/20",
-                        (!config.is_editable || !canUpdate) && "opacity-50 cursor-not-allowed"
-                    )}
-                >
-                    <span
-                        className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                            value.toLowerCase() === 'true' ? "translate-x-6" : "translate-x-1"
-                        )}
-                    />
-                </button>
-            );
-        }
+    const saveButton = hasChanged && canUpdate && config.is_editable ? (
+        <Button
+            variant="accent"
+            size="compact"
+            onClick={() => void handleSave()}
+            isLoading={saving}
+            aria-label={t('admin:system_settings.save_named', { name: config.display_name })}
+        >
+            {saving ? null : <Save aria-hidden="true" />}
+            {t('common:actions.save')}
+        </Button>
+    ) : null;
 
-        if (config.value_type === 'int') {
-            // Format display value with space thousands separators (e.g., "10 000 000 000")
-            const numValue = parseInt(value) || 0;
-            const displayValue = numValue.toLocaleString('cs-CZ').replace(/\u00a0/g, ' ');
+    const errorMessage = errorKey ? (
+        <InlineMessage tone="danger">{translateUiMessage(t, errorKey)}</InlineMessage>
+    ) : null;
 
-            return (
-                <input
-                    type="text"
-                    inputMode="numeric"
-                    value={displayValue}
-                    onChange={(e) => {
-                        // Strip spaces and non-numeric chars, store raw number
-                        const cleaned = e.target.value.replace(/[^0-9]/g, '');
-                        setValue(cleaned);
-                    }}
-                    className="w-24 md:w-32 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                    disabled={!config.is_editable || !canUpdate}
-                />
-            );
-        }
-
+    if (config.value_type === 'bool') {
+        const checked = value.toLowerCase() === 'true';
         return (
-            <input
-                type="text"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={!config.is_editable || !canUpdate}
-            />
+            <div className="space-y-2 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Field layout="inline" label={config.display_name} help={help} className="min-w-0 flex-1">
+                        {(field) => (
+                            <Switch
+                                {...field}
+                                checked={checked}
+                                onCheckedChange={(next) => setValue(next ? 'true' : 'false')}
+                                disabled={isReadOnly}
+                            />
+                        )}
+                    </Field>
+                    {saveButton}
+                </div>
+                {errorMessage}
+            </div>
         );
-    };
+    }
 
     return (
-        <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
-            <div className="flex-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-white font-medium">{config.display_name}</span>
-                    {config.min_value !== null && config.max_value !== null && (
-                        <span className="text-xs text-slate-500">
-                            ({config.min_value} - {config.max_value})
-                        </span>
-                    )}
-                </div>
-                {config.description && (
-                    <p className="text-sm text-slate-500 mt-0.5">{config.description}</p>
-                )}
-            </div>
-
-            <div className="flex items-center gap-3">
-                {renderInput()}
-
-                {hasChanged && canUpdate && config.is_editable && (
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                    >
-                        {saving ? (
-                            <span className="animate-spin">⏳</span>
+        <div className="space-y-2 py-3">
+            <Field label={config.display_name} help={help}>
+                {(field) => (
+                    <div className="flex flex-wrap items-center gap-3">
+                        {config.value_type === 'int' ? (
+                            <Input
+                                {...field}
+                                type="text"
+                                size="compact"
+                                inputMode="numeric"
+                                // PG-38: group digits in the UI language ("10,000,000" en /
+                                // "10 000 000" cs); the change handler strips every separator.
+                                value={format.number(parseInt(value) || 0)}
+                                onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+                                className="w-32 text-right font-mono"
+                                disabled={isReadOnly}
+                            />
                         ) : (
-                            <Save className="h-3.5 w-3.5" />
+                            <Input
+                                {...field}
+                                type="text"
+                                size="compact"
+                                value={value}
+                                onChange={(e) => setValue(e.target.value)}
+                                className="min-w-0 flex-1"
+                                disabled={isReadOnly}
+                            />
                         )}
-                        {t('common:actions.save')}
-                    </button>
+                        {saveButton}
+                    </div>
                 )}
-
-                {saved && (
-                    <span className="flex items-center gap-1 text-green-400 text-sm">
-                        <Check className="h-4 w-4" /> {t('admin:system_settings.saved')}
-                    </span>
-                )}
-
-                {errorKey && (
-                    <span className="flex items-center gap-1 text-red-400 text-sm">
-                        <AlertCircle className="h-4 w-4" /> {t(errorKey, { ns: 'errorKeys' })}
-                    </span>
-                )}
-            </div>
+            </Field>
+            {errorMessage}
         </div>
     );
 }
@@ -168,7 +165,7 @@ export function SystemSettingsPanel() {
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canUpdateSettings = riskHubCapabilityEnabled(riskHubCapabilities?.system_settings, 'can_update');
 
-    const { data: configs, isLoading, error } = useQuery({
+    const { data: configs, isLoading, error, isFetching, refetch } = useQuery({
         queryKey: riskHubKeys.globalConfig(),
         queryFn: () => riskHubApi.getAllConfig(),
     });
@@ -182,39 +179,49 @@ export function SystemSettingsPanel() {
         await updateMutation.mutateAsync({ key, value });
     };
 
+    // DS-17 / GAP-C-11: shared loading and error (with retry) states.
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.settings')}</div>;
+        return <LoadingState label={t('common:loading.settings')} />;
     }
 
-    if (error) {
-        return <div className="text-red-400 text-center py-8">{t('admin:errors.failed_to_load_settings')}</div>;
+    if (error && !configs) {
+        return (
+            <ErrorState
+                message={t('admin:errors.failed_to_load_settings')}
+                onRetry={() => void refetch()}
+                isRetrying={isFetching}
+            />
+        );
     }
 
     const categories = Object.keys(configs || {});
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-3">
-                <Settings2 className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold text-white">{t('admin:system_settings.title')}</h3>
-            </div>
+            <CardHeader className="mb-0" icon={Settings2} title={t('admin:system_settings.title')} />
+
+            {error ? (
+                <ErrorState variant="banner" onRetry={() => void refetch()} isRetrying={isFetching} />
+            ) : null}
+
+            {categories.length === 0 ? (
+                <EmptyState title={t('admin:system_settings.empty')} testId="system-settings-empty" />
+            ) : null}
 
             {categories.map((category) => {
                 const categoryInfo = CATEGORY_LABELS[category];
                 const categoryConfigs = configs?.[category] || [];
 
                 return (
-                    <div key={category} className="bg-white/5 rounded-xl p-4">
-                        <div className="mb-4">
-                            <h4 className="text-white font-medium">
-                                {categoryInfo ? t(categoryInfo.labelKey) : category}
-                            </h4>
-                            <p className="text-sm text-slate-500">
-                                {categoryInfo ? t(categoryInfo.descriptionKey) : ''}
-                            </p>
-                        </div>
+                    <Card as="section" key={category} tone="nested" padding="compact">
+                        <CardHeader
+                            className="mb-2"
+                            titleAs="h3"
+                            title={categoryInfo ? t(categoryInfo.labelKey) : category}
+                            description={categoryInfo ? t(categoryInfo.descriptionKey) : undefined}
+                        />
 
-                        <div className="space-y-1">
+                        <div className="divide-y divide-border">
                             {categoryConfigs.map((config) => (
                                 <ConfigInput
                                     key={config.key}
@@ -224,7 +231,7 @@ export function SystemSettingsPanel() {
                                 />
                             ))}
                         </div>
-                    </div>
+                    </Card>
                 );
             })}
         </div>

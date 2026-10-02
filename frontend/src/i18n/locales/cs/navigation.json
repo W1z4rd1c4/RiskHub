@@ -69,6 +69,16 @@
         "risk_hub": "Risk Hub",
         "users": "Správa přístupu"
     },
+    "sidebar_badges": {
+        "workflow": "{{count}} čekajících položek",
+        "workflow_one": "{{count}} čekající položka",
+        "workflow_few": "{{count}} čekající položky",
+        "workflow_other": "{{count}} čekajících položek",
+        "orphan_count": "{{count}} záznamů bez vlastníka",
+        "orphan_count_one": "{{count}} záznam bez vlastníka",
+        "orphan_count_few": "{{count}} záznamy bez vlastníka",
+        "orphan_count_other": "{{count}} záznamů bez vlastníka"
+    },
     "groups": {
         "overview": "Přehled",
         "registers": "Registry",

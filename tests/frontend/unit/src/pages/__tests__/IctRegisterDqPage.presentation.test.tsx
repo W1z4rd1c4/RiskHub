@@ -616,7 +616,8 @@ describe('IctRegisterDqPage', () => {
             </MemoryRouter>
         );
 
-        expect(await screen.findByRole('status')).toHaveTextContent('Loading violation details');
+        const violationLoading = await screen.findByText(/Loading violation details/);
+        expect(violationLoading.closest('[role="status"]')).not.toBeNull();
         expect(getViolations).toHaveBeenCalledWith('DQ-16', { offset: 50, limit: 50 });
 
         await act(async () => {

@@ -24,8 +24,8 @@ export function UsersAccessStats({
     return (
         <div className={`grid grid-cols-1 ${accessStatsGridClass} gap-4`}>
             <div className="glass-card p-4 flex items-center gap-4">
-                <div className="bg-purple-500/20 p-3 rounded-xl">
-                    <Users className="h-6 w-6 text-purple-400" />
+                <div className="bg-chart-2/20 p-3 rounded-xl">
+                    <Users className="h-6 w-6 text-chart-2" />
                 </div>
                 <div>
                     <p className="text-sm text-muted-foreground">{t('access.stats.total_users')}</p>
@@ -33,8 +33,8 @@ export function UsersAccessStats({
                 </div>
             </div>
             <div className="glass-card p-4 flex items-center gap-4">
-                <div className="bg-emerald-500/20 p-3 rounded-xl">
-                    <UserCheck className="h-6 w-6 text-emerald-400" />
+                <div className="bg-success/20 p-3 rounded-xl">
+                    <UserCheck className="h-6 w-6 text-success-text" />
                 </div>
                 <div>
                     <p className="text-sm text-muted-foreground">{t('access.stats.active')}</p>
@@ -42,8 +42,8 @@ export function UsersAccessStats({
                 </div>
             </div>
             <div className="glass-card p-4 flex items-center gap-4">
-                <div className="bg-amber-500/20 p-3 rounded-xl">
-                    <Crown className="h-6 w-6 text-amber-400" />
+                <div className="bg-warning/20 p-3 rounded-xl">
+                    <Crown className="h-6 w-6 text-warning-text" />
                 </div>
                 <div>
                     <p className="text-sm text-muted-foreground">{t('access.stats.privileged')}</p>
@@ -52,8 +52,8 @@ export function UsersAccessStats({
             </div>
             {isPlatformAdmin && (
                 <div className="glass-card p-4 flex items-center gap-4">
-                    <div className="bg-slate-500/20 p-3 rounded-xl">
-                        <Server className="h-6 w-6 text-slate-400" />
+                    <div className="bg-muted-foreground/20 p-3 rounded-xl">
+                        <Server className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
                         <p className="text-sm text-muted-foreground">{t('access.stats.sys_admins')}</p>

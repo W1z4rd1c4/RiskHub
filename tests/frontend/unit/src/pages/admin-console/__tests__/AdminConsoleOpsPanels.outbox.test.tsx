@@ -8,7 +8,9 @@ const getSystemStatsMock = vi.fn();
 const getSchedulerStatusMock = vi.fn();
 const getOutboxStatusMock = vi.fn();
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },

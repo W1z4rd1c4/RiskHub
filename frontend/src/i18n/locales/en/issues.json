@@ -2,8 +2,7 @@
   "title": "Issues",
   "page_subtitle": "Track remediation, exceptions, and closure validation.",
   "new_page": {
-    "title": "Create Issue",
-    "breadcrumb": "Issues / New Entry"
+    "title": "Create Issue"
   },
   "actions": {
     "new_issue": "New Issue",
@@ -43,7 +42,9 @@
     "owner": "Owner",
     "source": "Source",
     "due": "Due",
-    "opened": "Opened"
+    "opened": "Opened",
+    "status": "Status",
+    "severity": "Severity"
   },
   "status": {
     "open": "Open",
@@ -124,9 +125,25 @@
       "no_history": "No activity log entries found for this issue.",
       "expires": "Expires",
       "system": "System"
+    },
+    "history_actions": {
+        "create": "Created",
+        "update": "Updated",
+        "delete": "Deleted",
+        "archive": "Archived",
+        "restore": "Restored",
+        "approve": "Approved",
+        "reject": "Rejected",
+        "cancel": "Cancelled",
+        "status_change": "Status changed",
+        "link": "Linked",
+        "unlink": "Unlinked",
+        "comment": "Commented",
+        "other": "Other change"
     }
   },
   "form": {
+    "owner_option": "{{name}} – {{role}}",
     "fields": {
       "title": "Title",
       "severity": "Severity",
@@ -156,6 +173,7 @@
     },
     "sections": {
       "assignment": "Assignment",
+      "assignment_description": "Owner and due date",
       "remediation_progress": "Remediation Progress",
       "exception_handling": "Exception Handling",
       "closure": "Closure",
@@ -200,7 +218,10 @@
     },
     "filters": {
       "add": "Add filter",
-      "active_count": "{{count}} active filters",
+      "active_count_one": "{{count}} active filter",
+      "active_count_few": "{{count}} active filters",
+      "active_count_many": "{{count}} active filters",
+      "active_count_other": "{{count}} active filters",
       "clear_all": "Clear all",
       "remove": "Remove {{label}}"
     },
@@ -209,19 +230,14 @@
     }
   },
   "fallbacks": {
-    "not_set": "Not set",
     "n_a": "N/A",
-    "unknown_user": "Unknown user",
-    "unknown_department": "Unknown department",
     "unknown_risk": "Unknown risk",
     "unknown_control": "Unknown control",
     "unknown_execution": "Unknown execution",
     "unknown_kri": "Unknown KRI",
     "unknown_link": "Unknown link",
     "unlinked_vendor": "Unlinked Vendor",
-    "unassigned": "Unassigned",
     "no_description": "No description.",
-    "uncategorized": "Uncategorized",
     "no_process": "No Process"
   }
 }

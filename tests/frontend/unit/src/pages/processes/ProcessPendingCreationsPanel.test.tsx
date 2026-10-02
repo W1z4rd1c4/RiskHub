@@ -65,7 +65,9 @@ describe('ProcessPendingCreationsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Open request' }));
         fireEvent.click(screen.getByRole('button', { name: 'Cancel request' }));
         expect(onOpenRequest).toHaveBeenCalledWith(85, 'mine');
-        expect(onCancel).toHaveBeenCalledWith(85);
+        // GAP-D-08: the cancel opens a confirmation named after the pending item.
+        expect(onCancel).toHaveBeenCalledWith(85, 'Critical settlement');
+        expect(screen.getByRole('button', { name: 'Cancel request' })).toHaveAccessibleDescription('Critical settlement');
     });
 
     it('does not disclose proposed values without diff capability', () => {

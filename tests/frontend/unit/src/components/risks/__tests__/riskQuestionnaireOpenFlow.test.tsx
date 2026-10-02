@@ -11,7 +11,9 @@ const tMock = (_key: string, fallback?: string | Record<string, unknown>) => (
     typeof fallback === 'string' ? fallback : _key
 );
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: tMock,
         i18n: { language: 'en' },

@@ -9,6 +9,9 @@ import type { ControlEffectiveness, Risk } from '@/types/risk';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
+import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { isAbortError } from '@/services/api/requestRuntime';
 
 type TabView = 'overview' | 'history';
@@ -53,7 +56,14 @@ export function useControlDetailWorkflow({
     const riskQuickViewControllerRef = useRef<AbortController | null>(null);
     detailOwnerRef.current = controlId;
 
+    const { t } = useTranslation('common');
+    const feedback = useFeedback();
+    const announceApprovalQueued = useApprovalQueued();
+    // D9 / D12: direct outcomes are toasts; an approval-routed archive keeps the
+    // user on the control with the pending notice. Failures stay in the banner.
     const { runArchive, runRestore } = useArchiveRestoreAction({
+        onApprovalQueued: (response) => announceApprovalQueued({ approvalId: approvalIdFromResponse(response) }),
+        onSuccessMessage: (message) => feedback.success({ title: translateUiMessage(t, message.key) }),
         setMessage: setApprovalMessage,
         toErrorKey: (error) => apiClient.toUiMessageKey(error),
     });
@@ -139,18 +149,27 @@ export function useControlDetailWorkflow({
         return () => linkedRisksControllerRef.current?.abort();
     }, [controlId, fetchLinkedRisks]);
 
-    async function handleArchive(reason: string): Promise<void> {
+    /**
+     * `ConfirmDialog intent="archive"` handler: archives with the trimmed
+     * reason and closes the dialog once the archive succeeds or is queued for
+     * approval; a failure rejects so the dialog stays open with its error.
+     */
+    async function handleArchive(reason?: string): Promise<void> {
         if (!control) return;
         const ownerId = control.id;
         const outcome = await runArchive({
-            archive: () => controlApi.deleteControl(ownerId, reason),
+            archive: () => controlApi.deleteControl(ownerId, (reason ?? '').trim()),
             approvalKey: 'controls:detail.archive_approval_submitted',
             isCurrent: () => detailOwnerRef.current === ownerId,
-            onImmediate: () => navigate(returnTo),
+            onImmediate: () => {
+                feedback.success({ title: t('outcome.archived', { name: control.name }) });
+                void navigate(returnTo);
+            },
         });
         if (outcome.kind === 'failed') {
             throw outcome.error;
         }
+        setIsArchiveDialogOpen(false);
     }
 
     async function handleRestore(): Promise<void> {
@@ -194,13 +213,13 @@ export function useControlDetailWorkflow({
         setLinkErrorKey(null);
         try {
             await controlApi.unlinkRisk(ownerId, riskId);
-            if (detailOwnerRef.current !== ownerId) return;
-            await fetchLinkedRisks(ownerId);
         } catch (err) {
             if (detailOwnerRef.current !== ownerId) return;
-            logError('Unlinking failed:', err);
-            setLinkErrorKey(apiClient.toUiMessageKey(err));
+            // D10: the unlink confirmation shows this failure inside the dialog.
+            throw err;
         }
+        if (detailOwnerRef.current !== ownerId) return;
+        await fetchLinkedRisks(ownerId);
     }
 
     async function handleRiskClick(riskId: number, e: MouseEvent): Promise<void> {

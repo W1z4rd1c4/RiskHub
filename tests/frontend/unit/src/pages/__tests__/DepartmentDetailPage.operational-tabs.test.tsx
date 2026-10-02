@@ -17,12 +17,30 @@ vi.mock('@/hooks/useDepartmentDetail', () => ({
     useDepartmentDetail: (...args: unknown[]) => useDepartmentDetailMock(...args),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 function registerPage(name: string) {
     return function RegisterPage() {
@@ -153,7 +171,8 @@ describe('DepartmentDetailPage operational workspace', () => {
         expect(screen.getByTestId('department-overview-activity')).toBeInTheDocument();
         expect(screen.getByText('Quarterly access review')).toBeInTheDocument();
         expect(screen.getByText(/Alex Auditor/)).toBeInTheDocument();
-        expect(screen.getByText('passed')).toBeInTheDocument();
+        // The result code is shown as its translated label, never the raw enum.
+        expect(screen.getByText('controls:results.passed')).toBeInTheDocument();
 
     });
 
@@ -175,8 +194,8 @@ describe('DepartmentDetailPage operational workspace', () => {
         renderPage('/departments/7?tab=overview&q=capital&page=4&group=warning');
 
         const actions = [
-            ['risks', 'department_detail.health.high_risks', { net_band: 'Vysoké' }],
-            ['risks', 'department_detail.health.critical_risks', { net_band: 'Kritické' }],
+            ['risks', 'department_detail.health.high_risks', { net_band: 'high' }],
+            ['risks', 'department_detail.health.critical_risks', { net_band: 'critical' }],
             ['controls', 'department_detail.health.attention_controls', { monitoring_status: 'needs_review' }],
             ['kris', 'department_detail.health.kri_breaches', { monitoring_status: 'breach' }],
             ['kris', 'department_detail.health.kri_overdue', { monitoring_status: 'not_submitted' }],
@@ -216,5 +235,69 @@ describe('DepartmentDetailPage operational workspace', () => {
         await user.click(screen.getByRole('button', { name: /Quarterly access review/ }));
 
         expect(screen.getByTestId('location')).toHaveTextContent('/controls/123');
+    });
+
+    it('renders the department as the page h1 with a labelled back link that honours return_to (DS-15, NAV-02, AX-06)', () => {
+        renderPage('/departments/7?tab=overview&return_to=%2Fdepartments%3Fq%3Dops');
+
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Compliance');
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute(
+            'href',
+            '/departments?q=ops',
+        );
+        const trail = screen.getByRole('navigation', { name: 'breadcrumbs.label' });
+        expect(trail).toHaveTextContent('sidebar.departments');
+        expect(screen.getByText('Compliance', { selector: '[aria-current="page"]' })).toBeInTheDocument();
+    });
+
+    it('ignores an unsafe return_to and falls back to the department register', () => {
+        renderPage('/departments/7?tab=overview&return_to=https%3A%2F%2Fevil.example');
+
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute('href', '/departments');
+    });
+
+    it('announces loading and renders a load failure as an error with retry (DS-17)', async () => {
+        const user = userEvent.setup();
+        const refresh = vi.fn();
+        useDepartmentDetailMock.mockReturnValue({ department: null, isLoading: true, isAccessDenied: false, error: null, refresh });
+        const { unmount } = renderPage('/departments/7');
+        // The location probe is an <output> (implicit status role), so pick the loading live region.
+        const loading = screen.getAllByRole('status').find((element) => element.getAttribute('aria-live') === 'polite');
+        expect(loading).toBeDefined();
+        expect(loading).toHaveTextContent('loading.data');
+        // Announced: the live region is not inside a busy element; the skeleton placeholder is busy.
+        expect(loading?.closest('[aria-busy="true"]')).toBeNull();
+        expect(document.querySelector('[data-loading-placeholder][aria-busy="true"] .animate-pulse')).not.toBeNull();
+        unmount();
+
+        useDepartmentDetailMock.mockReturnValue({
+            department: null,
+            isLoading: false,
+            isAccessDenied: false,
+            error: 'errors.load_department_detail_failed',
+            refresh,
+        });
+        renderPage('/departments/7');
+        expect(screen.getByRole('alert')).toHaveTextContent('errors.load_department_detail_failed');
+        await user.click(screen.getByRole('button', { name: 'actions.retry' }));
+        expect(refresh).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute('href', '/departments');
+    });
+
+    it.each([
+        ['loading', { department: null, isLoading: true, isAccessDenied: false, error: null }],
+        ['access denied', { department: null, isLoading: false, isAccessDenied: true, error: null }],
+        ['load failure', { department: null, isLoading: false, isAccessDenied: false, error: 'errors.load_department_detail_failed' }],
+    ])('keeps one page h1 and a labelled back link in the %s state (D7)', (_label, state) => {
+        useDepartmentDetailMock.mockReturnValue({ ...state, refresh: vi.fn() });
+        renderPage('/departments/7?return_to=%2Fdepartments%3Fq%3Dops');
+
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('sidebar.departments');
+        expect(screen.getByRole('link', { name: 'department_detail.back_to_departments' })).toHaveAttribute(
+            'href',
+            '/departments?q=ops',
+        );
     });
 });

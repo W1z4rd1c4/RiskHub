@@ -1,12 +1,15 @@
 /**
- * CategoryBreakdownCharts - Pie charts showing control breakdown by status, form, and frequency.
- * Uses theme-aware colors via useChartTheme hook.
+ * CategoryBreakdownCharts - Donut charts showing the control breakdown by status, form and frequency.
+ * Colours come from the theme tokens via useChartTheme; labels are translated codes (GAP-D-02) and
+ * each donut is a `ChartFrame` with a summary, a data table and a text legend (GAP-D-11). Legend
+ * items of the filterable donuts are toggle buttons, the keyboard path for the segment click.
  */
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
-import { ColorSwatch } from '@/components/ui/ColorSwatch';
-import { useTranslation } from '@/i18n/hooks';
-import { useDashboardFilterMutators } from '../../contexts/DashboardFilterContext';
+import { ChartFrame } from '@/components/ui/ChartFrame';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateCode } from '@/lib/humanizeCode';
+import { useDashboardFilterMutators, useDashboardFilterSelector } from '../../contexts/DashboardFilterContext';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { getChartTooltipProps } from './chartTooltip';
 import { isControlForm, isControlStatus } from '@/types/control';
@@ -17,19 +20,18 @@ interface CategoryBreakdownChartsProps {
     controlsByFrequency: Record<string, number>;
 }
 
-function formatLabel(key: string): string {
-    return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
-}
-
 interface MiniPieChartProps {
     title: string;
     data: Record<string, number>;
     colors: Record<string, string>;
-    onSegmentClick?: (key: string) => void;
+    onSegmentSelect?: (key: string) => void;
+    selectedKey?: string | null;
+    testId: string;
 }
 
-function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps) {
+function MiniPieChart({ title, data, colors, onSegmentSelect, selectedKey = null, testId }: MiniPieChartProps) {
     const { t } = useTranslation('dashboard');
+    const format = useFormat();
     const chartTheme = useChartTheme();
     const tooltipProps = getChartTooltipProps(chartTheme, {
         contentStyle: {
@@ -37,85 +39,84 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
         },
     });
     const chartData = Object.entries(data).map(([key, value]) => ({
-        name: t(`charts.${key}`, formatLabel(key)),
+        name: translateCode(t, 'charts', key),
         value,
         key,
+        color: colors[key] ?? chartTheme.series.neutral,
     }));
 
     const total = chartData.reduce((sum, item) => sum + item.value, 0);
-
-    if (total === 0) {
-        return (
-            <div className="flex flex-col items-center">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
-                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center">
-                    <span className="text-xs text-slate-600">{t('common:empty.no_data')}</span>
-                </div>
-            </div>
-        );
-    }
+    const percentOf = (value: number) => format.percent(total > 0 ? value / total : 0, 0);
 
     return (
         <div className="flex flex-col items-center">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
-            <div className="w-44 h-44 relative">
-                <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 176 }}>
-                    <PieChart>
-                        <Pie
-                            data={chartData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={45}
-                            outerRadius={75}
-                            paddingAngle={2}
-                            dataKey="value"
-                            onClick={(_, index) => {
-                                const key = chartData[index]?.key;
-                                if (key) {
-                                    onSegmentClick?.(key);
-                                }
-                            }}
-                            cursor={onSegmentClick ? 'pointer' : undefined}
-                        >
-                            {chartData.map((entry, index) => (
-                                <Cell
-                                    key={`cell-${index}`}
-                                    fill={colors[entry.key] || chartTheme.series.neutral}
-                                    className="transition-opacity hover:opacity-80"
-                                />
-                            ))}
-                        </Pie>
-                        <Tooltip
-                            {...tooltipProps}
-                            formatter={(value, name) => {
-                                const val = (value as number) ?? 0;
-                                const label = (name as string) ?? '';
-                                return [
-                                    `${val} (${((val / total) * 100).toFixed(0)}%)`,
-                                    label
-                                ];
-                            }}
-                        />
-                    </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-black text-white">{total}</span>
+            <h3 className="text-eyebrow mb-4">{title}</h3>
+            <ChartFrame
+                summary={t('charts.a11y.breakdown', { title, total: format.number(total) })}
+                isEmpty={total === 0}
+                emptyTitle={t('common:empty.no_data')}
+                emptyLayout="inline"
+                testId={testId}
+                className="flex flex-col items-center"
+                legend={chartData.map((entry) => ({
+                    key: entry.key,
+                    label: entry.name,
+                    color: entry.color,
+                    value: format.number(entry.value),
+                }))}
+                onLegendSelect={onSegmentSelect}
+                selectedLegendKey={selectedKey}
+                table={{
+                    columns: [t('charts.a11y.columns.category'), t('charts.a11y.columns.controls'), t('charts.a11y.columns.share')],
+                    rows: chartData.map((entry) => ({
+                        key: entry.key,
+                        header: entry.name,
+                        cells: [format.number(entry.value), percentOf(entry.value)],
+                    })),
+                }}
+            >
+                <div className="relative size-44">
+                    <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 176 }}>
+                        <PieChart>
+                            <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={45}
+                                outerRadius={75}
+                                paddingAngle={2}
+                                dataKey="value"
+                                onClick={(_, index) => {
+                                    const key = chartData[index]?.key;
+                                    if (key) {
+                                        onSegmentSelect?.(key);
+                                    }
+                                }}
+                                cursor={onSegmentSelect ? 'pointer' : undefined}
+                            >
+                                {chartData.map((entry) => (
+                                    <Cell
+                                        key={entry.key}
+                                        fill={entry.color}
+                                        className="transition-opacity hover:opacity-80"
+                                    />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                {...tooltipProps}
+                                formatter={(value, name) => {
+                                    const count = typeof value === 'number' ? value : Number(value ?? 0);
+                                    const label = typeof name === 'string' ? name : String(name ?? '');
+                                    return [`${format.number(count)} (${percentOf(count)})`, label];
+                                }}
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                    <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span className="font-heading text-2xl font-bold text-foreground">{format.number(total)}</span>
+                    </div>
                 </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-[160px]">
-                {chartData.map((entry) => (
-                    <button
-                        key={entry.key}
-                        onClick={() => onSegmentClick?.(entry.key)}
-                        className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white transition-colors"
-                    >
-                        <ColorSwatch className="h-2 w-2" color={colors[entry.key] || chartTheme.series.neutral} />
-                        {entry.name}
-                    </button>
-                ))}
-            </div>
+            </ChartFrame>
         </div>
     );
 }
@@ -127,6 +128,8 @@ export function CategoryBreakdownCharts({
 }: CategoryBreakdownChartsProps) {
     const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
+    const controlStatus = useDashboardFilterSelector(state => state.filters.controlStatus);
+    const controlForm = useDashboardFilterSelector(state => state.filters.controlForm);
     const { setControlStatus, setControlForm } = useDashboardFilterMutators();
 
     return (
@@ -136,18 +139,23 @@ export function CategoryBreakdownCharts({
                     title={t('charts.by_status')}
                     data={controlsByStatus}
                     colors={chartTheme.breakdown.status}
-                    onSegmentClick={(key) => setControlStatus(isControlStatus(key) ? key : null)}
+                    selectedKey={controlStatus}
+                    onSegmentSelect={(key) => setControlStatus(isControlStatus(key) && key !== controlStatus ? key : null)}
+                    testId="control-breakdown-status"
                 />
                 <MiniPieChart
                     title={t('charts.by_form')}
                     data={controlsByForm}
                     colors={chartTheme.breakdown.form}
-                    onSegmentClick={(key) => setControlForm(isControlForm(key) ? key : null)}
+                    selectedKey={controlForm}
+                    onSegmentSelect={(key) => setControlForm(isControlForm(key) && key !== controlForm ? key : null)}
+                    testId="control-breakdown-form"
                 />
                 <MiniPieChart
                     title={t('charts.by_frequency')}
                     data={controlsByFrequency}
                     colors={chartTheme.breakdown.frequency}
+                    testId="control-breakdown-frequency"
                 />
             </div>
         </WidgetShell>

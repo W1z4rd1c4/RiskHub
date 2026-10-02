@@ -13,10 +13,10 @@ vi.mock('framer-motion', () => ({
     },
 }));
 
-const ICON_VARIANTS = [
-    { variant: 'danger', token: 'destructive' },
-    { variant: 'warning', token: 'warning' },
-    { variant: 'info', token: 'info' },
+const ICON_INTENTS = [
+    { intent: 'delete', token: 'destructive' },
+    { intent: 'revoke', token: 'warning' },
+    { intent: 'generic', token: 'info' },
 ] as const;
 
 function renderConfirmDialog(overrides: Partial<Parameters<typeof ConfirmDialog>[0]> = {}) {
@@ -72,8 +72,8 @@ describe('ConfirmDialog accessibility', () => {
                 message="Archive Payments platform?"
                 confirmLabel="Archive"
                 isLoading={false}
-                showInput
-                inputLabel="Request reason"
+                reason="required"
+                reasonLabel="Request reason"
             />,
         );
 
@@ -93,8 +93,8 @@ describe('ConfirmDialog accessibility', () => {
                 message="Archive Payments platform?"
                 confirmLabel="Archive"
                 isLoading
-                showInput
-                inputLabel="Request reason"
+                reason="required"
+                reasonLabel="Request reason"
             />,
         );
         expect(reason).toBeDisabled();
@@ -110,8 +110,8 @@ describe('ConfirmDialog accessibility', () => {
                 confirmLabel="Archive"
                 isLoading={false}
                 errorText="Archive failed"
-                showInput
-                inputLabel="Request reason"
+                reason="required"
+                reasonLabel="Request reason"
             />,
         );
         expect(reason).toBeEnabled();
@@ -125,8 +125,8 @@ describe('ConfirmDialog accessibility', () => {
                 title="Archive Asset"
                 message="Archive Payments platform?"
                 confirmLabel="Archive"
-                showInput
-                inputLabel="Request reason"
+                reason="required"
+                reasonLabel="Request reason"
             />,
         );
         rerender(
@@ -137,8 +137,8 @@ describe('ConfirmDialog accessibility', () => {
                 title="Archive Asset"
                 message="Archive Payments platform?"
                 confirmLabel="Archive"
-                showInput
-                inputLabel="Request reason"
+                reason="required"
+                reasonLabel="Request reason"
             />,
         );
         expect(screen.getByRole('textbox', { name: /Request reason/ })).toHaveValue('');
@@ -206,16 +206,16 @@ describe('ConfirmDialog accessibility', () => {
         expect(props.onClose).not.toHaveBeenCalled();
     });
 
-    it('uses the semantic destructive token pair for the danger action', () => {
-        renderConfirmDialog();
+    it('uses the semantic destructive token pair for the delete action', () => {
+        renderConfirmDialog({ intent: 'delete' });
 
         const confirmButton = screen.getByRole('button', { name: 'Delete evidence' });
         expect(confirmButton).toHaveClass('bg-destructive', 'text-destructive-foreground');
         expect(confirmButton.className).not.toMatch(/bg-\[#|text-\[#/);
     });
 
-    it('uses the semantic warning token pair for the warning action', () => {
-        renderConfirmDialog({ variant: 'warning', confirmLabel: 'Continue anyway' });
+    it('uses the semantic warning token pair for the revoke action', () => {
+        renderConfirmDialog({ intent: 'revoke', confirmLabel: 'Continue anyway' });
 
         const confirmButton = screen.getByRole('button', { name: 'Continue anyway' });
         expect(confirmButton).toHaveClass('bg-warning', 'hover:bg-warning/90', 'text-warning-foreground');
@@ -224,10 +224,10 @@ describe('ConfirmDialog accessibility', () => {
 
     // Token contrast across default/dark/light themes is owned by
     // design-system/statusTokenContrast.test.ts; this suite verifies the component wiring.
-    it.each(ICON_VARIANTS)(
-        'uses only the full semantic icon pair for the $variant variant',
-        ({ variant, token }) => {
-            renderConfirmDialog({ variant });
+    it.each(ICON_INTENTS)(
+        'uses only the full semantic icon pair for the $intent intent',
+        ({ intent, token }) => {
+            renderConfirmDialog({ intent });
 
             const dialog = screen.getByRole('alertdialog', { name: 'Delete control evidence' });
             const icon = dialog.querySelector<SVGElement>('svg.h-6.w-6');

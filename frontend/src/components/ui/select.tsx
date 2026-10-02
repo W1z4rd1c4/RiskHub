@@ -82,7 +82,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "themed-select-content relative z-[10050] max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
+        "themed-select-content relative z-popover max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
         "border-border bg-popover/95 text-popover-foreground",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -142,7 +142,7 @@ const SelectItem = React.forwardRef<
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-accent" />
+        <Check aria-hidden="true" className="h-4 w-4 text-accent-text" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

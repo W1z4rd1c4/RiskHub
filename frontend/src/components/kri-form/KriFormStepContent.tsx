@@ -1,7 +1,7 @@
 import type { KRICreate } from "@/types/kri";
 import type { RiskSummary } from "@/types/risk";
 
-import { KriDetailsStep } from "./KriDetailsStep";
+import { KriDetailsStep, type KriDetailFieldErrors } from "./KriDetailsStep";
 import { KriRiskSelectionStep } from "./KriRiskSelectionStep";
 import type {
   KRIFormVendorContext,
@@ -11,6 +11,7 @@ import type { KRIVendorOption } from "@/components/kri/KRIVendorSelector";
 
 interface KriFormStepContentProps {
   currentStep: number;
+  fieldErrors?: KriDetailFieldErrors;
   filteredRisks: RiskSummary[];
   formData: Partial<KRICreate>;
   isLoadingRisks: boolean;
@@ -48,6 +49,7 @@ interface KriFormStepContentProps {
 
 export function KriFormStepContent({
   currentStep,
+  fieldErrors,
   filteredRisks,
   formData,
   isLoadingRisks,
@@ -108,6 +110,7 @@ export function KriFormStepContent({
 
   return (
     <KriDetailsStep
+      fieldErrors={fieldErrors}
       formData={formData}
       isLoadingVendors={isLoadingVendors}
       onInputChange={onInputChange}

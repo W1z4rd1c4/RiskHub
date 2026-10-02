@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
 import { AuthConfigErrorView, LoadingLoginView, LoginNotConfiguredView } from '@/pages/login/LoginStateViews';
 import { NativeLoginView } from '@/pages/native/NativeLoginView';
@@ -10,6 +10,7 @@ import { type DemoAccountGroups, type ProdLanguage } from '@/pages/login/loginPa
 import { getProdAuthCopy } from '@/pages/login/prodAuthCopy';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { useLoginActions } from '@/pages/login/useLoginActions';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
 import { logError } from '@/services/logger';
 import { applyAuthenticatedSession, clearExplicitLogoutSuppressed, useSessionSnapshot } from '@/services/session';
@@ -22,6 +23,8 @@ function stripErrorKeyPrefix(errorKey: string): string {
 
 export default function LoginPage() {
     const { t, i18n } = useTranslation(['auth', 'errorKeys', 'common']);
+    // NAV-01: a translated tab title; the production SSO view overrides it below.
+    usePageTitle(t('login.title'));
     const location = useLocation();
     const navigate = useNavigate();
     const session = useSessionSnapshot();
@@ -62,6 +65,16 @@ export default function LoginPage() {
     useEffect(() => () => {
         prodLanguageActivationRef.current?.abort();
     }, []);
+
+    // Every login view sits on the public frame and its language switch (DS-24): the loading,
+    // error and demo views use the frame's own language choice, so the production copy follows
+    // the active language once a switch completes, whichever view it came from.
+    useEffect(() => {
+        if (typeof i18n.on !== 'function') return undefined;
+        const followActiveLanguage = (language: string) => setProdLanguage(normalizeSupportedLanguage(language));
+        i18n.on('languageChanged', followActiveLanguage);
+        return () => i18n.off('languageChanged', followActiveLanguage);
+    }, [i18n]);
 
     const {
         authConfig,
@@ -120,7 +133,7 @@ export default function LoginPage() {
         [prodAuthTranslate],
     );
     const authConfigRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
-        ? t(stripErrorKeyPrefix(session.logoutErrorKey), { ns: 'errorKeys' })
+        ? translateUiMessage(t, session.logoutErrorKey)
         : null;
     const ssoLogoutRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
         ? prodErrorTranslate(stripErrorKeyPrefix(session.logoutErrorKey))
@@ -132,7 +145,7 @@ export default function LoginPage() {
             : errorKey ? prodErrorTranslate(stripErrorKeyPrefix(errorKey)) : '';
     const demoErrorMessage = authErrorParam === 'sso_callback_failed'
         ? t('sso_callback.exchange_failed')
-        : errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
+        : errorKey ? translateUiMessage(t, errorKey) : null;
     const handleCompleteSsoLogout = useCallback(async () => {
         setIsCompletingSsoLogout(true);
         try {
@@ -169,12 +182,11 @@ export default function LoginPage() {
 
     useProdLoginMetadata({
         enabled: authConfig?.auth_mode === 'microsoft_sso',
-        language: prodLanguage,
         title: prodAuthTranslate('login_sso_prod.html_title'),
     });
 
     if (isAuthConfigLoading) {
-        return <LoadingLoginView message={t('loading.generic', { ns: 'common' })} />;
+        return <LoadingLoginView title={t('login.title')} message={t('loading.generic', { ns: 'common' })} />;
     }
 
     if (authConfigError || !authConfig) {

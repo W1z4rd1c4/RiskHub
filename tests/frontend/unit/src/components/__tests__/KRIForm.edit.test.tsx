@@ -129,7 +129,7 @@ describe("KRIForm edit flow", () => {
     });
   });
 
-  it("shows the approval banner and stays on the edit form when the update is queued", async () => {
+  it("returns to the KRI with the pending notice when the update is queued (D12 / PM-2)", async () => {
     mockUpdateKri.mockResolvedValue({
       status: "approval_required",
       approval_id: 88,
@@ -156,10 +156,11 @@ describe("KRIForm edit flow", () => {
       );
     });
 
-    expect(mockNavigate).not.toHaveBeenCalled();
-    expect(
-      await screen.findByText(/KRI update submitted for approval\./i),
-    ).toBeVisible();
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/kris/21", {
+        state: { approvalQueued: { approvalId: 88 } },
+      });
+    });
   });
 
   it("navigates to the KRI detail page when the update applies immediately", async () => {

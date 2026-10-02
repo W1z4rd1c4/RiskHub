@@ -10,22 +10,40 @@ import {
 import type { AccessUserRead } from '@/types/access';
 import type { UserDirectoryEntry } from '@/types/user';
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, fallbackOrOptions?: string | { defaultValue?: string }) => {
-            const translations: Record<string, string> = {
-                'users.break_glass': 'Break-glass',
-                'users.break_glass_enable': 'Break-glass enable',
-                'users.check_directory': 'Check AD',
-                'users.check_directory_status': 'Check directory status',
-            };
-            if (translations[key]) return translations[key];
-            if (typeof fallbackOrOptions === 'string') return fallbackOrOptions;
-            return fallbackOrOptions?.defaultValue ?? key;
-        },
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string, fallbackOrOptions?: string | { defaultValue?: string }) => {
+                const translations: Record<string, string> = {
+                    'users.break_glass': 'Break-glass',
+                    'users.break_glass_enable': 'Break-glass enable',
+                    'users.check_directory': 'Check AD',
+                    'users.check_directory_status': 'Check directory status',
+                };
+                if (translations[key]) return translations[key];
+                if (typeof fallbackOrOptions === 'string') return fallbackOrOptions;
+                return fallbackOrOptions?.defaultValue ?? key;
+            },
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 function makeAccessUser(overrides: Partial<AccessUserRead> = {}): AccessUserRead {
     return {
@@ -204,5 +222,62 @@ describe('UsersTable', () => {
         expect(screen.getByText('Directory User')).toBeInTheDocument();
         expect(screen.getByText('access.table.view_only')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();
+    });
+
+    it('announces the first load through the shared loading state instead of data rows', () => {
+        renderUsersTable({ isLoading: true });
+
+        expect(screen.getByRole('status')).toHaveTextContent('loading.generic');
+        expect(screen.queryByText('Access User')).not.toBeInTheDocument();
+        expect(screen.queryByText('access.table.no_users_found')).not.toBeInTheDocument();
+    });
+
+    it('renders the shared empty state inside the table when there are no users', () => {
+        renderUsersTable({ accessUsers: [] });
+
+        expect(screen.getByRole('status')).toHaveTextContent('access.table.no_users_found');
+    });
+
+    it('exposes the expand toggle state and the controlled details row (AX-10)', async () => {
+        const onToggleExpand = vi.fn();
+        renderUsersTable({ onToggleExpand });
+
+        const collapsed = screen.getByRole('button', { name: 'access.matrix.show_all_permissions' });
+        expect(collapsed).toHaveAttribute('aria-expanded', 'false');
+        expect(collapsed).not.toHaveAttribute('aria-controls');
+
+        await userEvent.click(collapsed);
+        expect(onToggleExpand).toHaveBeenCalledWith(7);
+    });
+
+    it('links an expanded row to its details through aria-expanded and aria-controls (AX-10)', () => {
+        renderUsersTable({ expandedUserId: 7 });
+
+        const toggle = screen.getByRole('button', { name: 'access.matrix.show_all_permissions' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        const controlled = toggle.getAttribute('aria-controls');
+        expect(controlled).toBeTruthy();
+        expect(document.getElementById(controlled!)).toHaveTextContent('access.capabilities.effective_permissions');
+    });
+
+    it('names the table scroll region and uses the shared table header recipe (DS-11)', () => {
+        renderUsersTable();
+
+        expect(screen.getByRole('region', { name: 'access.title' })).toBeInTheDocument();
+        const headers = screen.getAllByRole('columnheader');
+        expect(headers.length).toBeGreaterThan(0);
+        for (const header of headers) expect(header).toHaveAttribute('scope', 'col');
+    });
+
+    it('shows the directory status as a tone badge, not a hand-rolled pill (GAP-D-27)', () => {
+        renderUsersTable({
+            isAccessMode: false,
+            accessUsers: [],
+            directoryUsers: [makeDirectoryUser({ name: 'Žofie Directory' })],
+        });
+
+        expect(screen.getByText('access.status.active')).toHaveAttribute('data-tone', 'success');
+        // One avatar recipe: a decorative initial next to the visible name.
+        expect(screen.getByText('Ž')).toHaveAttribute('aria-hidden', 'true');
     });
 });

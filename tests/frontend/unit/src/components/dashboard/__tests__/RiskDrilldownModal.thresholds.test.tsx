@@ -42,7 +42,8 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string) => key,
+        t: (key: string, options?: { score?: number }) =>
+            options?.score !== undefined ? `${key} ${options.score}` : key,
     }),
 }));
 
@@ -85,7 +86,11 @@ describe('RiskDrilldownModal risk thresholds', () => {
         );
 
         expect(await screen.findByText('Threshold Risk')).toBeInTheDocument();
-        expect(screen.getByText('issues.severity.high')).toBeVisible();
-        expect(screen.getByText('Score: 15')).toBeVisible();
+        // The cell band (4 × 4 = 16) in the header and the listed risk's own band label (15), D1.
+        const highLabels = screen.getAllByText('risk_levels.high');
+        expect(highLabels).toHaveLength(2);
+        highLabels.forEach((label) => expect(label).toBeVisible());
+        expect(screen.getByText('risk_levels.high', { selector: '[data-severity="high"]' })).toBeVisible();
+        expect(screen.getByText('risk_drilldown.score_value 15')).toBeVisible();
     });
 });

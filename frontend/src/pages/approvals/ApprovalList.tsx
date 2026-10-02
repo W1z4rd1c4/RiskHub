@@ -10,20 +10,23 @@ import {
     Link2,
     Plus,
     RotateCcw,
-    Trash2,
     X,
 } from 'lucide-react';
 
 import type { SafeTFunction } from '@/i18n/hooks';
 import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { toneClass } from '@/lib/tones';
 import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
 import { GovernedMutationDiff } from '@/components/approvals/GovernedMutationDiff';
 import { LegacyApprovalChanges } from '@/components/approvals/LegacyApprovalChanges';
-import { getApprovalActionBadge, getApprovalStatusBadge, getGovernedActionLabel } from './approvalsPresentation';
+import { getApprovalActionTone, getApprovalStatusTone, getGovernedActionLabel } from './approvalsPresentation';
 import { canViewApprovalPendingChanges } from './approvalPendingChanges';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 interface ApprovalListProps {
     approvals: ApprovalRequest[];
@@ -50,19 +53,18 @@ export function ApprovalList({
 }: ApprovalListProps) {
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            </div>
+            <LoadingState className="py-20" />
         );
     }
 
     if (approvals.length === 0) {
         return (
-            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
-                <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
-            </div>
+            <EmptyState
+                icon={CheckCircle2}
+                title={t('empty_state.all_caught_up')}
+                description={t('empty_state.no_matching')}
+                className="rounded-2xl border-2 border-dashed border-border"
+            />
         );
     }
 
@@ -90,24 +92,21 @@ export function ApprovalList({
                     <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
                         <div className="flex flex-col gap-2 min-w-[120px]">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                                <span className="text-eyebrow">
                                     {t(`entity_types.${approval.resource_type}`)}
                                 </span>
                             </div>
                             <div className="flex gap-2">
-                                <span
-                                    className={cn(
-                                        'px-2 py-1 rounded text-xs font-black uppercase tracking-widest border flex items-center gap-1 w-fit',
-                                        getApprovalActionBadge(approval.action_type),
-                                    )}
+                                {/* D10: delete requests archive a restorable record, so they share the Archive icon. */}
+                                <Badge
+                                    size="sm"
+                                    shape="rounded"
+                                    tone={getApprovalActionTone(approval.action_type)}
+                                    icon={ActionIcon}
+                                    className="w-fit"
                                 >
-                                    {approval.action_type === 'delete' && !approval.governed_mutation ? (
-                                        <Trash2 className="h-3 w-3" />
-                                    ) : (
-                                        <ActionIcon className="h-3 w-3" />
-                                    )}
                                     {t(`request_types.${governedActionLabel}`)}
-                                </span>
+                                </Badge>
                             </div>
                         </div>
 
@@ -118,7 +117,7 @@ export function ApprovalList({
                             </p>
                             <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
+                                    <Clock className="h-3 w-3" aria-hidden="true" />
                                     {formatDateValue(approval.created_at, locale)}
                                 </span>
                                 <span>
@@ -127,8 +126,8 @@ export function ApprovalList({
                             </div>
 
                             {(approval.status === 'approved' || approval.status === 'rejected') && approval.resolved_at && (
-                                <div className="mt-3 pt-3 border-t border-white/5">
-                                    <div className="flex items-center gap-4 text-xs text-slate-500 mb-1">
+                                <div className="mt-3 pt-3 border-t border-border">
+                                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-1">
                                         <span
                                             className={
                                                 approval.status === 'approved'
@@ -153,59 +152,61 @@ export function ApprovalList({
                                         )}
                                     </div>
                                     {approval.resolution_notes && (
-                                        <p className="text-xs text-slate-400 italic">"{approval.resolution_notes}"</p>
+                                        <p className="text-xs text-muted-foreground italic">"{approval.resolution_notes}"</p>
                                     )}
                                 </div>
                             )}
                         </div>
 
                         <div className="flex items-center gap-4 justify-between lg:justify-end min-w-[200px]">
-                            <span
-                                className={cn(
-                                    'px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border',
-                                    getApprovalStatusBadge(approval.status),
-                                )}
-                            >
+                            <Badge tone={getApprovalStatusTone(approval.status)}>
                                 {t(`status.${approval.status}`)}
-                            </span>
+                            </Badge>
 
                             <div className="flex items-center gap-2">
                                 {canViewPendingChanges && (
-                                    <button
+                                    <Button
+                                        variant="ghost"
+                                        size="iconCompact"
                                         onClick={() => onToggleRow(approval.id)}
-                                        className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                        className="text-muted-foreground"
                                         title={t('common:tooltips.view_changes')}
                                         aria-label={t('common:tooltips.view_changes')}
+                                        aria-expanded={expandedRows.has(approval.id)}
                                     >
                                         {expandedRows.has(approval.id) ? (
-                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                                            <ChevronUp aria-hidden="true" />
                                         ) : (
-                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                            <ChevronDown aria-hidden="true" />
                                         )}
-                                    </button>
+                                    </Button>
                                 )}
 
                                 {(approval.status === 'pending' || approval.status === 'pending_privileged') && (
                                     <>
                                         {resolveCapabilityFlag(approval.capabilities, 'can_approve') && (
-                                            <button
+                                            <Button
+                                                variant="outline"
+                                                size="iconCompact"
                                                 onClick={() => onApprove(approval)}
-                                                className="p-2 bg-success/10 hover:bg-success/20 text-success-text rounded-lg transition-colors border border-success/20"
+                                                className={cn(toneClass('success', 'badge'), 'hover:bg-success/20 hover:text-success-text')}
                                                 title={t('common:actions.approve')}
                                                 aria-label={t('common:actions.approve')}
                                             >
-                                                <Check className="h-4 w-4" aria-hidden="true" />
-                                            </button>
+                                                <Check aria-hidden="true" />
+                                            </Button>
                                         )}
                                         {resolveCapabilityFlag(approval.capabilities, 'can_reject') && (
-                                            <button
+                                            <Button
+                                                variant="outline"
+                                                size="iconCompact"
                                                 onClick={() => onReject(approval)}
-                                                className="p-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-colors border border-destructive/20"
+                                                className={cn(toneClass('danger', 'badge'), 'hover:bg-destructive/20 hover:text-destructive')}
                                                 title={t('common:actions.reject')}
                                                 aria-label={t('common:actions.reject')}
                                             >
-                                                <X className="h-4 w-4" aria-hidden="true" />
-                                            </button>
+                                                <X aria-hidden="true" />
+                                            </Button>
                                         )}
                                     </>
                                 )}
@@ -216,14 +217,16 @@ export function ApprovalList({
                                         ? 'can_cancel_as_requester'
                                         : 'can_cancel',
                                 ) && (
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="iconCompact"
                                             onClick={() => onCancel(approval.id)}
-                                            className="p-2 hover:bg-rose-500/10 hover:text-rose-400 text-slate-500 rounded-lg transition-colors"
+                                            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                             title={t('common:tooltips.cancel_request')}
                                             aria-label={t('common:tooltips.cancel_request')}
                                         >
-                                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                                        </button>
+                                            <RotateCcw aria-hidden="true" />
+                                        </Button>
                                     )}
                             </div>
                         </div>
@@ -237,9 +240,9 @@ export function ApprovalList({
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    className="bg-white/[0.02] border-t border-white/5 px-6 py-4"
+                                    className="bg-tint/[0.03] border-t border-border px-6 py-4"
                                 >
-                                    <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">
+                                    <h4 className="text-eyebrow mb-3">
                                         {t('labels.proposed_changes')}
                                     </h4>
                                     {approval.governed_mutation ? (

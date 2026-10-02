@@ -1,14 +1,17 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Link as LinkIcon, Loader2, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link as LinkIcon, Plus, type LucideIcon } from 'lucide-react';
 
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import type { LinkMode } from '@/components/linking/linkTypes';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { logError } from '@/services/logger';
 
 import {
@@ -36,10 +39,14 @@ export interface VendorLinkedEntitiesTabProps<T extends { id: number }> {
      */
     protectedChangeRequiresApproval: boolean;
     onAdd: () => void;
-    renderCard: (item: T, onClick: () => void) => ReactNode;
+    /**
+     * Renders one linked record. `archived` marks a card of the archived group:
+     * it carries its own status badge instead of a dimmed group (GAP-D-14).
+     */
+    renderCard: (item: T, onClick: () => void, options: { archived: boolean }) => ReactNode;
     onNavigate: (entityId: number) => void;
-    icon: ReactNode;
-    headerColorClass: string;
+    /** Decorative section icon shown before the `h2` title. */
+    icon: LucideIcon;
     i18nKeys: {
         tabTitle: string;
         subtitle: string;
@@ -65,7 +72,6 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     renderCard,
     onNavigate,
     icon,
-    headerColorClass,
     i18nKeys,
     linkDialogMode,
     dataTestIdPrefix,
@@ -74,7 +80,9 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     onCollectionStateChange,
 }: VendorLinkedEntitiesTabProps<T>) {
     const { t } = useTranslation(['vendors', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const entities = useVendorLinkedEntities(vendorId, adapter);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogMode, setDialogMode] = useState<DialogMode>('search-only');
@@ -120,7 +128,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 : await entities.unlink(pendingGovernedAction.targetId, reason);
             setPendingGovernedAction(null);
             if (queued !== null) {
-                navigateToApprovalRequest(navigate, queued.approval_id);
+                announceApprovalQueued({ approvalId: queued.approval_id });
             }
         } catch (mutationErr) {
             logError('Vendor link mutation failed:', mutationErr);
@@ -135,14 +143,18 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
             <>
                 {entities.active.length > 0 ? (
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {entities.active.map((item) => renderCard(item, () => onNavigate(item.id)))}
+                        {entities.active.map((item) => renderCard(item, () => onNavigate(item.id), { archived: false }))}
                     </div>
                 ) : null}
                 {entities.archived.length > 0 ? (
                     <div className="mt-8">
-                        <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-muted-foreground" />{t(i18nKeys.archived, { count: entities.archived.length })}</h4>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-50 hover:opacity-100 transition-opacity">
-                            {entities.archived.map((item) => renderCard(item, () => onNavigate(item.id)))}
+                        <h3 className="text-eyebrow mb-4 flex items-center gap-2">
+                            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-muted-foreground" />
+                            {t(i18nKeys.archived, { count: entities.archived.length })}
+                        </h3>
+                        {/* GAP-D-14: no whole-group opacity; the heading and each card state the status. */}
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {entities.archived.map((item) => renderCard(item, () => onNavigate(item.id), { archived: true }))}
                         </div>
                     </div>
                 ) : null}
@@ -153,67 +165,52 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     let collectionContent: ReactNode = null;
     switch (entities.outcome.kind) {
         case 'initial-loading':
-            collectionContent = (
-                <div role="status" className="flex items-center gap-3 text-muted-foreground font-medium">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading')}
-                </div>
-            );
+            collectionContent = <LoadingState layout="inline" label={t('labels.loading')} />;
             break;
         case 'denied':
             collectionContent = (
-                <div role="alert" className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
-                    <AlertCircle className="h-5 w-5" />
-                    {t('links.errors.access_denied')}
-                </div>
+                <AccessDeniedState layout="section" descriptionKey="links.errors.access_denied" ns="vendors" />
             );
             break;
         case 'fatal-error':
             collectionContent = (
-                <div role="alert" className="mb-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive text-sm font-medium">
-                    <AlertCircle className="h-5 w-5" />
-                    <span>{t('links.errors.load_failed')}</span>
-                    <button
-                        type="button"
-                        onClick={() => void entities.retry()}
-                        aria-busy={entities.outcome.isRetrying}
-                        aria-disabled={entities.outcome.isRetrying}
-                        className="ml-auto rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-black uppercase tracking-widest hover:bg-destructive/20"
-                    >
-                        {t('actions.retry', { ns: 'common' })}
-                    </button>
+                <>
+                    <ErrorState
+                        layout="inline"
+                        message={t('links.errors.load_failed')}
+                        onRetry={() => void entities.retry()}
+                        isRetrying={entities.outcome.isRetrying}
+                        className="mb-2"
+                    />
                     {entities.outcome.isRetrying ? (
                         <span role="status" className="sr-only">{t('links.status.retrying')}</span>
                     ) : null}
-                </div>
+                </>
             );
             break;
         case 'empty':
             collectionContent = (
-                <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
-                    <p className="text-xs text-muted-foreground font-medium">{t(i18nKeys.empty)}</p>
-                </div>
+                <EmptyState
+                    layout="inline"
+                    icon={null}
+                    title={t(i18nKeys.empty)}
+                    className="justify-center rounded-2xl border-2 border-dashed border-border py-10"
+                />
             );
             break;
         case 'stale-with-error':
             collectionContent = (
                 <>
-                    <div role="alert" className="mb-4 p-4 bg-warning/10 border border-warning/20 rounded-xl flex items-center gap-3 text-warning-text text-sm font-medium">
-                        <AlertCircle className="h-5 w-5" />
-                        <span>{t('links.errors.stale')}</span>
-                        <button
-                            type="button"
-                            onClick={() => void entities.retry()}
-                            aria-busy={entities.outcome.isRetrying}
-                            aria-disabled={entities.outcome.isRetrying}
-                            className="ml-auto rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs font-black uppercase tracking-widest hover:bg-warning/20"
-                        >
-                            {t('actions.retry', { ns: 'common' })}
-                        </button>
-                        {entities.outcome.isRetrying ? (
-                            <span role="status" className="sr-only">{t('links.status.retrying')}</span>
-                        ) : null}
-                    </div>
+                    <ErrorState
+                        variant="banner"
+                        message={t('links.errors.stale')}
+                        onRetry={() => void entities.retry()}
+                        isRetrying={entities.outcome.isRetrying}
+                        className="mb-4"
+                    />
+                    {entities.outcome.isRetrying ? (
+                        <span role="status" className="sr-only">{t('links.status.retrying')}</span>
+                    ) : null}
                     {renderEntityLists()}
                 </>
             );
@@ -228,94 +225,102 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: motionDelay }}
-            className="glass-card"
-            data-testid={testId('section')}
         >
-            <div className="flex items-center justify-between border-b border-border pb-4 mb-6 gap-4">
-                <div className="flex items-center gap-3">
-                    {icon}
-                    <div>
-                        <h3 className={`font-bold uppercase tracking-widest text-xs ${headerColorClass}`}>{t(i18nKeys.tabTitle)}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">{t(i18nKeys.subtitle)}</p>
-                    </div>
-                </div>
-                {canEdit && !isDenied ? (
-                    <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
-                        <button type="button" onClick={() => { setDialogMode('search-only'); setIsDialogOpen(true); }} data-testid={testId('link-existing')} className="flex items-center gap-2 px-4 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors border-r border-accent/20">
-                            <LinkIcon className="h-3 w-3" />
-                            {t('links.actions.link_existing')}
-                        </button>
-                        {canCreate ? (
-                            <button type="button" onClick={onAdd} data-testid={addButtonTestId ?? testId('add')} className="flex items-center gap-2 px-3 py-1.5 text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent/10 transition-colors" title={t(i18nKeys.addAction)}>
-                                <Plus className="h-3.5 w-3.5" />
-                                <span>{t(i18nKeys.addAction)}</span>
-                            </button>
-                        ) : null}
-                    </div>
+            <Card as="section" data-testid={testId('section')}>
+                <CardHeader
+                    icon={icon}
+                    title={t(i18nKeys.tabTitle)}
+                    description={t(i18nKeys.subtitle)}
+                    className="mb-6"
+                    actions={canEdit && !isDenied ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="compact"
+                                onClick={() => { setDialogMode('search-only'); setIsDialogOpen(true); }}
+                                data-testid={testId('link-existing')}
+                            >
+                                <LinkIcon aria-hidden="true" />
+                                {t('links.actions.link_existing')}
+                            </Button>
+                            {canCreate ? (
+                                <Button
+                                    variant="accent"
+                                    size="compact"
+                                    onClick={onAdd}
+                                    data-testid={addButtonTestId ?? testId('add')}
+                                >
+                                    <Plus aria-hidden="true" />
+                                    {t(i18nKeys.addAction)}
+                                </Button>
+                            ) : null}
+                        </>
+                    ) : null}
+                />
+
+                {/* After-close visibility only: while the reason dialog is open the
+                    error is announced inside it (#100 P2 — the shell traps focus). */}
+                {mutationError && pendingGovernedAction === null ? (
+                    <InlineMessage tone="danger" className="mb-4" data-testid={testId('mutation-error')}>
+                        {mutationError}
+                    </InlineMessage>
                 ) : null}
-            </div>
 
-            {/* After-close visibility only: while the reason dialog is open the
-                error is announced inside it (#100 P2 — the shell traps focus). */}
-            {mutationError && pendingGovernedAction === null ? (
-                <div
-                    role="alert"
-                    data-testid={testId('mutation-error')}
-                    className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-                >
-                    {mutationError}
-                </div>
-            ) : null}
+                {collectionContent}
 
-            {collectionContent}
-
-            {canEdit && !isDenied ? (
-                <button type="button" onClick={() => { setDialogMode('links-only'); setIsDialogOpen(true); }} data-testid={testId('manage-existing')} className="w-full mt-6 py-3 border border-dashed border-border rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-glass-hover transition-colors">
-                    {t('links.actions.manage_existing')}
-                </button>
-            ) : null}
-            {canEdit && !isDenied ? (
-                <LinkManagementDialog
-                    mode={linkDialogMode}
-                    title={t(i18nKeys.dialogTitle)}
-                    existingLinks={entities.existingLinks}
-                    onLink={async (targetId) => {
-                        if (protectedChangeRequiresApproval) {
-                            setMutationError(null);
-                            setPendingGovernedAction({ kind: 'link_add', targetId });
-                            return;
-                        }
-                        await entities.link(targetId);
-                    }}
-                    onUnlink={async (targetId) => {
-                        if (protectedChangeRequiresApproval) {
-                            setMutationError(null);
-                            setPendingGovernedAction({ kind: 'link_remove', targetId });
-                            return;
-                        }
-                        await entities.unlink(targetId);
-                    }}
-                    isOpen={isDialogOpen}
-                    onClose={() => setIsDialogOpen(false)}
-                    showSearch={dialogMode !== 'links-only'}
-                    showLinks={dialogMode !== 'search-only'}
-                    showLinkMetadataBadge={false}
-                />
-            ) : null}
-            {protectedChangeRequiresApproval && !isDenied ? (
-                <GovernedMutationReasonDialog
-                    isOpen={pendingGovernedAction !== null}
-                    reasonRequired
-                    namespace="vendors"
-                    kind={pendingGovernedAction?.kind ?? 'link_add'}
-                    isLoading={isGovernedSubmitting}
-                    errorText={mutationError}
-                    onClose={() => setPendingGovernedAction(null)}
-                    onConfirm={(reason) => {
-                        void confirmGovernedAction(reason);
-                    }}
-                />
-            ) : null}
+                {canEdit && !isDenied ? (
+                    <Button
+                        variant="outline"
+                        className="mt-6 w-full border-dashed"
+                        onClick={() => { setDialogMode('links-only'); setIsDialogOpen(true); }}
+                        data-testid={testId('manage-existing')}
+                    >
+                        {t('links.actions.manage_existing')}
+                    </Button>
+                ) : null}
+                {canEdit && !isDenied ? (
+                    <LinkManagementDialog
+                        mode={linkDialogMode}
+                        title={t(i18nKeys.dialogTitle)}
+                        existingLinks={entities.existingLinks}
+                        onLink={async (targetId) => {
+                            if (protectedChangeRequiresApproval) {
+                                setMutationError(null);
+                                setPendingGovernedAction({ kind: 'link_add', targetId });
+                                return;
+                            }
+                            await entities.link(targetId);
+                        }}
+                        onUnlink={async (targetId) => {
+                            if (protectedChangeRequiresApproval) {
+                                setMutationError(null);
+                                setPendingGovernedAction({ kind: 'link_remove', targetId });
+                                return;
+                            }
+                            await entities.unlink(targetId);
+                        }}
+                        isOpen={isDialogOpen}
+                        onClose={() => setIsDialogOpen(false)}
+                        showSearch={dialogMode !== 'links-only'}
+                        showLinks={dialogMode !== 'search-only'}
+                        showLinkMetadataBadge={false}
+                    />
+                ) : null}
+                {protectedChangeRequiresApproval && !isDenied ? (
+                    <GovernedMutationReasonDialog
+                        isOpen={pendingGovernedAction !== null}
+                        reasonRequired
+                        namespace="vendors"
+                        kind={pendingGovernedAction?.kind ?? 'link_add'}
+                        isLoading={isGovernedSubmitting}
+                        errorText={mutationError}
+                        onClose={() => setPendingGovernedAction(null)}
+                        onConfirm={(reason) => {
+                            void confirmGovernedAction(reason);
+                        }}
+                    />
+                ) : null}
+            </Card>
         </motion.div>
     );
 }

@@ -5,8 +5,12 @@
 @tailwind utilities;
 
 @layer base {
+  /* RiskHub theme (default) - Dark blue. Also selected by the explicit
+     `.theme-riskhub` root class (audit 2026-09-30 §4.2), so a subtree can opt
+     back into it; `:root` stays last in the selector list because the token
+     parsers in the contrast tests key on `:root {`. */
+  .theme-riskhub,
   :root {
-    /* RiskHub Theme (default) - Dark blue */
     --background: 222 47% 11%;
     --foreground: 213 31% 91%;
 
@@ -27,6 +31,9 @@
     --glass-hover: 222 35% 20%;
     --glass-hover-border: 215 20% 48%;
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+    /* shadow-popover (audit §4.6). A var() so Tailwind's colour-named shadow
+       utility (`shadow-popover` also matches colors.popover) cannot recolour it. */
+    --popover-shadow: 0 10px 38px -10px hsl(var(--foreground) / 0.25);
     --icon-muted: 215 20% 70%;
 
     --primary: 210 40% 98%;
@@ -44,7 +51,9 @@
     --accent-hover: 210 100% 55%;
     --accent-text: 210 100% 65%;
 
-    --destructive: 0 91% 71%;
+    /* 73% (was 71%): a 12px danger Badge (bg-destructive/10) on a hovered glass card
+       (--glass-hover) measured 4.42:1; 73% clears AA there (4.67:1). */
+    --destructive: 0 91% 73%;
     --destructive-foreground: 222 47% 11%;
 
     /* Semantic status tokens (ADR-015 / FR-P1-1). --destructive stays the
@@ -71,6 +80,61 @@
     --input: 215 20% 48%;
     --ring: 212.7 26.8% 83.9%;
 
+    /* UI-contract token families (audit 2026-09-30 §4.2, ADR-015 Addendum 1).
+       Every family is declared in all three theme blocks and contrast-tested in
+       tests/frontend/unit/src/design-system/statusTokenContrast.test.ts.
+       --tint (D3): theme-aware base of the former white-alpha utilities, used only
+       with an opacity step (bg-tint/5, border-tint/10, divide-tint/10). It is pure
+       white in riskhub, so tint/N renders exactly like white/N there; dark and light
+       set their own base (see those blocks). */
+    --tint: 0 0% 100%;
+    /* --overlay: dialog backdrop colour and its per-theme alpha (bg-overlay). */
+    --overlay: 222 47% 4%;
+    --overlay-alpha: 0.7;
+    /* --severity-high (D1): the orange "high" band of the 4-step severity scale
+       (low success, medium warning, high severity-high, critical destructive).
+       Fill + paired foreground, and a standalone text variant. */
+    --severity-high: 25 95% 53%;
+    --severity-high-foreground: 26 84% 6%;
+    --severity-high-text: 25 95% 68%;
+    /* --chart-1..8: categorical chart series (reverses FR-P1-8). Severity-coded
+       series use the severity tokens, never these. Each clears 3:1 against
+       --background and --glass. Order: accent, violet, teal, amber, pink, sky,
+       lime, neutral. */
+    --chart-1: 210 100% 60%;
+    --chart-2: 262 83% 66%;
+    --chart-3: 173 80% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 330 81% 65%;
+    --chart-6: 199 89% 60%;
+    --chart-7: 84 70% 50%;
+    --chart-8: 215 16% 55%;
+    /* --heat-0..4: sequential count heatmap, surface (heat-0 = --nested) to
+       --destructive (heat-4), monotonic in luminance. Each step has an AA
+       foreground for the in-cell count. */
+    --heat-0: 222 40% 17%;
+    --heat-0-foreground: 213 31% 91%;
+    --heat-1: 0 45% 24%;
+    --heat-1-foreground: 213 31% 91%;
+    --heat-2: 0 60% 33%;
+    --heat-2-foreground: 213 31% 91%;
+    --heat-3: 0 72% 44%;
+    --heat-3-foreground: 213 31% 91%;
+    --heat-4: 0 91% 73%;
+    --heat-4-foreground: 222 47% 11%;
+    /* --nav-active: active sidebar item fill (the former sidebar.css hex pair,
+       #1d4ed8 / #f8fafc; navy in light). --nav-badge: the sidebar item count pill
+       (#1e40af / #f8fafc; slate in light), distinct from --nav-active so the pill
+       stays visible on the active item. */
+    --nav-active: 224 76% 48%;
+    --nav-active-foreground: 210 40% 98%;
+    --nav-badge: 226 71% 40%;
+    --nav-badge-foreground: 210 40% 98%;
+    /* --badge-count: notification count badge (#be123c / #f8fafc); the same in
+       every theme. */
+    --badge-count: 345 83% 41%;
+    --badge-count-foreground: 210 40% 98%;
+
     /* UX-24 semantic radius scale: compact controls use md, ordinary controls
        use lg, cards/dialogs use 2xl, and pills use Tailwind's full shape. */
     --radius-sm: 0.5rem;
@@ -87,9 +151,9 @@
     @apply border-border;
   }
 
+  /* `font-sans` / `font-heading` resolve to tailwind.config.js `fontFamily`. */
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter Variable', sans-serif;
   }
 
   h1,
@@ -98,10 +162,22 @@
   h4,
   h5,
   h6 {
-    font-family: 'Outfit Variable', sans-serif;
+    font-family: theme('fontFamily.heading');
+  }
+
+  /* Global keyboard-focus fallback (audit §4.6, DS-26): any focusable element
+     without its own indicator still shows a ring-coloured outline. Primitives
+     use the `.focus-ring` utility below; `outline-none` utilities still win. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
+/* The only important-flagged declarations in the app (audit §5.6 item 4.1: at most 4). A reduced-motion
+   preference must beat every animation and transition source: Tailwind utilities
+   (`animate-*`, `transition-*`), `tailwindcss-animate` enter/exit keyframes and inline
+   styles, all of which out-rank a plain declaration here. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -136,104 +212,6 @@
     border-color: hsl(var(--glass-hover-border));
   }
 
-  .docs-reader-surface {
-    @apply rounded-2xl border;
-    background-color: rgba(15, 23, 42, 0.7);
-    border-color: rgba(148, 163, 184, 0.3);
-    box-shadow: 0 18px 42px rgba(2, 6, 23, 0.3);
-  }
-
-  .docs-reader-meta {
-    @apply flex flex-wrap items-center gap-2;
-  }
-
-  .docs-reader-meta-chip {
-    @apply inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold tracking-wider uppercase;
-    background-color: rgba(15, 23, 42, 0.35);
-    border-color: rgba(148, 163, 184, 0.3);
-    color: #e2e8f0;
-  }
-
-  .docs-reader-meta-source {
-    @apply text-xs;
-    color: rgba(203, 213, 225, 0.9);
-  }
-
-  .docs-reader-prose {
-    @apply prose prose-slate max-w-none;
-    color: #e2e8f0;
-    font-size: 1rem;
-    line-height: 1.8;
-  }
-
-  .docs-reader-prose :where(h1, h2, h3, h4, h5, h6) {
-    color: #f8fafc;
-  }
-
-  .docs-reader-prose :where(p, li, td, th, blockquote) {
-    color: #dbe3f3;
-  }
-
-  .docs-reader-prose :where(strong) {
-    color: #f8fafc;
-    font-weight: 700;
-  }
-
-  .docs-reader-prose :where(li)::marker {
-    color: rgba(203, 213, 225, 0.95);
-  }
-
-  .docs-reader-prose :where(a) {
-    color: #38bdf8;
-    text-decoration-thickness: 1.5px;
-  }
-
-  .docs-reader-prose :where(pre) {
-    background-color: rgba(15, 23, 42, 0.88);
-    border-color: rgba(148, 163, 184, 0.24);
-    color: #e2e8f0;
-  }
-
-  .docs-reader-prose :where(code) {
-    color: #e2e8f0;
-  }
-
-  .docs-reader-prose :where(th) {
-    background-color: rgba(30, 41, 59, 0.6);
-  }
-
-  .docs-reader-prose :where(table, td, th) {
-    border-color: rgba(148, 163, 184, 0.24);
-  }
-
-  .docs-heading-anchor {
-    @apply ml-2 inline-flex items-center no-underline transition-opacity duration-150;
-    color: rgba(148, 163, 184, 0.85);
-    opacity: 0;
-  }
-
-  .docs-reader-prose :where(h1, h2, h3, h4, h5, h6):hover .docs-heading-anchor,
-  .docs-reader-prose :where(h1, h2, h3, h4, h5, h6):focus-within .docs-heading-anchor,
-  .docs-heading-anchor:focus-visible {
-    opacity: 1;
-  }
-
-  .docs-heading-anchor:hover {
-    color: #38bdf8;
-  }
-
-  .mesh-gradient {
-    background-color: hsla(222, 47%, 11%, 1);
-    background-image:
-      radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.15) 0px, transparent 50%);
-  }
-
-  .btn-primary {
-    @apply px-8 py-3 bg-white text-slate-950 font-semibold rounded-full hover:bg-slate-200 transition-colors duration-300 flex items-center gap-2;
-  }
-
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -244,7 +222,21 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
+    @apply bg-tint/20 rounded-full hover:bg-tint/30 transition-colors;
+  }
+
+  /* D6 (amended 2026-10-01): the ONLY uppercase eyebrow / micro-label recipe,
+     11px / 600 / tracking-wide. Nothing may render below 11px (G-RATCHET
+     `micro-font` tracks the remaining text-[≤10px] sites). */
+  .text-eyebrow {
+    @apply text-2xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+}
+
+@layer utilities {
+  /* Audit §4.6 / DS-26: the one keyboard-focus recipe every primitive uses. */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 
@@ -268,6 +260,7 @@
   --glass-hover: 0 0% 12%;
   --glass-hover-border: 0 0% 24%;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --popover-shadow: 0 10px 38px -10px hsl(var(--foreground) / 0.25);
   --icon-muted: 0 0% 70%;
 
   --primary: 0 0% 95%;
@@ -300,68 +293,45 @@
   --border: 0 0% 15%;
   --input: 0 0% 38%;
   --ring: 0 0% 80%;
-}
 
-/* True Dark - Base */
-.theme-dark,
-.theme-dark body {
-  background-color: #000000 !important;
-  color: #f1f1f1 !important;
+  /* UI-contract token families (audit §4.2) — see :root for rationale.
+     --tint is a 75% grey, not white: True Dark used to dim the white-alpha
+     utilities with forced remaps (bg-white/5 → 3%, bg-white/10 → 5%,
+     border-white/10 → 8%, border-white/20 → 12%). Those remaps were deleted with
+     the tint codemod (O6); this base reproduces them within ΔE2000 ≤ 2.2 on the
+     background, glass and popover surfaces, while hover tints (never remapped)
+     stay within ΔE2000 ≤ 3.2. */
+  --tint: 0 0% 75%;
+  --overlay: 0 0% 0%;
+  --overlay-alpha: 0.8;
+  --severity-high: 25 95% 53%;
+  --severity-high-foreground: 26 84% 6%;
+  --severity-high-text: 25 95% 68%;
+  --chart-1: 210 100% 60%;
+  --chart-2: 262 83% 66%;
+  --chart-3: 173 80% 45%;
+  --chart-4: 38 92% 50%;
+  --chart-5: 330 81% 65%;
+  --chart-6: 199 89% 60%;
+  --chart-7: 84 70% 50%;
+  --chart-8: 215 16% 55%;
+  --heat-0: 0 0% 9%;
+  --heat-0-foreground: 0 0% 95%;
+  --heat-1: 0 45% 20%;
+  --heat-1-foreground: 0 0% 95%;
+  --heat-2: 0 60% 31%;
+  --heat-2-foreground: 0 0% 95%;
+  --heat-3: 0 72% 43%;
+  --heat-3-foreground: 0 0% 95%;
+  --heat-4: 0 91% 71%;
+  --heat-4-foreground: 222 47% 11%;
+  --nav-active: 224 76% 48%;
+  --nav-active-foreground: 210 40% 98%;
+  --nav-badge: 226 71% 40%;
+  --nav-badge-foreground: 210 40% 98%;
+  --badge-count: 345 83% 41%;
+  --badge-count-foreground: 210 40% 98%;
 }
-
-/* True Dark - Mesh gradient (very subtle) */
-.theme-dark .mesh-gradient {
-  background-color: #000000 !important;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
-}
-
-/* True Dark - Sidebar */
-.theme-dark aside,
-.theme-dark nav {
-  background-color: rgba(0, 0, 0, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* True Dark - Cards */
-.theme-dark .bg-white\/5 {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-.theme-dark .bg-white\/10 {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* True Dark - Borders */
-.theme-dark .border-white\/10 {
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.theme-dark .border-white\/20 {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* True Dark - Table */
-.theme-dark th {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-.theme-dark tr:hover {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-}
-
-.theme-dark .docs-reader-surface {
-  background-color: rgba(12, 18, 30, 0.86) !important;
-  border-color: rgba(148, 163, 184, 0.25) !important;
-}
-
-.theme-dark .docs-reader-meta-chip {
-  background-color: rgba(15, 23, 42, 0.55) !important;
-  border-color: rgba(148, 163, 184, 0.3) !important;
-}
-
 
 /* =================================
    LIGHT THEME
@@ -383,6 +353,7 @@
   --glass-hover: 220 14% 96%;
   --glass-hover-border: 215 20% 55%;
   --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --popover-shadow: 0 10px 38px -10px hsl(var(--foreground) / 0.25);
   --icon-muted: 215 25% 35%;
 
   --primary: 222 47% 11%;
@@ -421,273 +392,39 @@
   --border: 220 13% 85%;
   --input: 215 20% 55%;
   --ring: 222 47% 11%;
-}
 
-.notification-count-badge,
-.theme-light .notification-count-badge {
-  background-color: #be123c !important;
-  color: #f8fafc !important;
-}
-
-.theme-light [data-testid="logout-button"] {
-  color: #be123c !important;
-}
-
-/* Light theme - Mesh gradient background */
-.theme-light .mesh-gradient {
-  background-color: #f8fafc !important;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
-}
-
-/* Light theme - Form inputs are themed by the token-driven Input primitive
-   (bg-input/40, text-foreground), by the vendor route (.vendor-route inputs),
-   and by component rules (.confirm-dialog-input, [data-radix-select-trigger]).
-   The former blanket `.theme-light input {…!important}` rule was removed
-   (FR-P5-10 / P4): being `!important` it overrode both the design-system Input
-   and the vendor-route field theming in the light theme. */
-
-/* Light theme - Tables */
-.theme-light th {
-  background-color: rgba(241, 245, 249, 0.8) !important;
-}
-
-.theme-light tr {
-  border-color: #e2e8f0 !important;
-}
-
-.theme-light tr:hover {
-  background-color: rgba(241, 245, 249, 0.5) !important;
-}
-
-.theme-light .docs-reader-surface {
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(15, 23, 42, 0.12) !important;
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
-}
-
-.theme-light .docs-reader-meta-chip {
-  background-color: rgba(241, 245, 249, 0.95) !important;
-  border-color: rgba(148, 163, 184, 0.4) !important;
-  color: #334155 !important;
-}
-
-.theme-light .docs-reader-meta-source {
-  color: #475569 !important;
-}
-
-.theme-light .docs-reader-prose {
-  color: #334155 !important;
-}
-
-.theme-light .docs-reader-prose :where(h1, h2, h3, h4, h5, h6) {
-  color: #0f172a !important;
-}
-
-.theme-light .docs-reader-prose :where(p, li, td, th, blockquote) {
-  color: #334155 !important;
-}
-
-.theme-light .docs-reader-prose :where(strong) {
-  color: #0f172a !important;
-}
-
-.theme-light .docs-reader-prose :where(li)::marker {
-  color: #64748b !important;
-}
-
-.theme-light .docs-reader-prose :where(pre) {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-.theme-light .docs-reader-prose :where(code) {
-  color: #1e293b !important;
-}
-
-.theme-light .docs-reader-prose :where(th) {
-  background-color: rgba(241, 245, 249, 0.95) !important;
-}
-
-.theme-light .docs-reader-prose :where(table, td, th) {
-  border-color: #e2e8f0 !important;
-}
-
-.theme-light .docs-heading-anchor {
-  color: #64748b !important;
-}
-
-.theme-light .docs-heading-anchor:hover {
-  color: #0ea5e9 !important;
-}
-
-/* Light theme - Sidebar & Navigation */
-.theme-light aside,
-.theme-light nav {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Light theme - White opacity backgrounds */
-.theme-light .bg-white\/5 {
-  background-color: rgba(0, 0, 0, 0.03) !important;
-}
-
-.theme-light .bg-white\/10 {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-}
-
-.theme-light .bg-white\/20 {
-  background-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Light theme - White opacity borders */
-.theme-light .border-white\/5,
-.theme-light .border-white\/10 {
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-.theme-light .border-white\/20 {
-  border-color: rgba(0, 0, 0, 0.12) !important;
-}
-
-/* Light theme - Hover states */
-.theme-light .hover\:bg-white\/5:hover {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-}
-
-.theme-light .hover\:bg-white\/10:hover {
-  background-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* Light theme - Scrollbar */
-.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-}
-
-.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.3) !important;
-}
-
-/* =================================
-   CONFIRM DIALOG - THEME AWARE
-   ================================= */
-
-/* Default (RiskHub theme) */
-.confirm-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.6);
-}
-
-.confirm-dialog-actions {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-/* True Dark Theme */
-.theme-dark .confirm-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.8);
-}
-
-.theme-dark .confirm-dialog-content {
-  background-color: rgba(10, 10, 10, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.theme-dark .confirm-dialog-actions {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-/* Light Theme */
-.theme-light .confirm-dialog-backdrop {
-  background-color: rgba(0, 0, 0, 0.4);
-}
-
-.theme-light .confirm-dialog-content {
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-.theme-light .confirm-dialog-content h3 {
-  color: #0f172a !important;
-}
-
-.theme-light .confirm-dialog-content p {
-  color: #475569 !important;
-}
-
-.theme-light .confirm-dialog-actions {
-  background-color: rgba(0, 0, 0, 0.02);
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-.theme-light .confirm-dialog-input {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-.theme-light .confirm-dialog-input::placeholder {
-  color: #94a3b8 !important;
-}
-
-/* =================================
-   THEMED SELECT - All Themes
-   ================================= */
-
-/* Light Theme - Select Trigger */
-.theme-light [data-radix-select-trigger] {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-.theme-light [data-radix-select-trigger]:hover {
-  background-color: #f8fafc !important;
-  border-color: #cbd5e1 !important;
-}
-
-.theme-light [data-radix-select-trigger][data-placeholder] {
-  color: #94a3b8 !important;
-}
-
-/* Light Theme - Select Dropdown */
-.theme-light .themed-select-content {
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
-}
-
-.theme-light .themed-select-item {
-  color: #334155 !important;
-}
-
-.theme-light .themed-select-item:hover,
-.theme-light .themed-select-item[data-highlighted] {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  color: #0f172a !important;
-}
-
-/* True Dark Theme - Select Trigger */
-.theme-dark [data-radix-select-trigger] {
-  background-color: rgba(255, 255, 255, 0.03) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-.theme-dark [data-radix-select-trigger]:hover {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* True Dark Theme - Select Dropdown */
-.theme-dark .themed-select-content {
-  background-color: rgba(10, 10, 10, 0.98) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.theme-dark .themed-select-item:hover,
-.theme-dark .themed-select-item[data-highlighted] {
-  background-color: rgba(255, 255, 255, 0.05) !important;
+  /* UI-contract token families (audit §4.2) — see :root for rationale.
+     --tint is the navy foreground, so tint/N gives light surfaces a navy alpha.
+     --severity-high-text is a darkened orange (the fill fails as text here).
+     --chart-1..8 are the :root seeds at lightness minus 15. */
+  --tint: 222 47% 11%;
+  --overlay: 222 47% 11%;
+  --overlay-alpha: 0.4;
+  --severity-high: 25 95% 53%;
+  --severity-high-foreground: 26 84% 6%;
+  --severity-high-text: 22 90% 34%;
+  --chart-1: 210 100% 45%;
+  --chart-2: 262 83% 51%;
+  --chart-3: 173 80% 30%;
+  --chart-4: 38 92% 35%;
+  --chart-5: 330 81% 50%;
+  --chart-6: 199 89% 45%;
+  --chart-7: 84 70% 35%;
+  --chart-8: 215 16% 40%;
+  --heat-0: 220 14% 94%;
+  --heat-0-foreground: 222 47% 11%;
+  --heat-1: 0 85% 90%;
+  --heat-1-foreground: 222 47% 11%;
+  --heat-2: 0 78% 83%;
+  --heat-2-foreground: 222 47% 11%;
+  --heat-3: 0 72% 70%;
+  --heat-3-foreground: 222 47% 11%;
+  --heat-4: 0 74% 42%;
+  --heat-4-foreground: 0 0% 100%;
+  --nav-active: 222 47% 11%;
+  --nav-active-foreground: 210 40% 98%;
+  --nav-badge: 217 33% 17%;
+  --nav-badge-foreground: 210 40% 98%;
+  --badge-count: 345 83% 41%;
+  --badge-count-foreground: 210 40% 98%;
 }

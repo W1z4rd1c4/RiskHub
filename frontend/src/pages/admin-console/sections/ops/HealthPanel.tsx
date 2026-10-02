@@ -3,16 +3,19 @@ import { Clock, Database, MemoryStick, RefreshCw, Users } from 'lucide-react';
 
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/i18n/hooks';
+import { Card } from '@/components/ui/card';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
 
 import { OutboxStatusSection } from './OutboxStatusSection';
 import { SchedulerStatusSection } from './SchedulerStatusSection';
+import { ErrorState, LoadingState } from '@/components/ui/state';
 
 export function HealthPanel() {
     const { t } = useTranslation('admin');
+    const format = useFormat();
     const healthQuery = useAdaptivePollingQuery({
         queryKey: adminKeys.health(),
         queryFn: ({ signal }) => adminApi.getSystemHealth({ signal }),
@@ -38,13 +41,39 @@ export function HealthPanel() {
     const isRefreshing = healthQuery.isFetching || schedulerQuery.isFetching || outboxQuery.isFetching;
 
     if (healthQuery.isLoading) {
-        return <div className="admin-muted text-center py-8">{t('health.loading')}</div>;
+        return <LoadingState label={t('health.loading')} />;
     }
+
+    // GAP-D-17: without health data the cards would read "Error"/"0h 0m" and
+    // misreport the system; show the load failure instead.
+    if (!health) {
+        return (
+            <ErrorState
+                title={t('health.title')}
+                onRetry={() => void healthQuery.refresh()}
+                isRetrying={healthQuery.isFetching}
+            />
+        );
+    }
+
+    // GAP-D-17: units go through Intl (locale-aware), and a metric the API did not
+    // report reads as an em dash instead of "0h 0m" / "NaN MB".
+    const noValue = '—';
+    const formatUnit = (value: number | null | undefined, unit: string, options?: Intl.NumberFormatOptions) =>
+        format.number(value, { style: 'unit', unit, unitDisplay: 'short', ...options }) || noValue;
+    const uptimeSeconds = health.uptime_seconds;
+    const uptimeText = uptimeSeconds == null
+        ? noValue
+        : [
+            format.number(Math.floor(uptimeSeconds / 3600), { style: 'unit', unit: 'hour', unitDisplay: 'narrow' }),
+            format.number(Math.floor((uptimeSeconds % 3600) / 60), { style: 'unit', unit: 'minute', unitDisplay: 'narrow' }),
+        ].join(' ');
+    const isDatabaseConnected = health.database_status === 'connected';
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="admin-title text-lg font-semibold">{t('health.title')}</h3>
+                <h2 className="text-lg font-semibold text-foreground">{t('health.title')}</h2>
                 <Button
                     type="button"
                     variant="secondary"
@@ -61,63 +90,63 @@ export function HealthPanel() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="admin-surface-muted rounded-xl p-4">
+                <Card tone="nested" padding="compact">
                     <div className="flex items-center gap-3 mb-2">
-                        <Database className={cn(
+                        <Database aria-hidden="true" className={cn(
                             'h-5 w-5',
-                            health?.database_status === 'connected' ? 'text-success-text' : 'text-destructive',
+                            isDatabaseConnected ? 'text-success-text' : 'text-destructive',
                         )} />
-                        <span className="admin-muted text-sm">{t('health.database')}</span>
+                        <span className="text-sm text-muted-foreground">{t('health.database')}</span>
                     </div>
                     <p className={cn(
                         'text-xl font-bold',
-                        health?.database_status === 'connected' ? 'text-success-text' : 'text-destructive',
+                        isDatabaseConnected ? 'text-success-text' : 'text-destructive',
                     )}>
-                        {health?.database_status === 'connected' ? t('health.connected') : t('health.error')}
+                        {isDatabaseConnected ? t('health.connected') : t('health.error')}
                     </p>
-                    <p className="admin-subtle mt-1 text-xs">
-                        {t('health.latency')}: {health?.database_latency_ms?.toFixed(2)}ms
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {t('health.latency')}: {formatUnit(health.database_latency_ms, 'millisecond', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}
                     </p>
-                </div>
+                </Card>
 
-                <div className="admin-surface-muted rounded-xl p-4">
+                <Card tone="nested" padding="compact">
                     <div className="flex items-center gap-3 mb-2">
-                        <Clock className="h-5 w-5 text-blue-400" />
-                        <span className="admin-muted text-sm">{t('health.uptime')}</span>
+                        <Clock aria-hidden="true" className="h-5 w-5 text-accent-text" />
+                        <span className="text-sm text-muted-foreground">{t('health.uptime')}</span>
                     </div>
-                    <p className="admin-title text-xl font-bold">
-                        {Math.floor((health?.uptime_seconds || 0) / 3600)}h {Math.floor(((health?.uptime_seconds || 0) % 3600) / 60)}m
+                    <p className="text-xl font-bold text-foreground">
+                        {uptimeText}
                     </p>
-                    <p className="admin-subtle mt-1 text-xs">
+                    <p className="mt-1 text-xs text-muted-foreground">
                         {t('health.since_restart')}
                     </p>
-                </div>
+                </Card>
 
-                <div className="admin-surface-muted rounded-xl p-4">
+                <Card tone="nested" padding="compact">
                     <div className="flex items-center gap-3 mb-2">
-                        <MemoryStick className="h-5 w-5 text-purple-400" />
-                        <span className="admin-muted text-sm">{t('health.memory')}</span>
+                        <MemoryStick aria-hidden="true" className="h-5 w-5 text-chart-2" />
+                        <span className="text-sm text-muted-foreground">{t('health.memory')}</span>
                     </div>
-                    <p className="admin-title text-xl font-bold">
-                        {health?.memory_usage_mb?.toFixed(0)} MB
+                    <p className="text-xl font-bold text-foreground">
+                        {formatUnit(health.memory_usage_mb, 'megabyte', { maximumFractionDigits: 0 })}
                     </p>
-                    <p className="admin-subtle mt-1 text-xs">
+                    <p className="mt-1 text-xs text-muted-foreground">
                         {t('health.process_memory')}
                     </p>
-                </div>
+                </Card>
 
-                <div className="admin-surface-muted rounded-xl p-4">
+                <Card tone="nested" padding="compact">
                     <div className="flex items-center gap-3 mb-2">
-                        <Users className="h-5 w-5 text-amber-400" />
-                        <span className="admin-muted text-sm">{t('health.active_users')}</span>
+                        <Users aria-hidden="true" className="h-5 w-5 text-warning-text" />
+                        <span className="text-sm text-muted-foreground">{t('health.active_users')}</span>
                     </div>
-                    <p className="admin-title text-xl font-bold">
-                        {stats?.active_users_24h || 0}
+                    <p className="text-xl font-bold text-foreground">
+                        {format.number(stats?.active_users_24h ?? 0)}
                     </p>
-                    <p className="admin-subtle mt-1 text-xs">
+                    <p className="mt-1 text-xs text-muted-foreground">
                         {t('health.in_last_24h')}
                     </p>
-                </div>
+                </Card>
             </div>
 
             <SchedulerStatusSection schedulerStatus={schedulerQuery.data} />

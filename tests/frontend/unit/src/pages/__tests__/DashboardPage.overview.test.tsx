@@ -20,12 +20,30 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
@@ -155,8 +173,12 @@ describe('DashboardPage overview aggregation', () => {
         const generatedTime = screen.getByText((_, element) => element?.tagName === 'TIME');
         expect(generatedTime).toHaveAttribute('datetime', '2026-03-07T10:00:00Z');
         expect(generatedTime).not.toHaveTextContent('2026-03-07T10:00:00Z');
-        expect(screen.getByRole('button', { name: /risk_levels\.critical/ })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /risk_levels\.critical/ })).toBeInTheDocument();
         expect(screen.queryByText(/stats\.(live|stable|urgent|calculated)/)).not.toBeInTheDocument();
+        // D7: one h1; RS-01: KPI cards wrap by a minimum width instead of lg:grid-cols-6.
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByTestId('dashboard-stat-grid').className).toContain('auto-fit');
+        expect(screen.getByTestId('dashboard-stat-grid').className).not.toContain('lg:grid-cols-6');
     });
 
     it('hides the Total Controls card for a risk/report reader without controls:read', async () => {
@@ -171,7 +193,7 @@ describe('DashboardPage overview aggregation', () => {
         );
 
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-        expect(screen.queryByRole('button', { name: /stats\.total_controls/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /stats\.total_controls/ })).not.toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/');
     });
 
@@ -184,7 +206,7 @@ describe('DashboardPage overview aggregation', () => {
             { wrapper: createWrapper() },
         );
 
-        const controlsCard = await screen.findByRole('button', { name: /stats\.total_controls/ });
+        const controlsCard = await screen.findByRole('link', { name: /stats\.total_controls/ });
         fireEvent.click(controlsCard);
 
         expect(screen.getByTestId('location')).toHaveTextContent('/controls');
@@ -240,7 +262,7 @@ describe('DashboardPage overview aggregation', () => {
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
         fetchOverviewMock.mockClear();
 
-        fireEvent.click(screen.getByRole('button', { name: /views\.risk_committee/ }));
+        fireEvent.click(screen.getByRole('tab', { name: /views\.risk_committee/ }));
 
         expect(await screen.findByText('committee')).toBeInTheDocument();
         expect(fetchOverviewMock).not.toHaveBeenCalled();
@@ -286,7 +308,7 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-        expect(screen.queryByTitle('actions.export_overview_csv')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'actions.export_overview_csv' })).not.toBeInTheDocument();
         expect(screen.queryByText('issue summary')).not.toBeInTheDocument();
         expect(screen.getByText('department filter hidden')).toBeInTheDocument();
         expect(screen.getByText('department table focus disabled')).toBeInTheDocument();
@@ -426,7 +448,7 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/?viewMode=department'));
-        fireEvent.click(await screen.findByTitle('actions.export_overview_csv'));
+        fireEvent.click(await screen.findByRole('button', { name: 'actions.export_overview_csv' }));
 
         expect(downloadSummaryCsvMock).toHaveBeenCalledWith({
             controlForm: null,
@@ -451,7 +473,7 @@ describe('DashboardPage overview aggregation', () => {
         );
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
-        const exportButton = await screen.findByTitle('actions.export_overview_csv');
+        const exportButton = await screen.findByRole('button', { name: 'actions.export_overview_csv' });
         const initialUrl = screen.getByTestId('location').textContent;
         fireEvent.click(exportButton);
 
@@ -480,6 +502,27 @@ describe('DashboardPage overview aggregation', () => {
         });
         await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
         expect(screen.getByTestId('location')).toHaveTextContent(initialUrl ?? '');
+    });
+
+    it('renders a failed first overview load as a retryable error state under the page title (DS-17)', async () => {
+        fetchOverviewMock.mockRejectedValueOnce(new Error('overview unavailable'));
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('errors.connection_interrupted');
+        expect(screen.getByText('title')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'errors.retry' }));
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(screen.getByText('issue summary')).toBeInTheDocument();
     });
 });
 

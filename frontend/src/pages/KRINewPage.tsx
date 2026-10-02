@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { kriApi } from '@/services/kriApi';
@@ -51,29 +53,20 @@ export function KRINewPage() {
     const gateState = combineCapabilityGateStates([createGateState.state, vendorContextGate.state]);
 
     return (
-        <div className="space-y-8">
-            <div className="space-y-3">
-                <button
-                    onClick={() => {
-                        void navigate(isVendorContext ? returnTo! : kriListReturnTo);
-                    }}
-                    className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
-                >
-                    <ArrowLeft className="h-3 w-3" />
-                    {isVendorContext ? t('vendors:links.actions.back_to_vendor') : `${t('common:actions.back')} ${t('kris:title')}`}
-                </button>
-                <div className="flex items-center gap-4">
-                    <div className="bg-accent/20 p-3 rounded-2xl">
-                        <Plus className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                        <h2 className="text-3xl font-black text-white tracking-tighter">{t('kris:new_kri')}</h2>
-                        <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
-                            {t('kris:title')} / {t('common:actions.create')}
-                        </p>
-                    </div>
-                </div>
-            </div>
+        <PageContainer size="form">
+            {/* D7 / D14 (PG-12): one `h1`, a whole-phrase back label naming the destination. */}
+            <PageHeader
+                title={t('kris:new_kri')}
+                icon={Plus}
+                back={{
+                    label: isVendorContext ? t('vendors:links.actions.back_to_vendor') : t('kris:actions.back_to_register'),
+                    onClick: () => void navigate(isVendorContext ? returnTo! : kriListReturnTo),
+                }}
+                breadcrumbs={isVendorContext ? undefined : [
+                    { label: t('navigation:sidebar.kris'), to: kriListReturnTo },
+                    { label: t('kris:new_kri') },
+                ]}
+            />
 
             {gateState !== 'allowed' ? (
                 <FormCapabilityGateState state={gateState} onRetry={() => { createGateState.retry(); vendorContextGate.retry(); }} />
@@ -93,7 +86,7 @@ export function KRINewPage() {
                     } : null}
                 />
             )}
-        </div>
+        </PageContainer>
     );
 }
 

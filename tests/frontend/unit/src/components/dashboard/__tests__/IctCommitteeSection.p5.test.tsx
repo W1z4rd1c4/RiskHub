@@ -146,23 +146,23 @@ describe('IctCommitteeSection — blocking-count priority (FR-P5-6 / S1)', () =>
         const noGap = screen.getByTestId('committee-state-assets_without_data_classification_count');
         expect(within(noGap).getByText('0').className).toContain('text-success-text');
 
-        // A pure inventory count keeps the neutral white treatment.
+        // A pure inventory count keeps the neutral foreground treatment.
         const processes = screen.getByTestId('committee-state-process_count');
-        expect(within(processes).getByText('148').className).toContain('text-white');
+        expect(within(processes).getByText('148').className).toContain('text-foreground');
 
-        // Key-metrics table: blocking metric warning-token amber, inventory metric white.
+        // Key-metrics table: blocking metric warning-token amber, inventory metric foreground.
         const toleranceMetric = screen.getByTestId('committee-metric-risks_above_tolerance_count');
         expect(within(toleranceMetric).getByText('4').className).toContain('text-warning-text');
         const cifMetric = screen.getByTestId('committee-metric-cif_process_count');
-        expect(within(cifMetric).getByText('79').className).toContain('text-white');
+        expect(within(cifMetric).getByText('79').className).toContain('text-foreground');
 
-        // CRO KPI strip: blocking KPI warning (> 0) / success-text (= 0), inventory white.
+        // CRO KPI strip: blocking KPI warning (> 0) / success-text (= 0), inventory foreground.
         const openDq = screen.getByTestId('committee-kpi-open_dq_finding_count');
         expect(within(openDq).getByText('23').className).toContain('text-warning-text');
         const accepted = screen.getByTestId('committee-kpi-accepted_above_tolerance_count');
         expect(within(accepted).getByText('0').className).toContain('text-success-text');
         const riskCount = screen.getByTestId('committee-kpi-risk_count');
-        expect(within(riskCount).getByText('8').className).toContain('text-white');
+        expect(within(riskCount).getByText('8').className).toContain('text-foreground');
     });
 });
 
@@ -179,6 +179,22 @@ describe('IctCommitteeSection — heatmap legend + RoI threshold (FR-P5-7 / P10)
         const migrationLegend = screen.getByTestId('committee-migration-legend');
         expect(migrationLegend).toHaveTextContent('Risks per cell');
         expect(within(migrationLegend).getByText('5+')).toBeInTheDocument();
+    });
+
+    it('names every heatmap link by its axes and count, on the sequential heat tokens (GAP-B-16, DS-23)', async () => {
+        getCommittee.mockResolvedValue(makeCommittee());
+        renderSection();
+
+        const heatmapLink = await screen.findByTestId('committee-heatmap-link-5-3');
+        expect(heatmapLink).toHaveAccessibleName('View 2 risks at gross probability 5, impact 3');
+        expect(screen.getByTestId('committee-heatmap-link-4-2')).toHaveAccessibleName(
+            'View 1 risk at gross probability 4, impact 2',
+        );
+        expect(screen.getByTestId('committee-migration-link-Kritické-Kritické')).toHaveAccessibleName(
+            'View 5 risks with gross band Critical and net band Critical',
+        );
+        expect(screen.getByTestId('committee-heatmap-cell-5-3').className).toContain('bg-heat-2');
+        expect(screen.getByTestId('committee-heatmap-cell-5-3').getAttribute('style')).toBeNull();
     });
 
     it('colours the RoI readiness bar by threshold (ready / partial / at-risk) from the status tokens', async () => {
@@ -207,11 +223,12 @@ describe('IctCommitteeSection — semantic drill-downs', () => {
             gross_probability: '5',
             gross_impact: '3',
         });
+        // PG-40: band codes in the URL; the risk register maps them to the stored value.
         expectRiskHref(screen.getByTestId('committee-migration-link-Vysoké-Střední'), {
             committee_scope: 'true',
             ict_linked: 'true',
-            gross_band: 'Vysoké',
-            net_band: 'Střední',
+            gross_band: 'high',
+            net_band: 'medium',
         });
     });
 
@@ -227,3 +244,52 @@ describe('IctCommitteeSection — semantic drill-downs', () => {
         expect(tile).toHaveTextContent('Not yet measurable');
     });
 });
+
+describe('IctCommitteeSection — Phase 3g accessibility (GAP-B-19, GAP-D-11)', () => {
+    it('shows hints as visible text instead of title-only tooltips and drops aria-disabled', async () => {
+        const committee = makeCommittee();
+        committee.cro.kpi.material_risk_count_production_inert = true;
+        getCommittee.mockResolvedValue(committee);
+        const { container } = renderSection();
+
+        const tile = await screen.findByTestId('committee-kpi-material_risk_count');
+        expect(tile).toHaveTextContent('The app does not track risk materiality yet');
+        expect(tile).not.toHaveAttribute('title');
+        expect(container.querySelector('[aria-disabled]')).toBeNull();
+
+        expect(screen.getByTestId('committee-roi-coverage-hint-RT02')).toHaveTextContent(
+            "The register carries a subset of this template's columns",
+        );
+        expect(screen.getByTestId('committee-roi-template-RT02').querySelector('[title]')).toBeNull();
+    });
+
+    it('names both committee charts and repeats their data in tables', async () => {
+        getCommittee.mockResolvedValue(makeCommittee());
+        renderSection();
+
+        const assets = await screen.findByRole('figure', { name: /Assets in total: 2/ });
+        const assetTable = within(assets).getByRole('table');
+        expect(within(assetTable).getByRole('columnheader', { name: 'Criticality' })).toBeInTheDocument();
+        expect(within(assetTable).getByRole('rowheader', { name: 'Critical' }).closest('tr')).toHaveTextContent('2');
+
+        const bands = screen.getByRole('figure', { name: /Gross: 3; net: 1/ });
+        const highRow = within(bands).getByRole('rowheader', { name: 'High' }).closest('tr') as HTMLTableRowElement;
+        expect(within(highRow).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['3', '1']);
+        const legend = bands.querySelector('[data-chart-legend]') as HTMLElement;
+        expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gross', 'Net']);
+    });
+
+    it('renders the committee tables through the shared table primitives', async () => {
+        getCommittee.mockResolvedValue(makeCommittee());
+        renderSection();
+
+        const metricRow = await screen.findByTestId('committee-metric-risks_above_tolerance_count');
+        const table = metricRow.closest('table') as HTMLTableElement;
+        expect(table.closest('[role="region"]')).toHaveAccessibleName('Key metrics');
+        within(table).getAllByRole('columnheader').forEach((header) => expect(header).toHaveAttribute('scope', 'col'));
+        const valueLink = within(metricRow).getAllByRole('link')[0];
+        expect(valueLink).toHaveTextContent('4');
+        expect(valueLink).toHaveAccessibleName(`${within(metricRow).getAllByRole('cell')[0].textContent}: 4`);
+    });
+});
+

@@ -1,10 +1,9 @@
 import { useTranslation } from '@/i18n/hooks';
 import { vendorValueOptions } from '@/lib/vendorValues';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import {
-    VendorSectionHeader,
-    VendorSurface,
-} from '@/components/vendors/vendorRouteUi';
 
 import type { VendorFormField } from './vendorForm.types';
 
@@ -20,34 +19,33 @@ export function VendorResilienceSection({ formData, onChange }: VendorResilience
     const { t } = useTranslation('vendors');
 
     return (
-        <VendorSurface className="space-y-5">
-            <VendorSectionHeader title={t('form.sections.resilience')} />
+        <Card as="section">
+            <CardHeader title={t('form.sections.resilience')} />
 
-            <div className="vendor-form-grid">
-                <div className="vendor-field">
-                    <label className="vendor-label">{t('form.replaceability.label')}</label>
-                    <ThemedSelect
-                        value={formData.replaceability ? String(formData.replaceability) : ''}
-                        onValueChange={(value) => onChange('replaceability', value || null)}
-                        placeholder={t('form.replaceability.placeholder')}
-                        allowEmpty
-                        emptyLabel={t('form.replaceability.placeholder')}
-                        options={vendorValueOptions(t, 'replaceability')}
-                    />
-                </div>
-                <div className="vendor-field md:col-span-2">
-                    <label className="vendor-label">{t('flags.has_alternatives')}</label>
-                    <label className="vendor-checkbox">
-                        <input
-                            type="checkbox"
-                            checked={!!formData.has_alternative_providers}
-                            onChange={(event) => onChange('has_alternative_providers', event.target.checked)}
-                            className="accent-accent"
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label={t('form.replaceability.label')}>
+                    {(control) => (
+                        <ThemedSelect
+                            {...control}
+                            value={formData.replaceability ? String(formData.replaceability) : ''}
+                            onValueChange={(value) => onChange('replaceability', value || null)}
+                            placeholder={t('form.replaceability.placeholder')}
+                            allowEmpty
+                            emptyLabel={t('form.replaceability.placeholder')}
+                            options={vendorValueOptions(t, 'replaceability')}
                         />
-                        {t('flags.has_alternatives')}
-                    </label>
-                </div>
+                    )}
+                </Field>
+                <Field label={t('flags.has_alternatives')} layout="inline" className="md:col-span-2">
+                    {(control) => (
+                        <Checkbox
+                            {...control}
+                            checked={!!formData.has_alternative_providers}
+                            onCheckedChange={(checked) => onChange('has_alternative_providers', checked)}
+                        />
+                    )}
+                </Field>
             </div>
-        </VendorSurface>
+        </Card>
     );
 }

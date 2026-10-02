@@ -1,5 +1,8 @@
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
+import { BackButton } from '@/components/ui/BackButton';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import type { CollectionGroup } from '@/types/collection';
@@ -65,19 +68,14 @@ export function CollectionGroupDrillDown<T>({
         return (
             <div className={cn('space-y-4', className)}>
                 <div className="flex items-center gap-4">
-                    <button
-                        type="button"
+                    <BackButton
+                        label={t('tables.back_to_groups')}
                         onClick={onBack}
-                        className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        {t('actions.back')}
-                    </button>
+                        className="text-muted-foreground hover:text-foreground"
+                    />
                     <div className="flex items-center gap-3">
                         <h3 className="text-xl font-bold text-foreground">{label}</h3>
-                        <span className="px-2 py-1 rounded-full bg-accent/20 text-accent-text text-xs font-bold">
-                            {t('tables.items_count', { count: totalCount })}
-                        </span>
+                        <Badge tone="accent">{t('tables.items_count', { count: totalCount })}</Badge>
                     </div>
                 </div>
 
@@ -112,19 +110,20 @@ export function CollectionGroupDrillDown<T>({
         <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4', className)}>
             {groupCards.map((card) => {
                 return (
-                    <button
+                    <Card
+                        as="button"
+                        interactive
                         key={card.value}
-                        type="button"
                         data-testid="register-group-card"
                         data-group-value={card.value}
                         onClick={() => onSelectGroup(card.value, card.label)}
-                        className="glass-card interactive-card group text-left"
+                        className="group"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-foreground group-hover:text-accent-text transition-colors">
                                 {card.label}
                             </h3>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
+                            <ChevronRight aria-hidden="true" className="h-5 w-5 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
                         </div>
 
                         {renderGroupBody && <div className="mb-4">{renderGroupBody(card.group)}</div>}
@@ -132,19 +131,19 @@ export function CollectionGroupDrillDown<T>({
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-6">
                                 <div>
-                                    <p className="text-3xl font-black text-foreground">{card.count}</p>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.items')}</p>
+                                    <p className="text-3xl font-bold text-foreground">{card.count}</p>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('tables.items')}</p>
                                 </div>
                                 {card.showActive && (
                                     <div>
-                                        <p className="text-xl font-bold text-emerald-400">{card.activeCount}</p>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.active')}</p>
+                                        <p className="text-xl font-bold text-success-text">{card.activeCount}</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('tables.active')}</p>
                                     </div>
                                 )}
                                 {card.showHighlighted && (
                                     <div>
-                                        <p className="text-xl font-bold text-rose-400">{card.highlightedCount}</p>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider">
+                                        <p className="text-xl font-bold text-destructive">{card.highlightedCount}</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">
                                             {t('tables.high_risk')}
                                         </p>
                                     </div>
@@ -152,7 +151,7 @@ export function CollectionGroupDrillDown<T>({
                             </div>
                             {renderGroupExtra && <div className="flex-shrink-0">{renderGroupExtra(card.group)}</div>}
                         </div>
-                    </button>
+                    </Card>
                 );
             })}
         </div>

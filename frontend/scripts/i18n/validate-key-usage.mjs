@@ -24,6 +24,13 @@ function isStrictUiFile(file) {
   return file.startsWith('src/pages/') || file.startsWith('src/components/');
 }
 
+const PLURAL_FORMS = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
+/** A key exists when it is a leaf or an i18next plural family (`key_one`, `key_other`, ...). */
+function hasKey(keys, key) {
+  return keys.has(key) || PLURAL_FORMS.some((form) => keys.has(`${key}_${form}`));
+}
+
 function flatten(obj, prefix = '', out = new Set()) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
   for (const [key, value] of Object.entries(obj)) {
@@ -230,8 +237,8 @@ async function main() {
                   reason: `Unknown namespace "${parsed.namespace}" for key "${first}"`,
                 });
               } else {
-                const inEn = enKeys.has(parsed.key);
-                const inCs = csKeys?.has(parsed.key) ?? false;
+                const inEn = hasKey(enKeys, parsed.key);
+                const inCs = csKeys ? hasKey(csKeys, parsed.key) : false;
 
                 if (!inEn || !inCs) {
                   problems.push({

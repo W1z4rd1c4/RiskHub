@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { VendorDetailHeader } from '@/pages/vendors/VendorDetailHeader';
@@ -27,6 +29,9 @@ const vendor = {
     updated_at: '2026-01-01T00:00:00Z',
 } satisfies Vendor;
 
+// The header renders a breadcrumb link to the register (NAV-02), so it needs a router.
+const render = (ui: ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
+
 const handlers = {
     canArchive: false,
     canCreateIssue: false,
@@ -37,6 +42,7 @@ const handlers = {
     onEdit: vi.fn(),
     onOpenIssueModal: vi.fn(),
     onRestore: vi.fn(),
+    registerHref: '/vendors',
 };
 
 describe('VendorDetailHeader identity', () => {
@@ -47,6 +53,10 @@ describe('VendorDetailHeader identity', () => {
         expect(screen.getByText('E2E-VREG-001')).toBeVisible();
         expect(screen.getByRole('separator', { name: 'Identifier separator' })).toBeVisible();
         expect(screen.queryByText(`E2E-VREG-001${vendor.name}`)).not.toBeInTheDocument();
+        // D14 / AX-06: a labelled back control and a breadcrumb trail ending at the record.
+        expect(screen.getByRole('button', { name: 'Back to Vendors' })).toBeVisible();
+        const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+        expect(trail).toHaveTextContent(vendor.name);
     });
 
     it('omits Registration ID and its separator together when the field is absent', () => {

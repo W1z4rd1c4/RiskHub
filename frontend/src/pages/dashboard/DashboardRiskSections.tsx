@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Building2, ShieldAlert, TrendingUp } from 'lucide-react';
 
@@ -9,6 +10,7 @@ import { KRIStatusWidget } from '@/components/dashboard/KRIStatusWidget';
 import { RiskDistributionMatrix } from '@/components/dashboard/RiskDistributionMatrix';
 import { RiskDrilldownModal } from '@/components/dashboard/RiskDrilldownModal';
 import { RiskTrendChart } from '@/components/dashboard/RiskTrendChart';
+import { Card, CardHeader } from '@/components/ui/card';
 import type {
     ControlTrend,
     DashboardOverview,
@@ -63,6 +65,7 @@ export function DashboardRiskSections({
     riskTrends,
     trends,
 }: DashboardRiskSectionsProps) {
+    const historicalTitleId = useId();
     return (
         <>
             <div className="grid gap-8 lg:grid-cols-3">
@@ -70,23 +73,14 @@ export function DashboardRiskSections({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="glass-card flex flex-col lg:col-span-2"
+                    className="lg:col-span-2"
                 >
-                    <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-accent" />
-                            {controlExecutionTitle}
-                        </h3>
-                    </div>
-                    <div className="flex-1 min-h-[300px]">
-                        {trends.length > 0 ? (
-                            <ControlTrendChart data={trends} />
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-600 border-t border-white/5">
-                                <p className="text-sm font-medium">{noExecutionHistoryLabel}</p>
-                            </div>
-                        )}
-                    </div>
+                    <Card as="section" className="flex h-full flex-col">
+                        <CardHeader title={controlExecutionTitle} icon={TrendingUp} className="mb-8" />
+                        <div className="flex min-h-[300px] flex-1 flex-col justify-center">
+                            <ControlTrendChart data={trends} emptyMessage={noExecutionHistoryLabel} />
+                        </div>
+                    </Card>
                 </motion.div>
 
                 <motion.div
@@ -112,45 +106,41 @@ export function DashboardRiskSections({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
-                    className="glass-card flex flex-col"
                 >
-                    <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-orange-400" />
-                        {grossMatrixTitle}
-                    </h3>
-                    <div className="flex-1 flex items-center justify-center pb-4">
-                        <RiskDistributionMatrix
-                            distribution={grossDistribution?.distribution ?? []}
-                            onCellClick={onGrossCellClick}
-                        />
-                    </div>
+                    <Card as="section" className="flex h-full flex-col">
+                        <CardHeader title={grossMatrixTitle} icon={ShieldAlert} className="mb-8" />
+                        <div className="flex flex-1 items-center justify-center pb-4">
+                            <RiskDistributionMatrix
+                                distribution={grossDistribution?.distribution ?? []}
+                                onCellClick={onGrossCellClick}
+                            />
+                        </div>
+                    </Card>
                 </motion.div>
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.75 }}
-                    className="glass-card flex flex-col"
                 >
-                    <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-purple-400" />
-                        {netMatrixTitle}
-                    </h3>
-                    <div className="flex-1 flex items-center justify-center pb-4">
-                        <RiskDistributionMatrix
-                            distribution={netDistribution?.distribution ?? []}
-                            onCellClick={onNetCellClick}
-                        />
-                    </div>
+                    <Card as="section" className="flex h-full flex-col">
+                        <CardHeader title={netMatrixTitle} icon={ShieldAlert} className="mb-8" />
+                        <div className="flex flex-1 items-center justify-center pb-4">
+                            <RiskDistributionMatrix
+                                distribution={netDistribution?.distribution ?? []}
+                                onCellClick={onNetCellClick}
+                            />
+                        </div>
+                    </Card>
                 </motion.div>
             </div>
 
-            <div className="space-y-6">
+            <section className="space-y-6" aria-labelledby={historicalTitleId}>
                 <div className="flex items-center gap-3 px-2">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">
+                    <div aria-hidden="true" className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+                    <h2 id={historicalTitleId} className="text-eyebrow whitespace-nowrap">
                         {historicalTitle}
-                    </h3>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                    </h2>
+                    <div aria-hidden="true" className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
                 </div>
 
                 <div className="grid gap-8 lg:grid-cols-2">
@@ -158,48 +148,44 @@ export function DashboardRiskSections({
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.75 }}
-                        className="glass-card group overflow-hidden"
                     >
-                        <h3 className="text-xs font-black text-white mb-8 flex items-center gap-2 uppercase tracking-widest">
-                            <TrendingUp className="h-4 w-4 text-accent" />
-                            {riskCreationTitle}
-                        </h3>
-                        <RiskTrendChart data={riskTrends} />
+                        <Card className="h-full overflow-hidden">
+                            <CardHeader title={riskCreationTitle} titleAs="h3" icon={TrendingUp} className="mb-8" />
+                            <RiskTrendChart data={riskTrends} />
+                        </Card>
                     </motion.div>
 
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8 }}
-                        className="glass-card group overflow-hidden"
                     >
-                        <h3 className="text-xs font-black text-white mb-8 flex items-center gap-2 uppercase tracking-widest">
-                            <AlertTriangle className="h-4 w-4 text-orange-400" />
-                            {breachHistoryTitle}
-                        </h3>
-                        <KRIBreachHistoryChart data={breachTrends} />
+                        <Card className="h-full overflow-hidden">
+                            <CardHeader title={breachHistoryTitle} titleAs="h3" icon={AlertTriangle} className="mb-8" />
+                            <KRIBreachHistoryChart data={breachTrends} />
+                        </Card>
                     </motion.div>
                 </div>
-            </div>
+            </section>
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.85 }}
-                className="glass-card !p-0 overflow-hidden"
             >
-                <div className="p-6 border-b border-white/5 bg-white/[0.01]">
-                    <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-widest">
-                        <Building2 className="h-4 w-4 text-emerald-400" />
-                        {departmentVisibilityTitle}
-                    </h3>
-                </div>
-                <DepartmentTable
-                    canUseDepartmentFilter={canUseDepartmentFilter}
-                    metrics={departmentMetrics.filter(
-                        (metric) => metric.risk_count > 0 || metric.control_count > 0,
-                    )}
-                />
+                <Card as="section" padding="none" className="overflow-hidden">
+                    <CardHeader
+                        title={departmentVisibilityTitle}
+                        icon={Building2}
+                        className="mb-0 border-b border-border p-6"
+                    />
+                    <DepartmentTable
+                        canUseDepartmentFilter={canUseDepartmentFilter}
+                        metrics={departmentMetrics.filter(
+                            (metric) => metric.risk_count > 0 || metric.control_count > 0,
+                        )}
+                    />
+                </Card>
             </motion.div>
 
             <RiskDrilldownModal

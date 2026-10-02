@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, useState } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 import { IssueDetailPage } from '@/pages/IssueDetailPage';
@@ -170,7 +171,7 @@ describe('IssueDetailPage tabs', () => {
     it('loads issue detail from backend without local session permission gates', async () => {
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
         expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(screen.queryByText('You do not have permission to view issues.')).not.toBeInTheDocument();
     });
@@ -194,7 +195,7 @@ describe('IssueDetailPage tabs', () => {
     it('renders tabs and keeps business naming without raw IDs', async () => {
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
 
         expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
         expect(screen.getByText('Finance')).toBeInTheDocument();
@@ -216,12 +217,49 @@ describe('IssueDetailPage tabs', () => {
                 {
                     entity_type: 'issue',
                     entity_id: 42,
-                    limit: 100,
+                    // GAP-C-11: the first page of the paged history (no fixed limit of 100).
+                    skip: 0,
+                    limit: 25,
                 },
                 expect.objectContaining({ signal: expect.any(AbortSignal) }),
             )
         );
         expect(await screen.findByText('Issue updated')).toBeInTheDocument();
+    });
+
+    it('pages the history through the shared Pagination (GAP-C-11)', async () => {
+        const entry = (id: number) => ({
+            id,
+            entity_type: 'issue',
+            entity_id: 42,
+            entity_name: 'Access Review Gap',
+            action: 'update',
+            actor_id: 8,
+            actor_name: 'Anna Kowalski',
+            department_id: 3,
+            changes: null,
+            description: `History entry ${id}`,
+            created_at: '2026-02-02T10:00:00Z',
+        });
+        mockListActivity.mockImplementation(async (filters: { skip?: number }) => ({
+            items: [entry((filters.skip ?? 0) + 1)],
+            total: 30,
+            skip: filters.skip ?? 0,
+            limit: 25,
+        }));
+        renderIssueDetailPage();
+
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+        expect(await screen.findByText('History entry 1')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+        expect(await screen.findByText('History entry 26')).toBeInTheDocument();
+        expect(mockListActivity).toHaveBeenLastCalledWith(
+            { entity_type: 'issue', entity_id: 42, skip: 25, limit: 25 },
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
     });
 
     it('does not fetch history when backend capability denies activity history', async () => {
@@ -254,7 +292,7 @@ describe('IssueDetailPage tabs', () => {
 
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
 
         expect(screen.getByText('You do not have permission to view activity history for this issue.')).toBeInTheDocument();
@@ -290,7 +328,7 @@ describe('IssueDetailPage tabs', () => {
 
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
 
         expect(screen.getByText('You do not have permission to view activity history for this issue.')).toBeInTheDocument();
@@ -442,7 +480,7 @@ describe('IssueDetailPage tabs', () => {
 
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
 
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
         await screen.findByText('Issue updated');
@@ -460,7 +498,7 @@ describe('IssueDetailPage tabs', () => {
     it('requests issue detail without local issues:read gating', async () => {
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
         expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(mockListActivity).not.toHaveBeenCalled();
     });
@@ -474,7 +512,7 @@ describe('IssueDetailPage tabs', () => {
         expect(await screen.findByRole('heading', { name: /record unavailable/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
         expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
-        expect(screen.queryByText('Access Review Gap')).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'Access Review Gap' })).not.toBeInTheDocument();
     });
 
     it('keeps cached issue data visible when a background refetch fails', async () => {
@@ -509,7 +547,7 @@ describe('IssueDetailPage tabs', () => {
 
         const rendered = renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
         expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
 
         await act(async () => {
@@ -522,7 +560,7 @@ describe('IssueDetailPage tabs', () => {
 
         await waitFor(() => expect(mockGetIssue).toHaveBeenCalledTimes(3));
         expect(screen.getByText('This information may be out of date')).toBeInTheDocument();
-        expect(screen.getByText('Access Review Gap')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Access Review Gap' })).toBeInTheDocument();
         expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
         expect(screen.queryByText('Issue Not Found')).not.toBeInTheDocument();
     });
@@ -551,7 +589,7 @@ describe('IssueDetailPage tabs', () => {
         );
 
         const rendered = renderIssueDetailPage();
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
 
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
         await waitFor(() => expect(mockListActivity).toHaveBeenCalledTimes(1));
@@ -596,7 +634,7 @@ describe('IssueDetailPage tabs', () => {
 
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
 
         await act(async () => {
             setAuthenticatedSession(99, 'External Reviewer');
@@ -604,7 +642,7 @@ describe('IssueDetailPage tabs', () => {
 
         expect(await screen.findByRole('heading', { name: /record unavailable/i })).toBeInTheDocument();
         expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
-        expect(screen.queryByText('Access Review Gap')).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'Access Review Gap' })).not.toBeInTheDocument();
         expect(mockGetIssue).toHaveBeenCalledTimes(3);
     });
 
@@ -663,7 +701,7 @@ describe('IssueDetailPage tabs', () => {
 
         renderIssueDetailPage();
 
-        await screen.findByText('Access Review Gap');
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
         expect(await screen.findByText('Issue updated')).toBeInTheDocument();
 
@@ -675,8 +713,8 @@ describe('IssueDetailPage tabs', () => {
         await waitFor(() => {
             expect(screen.queryByText('Issue updated')).not.toBeInTheDocument();
         });
-        expect(
-            screen.getByText('No activity log entries found for this issue.'),
-        ).toBeInTheDocument();
+        // GAP-C-11 / PG-21: the failed reload is an error with retry, never "no history".
+        expect(screen.queryByText('No activity log entries found for this issue.')).not.toBeInTheDocument();
+        expect(within(screen.getByTestId('issue-history-panel')).getByRole('alert')).toBeInTheDocument();
     });
 });

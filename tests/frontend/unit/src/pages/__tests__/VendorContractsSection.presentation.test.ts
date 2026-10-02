@@ -149,9 +149,12 @@ describe('Vendor contracts section presentation helpers', () => {
         render(referenceColumn?.render?.(sampleContract(), 0) as ReactElement);
         expect(screen.getByText('SML-2020-001')).toBeInTheDocument();
 
+        // GAP-C-09 / PM-4: the stored workbook code ('Rámcové (master)') is shown
+        // through its translated closed-list label, never verbatim.
         const arrangementColumn = columns.find((column) => column.key === 'arrangement_type');
         render(arrangementColumn?.render?.(sampleContract(), 0) as ReactElement);
-        expect(screen.getByText('Rámcové (master)')).toBeInTheDocument();
+        expect(screen.getByText('common:values.closed_lists.TypUjednani.master')).toBeInTheDocument();
+        expect(screen.queryByText('Rámcové (master)')).not.toBeInTheDocument();
 
         const flagsColumn = columns.find((column) => column.key === 'flags');
         render(flagsColumn?.render?.(sampleContract(), 0) as ReactElement);

@@ -44,10 +44,20 @@
       "probability": "Probability",
       "impact": "Impact"
     },
-    "cell_aria": "View {{count}} risks at probability {{probability}}, impact {{impact}}",
-    "cell_title": "P:{{probability}} × I:{{impact}} | {{count}} risks",
+    "cell_aria": "View {{count}} risks at probability {{probability}}, impact {{impact}} ({{level}})",
+    "cell_aria_one": "View {{count}} risk at probability {{probability}}, impact {{impact}} ({{level}})",
+    "cell_aria_few": "View {{count}} risks at probability {{probability}}, impact {{impact}} ({{level}})",
+    "cell_aria_other": "View {{count}} risks at probability {{probability}}, impact {{impact}} ({{level}})",
+    "cell_title": "P:{{probability}} × I:{{impact}} | {{count}} risks ({{level}})",
+    "cell_title_one": "P:{{probability}} × I:{{impact}} | {{count}} risk ({{level}})",
+    "cell_title_few": "P:{{probability}} × I:{{impact}} | {{count}} risks ({{level}})",
+    "cell_title_other": "P:{{probability}} × I:{{impact}} | {{count}} risks ({{level}})",
     "click_to_view": " - Click to view",
-    "risks": "Risks"
+    "legend": "Risk levels",
+    "risks": "Risks",
+    "risks_one": "Risk",
+    "risks_few": "Risks",
+    "risks_other": "Risks"
   },
   "issues": {
     "summary": {
@@ -70,6 +80,7 @@
     }
   },
   "views": {
+    "label": "Dashboard views",
     "overview": "Overview",
     "risk_committee": "Risk Committee",
     "ict_committee": "ICT Committee"
@@ -138,19 +149,34 @@
     "appetite_maintained": "Appetite Maintained",
     "no_breaches_org": "No KRIs are currently in breach across the organization.",
     "status_title": "KRI Status",
+    "status_views_label": "KRI status view",
     "upcoming_count": "{{count}} upcoming",
+    "upcoming_count_one": "{{count}} upcoming",
+    "upcoming_count_few": "{{count}} upcoming",
+    "upcoming_count_other": "{{count}} upcoming",
     "overdue_count": "{{count}} overdue",
+    "overdue_count_one": "{{count}} overdue",
+    "overdue_count_few": "{{count}} overdue",
+    "overdue_count_other": "{{count}} overdue",
     "upcoming": "Upcoming",
     "overdue": "Overdue",
     "no_due_next_7": "No KRIs due in the next 7 days.",
     "no_overdue_short": "No overdue KRIs",
     "days_overdue": "{{count}} days overdue",
+    "days_overdue_one": "{{count}} day overdue",
+    "days_overdue_few": "{{count}} days overdue",
+    "days_overdue_other": "{{count}} days overdue",
     "days_until_due": "{{count}} days until due",
+    "days_until_due_one": "{{count}} day until due",
+    "days_until_due_few": "{{count}} days until due",
+    "days_until_due_other": "{{count}} days until due",
     "view_all": "View All KRIs",
     "view_all_overdue": "View All Overdue",
     "showing": "Showing {{shown}} of {{total}}",
     "breaches_load_failed": "Unable to load KRI breaches",
-    "status_load_failed": "Unable to load KRI status"
+    "status_load_failed": "Unable to load KRI status",
+    "current_label": "Current:",
+    "limit_label": "Limit:"
   },
   "charts": {
     "by_status": "By Status",
@@ -182,7 +208,24 @@
     "breaches": "Breaches",
     "no_risk_trend_data": "No risk trend data available.",
     "no_kri_breach_data": "No KRI breach data available.",
-    "breakdown": "Control breakdown"
+    "no_open_issues": "No open issues.",
+    "breakdown": "Control breakdown",
+    "a11y": {
+      "issue_aging": "Bar chart of open issues by age in days. Open issues: {{total}}.",
+      "issue_severity": "Donut chart of open issues by severity. Open issues: {{total}}.",
+      "control_trend": "Bar chart of control executions per period. Executions in total: {{total}}.",
+      "risk_trend": "Area chart of new risks per period. All new: {{total}}; critical: {{critical}}.",
+      "kri_breach_trend": "Area chart of KRI samples and breaches per period. Samples: {{total}}; breaches: {{breaches}}.",
+      "breakdown": "{{title}}: donut chart of controls. Controls in total: {{total}}.",
+      "columns": {
+        "age": "Age (days)",
+        "severity": "Severity",
+        "period": "Period",
+        "category": "Category",
+        "controls": "Controls",
+        "share": "Share"
+      }
+    }
   },
   "errors": {
     "export_summary_failed": "Overview summary CSV export failed. Retry uses the filters from when you started the export.",
@@ -242,11 +285,6 @@
     "risk_count_few": "{{count}} Risks",
     "risk_count_other": "{{count}} Risks",
     "no_recent_significant_activity": "No recent significant activity",
-    "today": "Today",
-    "yesterday": "Yesterday",
-    "days_ago": "{{count}} days ago",
-    "weeks_ago": "{{count}} weeks ago",
-    "months_ago": "{{count}} months ago",
     "actions": {
       "create": "Create",
       "delete": "Delete",
@@ -301,6 +339,7 @@
     "no_risks_at_position": "No risks at this position",
     "footer_prefix": "Click a risk to view details • Press",
     "footer_suffix": "to close",
-    "results": "Risk drilldown results"
+    "results": "Risk drilldown results",
+    "score_value": "Score: {{score}}"
   }
 }

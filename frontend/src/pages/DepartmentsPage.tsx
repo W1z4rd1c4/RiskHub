@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Users, ShieldAlert, AlertCircle, RefreshCw, ClipboardList, Activity, TrendingUp } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { Users, TrendingUp } from 'lucide-react';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Badge, SeverityBadge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { EmptyState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
+import { ENTITY_ICONS } from '@/constants/entityIcons';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import { isForbiddenApiError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+
+/** Long localised counts wrap inside the card instead of overflowing it (RS-04, `cs` at 1024px). */
+const DEPARTMENT_BADGE_CLASS = 'h-auto max-w-full whitespace-normal break-words py-0.5 uppercase [overflow-wrap:anywhere]';
 
 export function DepartmentsPage() {
     const navigate = useNavigate();
@@ -38,69 +48,72 @@ export function DepartmentsPage() {
     }, []);
 
     if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                <PageHeader title={t('dashboard:department_exposure.title')} />
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-black text-foreground mb-2">{t('dashboard:department_exposure.title')}</h2>
-                    <p className="text-muted-foreground font-medium">{t('dashboard:department_exposure.subtitle')}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={fetchDepartments}
-                        className="px-4 py-2 glass rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
-                        disabled={isLoading}
-                        title={t('common:actions.refresh')}
-                    >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-                    </button>
-                </div>
-            </div>
-
-            {errorKey && (
-                <div className="glass-card border-rose-500/50 bg-rose-500/10">
-                    <div className="flex items-center gap-3 text-rose-400">
-                        <AlertCircle className="h-5 w-5" />
-                        <p className="font-medium">{t(errorKey, { ns: 'errorKeys' })}</p>
-                    </div>
-                </div>
-            )}
+        <PageContainer>
+            <PageHeader
+                title={t('dashboard:department_exposure.title')}
+                description={t('dashboard:department_exposure.subtitle')}
+                actions={(
+                    <RefreshButton
+                        iconOnly
+                        onRefresh={() => void fetchDepartments()}
+                        isFetching={isLoading}
+                    />
+                )}
+            />
 
             {isLoading ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="glass-card animate-pulse">
-                            <div className="h-6 w-32 bg-white/10 rounded mb-6" />
-                            <div className="flex items-center gap-6">
-                                <div className="h-12 w-12 bg-white/10 rounded" />
-                                <div className="h-12 w-12 bg-white/10 rounded" />
-                                <div className="h-12 w-12 bg-white/10 rounded" />
-                            </div>
+                <LoadingState
+                    skeleton={(
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="glass-card">
+                                    <Skeleton className="mb-6 h-6 w-32" />
+                                    <div className="flex items-center gap-6">
+                                        <Skeleton className="h-12 w-12" />
+                                        <Skeleton className="h-12 w-12" />
+                                        <Skeleton className="h-12 w-12" />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    )}
+                />
+            ) : errorKey ? (
+                // GAP-C-11: a load failure is an error with retry, never "no departments".
+                <ErrorState
+                    className="glass-card"
+                    message={translateUiMessage(t, errorKey)}
+                    onRetry={() => void fetchDepartments()}
+                />
             ) : departments.length === 0 ? (
-                <div className="glass-card p-12 flex flex-col items-center justify-center text-center">
-                    <Building2 className="h-12 w-12 text-slate-600 mb-4" />
-                    <p className="text-sm font-medium text-slate-500 max-w-sm">
-                        {t('dashboard:department_exposure.empty')}
-                    </p>
-                </div>
+                <EmptyState
+                    icon={ENTITY_ICONS.department}
+                    title={t('dashboard:department_exposure.empty')}
+                    className="glass-card p-12"
+                />
             ) : (
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {departments.map((dept) => (
-                        <button
+                        <Card
+                            as="button"
+                            interactive
                             key={dept.id}
                             onClick={() => navigate(`/departments/${dept.id}`)}
-                            className="glass-card interactive-card hover:border-accent/40 group cursor-pointer text-left"
+                            className="group hover:border-accent/40"
                         >
                             <div className="mb-6 flex min-w-0 flex-wrap items-start justify-between gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-4">
-                                    <div className="shrink-0 bg-white/5 p-3 rounded-xl group-hover:bg-accent/10 transition-colors">
-                                        <Building2 className="h-6 w-6 text-slate-500 group-hover:text-accent" />
+                                    <div className="shrink-0 bg-tint/5 p-3 rounded-xl group-hover:bg-accent/10 transition-colors">
+                                        <ENTITY_ICONS.department aria-hidden="true" className="size-6 text-muted-foreground group-hover:text-accent-text" />
                                     </div>
                                     <div className="min-w-0">
                                         <h3 className="max-w-full break-words text-lg font-bold text-foreground [overflow-wrap:anywhere] group-hover:text-accent-text transition-colors">
@@ -110,14 +123,21 @@ export function DepartmentsPage() {
                                     </div>
                                 </div>
                                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+                                    {/* Each badge sits in its own wrapper so the card keeps one status element per slot. */}
                                     {dept.breaching_kri_count > 0 && (
-                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-warning/10 text-warning-text text-xs font-black [overflow-wrap:anywhere]">
-                                            {dept.breaching_kri_count} {t('kris:status.breached').toUpperCase()}
+                                        <div className="max-w-full">
+                                            <Badge tone="warning" className={DEPARTMENT_BADGE_CLASS}>
+                                                {dept.breaching_kri_count} {t('kris:status.breached')}
+                                            </Badge>
                                         </div>
                                     )}
                                     {dept.high_risk_count > 0 && (
-                                        <div className="max-w-full whitespace-normal break-words px-2 py-1 rounded-full bg-destructive/5 text-destructive text-xs font-black [overflow-wrap:anywhere]">
-                                            {dept.high_risk_count} {t('dashboard:risk_levels.critical').toUpperCase()}
+                                        <div className="max-w-full">
+                                            <SeverityBadge
+                                                band="critical"
+                                                className={DEPARTMENT_BADGE_CLASS}
+                                                label={`${dept.high_risk_count} ${t('dashboard:risk_levels.critical')}`}
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -125,37 +145,37 @@ export function DepartmentsPage() {
 
                             {/* Metrics Grid */}
                             <div className="grid min-w-0 grid-cols-2 gap-2 text-center xl:grid-cols-5 [&>div]:min-w-0 [&_span]:max-w-full [&_span]:break-words [&_span]:[overflow-wrap:anywhere]">
-                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                                    <Users className="h-4 w-4 text-blue-400" />
-                                    <span className="text-lg font-black text-foreground">{dept.user_count}</span>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
+                                    <Users aria-hidden="true" className="h-4 w-4 text-accent-text" />
+                                    <span className="text-lg font-bold text-foreground">{dept.user_count}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('dashboard:department_exposure.people')}</span>
                                 </div>
-                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                                    <ShieldAlert className="h-4 w-4 text-orange-400" />
-                                    <span className="text-lg font-black text-foreground">{dept.risk_count}</span>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
+                                    <ENTITY_ICONS.risk aria-hidden="true" className="h-4 w-4 text-severity-high-text" />
+                                    <span className="text-lg font-bold text-foreground">{dept.risk_count}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('risks:title')}</span>
                                 </div>
-                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                                    <ClipboardList className="h-4 w-4 text-purple-400" />
-                                    <span className="text-lg font-black text-foreground">{dept.control_count}</span>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
+                                    <ENTITY_ICONS.control aria-hidden="true" className="h-4 w-4 text-chart-2" />
+                                    <span className="text-lg font-bold text-foreground">{dept.control_count}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('controls:title')}</span>
                                 </div>
-                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                                    <Activity className="h-4 w-4 text-emerald-400" />
-                                    <span className="text-lg font-black text-foreground">{dept.kri_count}</span>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
+                                    <ENTITY_ICONS.kri aria-hidden="true" className="h-4 w-4 text-success-text" />
+                                    <span className="text-lg font-bold text-foreground">{dept.kri_count}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('kris:title')}</span>
                                 </div>
-                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                                    <TrendingUp className="h-4 w-4 text-rose-400" />
-                                    <span className="text-lg font-black text-foreground">{dept.total_net_score}</span>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
+                                    <TrendingUp aria-hidden="true" className="h-4 w-4 text-destructive" />
+                                    <span className="text-lg font-bold text-foreground">{dept.total_net_score}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('dashboard:department_exposure.risk_sum')}</span>
                                 </div>
                             </div>
-                        </button>
+                        </Card>
                     ))}
                 </div>
             )}
-        </div>
+        </PageContainer>
     );
 }
 

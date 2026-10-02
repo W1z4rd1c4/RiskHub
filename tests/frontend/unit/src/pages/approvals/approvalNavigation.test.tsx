@@ -1,20 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import {
     approvalRequestHref,
-    navigateToApprovalRequest,
     type ApprovalQueueTab,
 } from '@/pages/approvals/approvalNavigation';
 
+/** The approval-queued notice links to the request through the app router (D12). */
 function NavigationHarness({ tab }: { tab: ApprovalQueueTab }) {
-    const navigate = useNavigate();
-    return (
-        <button type="button" onClick={() => navigateToApprovalRequest(navigate, 85, tab)}>
-            Open request
-        </button>
-    );
+    return <Link to={approvalRequestHref(85, tab)}>Open request</Link>;
 }
 
 function ApprovalLocation() {
@@ -39,7 +34,7 @@ describe('approval request navigation', () => {
         );
 
         expect(approvalRequestHref(85, tab)).toBe(expectedHref);
-        fireEvent.click(screen.getByRole('button', { name: 'Open request' }));
+        fireEvent.click(screen.getByRole('link', { name: 'Open request' }));
         expect(screen.getByText(expectedHref)).toBeInTheDocument();
     });
 });

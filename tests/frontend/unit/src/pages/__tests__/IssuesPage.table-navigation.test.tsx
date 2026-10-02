@@ -75,8 +75,6 @@ describe('IssuesPage table navigation', () => {
         await screen.findByText('Patch Vulnerability');
         mockList.mockClear();
 
-        expect(screen.queryByRole('button', { name: 'Department' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Owner' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Source' })).not.toBeInTheDocument();
 
         expect(mockList).not.toHaveBeenCalled();
@@ -92,6 +90,22 @@ describe('IssuesPage table navigation', () => {
 
         await waitFor(() => {
             expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ sort_by: 'title', sort_order: 'asc' }));
+        });
+    });
+
+    it.each([
+        ['Department', 'department_name'],
+        ['Owner', 'owner_user_name'],
+    ])('sorts the %s column on the server like the peer registers (PG-42)', async (columnName, sortKey) => {
+        render(<MemoryRouter><IssuesPage /></MemoryRouter>);
+
+        await screen.findByText('Patch Vulnerability');
+        mockList.mockClear();
+
+        fireEvent.click(screen.getByRole('button', { name: columnName }));
+
+        await waitFor(() => {
+            expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ sort_by: sortKey, sort_order: 'asc' }));
         });
     });
 });

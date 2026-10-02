@@ -19,6 +19,24 @@ The same spec runs in the normal `ci` browser project. Computed-pair attachments
 are test artifacts; the isolated harness does not replace the strict live-route
 accessibility gates or establish full WCAG conformance.
 
+`theme-rendered-contrast.spec.ts` (G-RENDER) reuses this harness and
+`dialog-contract.html` to measure the text on every surface per theme; it is a
+hard zero (no text below AA) and runs under the same config (see
+`docs/E2E_TESTING.md`).
+
+`design-system.html` (`designSystemMain.tsx`) is the Phase 1 primitive harness
+(audit 2026-09-30 §5.3 exit criterion): every `components/ui` primitive, the
+table/pagination primitives, `PageHeader`/`PageContainer`/`Breadcrumbs`, the
+state primitives, toasts and the public `BrandWordmark`/`LanguageSwitch` in a
+static grid with one `data-ds-section` per family. `?theme=light|riskhub|dark`
+sets the root theme class directly (no API or providers), `?dialog=shell` or
+`?dialog=confirm-<intent>` opens one modal surface, `?view=auth-frame` renders
+`AuthFrame` signed out without a stored app theme (it follows the emulated OS
+colour scheme, D14) and `?view=auth-frame-app-theme` with the stored theme kept
+(it inherits the `<html>` theme, as for a signed-in user).
+G-RENDER measures each surface in all three themes. Like the other harnesses it
+is served by the Vite dev server only and is not a production Rollup input.
+
 The pre-fix light/English/1024px browser run measured white-on-white KRI and
 approval headings and owner names at 1.00:1; white notes and questionnaire
 Save/Close on the composited 3%-black-on-white surface at 1.068:1; white Approve

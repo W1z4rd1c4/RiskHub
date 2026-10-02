@@ -25,8 +25,8 @@ for (const theme of ['riskhub', 'dark', 'light']) {
   for (const locale of ['en', 'cs']) {
     test(`restore pending, rejection, unknown reconciliation and success: ${theme} ${locale}`, async ({ page }) => {
       const labels = locale === 'en'
-        ? { restore: 'Unarchive', pending: 'Restoring…', retry: 'Retry restore', refresh: 'Refresh record', success: 'KRI restored.' }
-        : { restore: 'Obnovit z archivu', pending: 'Obnovování…', retry: 'Zkusit obnovení znovu', refresh: 'Načíst záznam znovu', success: 'KRI byl obnoven.' };
+        ? { restore: 'Unarchive', pending: 'Restoring…', retry: 'Retry restore', refresh: 'Refresh record', success: 'KRI restored.', rejected: 'Restore was rejected. Review the record and retry if appropriate.' }
+        : { restore: 'Obnovit z archivu', pending: 'Obnovování…', retry: 'Zkusit obnovení znovu', refresh: 'Načíst záznam znovu', success: 'KRI byl obnoven.', rejected: 'Obnovení bylo odmítnuto. Zkontrolujte záznam a případně akci opakujte.' };
       const permissions = ['kris:read', 'risks:read'];
       const user = { id: 180, email: 'restore@example.test', name: 'Restore operator', role: 'cro',
         role_display_name: 'CRO', department_id: null, department_name: null, permissions,
@@ -76,9 +76,11 @@ for (const theme of ['riskhub', 'dark', 'light']) {
       expect(requests).toBe(1);
       expect(await renderedContrast(pending)).toBeGreaterThanOrEqual(4.5);
       release();
+      // The outcome is one InlineMessage whose own role follows the tone (alert / status).
       const feedback = page.locator('#kri-restore-feedback');
-      await expect(feedback.getByRole('alert')).toBeVisible();
-      expect(await renderedContrast(feedback.getByRole('alert'))).toBeGreaterThanOrEqual(4.5);
+      await expect(feedback).toBeVisible();
+      await expect(feedback).toHaveAttribute('role', 'alert');
+      expect(await renderedContrast(feedback.getByText(labels.rejected, { exact: true }))).toBeGreaterThanOrEqual(4.5);
       await page.getByRole('button', { name: labels.retry, exact: true }).click();
       await expect(feedback.getByRole('button', { name: labels.refresh })).toBeVisible();
       await expect(page.getByRole('button', { name: labels.restore, exact: true })).toBeDisabled();
@@ -86,8 +88,9 @@ for (const theme of ['riskhub', 'dark', 'light']) {
       const axe = await new AxeBuilder({ page }).include('#kri-restore-feedback').analyze();
       expect(axe.violations).toEqual([]);
       await feedback.getByRole('button', { name: labels.refresh }).click();
-      await expect(feedback.getByRole('status')).toHaveText(labels.success);
-      expect(await renderedContrast(feedback.getByRole('status'))).toBeGreaterThanOrEqual(4.5);
+      await expect(feedback).toHaveAttribute('role', 'status');
+      await expect(feedback).toHaveText(labels.success);
+      expect(await renderedContrast(feedback.getByText(labels.success, { exact: true }))).toBeGreaterThanOrEqual(4.5);
       await expect(page.getByRole('button', { name: labels.restore, exact: true })).toHaveCount(0);
       expect(requests).toBe(2);
       expect(reads).toBe(initialReads + 1);

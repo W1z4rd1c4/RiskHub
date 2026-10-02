@@ -16,7 +16,7 @@ export function RiskQuestionnaireCompareNotice({
     if (!compareMode || !previousCycleLoaded || hasPreviousCycle) return null;
 
     return (
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-muted-foreground">
             {t('risks:questionnaire.no_previous_cycle')}
         </div>
     );

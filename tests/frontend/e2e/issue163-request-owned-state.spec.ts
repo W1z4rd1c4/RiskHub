@@ -510,8 +510,8 @@ test.describe('Issue #163 request-owned desktop states', () => {
 
                 await page.getByRole('button', { name: /Manage Existing Links|Spravovat existující propojení/i }).click();
                 const linkDialog = page.getByTestId('link-management-dialog');
-                await linkDialog.getByRole('button', { name: /Unlink Settlement review|Odpojit Settlement review/i }).click();
-                await page.getByRole('alertdialog').getByRole('button', { name: /Delete|Smazat/i }).click();
+                await linkDialog.getByRole('button', { name: /Remove link: Settlement review|Odebrat vazbu: Settlement review/i }).click();
+                await page.getByRole('alertdialog').getByRole('button', { name: /Remove link|Odebrat propojení/i }).click();
                 await expect.poll(() => state.controlReads).toBe(2);
                 await linkDialog.getByRole('button', { name: /Close|Zavřít/i }).last().click();
 

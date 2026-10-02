@@ -74,8 +74,9 @@ describe('IssuesFilterBar canonical status and severity facets', () => {
     });
 
     it.each([
-        ['en', 'All statuses: Closed', 'All severities: High + Critical'],
-        ['cs', 'Všechny stavy: Uzavřený', 'Všechny závažnosti: Vysoká + Kritická'],
+        // PG-05: chips read "Label: value" with the column label, never an "All …" prefix.
+        ['en', 'Status: Closed', 'Severity: High + Critical'],
+        ['cs', 'Stav: Uzavřený', 'Závažnost: Vysoká + Kritická'],
     ] as const)('keeps selected zero-count options removable through chips and clear-all in %s', async (
         language,
         statusChipLabel,
@@ -112,5 +113,29 @@ describe('IssuesFilterBar canonical status and severity facets', () => {
         expect(onFilterChange).toHaveBeenCalledWith('severity', '');
         await user.click(screen.getByTestId('issues-clear-filters'));
         expect(onClearAll).toHaveBeenCalledTimes(1);
+    });
+
+    it('PG-05: shows the selected value in department, owner and remediation chips', async () => {
+        await i18n.changeLanguage('en');
+        render(
+            <IssuesFilterBar
+                facets={{
+                    ...facets,
+                    department: [{ value: '3', label: 'Operations', count: 2, selected: true, disabled: false }],
+                    owner: [{ value: '8', label: 'Bob Owner', count: 1, selected: true, disabled: false }],
+                }}
+                filters={{ ...EMPTY_ISSUE_REGISTER_FILTERS, department_id: 3, owner_user_id: 8, remediation_status: 'blocked' }}
+                isLoading={false}
+                onClearAll={vi.fn()}
+                onFilterChange={vi.fn()}
+                onRefresh={vi.fn()}
+                onSearchChange={vi.fn()}
+                search=""
+            />,
+        );
+
+        expect(screen.getByTestId('issues-filter-chip-department_id')).toHaveTextContent('Department: Operations');
+        expect(screen.getByTestId('issues-filter-chip-owner_user_id')).toHaveTextContent('Owner: Bob Owner');
+        expect(screen.getByTestId('issues-filter-chip-remediation_status')).toHaveTextContent('Remediation status: Blocked');
     });
 });

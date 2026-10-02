@@ -4,6 +4,7 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
+    "edit_named": "Edit {{name}}",
     "create": "Create",
     "close": "Close",
     "confirm": "Confirm",
@@ -17,7 +18,6 @@
     "view": "View",
     "back": "Back",
     "next": "Next",
-    "previous": "Previous",
     "select": "Select",
     "clear": "Clear",
     "apply": "Apply",
@@ -26,6 +26,10 @@
     "yes": "Yes",
     "no": "No",
     "archive": "Archive",
+    "remove_link": "Remove link",
+    "archive_named": "Archive {{name}}",
+    "send": "Send",
+    "discard": "Discard",
     "unarchive": "Unarchive",
     "view_all": "View all →",
     "add_control": "Add control",
@@ -34,24 +38,43 @@
     "deleting": "Deleting...",
     "retry": "Retry",
     "stay": "Stay",
-    "leave": "Leave"
+    "leave": "Leave",
+    "dismiss_message": "Dismiss message",
+    "clear_selection_named": "Clear selection: {{name}}",
+    "remove": "Remove",
+    "remove_named": "Remove {{name}}",
+    "back_to_detail": "Back to {{name}}",
+    "restore": "Restore",
+    "restore_named": "Restore {{name}}"
+  },
+  "links": {
+    "remove_named": "Remove link: {{name}}"
   },
   "brand": {
     "name": "RiskHub"
   },
+  "page_title": {
+    "template": "{{page}} · RiskHub",
+    "edit": "Edit {{name}}"
+  },
+  "breadcrumbs": {
+    "label": "Breadcrumb"
+  },
+  "edit_blocked": {
+    "title": "Editing is temporarily locked",
+    "description": "A pending governed change must be resolved before this record can be edited."
+  },
   "not_found_page": {
     "title": "Page not found",
     "description": "This address does not match an available page.",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "back": "Back to previous page"
   },
   "detail_load": {
     "unavailable_title": "Record unavailable",
     "unavailable_description": "This record cannot be loaded right now. Try again or return to the register.",
     "stale_title": "This information may be out of date",
     "stale_description": "The latest record data could not be loaded. The last successful version remains visible."
-  },
-  "formats": {
-    "excel": "CSV"
   },
   "export": {
     "button": "Export",
@@ -77,7 +100,6 @@
       }
     },
     "formats": {
-      "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
@@ -96,6 +118,8 @@
   },
   "labels": {
     "name": "Name",
+    "baseline": "Baseline",
+    "current": "Current",
     "description": "Description",
     "status": "Status",
     "type": "Type",
@@ -103,6 +127,10 @@
     "department": "Department",
     "owner": "Owner",
     "process": "Process",
+    "vendor": "Vendor",
+    "asset": "Asset",
+    "threat": "Threat",
+    "risk_type": "Risk type",
     "gross": "Gross",
     "net": "Net",
     "form": "Form",
@@ -124,6 +152,7 @@
     "overview": "Overview",
     "all": "All",
     "none": "None",
+    "optional": "(optional)",
     "unknown": "Unknown",
     "loading": "Loading...",
     "no_data": "No data available",
@@ -138,7 +167,24 @@
     "by": "by",
     "approved_on": "Approved on",
     "proposed_changes": "Proposed changes",
-    "rejected_on": "Rejected on"
+    "rejected_on": "Rejected on",
+    "label_value": "{{label}}: {{value}}",
+    "quoted": "“{{text}}”"
+  },
+  "roles": {
+    "admin": "Administrator",
+    "cro": "Chief Risk Officer",
+    "ceo": "Chief Executive Officer",
+    "cfo": "Chief Financial Officer",
+    "coo": "Chief Operating Officer",
+    "ciso": "Chief Information Security Officer",
+    "risk_manager": "Risk Manager",
+    "actuarial": "Actuarial Function",
+    "compliance": "Compliance Officer",
+    "internal_audit": "Internal Audit",
+    "department_head": "Department Head",
+    "employee": "Employee",
+    "viewer": "Viewer"
   },
   "errors": {
     "generic": "An error occurred. Please try again.",
@@ -168,14 +214,76 @@
     "deleted": "Successfully deleted.",
     "submitted": "Successfully submitted."
   },
+  "feedback": {
+    "region_label": "Notifications ({hotkey})",
+    "announce_label": "Notification",
+    "dismiss": "Dismiss notification",
+    "default_title": {
+      "success": "Done",
+      "info": "For your information",
+      "warning": "Please check",
+      "danger": "Something went wrong"
+    }
+  },
   "confirmation": {
-    "delete_title": "Confirm Delete",
     "delete_message": "Are you sure you want to delete this item? This action cannot be undone.",
     "unsaved_title": "Unsaved changes",
     "unsaved_changes": "You have unsaved changes. Are you sure you want to leave?",
     "archive_title": "Archive {{type}}",
-    "archive_reversible": "This action can be undone by an administrator.",
-    "remove_link": "Are you sure you want to remove this link?"
+    "archive_reversible": "This action can be undone by an administrator."
+  },
+  "confirm": {
+    "archive": {
+      "title": "Archive {{entity}}?",
+      "title_generic": "Archive this item?",
+      "title_count": "Archive {{count}} items?",
+      "title_count_one": "Archive {{count}} item?",
+      "title_count_few": "Archive {{count}} items?",
+      "title_count_other": "Archive {{count}} items?",
+      "busy": "Archiving…",
+      "reason_placeholder": "Explain why this item is being archived"
+    },
+    "delete": {
+      "title": "Delete {{entity}}?",
+      "title_generic": "Delete this item?",
+      "title_count": "Delete {{count}} items?",
+      "title_count_one": "Delete {{count}} item?",
+      "title_count_few": "Delete {{count}} items?",
+      "title_count_other": "Delete {{count}} items?",
+      "body": "This cannot be undone.",
+      "busy": "Deleting…"
+    },
+    "unlink": {
+      "title": "Remove link to {{name}}?",
+      "title_generic": "Remove this link?",
+      "title_count": "Remove {{count}} links?",
+      "title_count_one": "Remove {{count}} link?",
+      "title_count_few": "Remove {{count}} links?",
+      "title_count_other": "Remove {{count}} links?",
+      "body": "Only the link is removed; the linked record itself is not deleted.",
+      "busy": "Removing link…"
+    },
+    "send": {
+      "title": "Send {{entity}}?",
+      "title_generic": "Send now?",
+      "title_count": "Send {{count}} items?",
+      "title_count_one": "Send {{count}} item?",
+      "title_count_few": "Send {{count}} items?",
+      "title_count_other": "Send {{count}} items?",
+      "body": "This is sent immediately and cannot be recalled.",
+      "busy": "Sending…"
+    },
+    "discard": {
+      "title": "Discard unsaved changes?",
+      "body": "Your unsaved changes will be lost."
+    },
+    "generic": {
+      "title": "Are you sure?"
+    },
+    "reason": {
+      "label": "Reason",
+      "placeholder": "Explain the reason for this change"
+    }
   },
   "pending_change_cancellation": {
     "title": "Cancel pending request?",
@@ -189,8 +297,10 @@
     "to": "to",
     "entries": "entries",
     "per_page": "per page",
-    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries",
-    "go_to_page": "Go to page {{page}}"
+    "go_to_page": "Go to page {{page}}",
+    "previous_page": "Previous page",
+    "next_page": "Next page",
+    "label": "Pagination"
   },
   "date": {
     "today": "Today",
@@ -213,6 +323,7 @@
     "by_flag": "By Flag"
   },
   "hero": {
+    "page_title": "Enterprise Risk Management",
     "tagline": "The next generation Enterprise Risk Management platform.",
     "subtitle": "Built for modern insurance giants under SII regulation.",
     "access_platform": "Access Platform",
@@ -238,7 +349,8 @@
     "risk_data": "Loading Risk Data",
     "control_data": "Loading Control Data",
     "history": "Loading history...",
-    "activity_log": "Loading activity log..."
+    "activity_log": "Loading activity log...",
+    "named": "Loading {{name}}…"
   },
   "empty": {
     "no_data": "No data",
@@ -302,6 +414,7 @@
     "all_processes": "All Processes",
     "all_categories": "All Categories",
     "all_actions": "All Actions",
+    "action": "Action",
     "select_person": "Select a person...",
     "select_department": "Select a department...",
     "select_risk": "Select a risk...",
@@ -350,11 +463,28 @@
     "create_link": "Create Link",
     "search_results": "Search results",
     "initial_suggestions": "Initial suggestions",
-    "result_singular": "item",
-    "result_plural": "items"
+    "result_count": "{{count}} items",
+    "result_count_one": "{{count}} item",
+    "result_count_few": "{{count}} items",
+    "result_count_other": "{{count}} items"
   },
   "approval": {
-    "submitted_for_approval": "Submitted for approval"
+    "queued": {
+      "toast_title": "Submitted for approval",
+      "toast_body": "The change takes effect once it is approved.",
+      "title": "Pending approval",
+      "body": "Your request was submitted for approval. The record stays unchanged until the request is approved.",
+      "open": "Open in Approvals"
+    }
+  },
+  "outcome": {
+    "archived": "Archived: {{name}}",
+    "archived_generic": "Record archived",
+    "restored": "Restored: {{name}}",
+    "restored_generic": "Record restored",
+    "restore_failed": "The record could not be restored.",
+    "link_removed": "Link removed",
+    "deleted": "Deleted: {{name}}"
   },
   "activity_log": {
     "subtitle": "Review recorded user and system actions.",
@@ -370,9 +500,54 @@
       "users": "Users"
     },
     "select_risk": "Select a risk to view activity.",
-    "select_risk_hint": "Choose a risk in the filter above to load entries."
+    "select_risk_hint": "Choose a risk in the filter above to load entries.",
+    "entity_tabs_label": "Activity by entity type",
+    "view_modes_label": "Activity view",
+    "empty_value": "(empty)",
+    "entity_types": {
+      "risk": "Risk",
+      "control": "Control",
+      "kri": "KRI",
+      "risk_questionnaire": "Risk Questionnaire",
+      "vendor": "Vendor",
+      "vendor_assessment": "Vendor Assessment",
+      "vendor_incident": "Vendor Incident",
+      "vendor_sla": "Vendor SLA",
+      "vendor_remediation": "Vendor Remediation",
+      "issue": "Issue",
+      "issue_remediation": "Issue Remediation",
+      "issue_exception": "Issue Exception",
+      "user": "User",
+      "department": "Department",
+      "approval": "Approval",
+      "control_execution": "Control Execution",
+      "kri_value": "KRI Value",
+      "control_risk_link": "Control-Risk Link",
+      "role": "Role",
+      "config": "Configuration",
+      "process": "Process",
+      "asset": "Asset",
+      "threat": "Threat"
+    },
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "category": "Category",
+      "owner_id": "Owner",
+      "department_id": "Department",
+      "risk_type": "Risk type",
+      "risk_id_code": "Risk ID",
+      "frequency": "Frequency",
+      "control_form": "Control form",
+      "is_priority": "Priority",
+      "is_archived": "Archived",
+      "role": "Role",
+      "email": "Email"
+    }
   },
   "department_detail": {
+    "back_to_departments": "Back to Departments",
     "tabs": {
       "label": "Department workspace",
       "overview": "Overview",
@@ -388,24 +563,62 @@
       "recent_activity": "Recent Activity"
     },
     "health": {
-      "high_risk": "{{count}} high risk",
-      "high_risks": "{{count}} high",
-      "critical_risks": "{{count}} critical",
-      "attention_controls": "{{count}} attention",
-      "inactive_controls": "{{count}} inactive",
-      "kri_breaches": "{{count}} breaches",
-      "kri_overdue": "{{count}} overdue",
-      "open_issues": "{{count}} open",
-      "overdue_issues": "{{count}} overdue",
-      "critical_processes": "{{count}} critical",
-      "cif_processes": "{{count}} CIF",
-      "critical_assets": "{{count}} critical",
-      "legacy_assets": "{{count}} legacy",
-      "critical_vendors": "{{count}} critical",
-      "dora_vendors": "{{count}} DORA",
-      "active_users": "{{count}} active",
-      "accountability_gaps": "{{count}} accountability gaps",
-      "significant_vendors": "{{count}} significant"
+      "high_risks_one": "{{count}} high",
+      "high_risks_few": "{{count}} high",
+      "high_risks_many": "{{count}} high",
+      "high_risks_other": "{{count}} high",
+      "critical_risks_one": "{{count}} critical",
+      "critical_risks_few": "{{count}} critical",
+      "critical_risks_many": "{{count}} critical",
+      "critical_risks_other": "{{count}} critical",
+      "attention_controls_one": "{{count}} attention",
+      "attention_controls_few": "{{count}} attention",
+      "attention_controls_many": "{{count}} attention",
+      "attention_controls_other": "{{count}} attention",
+      "kri_breaches_one": "{{count}} breach",
+      "kri_breaches_few": "{{count}} breaches",
+      "kri_breaches_many": "{{count}} breaches",
+      "kri_breaches_other": "{{count}} breaches",
+      "kri_overdue_one": "{{count}} overdue",
+      "kri_overdue_few": "{{count}} overdue",
+      "kri_overdue_many": "{{count}} overdue",
+      "kri_overdue_other": "{{count}} overdue",
+      "open_issues_one": "{{count}} open",
+      "open_issues_few": "{{count}} open",
+      "open_issues_many": "{{count}} open",
+      "open_issues_other": "{{count}} open",
+      "overdue_issues_one": "{{count}} overdue",
+      "overdue_issues_few": "{{count}} overdue",
+      "overdue_issues_many": "{{count}} overdue",
+      "overdue_issues_other": "{{count}} overdue",
+      "critical_processes_one": "{{count}} critical",
+      "critical_processes_few": "{{count}} critical",
+      "critical_processes_many": "{{count}} critical",
+      "critical_processes_other": "{{count}} critical",
+      "cif_processes_one": "{{count}} CIF",
+      "cif_processes_few": "{{count}} CIF",
+      "cif_processes_many": "{{count}} CIF",
+      "cif_processes_other": "{{count}} CIF",
+      "critical_assets_one": "{{count}} critical",
+      "critical_assets_few": "{{count}} critical",
+      "critical_assets_many": "{{count}} critical",
+      "critical_assets_other": "{{count}} critical",
+      "legacy_assets_one": "{{count}} legacy",
+      "legacy_assets_few": "{{count}} legacy",
+      "legacy_assets_many": "{{count}} legacy",
+      "legacy_assets_other": "{{count}} legacy",
+      "critical_vendors_one": "{{count}} critical",
+      "critical_vendors_few": "{{count}} critical",
+      "critical_vendors_many": "{{count}} critical",
+      "critical_vendors_other": "{{count}} critical",
+      "dora_vendors_one": "{{count}} DORA",
+      "dora_vendors_few": "{{count}} DORA",
+      "dora_vendors_many": "{{count}} DORA",
+      "dora_vendors_other": "{{count}} DORA",
+      "active_users_one": "{{count}} active",
+      "active_users_few": "{{count}} active",
+      "active_users_many": "{{count}} active",
+      "active_users_other": "{{count}} active"
     },
     "recent_activity": {
       "title": "Recent activity",
@@ -424,14 +637,26 @@
     "no_matches_title": "No matching documents",
     "no_matches_subtitle": "Try another tag filter.",
     "view_manual": "View manual",
-    "maintainer_reference": "Maintainer reference:"
+    "maintainer_reference": "Maintainer reference:",
+    "anchor_link": "Anchor link for {{heading}}",
+    "anchor_link_untitled": "Anchor link for section",
+    "opens_in_new_tab": "opens in new tab"
+  },
+  "severity": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical"
   },
   "tables": {
     "items": "Items",
     "active": "Active",
     "items_count": "{{count}} items",
+    "items_count_one": "{{count}} item",
+    "items_count_few": "{{count}} items",
+    "items_count_other": "{{count}} items",
+    "back_to_groups": "Back to groups",
     "high_risk": "High risk",
-    "inherited_risk_heatmap": "Inherited risk heatmap",
     "error": {
       "message": "We couldn't load this table. Please try again.",
       "retry": "Retry"
@@ -464,7 +689,8 @@
     "unknown_asset": "Unknown asset",
     "unknown_threat": "Unknown threat",
     "unknown_contract": "Unknown contract",
-    "unknown_sub_outsourcing": "Unknown sub-outsourcing provider"
+    "unknown_sub_outsourcing": "Unknown sub-outsourcing provider",
+    "uncategorized": "Uncategorized"
   },
   "audit": {
     "columns": {
@@ -559,16 +785,11 @@
   "risk_committee": {
     "critical_risks": "Critical risks",
     "critical_vendors": "Critical vendors",
-    "days_ago": "{{count}} days ago",
-    "months_ago": "{{count}} months ago",
     "no_critical_risks": "No critical risks at this time",
     "no_department_exposure_data": "No department exposure data",
     "no_recent_significant_activity": "No recent significant activity",
     "no_summary_data": "No summary data available",
-    "no_vendors_in_scope": "No vendors in scope",
-    "today": "Today",
-    "weeks_ago": "{{count}} weeks ago",
-    "yesterday": "Yesterday"
+    "no_vendors_in_scope": "No vendors in scope"
   },
   "sections": {
     "recent_activity": "Recent activity",
@@ -607,8 +828,72 @@
     "total_controls": "Total controls",
     "vendors": "Vendors"
   },
+  "multi_select": {
+    "selected_count": "{{count}} selected",
+    "selected_count_one": "{{count}} selected",
+    "selected_count_few": "{{count}} selected",
+    "selected_count_other": "{{count}} selected"
+  },
   "error_boundary": {
     "title": "Something went wrong",
     "description": "The page could not be displayed."
+  },
+  "history_chart": {
+    "summary": "{{label}} trend: latest value {{latest}} ({{period}}); lowest {{min}}, highest {{max}}.",
+    "period": "Period"
+  },
+  "values": {
+    "closed_lists": {
+      "AnoNe": {
+        "yes": "Yes",
+        "no": "No"
+      },
+      "TypUjednani": {
+        "standalone": "Standalone arrangement",
+        "master": "Master (overarching) arrangement",
+        "subsequent": "Subsequent arrangement"
+      },
+      "SystemEvidence": {
+        "other": "Other"
+      },
+      "TypOsoby": {
+        "legal_person": "Legal person",
+        "individual_entrepreneur": "Individual acting in a business capacity"
+      },
+      "VyznamVazby": {
+        "critical_support": "Critical process support",
+        "significant_support": "Significant process support",
+        "supporting": "Supporting link",
+        "indirect_shared": "Indirect / shared link",
+        "bcm_dr": "BCM/DR link",
+        "not_assessed": "Not assessed"
+      },
+      "RoleDodavatele": {
+        "supplies": "Supplies",
+        "operates": "Operates",
+        "hosts": "Hosts",
+        "manages": "Manages",
+        "supports": "Supports",
+        "processes_data": "Processes data",
+        "backup_recovery": "Backup / recovery",
+        "security_service": "Security service",
+        "other": "Other"
+      },
+      "Reliance": {
+        "not_significant": "Not significant",
+        "low": "Low reliance",
+        "material": "Material reliance",
+        "full": "Full reliance"
+      },
+      "TypZavislostiAktiv": {
+        "runtime": "Runtime",
+        "data": "Data",
+        "network_infrastructure": "Network / infrastructure",
+        "security": "Security",
+        "backup_recovery": "Backup / recovery",
+        "operational": "Operational",
+        "other": "Other"
+      }
+    }
   }
 }

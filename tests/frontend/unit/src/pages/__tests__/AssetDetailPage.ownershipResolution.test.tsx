@@ -27,16 +27,26 @@ vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({ canViewGovernance: mocks.canViewGovernance }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
-            if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
-            if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
-            return key;
-        },
-        i18n: { language: 'cs' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    return {
+        useTranslation: () => ({
+            t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
+                if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
+                if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
+                return key;
+            },
+            i18n: { language: 'cs' },
+        }),
+        // The real formatters with the active (Czech) locale, so the timestamp assertions below
+        // prove that `useFormat()` carries the locale into the pending-change panel.
+        useFormat: () => ({
+            locale: 'cs',
+            date: (value?: string | null) => formatters.formatDateValue(value, 'cs'),
+            time: (value?: string | null) => formatters.formatTimeValue(value, 'cs'),
+        }),
+    };
+});
 
 vi.mock('@/pages/assets/useAssetDetailState', () => ({
     useAssetDetailState: () => ({
@@ -236,7 +246,8 @@ describe('AssetDetailPage ownership resolution', () => {
             'detail.ownership_pending',
         );
         expect(screen.getByRole('button', { name: 'detail.resolve_in_governance' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'actions.back_to_register' })).toBeInTheDocument();
+        // AX-06: the edit route returns to the record, and the back control says so.
+        expect(screen.getByRole('button', { name: 'actions.back_to_detail' })).toBeInTheDocument();
         expect(screen.queryByTestId('asset-form')).not.toBeInTheDocument();
         expect(screen.queryByTestId('asset-detail-edit')).not.toBeInTheDocument();
         const results = await axe.run(container, {
@@ -252,7 +263,7 @@ describe('AssetDetailPage ownership resolution', () => {
         renderPage('edit');
 
         expect(screen.queryByRole('button', { name: 'detail.resolve_in_governance' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'actions.back_to_register' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'actions.back_to_detail' })).toBeInTheDocument();
     });
 
     it('keeps the error-state back action named, non-submitting, and operational', async () => {
@@ -270,6 +281,7 @@ describe('AssetDetailPage ownership resolution', () => {
     it.each([
         {
             label: 'governed edit blocked',
+            backName: 'actions.back_to_detail',
             asset: governedPendingAsset,
             mode: 'edit' as const,
             expectedPath: '/assets/75',
@@ -280,6 +292,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
         {
             label: 'ownership governance edit blocked',
+            backName: 'actions.back_to_detail',
             asset: pendingAsset,
             mode: 'edit' as const,
             expectedPath: '/assets/75',
@@ -291,6 +304,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
         {
             label: 'ordinary edit',
+            backName: 'actions.back_to_detail',
             asset: ownedAsset,
             mode: 'edit' as const,
             expectedPath: '/assets/75',
@@ -300,6 +314,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
         {
             label: 'detail view',
+            backName: 'actions.back_to_register',
             asset: ownedAsset,
             mode: 'view' as const,
             expectedPath: '/assets',
@@ -310,6 +325,7 @@ describe('AssetDetailPage ownership resolution', () => {
         },
     ])('keeps the $label back action on the shared public control contract', async ({
         asset,
+        backName,
         mode,
         expectedPath,
         assertState,
@@ -319,7 +335,8 @@ describe('AssetDetailPage ownership resolution', () => {
         renderPage(mode);
         assertState();
 
-        const back = screen.getByRole('button', { name: 'actions.back_to_register' });
+        // AX-06: the name matches the destination (record for edit routes, register for the detail view).
+        const back = screen.getByRole('button', { name: backName });
         expect(back).toHaveAttribute('type', 'button');
 
         await user.click(back);

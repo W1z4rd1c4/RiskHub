@@ -1,6 +1,10 @@
 import type { Dispatch, FormEventHandler, SetStateAction } from 'react';
-import { Building2, Lock, Mail, Save, Shield, User as UserIcon } from 'lucide-react';
+import { Lock, Mail, Save, Shield, User as UserIcon } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import type { DepartmentSummary } from '@/services/departmentApi';
@@ -29,127 +33,111 @@ export function UserNewLocalForm({
     const { t } = useTranslation(['admin', 'common']);
 
     return (
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={onSubmit} className="space-y-6" aria-busy={isLoading}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="glass-card p-6 space-y-4">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-                        <UserIcon className="h-5 w-5 text-accent" />
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                        <UserIcon aria-hidden="true" className="h-5 w-5 text-accent-text" />
                         {t('user_new.personal_information', { ns: 'admin' })}
                     </h2>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.full_name', { ns: 'admin' })}</label>
-                        <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                            <input
+                    <Field label={t('user_new.full_name', { ns: 'admin' })} required>
+                        {(field) => (
+                            <Input
+                                {...field}
                                 required
                                 type="text"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                leadingIcon={UserIcon}
                                 placeholder={t('form.placeholders.name')}
                                 value={formData.name}
                                 onChange={(event) => setFormData({ ...formData, name: event.target.value })}
                             />
-                        </div>
-                    </div>
+                        )}
+                    </Field>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.email_address', { ns: 'admin' })}</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                            <input
+                    <Field label={t('user_new.email_address', { ns: 'admin' })} required>
+                        {(field) => (
+                            <Input
+                                {...field}
                                 required
                                 type="email"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                leadingIcon={Mail}
                                 placeholder={t('form.placeholders.email')}
                                 value={formData.email}
                                 onChange={(event) => setFormData({ ...formData, email: event.target.value })}
                             />
-                        </div>
-                    </div>
+                        )}
+                    </Field>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.password', { ns: 'admin' })}</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                            <input
+                    <Field label={t('user_new.password', { ns: 'admin' })} required>
+                        {(field) => (
+                            <Input
+                                {...field}
                                 required
                                 type="password"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                autoComplete="new-password"
+                                leadingIcon={Lock}
                                 placeholder={t('form.placeholders.password')}
                                 value={formData.password}
                                 onChange={(event) => setFormData({ ...formData, password: event.target.value })}
                             />
-                        </div>
-                    </div>
+                        )}
+                    </Field>
                 </div>
 
                 <div className="glass-card p-6 space-y-4">
-                    <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-                        <Shield className="h-5 w-5 text-accent" />
+                    <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                        <Shield aria-hidden="true" className="h-5 w-5 text-accent-text" />
                         {t('user_new.role_access', { ns: 'admin' })}
                     </h2>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('user_new.platform_role', { ns: 'admin' })}</label>
-                        <div className="relative">
-                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                    <Field label={t('user_new.platform_role', { ns: 'admin' })} required>
+                        {(field) => (
                             <ThemedSelect
+                                {...field}
                                 value={formData.role_id.toString()}
                                 onValueChange={(value) => setFormData({ ...formData, role_id: Number(value) })}
-                                className="w-full pl-10"
+                                className="w-full"
                                 options={roles.map((role) => ({ value: role.id.toString(), label: role.display_name }))}
                             />
-                        </div>
-                    </div>
+                        )}
+                    </Field>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">{t('common:labels.department')}</label>
-                        <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                    <Field label={t('common:labels.department')} optional>
+                        {(field) => (
                             <ThemedSelect
+                                {...field}
                                 value={formData.department_id?.toString() ?? ''}
                                 onValueChange={(value) => setFormData({ ...formData, department_id: value ? Number(value) : null })}
                                 placeholder={t('form.placeholders.no_department_scoping')}
                                 allowEmpty
                                 emptyLabel={t('form.placeholders.no_department_scoping')}
-                                className="w-full pl-10"
+                                className="w-full"
                                 options={departments.map((department) => ({ value: department.id.toString(), label: department.name }))}
                             />
-                        </div>
-                    </div>
+                        )}
+                    </Field>
 
-                    <div className="flex items-center gap-3 pt-4">
-                        <input
-                            type="checkbox"
-                            id="is_active"
-                            className="w-5 h-5 rounded border-white/10 bg-white/5 text-accent focus:ring-accent/50 focus:ring-offset-0"
-                            checked={formData.is_active}
-                            onChange={(event) => setFormData({ ...formData, is_active: event.target.checked })}
-                        />
-                        <label htmlFor="is_active" className="text-sm font-medium text-slate-300">
-                            {t('user_new.active_immediately', { ns: 'admin' })}
-                        </label>
-                    </div>
+                    <Field layout="inline" label={t('user_new.active_immediately', { ns: 'admin' })} className="pt-4">
+                        {(field) => (
+                            <Checkbox
+                                {...field}
+                                checked={formData.is_active}
+                                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                            />
+                        )}
+                    </Field>
                 </div>
             </div>
 
             <div className="flex justify-end gap-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="px-6 py-2 rounded-xl text-slate-300 hover:bg-white/5 transition-all"
-                >
+                <Button type="button" variant="outline" onClick={onCancel}>
                     {t('actions.cancel', { ns: 'common' })}
-                </button>
-                <button
-                    disabled={isLoading}
-                    className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-foreground px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
-                >
-                    {isLoading ? (
-                        <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : <Save className="h-5 w-5" />}
+                </Button>
+                <Button type="submit" variant="accent" isLoading={isLoading}>
+                    {!isLoading ? <Save aria-hidden="true" /> : null}
                     {t('users.create_user', { ns: 'admin' })}
-                </button>
+                </Button>
             </div>
         </form>
     );

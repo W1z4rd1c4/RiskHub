@@ -1,27 +1,21 @@
-import { cn } from '@/lib/utils';
+import { getControlEffectivenessMeta } from '@/lib/monitoringStatus';
+import type { StatusTone } from '@/lib/tones';
 
 import type { ExistingLinkItem, LinkMode } from './linkTypes';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
-export function getEffectivenessClassName(effectiveness: string): string {
-    switch (effectiveness) {
-        case 'high':
-            return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-        case 'medium':
-            return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-        case 'low':
-            return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-        default:
-            return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
-    }
-}
-
-export function getMetadataBadgeClassName(effectiveness: string): string {
-    return cn(
-        'px-2 py-0.5 rounded text-xs font-black uppercase tracking-widest border font-mono',
-        getEffectivenessClassName(effectiveness),
-    );
+/**
+ * Link effectiveness badge (PG-03, PG-19): the tone and translated label of a
+ * high / medium / low outcome rating. Vendor-to-KRI links carry the placeholder
+ * `linked`, which has no rating and shows no badge.
+ */
+export function getExistingLinkEffectivenessMeta(
+    effectiveness: string,
+    t: TranslateFn,
+): { label: string; tone: StatusTone } | null {
+    const meta = getControlEffectivenessMeta(effectiveness);
+    return meta.labelKey ? { label: t(meta.labelKey), tone: meta.tone } : null;
 }
 
 function getRiskDescription(risk: unknown): string | null {

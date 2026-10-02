@@ -6,7 +6,9 @@ Folder for `tests/frontend/unit/src/components/linking` implementation assets.
 
 ## Contents
 
+- `LinkedItemList.test.tsx`
 - `linkManagementHelpers.test.ts`
+- `linkingPanels.test.tsx`
 - `linkSearchAdapters.test.ts`
 
 ## Notes

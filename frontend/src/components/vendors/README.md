@@ -13,8 +13,6 @@ UI components for `vendors` area.
 - `VendorLinkedRisksTab.tsx`
 - `VendorLinkedEntitiesTab.tsx`
 - `useVendorLinkedEntities.ts`
-- `vendorRoute.css`
-- `vendorRouteUi.tsx`
 
 ## Notes
 
@@ -24,15 +22,20 @@ Vendor detail now uses a single core page that embeds `VendorLinkedRisksTab`,
 `VendorLinkedControlsTab`, and `VendorLinkedKRIsTab` directly on the main view. Those sections are
 deliberately aligned with the individual risk page:
 
-- split action bars for `Link Existing` plus `Add Risk` / `Add Control`
+- a `Card` section with a `CardHeader` (`h2` title, decorative Lucide `icon`)
+  and `Button` actions for `Link Existing` plus `Add Risk` / `Add Control`
 - card-grid rendering for active linked entities
-- subdued archived groups rendered separately
-- full-width dashed `Manage Existing Links` affordance
+- archived groups rendered separately under their own heading, each card with
+  an Archived badge instead of whole-group opacity (audit 2026-09-30 GAP-D-14)
+- full-width dashed `Manage Existing Links` button
 
 `VendorLinkedRiskCard.tsx` is the vendor-side risk summary card used by the
-linked-risks grid. `VendorLinkedControlCard.tsx` mirrors the control gauge card
-visual treatment used on the risk detail page so vendor-linked controls do not
-degrade into a separate list-only UI.
+linked-risks grid (gross/net scores as D1 `SeverityBadge`s).
+`VendorLinkedControlCard.tsx` mirrors the control gauge card visual treatment
+used on the risk detail page so vendor-linked controls do not degrade into a
+separate list-only UI. Both are `Card as="article" interactive` whose title
+button stretches over the card, so each card is one named, keyboard-reachable
+control.
 
 `VendorLinkedKRIsTab.tsx` provides the vendor-side KRI grid and routed create
 entrypoint. It consumes the
@@ -55,6 +58,8 @@ shared vendor linked-entity shell. Concrete tabs supply a
 and `toExistingLink` functions while keeping their domain-specific cards and
 dialog modes.
 
-`vendorRoute.css` and `vendorRouteUi.tsx` provide the vendor-route-family
-layout primitives. Their presentation consumes the global semantic theme
-tokens used by the rest of the frontend.
+The former vendor-route design system (`vendorRoute.css`, `vendorRouteUi.tsx`:
+`VendorSurface`, `VendorSectionHeader`, `VendorBadge`, `.vendor-*` classes) was
+folded into the shared primitives and deleted (audit 2026-09-30 D13, SM-09):
+use `Card` / `CardHeader`, `Badge`, `InlineMessage`, `Field` and
+`PageContainer` from `components/ui` and `components/layout` instead.

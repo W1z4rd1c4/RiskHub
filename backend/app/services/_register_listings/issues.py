@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy import String, and_, case, exists, false, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import ValidationError
@@ -397,6 +397,10 @@ async def plan_issue_listing(
         now=now,
     )
 
+    # Department and owner sort by their display names (the register's columns), joined
+    # through aliases so the SQL group transforms below can still join Department / User.
+    sort_department = aliased(Department)
+    sort_owner = aliased(User)
     sortable_fields = {
         "title": Issue.title,
         "severity": Issue.severity,
@@ -405,6 +409,8 @@ async def plan_issue_listing(
         "due_at": Issue.due_at,
         "updated_at": Issue.updated_at,
         "created_at": Issue.created_at,
+        "department_name": sort_department.name,
+        "owner_user_name": sort_owner.name,
     }
     if sort_by is not None and sort_by not in sortable_fields:
         raise ValidationError("Invalid sort_by value")
@@ -413,8 +419,13 @@ async def plan_issue_listing(
 
     if sort_by is not None:
         direction = sort_order or "asc"
+        if sort_by == "department_name":
+            query = query.outerjoin(sort_department, sort_department.id == Issue.department_id)
+        elif sort_by == "owner_user_name":
+            query = query.outerjoin(sort_owner, sort_owner.id == Issue.owner_user_id)
         order_expr = sortable_fields[sort_by].asc() if direction == "asc" else sortable_fields[sort_by].desc()
-        if sort_by == "due_at":
+        if sort_by in {"due_at", "department_name", "owner_user_name"}:
+            # Issues without a due date, Department or owner sort last in both directions.
             order_expr = order_expr.nullslast()
         query = query.order_by(order_expr, Issue.id.desc())
     else:

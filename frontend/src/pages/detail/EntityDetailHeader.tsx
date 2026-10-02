@@ -1,11 +1,23 @@
 import type { ReactNode } from 'react';
 
+import type { BreadcrumbItem } from '@/components/layout/Breadcrumbs';
+import { PAGE_TITLE_CLASS, PageHeaderNavigation, type PageBackTarget } from '@/components/layout/PageHeader';
+import { usePageTitle } from '@/hooks/usePageTitle';
+import { useTranslation } from '@/i18n/hooks';
+import { cn } from '@/lib/utils';
+
 interface EntityDetailHeaderProps {
     actions?: ReactNode;
-    backAction: ReactNode;
+    /** Labelled back navigation (D14); renders the shared `BackButton`. */
+    back?: PageBackTarget;
+    /** Breadcrumb trail (D14, NAV-02); the last item is the current record. */
+    breadcrumbs?: readonly BreadcrumbItem[];
     description?: ReactNode;
+    /** `document.title` page name; defaults to `title` when it is a string (NAV-01). */
+    documentTitle?: string;
     identifier?: ReactNode;
-    identifierSeparatorLabel: string;
+    /** Defaults to `common:detail_header.identifier_separator`. */
+    identifierSeparatorLabel?: string;
     metadata?: ReactNode;
     statuses?: ReactNode;
     supplementary?: ReactNode;
@@ -13,10 +25,17 @@ interface EntityDetailHeaderProps {
     titleAdornment?: ReactNode;
 }
 
+/**
+ * Canonical entity detail header (audit 2026-09-30 §4.14, D7): the page `h1`
+ * with the shared title recipe, labelled back control, breadcrumbs and the
+ * per-route `document.title`.
+ */
 export function EntityDetailHeader({
     actions,
-    backAction,
+    back,
+    breadcrumbs,
     description,
+    documentTitle,
     identifier,
     identifierSeparatorLabel,
     metadata,
@@ -25,14 +44,18 @@ export function EntityDetailHeader({
     title,
     titleAdornment,
 }: EntityDetailHeaderProps) {
+    const { t } = useTranslation('common');
+    usePageTitle(documentTitle ?? (typeof title === 'string' ? title : null));
     const hasIdentifier = identifier !== null && identifier !== undefined && identifier !== '';
 
     return (
         <header className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 flex-1 space-y-2">
-                <div className="mb-4 min-w-0 [&>*]:max-w-full [&>*]:break-words [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
-                    {backAction}
-                </div>
+                {back || breadcrumbs?.length ? (
+                    <div className="mb-4">
+                        <PageHeaderNavigation back={back} breadcrumbs={breadcrumbs} />
+                    </div>
+                ) : null}
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                     {hasIdentifier ? (
                         <>
@@ -41,14 +64,18 @@ export function EntityDetailHeader({
                             </span>
                             <span
                                 role="separator"
-                                aria-label={identifierSeparatorLabel}
+                                aria-label={identifierSeparatorLabel ?? t('detail_header.identifier_separator')}
                                 className="text-muted-foreground"
                             >
                                 ·
                             </span>
                         </>
                     ) : null}
-                    <h1 className="min-w-0 max-w-full break-words text-4xl font-black tracking-tighter text-foreground [overflow-wrap:anywhere]">
+                    <h1
+                        tabIndex={-1}
+                        data-page-title=""
+                        className={cn(PAGE_TITLE_CLASS, 'min-w-0 max-w-full break-words [overflow-wrap:anywhere]')}
+                    >
                         {title}
                     </h1>
                     {titleAdornment}

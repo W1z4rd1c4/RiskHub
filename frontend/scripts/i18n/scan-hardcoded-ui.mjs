@@ -158,6 +158,21 @@ async function main() {
   const allowlist = JSON.parse(await fs.readFile(ALLOWLIST_PATH, 'utf8'));
   const pathAllowlist = (allowlist.pathPatterns || []).map(globLikeToRegex);
   const tokenAllowlist = (allowlist.tokenPatterns || []).map((p) => new RegExp(p));
+  // File-scoped exceptions for genuine non-translatable text (e.g. a brand wordmark split
+  // across styled elements). Each entry needs { path, text, reason } and matches exactly.
+  const scopedExceptions = (allowlist.scopedExceptions || []).map((entry, index) => {
+    if (!entry || typeof entry.path !== 'string' || typeof entry.text !== 'string' || !entry.reason) {
+      throw new Error(`allowlist.scopedExceptions[${index}] requires path, text and reason`);
+    }
+    return entry;
+  });
+  const usedScopedExceptions = new Set();
+  const isScopedException = (file, text) => {
+    const index = scopedExceptions.findIndex((entry) => entry.path === file && entry.text === text);
+    if (index === -1) return false;
+    usedScopedExceptions.add(index);
+    return true;
+  };
 
   const files = await walk(SRC_DIR);
   const violations = [];
@@ -220,7 +235,7 @@ async function main() {
     const visit = (node) => {
       if (ts.isJsxText(node)) {
         const raw = normalizeUiText(node.text || '');
-        if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+        if (raw && !isNoiseText(raw, { allowShortWord: true }) && !matchesAnyPattern(raw, tokenAllowlist)) {
           const pos = toLineCol(content, node.getStart(sf));
           violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'jsx', text: raw });
         }
@@ -288,7 +303,7 @@ async function main() {
           const container = parent.parent;
           if (container && (ts.isJsxElement(container) || ts.isJsxFragment(container))) {
             const raw = normalizeUiText(node.text);
-            if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+            if (raw && !isNoiseText(raw, { allowShortWord: true }) && !matchesAnyPattern(raw, tokenAllowlist)) {
               const pos = toLineCol(content, node.getStart(sf));
               violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'jsx-expr', text: raw });
             }
@@ -365,10 +380,20 @@ async function main() {
   const deduped = [];
   const seen = new Set();
   for (const v of violations) {
+    if (isScopedException(v.file, v.text)) continue;
     const key = `${v.file}:${v.line}:${v.col}:${v.kind}:${v.text}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(v);
+  }
+
+  const staleScopedExceptions = scopedExceptions.filter((_, index) => !usedScopedExceptions.has(index));
+  if (staleScopedExceptions.length) {
+    console.error('Stale allowlist.scopedExceptions entries (no longer matched; remove them):');
+    for (const entry of staleScopedExceptions) {
+      console.error(`- ${entry.path} "${entry.text}"`);
+    }
+    process.exit(1);
   }
 
   if (deduped.length) {

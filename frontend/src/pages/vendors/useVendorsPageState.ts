@@ -28,6 +28,7 @@ import {
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildVendorRegisterListParams,
     parseVendorRegisterFilters,
@@ -88,10 +89,10 @@ export function useVendorsPageState(
         forQuery,
         isLoading: collectionIsLoading,
         isQueryCurrent,
-        setErrorKey,
         setIsLoading,
     } = useCollectionDataState<Vendor, VendorListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const runRowRestore = useRestoreWithFeedback();
 
     const effectiveFilters = useMemo<VendorRegisterFilters>(() => ({
         ...filters,
@@ -144,7 +145,6 @@ export function useVendorsPageState(
         } catch (error) {
             if (!isCurrentRequest(currentRequest)) return;
             const patch = applyFailure(error, {
-                fallbackErrorKey: 'errors.load_failed',
                 toErrorKey: apiClient.toUiMessageKey.bind(apiClient),
             });
             if (patch.isAccessDenied) setFacets({});
@@ -205,15 +205,18 @@ export function useVendorsPageState(
         value: VendorRegisterFilters[K],
     ) => writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
 
+    // D9 / FB-01: a row restore reports through a toast and never flips the
+    // register into its error state.
     const restoreVendor = useCallback(async (vendorId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await vendorApi.restoreVendor(vendorId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchVendors();
-        } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchVendors, isQueryCurrent, queryIdentity, setErrorKey]);
+        await runRowRestore({
+            restore: () => vendorApi.restoreVendor(vendorId),
+            name: items.find((item) => item.id === vendorId)?.name,
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchVendors();
+            },
+        });
+    }, [fetchVendors, isQueryCurrent, items, queryIdentity, runRowRestore]);
 
     const exportVendors = useCallback(async () => {
         setIsExporting(true);

@@ -1,10 +1,18 @@
 import type { MouseEvent } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, BarChart3, BookOpen, Building2, Calendar, ShieldAlert, User } from 'lucide-react';
+import { BarChart3, BookOpen, Building2, Calendar, ShieldAlert, User } from 'lucide-react';
 
+import { UserAvatar } from '@/components/access/UserAvatar';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
-import { getControlRiskLevelColor } from '@/pages/controls/controlsPagePresentation';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { translateUiMessage } from '@/i18n/hooks';
+import { getControlEffectivenessMeta } from '@/lib/monitoringStatus';
+import { formatControlForm, formatControlFrequency, getControlRiskLevelColor } from '@/pages/controls/controlsPagePresentation';
 import type { Control, ControlRiskLink } from '@/types/control';
 import type { ControlEffectiveness, Risk } from '@/types/risk';
 
@@ -32,6 +40,50 @@ type ControlDetailOverviewTabProps = {
     onCloseRiskModal: () => void;
     onRetryLinkedRisks: () => void;
 };
+
+/** Link effectiveness: three distinct status tones and a translated label (PG-19). */
+function EffectivenessBadge({ level, t }: { level: ControlEffectiveness; t: TranslateFn }) {
+    const meta = getControlEffectivenessMeta(level);
+    return (
+        <Badge tone={meta.tone} size="sm" className="shrink-0">
+            {meta.labelKey ? t(meta.labelKey) : level}
+        </Badge>
+    );
+}
+
+/** One linked risk; a `Button` card that opens the risk quick view (archived ones carry a badge, GAP-D-14). */
+function LinkedRiskCard({
+    link,
+    isArchived = false,
+    onRiskClick,
+    t,
+}: {
+    link: ControlRiskLink;
+    isArchived?: boolean;
+    onRiskClick: (riskId: number, event: MouseEvent) => void | Promise<void>;
+    t: TranslateFn;
+}) {
+    return (
+        <Button
+            variant="ghost"
+            onClick={(e) => onRiskClick(link.risk_id, e)}
+            className="h-auto w-full flex-col items-stretch justify-start gap-1 whitespace-normal rounded-2xl border border-border bg-nested p-4 text-left font-normal hover:border-accent/30"
+        >
+            <span className="mb-1 flex items-start justify-between gap-2">
+                <span className="min-w-0">
+                    <span className="block text-xs font-bold text-foreground line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
+                    {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
+                </span>
+                <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    {isArchived ? <Badge size="sm" tone="neutral">{t('risks:status.archived')}</Badge> : null}
+                    <EffectivenessBadge level={link.effectiveness} t={t} />
+                </span>
+            </span>
+            {link.risk?.description && <span className="block text-xs text-muted-foreground line-clamp-2">{link.risk.description}</span>}
+            {link.notes && <span className="mt-1 block text-xs text-muted-foreground font-medium italic">{t('common:labels.quoted', { text: link.notes })}</span>}
+        </Button>
+    );
+}
 
 const container = {
     hidden: { opacity: 0 },
@@ -77,60 +129,51 @@ export function ControlDetailOverviewTab({
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <BarChart3 className="h-5 w-5 text-accent" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.standard_configuration')}</h3>
-                    </div>
+                    <CardHeader icon={BarChart3} title={t('controls:detail.standard_configuration')} className="mb-0 border-b border-border pb-4" />
 
                     <div className="space-y-4">
                         <div className="flex justify-between items-center group">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('controls:columns.risk_level')}</span>
-                            <div className={`px-3 py-1 rounded-full text-xs font-black border ${getControlRiskLevelColor(control.risk_level)}`}>
-                                {control.risk_level} / 5
+                            <span className="text-eyebrow">{t('controls:columns.risk_level')}</span>
+                            <span className={`rounded-full border px-3 py-1 text-xs font-bold tabular-nums ${getControlRiskLevelColor(control.risk_level)}`}>
+                                {t('controls:columns.risk_level_value', { level: control.risk_level })}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-eyebrow">{t('common:labels.frequency')}</span>
+                            <div className="flex items-center gap-2 text-foreground font-bold text-sm bg-tint/5 px-3 py-1 rounded-lg border border-border">
+                                <Calendar className="h-3.5 w-3.5 text-accent-text" aria-hidden="true" />
+                                <span>{formatControlFrequency(control.frequency, (key, fallback) => t(key, { defaultValue: fallback }))}</span>
                             </div>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">{t('common:labels.frequency')}</span>
-                            <div className="flex items-center gap-2 text-foreground font-bold text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/5">
-                                <Calendar className="h-3.5 w-3.5 text-accent" />
-                                <span className="capitalize">{control.frequency}</span>
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('controls:detail.control_form')}</span>
-                            <span className="text-white font-bold text-sm capitalize">{control.control_form}</span>
+                            <span className="text-eyebrow">{t('controls:detail.control_form')}</span>
+                            <span className="text-foreground font-bold text-sm">{formatControlForm(control.control_form, (key, fallback) => t(key, { defaultValue: fallback }))}</span>
                         </div>
                     </div>
                 </motion.div>
 
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <User className="h-5 w-5 text-purple-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.ownership_responsibility')}</h3>
-                    </div>
+                    <CardHeader icon={User} title={t('controls:detail.ownership_responsibility')} className="mb-0 border-b border-border pb-4" />
 
                     <div className="space-y-5">
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
-                                {control.control_owner?.name?.[0] || 'U'}
-                            </div>
+                            {/* GAP-D-27: the one avatar recipe (no hard-coded 'U' fallback). */}
+                            <UserAvatar name={control.control_owner?.name} className="h-8 w-8 text-xs" />
                             <div>
-                                <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('controls:fields.owner')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{control.control_owner?.name || t('controls:detail.unassigned')}</p>
+                                <p className="text-eyebrow">{t('controls:fields.owner')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{control.control_owner?.name || t('common:fallbacks.unassigned')}</p>
                                 <p className="text-xs text-muted-foreground">{control.control_owner?.email || ''}</p>
                             </div>
                         </div>
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                            <div className="w-8 h-8 rounded-full bg-tint/5 border border-border flex items-center justify-center text-muted-foreground">
                                 <Building2 className="h-4 w-4" />
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground font-black uppercase tracking-widest">{t('controls:detail.department_position')}</p>
-                                <p className="text-sm font-bold text-white leading-snug">{control.department?.name || t('controls:detail.no_department')}</p>
-                                <p
-                                    className="text-xs text-muted-foreground italic uppercase tracking-tighter font-bold mt-0.5"
-                                >
-                                    {control.process_owner_position || t('controls:detail.not_available')}
+                                <p className="text-eyebrow">{t('controls:detail.department_position')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{control.department?.name || t('controls:detail.no_department')}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {control.process_owner_position || t('common:fallbacks.not_available')}
                                 </p>
                             </div>
                         </div>
@@ -138,21 +181,18 @@ export function ControlDetailOverviewTab({
                 </motion.div>
 
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <BookOpen className="h-5 w-5 text-warning-text" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.methodology_source')}</h3>
-                    </div>
+                    <CardHeader icon={BookOpen} title={t('controls:detail.methodology_source')} className="mb-0 border-b border-border pb-4" />
 
                     <div className="space-y-4">
                         <div>
-                            <p className="text-xs text-muted-foreground font-black uppercase tracking-widest mb-1">{t('controls:detail.methodology_ref')}</p>
-                            <p className="text-sm font-medium text-slate-300 bg-white/5 p-2 rounded-lg border border-white/5 font-mono truncate">
-                                {control.methodology_reference || t('controls:detail.not_available')}
+                            <p className="text-eyebrow mb-1">{t('controls:detail.methodology_ref')}</p>
+                            <p className="text-sm font-medium text-foreground bg-tint/5 p-2 rounded-lg border border-border font-mono truncate">
+                                {control.methodology_reference || t('common:fallbacks.not_available')}
                             </p>
                         </div>
                         <div>
-                            <p className="text-xs text-muted-foreground font-black uppercase tracking-widest mb-1">{t('controls:detail.data_source')}</p>
-                            <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-accent/30 pl-3">
+                            <p className="text-eyebrow mb-1">{t('controls:detail.data_source')}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed italic border-l-2 border-accent/30 pl-3">
                                 {control.data_source || t('controls:detail.not_specified')}
                             </p>
                         </div>
@@ -166,125 +206,74 @@ export function ControlDetailOverviewTab({
                 transition={{ delay: 0.5 }}
                 className="glass-card"
             >
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
-                        <ShieldAlert className="h-4 w-4 text-success-text" />
-                        {t('controls:detail.mitigated_risks')}
-                    </h3>
-                    <span data-testid="control-linked-risk-count" className="px-2 py-0.5 bg-success/10 text-success-text text-[10px] font-black rounded-full border border-success/20">
-                        {linkedRisksOutcome === 'content'
-                        || linkedRisksOutcome === 'empty'
-                        || linkedRisksOutcome === 'stale-with-error'
-                            ? linkedRisks.length
-                            : '—'}
-                    </span>
-                </div>
+                <CardHeader
+                    icon={ShieldAlert}
+                    title={t('controls:detail.mitigated_risks')}
+                    className="mb-6"
+                    actions={(
+                        <Badge data-testid="control-linked-risk-count" tone="success" size="sm">
+                            {linkedRisksOutcome === 'content'
+                            || linkedRisksOutcome === 'empty'
+                            || linkedRisksOutcome === 'stale-with-error'
+                                ? linkedRisks.length
+                                : '—'}
+                        </Badge>
+                    )}
+                />
 
                 {linkErrorKey && (
-                    <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        {t(linkErrorKey, { ns: 'errorKeys' })}
-                    </div>
+                    <InlineMessage tone="danger" className="mb-3">
+                        {translateUiMessage(t, linkErrorKey)}
+                    </InlineMessage>
                 )}
 
                 {linkedRisksOutcome === 'stale-with-error' && linkedRisksErrorKey ? (
-                    <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex flex-wrap items-center justify-between gap-3">
-                        <span className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4" />
-                            {t(linkedRisksErrorKey)}
-                        </span>
-                        <button type="button" className="text-xs font-bold text-accent-text" onClick={onRetryLinkedRisks}>
-                            {t('common:actions.retry')}
-                        </button>
-                    </div>
+                    <ErrorState
+                        variant="banner"
+                        message={t(linkedRisksErrorKey)}
+                        onRetry={onRetryLinkedRisks}
+                        className="mb-3"
+                    />
                 ) : null}
 
                 {linkedRisksOutcome === 'loading' ? (
-                    <div className="py-10 text-center text-sm text-muted-foreground" role="status">
-                        {t('common:loading.generic')}
-                    </div>
+                    <LoadingState layout="section" label={t('common:loading.generic')} className="py-6" />
                 ) : linkedRisksOutcome === 'denied' ? (
-                    <div className="py-10 text-center border-2 border-dashed border-destructive/20 rounded-2xl bg-destructive/5" role="alert">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-xs text-destructive font-medium">{t('controls:access.denied')}</p>
-                    </div>
+                    <AccessDeniedState
+                        layout="section"
+                        descriptionKey="detail.linked_risks_denied"
+                        ns="controls"
+                        className="py-6"
+                        live
+                    />
                 ) : linkedRisksOutcome === 'error' && linkedRisksErrorKey ? (
-                    <div className="py-10 text-center border-2 border-dashed border-destructive/20 rounded-2xl bg-destructive/5">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-xs text-destructive font-medium">{t(linkedRisksErrorKey)}</p>
-                        <button type="button" className="mt-3 text-xs font-bold text-accent-text" onClick={onRetryLinkedRisks}>
-                            {t('common:actions.retry')}
-                        </button>
-                    </div>
+                    <ErrorState
+                        layout="section"
+                        message={t(linkedRisksErrorKey)}
+                        onRetry={onRetryLinkedRisks}
+                        className="py-6"
+                    />
                 ) : (
                     <div className="space-y-6">
                         {activeLinkedRisks.length === 0 && archivedLinkedRisks.length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
-                                <p className="text-xs text-slate-600 font-medium">{t('controls:empty_state.no_linked_risks')}</p>
-                            </div>
+                            <EmptyState layout="section" title={t('controls:empty_state.no_linked_risks')} className="py-6" />
                         ) : (
                             <>
                                 {activeLinkedRisks.length > 0 && (
                                     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                                         {activeLinkedRisks.map((link) => (
-                                            <button
-                                                type="button"
-                                                key={link.id}
-                                                onClick={(e) => onRiskClick(link.risk_id, e)}
-                                                className="group w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer relative"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
-                                                        {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
-                                                    </div>
-                                                    <span
-                                                        className={`px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest ${
-                                                            link.effectiveness === 'high'
-                                                                ? 'bg-success/10 text-success-text'
-                                                                : 'bg-warning/10 text-warning-text'
-                                                        }`}
-                                                    >
-                                                        {link.effectiveness}
-                                                    </span>
-                                                </div>
-                                                {link.risk?.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{link.risk.description}</p>}
-                                                {link.notes && <p className="mt-2 text-xs text-muted-foreground font-medium italic">"{link.notes}"</p>}
-                                            </button>
+                                            <LinkedRiskCard key={link.id} link={link} onRiskClick={onRiskClick} t={t} />
                                         ))}
                                     </div>
                                 )}
                                 {archivedLinkedRisks.length > 0 && (
                                     <div>
-                                        <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">
+                                        <h3 className="text-eyebrow mb-3">
                                             {t('controls:detail.archived_risks', { count: archivedLinkedRisks.length })}
-                                        </h4>
-                                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 opacity-70">
+                                        </h3>
+                                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                                             {archivedLinkedRisks.map((link) => (
-                                                <button
-                                                    type="button"
-                                                    key={link.id}
-                                                    onClick={(e) => onRiskClick(link.risk_id, e)}
-                                                    className="group w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl text-left hover:bg-white/[0.05] hover:border-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors cursor-pointer relative"
-                                                >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
-                                                            {link.risk?.process && <span className="text-xs text-muted-foreground block mt-0.5">{link.risk.process}</span>}
-                                                        </div>
-                                                        <span
-                                                            className={`px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest ${
-                                                                link.effectiveness === 'high'
-                                                                    ? 'bg-success/10 text-success-text'
-                                                                    : 'bg-warning/10 text-warning-text'
-                                                            }`}
-                                                        >
-                                                            {link.effectiveness}
-                                                        </span>
-                                                    </div>
-                                                    {link.risk?.description && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{link.risk.description}</p>}
-                                                    {link.notes && <p className="mt-2 text-xs text-muted-foreground font-medium italic">"{link.notes}"</p>}
-                                                </button>
+                                                <LinkedRiskCard key={link.id} link={link} isArchived onRiskClick={onRiskClick} t={t} />
                                             ))}
                                         </div>
                                     </div>
@@ -295,13 +284,9 @@ export function ControlDetailOverviewTab({
                 )}
 
                 {linkedRisksOutcome !== 'denied' && (canLinkRisk || canUnlinkRisk) && (
-                    <button
-                        type="button"
-                        onClick={onOpenLinkDialog}
-                        className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-accent/40 hover:bg-white/5 transition-colors"
-                    >
+                    <Button variant="outline" className="mt-4 w-full border-dashed" onClick={onOpenLinkDialog}>
                         {t('controls:detail.manage_risk_linkage')}
-                    </button>
+                    </Button>
                 )}
 
                 <LinkManagementDialog

@@ -1,15 +1,22 @@
+import type { Tone } from '@/lib/tones';
 import type { AccessUserRead } from '@/types/access';
 
-export const userScopeBadgeColors: Record<string, string> = {
-    global: 'bg-warning/10 text-warning-text border-warning/30',
-    platform: 'bg-muted text-muted-foreground border-border',
-    department: 'bg-info/10 text-accent-text border-info/30',
-    manager: 'bg-muted text-muted-foreground border-border',
+const userScopeTones: Record<string, Tone> = {
+    global: 'warning',
+    platform: 'neutral',
+    department: 'info',
+    manager: 'neutral',
 };
 
-export function userScopeBadgeClassName(user: AccessUserRead): string {
+/** Badge tone of a user's access scope (the platform admin role reads as `platform`). */
+export function userScopeTone(user: AccessUserRead): Tone {
     if (user.role.name === 'admin') {
-        return userScopeBadgeColors.platform;
+        return userScopeTones.platform;
     }
-    return userScopeBadgeColors[user.access_scope] || userScopeBadgeColors.manager;
+    return userScopeTones[user.access_scope] || userScopeTones.manager;
+}
+
+/** Id of a user's expanded details row, referenced by its expand toggle (`aria-controls`, AX-10). */
+export function accessDetailsRowId(userId: number): string {
+    return `access-user-details-${userId}`;
 }

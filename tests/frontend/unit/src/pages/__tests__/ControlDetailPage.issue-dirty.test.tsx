@@ -39,13 +39,8 @@ vi.mock('@/services/riskApi', () => ({
     riskApi: { getRisk: vi.fn() },
 }));
 
-vi.mock('@/components/executions/ExecutionLogModal', () => ({
-    ExecutionLogModal: () => null,
-}));
-
-vi.mock('@/components/ArchiveConfirmDialog', () => ({
-    ArchiveConfirmDialog: () => null,
-}));
+// The real ExecutionLogModal is not mocked: its own dirty-task guard must not
+// register a second route blocker beside the issue guard while it is closed (PG-22).
 
 function TestShell() {
     return (

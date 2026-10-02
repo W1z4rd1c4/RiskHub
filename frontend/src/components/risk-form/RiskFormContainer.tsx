@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    Save,
-    X,
-    ChevronRight,
-    ChevronLeft,
-    AlertCircle,
-    Info,
-    User,
-    Activity,
-} from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { Info, User, Activity } from 'lucide-react';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { StepIndicator } from '@/components/ui/StepIndicator';
-import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
+import { WizardFooter } from '@/components/ui/WizardFooter';
 import type { Risk } from '@/types/risk';
+import { useFocusFirstInvalidField } from '@/hooks/useFocusFirstInvalidField';
 import { useRiskTypes, useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { RiskFormIdentityStep } from './RiskFormIdentityStep';
 import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
@@ -30,6 +23,8 @@ interface RiskFormProps {
     initialData?: Risk;
     isEdit?: boolean;
     onSuccess?: (riskId: number, acceptNavigation?: () => void) => void | Promise<void>;
+    /** Page shown after an approval-routed submit (D12 / PM-2). */
+    approvalReturnTo?: string;
     onCancel?: () => void;
     firstStepBackLabel?: string;
 }
@@ -38,11 +33,12 @@ export function RiskForm({
     initialData,
     isEdit = false,
     onSuccess,
+    approvalReturnTo,
     onCancel,
     firstStepBackLabel,
 }: RiskFormProps) {
     const navigate = useNavigate();
-    const { t } = useTranslation(['risks', 'common', 'errorKeys', 'approvals']);
+    const { t } = useTranslation(['risks', 'common', 'errorKeys']);
     const steps = [
         { id: 'identity', title: t('risks:form.steps.identity'), icon: Info },
         { id: 'ownership', title: t('risks:form.steps.ownership'), icon: User },
@@ -63,10 +59,10 @@ export function RiskForm({
     const [roleFilter, setRoleFilter] = useState<string>('');
 
     const {
-        approvalQueued,
         confirmationDialog,
         currentStep,
         error,
+        failedValidationCount,
         fieldErrors,
         formData,
         isSubmitting,
@@ -75,15 +71,18 @@ export function RiskForm({
         nextStep,
         prevStep,
         requestLocalLeave,
-        setApprovalQueued,
         setCurrentStep,
         submit,
     } = useRiskFormWorkflow({
         initialData,
         isEdit,
         onSuccess,
+        approvalReturnTo,
         riskTypes,
     });
+
+    // §4.8 / AX-04: a failed step check moves focus to the first invalid field.
+    const formRef = useFocusFirstInvalidField(failedValidationCount);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,7 +97,7 @@ export function RiskForm({
 
     return (
         <>
-        <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
             {/* Multi-step indicator */}
             <StepIndicator
                 steps={steps}
@@ -108,22 +107,11 @@ export function RiskForm({
             />
 
             <div className="glass-card min-h-[480px] flex flex-col">
-                {/* Approval-queued banner */}
-                {approvalQueued && (
-                    <ApprovalQueuedBanner
-                        closeLabel={t('common:actions.close')}
-                        message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
-                        onClose={() => setApprovalQueued(null)}
-                        title={t('approval_submitted', { ns: 'errorKeys' })}
-                        viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
-                    />
-                )}
 
                 {error && (
-                    <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
-                        <AlertCircle className="h-5 w-5" />
-                        {error.startsWith('errorKeys.') ? t(error, { ns: 'errorKeys' }) : error}
-                    </div>
+                    <InlineMessage tone="danger" className="mb-6">
+                        {translateUiMessage(t, error)}
+                    </InlineMessage>
                 )}
 
                 <fieldset disabled={isSubmitting} className="min-w-0 flex-1 space-y-6">
@@ -175,56 +163,25 @@ export function RiskForm({
 
                 </fieldset>
 
-                {/* Footer Controls */}
-                <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
-                    <button
-                        type="button"
-                        aria-disabled={isSubmitting}
-                        onClick={() => {
-                            if (isSubmitting) return;
-                            if (currentStep === 0) {
-                                requestLocalLeave(() => {
-                                    if (onCancel) {
-                                        onCancel();
-                                    } else {
-                                        void navigate('/risks');
-                                    }
-                                });
-                                return;
-                            }
-                            prevStep();
-                        }}
-                        className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-white transition-colors uppercase tracking-widest"
-                    >
-                        {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                        {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}
-                    </button>
-
-                    {currentStep < steps.length - 1 ? (
-                        <button
-                            type="button"
-                            aria-disabled={isSubmitting}
-                            onClick={(event) => {
-                                if (isSubmitting) return;
-                                nextStep(event);
-                            }}
-                            data-testid="risk-form-next-button"
-                            className="btn-primary"
-                        >
-                            {t('common:actions.next')} <ChevronRight className="h-4 w-4" />
-                        </button>
-                    ) : (
-                        <button
-                            type="submit"
-                            aria-disabled={isSubmitting}
-                            data-testid="risk-form-submit-button"
-                            className="btn-primary px-8 aria-disabled:cursor-wait aria-disabled:opacity-60"
-                        >
-                            {isSubmitting ? t('common:loading.generic') : (isEdit ? t('risks:edit_risk') : t('risks:create_risk'))}
-                            <Save className="h-4 w-4" />
-                        </button>
-                    )}
-                </div>
+                <WizardFooter
+                    className="mt-12 pt-8"
+                    stepIndex={currentStep}
+                    stepCount={steps.length}
+                    isSubmitting={isSubmitting}
+                    cancelLabel={firstStepBackLabel || t('common:actions.cancel')}
+                    onCancel={() => requestLocalLeave(() => {
+                        if (onCancel) {
+                            onCancel();
+                        } else {
+                            void navigate('/risks');
+                        }
+                    })}
+                    onBack={prevStep}
+                    onNext={(event) => nextStep(event)}
+                    submitLabel={isEdit ? t('risks:edit_risk') : t('risks:create_risk')}
+                    nextTestId="risk-form-next-button"
+                    submitTestId="risk-form-submit-button"
+                />
             </div>
         </form>
         {confirmationDialog}

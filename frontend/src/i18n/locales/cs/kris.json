@@ -2,10 +2,26 @@
   "title": "KRI",
   "page_subtitle": "Sledování rizikového apetitu",
   "new_kri": "Nový KRI",
+  "unit_suffix": {
+    "count": "počet",
+    "days_one": "den",
+    "days_few": "dny",
+    "days_many": "dne",
+    "days_other": "dní",
+    "hours_one": "hodina",
+    "hours_few": "hodiny",
+    "hours_many": "hodiny",
+    "hours_other": "hodin",
+    "ratio": "poměr"
+  },
+  "breach_status": {
+    "within": "V limitu",
+    "above": "Nad horním limitem",
+    "below": "Pod spodním limitem"
+  },
   "create_kri": "Vytvořit KRI",
   "edit_kri": "Upravit KRI",
   "view_kri": "Zobrazit KRI",
-  "delete_kri": "Smazat KRI",
   "fields": {
     "name": "Název KRI",
     "description": "Popis",
@@ -100,6 +116,7 @@
     "ok": "OK"
   },
   "actions": {
+    "back_to_register": "Zpět na KRI",
     "link_risk": "Propojit riziko",
     "add_kri": "Přidat KRI",
     "unarchive": "Obnovit z archivu",
@@ -129,6 +146,11 @@
       "ratio": "Poměr"
     },
     "reporting_owner_hint": "Nechte prázdné pro použití vlastníka rizika jako výchozího",
+    "details_heading": "Podrobnosti KRI",
+    "steps": {
+      "risk": "Navázané riziko",
+      "details": "Podrobnosti"
+    },
     "placeholders": {
       "metric_name": "např. Míra stížností zákazníků",
       "description": "Popište, co tento KRI měří a proč je důležitý...",
@@ -149,6 +171,7 @@
     "vendor_context_label": "Kontext dodavatele",
     "vendor_context_active": "Vytvoření KRI z detailu dodavatele",
     "vendor_context_help": "Toto KRI se vytváří z detailu dodavatele a aktuální dodavatel bude zahrnutý do stejného uložení.",
+    "risk_scope": "Rozsah rizik",
     "vendor_context_auto_linked": "Aktuální dodavatel je do tohoto uložení zahrnutý automaticky. Výběr výše použijte pro další dodavatele.",
     "vendor_risks_only": "Rizika dodavatele",
     "all_readable_risks": "Všechna dostupná rizika",
@@ -179,11 +202,15 @@
   },
   "overdue": {
     "badge": "Opožděno",
-    "days_overdue": "{{days}} dní po termínu",
+    "days_overdue": "{{count}} dní po termínu",
+    "days_overdue_one": "{{count}} den po termínu",
+    "days_overdue_few": "{{count}} dny po termínu",
+    "days_overdue_other": "{{count}} dní po termínu",
     "last_submission": "Poslední odeslání: {{date}}"
   },
   "labels": {
-    "archived": "Archivováno"
+    "archived": "Archivováno",
+    "entity": "KRI"
   },
   "comparison": {
     "breach_status": "Stav překročení",
@@ -196,7 +223,9 @@
     "compare_records": "Porovnat záznamy",
     "analyze_changes": "Analyzujte změny mezi dvěma reportovacími obdobími",
     "distinct_periods_required": "Výpočet rozdílu vyžaduje dvě různá období.",
-    "delta_analysis": "Analýza rozdílu"
+    "delta_analysis": "Analýza rozdílu",
+    "baseline": "Výchozí záznam",
+    "target": "Porovnávaný záznam"
   },
   "modal": {
     "framework": "Rámec klíčových indikátorů rizik",
@@ -205,12 +234,7 @@
     "unit_examples": "Jednotka (%, EUR apod.)",
     "lower_limit_breach": "Dolní limit (překročení)",
     "upper_limit_breach": "Horní limit (překročení)",
-    "last_updated": "Naposledy aktualizováno",
-    "create_indicator": "Vytvořit indikátor",
-    "delete_confirm": "Opravdu chcete smazat \"{{name}}\"? Tuto akci nelze vrátit zpět."
-  },
-  "detail": {
-    "approval_banner_help": "Dokud se schválení nevyřeší, zůstane KRI i jeho vazby na dodavatele beze změny."
+    "last_updated": "Naposledy aktualizováno"
   },
   "value_modal": {
     "title": "Zaznamenat hodnotu",
@@ -229,7 +253,6 @@
     "last_period_end": "Konec posledního období",
     "due_date": "Termín",
     "central_systems": "Centrální systémy",
-    "unassigned": "Nepřiřazeno",
     "view_complete_risk_analysis": "Zobrazit kompletní analýzu rizika",
     "metadata": "Metadata",
     "kri_id": "ID KRI",
@@ -240,7 +263,8 @@
     "lower_limit": "Spodní limit: {{value}}",
     "upper_limit": "Horní limit: {{value}}",
     "min_value": "{{value}} {{unit}} min",
-    "max_value": "{{value}} {{unit}} max"
+    "max_value": "{{value}} {{unit}} max",
+    "limits_range": "Limity: {{lower}} – {{upper}} {{unit}}"
   },
   "history_edit": {
     "request_correction": "Požádat o opravu",
@@ -254,6 +278,9 @@
     "empty_message": "Nebyly nalezeny žádné historické záznamy.",
     "record_timeline": "Časová osa záznamů",
     "entries_count": "{{count}} záznamů",
+    "entries_count_one": "{{count}} záznam",
+    "entries_count_few": "{{count}} záznamy",
+    "entries_count_other": "{{count}} záznamů",
     "compare_periods": "Porovnat období",
     "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy.",
     "pagination": "Stránky historie",
@@ -271,7 +298,10 @@
     "filters": {
       "lifecycle": "Životní cyklus",
       "add": "Přidat filtr",
-      "active_count": "Aktivní filtry: {{count}}",
+      "active_count_one": "{{count}} aktivní filtr",
+      "active_count_few": "{{count}} aktivní filtry",
+      "active_count_many": "{{count}} aktivního filtru",
+      "active_count_other": "{{count}} aktivních filtrů",
       "clear_all": "Vymazat vše",
       "remove": "Odebrat {{label}}",
       "frequency": "Frekvence",
@@ -286,13 +316,6 @@
     "export": {
       "title": "Export filtrovaných KRI"
     }
-  },
-  "delete_dialog": {
-    "title": "Smazat KRI",
-    "message": "Uveďte důvod smazání tohoto KRI. Tato akce je auditována.",
-    "reason_label": "Důvod smazání",
-    "reason_placeholder": "Vysvětlete, proč má být toto KRI smazáno...",
-    "confirm": "Smazat KRI"
   },
   "restore": {
     "pending": "Obnovování…",

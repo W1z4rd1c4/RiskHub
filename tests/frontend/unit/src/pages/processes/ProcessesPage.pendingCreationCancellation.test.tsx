@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import * as axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -106,38 +106,60 @@ beforeEach(() => {
 });
 
 describe('ProcessesPage pending creation cancellation', () => {
-    it('announces a translated failure, restores retry, and clears the alert after recovery', async () => {
+    it('confirms before cancelling (GAP-D-08) and keeps a failure inside the dialog for retry', async () => {
         let rejectCancellation: (reason?: unknown) => void = () => undefined;
         mocks.cancel.mockImplementationOnce(() => new Promise((_, reject) => {
             rejectCancellation = reject;
         }));
-        const { container } = render(
+        render(
             <MemoryRouter>
                 <ProcessesPage />
             </MemoryRouter>,
         );
 
         const cancelButton = screen.getByRole('button', { name: i18n.t('processes:pending_change.cancel') });
+        expect(cancelButton).toHaveAccessibleDescription('Critical settlement');
         fireEvent.click(cancelButton);
-        expect(cancelButton).toBeDisabled();
+
+        // Nothing is cancelled until the confirmation is accepted.
+        expect(mocks.cancel).not.toHaveBeenCalled();
+        const dialog = await screen.findByRole('alertdialog');
+        expect(dialog).toHaveTextContent('Critical settlement');
+
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:pending_change_cancellation.confirm') }));
+        await waitFor(() => expect(mocks.cancel).toHaveBeenCalledWith(85));
 
         await act(async () => rejectCancellation(new Error('network unavailable')));
-        const alert = await screen.findByRole('alert');
+        const alert = await within(dialog).findByRole('alert');
         expect(alert).toHaveTextContent(i18n.t('processes:pending_creation.cancel_failed'));
-        expect(cancelButton).toBeEnabled();
         expect(mocks.fetchProcesses).not.toHaveBeenCalled();
 
-        const axeResult = await axe.run(container, {
+        const axeResult = await axe.run(dialog, {
             runOnly: { type: 'tag', values: AXE_TAGS },
             rules: { 'color-contrast': { enabled: false } },
         });
         expect(axeResult.violations).toEqual([]);
 
         mocks.cancel.mockResolvedValueOnce(undefined);
-        fireEvent.click(cancelButton);
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.retry') }));
         await waitFor(() => expect(mocks.cancel).toHaveBeenLastCalledWith(85));
         await waitFor(() => expect(mocks.fetchProcesses).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-        expect(cancelButton).toBeEnabled();
+    });
+
+    it('closing the confirmation leaves the pending creation untouched', async () => {
+        render(
+            <MemoryRouter>
+                <ProcessesPage />
+            </MemoryRouter>,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('processes:pending_change.cancel') }));
+        const dialog = await screen.findByRole('alertdialog');
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.cancel') }));
+
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(mocks.cancel).not.toHaveBeenCalled();
     });
 });

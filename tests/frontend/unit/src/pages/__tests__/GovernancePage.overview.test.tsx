@@ -14,7 +14,9 @@ vi.mock('@/authz/useAuthz', () => ({
     }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -147,7 +149,7 @@ describe('GovernancePage overview aggregation', () => {
         expect(screen.getByRole('button', { name: 'governance.refresh' })).toBeEnabled();
     });
 
-    it('navigates a queued orphan reassignment to the exact My Requests approval deep link', async () => {
+    it('keeps a queued orphan reassignment on Governance with a notice deep-linking to the My Requests approval (D12 / PM-2)', async () => {
         const user = userEvent.setup();
         render(
             <MemoryRouter initialEntries={['/governance?type=risk']}>
@@ -159,9 +161,12 @@ describe('GovernancePage overview aggregation', () => {
         await user.click(await screen.findByRole('button', { name: 'Open orphan resolution' }));
         await user.click(screen.getByRole('button', { name: 'Queue orphan approval' }));
 
-        expect(screen.getByTestId('governance-route')).toHaveTextContent(
+        expect(screen.getByTestId('governance-route')).toHaveTextContent('/governance?type=risk');
+        expect(await screen.findByTestId('approval-queued-notice-link')).toHaveAttribute(
+            'href',
             '/approvals?tab=mine&approvalId=88',
         );
+        expect(screen.queryByRole('button', { name: 'Queue orphan approval' })).not.toBeInTheDocument();
     });
 
     it('opens the Threat queue when linked from an orphaned Threat detail', async () => {
@@ -357,5 +362,58 @@ describe('GovernancePage overview aggregation', () => {
         await user.keyboard(' ');
         expect(screen.getByTestId('governance-location')).toHaveTextContent('?type=risk');
         expect(screen.getByText('governance.grand_total').closest('button')).toBeNull();
+    });
+
+    it('lays the stat cards out on an auto-fit grid instead of six fixed columns (RS-01)', async () => {
+        render(
+            <MemoryRouter>
+                <GovernancePage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        const card = await screen.findByTestId('governance-filter-card-risk');
+        const grid = card.parentElement as HTMLElement;
+        expect(grid.className).toContain('repeat(auto-fit,minmax(11rem,1fr))');
+        expect(grid.className).not.toContain('lg:grid-cols-6');
+        expect(grid.querySelectorAll('[data-testid^="governance-filter-card-"]')).toHaveLength(8);
+    });
+
+    it('titles the orphan table with an h2 for the active type, the stat cards being the only filter (SM-11)', async () => {
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter initialEntries={['/governance?type=risk']}>
+                <GovernanceHarness />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        expect(await screen.findByRole('heading', { level: 2, name: 'governance.orphaned_risks_section' })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /governance\.orphaned_threats/ }));
+        expect(await screen.findByRole('heading', { level: 2, name: 'governance.orphaned_threats_section' })).toBeInTheDocument();
+    });
+
+    it('ties the live status to the data state and shows stale data as a banner (FB-02)', async () => {
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter>
+                <GovernancePage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        const status = await screen.findByTestId('governance-live-status');
+        expect(status).toHaveTextContent('governance.live_status');
+        expect(status).toHaveAttribute('data-tone', 'success');
+        expect(screen.queryByText('governance.may_be_out_of_date')).not.toBeInTheDocument();
+
+        getOverviewMock.mockRejectedValueOnce(new Error('poll failed'));
+        await user.click(screen.getByRole('button', { name: 'governance.refresh' }));
+
+        expect(await screen.findByText('governance.may_be_out_of_date')).toBeInTheDocument();
+        expect(screen.getByTestId('governance-live-status')).toHaveTextContent('governance.live_status_stale');
+        expect(screen.getByTestId('governance-live-status')).toHaveAttribute('data-tone', 'danger');
+        // The last good list stays on screen under the banner.
+        expect(screen.getByText('Orphaned Risk')).toBeInTheDocument();
     });
 });

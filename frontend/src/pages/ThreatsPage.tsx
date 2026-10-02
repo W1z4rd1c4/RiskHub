@@ -27,8 +27,8 @@ export function ThreatsPage() {
         if (group.value.startsWith('category:')) {
             return t(`categories.${group.value.slice('category:'.length)}`, t('register.values.unknown'));
         }
-        if (group.value === '__uncategorized__') return t('register.groups.uncategorized');
-        if (group.value === '__unassigned__') return t('register.groups.unassigned');
+        if (group.value === '__uncategorized__') return t('common:fallbacks.uncategorized');
+        if (group.value === '__unassigned__') return t('common:fallbacks.unassigned');
         if (group.value === '__unspecified__') return t('register.groups.unspecified');
         if (group.value === '__unlinked_risk__') return t('register.groups.no_linked_risk');
         return group.label;
@@ -94,9 +94,7 @@ export function ThreatsPage() {
             itemsPerPage={state.limit}
             onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchThreats()}
-            emptyMessage={state.hasLoadedOnce
-                ? t(threatsEmptyStateKey(state.search.trim().length > 0))
-                : t('common:loading.data')}
+            emptyMessage={t(threatsEmptyStateKey(state.search.trim().length > 0))}
             grouping={{
                 groups: state.groups,
                 onBack: state.clearSelectedGroup,

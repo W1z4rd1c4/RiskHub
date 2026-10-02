@@ -1,5 +1,10 @@
 import type { ProdAuthCopy } from './loginPageTypes';
 
+/**
+ * Copy for the live production SSO login. `login_sso_prod.button_hint` and
+ * `login_sso_prod.preview_note` are preview-route-only copy rendered by
+ * ProdLoginPreviewPage; never map them here (GAP-B-01).
+ */
 export function getProdAuthCopy(translate: (key: string) => string): ProdAuthCopy {
     return {
         html_title: translate('login_sso_prod.html_title'),
@@ -14,8 +19,6 @@ export function getProdAuthCopy(translate: (key: string) => string): ProdAuthCop
         card_body: translate('login_sso_prod.card_body'),
         security_note: translate('login_sso_prod.security_note'),
         button_label: translate('login_sso_prod.button_label'),
-        button_hint: translate('login_sso_prod.button_hint'),
-        preview_note: translate('login_sso_prod.preview_note'),
         not_configured: translate('login_sso_prod.not_configured'),
     };
 }

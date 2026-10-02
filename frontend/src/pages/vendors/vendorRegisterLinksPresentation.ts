@@ -17,6 +17,27 @@ export interface VendorRegisterLinkRow<TLink> {
     processEditBlocked?: boolean;
 }
 
+/** Display label of a stored workbook closed-list code (`lib/closedListLabels`). */
+export type ClosedListLabeler = (list: string, value: string) => string;
+
+const rawClosedListLabel: ClosedListLabeler = (_list, value) => value;
+
+/**
+ * The Asset link meta line (`formatAssetVendorLinkMeta`) with the workbook codes
+ * it carries — role (`RoleDodavatele`) and reliance (`Reliance`) — shown through
+ * `label` (GAP-C-09); the S-code and contract reference are identifiers.
+ */
+export function formatVendorAssetLinkMeta(
+    link: AssetVendorLink,
+    label: ClosedListLabeler = rawClosedListLabel,
+): string {
+    return formatAssetVendorLinkMeta({
+        ...link,
+        vendor_role: link.vendor_role ? label('RoleDodavatele', link.vendor_role) : link.vendor_role,
+        reliance: link.reliance ? label('Reliance', link.reliance) : link.reliance,
+    });
+}
+
 /** Rows for the linked-Assets block (sheet 10_VAD seen from the Vendor end).
 
 The Asset display name is server-embedded on the link row; an unresolved end
@@ -25,11 +46,12 @@ renders the i18n'd unknown label, never a raw id
 export function buildVendorAssetLinkRows(
     links: AssetVendorLink[],
     unknownAssetLabel: string,
+    closedListLabel: ClosedListLabeler = rawClosedListLabel,
 ): VendorRegisterLinkRow<AssetVendorLink>[] {
     return links.map((link) => ({
         link,
         name: link.asset_name ?? unknownAssetLabel,
-        meta: formatAssetVendorLinkMeta(link),
+        meta: formatVendorAssetLinkMeta(link, closedListLabel),
         canDelete: resolveCapabilityFlag(link.capabilities, 'can_delete'),
     }));
 }

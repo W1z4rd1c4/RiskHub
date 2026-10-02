@@ -28,6 +28,11 @@ operating posture against the repository state at the cited commit/date.
 - [`architecture-improvement-plan-status-2026-08-25.md`](./architecture-improvement-plan-status-2026-08-25.md):
   additive status correction marking the retained 2026-05-17 improvement plan
   as historical, non-normative evidence rather than executable work.
+- [`2026-09-30-frontend-ui-consistency-audit.md`](./2026-09-30-frontend-ui-consistency-audit.md):
+  frontend UI and UX consistency audit at `ba42b38` (343/343 UI files, rendered
+  contrast in all three themes), with the binding design decisions, the target
+  design standard, a phased remediation roadmap and the findings register; an
+  additive §13 records the remediation status after waves W1–W10 (2026-10-02).
 
 ## Notes
 

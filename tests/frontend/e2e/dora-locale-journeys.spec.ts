@@ -121,6 +121,9 @@ test.describe('DORA localized register and governed approval journeys', () => {
                 expect((await submitted).status()).toBe(202);
 
                 const approvals = new ApprovalsPage(riskManagerPage);
+                // D12 / PM-2: the requester returns to the entity register with the
+                // pending notice; its link opens the queued request.
+                await riskManagerPage.getByTestId('approval-queued-notice-link').click({ timeout: 15000 });
                 await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+$/, {
                     timeout: 15000,
                 });

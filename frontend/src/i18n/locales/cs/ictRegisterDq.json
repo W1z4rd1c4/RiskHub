@@ -3,9 +3,7 @@
     "subtitle": "52 průběžných kontrol kvality dat z pracovního sešitu, počítaných živě nad registrem",
     "actions": {
         "refresh": "Obnovit",
-        "retry_rows": "Zkusit znovu",
-        "previous": "Předchozí",
-        "next": "Další"
+        "retry_rows": "Zkusit znovu"
     },
     "loading": "Načítání…",
     "summary": {
@@ -53,10 +51,16 @@
     "empty": "Filtru neodpovídá žádná kontrola",
     "all_clear": {
         "title": "Vše v pořádku — žádné nálezy",
-        "body": "Všech {{count}} kontrol prošlo. V registru nejsou žádné porušující řádky.",
+        "body_one": "Jediná kontrola prošla. V registru nejsou žádné porušující řádky.",
+        "body_few": "Všechny {{count}} kontroly prošly. V registru nejsou žádné porušující řádky.",
+        "body_many": "Všech {{count}} kontroly prošlo. V registru nejsou žádné porušující řádky.",
+        "body_other": "Všech {{count}} kontrol prošlo. V registru nejsou žádné porušující řádky.",
         "body_with_unmeasurable": "Kontroly v pořádku: {{passed}}. Zatím neměřitelné: {{notMeasurable}}. Aktuálně nejsou hlášeny žádné nálezy."
     },
-    "rows_scoped": "Zobrazeno {{shown}} z {{count}} řádků (omezeno dle vašeho přístupu).",
+    "rows_scoped_one": "Zobrazeno {{shown}} z {{count}} řádku (omezeno dle vašeho přístupu).",
+    "rows_scoped_few": "Zobrazeno {{shown}} z {{count}} řádků (omezeno dle vašeho přístupu).",
+    "rows_scoped_many": "Zobrazeno {{shown}} z {{count}} řádku (omezeno dle vašeho přístupu).",
+    "rows_scoped_other": "Zobrazeno {{shown}} z {{count}} řádků (omezeno dle vašeho přístupu).",
     "rows_loading": "Načítání detailů nálezů…",
     "rows_error": "Detaily nálezů se nepodařilo načíst.",
     "rows_empty": "Žádné viditelné řádky s nálezy.",

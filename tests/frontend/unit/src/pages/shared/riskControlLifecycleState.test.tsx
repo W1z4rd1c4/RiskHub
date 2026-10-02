@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useControlsPageState } from '@/pages/controls/useControlsPageState';
 import { useRisksPageState } from '@/pages/risks/useRisksPageState';
+import { parseRiskSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
 
 const mocks = vi.hoisted(() => ({
     downloadControlExport: vi.fn(),
@@ -140,13 +141,39 @@ describe('Risk and Control lifecycle page state', () => {
         },
     );
 
+    it.each([['high', 'Vysoké'], ['critical', 'Kritické']] as const)(
+        'maps the Department Risk net_band code %s to the stored band value (PG-40)',
+        async (code, storedValue) => {
+            const { result } = renderHook(
+                () => useRisksPageState(),
+                { wrapper: wrapper(registerEntry('/risks', { net_band: code })) },
+            );
+
+            await waitFor(() => expect(mocks.getRisks).toHaveBeenCalled());
+            expect(result.current.filters.net_band).toBe(code);
+            expect(mocks.getRisks.mock.calls.at(-1)?.[0]).toMatchObject({ net_band: storedValue });
+        },
+    );
+
+    it('sends the stored band value for a top-level net_band code link (dashboard drill-down)', async () => {
+        const semanticFilters = parseRiskSemanticFilters(new URLSearchParams('net_band=critical'));
+        renderHook(
+            () => useRisksPageState(semanticFilters),
+            { wrapper: wrapper('/risks?net_band=critical') },
+        );
+
+        await waitFor(() => expect(mocks.getRisks).toHaveBeenCalled());
+        expect(mocks.getRisks.mock.calls.at(-1)?.[0]).toMatchObject({ net_band: 'Kritické' });
+    });
+
     it('clears the Department Risk net band from public URL-backed register state', async () => {
         const { result } = renderHook(
             () => useRisksPageState(),
             { wrapper: wrapper(registerEntry('/risks', { net_band: 'Kritické' })) },
         );
 
-        await waitFor(() => expect(result.current.filters.net_band).toBe('Kritické'));
+        // PG-40: the URL value parses to the language-neutral band code.
+        await waitFor(() => expect(result.current.filters.net_band).toBe('critical'));
         act(() => result.current.clearFilters());
 
         await waitFor(() => expect(result.current.filters.net_band).toBe(''));

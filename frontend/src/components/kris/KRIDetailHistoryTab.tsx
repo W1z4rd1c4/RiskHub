@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { History, TrendingUp } from 'lucide-react';
 import { HistoryTimeline, HistoryTrendChart, HistoryComparisonPanel } from '@/components/history';
-import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/tables/Pagination';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import { CardHeader } from '@/components/ui/card';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryTimelineItem, HistoryTrendPoint } from '@/types/history';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import { formatKriPeriodDate, KRI_HISTORY_PAGE_SIZE } from '@/lib/kriHistory';
+import { formatKriUnitName } from '@/lib/kriUnits';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,7 +86,8 @@ export function KRIDetailHistoryTab({
     accessDenied = false,
     onRetry,
 }: KRIDetailHistoryTabProps) {
-    const { t, i18n } = useTranslation(['kris', 'common']);
+    const { t } = useTranslation(['kris', 'common']);
+    const format = useFormat();
     const summaryRef = useRef<HTMLParagraphElement>(null);
     const shouldFocusSummary = useRef(false);
     useEffect(() => {
@@ -100,8 +103,8 @@ export function KRIDetailHistoryTab({
     const hasLoadedPage = outcome.kind === 'content' || outcome.kind === 'empty' || outcome.kind === 'stale-with-error';
     const periodEnds = history.map(entry => entry.period_end).sort();
     const dateWindow = history.length ? {
-        from: formatDate(periodEnds[0], i18n.language),
-        to: formatDate(periodEnds[periodEnds.length - 1], i18n.language),
+        from: formatDate(periodEnds[0], format.locale),
+        to: formatDate(periodEnds[periodEnds.length - 1], format.locale),
     } : null;
     const unavailablePageKey = accessDenied ? 'history_tab.denied_page' : 'history_tab.unavailable_page';
     const hasError = outcome.kind === 'fatal-error' || outcome.kind === 'stale-with-error';
@@ -111,33 +114,38 @@ export function KRIDetailHistoryTab({
         : outcome.kind === 'stale-with-error'
         ? t('common:detail_load.stale_description')
         : t('common:errors.load_failed');
-    const historyChartData = useMemo(() => buildHistoryChartData(history, i18n.language), [history, i18n.language]);
+    const historyChartData = useMemo(() => buildHistoryChartData(history, format.locale), [history, format.locale]);
     const timelineItems = useMemo(
         () => buildTimelineItems(
             history,
-            i18n.language,
+            format.locale,
             t('comparison.recorded_by', { ns: 'kris' }),
             t('comparison.system', { ns: 'kris' }),
             t('comparison.period_end', { ns: 'kris' }),
         ),
-        [history, i18n.language, t],
+        [history, format.locale, t],
     );
 
     return (
         <div className="space-y-6" data-testid="kri-history-window" aria-busy={isLoadingHistory}>
-            <nav aria-label={t('history_tab.pagination')} className="flex flex-wrap items-center gap-3">
-                <Button variant="outline" disabled={isLoadingHistory || page <= 1} onClick={() => changePage(page - 1)}>
-                    {t('history_tab.newer')}
-                </Button>
-                <p ref={summaryRef} tabIndex={-1} role="status" className="text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                    {hasLoadedPage
-                        ? t('history_tab.range', { from: history.length ? (page - 1) * KRI_HISTORY_PAGE_SIZE + 1 : 0, to: history.length ? (page - 1) * KRI_HISTORY_PAGE_SIZE + history.length : 0, total: historyTotal })
-                        : t(isLoadingHistory ? 'history_tab.loading_page' : unavailablePageKey, { page })}
-                </p>
-                <Button variant="outline" disabled={isLoadingHistory || !hasLoadedPage || page * KRI_HISTORY_PAGE_SIZE >= historyTotal} onClick={() => changePage(page + 1)}>
-                    {t('history_tab.older')}
-                </Button>
-            </nav>
+            <Pagination
+                mode="cursor"
+                ariaLabel={t('history_tab.pagination')}
+                previousLabel={t('history_tab.newer')}
+                nextLabel={t('history_tab.older')}
+                hasPrevious={page > 1}
+                hasNext={hasLoadedPage && page * KRI_HISTORY_PAGE_SIZE < historyTotal}
+                isLoading={isLoadingHistory}
+                onPrevious={() => changePage(page - 1)}
+                onNext={() => changePage(page + 1)}
+                summary={(
+                    <p ref={summaryRef} tabIndex={-1} role="status" className="text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                        {hasLoadedPage
+                            ? t('history_tab.range', { from: history.length ? (page - 1) * KRI_HISTORY_PAGE_SIZE + 1 : 0, to: history.length ? (page - 1) * KRI_HISTORY_PAGE_SIZE + history.length : 0, total: historyTotal })
+                            : t(isLoadingHistory ? 'history_tab.loading_page' : unavailablePageKey, { page })}
+                    </p>
+                )}
+            />
             {hasError || outcome.kind === 'denied' ? (
                 <TableErrorState
                     variant={outcome.kind === 'stale-with-error' ? 'banner' : 'block'}
@@ -155,9 +163,7 @@ export function KRIDetailHistoryTab({
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-accent-text" /> {t('history_tab.value_trend', { ns: 'kris' })}
-                    </h3>
+                    <CardHeader icon={TrendingUp} title={t('history_tab.value_trend', { ns: 'kris' })} />
                     <p className="mb-4 text-sm text-muted-foreground">
                         {dateWindow ? t('history_tab.trend_window', dateWindow) : t('history_tab.no_window')}
                     </p>
@@ -165,8 +171,8 @@ export function KRIDetailHistoryTab({
                         data={historyChartData}
                         lowerLimit={lowerLimit}
                         upperLimit={upperLimit}
-                        valueLabel={unit || t('common:labels.value')}
-                        formatValue={(val) => formatNumber(val, i18n.language)}
+                        valueLabel={formatKriUnitName(unit, t) || t('common:labels.value')}
+                        formatValue={(val) => formatNumber(val, format.locale)}
                         emptyMessage={t('history_tab.empty_message', { ns: 'kris' })}
                     />
                 </motion.div>
@@ -178,10 +184,13 @@ export function KRIDetailHistoryTab({
                     transition={{ delay: 0.1 }}
                     className="glass-card"
                 >
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <History className="h-4 w-4 text-accent-text" /> {t('history_tab.record_timeline', { ns: 'kris' })}
-                        {historyTotal > 0 && <span className="text-muted-foreground font-normal">({t('history_tab.entries_count', { ns: 'kris', count: historyTotal })})</span>}
-                    </h3>
+                    <CardHeader
+                        icon={History}
+                        title={t('history_tab.record_timeline', { ns: 'kris' })}
+                        actions={historyTotal > 0 ? (
+                            <span className="text-sm text-muted-foreground">{t('history_tab.entries_count', { ns: 'kris', count: historyTotal })}</span>
+                        ) : undefined}
+                    />
                     <HistoryTimeline
                         items={timelineItems}
                         loading={isLoadingHistory}
@@ -201,15 +210,13 @@ export function KRIDetailHistoryTab({
                     transition={{ delay: 0.2 }}
                     className="glass-card"
                 >
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-accent-text" /> {t('history_tab.compare_periods', { ns: 'kris' })}
-                    </h3>
+                    <CardHeader icon={TrendingUp} title={t('history_tab.compare_periods', { ns: 'kris' })} />
                     <p className="mb-4 text-sm text-muted-foreground">{t('history_tab.comparison_window')}</p>
                     {history.length >= 2 ? (
                         <HistoryComparisonPanel
                             key={page}
                             entries={history}
-                            formatValue={(val) => formatNumber(val, i18n.language)}
+                            formatValue={(val) => formatNumber(val, format.locale)}
                         />
                     ) : (
                         <div className="text-center py-8 text-muted-foreground text-sm">

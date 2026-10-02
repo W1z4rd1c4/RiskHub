@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { Target, Calendar, User, Shield, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { CardHeader } from '@/components/ui/card';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk } from '@/types/risk';
-import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { LoadingState } from '@/components/ui/state';
+import { formatKriUnit, formatKriUnitName } from '@/lib/kriUnits';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
@@ -27,7 +29,8 @@ export function KRIDetailOverviewTab({
     dueDate,
     formatNumber,
 }: KRIDetailOverviewTabProps) {
-    const { t, i18n } = useTranslation(['kris', 'common', 'risks']);
+    const { t } = useTranslation(['kris', 'common', 'risks']);
+    const format = useFormat();
     const monitoring = getKriMonitoringMeta(kri.monitoring_status);
     const gaugeMin = Math.min(kri.lower_limit, kri.current_value);
     const gaugeMax = Math.max(kri.upper_limit, kri.current_value, gaugeMin + 1);
@@ -47,17 +50,21 @@ export function KRIDetailOverviewTab({
                 transition={{ delay: 0.1 }}
                 className="glass-card lg:col-span-2"
             >
-                <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Target className="h-4 w-4 text-accent" /> {t('fields.current_value', { ns: 'kris' })}
-                </h3>
+                <CardHeader icon={Target} title={t('fields.current_value', { ns: 'kris' })} className="mb-6" />
                 <div className="text-center py-8">
-                    <div className={`text-5xl font-black mb-2 ${monitoring.textClassName}`}>
+                    {/* GAP-D-03: translated unit suffix that agrees with the value. */}
+                    <p className={`font-heading text-5xl font-bold tabular-nums mb-2 ${monitoring.textClassName}`}>
                         {formatNumber(kri.current_value)}
-                        <span className="text-lg text-slate-400 ml-2 font-bold">{kri.unit}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                        {t('common:labels.limits')}: <strong className="text-foreground">{formatNumber(kri.lower_limit)}</strong> – <strong className="text-foreground">{formatNumber(kri.upper_limit)}</strong> {kri.unit}
-                    </div>
+                        <span className="text-lg text-muted-foreground ml-2 font-bold">{formatKriUnit(kri.unit, t, kri.current_value)}</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        {t('overview.limits_range', {
+                            ns: 'kris',
+                            lower: formatNumber(kri.lower_limit),
+                            upper: formatNumber(kri.upper_limit),
+                            unit: formatKriUnit(kri.unit, t, kri.upper_limit),
+                        })}
+                    </p>
                 </div>
 
                 {/* Visual Gauge */}
@@ -65,7 +72,7 @@ export function KRIDetailOverviewTab({
                     className="mt-6"
                     valuePct={valuePct}
                     pointerClassName={pointerToneClass}
-                    zones={[{ startPct: lowerPct, endPct: upperPct, className: 'text-emerald-500/20' }]}
+                    zones={[{ startPct: lowerPct, endPct: upperPct, className: 'text-success/20' }]}
                 />
             </motion.div>
 
@@ -76,29 +83,27 @@ export function KRIDetailOverviewTab({
                 transition={{ delay: 0.15 }}
                 className="glass-card"
             >
-                <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-accent" /> {t('overview.reporting', { ns: 'kris' })}
-                </h3>
+                <CardHeader icon={Calendar} title={t('overview.reporting', { ns: 'kris' })} />
                 <div className="space-y-3">
-                    <div className="flex items-center justify-between py-2 border-b border-white/5">
+                    <div className="flex items-center justify-between py-2 border-b border-border">
                         <span className="text-xs text-muted-foreground">{t('common:labels.frequency')}</span>
-                        <span className="text-sm font-bold text-foreground capitalize">{kri.frequency ? t(`frequencies.${kri.frequency}`, { ns: 'kris' }) : t('frequencies.quarterly', { ns: 'kris' })}</span>
+                        <span className="text-sm font-bold text-foreground">{kri.frequency ? t(`frequencies.${kri.frequency}`, { ns: 'kris' }) : t('frequencies.quarterly', { ns: 'kris' })}</span>
                     </div>
-                    <div className="flex items-center justify-between py-2 border-b border-white/5">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><User className="h-3 w-3" /> {t('common:labels.owner')}</span>
+                    <div className="flex items-center justify-between py-2 border-b border-border">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><User aria-hidden="true" className="h-3 w-3" /> {t('common:labels.owner')}</span>
                         <span className="text-sm font-bold text-foreground">{kri.reporting_owner_name || linkedRisk?.owner?.name || '—'}</span>
                     </div>
                     {kri.last_period_end && (
-                        <div className="flex items-center justify-between py-2 border-b border-white/5">
-                            <span className="text-xs text-slate-500">{t('overview.last_period_end', { ns: 'kris' })}</span>
-                            <span className="text-sm font-bold text-foreground">{formatDateValue(kri.last_period_end, i18n.language)}</span>
+                        <div className="flex items-center justify-between py-2 border-b border-border">
+                            <span className="text-xs text-muted-foreground">{t('overview.last_period_end', { ns: 'kris' })}</span>
+                            <span className="text-sm font-bold text-foreground">{format.date(kri.last_period_end)}</span>
                         </div>
                     )}
                     {dueDate && (
                         <div className="flex items-center justify-between py-2">
                             <span className="text-xs text-muted-foreground">{t('overview.due_date', { ns: 'kris' })}</span>
                             <span className={`text-sm font-bold ${kri.monitoring_status === 'not_submitted' ? 'text-warning-text' : 'text-foreground'}`}>
-                                {formatDateValue(dueDate, i18n.language)}
+                                {format.date(dueDate)}
                             </span>
                         </div>
                     )}
@@ -112,17 +117,10 @@ export function KRIDetailOverviewTab({
                 transition={{ delay: 0.2 }}
                 className="glass-card lg:col-span-3 group/risk"
             >
-                <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-accent" />
-                        {t('fields.linked_risk', { ns: 'kris' })}
-                    </h3>
-                </div>
+                <CardHeader icon={Shield} title={t('fields.linked_risk', { ns: 'kris' })} className="mb-8" />
 
                 {linkedRiskOutcome.kind === 'initial-loading' ? (
-                    <div className="p-12 text-center text-sm text-muted-foreground" role="status">
-                        {t('common:loading.generic')}
-                    </div>
+                    <LoadingState />
                 ) : linkedRiskOutcome.kind === 'fatal-error' || linkedRiskOutcome.kind === 'denied' ? (
                     <TableErrorState
                         testId="kri-linked-risk-load-state"
@@ -144,7 +142,7 @@ export function KRIDetailOverviewTab({
                     ) : null}
                     <Link
                         to={`/risks/${linkedRisk.id}`}
-                        className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-left hover:bg-white/[0.04] hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-500 group"
+                        className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-border bg-tint/[0.03] p-8 text-left hover:bg-tint/5 hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-500 group"
                     >
                         {/* Decorative elements */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none group-hover:bg-accent/10 transition-colors duration-500" />
@@ -152,51 +150,51 @@ export function KRIDetailOverviewTab({
                         <div className="relative grid gap-12 lg:grid-cols-[1.5fr_1fr]">
                             <div className="space-y-8">
                                 <div>
-                                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-3">{t('common:labels.risk_name')}</span>
-                                    <h4 className="text-xl font-bold text-foreground group-hover:text-accent-text transition-colors duration-500 leading-tight">
+                                    <span className="text-eyebrow block mb-3">{t('common:labels.risk_name')}</span>
+                                    <h3 className="text-xl font-bold text-foreground group-hover:text-accent-text transition-colors duration-500 leading-tight">
                                         {linkedRisk.name}
-                                    </h4>
+                                    </h3>
                                     <p className="text-sm text-muted-foreground mt-1">{linkedRisk.process}</p>
                                 </div>
 
                                 <div>
-                                    <span className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-3">{t('common:labels.description')}</span>
+                                    <span className="text-eyebrow block mb-3">{t('common:labels.description')}</span>
                                     <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-2xl">
                                         {linkedRisk.description}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="space-y-8 lg:border-l lg:border-white/5 lg:pl-12">
+                            <div className="space-y-8 lg:border-l lg:border-border lg:pl-12">
                                 <div className="grid grid-cols-2 lg:grid-cols-1 gap-8">
                                     <div>
-                                        <span className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-3">{t('common:labels.department')}</span>
+                                        <span className="text-eyebrow block mb-3">{t('common:labels.department')}</span>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                                                <Target className="h-4 w-4 text-emerald-400" />
+                                            <div className="w-8 h-8 rounded-lg bg-tint/5 border border-border flex items-center justify-center">
+                                                <Target aria-hidden="true" className="h-4 w-4 text-success-text" />
                                             </div>
                                             <span className="text-sm font-bold text-foreground">{linkedRisk.department?.name || t('overview.central_systems', { ns: 'kris' })}</span>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <span className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-3">{t('risks:fields.owner')}</span>
+                                        <span className="text-eyebrow block mb-3">{t('risks:fields.owner')}</span>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                                                <User className="h-4 w-4 text-accent" />
+                                            <div className="w-8 h-8 rounded-lg bg-tint/5 border border-border flex items-center justify-center">
+                                                <User aria-hidden="true" className="h-4 w-4 text-accent-text" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-foreground leading-none">{linkedRisk.owner?.name || t('overview.unassigned', { ns: 'kris' })}</p>
+                                                <p className="text-sm font-bold text-foreground leading-none">{linkedRisk.owner?.name || t('common:fallbacks.unassigned')}</p>
                                                 {linkedRisk.owner?.email && <p className="text-xs text-muted-foreground mt-1">{linkedRisk.owner.email}</p>}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="pt-8 border-t border-white/5">
-                                    <div className="flex items-center gap-2 text-xs font-black text-accent uppercase tracking-widest opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-[opacity,transform] duration-500">
+                                <div className="pt-8 border-t border-border">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-accent-text uppercase tracking-wide opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 -translate-x-2 group-hover:translate-x-0 group-focus-visible:translate-x-0 transition-[opacity,transform] duration-500">
                                         {t('overview.view_complete_risk_analysis', { ns: 'kris' })}
-                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
                                     </div>
                                 </div>
                             </div>
@@ -204,8 +202,8 @@ export function KRIDetailOverviewTab({
                     </Link>
                     </>
                 ) : (
-                    <div className="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
-                        <span className="text-sm text-slate-500 italic">{t('common:empty.no_risk_info')}</span>
+                    <div className="p-12 text-center bg-tint/5 rounded-2xl border border-dashed border-border">
+                        <span className="text-sm text-muted-foreground italic">{t('common:empty.no_risk_info')}</span>
                     </div>
                 )}
             </motion.div>
@@ -217,21 +215,21 @@ export function KRIDetailOverviewTab({
                 transition={{ delay: 0.3 }}
                 className="glass-card lg:col-span-3"
             >
-                <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-4">{t('overview.metadata', { ns: 'kris' })}</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <CardHeader title={t('overview.metadata', { ns: 'kris' })} />
+                <dl className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-widest">{t('fields.unit', { ns: 'kris' })}</span>
-                        <p className="text-sm font-bold text-foreground">{kri.unit || '—'}</p>
+                        <dt className="text-eyebrow">{t('fields.unit', { ns: 'kris' })}</dt>
+                        <dd className="text-sm font-bold text-foreground">{formatKriUnitName(kri.unit, t) || '—'}</dd>
                     </div>
                     <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-widest">{t('overview.last_updated', { ns: 'kris' })}</span>
-                        <p className="text-sm font-bold text-foreground">{kri.last_updated ? formatDateValue(kri.last_updated, i18n.language) : '—'}</p>
+                        <dt className="text-eyebrow">{t('overview.last_updated', { ns: 'kris' })}</dt>
+                        <dd className="text-sm font-bold text-foreground">{kri.last_updated ? format.date(kri.last_updated) : '—'}</dd>
                     </div>
                     <div>
-                        <span className="text-xs text-muted-foreground uppercase tracking-widest">{t('common:labels.status')}</span>
-                        <p className={`text-sm font-bold ${monitoring.textClassName}`}>{t(monitoring.labelKey)}</p>
+                        <dt className="text-eyebrow">{t('common:labels.status')}</dt>
+                        <dd className={`text-sm font-bold ${monitoring.textClassName}`}>{t(monitoring.labelKey)}</dd>
                     </div>
-                </div>
+                </dl>
             </motion.div>
         </div>
     );

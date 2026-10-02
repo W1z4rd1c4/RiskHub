@@ -4,7 +4,10 @@ import { FileDown, RefreshCw } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/i18n/hooks';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { ErrorState, LoadingState } from '@/components/ui/state';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
@@ -14,13 +17,14 @@ import { lookupApi } from '@/services/lookupApi';
 import { AuditDetailsModal } from './AuditDetailsModal';
 import { AuditLogsTable } from './AuditLogsTable';
 import { exportAuditLogsToCsv, exportAuditLogsToJson } from './auditExport';
-import { getAuditEventTypes } from './auditPresentation';
+import { formatAuditEvent, getAuditEventTypes } from './auditPresentation';
 import { LogSettingsPanel } from './LogSettingsPanel';
 
 const AUDIT_USER_LOOKUP_CHUNK_SIZE = 200;
 
 export function AuditLogsPanel() {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const [lines, setLines] = useState<number>(100);
     const [eventFilter, setEventFilter] = useState<string>('');
     const [autoRefresh, setAutoRefresh] = useState(false);
@@ -40,7 +44,7 @@ export function AuditLogsPanel() {
         refetchInterval: autoRefresh ? 5000 : false,
     });
 
-    const { data, isFetching, isLoading, refetch: refetchLogs } = useQuery({
+    const { data, isError, isFetching, isLoading, refetch: refetchLogs } = useQuery({
         queryKey: adminKeys.auditLogs(lines, eventFilter),
         queryFn: () => adminApi.getAuditLogs({ lines, event_type: eventFilter || undefined }),
         refetchInterval: autoRefresh ? 5000 : false,
@@ -93,7 +97,7 @@ export function AuditLogsPanel() {
     });
 
     if (isLoading && !data && !eventVocabulary && eventTypes.length === 0) {
-        return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
+        return <LoadingState label={t('application_logs.loading')} />;
     }
 
     const canExportLoadedAuditLogs = resolveCapabilityFlag(capabilities, 'can_export_loaded_audit_logs');
@@ -105,17 +109,18 @@ export function AuditLogsPanel() {
 
             <div className="flex flex-wrap items-center justify-between gap-4 py-2">
                 <div className="flex items-center gap-4">
-                    <h3 className="admin-title text-lg font-semibold">{t('audit.event_feed')}</h3>
-                    <div className="admin-surface-muted flex items-center gap-2 rounded-full border px-3 py-1">
-                        <div className={cn('w-2 h-2 rounded-full', autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500')} />
-                        <span className="admin-muted text-xs">{t('audit.live')}</span>
-                        <input
-                            type="checkbox"
-                            aria-label={t('audit.live')}
-                            checked={autoRefresh}
-                            onChange={(event) => setAutoRefresh(event.target.checked)}
-                            className="form-checkbox h-3 w-3 text-accent rounded bg-slate-800 border-white/10"
-                        />
+                    <h2 className="text-lg font-semibold text-foreground">{t('audit.event_feed')}</h2>
+                    <div className="flex items-center gap-2 rounded-full border border-border bg-tint/5 px-3 py-1">
+                        <div aria-hidden="true" className={cn('w-2 h-2 rounded-full', autoRefresh ? 'bg-success animate-pulse' : 'bg-muted-foreground')} />
+                        <Field layout="inline" label={t('audit.live')} className="items-center gap-2" labelClassName="text-xs text-muted-foreground">
+                            {(field) => (
+                                <Checkbox
+                                    {...field}
+                                    checked={autoRefresh}
+                                    onCheckedChange={setAutoRefresh}
+                                />
+                            )}
+                        </Field>
                     </div>
                 </div>
 
@@ -127,7 +132,7 @@ export function AuditLogsPanel() {
                         placeholder={t('audit.all_events')}
                         allowEmpty
                         emptyLabel={t('audit.all_events')}
-                        options={eventTypes.map((type) => ({ value: type, label: type.replace(/_/g, ' ') }))}
+                        options={eventTypes.map((type) => ({ value: type, label: formatAuditEvent(type, type, t) }))}
                     />
 
                     <ThemedSelect
@@ -179,13 +184,28 @@ export function AuditLogsPanel() {
                 </div>
             </div>
 
-            <AuditLogsTable
-                logs={logs}
-                language={i18n.language}
-                resolveUserName={(userId) => auditUserNameById.get(userId)}
-                t={t}
-                onViewDetails={setSelectedLogExtra}
-            />
+            {/* GAP-C-11: a failed feed is an error with retry, never "no audit events". */}
+            {isError && !data ? (
+                <ErrorState
+                    title={t('audit.event_feed')}
+                    onRetry={() => void refetchLogs()}
+                    isRetrying={isFetching}
+                />
+            ) : (
+                <>
+                    {isError ? (
+                        <ErrorState variant="banner" onRetry={() => void refetchLogs()} isRetrying={isFetching} />
+                    ) : null}
+                    <AuditLogsTable
+                        logs={logs}
+                        regionLabel={t('audit.event_feed')}
+                        language={format.locale}
+                        resolveUserName={(userId) => auditUserNameById.get(userId)}
+                        t={t}
+                        onViewDetails={setSelectedLogExtra}
+                    />
+                </>
+            )}
 
             <AuditDetailsModal extra={selectedLogExtra} onClose={() => setSelectedLogExtra(null)} />
         </div>

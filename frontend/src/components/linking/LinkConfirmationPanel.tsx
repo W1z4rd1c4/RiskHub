@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Link as LinkIcon } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 
 import { getResultTitle } from './linkSearchPresentation';
@@ -37,24 +38,21 @@ export function LinkConfirmationPanel({
                     <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 space-y-4">
                         <div className="flex justify-between items-start">
                             <div className="flex-1 pr-4">
-                                <p className="text-xs text-accent-text font-black uppercase tracking-widest mb-1">{t('common:linking.confirm_linkage')}</p>
+                                <p className="text-eyebrow mb-1 text-accent-text">{t('common:linking.confirm_linkage')}</p>
                                 <p className="text-sm font-bold text-foreground leading-tight">
                                     {getResultTitle(mode, selectedResult)}
                                 </p>
                             </div>
-                            <button
-                                onClick={() => onSelectTarget(null)}
-                                className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors border border-border rounded-md px-2 py-1"
-                            >
+                            <Button variant="outline" size="compact" onClick={() => onSelectTarget(null)}>
                                 {t('common:linking.change')}
-                            </button>
+                            </Button>
                         </div>
 
                         <div className="flex gap-4">
                             <div className="flex-1">
                                 {mode === 'risk-to-control' && (
                                     <div className="bg-nested border border-border rounded-xl p-3">
-                                        <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                                        <p className="text-eyebrow mb-1.5 flex items-center gap-2">
                                             {t('common:linking.owner_information')}
                                         </p>
                                         <div className="flex items-center justify-between">
@@ -69,7 +67,7 @@ export function LinkConfirmationPanel({
                                 )}
                                 {mode === 'vendor-to-kri' && (
                                     <div className="bg-nested border border-border rounded-xl p-3">
-                                        <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">
+                                        <p className="text-eyebrow mb-1.5">
                                             {t('kris:fields.linked_risk')}
                                         </p>
                                         <div className="flex items-center justify-between">
@@ -83,14 +81,10 @@ export function LinkConfirmationPanel({
                                     </div>
                                 )}
                             </div>
-                            <button
-                                onClick={onLink}
-                                disabled={isLinking}
-                                className="px-6 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-accent-foreground text-xs font-black uppercase tracking-widest rounded-lg transition-[background-color,box-shadow] shadow-lg shadow-accent/20 disabled:opacity-50 h-10 self-end"
-                            >
-                                {isLinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <LinkIcon className="h-3 w-3" />}
+                            <Button variant="accent" onClick={onLink} isLoading={isLinking} className="self-end">
+                                {isLinking ? null : <LinkIcon aria-hidden="true" />}
                                 {t('common:linking.create_link')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </motion.div>

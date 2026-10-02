@@ -1,36 +1,36 @@
-import type { SafeTFunction } from '@/i18n/hooks';
+import type { Tone } from '@/lib/tones';
 import type { ApprovalActionType, ApprovalStatus } from '@/types/approval';
-import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
-export function getApprovalStatusBadge(status: ApprovalStatus): string {
+/** Status pill tone (D1/§4.4: meaning only; `Badge` maps the tone to token classes). */
+export function getApprovalStatusTone(status: ApprovalStatus): Tone {
     switch (status) {
         case 'pending':
-            return 'text-warning-text border-warning/20 bg-warning/10';
+            return 'warning';
         case 'pending_privileged':
-            return 'text-accent-text border-accent/20 bg-accent/10';
+            return 'accent';
         case 'approved':
-            return 'text-success-text border-success/20 bg-success/10';
+            return 'success';
         case 'rejected':
-            return 'text-destructive border-destructive/20 bg-destructive/10';
+            return 'danger';
         case 'expired':
-            return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
         case 'cancelled':
         default:
-            return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+            return 'neutral';
     }
 }
 
-export function getApprovalActionBadge(action: ApprovalActionType): string {
+/** Request-type pill tone. */
+export function getApprovalActionTone(action: ApprovalActionType): Tone {
     switch (action) {
         case 'delete':
         case 'archive':
-            return 'text-destructive bg-destructive/10 border-destructive/20';
+            return 'danger';
         case 'create':
-            return 'text-success-text bg-success/10 border-success/20';
+            return 'success';
         case 'edit':
-            return 'text-accent-text bg-info/10 border-info/20';
+            return 'info';
         default:
-            return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+            return 'neutral';
     }
 }
 
@@ -76,41 +76,4 @@ export function getGovernedActionLabel(
     if (actionType === 'create') return 'create';
     if (actionType === 'archive' || actionType === 'delete') return 'archive';
     return 'update';
-}
-
-export function isQuestionnaireOverdue(questionnaire: RiskQuestionnaireListItem, now = Date.now()): boolean {
-    return questionnaire.status !== 'submitted' && new Date(questionnaire.due_at).getTime() < now;
-}
-
-export function getQuestionnaireStatusBadge(questionnaire: RiskQuestionnaireListItem, now = Date.now()): string {
-    if (isQuestionnaireOverdue(questionnaire, now)) {
-        return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
-    }
-    if (questionnaire.status === 'sent') {
-        return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
-    }
-    if (questionnaire.status === 'in_progress') {
-        return 'text-accent border-accent/20 bg-accent/5';
-    }
-    return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
-}
-
-export function getQuestionnaireStatusLabel(
-    questionnaire: RiskQuestionnaireListItem,
-    t: SafeTFunction,
-    now = Date.now(),
-): string {
-    if (isQuestionnaireOverdue(questionnaire, now)) {
-        return t('risks:questionnaire.status.overdue');
-    }
-    if (questionnaire.status === 'sent') {
-        return t('risks:questionnaire.status.sent');
-    }
-    if (questionnaire.status === 'in_progress') {
-        return t('risks:questionnaire.status.in_progress');
-    }
-    if (questionnaire.status === 'submitted') {
-        return t('risks:questionnaire.status.submitted');
-    }
-    return questionnaire.status;
 }

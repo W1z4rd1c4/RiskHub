@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { logError } from '@/services/logger';
+import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 
@@ -30,18 +30,20 @@ export function useVendorDetailState({ mode }: UseVendorDetailStateOptions) {
         load: (vendorId) => vendorApi.getVendor(vendorId),
     });
 
+    const restoreWithFeedback = useRestoreWithFeedback();
     const restoreVendor = useCallback(async () => {
         if (!vendor) {
             return;
         }
 
-        try {
-            await vendorApi.restoreVendor(vendor.id);
-            await fetchVendor();
-        } catch (restoreError) {
-            logError('Error restoring vendor:', restoreError);
-        }
-    }, [fetchVendor, vendor]);
+        // D9: restore outcomes (success and failure) are toasts.
+        const restored = vendor;
+        await restoreWithFeedback({
+            restore: () => vendorApi.restoreVendor(restored.id),
+            name: restored.name,
+            refresh: () => fetchVendor(),
+        });
+    }, [fetchVendor, restoreWithFeedback, vendor]);
 
     const canEdit = resolveCapabilityFlag(vendor?.capabilities, 'can_update');
     const canArchive = resolveCapabilityFlag(vendor?.capabilities, 'can_archive');

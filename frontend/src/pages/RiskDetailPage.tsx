@@ -1,32 +1,35 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    ArrowLeft,
+    Archive,
     Edit,
-    Trash2,
-    Star,
     History,
     FileText,
     Target,
-    AlertCircle,
-    XCircle,
     RotateCcw
 } from 'lucide-react';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
+import { RiskPriorityBadge, RiskStatusBadge } from '@/components/risks/RiskStatusBadge';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
-import { riskDetailTabs, useRiskDetailState } from '@/pages/detail/useRiskDetailState';
+import { useRiskDetailState } from '@/pages/detail/useRiskDetailState';
 import { getRiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
-import { useContentTabs } from '@/hooks/useContentTabs';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { LoadingState } from '@/components/ui/state';
+
+const RISK_TABS_ID_PREFIX = 'risk-detail';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -80,27 +83,11 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
         setIsLinkDialogOpen,
         setLinkErrorKey,
     } = useRiskDetailState({ rawId, returnTo });
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: riskDetailTabs,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'risk-detail',
-    });
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'active': return 'text-success-text border-success/20 bg-success/10';
-            case 'emerging': return 'text-warning-text border-warning/20 bg-warning/10';
-            default: return 'text-muted-foreground border-border bg-muted';
-        }
-    };
-
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4" aria-busy="true" data-loading="true">
-                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">{t('loading.risk_data')}</p>
+            <div data-loading="true">
+                <LoadingState layout="page" label={t('loading.risk_data')} />
             </div>
         );
     }
@@ -108,7 +95,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
     if (loadOutcome === 'unavailable' || !risk) {
         return (
             <DetailLoadUnavailableState
-                backLabel={t('navigation:tabs.risks')}
+                backLabel={t('risks:actions.back_to_register')}
                 isRetrying={isRetrying}
                 onBack={() => navigate(returnTo)}
                 onRetry={resourceId === null ? undefined : () => void refreshData()}
@@ -123,16 +110,17 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
     const displayStatus = getRiskDisplayStatus(risk);
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             {loadOutcome === 'stale-with-error' ? (
                 <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshData()} />
             ) : null}
+            <ApprovalQueuedNotice />
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
                 <DetailActionBanner
                     approvalsLabel={t('navigation:tabs.approvals')}
                     message={approvalMessage}
-                    messageText={approvalMessage.isError ? t(approvalMessage.key, { ns: 'errorKeys' }) : t(approvalMessage.key)}
+                    messageText={translateUiMessage(t, approvalMessage.key)}
                     onClose={() => setApprovalMessage(null)}
                     onNavigateApprovals={() => navigate('/approvals')}
                     pendingText={t('risks:messages.view_pending_approvals_prefix')}
@@ -142,48 +130,37 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
 
             {/* Link Error Message */}
             {linkErrorKey && (
-                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                    {t(linkErrorKey, { ns: 'errorKeys' })}
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        size="iconCompact"
-                        onClick={() => setLinkErrorKey(null)}
-                        aria-label={t('actions.close')}
-                        className="ml-auto opacity-50 hover:opacity-100"
-                    >
-                        <XCircle className="h-3 w-3" aria-hidden="true" />
-                    </Button>
-                </div>
+                <InlineMessage
+                    tone="danger"
+                    onDismiss={() => setLinkErrorKey(null)}
+                    dismissLabel={t('actions.close')}
+                >
+                    {translateUiMessage(t, linkErrorKey)}
+                </InlineMessage>
             )}
 
             <EntityDetailHeader
-                backAction={(
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate(returnTo)}
-                        className="text-xs font-black uppercase tracking-widest"
-                    >
-                        <ArrowLeft className="h-3 w-3" aria-hidden="true" /> {t('risks:actions.back_to_register')}
-                    </Button>
-                )}
+                back={{ label: t('risks:actions.back_to_register'), onClick: () => void navigate(returnTo) }}
+                breadcrumbs={[{ label: t('navigation:sidebar.risks'), to: returnTo }, { label: risk.name }]}
                 identifier={risk.risk_id_code}
                 identifierSeparatorLabel={t('detail_header.identifier_separator')}
                 title={risk.name}
-                titleAdornment={risk.is_priority ? <Star className="h-5 w-5 text-amber-400 fill-amber-400" /> : undefined}
-                statuses={(
-                    <>
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
-                            {displayStatus}
-                        </span>
-                    </>
-                )}
+                titleAdornment={risk.is_priority ? <RiskPriorityBadge /> : undefined}
+                statuses={<RiskStatusBadge status={displayStatus} />}
                 metadata={<span>{risk.process}</span>}
                 description={risk.description}
                 actions={(
                     <>
+                    {canUpdateRisk && (
+                        <Button
+                            type="button"
+                            variant="accent"
+                            onClick={() => navigate(appendRegisterReturnTo(`/risks/${risk.id}/edit`, returnTo))}
+                        >
+                            <Edit aria-hidden="true" />
+                            {t('risks:edit_risk')}
+                        </Button>
+                    )}
                     <ContextualIssueAction
                         buttonLabel={tIssues('actions.new_issue')}
                         canCreateIssue={canCreateIssue}
@@ -195,29 +172,15 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                         onCreated={(issue) => navigate(`/issues/${issue.id}`)}
                         onOpen={() => setIsIssueModalOpen(true)}
                     />
-                    {canUpdateRisk && (
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            onClick={() => navigate(appendRegisterReturnTo(`/risks/${risk.id}/edit`, returnTo))}
-                            title={t('risks:edit_risk')}
-                            aria-label={t('risks:edit_risk')}
-                        >
-                            <Edit className="h-5 w-5" aria-hidden="true" />
-                        </Button>
-                    )}
                     {risk.is_archived ? (
                         canRestoreRisk && (
                             <Button
                                 type="button"
-                                variant="secondary"
-                                size="icon"
+                                variant="outline"
                                 onClick={handleRestore}
-                                title={t('risks:tooltips.unarchive_risk')}
-                                aria-label={t('risks:tooltips.unarchive_risk')}
                             >
-                                <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                                <RotateCcw aria-hidden="true" />
+                                {t('risks:tooltips.unarchive_risk')}
                             </Button>
                         )
                     ) : (
@@ -225,15 +188,13 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                             <Button
                                 type="button"
                                 variant="destructive"
-                                size="icon"
                                 onClick={() => {
                                     setApprovalMessage(null);
                                     setIsDeleteDialogOpen(true);
                                 }}
-                                title={t('actions.archive')}
-                                aria-label={t('actions.archive')}
                             >
-                                <Trash2 className="h-5 w-5" aria-hidden="true" />
+                                <Archive aria-hidden="true" />
+                                {t('actions.archive')}
                             </Button>
                         )
                     )}
@@ -241,42 +202,20 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                 )}
             />
 
-            {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10" role="tablist" aria-label={risk.name}>
-                <button
-                    {...getTabProps('overview', 0)}
-                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <Target className="h-4 w-4 inline mr-2" />
-                    {t('risks:tabs.overview')}
-                </button>
-                <button
-                    {...getTabProps('history', 1)}
-                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'history'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <History className="h-4 w-4 inline mr-2" />
-                    {t('risks:tabs.history')}
-                </button>
-                <button
-                    {...getTabProps('assessment', 2)}
-                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'assessment'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <FileText className="h-4 w-4 inline mr-2" />
-                    {t('risks:tabs.assessment')}
-                </button>
-            </div>
+            <TabList
+                tabs={[
+                    { id: 'overview', label: t('risks:tabs.overview'), icon: Target },
+                    { id: 'history', label: t('risks:tabs.history'), icon: History },
+                    { id: 'assessment', label: t('risks:tabs.assessment'), icon: FileText },
+                ]}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={RISK_TABS_ID_PREFIX}
+                ariaLabel={risk.name}
+            />
 
             {/* Overview Tab */}
-            <div {...getPanelProps('overview')}>
+            <TabPanel tab="overview" activeTab={activeTab} idPrefix={RISK_TABS_ID_PREFIX}>
                 {activeTab === 'overview' && <RiskDetailOverviewTab
                     risk={risk}
                     linkedControls={linkedControls}
@@ -305,42 +244,40 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                     isCreateDialogOpen={isCreateDialogOpen}
                     setIsCreateDialogOpen={setIsCreateDialogOpen}
                 />}
-            </div>
+            </TabPanel>
 
             {/* History Tab */}
-            <div {...getPanelProps('history')}>
+            <TabPanel tab="history" activeTab={activeTab} idPrefix={RISK_TABS_ID_PREFIX}>
                 {activeTab === 'history' && <RiskDetailKriHistoryTab
                     items={kriHistoryItems}
                     hasKRIs={!!(risk.kris && risk.kris.length > 0)}
                     outcome={kriHistoryOutcome}
                     onRetry={() => void retryKriHistory()}
                 />}
-            </div>
+            </TabPanel>
 
             {/* Risk Assessment Tab */}
-            <div {...getPanelProps('assessment')}>
+            <TabPanel tab="assessment" activeTab={activeTab} idPrefix={RISK_TABS_ID_PREFIX}>
                 {activeTab === 'assessment' && <RiskDetailQuestionnairesTab risk={risk} />}
-            </div>
+            </TabPanel>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Archive confirmation (D10, PM-1): the risk API always takes a
+                reason and routes non-approvers through approval, so the
+                reason is required. */}
             <ConfirmDialog
                 isOpen={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
                 onConfirm={handleArchive}
-                title={t('risks:confirmation.archive_title')}
-                message={t('risks:confirmation.archive_message', { riskName: risk?.name })}
-                confirmLabel={t('common:actions.archive')}
-                variant="danger"
+                intent="archive"
+                entityLabel={t('common:labels.risk')}
+                entityName={risk.name}
+                reason="required"
+                reasonPlaceholder={t('common:labels.archive_reason_placeholder')}
                 isLoading={isDeleting}
-                showInput
-                inputLabel={t('common:labels.archive_reason')}
-                inputPlaceholder={t('common:labels.archive_reason_placeholder')}
-                errorText={approvalMessage?.isError
-                    ? t(approvalMessage.key, { ns: 'errorKeys' })
-                    : null}
+                errorText={approvalMessage?.isError ? translateUiMessage(t, approvalMessage.key) : null}
             />
 
-        </div>
+        </PageContainer>
     );
 }
 

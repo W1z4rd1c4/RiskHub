@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { AlertTriangle, ArrowRight, Activity } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardTitle } from '@/components/ui/card';
 import { useDashboardFilterSelector } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import { useTranslation } from '@/i18n/hooks';
+import { formatKriUnit } from '@/lib/kriUnits';
 import type { KeyRiskIndicator } from '@/types/kri';
 import { logError } from '@/services/logger';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 export function KRIBreachWidget() {
     const { t } = useTranslation('dashboard');
-    const navigate = useNavigate();
     const departmentId = useDashboardFilterSelector(state => state.filters.departmentId);
     const [breaches, setBreaches] = useState<KeyRiskIndicator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -48,28 +50,26 @@ export function KRIBreachWidget() {
     }, [departmentId, t]);
 
     const loadingFallback = (
-        <div className="glass-card animate-pulse h-[300px] flex items-center justify-center">
-            <Activity className="h-6 w-6 text-slate-700 animate-spin" />
+        <div className="glass-card h-[300px]">
+            <LoadingState className="h-full" label={t('common:loading.named', { name: t('kri.active_breaches') })} testId="widget-loading" />
         </div>
     );
 
     const emptyFallback = (
-        <div className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
-                <Activity className="h-6 w-6 text-emerald-500" />
-            </div>
-            <h4 className="text-white font-bold mb-1">{t('kri.appetite_maintained')}</h4>
-            <p className="text-xs text-slate-500">{t('kri.no_breaches_org')}</p>
+        <div className="glass-card h-full">
+            <EmptyState
+                icon={Activity}
+                title={t('kri.appetite_maintained')}
+                description={t('kri.no_breaches_org')}
+                className="h-full"
+                testId="widget-empty"
+            />
         </div>
     );
 
     const errorFallback = (
-        <div data-testid="widget-error" className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
-            <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="h-6 w-6 text-rose-500" />
-            </div>
-            <h4 className="text-white font-bold mb-1">{t('kri.breaches_load_failed')}</h4>
-            <p className="text-xs text-slate-500">{error?.message}</p>
+        <div className="glass-card h-full">
+            <ErrorState title={t('kri.breaches_load_failed')} className="h-full" testId="widget-error" />
         </div>
     );
 
@@ -84,58 +84,58 @@ export function KRIBreachWidget() {
             errorFallback={errorFallback}
             emptyFallback={emptyFallback}
         >
-            <div className="glass-card flex flex-col h-full !p-0 overflow-hidden">
-                <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+            <Card padding="none" className="flex h-full flex-col overflow-hidden">
+                <div className="p-4 border-b border-border flex items-center justify-between bg-tint/[0.03]">
                     <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-rose-500" />
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest">{t('kri.active_breaches')}</h3>
+                        <AlertTriangle aria-hidden="true" className="h-4 w-4 text-destructive" />
+                        <CardTitle className="text-base">{t('kri.active_breaches')}</CardTitle>
                     </div>
-                    <span
-                        className="px-2 py-0.5 bg-rose-500/10 text-rose-500 text-[10px] font-black rounded-full border border-rose-500/20"
-                        data-testid="kri-breach-total"
-                    >
+                    <Badge tone="danger" data-testid="kri-breach-total">
                         {breaches.length}
-                    </span>
+                    </Badge>
                 </div>
 
-                <div className="flex-1 overflow-auto divide-y divide-white/5">
+                <div className="flex-1 overflow-auto divide-y divide-border">
                     {breaches.length > 5 ? (
                         <p className="p-3 text-xs font-semibold text-muted-foreground">
                             {t('kri.showing', { shown: 5, total: breaches.length })}
                         </p>
                     ) : null}
                     {breaches.slice(0, 5).map((kri) => (
-                        <motion.div
+                        <Link
                             key={kri.id}
-                            className="p-4 cursor-pointer group flex items-center justify-between hover:bg-white/5 transition-colors"
-                            onClick={() => navigate(`/risks/${kri.risk_id}`)}
+                            to={`/risks/${kri.risk_id}`}
+                            className="p-4 group flex items-center justify-between hover:bg-tint/5 transition-colors focus-ring"
                         >
                             <div className="flex-1 min-w-0 mr-4">
-                                <h4 className="text-xs font-bold text-white truncate mb-0.5 group-hover:text-accent transition-colors">
+                                <p className="text-sm font-bold text-foreground truncate mb-0.5 group-hover:text-accent-text transition-colors">
                                     {kri.metric_name}
-                                </h4>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">
-                                        Current: <span className="text-rose-400">{kri.current_value}{kri.unit}</span>
+                                </p>
+                                <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                    <span>
+                                        {t('kri.current_label')}{' '}
+                                        <span className="font-semibold text-destructive">
+                                            {kri.current_value} {formatKriUnit(kri.unit, t, kri.current_value)}
+                                        </span>
                                     </span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                    <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">
-                                        Limit: {kri.upper_limit}{kri.unit}
+                                    <span aria-hidden="true" className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                                    <span>
+                                        {t('kri.limit_label')} {kri.upper_limit} {formatKriUnit(kri.unit, t, kri.upper_limit)}
                                     </span>
                                 </div>
                             </div>
-                            <ArrowRight className="h-3 w-3 text-slate-600 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                        </motion.div>
+                            <ArrowRight aria-hidden="true" className="h-3 w-3 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-[color,transform]" />
+                        </Link>
                     ))}
                 </div>
 
-                <button
-                    onClick={() => navigate('/risks?breached=true')}
-                    className="w-full py-3 bg-white/[0.01] hover:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-t border-white/5 transition-all"
+                <Link
+                    to="/risks?breached=true"
+                    className="text-eyebrow block w-full py-3 text-center bg-tint/[0.03] hover:bg-tint/5 hover:text-foreground border-t border-border transition-colors focus-ring"
                 >
                     {t('kri.view_risk_register')}
-                </button>
-            </div>
+                </Link>
+            </Card>
         </WidgetShell>
     );
 }

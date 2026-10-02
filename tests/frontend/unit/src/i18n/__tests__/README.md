@@ -10,6 +10,7 @@ Folder for `tests/frontend/unit/src/i18n/__tests__` implementation assets.
 - `errorKeyMapping.spec.ts`
 - `parity.spec.ts`
 - `scanHardcodedUi.spec.ts`
+- `validatePlurals.spec.ts`
 
 ## Notes
 

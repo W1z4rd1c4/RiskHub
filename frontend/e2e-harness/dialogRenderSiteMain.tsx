@@ -10,14 +10,15 @@ import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
-import { KRIModal } from '@/components/kri/KRIModal';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
 import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
+import { RiskQuestionnairesPanel } from '@/components/riskhub/RiskQuestionnairesPanel';
 import { RolesPanel } from '@/components/riskhub/RolesPanel';
 import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { RiskLinkedControlsSection } from '@/components/risks/detail-overview/RiskLinkedControlsSection';
+import { RiskRegisterLinksSection } from '@/components/risks/detail-overview/RiskRegisterLinksSection';
 import { VendorLinkedEntitiesTab } from '@/components/vendors/VendorLinkedEntitiesTab';
 import type { VendorLinkedEntitiesAdapter } from '@/components/vendors/useVendorLinkedEntities';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -29,11 +30,13 @@ import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverview
 import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
 import { VendorSubOutsourcingSection } from '@/pages/vendors/VendorSubOutsourcingSection';
 import { DashboardRiskSections } from '@/pages/dashboard/DashboardRiskSections';
+import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import type { Asset } from '@/types/asset';
 import type { Control, ControlRiskLink } from '@/types/control';
-import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk, RiskControlLink } from '@/types/risk';
+import type { Threat } from '@/types/threat';
+import { Target } from 'lucide-react';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -60,18 +63,15 @@ const riskFixture = {
   },
 } as unknown as Risk;
 
-const kriFixture = {
+const threatFixture = {
   id: 1,
-  risk_id: 1,
-  metric_name: 'System uptime',
-  description: 'Uptime KRI',
-  current_value: 99,
-  lower_limit: 90,
-  upper_limit: 100,
-  unit: '%',
-  last_period_end: null,
-  capabilities: null,
-} as unknown as KeyRiskIndicator;
+  name: 'Credential Stuffing',
+  stewardship_status: 'assigned',
+  is_archived: false,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  capabilities: { can_update: true },
+} as unknown as Threat;
 
 const controlFixture = {
   id: 1,
@@ -126,19 +126,6 @@ function LinkManagementOwner() {
   );
 }
 
-function KriModalOwner() {
-  return (
-    <KRIModal
-      risk_id={1}
-      kri={kriFixture}
-      isOpen
-      onClose={() => {}}
-      onDelete={async () => {}}
-      onSave={async () => ({ kind: 'updated' })}
-    />
-  );
-}
-
 function RiskLinkedControlsOwner() {
   const [isLinkOpen, setIsLinkOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -188,8 +175,7 @@ function VendorLinkedOwner() {
       onAdd={() => {}}
       renderCard={(item) => <button key={item.id} type="button">{item.name}</button>}
       onNavigate={() => {}}
-      icon={<span aria-hidden="true">K</span>}
-      headerColorClass="text-accent"
+      icon={Target}
       i18nKeys={{
         tabTitle: 'links.kris.title',
         subtitle: 'links.kris.subtitle',
@@ -340,7 +326,6 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'confirm.link-management': return <LinkManagementOwner />;
     case 'issue.execution-history': return <ExecutionHistory controlId={1} controlName="Access Control Review" canCreateIssue />;
     case 'mismatch.kri-form': return <KRIFormContainer initialData={{ risk_id: 1, metric_name: 'Uptime', description: 'Availability', current_value: 99, lower_limit: 90, upper_limit: 100, unit: '%', frequency: 'monthly' }} vendorContext={{ vendorId: 1, vendorName: 'Cloud Vendor', returnTo: '/vendors/1' }} />;
-    case 'confirm.kri-modal': return <KriModalOwner />;
     case 'role-modal.roles-panel':
     case 'role-delete.roles-panel': return <RolesPanel />;
     case 'questionnaire.risk-detail-tab': return <RiskDetailQuestionnairesTab risk={riskFixture} />;
@@ -354,6 +339,9 @@ function OwnerSurface({ siteId }: { siteId: string }) {
     case 'confirm.vendor-sub-outsourcing': return (
       <VendorSubOutsourcingSection vendorId={1} canManageSubOutsourcing protectedChangeRequiresApproval />
     );
+    case 'confirm.threat-risk-links': return <ThreatRiskLinksSection threat={threatFixture} canManageLinks />;
+    case 'confirm.risk-register-links': return <RiskRegisterLinksSection risk={riskFixture} canManageLinks />;
+    case 'send.risk-questionnaires-panel': return <RiskQuestionnairesPanel />;
     case 'link.control-overview':
     case 'risk-view.control-overview': return <ControlOverviewOwner />;
     case 'risk-drilldown.dashboard': return <DashboardOwner />;

@@ -1,8 +1,8 @@
 import { useId, useMemo } from 'react';
-import { AlertCircle } from 'lucide-react';
 
-import { useTranslation } from '@/i18n/hooks';
-import { DialogShell } from '@/components/DialogShell';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
+import { DialogBody, DialogShell } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import type { Risk } from '@/types/risk';
 
@@ -18,6 +18,7 @@ import { RiskQuestionnaireCompareNotice } from './RiskQuestionnaireCompareNotice
 import { RiskQuestionnaireDetailHeader } from './RiskQuestionnaireDetailHeader';
 import { RiskQuestionnaireSectionList } from './RiskQuestionnaireSectionList';
 import { useRiskQuestionnaireDetailWorkflow } from './useRiskQuestionnaireDetailWorkflow';
+import { LoadingState } from '@/components/ui/state';
 
 interface RiskQuestionnaireDetailProps {
     isOpen: boolean;
@@ -34,7 +35,8 @@ export function RiskQuestionnaireDetail({
     risk,
     onChanged,
 }: RiskQuestionnaireDetailProps) {
-    const { t, i18n } = useTranslation(['common', 'risks']);
+    const { t } = useTranslation(['common', 'risks']);
+    const format = useFormat();
     const titleId = useId();
     const { totalAssets } = useTotalAssetsValue();
     const workflow = useRiskQuestionnaireDetailWorkflow({
@@ -49,7 +51,7 @@ export function RiskQuestionnaireDetail({
         () => buildWorstCaseImpactOptions(totalAssets, t),
         [t, totalAssets],
     );
-    const renderAnswer = (key: string, value: unknown): string => formatQuestionnaireAnswer(
+    const renderAnswer = (key: string, value: unknown): string | null => formatQuestionnaireAnswer(
         key,
         value,
         { totalAssets, t },
@@ -60,37 +62,29 @@ export function RiskQuestionnaireDetail({
             isOpen={isOpen && Boolean(questionnaireId)}
             onClose={workflow.close}
             titleId={titleId}
-            backdropClassName="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            contentClassName="w-full max-w-3xl glass-card !p-0 overflow-hidden shadow-2xl"
+            isBusy={workflow.saving || workflow.submitting}
+            size="xl"
+            className="max-w-3xl"
         >
-            <span id={titleId} className="sr-only">{t('risks:questionnaire.title')}</span>
             <RiskQuestionnaireDetailHeader
                 compareMode={workflow.compareState.compareMode}
                 isOverdue={workflow.isOverdue}
-                locale={i18n.language}
+                locale={format.locale}
                 onClose={workflow.close}
                 questionnaire={workflow.questionnaire}
                 setCompareMode={workflow.compareState.setCompareMode}
                 t={t}
             />
 
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <DialogBody>
                 {workflow.loading ? (
-                    <div className="text-slate-400">{t('loading.generic')}</div>
+                    <LoadingState label={t('loading.generic')} />
                 ) : (
                     <div className="space-y-6">
                         {workflow.errorKey ? (
-                            <div
-                                role="alert"
-                                className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-start gap-2"
-                            >
-                                <AlertCircle className="h-4 w-4 mt-0.5" />
-                                <p className="font-medium">
-                                    {workflow.errorKey.startsWith('errorKeys.')
-                                        ? t(workflow.errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                                        : t(workflow.errorKey)}
-                                </p>
-                            </div>
+                            <InlineMessage tone="danger">
+                                {translateUiMessage(t, workflow.errorKey)}
+                            </InlineMessage>
                         ) : null}
 
                         {workflow.questionnaire ? (
@@ -107,7 +101,7 @@ export function RiskQuestionnaireDetail({
                                     canRequestClarification={workflow.capabilities.canRequestClarification}
                                     clarificationState={workflow.clarificationState}
                                     isRiskOwner={workflow.capabilities.isRiskOwner}
-                                    locale={i18n.language}
+                                    locale={format.locale}
                                     questionnaireStatus={workflow.questionnaire.status}
                                     questionOptions={{
                                         likelihoodOptions,
@@ -123,7 +117,7 @@ export function RiskQuestionnaireDetail({
                         ) : null}
                     </div>
                 )}
-            </div>
+            </DialogBody>
 
             <RiskQuestionnaireActions
                 canSaveDraft={workflow.capabilities.canSaveDraft}

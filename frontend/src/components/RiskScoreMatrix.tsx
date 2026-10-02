@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useId } from 'react';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
-import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { riskScoreVariantClass } from '@/lib/severity';
 
 interface RiskScoreMatrixProps {
     probability: number;  // 1-5
@@ -48,7 +48,7 @@ export function RiskScoreMatrix({
 
     // Size classes
     const sizeClasses = {
-        small: { cell: 'w-8 h-8 text-[10px]', label: 'text-[10px]' },
+        small: { cell: 'w-8 h-8 text-xs', label: 'text-xs' },
         medium: { cell: 'w-10 h-10 text-xs', label: 'text-xs' },
         large: { cell: 'w-12 h-12 text-sm', label: 'text-sm' },
     };
@@ -60,7 +60,7 @@ export function RiskScoreMatrix({
     return (
         <fieldset className="m-0 flex min-w-0 flex-col items-center border-0 p-0">
             {/* Type label - color matches score threshold */}
-            <legend className={`${labelClass} mx-auto mb-3 w-auto p-0 font-black uppercase tracking-widest ${riskScoreVariantClass('text', score, thresholds)}`}>
+            <legend className={`${labelClass} mx-auto mb-3 w-auto p-0 font-bold uppercase tracking-widest ${riskScoreVariantClass('text', score, thresholds)}`}>
                 {matrixLabel}
             </legend>
 
@@ -85,12 +85,12 @@ export function RiskScoreMatrix({
                                     rounded-sm flex items-center justify-center font-bold
                                     transition-[background-color,border-color,box-shadow,transform] duration-200
                                     ${selected
-                                        ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110 z-10'
+                                        ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background scale-110 z-10'
                                         : 'opacity-60'
                                     }
                                 `;
                                 const selectedScore = selected
-                                    ? <span className="text-foreground font-black">{cellScore}</span>
+                                    ? <span className="text-foreground font-bold">{cellScore}</span>
                                     : null;
                                 const visualCell = (
                                     <motion.span
@@ -138,7 +138,7 @@ export function RiskScoreMatrix({
             </span>
 
             {/* Score display */}
-            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${riskScoreVariantClass('card', score, thresholds)}`}>
+            <div className={`mt-3 px-4 py-1.5 rounded-full font-bold text-sm ${riskScoreVariantClass('card', score, thresholds)}`}>
                 {t('matrix.score_label', { score })}
             </div>
         </fieldset>

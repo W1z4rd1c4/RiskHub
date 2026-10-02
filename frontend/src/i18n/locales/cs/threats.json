@@ -82,6 +82,7 @@
         "risks": {
             "title": "Provázaná rizika",
             "empty": "K této hrozbě zatím nejsou provázána žádná rizika.",
+            "select_label": "Riziko",
             "select_placeholder": "Vyberte riziko k provázání..."
         },
         "errors": {
@@ -107,7 +108,10 @@
     },
     "filters": {
       "add": "Filtry",
-      "active_count": "Aktivní filtry: {{count}}",
+      "active_count_one": "{{count}} aktivní filtr",
+      "active_count_few": "{{count}} aktivní filtry",
+      "active_count_many": "{{count}} aktivního filtru",
+      "active_count_other": "{{count}} aktivních filtrů",
       "clear_all": "Vymazat vše",
       "remove": "Odebrat filtr {{label}}",
       "lifecycle": "Životní cyklus",
@@ -137,8 +141,6 @@
       "operational": "Operační"
     },
     "groups": {
-      "uncategorized": "Bez kategorie",
-      "unassigned": "Nepřiřazeno",
       "unspecified": "Neuvedeno",
       "no_linked_risk": "Bez propojeného rizika"
     },

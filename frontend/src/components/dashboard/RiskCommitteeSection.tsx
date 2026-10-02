@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { dashboardApi, type DashboardCommitteeSummary } from '@/services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
@@ -11,7 +10,6 @@ import {
 
 export function RiskCommitteeSection() {
     const { t } = useTranslation('dashboard');
-    const navigate = useNavigate();
     const [summary, setSummary] = useState<DashboardCommitteeSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -34,5 +32,5 @@ export function RiskCommitteeSection() {
         return <RiskCommitteeErrorState message={error} t={t} />;
     }
 
-    return <RiskCommitteeSummaryContent navigate={navigate} summary={summary} t={t} />;
+    return <RiskCommitteeSummaryContent summary={summary} t={t} />;
 }

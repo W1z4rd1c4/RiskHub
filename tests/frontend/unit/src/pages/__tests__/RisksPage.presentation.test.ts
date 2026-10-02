@@ -85,6 +85,8 @@ describe('Risks page presentation helpers', () => {
 
         render(statusColumn?.render?.(archivedRisk) as ReactElement);
 
-        expect(screen.getByText('archived')).toBeInTheDocument();
+        // PG-03: the translated status label, never the raw enum.
+        expect(screen.getByText('Archived')).toBeInTheDocument();
+        expect(screen.queryByText('archived')).not.toBeInTheDocument();
     });
 });

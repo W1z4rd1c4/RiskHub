@@ -1,11 +1,23 @@
 import type { MouseEvent } from 'react';
 
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
 import type { Column } from '@/components/tables';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { formatKriUnit } from '@/lib/kriUnits';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import type { KeyRiskIndicator } from '@/types/kri';
+
+/** PG-29: any change of the KRI waiting for approval (update, archive, value, history correction). */
+export function hasPendingKriApproval(kri: Pick<KeyRiskIndicator, 'capabilities'>): boolean {
+    return resolveCapabilityFlag(kri.capabilities, 'has_pending_update_approval')
+        || resolveCapabilityFlag(kri.capabilities, 'has_pending_delete_approval')
+        || resolveCapabilityFlag(kri.capabilities, 'has_pending_value_submission_approval')
+        || resolveCapabilityFlag(kri.capabilities, 'has_pending_history_correction_approval');
+}
 
 export function buildKriColumns({
     language,
@@ -22,7 +34,10 @@ export function buildKriColumns({
             key: 'metric_name',
             label: t('kris:columns.metric'),
             sortable: true,
-            render: (kri) => <span className="font-medium text-foreground">{kri.metric_name}</span>,
+            render: (kri) => <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-foreground">{kri.metric_name}</span>
+                {hasPendingKriApproval(kri) ? <PendingChangeBadge data-testid={`kri-pending-${kri.id}`} /> : null}
+            </div>,
         },
         {
             key: 'current_value',
@@ -30,8 +45,8 @@ export function buildKriColumns({
             sortable: true,
             render: (kri) => {
                 const monitoring = getKriMonitoringMeta(kri.monitoring_status);
-                return <span className={`font-black ${monitoring.textClassName}`}>
-                    {formatNumber(kri.current_value)} <span className="text-muted-foreground font-normal text-xs">{kri.unit}</span>
+                return <span className={`font-bold tabular-nums ${monitoring.textClassName}`}>
+                    {formatNumber(kri.current_value)} <span className="text-muted-foreground font-normal text-xs">{formatKriUnit(kri.unit, t, kri.current_value)}</span>
                 </span>;
             },
         },
@@ -50,11 +65,10 @@ export function buildKriColumns({
                 const monitoring = getKriMonitoringMeta(kri.monitoring_status);
                 const Icon = monitoring.icon;
                 return <div className="flex flex-wrap items-center gap-2">
-                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold uppercase w-fit ${monitoring.badgeClassName}`}>
-                        <Icon className="h-3 w-3" aria-hidden="true" />
+                    <Badge size="sm" shape="rounded" icon={Icon} className={monitoring.badgeClassName}>
                         {t(monitoring.labelKey)}
-                    </span>
-                    {kri.is_archived ? <span className="rounded-md bg-slate-500/15 px-2 py-0.5 text-xs font-bold uppercase text-slate-300">{t('kris:filters.archived')}</span> : null}
+                    </Badge>
+                    {kri.is_archived ? <Badge size="sm" shape="rounded" tone="neutral">{t('kris:filters.archived')}</Badge> : null}
                 </div>;
             },
         },
@@ -78,12 +92,11 @@ export function buildKriColumns({
             key: 'actions',
             label: '',
             render: (kri) => <div className="flex items-center justify-end gap-2">
-                {kri.is_archived && resolveCapabilityFlag(kri.capabilities, 'can_restore') ? <button
-                    type="button"
+                {kri.is_archived && resolveCapabilityFlag(kri.capabilities, 'can_restore') ? <RowRestoreButton
+                    itemName={kri.metric_name}
                     onClick={(event) => onRestore(kri.id, event)}
                     data-testid={`kri-unarchive-${kri.id}`}
-                    className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-black uppercase tracking-wider"
-                >{t('kris:actions.unarchive')}</button> : null}
+                /> : null}
             </div>,
         },
     ];

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AuthFrame } from '@/components/layout/AuthFrame';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/state';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
 import { applyAuthenticatedSession, clearExplicitLogoutSuppressed } from '@/services/session';
@@ -45,27 +48,21 @@ export default function SsoCallbackPage() {
         };
     }, [navigate]);
 
+    if (errorKey) {
+        return (
+            <AuthFrame title={t('sso_callback.sign_in_failed_title')} error={t(errorKey)}>
+                <Button variant="accent" className="w-full" onClick={() => { void navigate('/login', { replace: true }); }}>
+                    {t('sso_callback.back_to_login')}
+                </Button>
+            </AuthFrame>
+        );
+    }
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
-            <div className="w-full max-w-md text-center">
-                {errorKey ? (
-                    <>
-                        <h1 className="text-xl font-bold mb-2">{t('sso_callback.sign_in_failed_title')}</h1>
-                        <p className="text-sm text-slate-300 mb-6">{errorKey ? t(errorKey) : ''}</p>
-                        <button
-                            className="px-4 py-2 rounded-md bg-purple-600 hover:bg-purple-500 transition-colors"
-                            onClick={() => navigate('/login', { replace: true })}
-                        >
-                            {t('sso_callback.back_to_login')}
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <h1 className="text-xl font-bold mb-2">{t('sso_callback.signing_in_title')}</h1>
-                        <p className="text-sm text-slate-400">{t('sso_callback.signing_in_subtitle')}</p>
-                    </>
-                )}
+        <AuthFrame title={t('sso_callback.signing_in_title')} busy status={t('sso_callback.signing_in_subtitle')}>
+            <div className="flex justify-center py-2">
+                <Spinner size="lg" />
             </div>
-        </div>
+        </AuthFrame>
     );
 }

@@ -1,17 +1,27 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Building, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users, Activity, Shield } from 'lucide-react';
+import { Archive, Building, Plus, Edit, Users, Activity, Shield } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys, usersKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { RowActionButton } from '@/components/tables/RowActionButton';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { DialogShell } from '@/components/DialogShell';
-import { useTranslation } from '@/i18n/hooks';
-import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { DialogBody } from '@/components/ui/dialog';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { translateUiMessage, useFormat, useTranslation, type SafeTFunction } from '@/i18n/hooks';
+import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame, RiskHubShowArchivedToggle } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 
@@ -24,9 +34,6 @@ interface DepartmentModalProps {
 
 function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModalProps) {
     const { t } = useTranslation(['admin', 'common']);
-    const nameLabelId = useId();
-    const codeLabelId = useId();
-    const ownerLabelId = useId();
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [managerId, setManagerId] = useState<number | undefined>(undefined);
@@ -82,66 +89,92 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
     if (!isOpen) return null;
 
     return (
-        <RiskHubModalFrame onClose={onClose} title={department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <span id={nameLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.department_name')}</span>
-                        <input
-                            type="text"
-                            aria-labelledby={nameLabelId}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder={t('admin:departments_panel.modal.placeholders.department_name')}
-                            required
-                        />
-                    </div>
+        <RiskHubModalFrame onClose={onClose} isBusy={saving} title={department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}>
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <DialogBody>
+                    <Field label={t('admin:departments_panel.modal.fields.department_name')} required>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                placeholder={t('admin:departments_panel.modal.placeholders.department_name')}
+                                required
+                            />
+                        )}
+                    </Field>
 
-                    <div>
-                        <span id={codeLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.code_optional')}</span>
-                        <input
-                            type="text"
-                            aria-labelledby={codeLabelId}
-                            value={code}
-                            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
-                            placeholder={t('admin:departments_panel.modal.placeholders.code')}
-                        />
-                        <p className="text-xs text-slate-500 mt-1">{t('admin:departments_panel.modal.hints.code')}</p>
-                    </div>
+                    <Field
+                        label={t('admin:departments_panel.modal.fields.code_optional')}
+                        help={t('admin:departments_panel.modal.hints.code')}
+                    >
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="text"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
+                                className="font-mono"
+                                placeholder={t('admin:departments_panel.modal.placeholders.code')}
+                            />
+                        )}
+                    </Field>
 
                     {department && (
-                        <div>
-                            <span id={ownerLabelId} className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</span>
-                            <ThemedSelect
-                                aria-labelledby={ownerLabelId}
-                                value={managerId?.toString() ?? ''}
-                                onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
-                                placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
-                                allowEmpty
-                                emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
-                                className="w-full"
-                                options={managerOptions}
-                            />
-                        </div>
+                        <Field label={t('common:labels.owner')}>
+                            {(field) => (
+                                <ThemedSelect
+                                    {...field}
+                                    value={managerId?.toString() ?? ''}
+                                    onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
+                                    placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
+                                    allowEmpty
+                                    emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
+                                    className="w-full"
+                                    options={managerOptions}
+                                />
+                            )}
+                        </Field>
                     )}
 
                     <RiskHubFieldError errorKey={errorKey} />
-                    <RiskHubModalActions
-                        onCancel={onClose}
-                        saveLabel={t('admin:departments_panel.modal.save_department')}
-                        saving={saving}
-                        savingLabel={t('admin:departments_panel.modal.saving')}
-                    />
-                </form>
+                </DialogBody>
+                <RiskHubModalActions
+                    onCancel={onClose}
+                    saveLabel={t('admin:departments_panel.modal.save_department')}
+                    saving={saving}
+                    savingLabel={t('admin:departments_panel.modal.saving')}
+                />
+            </form>
         </RiskHubModalFrame>
     );
 }
 
+/**
+ * Why a department cannot be archived yet (linked records), or `undefined`.
+ * Shown as the Archive action's disabled reason (GAP-B-03), so the blocked
+ * archive is explained in place instead of in a confirmation without a confirm.
+ */
+function archiveBlockedReason(dept: DepartmentHubRead, t: SafeTFunction): string | undefined {
+    const linked = [
+        dept.user_count > 0 ? t('admin:departments_panel.linked_counts.users', { count: dept.user_count }) : null,
+        dept.risk_count > 0 ? t('admin:departments_panel.linked_counts.risks', { count: dept.risk_count }) : null,
+        dept.control_count > 0 ? t('admin:departments_panel.linked_counts.controls', { count: dept.control_count }) : null,
+        dept.kri_count > 0 ? t('admin:departments_panel.linked_counts.kris', { count: dept.kri_count }) : null,
+        dept.vendor_count > 0 ? t('admin:departments_panel.linked_counts.vendors', { count: dept.vendor_count }) : null,
+        dept.pending_orphan_count > 0
+            ? t('admin:departments_panel.linked_counts.pending_orphans', { count: dept.pending_orphan_count })
+            : null,
+    ].filter((entry): entry is string => entry !== null);
+    return linked.length > 0
+        ? t('admin:departments_panel.archive_blocked_reason', { items: linked.join(', ') })
+        : undefined;
+}
+
 export function DepartmentsPanel() {
     const { t } = useTranslation(['admin', 'common']);
-    const deleteTitleId = useId();
-    const showInactiveId = useId();
+    const format = useFormat();
     const panel = useRiskHubConfigResource<DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate>({
         queryKey: riskHubKeys.departments(),
         load: (showInactive) => riskHubApi.getDepartments(showInactive),
@@ -150,167 +183,138 @@ export function DepartmentsPanel() {
         delete: (id) => riskHubApi.deleteDepartment(Number(id)),
         restore: (id) => riskHubApi.restoreDepartment(Number(id)),
         itemId: (item) => item.id,
+        itemName: (item) => item.name,
         panelCapabilityKey: 'departments',
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.departments, 'can_create');
 
     if (panel.isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('common:loading.departments')}</div>;
+        return <LoadingState label={t('common:loading.departments')} />;
     }
+    // GAP-C-11: a failed load never renders as an empty department list.
+    if (panel.error && !panel.hasData) {
+        return <ErrorState onRetry={panel.retry} isRetrying={panel.isFetching} />;
+    }
+
+    const archiveTarget = panel.deleteConfirm;
 
     return (
         <div className="space-y-4">
-            {panel.actionErrorKey && (
-                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {t(panel.actionErrorKey, { ns: 'errorKeys' })}
-                </div>
+            {panel.error ? (
+                <ErrorState variant="banner" onRetry={panel.retry} isRetrying={panel.isFetching} />
+            ) : null}
+            {panel.actionErrorKey && !archiveTarget && (
+                <InlineMessage tone="danger">{translateUiMessage(t, panel.actionErrorKey)}</InlineMessage>
             )}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Building className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">{t('admin:departments_panel.title')}</h3>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <label htmlFor={showInactiveId} className="flex items-center gap-2 text-sm text-slate-400">
-                        <input
-                            id={showInactiveId}
-                            type="checkbox"
+            <CardHeader
+                className="mb-0"
+                icon={Building}
+                title={t('admin:departments_panel.title')}
+                actions={(
+                    <>
+                        <RiskHubShowArchivedToggle
                             checked={panel.showInactive}
-                            onChange={(e) => panel.setShowInactive(e.target.checked)}
-                            className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
+                            onCheckedChange={panel.setShowInactive}
+                            label={t('admin:departments_panel.show_deleted')}
                         />
-                        {t('admin:departments_panel.show_deleted')}
-                    </label>
+                        {canCreate ? (
+                            <Button variant="accent" onClick={panel.openCreate}>
+                                <Plus aria-hidden="true" />
+                                {t('admin:departments_panel.add_department')}
+                            </Button>
+                        ) : null}
+                    </>
+                )}
+            />
 
-                    {canCreate ? (
-                        <button
-                            onClick={panel.openCreate}
-                            className="flex items-center gap-2 px-3 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors"
-                        >
-                            <Plus className="h-4 w-4" />
-                            {t('admin:departments_panel.add_department')}
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.name_code')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.manager')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.users')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.risks')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.controls')}</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            {panel.items.length === 0 ? (
+                <EmptyState title={t('admin:departments_panel.empty')} testId="departments-empty" />
+            ) : (
+                <Table density="compact" regionLabel={t('admin:departments_panel.title')}>
+                    <THead>
+                        <TR>
+                            <TH>{t('admin:departments_panel.columns.name_code')}</TH>
+                            <TH>{t('admin:departments_panel.columns.manager')}</TH>
+                            <TH align="center">{t('admin:departments_panel.columns.users')}</TH>
+                            <TH align="center">{t('admin:departments_panel.columns.risks')}</TH>
+                            <TH align="center">{t('admin:departments_panel.columns.controls')}</TH>
+                            <TH align="center">{t('common:labels.status')}</TH>
+                            <TH align="right">{t('common:labels.actions')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {panel.items.map((dept) => {
                             const canUpdate = resolveCapabilityFlag(dept.capabilities, 'can_update');
                             const canDelete = resolveCapabilityFlag(dept.capabilities, 'can_delete');
                             const canRestore = resolveCapabilityFlag(dept.capabilities, 'can_restore');
                             return (
-                            <tr
-                                key={dept.id}
-                                className={cn(
-                                    "border-b border-white/5 hover:bg-white/5 transition-colors",
-                                    !dept.is_active && "opacity-50"
-                                )}
-                            >
-                                <td className="py-3 px-4">
-                                    <div className="font-medium text-white">{dept.name}</div>
-                                    {dept.code && (
-                                        <code className="text-xs text-slate-500 font-mono">{dept.code}</code>
-                                    )}
-                                </td>
-                                <td className="py-3 px-4">
-                                    {dept.manager_name ? (
-                                        <div className="text-sm text-slate-300">{dept.manager_name}</div>
-                                    ) : (
-                                        <span className="text-xs text-slate-500 italic">{t('labels.no_manager')}</span>
-                                    )}
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full inline-flex">
-                                        <Users className="h-3 w-3 text-slate-400" />
-                                        <span className="text-xs text-slate-300">{dept.user_count}</span>
-                                    </div>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-amber-500/10 rounded-full inline-flex">
-                                        <Activity className="h-3 w-3 text-amber-500/50" />
-                                        <span className="text-xs text-amber-500/80">{dept.risk_count}</span>
-                                    </div>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    <div className="flex items-center justify-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 rounded-full inline-flex">
-                                        <Shield className="h-3 w-3 text-emerald-500/50" />
-                                        <span className="text-xs text-emerald-500/80">{dept.control_count}</span>
-                                    </div>
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                    {dept.is_active ? (
-                                        <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs border border-emerald-500/20">
-                                            {t('admin:departments_panel.badges.active')}
-                                        </span>
-                                    ) : (
-                                        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/20">
-                                            {t('admin:departments_panel.badges.deleted')}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={() => panel.openEdit(dept)}
-                                            className={cn(
-                                                "p-1.5 rounded transition-colors",
-                                                canUpdate
-                                                    ? "text-slate-400 hover:text-white hover:bg-white/10"
-                                                    : "text-slate-600 cursor-not-allowed"
+                                <TR key={dept.id} data-archived={dept.is_active ? undefined : 'true'}>
+                                    <TD>
+                                        <div className="font-medium text-foreground">{dept.name}</div>
+                                        {dept.code && (
+                                            <code className="text-xs text-muted-foreground font-mono">{dept.code}</code>
+                                        )}
+                                    </TD>
+                                    <TD>
+                                        {dept.manager_name ? (
+                                            <div className="text-sm text-foreground">{dept.manager_name}</div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">{t('labels.no_manager')}</span>
+                                        )}
+                                    </TD>
+                                    <TD align="center">
+                                        <Badge tone="neutral" icon={Users}>{format.number(dept.user_count)}</Badge>
+                                    </TD>
+                                    <TD align="center">
+                                        <Badge tone="warning" icon={Activity}>{format.number(dept.risk_count)}</Badge>
+                                    </TD>
+                                    <TD align="center">
+                                        <Badge tone="success" icon={Shield}>{format.number(dept.control_count)}</Badge>
+                                    </TD>
+                                    <TD align="center">
+                                        {dept.is_active ? (
+                                            <Badge tone="success">{t('admin:departments_panel.badges.active')}</Badge>
+                                        ) : (
+                                            <Badge tone="neutral">{t('admin:departments_panel.badges.deleted')}</Badge>
+                                        )}
+                                    </TD>
+                                    <TD align="right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            {/* GAP-B-03: an edit the user cannot make stays visible with its reason. */}
+                                            <RowActionButton
+                                                icon={Edit}
+                                                label={t('common:actions.edit_named', { name: dept.name })}
+                                                onClick={() => panel.openEdit(dept)}
+                                                disabledReason={canUpdate
+                                                    ? undefined
+                                                    : t('admin:departments_panel.actions.edit_disabled', { name: dept.name })}
+                                            />
+
+                                            {canDelete && (
+                                                <RowActionButton
+                                                    icon={Archive}
+                                                    tone="danger"
+                                                    label={t('common:actions.archive_named', { name: dept.name })}
+                                                    onClick={() => panel.requestDelete(dept)}
+                                                    disabledReason={archiveBlockedReason(dept, t)}
+                                                />
                                             )}
-                                            disabled={!canUpdate}
-                                            title={t('common:actions.edit')}
-                                            aria-label={t('common:actions.edit')}
-                                        >
-                                            <Edit className="h-4 w-4" aria-hidden="true" />
-                                        </button>
 
-                                        {canDelete && (
-                                            <button
-                                                onClick={() => panel.requestDelete(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                title={t('common:actions.delete')}
-                                                aria-label={t('common:actions.delete')}
-                                            >
-                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        )}
-
-                                        {canRestore && (
-                                            <button
-                                                onClick={() => panel.handleRestore(dept)}
-                                                className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
-                                                title={t('admin:departments_panel.actions.restore')}
-                                                aria-label={t('admin:departments_panel.actions.restore')}
-                                            >
-                                                <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                                            </button>
-                                        )}
-                                    </div>
-                                </td>
-                            </tr>
+                                            {canRestore && (
+                                                <RowRestoreButton
+                                                    itemName={dept.name}
+                                                    onClick={() => panel.handleRestore(dept)}
+                                                />
+                                            )}
+                                        </div>
+                                    </TD>
+                                </TR>
                             );
                         })}
-                    </tbody>
-                </table>
-            </div>
+                    </TBody>
+                </Table>
+            )}
 
             {/* Create/Edit Modal */}
             <DepartmentModal
@@ -320,64 +324,20 @@ export function DepartmentsPanel() {
                 onSave={panel.handleSave}
             />
 
-            {/* Delete Confirmation */}
-            {panel.deleteConfirm && (
-                <DialogShell
-                    isOpen
-                    onClose={panel.closeDelete}
-                    titleId={deleteTitleId}
-                    role="alertdialog"
-                    backdropClassName="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                    contentClassName="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6"
-                >
-                        <h3 id={deleteTitleId} className="text-lg font-bold text-white mb-2">{t('confirmations.delete_department')}</h3>
-                        <div className="text-slate-400 text-sm mb-4">
-                            {t('admin:departments_panel.delete_confirm', { name: panel.deleteConfirm.name })}
-                            {(panel.deleteConfirm.user_count > 0
-                                || panel.deleteConfirm.risk_count > 0
-                                || panel.deleteConfirm.control_count > 0
-                                || panel.deleteConfirm.kri_count > 0
-                                || panel.deleteConfirm.vendor_count > 0
-                                || panel.deleteConfirm.pending_orphan_count > 0) && (
-                                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg space-y-1 text-red-400 text-xs">
-                                    <div className="flex items-center gap-2 font-bold">
-                                        <AlertCircle className="h-4 w-4" />
-                                        {t('admin:departments_panel.delete_blocked_title')}
-                                    </div>
-                                    <ul className="list-disc list-inside ml-1">
-                                        {panel.deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: panel.deleteConfirm.user_count })}</li>}
-                                        {panel.deleteConfirm.risk_count > 0 && <li>{t('admin:departments_panel.linked_counts.risks', { count: panel.deleteConfirm.risk_count })}</li>}
-                                        {panel.deleteConfirm.control_count > 0 && <li>{t('admin:departments_panel.linked_counts.controls', { count: panel.deleteConfirm.control_count })}</li>}
-                                        {panel.deleteConfirm.kri_count > 0 && <li>{t('admin:departments_panel.linked_counts.kris', { count: panel.deleteConfirm.kri_count })}</li>}
-                                        {panel.deleteConfirm.vendor_count > 0 && <li>{t('admin:departments_panel.linked_counts.vendors', { count: panel.deleteConfirm.vendor_count })}</li>}
-                                        {panel.deleteConfirm.pending_orphan_count > 0 && <li>{t('admin:departments_panel.linked_counts.pending_orphans', { count: panel.deleteConfirm.pending_orphan_count })}</li>}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={panel.closeDelete}
-                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                            >
-                                {t('common:actions.cancel')}
-                            </button>
-                            {panel.deleteConfirm.user_count === 0
-                                && panel.deleteConfirm.risk_count === 0
-                                && panel.deleteConfirm.control_count === 0
-                                && panel.deleteConfirm.kri_count === 0
-                                && panel.deleteConfirm.vendor_count === 0
-                                && panel.deleteConfirm.pending_orphan_count === 0 && (
-                                <button
-                                    onClick={() => void panel.handleDelete()}
-                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                >
-                                    {t('common:actions.delete')}
-                                </button>
-                            )}
-                        </div>
-                </DialogShell>
-            )}
+            {/* PM-1 / D10: departments are soft-deleted and restorable, so this is
+                an archive; the API takes no reason. Busy and errors stay in the dialog. */}
+            <ConfirmDialog
+                isOpen={archiveTarget !== null}
+                onClose={panel.closeDelete}
+                onConfirm={() => void panel.handleDelete()}
+                intent="archive"
+                title={t('confirmations.archive_department')}
+                message={archiveTarget
+                    ? t('admin:departments_panel.archive_confirm', { name: archiveTarget.name })
+                    : undefined}
+                isLoading={panel.isDeleting}
+                errorText={archiveTarget ? translateUiMessage(t, panel.actionErrorKey) || null : null}
+            />
         </div>
     );
 }

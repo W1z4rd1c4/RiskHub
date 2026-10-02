@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import * as axe from 'axe-core';
@@ -18,7 +18,9 @@ vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({ canViewGovernance: mocks.canViewGovernance }),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string, options?: { targetName?: string }) => (
             key === 'pending_change_cancellation.message' ? options?.targetName ?? key : key
@@ -251,6 +253,25 @@ describe('ThreatDetailPage orphan stewardship resolution', () => {
 
         expect(screen.getByTestId('threat-pending-change')).toBeInTheDocument();
         expect(screen.queryByTestId('threat-form')).not.toBeInTheDocument();
+        // SM-05 / D7 / AX-06: the shared EditBlockedState gives the route its h1,
+        // a back link named for (and pointing at) the record, and breadcrumbs.
+        const blocked = screen.getByTestId('threat-edit-blocked');
+        expect(within(blocked).getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(within(blocked).getByRole('heading', { level: 1 })).toHaveTextContent('edit_blocked.title');
+        expect(within(blocked).getByRole('link', { name: 'actions.back_to_detail' })).toHaveAttribute(
+            'href',
+            '/threats/73?return_to=%2Fthreats',
+        );
+        expect(within(blocked).getByRole('navigation', { name: 'breadcrumbs.label' })).toBeInTheDocument();
+    });
+
+    it('renders read-only threat details as a description list', () => {
+        renderPage('view');
+
+        const category = screen.getByTestId('threat-detail-category');
+        expect(category.tagName).toBe('DD');
+        expect(category.closest('dl')).not.toBeNull();
+        expect(screen.getByText('form.category').tagName).toBe('DT');
     });
 
     it('lets the requester cancel and refetches the Threat detail overlay', async () => {

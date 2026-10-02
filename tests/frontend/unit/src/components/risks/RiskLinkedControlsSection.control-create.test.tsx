@@ -4,6 +4,7 @@ import { HttpResponse, http } from 'msw';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { RiskLinkedControlsSection } from '@/components/risks/detail-overview/RiskLinkedControlsSection';
 import { renderWithoutProviders as render } from '@test/render';
 import { server } from '@test/mocks/server';
@@ -58,7 +59,7 @@ function renderSection(onRefreshData = vi.fn()) {
         path: '/',
         element: <SectionHarness onRefreshData={onRefreshData} />,
     }]);
-    render(<RouterProvider router={router} />);
+    render(<FeedbackProvider><RouterProvider router={router} /></FeedbackProvider>);
     return onRefreshData;
 }
 
@@ -117,7 +118,7 @@ describe('RiskLinkedControlsSection contextual Control creation', () => {
         );
     });
 
-    it('renders the localized partial-link warning near the module while closing and refetching', async () => {
+    it('raises the localized partial-link warning toast while closing and refetching (D9)', async () => {
         server.use(
             http.post('*/api/v1/controls/72/risks', () =>
                 HttpResponse.json({ detail: 'Risk link failed' }, { status: 500 })),
@@ -128,9 +129,8 @@ describe('RiskLinkedControlsSection contextual Control creation', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Control' }));
 
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'Control created, but linking the selected risk failed.',
-        );
+        const toast = (await screen.findByText('Control created, but linking the selected risk failed.')).closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'warning');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(onRefreshData).toHaveBeenCalledTimes(1);
     });
@@ -145,6 +145,6 @@ describe('RiskLinkedControlsSection contextual Control creation', () => {
         await waitFor(() => expect(onRefreshData).toHaveBeenCalledTimes(1));
         expect(screen.getByText('No controls linked to this risk.')).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByText('Control created, but linking the selected risk failed.')).not.toBeInTheDocument();
     });
 });

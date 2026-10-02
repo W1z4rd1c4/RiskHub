@@ -1,5 +1,7 @@
 import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
+import { CardTitle } from '@/components/ui/card';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 import type { TranslateFn } from './risk-questionnaire-detail/questionnairePresentation';
 import type { LatestSubmittedLoadOutcome } from './useRiskQuestionnairesTabData';
@@ -36,10 +38,10 @@ export function QuestionnaireAssessmentSummary({
     } = getLatestQuestionnaireMetrics(latestSubmitted, { totalAssets, t });
 
     return (
-        <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-            <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-3">
+        <div className="p-6 border-b border-border bg-tint/[0.03]">
+            <CardTitle as="h3" className="mb-3">
                 {t('risks:questionnaires.assessment_summary_title')}
-            </h4>
+            </CardTitle>
 
             {loadOutcome === 'stale-with-error' ? (
                 <TableErrorState
@@ -60,45 +62,35 @@ export function QuestionnaireAssessmentSummary({
                     isRetrying={latestSubmittedLoading}
                 />
             ) : latestSubmittedLoading && !latestSubmitted ? (
-                <div className="text-sm text-slate-400">{t('loading.generic')}</div>
+                <LoadingState layout="inline" label={t('loading.generic')} />
             ) : !latestSubmitted ? (
-                <div className="text-sm text-slate-400">
-                    {t('risks:questionnaires.assessment_summary_empty')}
-                </div>
+                <EmptyState layout="inline" icon={null} title={t('risks:questionnaires.assessment_summary_empty')} />
             ) : (
-                <div data-testid="risk-questionnaire-summary-content" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <dl data-testid="risk-questionnaire-summary-content" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            {t('risks:questionnaires.assessment_summary_submitted_at')}
-                        </p>
-                        <p className="text-sm text-white">{formatQuestionnaireDate(latestSubmitted.submitted_at, locale)}</p>
+                        <dt className="text-eyebrow">{t('risks:questionnaires.assessment_summary_submitted_at')}</dt>
+                        <dd className="text-sm text-foreground">{formatQuestionnaireDate(latestSubmitted.submitted_at, locale)}</dd>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            {t('risks:questionnaires.assessment_summary_changed_count')}
-                        </p>
-                        <p className="text-sm text-white">
+                        <dt className="text-eyebrow">{t('risks:questionnaires.assessment_summary_changed_count')}</dt>
+                        <dd className="text-sm text-foreground">
                             {changedCount === null ? '—' : `${changedCount}`}
-                        </p>
+                        </dd>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            {t('risks:questionnaires.assessment_summary_likelihood')}
-                        </p>
-                        <p className="text-sm text-white">{latestLikelihood ?? '—'}</p>
+                        <dt className="text-eyebrow">{t('risks:questionnaires.assessment_summary_likelihood')}</dt>
+                        <dd className="text-sm text-foreground">{latestLikelihood ?? '—'}</dd>
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            {t('risks:questionnaires.assessment_summary_worst_case_impact')}
-                        </p>
-                        <p className="text-sm text-white">
+                        <dt className="text-eyebrow">{t('risks:questionnaires.assessment_summary_worst_case_impact')}</dt>
+                        <dd className="text-sm text-foreground">
                             {latestWorstCaseImpact ? `${latestWorstCaseImpact}${worstCaseRange ? ` • ${worstCaseRange}` : ''}` : '—'}
-                        </p>
+                        </dd>
                     </div>
-                </div>
+                </dl>
             )}
         </div>
     );

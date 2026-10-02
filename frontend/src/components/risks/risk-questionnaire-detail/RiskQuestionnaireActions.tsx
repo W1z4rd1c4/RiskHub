@@ -1,6 +1,7 @@
 import { Save, Send } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { DialogFooter } from '@/components/ui/dialog';
 
 import type { TranslateFn } from './questionnairePresentation';
 
@@ -28,54 +29,39 @@ export function RiskQuestionnaireActions({
     t,
 }: RiskQuestionnaireActionsProps) {
     return (
-        <div className="p-6 border-t border-border bg-nested flex items-center justify-between gap-3">
-            <div className="text-xs text-muted-foreground">
-                {!isEditable && (
-                    <span>{t('risks:questionnaire.readonly_hint')}</span>
-                )}
-            </div>
-
-            <div className="flex items-center gap-3">
-                {isEditable && (
-                    <>
-                        {canSaveDraft && (
-                            <button
-                                onClick={onSave}
-                                disabled={saving || submitting}
-                                className={cn(
-                                    'inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all',
-                                    'bg-secondary border-border text-foreground hover:bg-secondary',
-                                    'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:border-input disabled:border-dashed',
-                                )}
-                            >
-                                <Save className="h-4 w-4" />
-                                {t('risks:questionnaire.actions.save')}
-                            </button>
-                        )}
-                        {canSubmitQuestionnaire && (
-                            <button
-                                onClick={onSubmit}
-                                disabled={saving || submitting}
-                                className={cn(
-                                    'inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all',
-                                    'bg-accent border-accent text-accent-foreground hover:bg-accent-hover',
-                                    'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:border-input disabled:border-dashed',
-                                )}
-                            >
-                                <Send className="h-4 w-4" />
-                                {t('common:actions.submit')}
-                            </button>
-                        )}
-                    </>
-                )}
-
-                <button
-                    onClick={onClose}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-secondary text-foreground text-xs font-black uppercase tracking-widest hover:bg-secondary transition-all"
+        <DialogFooter
+            className="flex-wrap"
+            extra={!isEditable ? (
+                <span className="text-xs text-muted-foreground">{t('risks:questionnaire.readonly_hint')}</span>
+            ) : undefined}
+        >
+            <Button type="button" variant="secondary" onClick={onClose}>
+                {t('common:actions.close')}
+            </Button>
+            {isEditable && canSaveDraft && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onSave}
+                    disabled={saving || submitting}
+                    isLoading={saving}
                 >
-                    {t('common:actions.close')}
-                </button>
-            </div>
-        </div>
+                    {saving ? null : <Save aria-hidden="true" />}
+                    {t('risks:questionnaire.actions.save')}
+                </Button>
+            )}
+            {isEditable && canSubmitQuestionnaire && (
+                <Button
+                    type="button"
+                    variant="accent"
+                    onClick={onSubmit}
+                    disabled={saving || submitting}
+                    isLoading={submitting}
+                >
+                    {submitting ? null : <Send aria-hidden="true" />}
+                    {t('common:actions.submit')}
+                </Button>
+            )}
+        </DialogFooter>
     );
 }

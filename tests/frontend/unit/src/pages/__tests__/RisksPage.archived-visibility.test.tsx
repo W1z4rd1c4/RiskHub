@@ -377,7 +377,7 @@ describe('RisksPage archived visibility', () => {
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByText('Department Risk'));
         await screen.findByRole('heading', { name: 'Department Risk' });
-        await uiUser.click(screen.getByRole('button', { name: /back to register/i }));
+        await uiUser.click(screen.getByRole('button', { name: /back to risks/i }));
 
         expect(await screen.findByText('Department Risk')).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent(workingSet);

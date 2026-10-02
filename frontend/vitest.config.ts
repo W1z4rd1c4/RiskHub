@@ -17,6 +17,7 @@ const forwardedExternalTestImports = new Set([
   '@testing-library/user-event',
   '@playwright/test',
   'axe-core',
+  'eslint',
   'msw',
   'msw/node',
   'react-i18next',

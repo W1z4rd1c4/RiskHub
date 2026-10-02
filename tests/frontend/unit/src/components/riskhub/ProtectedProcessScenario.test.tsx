@@ -80,19 +80,19 @@ describe('protected Process approval scenario', () => {
         renderPanel();
 
         await screen.findByText('Protected Process mutations');
-        fireEvent.click(await screen.findByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'admin:approval_scenarios.modal.configure:Protected Process mutations' }));
         expect(screen.getByTestId('protected-process-fixed-policy')).toBeInTheDocument();
         expect(screen.getByText('admin:approval_scenarios.fixed_policy.triggers.current_or_proposed_cif_yes')).toBeInTheDocument();
         expect(screen.getByText('admin:approval_scenarios.fixed_policy.covered_action_values.edit')).toBeInTheDocument();
         expect(screen.getByText('admin:approval_scenarios.fixed_policy.self_approval.false')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: /admin:approval_scenarios.modal.roles_selected/ }));
-        expect(screen.getByRole('button', { name: 'Risk Manager' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'CRO' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Department Head' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('combobox', { name: 'admin:approval_scenarios.approver_roles' }));
+        expect(screen.getByRole('checkbox', { name: 'common:roles.risk_manager' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'common:roles.cro' })).toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Department Head' })).not.toBeInTheDocument();
         expect(screen.queryByText('admin:approval_scenarios.special_roles.risk_owner_dynamic')).not.toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('button', { name: 'CRO' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'common:roles.cro' }));
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
         await waitFor(() => {
             expect(riskHubApi.updateApprovalScenario).toHaveBeenCalledWith('protected_process_edit', {
@@ -117,7 +117,7 @@ describe('protected Process approval scenario', () => {
         }]);
         renderPanel();
 
-        fireEvent.click(await screen.findByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'admin:approval_scenarios.modal.configure:Protected Process mutations' }));
 
         expect(screen.getByTestId('protected-process-fixed-policy')).toBeInTheDocument();
         expect(screen.getByText('admin:approval_scenarios.fixed_policy.triggers.current_or_proposed_cif_yes')).toBeInTheDocument();

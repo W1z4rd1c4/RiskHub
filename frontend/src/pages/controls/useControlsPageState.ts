@@ -14,6 +14,7 @@ import type { ControlFacets, ControlListCapabilities, ControlSummary } from '@/t
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildControlRegisterListParams,
     CONTROL_REGISTER_CONFIG,
@@ -47,9 +48,10 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
     const {
         applyFailure, applySuccess, beginQuery, commitQueryIdentity, forQuery,
         isLoading: collectionIsLoading, isQueryCurrent,
-        setErrorKey, setIsLoading,
+        setIsLoading,
     } = useCollectionDataState<ControlSummary, ControlListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const runRowRestore = useRestoreWithFeedback();
     const listParams = useMemo(() => ({
         ...buildControlRegisterListParams({
             currentPage, filters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
@@ -115,15 +117,18 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
     const clearFilters = useCallback(() => writeUrl({ filters: {
         lifecycle: 'active', monitoring_status: '', status: '', process: '', category: '',
     }, group: null }), [writeUrl]);
+    // D9 / FB-01: a row restore reports through a toast and never flips the
+    // register into its error state.
     const restoreControl = useCallback(async (controlId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await controlApi.restoreControl(controlId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchControls();
-        } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchControls, isQueryCurrent, queryIdentity, setErrorKey]);
+        await runRowRestore({
+            restore: () => controlApi.restoreControl(controlId),
+            name: items.find((item) => item.id === controlId)?.name,
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchControls();
+            },
+        });
+    }, [fetchControls, isQueryCurrent, items, queryIdentity, runRowRestore]);
     const exportCurrentControls = useCallback(async () => {
         setIsExporting(true);
         try {

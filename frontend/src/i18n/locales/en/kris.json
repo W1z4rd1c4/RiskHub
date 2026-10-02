@@ -2,10 +2,26 @@
   "title": "KRIs",
   "page_subtitle": "Risk appetite monitoring",
   "new_kri": "New KRI",
+  "unit_suffix": {
+    "count": "count",
+    "days_one": "day",
+    "days_few": "days",
+    "days_many": "days",
+    "days_other": "days",
+    "hours_one": "hour",
+    "hours_few": "hours",
+    "hours_many": "hours",
+    "hours_other": "hours",
+    "ratio": "ratio"
+  },
+  "breach_status": {
+    "within": "Within limits",
+    "above": "Above upper limit",
+    "below": "Below lower limit"
+  },
   "create_kri": "Create KRI",
   "edit_kri": "Edit KRI",
   "view_kri": "View KRI",
-  "delete_kri": "Delete KRI",
   "fields": {
     "name": "KRI Name",
     "description": "Description",
@@ -100,6 +116,7 @@
     "ok": "OK"
   },
   "actions": {
+    "back_to_register": "Back to KRIs",
     "link_risk": "Link Risk",
     "add_kri": "Add KRI",
     "unarchive": "Unarchive",
@@ -129,6 +146,11 @@
       "ratio": "Ratio"
     },
     "reporting_owner_hint": "Leave empty to use Risk owner as default",
+    "details_heading": "KRI details",
+    "steps": {
+      "risk": "Linked risk",
+      "details": "Details"
+    },
     "placeholders": {
       "metric_name": "e.g. Customer complaint rate",
       "description": "Describe what this KRI measures and why it matters...",
@@ -149,6 +171,7 @@
     "vendor_context_label": "Vendor context",
     "vendor_context_active": "Vendor-selected KRI creation",
     "vendor_context_help": "This KRI is being created from the vendor page and the current vendor will be included in the same save.",
+    "risk_scope": "Risk scope",
     "vendor_context_auto_linked": "The current vendor is included automatically in this save. Use the selector above for additional vendors.",
     "vendor_risks_only": "Vendor risks",
     "all_readable_risks": "All readable risks",
@@ -179,11 +202,15 @@
   },
   "overdue": {
     "badge": "Overdue",
-    "days_overdue": "{{days}} days overdue",
+    "days_overdue": "{{count}} days overdue",
+    "days_overdue_one": "{{count}} day overdue",
+    "days_overdue_few": "{{count}} days overdue",
+    "days_overdue_other": "{{count}} days overdue",
     "last_submission": "Last submission: {{date}}"
   },
   "labels": {
-    "archived": "Archived"
+    "archived": "Archived",
+    "entity": "KRI"
   },
   "comparison": {
     "breach_status": "Breach Status",
@@ -196,7 +223,9 @@
     "compare_records": "Compare Records",
     "analyze_changes": "Analyze changes between two reporting periods",
     "distinct_periods_required": "Difference calculation requires two distinct periods.",
-    "delta_analysis": "Delta Analysis"
+    "delta_analysis": "Delta Analysis",
+    "baseline": "Baseline record",
+    "target": "Compared record"
   },
   "modal": {
     "framework": "Key Risk Indicator Framework",
@@ -205,12 +234,7 @@
     "unit_examples": "Unit (%, EUR, etc.)",
     "lower_limit_breach": "Lower Limit (Breach)",
     "upper_limit_breach": "Upper Limit (Breach)",
-    "last_updated": "Last Updated",
-    "create_indicator": "Create indicator",
-    "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
-  },
-  "detail": {
-    "approval_banner_help": "The KRI and its vendor links stay unchanged until this approval is resolved."
+    "last_updated": "Last Updated"
   },
   "value_modal": {
     "title": "Record Value",
@@ -229,7 +253,6 @@
     "last_period_end": "Last Period End",
     "due_date": "Due Date",
     "central_systems": "Central Systems",
-    "unassigned": "Unassigned",
     "view_complete_risk_analysis": "View Complete Risk Analysis",
     "metadata": "Metadata",
     "kri_id": "KRI ID",
@@ -240,7 +263,8 @@
     "lower_limit": "Lower limit: {{value}}",
     "upper_limit": "Upper limit: {{value}}",
     "min_value": "{{value}} {{unit}} min",
-    "max_value": "{{value}} {{unit}} max"
+    "max_value": "{{value}} {{unit}} max",
+    "limits_range": "Limits: {{lower}} – {{upper}} {{unit}}"
   },
   "history_edit": {
     "request_correction": "Request Correction",
@@ -254,6 +278,9 @@
     "empty_message": "No history entries found.",
     "record_timeline": "Record Timeline",
     "entries_count": "{{count}} entries",
+    "entries_count_one": "{{count}} entry",
+    "entries_count_few": "{{count}} entries",
+    "entries_count_other": "{{count}} entries",
     "compare_periods": "Compare Periods",
     "need_two_entries_compare": "Select at least two entries to compare.",
     "pagination": "History pages",
@@ -271,7 +298,10 @@
     "filters": {
       "lifecycle": "Lifecycle",
       "add": "Add filter",
-      "active_count": "{{count}} active filters",
+      "active_count_one": "{{count}} active filter",
+      "active_count_few": "{{count}} active filters",
+      "active_count_many": "{{count}} active filters",
+      "active_count_other": "{{count}} active filters",
       "clear_all": "Clear all",
       "remove": "Remove {{label}}",
       "frequency": "Frequency",
@@ -286,13 +316,6 @@
     "export": {
       "title": "Export filtered KRIs"
     }
-  },
-  "delete_dialog": {
-    "title": "Delete KRI",
-    "message": "Provide a reason for deleting this KRI. This action is audited.",
-    "reason_label": "Deletion reason",
-    "reason_placeholder": "Explain why this KRI should be deleted...",
-    "confirm": "Delete KRI"
   },
   "restore": {
     "pending": "Restoring…",

@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RiskRegisterLinksSection } from '@/components/risks/detail-overview/RiskRegisterLinksSection';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { ApiClientError } from '@/services/apiClient';
@@ -147,7 +148,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         expect(screen.getByText(/pending governed change/i)).toBeInTheDocument();
     });
 
-    it('collects a reason and navigates to a governed Risk-to-Asset unlink approval', async () => {
+    it('collects a reason and surfaces a governed Risk-to-Asset unlink approval on the risk', async () => {
         vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
         vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
             id: 71,
@@ -172,6 +173,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         render(
             <QueryClientProvider client={queryClient}>
                 <MemoryRouter>
+                    <ApprovalQueuedNotice />
                     <RiskRegisterLinksSection risk={{ id: 4 } as Risk} canManageLinks />
                     <LocationProbe />
                 </MemoryRouter>
@@ -191,8 +193,11 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
                 71,
                 'Review protected risk dependency',
             );
-            expect(screen.getByTestId('location')).toHaveTextContent('/approvals?tab=mine&approvalId=187');
         });
+        // D12 / PM-2: the user stays on the risk with the pending notice.
+        const notice = await screen.findByTestId('approval-queued-notice');
+        expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=187');
+        expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
     });
 
     it('keeps a rejected Risk link error and rationale inside its open dialog', async () => {
@@ -449,6 +454,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         const view = render(
             <QueryClientProvider client={queryClient}>
                 <MemoryRouter>
+                    <ApprovalQueuedNotice />
                     <RiskRegisterLinksSection risk={{ id: 4 } as Risk} canManageLinks />
                     <LocationProbe />
                 </MemoryRouter>

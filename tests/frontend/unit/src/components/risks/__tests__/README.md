@@ -8,6 +8,8 @@ Folder for `tests/frontend/unit/src/components/risks/__tests__` implementation a
 
 - `riskDetailOverviewKriNavigation.test.tsx`
 - `riskQuestionnaireOpenFlow.test.tsx`
+- `QuestionnaireHistoryTable.keyboard.test.tsx` (AX-02 keyboard row activation)
+- `QuestionAnswerField.test.tsx` (GAP-B-24 "Not answered", `Field` wiring, compare-mode description)
 
 ## Notes
 

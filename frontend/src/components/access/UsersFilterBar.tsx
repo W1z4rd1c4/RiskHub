@@ -1,5 +1,8 @@
 import { Search, Filter, Crown, Key } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { permissionResources, permissionActions } from '@/hooks/useUsersPageFilters';
@@ -46,20 +49,27 @@ export function UsersFilterBar({
         <div className="flex flex-col gap-4 mb-6">
             {/* Row 1: Search + Role + Scope */}
             <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                    <input
-                        type="text"
-                        placeholder={t('access.search_placeholder')}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 transition-[border-color,box-shadow]"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                <Field
+                    label={t('access.search_placeholder')}
+                    labelVisuallyHidden
+                    className="flex-1"
+                >
+                    {(field) => (
+                        <Input
+                            {...field}
+                            type="text"
+                            leadingIcon={Search}
+                            placeholder={t('access.search_placeholder')}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    )}
+                </Field>
                 <div className="flex gap-2 flex-wrap">
                     <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10 pointer-events-none" />
+                        <Filter aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                         <ThemedSelect
+                            triggerAriaLabel={t('common:labels.role')}
                             value={roleFilter}
                             onValueChange={setRoleFilter}
                             placeholder={t('access.roles.all')}
@@ -71,8 +81,9 @@ export function UsersFilterBar({
                     </div>
                     {isAccessMode && (
                         <div className="relative">
-                            <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10 pointer-events-none" />
+                            <Crown aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                             <ThemedSelect
+                                triggerAriaLabel={t('access.access_scope')}
                                 value={scopeFilter}
                                 onValueChange={setScopeFilter}
                                 placeholder={t('access.scopes.all')}
@@ -93,36 +104,35 @@ export function UsersFilterBar({
             {/* Row 2: Permission Filters (Access Mode only) */}
             {isAccessMode && (
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                        <Key className="h-3.5 w-3.5" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Key aria-hidden="true" className="h-3.5 w-3.5" />
                         {t('access.filter_by_capability')}
                     </span>
                     <ThemedSelect
+                        triggerAriaLabel={t('access.matrix.resource')}
                         value={permResourceFilter}
                         onValueChange={setPermResourceFilter}
                         className={cn(
-                            permResourceFilter !== 'all' && "border-purple-500/50"
+                            permResourceFilter !== 'all' && "border-chart-2/50"
                         )}
                         options={permissionResources.map(r => ({ value: r.value, label: t(r.labelKey) }))}
                     />
                     <ThemedSelect
+                        triggerAriaLabel={t('access.table.actions')}
                         value={permActionFilter}
                         onValueChange={setPermActionFilter}
                         className={cn(
-                            permActionFilter !== 'all' && "border-emerald-500/50"
+                            permActionFilter !== 'all' && "border-success/50"
                         )}
                         options={permissionActions.map(a => ({ value: a.value, label: t(a.labelKey) }))}
                     />
                     {hasPermFilters && (
-                        <button
-                            onClick={resetPermissionFilters}
-                            className="text-xs text-slate-500 hover:text-white underline transition-colors"
-                        >
+                        <Button type="button" variant="ghost" size="compact" onClick={resetPermissionFilters}>
                             {t('access.clear')}
-                        </button>
+                        </Button>
                     )}
                     <span className="text-xs text-muted-foreground ml-2">
-                        {t('access.of_users', { count: filteredCount, total: totalCount })}
+                        {t('access.of_users', { shown: filteredCount, count: totalCount })}
                     </span>
                 </div>
             )}

@@ -6,9 +6,13 @@ Role management table, dialogs, and permission grouping helpers for the Risk Hub
 
 ## Contents
 
-- `RoleDeleteDialog.tsx`
-- `RoleModal.tsx`
-- `RolesTable.tsx`
+- `RoleDeleteDialog.tsx` — role archive confirmation, a thin delegate over
+  `ConfirmDialog intent="archive"` (PM-1, D10).
+- `RoleModal.tsx` — create/edit dialog; permissions are `Checkbox`es in `Field`s,
+  grouped per resource in `fieldset`s, labelled with task labels.
+- `RolesTable.tsx` — role list on `ui/table`; permissions as translated `Badge`s
+  (never raw `resource:action` tokens, PG-03); `RowActionButton` row actions
+  with disabled reasons for system roles and assigned roles (GAP-B-03).
 - `rolePermissions.ts`
 - `useRolesPanelData.ts`
 

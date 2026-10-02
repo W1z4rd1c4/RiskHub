@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -1062,6 +1063,118 @@ async def test_issue_list_supports_search_and_sort(
     assert desc_resp.status_code == 200
     desc_titles = [item["title"] for item in desc_resp.json()["items"]]
     assert desc_titles == sorted(desc_titles, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_issue_list_sorts_by_department_and_owner_names(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_role: Role,
+):
+    """Audit PG-42: the Issues register sorts its Department and Owner columns like its peers."""
+    zeta_department = Department(name="Zeta Sort Department", code="ZSORT", description="Sort target")
+    alpha_department = Department(name="Alpha Sort Department", code="ASORT", description="Sort target")
+    db_session.add_all([zeta_department, alpha_department])
+    await db_session.flush()
+    yvonne = await _create_department_scoped_user(
+        db_session,
+        email="yvonne.sorter@test.com",
+        name="Yvonne Sorter",
+        department_id=test_department.id,
+        role_id=test_role.id,
+    )
+    adam = await _create_department_scoped_user(
+        db_session,
+        email="adam.sorter@test.com",
+        name="Adam Sorter",
+        department_id=test_department.id,
+        role_id=test_role.id,
+    )
+    now = datetime.now(UTC)
+
+    def sort_issue(title: str, department_id: int | None, owner_user_id: int | None) -> Issue:
+        return Issue(
+            title=title,
+            description="PG-42 sort target",
+            severity="medium",
+            status="open",
+            source_type="manual",
+            department_id=department_id,
+            owner_user_id=owner_user_id,
+            created_by_id=None,
+            opened_at=now,
+        )
+
+    db_session.add_all(
+        [
+            sort_issue("Sort zeta yvonne", zeta_department.id, yvonne.id),
+            sort_issue("Sort alpha unowned", alpha_department.id, None),
+            sort_issue("Sort alpha adam", alpha_department.id, adam.id),
+        ]
+    )
+    await db_session.commit()
+
+    async def sorted_titles(params: dict[str, str]) -> list[str]:
+        response = await auth_client.get("/api/v1/issues", params={"search": "Sort ", "limit": "50", **params})
+        assert response.status_code == 200, response.text
+        return [item["title"] for item in response.json()["items"] if item["title"].startswith("Sort ")]
+
+    # Ties keep the register's stable `id desc` tiebreak; a missing owner sorts last both ways.
+    assert await sorted_titles({"sort_by": "department_name", "sort_order": "asc"}) == [
+        "Sort alpha adam",
+        "Sort alpha unowned",
+        "Sort zeta yvonne",
+    ]
+    assert await sorted_titles({"sort_by": "department_name", "sort_order": "desc"}) == [
+        "Sort zeta yvonne",
+        "Sort alpha adam",
+        "Sort alpha unowned",
+    ]
+    assert await sorted_titles({"sort_by": "owner_user_name", "sort_order": "asc"}) == [
+        "Sort alpha adam",
+        "Sort zeta yvonne",
+        "Sort alpha unowned",
+    ]
+    assert await sorted_titles({"sort_by": "owner_user_name", "sort_order": "desc"}) == [
+        "Sort zeta yvonne",
+        "Sort alpha adam",
+        "Sort alpha unowned",
+    ]
+    # The collection `sort` parameter the register sends resolves the same fields.
+    assert await sorted_titles({"sort": json.dumps({"field": "owner_user_name", "direction": "asc"})}) == [
+        "Sort alpha adam",
+        "Sort zeta yvonne",
+        "Sort alpha unowned",
+    ]
+
+    # The many-to-one sort joins never duplicate rows: the total matches the unsorted listing.
+    totals = set()
+    for params in ({}, {"sort_by": "department_name"}, {"sort_by": "owner_user_name"}):
+        response = await auth_client.get("/api/v1/issues", params={"search": "Sort ", "limit": "50", **params})
+        assert response.status_code == 200, response.text
+        totals.add(response.json()["total"])
+    assert len(totals) == 1
+
+    # Grouping by Department or owner joins the same table; the aliased sort joins must not clash.
+    for group_by, group_value, sort_field in (
+        ("department", "Alpha Sort Department", "department_name"),
+        ("owner", "Adam Sorter", "owner_user_name"),
+    ):
+        grouped = await auth_client.get(
+            "/api/v1/issues",
+            params={
+                "group_by": group_by,
+                "group_value": group_value,
+                "sort": json.dumps({"field": sort_field, "direction": "asc"}),
+                "limit": "50",
+            },
+        )
+        assert grouped.status_code == 200, grouped.text
+        assert "Sort alpha adam" in {item["title"] for item in grouped.json()["items"]}
+
+    invalid = await auth_client.get("/api/v1/issues", params={"sort_by": "owner_user_id; drop table issues"})
+    assert invalid.status_code in {400, 422}, invalid.text
 
 
 @pytest.mark.asyncio

@@ -29,7 +29,7 @@ export function ColorSwatch({ color, toneClassName, className, title }: ColorSwa
                 stroke="currentColor"
                 strokeWidth="1"
                 fill={normalizedColor ?? 'currentColor'}
-                className={normalizedColor ? 'text-white/20' : cn('fill-current', toneClassName ?? 'text-slate-400')}
+                className={normalizedColor ? 'text-tint/20' : cn('fill-current', toneClassName ?? 'text-muted-foreground')}
             />
         </svg>
     );

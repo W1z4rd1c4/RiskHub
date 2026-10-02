@@ -1,6 +1,9 @@
-import { AlertCircle } from 'lucide-react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { AccessDeniedState, ErrorState, LoadingState, Skeleton } from '@/components/ui/state';
 import { useTranslation } from '@/i18n/hooks';
 import { useDepartmentDetail, type TabView } from '@/hooks/useDepartmentDetail';
 import type { RegisterFilters } from './shared/registerListQuery';
@@ -8,7 +11,7 @@ import type { RegisterFilters } from './shared/registerListQuery';
 import { DepartmentDetailHeader } from './departments/DepartmentDetailHeader';
 import { DepartmentDetailTabs } from './departments/DepartmentDetailTabs';
 import { DepartmentTabContent } from './departments/DepartmentTabContent';
-import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { resolveRegisterReturnTo } from './shared/registerReturnContext';
 
 const DEPARTMENT_TABS: readonly TabView[] = [
     'overview',
@@ -29,9 +32,9 @@ function parseTab(value: string | null): TabView {
 
 export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { t } = useTranslation(['common']);
+    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/departments');
     const activeTab = parseTab(searchParams.get('tab'));
     const departmentId = id ? Number(id) : undefined;
     const {
@@ -64,28 +67,39 @@ export function DepartmentDetailPage() {
         setSearchParams(next);
     };
 
+    // D7: the department register's name is the route's `h1` and `document.title`
+    // until the department has loaded (its own name takes over in `DepartmentDetailHeader`).
+    const stateShell = (state: ReactNode) => (
+        <PageContainer>
+            <PageHeader
+                title={t('sidebar.departments', { ns: 'navigation' })}
+                back={{ label: t('department_detail.back_to_departments'), to: returnTo }}
+            />
+            {state}
+        </PageContainer>
+    );
+
     if (isLoading) {
-        return <div className="glass-card animate-pulse h-40" aria-label={t('loading.data')} />;
+        return stateShell(
+            <LoadingState label={t('loading.data')} skeleton={<Skeleton className="h-40 rounded-2xl" />} />,
+        );
     }
-    if (isAccessDenied) return <ReadAccessDeniedState />;
+    if (isAccessDenied) return stateShell(<AccessDeniedState layout="section" />);
     if (error || !department) {
-        return (
-            <div className="glass-card border-rose-500/50 bg-rose-500/10">
-                <div className="flex items-center gap-3 text-rose-400">
-                    <AlertCircle className="h-5 w-5" aria-hidden="true" />
-                    <p className="font-medium">
-                        {error ? t(error, { ns: 'common' }) : t('not_found', { ns: 'errorKeys' })}
-                    </p>
-                </div>
-            </div>
+        return stateShell(
+            <ErrorState
+                layout="section"
+                message={error ? t(error, { ns: 'common' }) : t('not_found', { ns: 'errorKeys' })}
+                onRetry={error ? refresh : undefined}
+            />,
         );
     }
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             <DepartmentDetailHeader
                 department={department}
-                onBack={() => navigate('/departments')}
+                returnTo={returnTo}
                 onRefresh={refresh}
             />
             <DepartmentDetailTabs
@@ -97,7 +111,7 @@ export function DepartmentDetailPage() {
                 department={department}
                 onSelectTab={selectTab}
             />
-        </div>
+        </PageContainer>
     );
 }
 

@@ -30,7 +30,7 @@ export function MetricGaugeSvg({
     valuePct,
     pointerClassName,
     className,
-    trackClassName = 'fill-current text-white/5',
+    trackClassName = 'fill-current text-tint/5',
     zones = [],
     markers = [],
 }: MetricGaugeSvgProps) {
@@ -57,13 +57,13 @@ export function MetricGaugeSvg({
             })}
             {markers.map((marker, index) => (
                 <g key={`${marker.positionPct}-${index}`} className="fill-current">
-                    <title>{marker.title}</title>
+                    {marker.title ? <title>{marker.title}</title> : null}
                     <line
                         x1={clampPercent(marker.positionPct)}
                         x2={clampPercent(marker.positionPct)}
                         y1="4"
                         y2="12"
-                        className={cn('stroke-current', marker.className ?? 'text-white/20')}
+                        className={cn('stroke-current', marker.className ?? 'text-tint/20')}
                         strokeWidth="0.75"
                     />
                 </g>
@@ -73,7 +73,7 @@ export function MetricGaugeSvg({
                 animate={{ cx: clampedValue }}
                 cy="8"
                 r="2.5"
-                className={cn('fill-current stroke-slate-900', pointerClassName)}
+                className={cn('fill-current stroke-background', pointerClassName)}
                 strokeWidth="1.5"
                 transition={{ type: 'spring', stiffness: 100 }}
             />

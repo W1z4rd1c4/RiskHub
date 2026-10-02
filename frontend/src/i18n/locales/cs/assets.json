@@ -58,9 +58,11 @@
         "alternative_names": "Alternativní názvy",
         "business_owner": "Business vlastník",
         "owner_department": "Vlastnický útvar",
+        "business_owner_department": "Business vlastník — vlastnický útvar",
+        "ict_owner_department": "ICT vlastník — vlastnický útvar",
         "ict_owner": "ICT vlastník",
-        "gdpr_relevance": "GDPR relevance",
-        "ai_relevance": "AI relevance",
+        "gdpr_relevance": "Relevance GDPR",
+        "ai_relevance": "Relevance AI",
         "data_classification": "Klasifikace dat",
         "confidentiality_rating": "Důvěrnost (1–5)",
         "integrity_rating": "Integrita (1–5)",
@@ -132,12 +134,12 @@
             "vendor": "Podle dodavatele"
         },
         "filters": {
-            "add": "Filtry", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše",
+            "add": "Filtry", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše",
             "remove": "Odebrat filtr {{label}}", "lifecycle": "Životní cyklus", "department": "Vlastnický útvar",
             "business_owner": "Business vlastník", "ict_owner": "ICT vlastník", "asset_type": "Typ aktiva",
             "asset_level": "Úroveň aktiva", "deployment_model": "Model nasazení", "criticality": "Výsledná kritičnost",
             "cif": "Podpora CIF", "legacy": "Legacy systém", "spof": "SPOF", "external_dependency": "Externí závislost",
-            "gdpr_relevance": "GDPR relevance", "ai_relevance": "AI relevance", "internet_exposed": "Vystavení internetu",
+            "gdpr_relevance": "Relevance GDPR", "ai_relevance": "Relevance AI", "internet_exposed": "Vystavení internetu",
             "data_classification": "Klasifikace dat", "completeness": "Úplnost", "lifecycle_state": "Stav životního cyklu",
             "linked_process": "Propojený proces", "linked_asset": "Propojené aktivum", "linked_vendor": "Propojený dodavatel", "linked_risk": "Propojené riziko",
             "search_options": "Hledat ve viditelných možnostech...", "search_options_for": "Hledat možnosti {{label}}", "no_options": "Žádné viditelné možnosti"
@@ -145,7 +147,7 @@
         "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Všechny záznamy" },
         "boolean": { "any": "Libovolné", "yes": "Ano", "no": "Ne" },
         "groups": {
-            "unassigned": "Nepřiřazeno", "unclassified": "Bez klasifikace", "no_linked_process": "Bez propojeného procesu", "no_linked_vendor": "Bez propojeného dodavatele"
+            "unclassified": "Bez klasifikace", "no_linked_process": "Bez propojeného procesu", "no_linked_vendor": "Bez propojeného dodavatele"
         },
         "export": { "title": "Export odpovídajících aktiv" }
     },
@@ -154,7 +156,6 @@
         "remove": "Odebrat vazbu",
         "spof": "SPOF",
         "remove_confirm": {
-            "title": "Odebrat vazbu?",
             "message": "Odebrat vazbu na {{name}}? Vazbu lze kdykoli znovu vytvořit."
         },
         "errors": {
@@ -165,6 +166,7 @@
             "empty": "Zatím žádné vazby na procesy.",
             "primary": "Primární proces",
             "set_primary": "Nastavit jako primární",
+            "select_label": "Proces",
             "select_placeholder": "Vyberte proces...",
             "significance": "Význam vazby",
             "no_metadata": "Bez podrobností vazby"
@@ -176,6 +178,8 @@
             "supports": "Podporuje",
             "direction_depends_on": "Toto aktivum závisí na...",
             "direction_supports": "Toto aktivum podporuje...",
+            "direction_label": "Směr vazby",
+            "select_label": "Aktivum",
             "select_placeholder": "Vyberte aktivum...",
             "dependency_type": "Typ závislosti",
             "no_metadata": "Bez podrobností vazby"
@@ -183,8 +187,10 @@
         "vendors": {
             "title": "Závislosti na dodavatelích",
             "empty": "Zatím žádní propojení dodavatelé.",
+            "select_label": "Dodavatel",
             "select_placeholder": "Vyberte dodavatele...",
             "s_code": "ICT služba (S-kód)",
+            "s_code_placeholder": "Vyberte ICT službu...",
             "role": "Role dodavatele",
             "reliance": "Míra závislosti (u CIF)",
             "contract_ref": "Ref. smlouvy",

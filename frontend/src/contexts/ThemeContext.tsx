@@ -21,11 +21,21 @@ interface ThemeContextType {
     revertTheme: () => void;
 }
 
-const THEME_DOM: Record<Theme, { rootClass: string; colorScheme: 'light' | 'dark'; themeColor: string }> = {
-    riskhub: { rootClass: 'theme-riskhub', colorScheme: 'dark', themeColor: '#0f172a' },
-    dark: { rootClass: 'theme-dark', colorScheme: 'dark', themeColor: '#000000' },
-    light: { rootClass: 'theme-light', colorScheme: 'light', themeColor: '#f8fafc' },
+const THEME_DOM: Record<Theme, { rootClass: string; colorScheme: 'light' | 'dark' }> = {
+    riskhub: { rootClass: 'theme-riskhub', colorScheme: 'dark' },
+    dark: { rootClass: 'theme-dark', colorScheme: 'dark' },
+    light: { rootClass: 'theme-light', colorScheme: 'light' },
 };
+
+/**
+ * The native browser chrome colour (`<meta name="theme-color">`) follows the
+ * active theme's `--background` token (audit §4.2, DS-05: no hex UI colours),
+ * read after the root class switch. `null` when no theme stylesheet is loaded.
+ */
+function backgroundTokenColor(root: HTMLElement): string | null {
+    const value = getComputedStyle(root).getPropertyValue('--background').trim();
+    return value ? `hsl(${value})` : null;
+}
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -64,8 +74,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.classList.remove('theme-light', 'theme-dark', 'theme-riskhub');
         root.classList.add(themeDom.rootClass);
         root.style.colorScheme = themeDom.colorScheme;
-        if (themeColorMeta) {
-            themeColorMeta.content = themeDom.themeColor;
+        const themeColor = themeColorMeta ? backgroundTokenColor(root) : null;
+        if (themeColorMeta && themeColor) {
+            themeColorMeta.content = themeColor;
         }
     }, [theme]);
 

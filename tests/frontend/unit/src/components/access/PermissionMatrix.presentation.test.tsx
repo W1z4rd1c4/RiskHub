@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -19,9 +19,9 @@ describe('permission access presentation', () => {
 
         render(<PermissionMatrix permissions={['risks:write', 'activity_log:read', 'legacy_permission']} />);
 
-        expect(screen.getByRole('button', { name: 'Can manage risks' })).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Can view activity log' })).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Restricted permission' })).toBeVisible();
+        expect(screen.getByText('Can manage risks')).toBeVisible();
+        expect(screen.getByText('Can view activity log')).toBeVisible();
+        expect(screen.getByText('Restricted permission')).toBeVisible();
         expect(screen.getByText('Additional access')).toBeVisible();
 
         for (const token of ['risks:write', 'activity_log:read', 'legacy_permission']) {
@@ -33,6 +33,22 @@ describe('permission access presentation', () => {
         for (const token of ['risks:write', 'activity_log:read', 'legacy_permission']) {
             expect(screen.getByText(token)).toBeVisible();
         }
+    });
+
+    it('renders read-only permissions as a list with a text state, not disabled buttons (GAP-D-16)', async () => {
+        await i18n.changeLanguage('en');
+
+        render(<PermissionMatrix permissions={['risks:write', 'legacy_permission']} />);
+
+        const chips = screen.getAllByTestId('permission-matrix-action');
+        expect(chips).toHaveLength(2);
+        for (const chip of chips) {
+            expect(chip.closest('button')).toBeNull();
+            expect(chip.closest('li')).not.toBeNull();
+            // The granted state is text for assistive technology, not only a glyph or colour.
+            expect(within(chip).getByText('Granted')).toBeInTheDocument();
+        }
+        expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
     it('uses Czech task labels and a localized restricted fallback', async () => {
@@ -59,7 +75,10 @@ describe('permission access presentation', () => {
             />,
         );
 
-        await user.click(screen.getByRole('button', { name: 'Can manage risks' }));
+        const toggle = screen.getByRole('checkbox', { name: 'Can manage risks' });
+        expect(toggle).not.toBeChecked();
+        await user.click(toggle);
+        expect(toggle).toBeChecked();
         expect(onPermissionsChange).toHaveBeenLastCalledWith(['risks:write']);
     });
 

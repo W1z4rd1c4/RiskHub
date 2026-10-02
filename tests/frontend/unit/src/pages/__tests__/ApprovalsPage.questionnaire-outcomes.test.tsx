@@ -115,7 +115,7 @@ describe('ApprovalsPage questionnaire inbox outcomes', () => {
         await user.click(screen.getByRole('tab', { name: 'Pending Queue' }));
         await user.click(screen.getByRole('tab', { name: 'Risk Assessment' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to questionnaire assignments.');
+        expect(await screen.findByText('You do not have access to questionnaire assignments.')).toBeInTheDocument();
         expect(screen.queryByText(questionnaire.risk_name!)).not.toBeInTheDocument();
         expect(screen.queryByText('All Caught Up')).not.toBeInTheDocument();
     });
@@ -161,7 +161,7 @@ describe('ApprovalsPage questionnaire inbox outcomes', () => {
             await Promise.resolve();
         });
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('You do not have access to questionnaire assignments.');
+        expect(await screen.findByText('You do not have access to questionnaire assignments.')).toBeInTheDocument();
         expect(screen.queryByText(questionnaire.risk_name!)).not.toBeInTheDocument();
         expect(screen.queryByText('All Caught Up')).not.toBeInTheDocument();
     });

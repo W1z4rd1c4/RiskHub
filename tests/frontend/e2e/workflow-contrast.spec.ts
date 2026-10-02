@@ -13,6 +13,13 @@ test.beforeEach(async ({ page }) => {
   }));
 });
 
+// The questionnaire footer follows the dialog-footer contract (audit §4.7: Close
+// first, Submit rightmost), so its actions are addressed by name, not position.
+const questionnaireActions = {
+  en: { save: 'Save progress', submit: 'Submit', close: 'Close' },
+  cs: { save: 'Uložit průběžně', submit: 'Odeslat', close: 'Zavřít' },
+} as const;
+
 const states = {
   history: ['normal', 'empty', 'breach', 'same'],
   approval: ['normal', 'reject', 'error', 'pending'],
@@ -83,11 +90,14 @@ for (const theme of ['light', 'riskhub', 'dark']) {
               const notes = root.locator('textarea');
               if (state === 'pending') {
                 await expect(notes).toBeDisabled();
+                // Disabled contract of the ui primitives (audit §4.7 Button, §4.8 Textarea):
+                // an inert control is dimmed (`disabled:opacity-50`) in every theme. It
+                // replaced the bespoke dashed-border disabled styling (W6 dialog migration).
                 for (const button of await root.locator('button').all()) {
                   await expect(button).toBeDisabled();
-                  expect(await button.evaluate(e => getComputedStyle(e).borderStyle)).toBe('dashed');
+                  await expect(button).toHaveCSS('opacity', '0.5');
                 }
-                expect(await notes.evaluate(e => getComputedStyle(e).borderStyle)).toBe('dashed');
+                await expect(notes).toHaveCSS('opacity', '0.5');
               } else {
                 if (state === 'normal') {
                   await root.getByRole('button').last().click();
@@ -108,24 +118,28 @@ for (const theme of ['light', 'riskhub', 'dark']) {
               await expect(search).toHaveValue('Alice');
               expect(await renderedContrast(search)).toBeGreaterThanOrEqual(4.5);
               expect(await search.evaluate(e => getComputedStyle(e).boxShadow)).not.toBe('none');
-              await root.getByRole('button', { name: 'Alice Novak risk_manager' }).click();
+              // The role is shown translated (W8, no raw enums): "Risk Manager" / "Risk manažer".
+              await root.getByRole('button', { name: /^Alice Novak Risk (Manager|manažer)$/ }).click();
               await expect(root.locator('p').filter({ hasText: /^Alice Novak$/ })).toBeVisible();
             }
+            const questionnaireAction = (action: keyof typeof questionnaireActions.en) => root.getByRole('button', {
+              name: questionnaireActions[locale as keyof typeof questionnaireActions][action], exact: true,
+            });
             if (family === 'questionnaire' && state === 'normal') {
-              await root.getByRole('button').nth(0).click();
+              await questionnaireAction('save').click();
               await expect(page.locator('output')).toHaveText('saved');
-              await root.getByRole('button').nth(1).click();
+              await questionnaireAction('submit').click();
               await expect(page.locator('output')).toHaveText('submitted');
-              await root.getByRole('button').last().click();
+              await questionnaireAction('close').click();
               await expect(page.locator('output')).toHaveText('closed');
             }
             if (family === 'questionnaire' && ['pending', 'submitting'].includes(state)) {
-              await expect(root.getByRole('button').nth(0)).toBeDisabled();
-              await expect(root.getByRole('button').nth(1)).toBeDisabled();
+              await expect(questionnaireAction('save')).toBeDisabled();
+              await expect(questionnaireAction('submit')).toBeDisabled();
               for (const action of await root.locator('button:disabled').all()) {
-                expect(await action.evaluate(e => getComputedStyle(e).borderStyle)).toBe('dashed');
+                await expect(action).toHaveCSS('opacity', '0.5');
               }
-              await expect(root.getByRole('button').last()).toBeEnabled();
+              await expect(questionnaireAction('close')).toBeEnabled();
             }
           }
         }

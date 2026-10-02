@@ -1,8 +1,15 @@
 import { Search, Target, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { RiskPickerOption } from '@/components/risks/RiskPickerOption';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { ControlEffectiveness } from '@/types/risk';
 import { useControlRiskLinkStep } from './controlRiskLinkStepContext';
+import { LoadingState } from '@/components/ui/state';
 
 type TranslateFn = (
   key: string,
@@ -42,59 +49,63 @@ export function ControlFormRiskLinkStep({
 
   return (
     <div>
-      <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-        <Target className="h-4 w-4 text-accent" />
+      <h2 className="text-eyebrow mb-4 flex items-center gap-2">
+        <Target className="h-4 w-4 text-accent-text" aria-hidden="true" />
         {t('controls:form.labels.link_to_risk_optional')}
-      </h3>
+      </h2>
 
       {selectedRisk ? (
         <div className="space-y-6">
           <div className="p-4 bg-accent/10 border border-accent/30 rounded-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold text-white">{selectedRisk.name}</p>
-                <p className="text-xs text-slate-400 mt-1">{selectedRisk.process} • {selectedRisk.category || t('controls:form.labels.uncategorized')}</p>
-                <p className="text-xs text-slate-300 mt-2 italic">{selectedRisk.description}</p>
+                <p className="text-sm font-bold text-foreground">{selectedRisk.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{selectedRisk.process} • {selectedRisk.category || t('common:fallbacks.uncategorized')}</p>
+                <p className="text-xs text-foreground mt-2 italic">{selectedRisk.description}</p>
                 {selectedRisk.department_name && (
-                  <span className="inline-block mt-3 px-2 py-0.5 rounded bg-white/10 text-[10px] uppercase font-bold text-slate-300">
+                  <Badge size="sm" shape="rounded" className="mt-3">
                     {selectedRisk.department_name}
-                  </span>
+                  </Badge>
                 )}
               </div>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="iconCompact"
                 onClick={() => setSelectedRiskId(undefined)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label={t('common:actions.clear_selection_named', { name: selectedRisk.name })}
               >
-                <X className="h-4 w-4 text-slate-400" />
-              </button>
+                <X aria-hidden="true" />
+              </Button>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.effectiveness')}</label>
-              <ThemedSelect
-                value={riskEffectiveness}
-                onValueChange={(v) => setRiskEffectiveness(v as ControlEffectiveness)}
-                className="w-full"
-                options={[
-                  { value: 'high', label: t('controls:form.effectiveness.high') },
-                  { value: 'medium', label: t('controls:form.effectiveness.medium') },
-                  { value: 'low', label: t('controls:form.effectiveness.low') },
-                ]}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.notes')} ({t('common:labels.none')})</label>
-              <input
-                type="text"
-                value={linkNotes}
-                onChange={(e) => setLinkNotes(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                placeholder={t('form.placeholders.link_rationale')}
-              />
-            </div>
+            <Field label={t('controls:form.labels.effectiveness')}>
+              {(field) => (
+                <ThemedSelect
+                  {...field}
+                  value={riskEffectiveness}
+                  onValueChange={(v) => setRiskEffectiveness(v as ControlEffectiveness)}
+                  className="w-full"
+                  options={[
+                    { value: 'high', label: t('controls:form.effectiveness.high') },
+                    { value: 'medium', label: t('controls:form.effectiveness.medium') },
+                    { value: 'low', label: t('controls:form.effectiveness.low') },
+                  ]}
+                />
+              )}
+            </Field>
+            {/* PG-37: "(optional)" via Field. */}
+            <Field label={t('common:labels.notes')} optional>
+              {(field) => (
+                <Textarea
+                  {...field}
+                  value={linkNotes}
+                  onChange={(e) => setLinkNotes(e.target.value)}
+                  placeholder={t('form.placeholders.link_rationale')}
+                />
+              )}
+            </Field>
           </div>
         </div>
       ) : (
@@ -102,6 +113,7 @@ export function ControlFormRiskLinkStep({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <ThemedSelect
               value={selectedDept}
+              triggerAriaLabel={t('common:labels.department')}
               onValueChange={setSelectedDept}
               placeholder={t('form.placeholders.all_departments')}
               allowEmpty
@@ -111,6 +123,7 @@ export function ControlFormRiskLinkStep({
 
             <ThemedSelect
               value={selectedProcess}
+              triggerAriaLabel={t('common:labels.process')}
               onValueChange={setSelectedProcess}
               placeholder={t('form.placeholders.all_processes')}
               allowEmpty
@@ -120,6 +133,7 @@ export function ControlFormRiskLinkStep({
 
             <ThemedSelect
               value={selectedCategory}
+              triggerAriaLabel={t('common:labels.category')}
               onValueChange={setSelectedCategory}
               placeholder={t('form.placeholders.all_categories')}
               allowEmpty
@@ -128,56 +142,29 @@ export function ControlFormRiskLinkStep({
             />
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
-            <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
-            <input
-              type="text"
-              placeholder={t('form.placeholders.search_risks')}
-              value={riskSearch}
-              onChange={(e) => setRiskSearch(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-400"
-            />
-          </div>
+          <Input
+            type="text"
+            leadingIcon={Search}
+            aria-label={t('form.placeholders.search_risks')}
+            placeholder={t('form.placeholders.search_risks')}
+            value={riskSearch}
+            onChange={(e) => setRiskSearch(e.target.value)}
+          />
 
-          <div className="max-h-[200px] overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/5 custom-scrollbar">
+          <div className="max-h-[200px] overflow-y-auto rounded-xl border border-border divide-y divide-border custom-scrollbar">
             {isLoadingRisks ? (
-              <div className="p-8 text-center text-slate-500 text-sm">
-                <div className="animate-spin h-5 w-5 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2"></div>
-                {t('common:loading.risk_data')}
-              </div>
+              <LoadingState className="p-8" label={t('common:loading.risk_data')} />
             ) : risks.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-sm">
+              <div className="p-8 text-center text-muted-foreground text-sm">
                 {t('common:empty.no_risks_found')}
               </div>
             ) : filteredRisks.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-sm">
+              <div className="p-8 text-center text-muted-foreground text-sm">
                 {t('common:labels.no_results')}
               </div>
             ) : (
               filteredRisks.slice(0, 20).map((risk) => (
-                <button
-                  key={risk.id}
-                  type="button"
-                  onClick={() => setSelectedRiskId(risk.id)}
-                  className="w-full text-left hover:brightness-125 transition-all flex items-stretch gap-2 group p-2"
-                >
-                  <div className="bg-white/5 rounded-lg p-3 w-[200px] shrink-0 flex flex-col justify-center group-hover:bg-white/10 transition-colors">
-                    <p className="text-sm font-bold text-white truncate" title={risk.name}>{risk.name}</p>
-                    <p className="text-[10px] text-slate-500 mt-1 truncate" title={risk.process}>{risk.process}</p>
-                  </div>
-
-                  <div className="bg-white/5 rounded-lg p-3 flex-1 flex items-center group-hover:bg-white/10 transition-colors">
-                    {risk.description ? (
-                      <p className="text-[10px] text-slate-400 break-words leading-tight">
-                        {risk.description.length > 120
-                          ? `${risk.description.slice(0, 120)}...`
-                          : risk.description}
-                      </p>
-                    ) : (
-                      <span className="text-[10px] text-slate-600 italic">{t('common:empty.no_description')}</span>
-                    )}
-                  </div>
-                </button>
+                <RiskPickerOption key={risk.id} risk={risk} onSelect={() => setSelectedRiskId(risk.id)} />
               ))
             )}
           </div>

@@ -1,13 +1,12 @@
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
-import {
-    VendorBadge,
-    VendorSectionHeader,
-    VendorSurface,
-} from '@/components/vendors/vendorRouteUi';
+import { Badge, SeverityBadge } from '@/components/ui/badge';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
 
-import { scoreColor } from './vendorForm.mappers';
 import type { VendorFormField } from './vendorForm.types';
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
 
 type ClassificationFlagKey =
     | 'supports_important_core_insurance_function'
@@ -34,89 +33,79 @@ export function VendorClassificationSection({
 }: VendorClassificationSectionProps) {
     const { t } = useTranslation('vendors');
     const score = formData.risk_score_1_5 || 3;
+    const band = ordinalSeverityBand(score);
+    const hasFlags = Boolean(
+        formData.supports_important_core_insurance_function
+        || formData.dora_relevant
+        || formData.is_significant_vendor,
+    );
 
     const renderFlagCheckbox = (key: ClassificationFlagKey, label: string) => (
-        <label key={key} className="vendor-checkbox">
-            <input
-                type="checkbox"
-                checked={!!formData[key]}
-                onChange={(event) => onChange(key, event.target.checked)}
-                className="accent-accent"
-            />
-            {label}
-        </label>
+        <Field key={key} label={label} layout="inline">
+            {(control) => (
+                <Checkbox
+                    {...control}
+                    checked={!!formData[key]}
+                    onCheckedChange={(checked) => onChange(key, checked)}
+                />
+            )}
+        </Field>
     );
 
     return (
-        <VendorSurface className="space-y-5">
-            <VendorSectionHeader title={t('form.sections.classification')} />
+        <Card as="section">
+            <CardHeader title={t('form.sections.classification')} />
 
             <div className="space-y-5">
-                <div className="vendor-field">
-                    <label className="vendor-label">{t('form.risk_score')}</label>
-                    <div className="flex items-center gap-3">
-                        <input
-                            type="range"
-                            min={1}
-                            max={5}
-                            value={score}
-                            onChange={(event) => onChange('risk_score_1_5', Number(event.target.value))}
-                            className={cn(
-                                'w-full',
-                                score >= 5
-                                    ? 'accent-rose-500'
-                                    : score >= 4
-                                        ? 'accent-orange-500'
-                                        : score >= 3
-                                            ? 'accent-amber-500'
-                                            : score >= 2
-                                                ? 'accent-blue-500'
-                                                : 'accent-emerald-500',
-                            )}
-                        />
-                        <div
-                            className={cn(
-                                'px-2.5 py-1 rounded-full text-[10px] font-black border whitespace-nowrap',
-                                scoreColor(score),
-                            )}
-                        >
-                            {score} / 5
+                <Field
+                    label={t('form.risk_score')}
+                    help={(
+                        <>
+                            <span className="font-semibold text-foreground">{impactLabel}</span>
+                            {financialRange ? ` • ${financialRange}` : null}
+                        </>
+                    )}
+                >
+                    {(control) => (
+                        <div className="flex items-center gap-3">
+                            <input
+                                {...control}
+                                type="range"
+                                min={1}
+                                max={5}
+                                value={score}
+                                aria-valuetext={`${score} / 5`}
+                                onChange={(event) => onChange('risk_score_1_5', Number(event.target.value))}
+                                className={cn('w-full', severityClass('slider', band))}
+                            />
+                            <SeverityBadge band={band} label={`${score} / 5`} aria-hidden="true" />
                         </div>
-                    </div>
-                    <p className="text-xs vendor-muted">
-                        <span className="font-semibold vendor-text">{impactLabel}</span>
-                        {financialRange ? ` • ${financialRange}` : null}
-                    </p>
-                </div>
+                    )}
+                </Field>
 
-                <div className="vendor-form-grid">
-                    <div className="vendor-field">
-                        <label className="vendor-label">{t('form.flags')}</label>
+                <fieldset className="min-w-0 space-y-3 border-0 p-0">
+                    <legend className="text-eyebrow">{t('form.flags')}</legend>
+                    {hasFlags ? (
                         <div className="flex flex-wrap gap-2">
                             {formData.supports_important_core_insurance_function ? (
-                                <VendorBadge tone="success">{t('flags.supports_core_function')}</VendorBadge>
+                                <Badge tone="success">{t('flags.supports_core_function')}</Badge>
                             ) : null}
                             {formData.dora_relevant ? (
-                                <VendorBadge tone="info">{t('flags.dora_relevant')}</VendorBadge>
+                                <Badge tone="info">{t('flags.dora_relevant')}</Badge>
                             ) : null}
                             {formData.is_significant_vendor ? (
-                                <VendorBadge tone="warn">{t('flags.significant_vendor')}</VendorBadge>
+                                <Badge tone="warning">{t('flags.significant_vendor')}</Badge>
                             ) : null}
                         </div>
-                    </div>
-
-                    <div className="vendor-field md:col-span-2">
-                        <div className="vendor-checkbox-list">
-                            {renderFlagCheckbox(
-                                'supports_important_core_insurance_function',
-                                t('flags.supports_core_function'),
-                            )}
-                            {renderFlagCheckbox('dora_relevant', t('flags.dora_relevant'))}
-                            {renderFlagCheckbox('is_significant_vendor', t('flags.significant_vendor'))}
-                        </div>
-                    </div>
-                </div>
+                    ) : null}
+                    {renderFlagCheckbox(
+                        'supports_important_core_insurance_function',
+                        t('flags.supports_core_function'),
+                    )}
+                    {renderFlagCheckbox('dora_relevant', t('flags.dora_relevant'))}
+                    {renderFlagCheckbox('is_significant_vendor', t('flags.significant_vendor'))}
+                </fieldset>
             </div>
-        </VendorSurface>
+        </Card>
     );
 }

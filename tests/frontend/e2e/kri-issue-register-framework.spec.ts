@@ -120,13 +120,15 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await page.navigate('?source=external-review&page=5');
 
         let requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).monitoring_status === 'breach');
-        await riskManagerPage.getByTestId('kris-status-filter-breach').click();
+        // PG-25: the monitoring select is the only status control (no duplicate pill row).
+        await riskManagerPage.getByTestId('kris-monitoring-filter-trigger').click();
+        await riskManagerPage.getByTestId('kris-monitoring-filter-option-breach').click();
         let requestUrl = new URL((await requestPromise).url());
         expect(filters(requestUrl)).toMatchObject({ monitoring_status: 'breach' });
         await expect(riskManagerPage).toHaveURL((url) => !url.searchParams.has('page'));
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).timeliness_status === 'due_soon');
-        await riskManagerPage.getByTestId('kris-status-filter-due_soon').click();
+        await riskManagerPage.getByTestId('kris-due-soon-filter').click();
         requestUrl = new URL((await requestPromise).url());
         expect(filters(requestUrl).monitoring_status).toBeUndefined();
 
@@ -136,7 +138,8 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).lifecycle === 'archived');
-        await riskManagerPage.getByTestId('kris-status-filter-archived').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-trigger').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-option-archived').click();
         requestUrl = new URL((await requestPromise).url());
         expect(filters(requestUrl)).toMatchObject({ lifecycle: 'archived', is_archived: true });
         expect(filters(requestUrl).monitoring_status).toBeUndefined();
@@ -166,7 +169,8 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).lifecycle === 'archived');
-        await riskManagerPage.getByTestId('kris-status-filter-archived').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-trigger').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-option-archived').click();
         await requestPromise;
 
         await page.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);

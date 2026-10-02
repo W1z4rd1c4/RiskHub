@@ -1,105 +1,51 @@
-import { motion } from 'framer-motion';
-import { Shield, ArrowRight, Zap, BarChart3, Lock } from 'lucide-react';
+import { ArrowRight, BarChart3, Lock, Shield, Zap, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+import { AuthFrame } from '@/components/layout/AuthFrame';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 
+const FEATURES: ReadonlyArray<{ icon: LucideIcon; titleKey: string; descriptionKey: string }> = [
+    { icon: Zap, titleKey: 'hero.feature_analytics_title', descriptionKey: 'hero.feature_analytics_desc' },
+    { icon: BarChart3, titleKey: 'hero.feature_sii_title', descriptionKey: 'hero.feature_sii_desc' },
+    { icon: Shield, titleKey: 'hero.feature_rbac_title', descriptionKey: 'hero.feature_rbac_desc' },
+];
+
+/**
+ * Public landing page (`/landing`) on the shared public frame (DS-24, D14): the frame owns
+ * the wordmark, language switch, `<main>` landmark and OS colour scheme; the card holds the
+ * pitch, the primary call to action and the feature list.
+ */
 export function HeroPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('common');
-    const brandName = t('brand.name');
-    const brandAccentSuffix = 'Hub';
-    const hasAccentSuffix = brandName.endsWith(brandAccentSuffix);
-    const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
-
-    const handleLogin = () => {
-        // Mock login as admin (ID 1 from seed)
-        // Mock auth removed
-        void navigate('/');
-    };
 
     return (
-        <div className="relative min-h-screen w-full mesh-gradient overflow-hidden flex flex-col items-center justify-center px-6">
-            {/* Background Decorative Elements */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[120px]" />
-
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="z-10 text-center max-w-4xl"
-            >
-                <div className="flex justify-center mb-8">
-                    <div className="glass p-3 rounded-2xl">
-                        <Shield className="h-10 w-10 text-accent" />
-                    </div>
-                </div>
-
-                <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight text-white mb-6">
-                    {hasAccentSuffix ? (
-                        <>
-                            {brandPrefix}
-                            <span className="text-accent underline decoration-4 underline-offset-8">{brandAccentSuffix}</span>
-                        </>
-                    ) : (
-                        brandName
-                    )}
-                </h1>
-
-                <p className="text-xl md:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                    {t('hero.tagline')}
-                    {' '}{t('hero.subtitle')}
-                </p>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <button
-                        onClick={handleLogin}
-                        className="btn-primary group"
-                    >
-                        {t('hero.access_platform')}
-                        <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                    </button>
-
-                    <div className="flex items-center gap-6 mt-8 sm:mt-0 px-8 py-3 glass rounded-full text-sm font-medium text-slate-300">
-                        <span className="flex items-center gap-2">
-                            <Lock className="h-4 w-4 text-emerald-400" />
-                            {t('hero.secure_access')}
-                        </span>
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Feature Grid Mockup */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4, duration: 1 }}
-                className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl"
-            >
-                <div className="glass-card flex flex-col items-center text-center">
-                    <Zap className="h-8 w-8 text-amber-400 mb-4" />
-                    <h3 className="text-lg font-bold mb-2">{t('hero.feature_analytics_title')}</h3>
-                    <p className="text-sm text-slate-400">{t('hero.feature_analytics_desc')}</p>
-                </div>
-
-                <div className="glass-card flex flex-col items-center text-center">
-                    <BarChart3 className="h-8 w-8 text-accent mb-4" />
-                    <h3 className="text-lg font-bold mb-2">{t('hero.feature_sii_title')}</h3>
-                    <p className="text-sm text-slate-400">{t('hero.feature_sii_desc')}</p>
-                </div>
-
-                <div className="glass-card flex flex-col items-center text-center">
-                    <Shield className="h-8 w-8 text-emerald-400 mb-4" />
-                    <h3 className="text-lg font-bold mb-2">{t('hero.feature_rbac_title')}</h3>
-                    <p className="text-sm text-slate-400">{t('hero.feature_rbac_desc')}</p>
-                </div>
-            </motion.div>
-
-            {/* Footer Branding */}
-            <div className="absolute bottom-10 text-slate-500 text-xs tracking-widest uppercase font-bold">
-                {t('hero.footer')}
-            </div>
-        </div>
+        <AuthFrame
+            title={t('hero.page_title')}
+            subtitle={<p>{t('hero.tagline')} {t('hero.subtitle')}</p>}
+            footer={t('hero.footer')}
+        >
+            <Button variant="accent" size="lg" className="w-full" onClick={() => { void navigate('/'); }}>
+                {t('hero.access_platform')}
+                <ArrowRight aria-hidden="true" />
+            </Button>
+            <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Lock className="size-4 text-success-text" aria-hidden="true" />
+                {t('hero.secure_access')}
+            </p>
+            <ul className="space-y-3">
+                {FEATURES.map(({ icon: Icon, titleKey, descriptionKey }) => (
+                    <li key={titleKey} className="flex gap-3 rounded-lg border border-border bg-nested p-3">
+                        <Icon className="mt-0.5 size-5 shrink-0 text-accent-text" aria-hidden="true" />
+                        <div className="min-w-0">
+                            <h2 className="font-heading text-base font-semibold text-foreground">{t(titleKey)}</h2>
+                            <p className="text-sm text-muted-foreground">{t(descriptionKey)}</p>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </AuthFrame>
     );
 }
 

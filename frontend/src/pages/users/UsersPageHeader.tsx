@@ -1,5 +1,8 @@
-import { Building2, RefreshCw, UserPlus, Users } from 'lucide-react';
+import { Building2, UserPlus, Users } from 'lucide-react';
 
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/button';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 import { useTranslation } from '@/i18n/hooks';
 
 interface UsersPageHeaderProps {
@@ -24,45 +27,30 @@ export function UsersPageHeader({
     const { t } = useTranslation('admin');
 
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                    <Users className="h-8 w-8 text-accent" />
-                    {isAccessMode ? t('access.title') : t('users.title')}
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                    {isAccessMode ? t('access.subtitle') : t('users.subtitle')}
-                </p>
-            </div>
-            {allowAuthModeActions && (
-                <div className="flex flex-wrap items-center gap-2">
+        <PageHeader
+            title={isAccessMode ? t('access.title') : t('users.title')}
+            description={isAccessMode ? t('access.subtitle') : t('users.subtitle')}
+            icon={Users}
+            actions={allowAuthModeActions ? (
+                <>
                     {canRunDirectoryCheck && (
-                        <button
-                            type="button"
-                            onClick={onCheckAllDirectory}
-                            aria-disabled={isCheckingAllDirectory}
-                            className="rounded-xl border border-info/30 bg-info/10 px-4 py-2 text-accent-text transition hover:bg-info/20 aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                <RefreshCw className={`h-4 w-4 ${isCheckingAllDirectory ? 'animate-spin' : ''}`} />
-                                {isCheckingAllDirectory
-                                    ? t('users.checking_directory')
-                                    : t('users.check_directory')}
-                            </span>
-                        </button>
+                        <RefreshButton
+                            variant="outline"
+                            label={isCheckingAllDirectory
+                                ? t('users.checking_directory')
+                                : t('users.check_directory')}
+                            onRefresh={onCheckAllDirectory}
+                            isFetching={isCheckingAllDirectory}
+                        />
                     )}
-                    <button
-                        type="button"
-                        onClick={onAddUser}
-                        className="bg-accent hover:bg-accent-hover text-accent-foreground px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-[background-color,transform] active:scale-95"
-                    >
-                        {isDirectoryFirstMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                    <Button type="button" variant="accent" onClick={onAddUser}>
+                        {isDirectoryFirstMode ? <Building2 aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
                         {isDirectoryFirstMode
                             ? t('users.add_from_ad')
                             : t('access.add_user')}
-                    </button>
-                </div>
-            )}
-        </div>
+                    </Button>
+                </>
+            ) : undefined}
+        />
     );
 }

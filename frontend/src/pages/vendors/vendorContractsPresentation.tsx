@@ -1,9 +1,13 @@
 import type { MouseEvent } from 'react';
-import { ArchiveRestore, Pencil, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
+import { RowActionButton } from '@/components/tables/RowActionButton';
 import type { Column } from '@/components/tables/SortableTable';
-import { formatDateValue } from '@/i18n/formatters';
+import { Badge } from '@/components/ui/badge';
+import { formatDateValue, formatNumberValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { closedListLabel } from '@/lib/closedListLabels';
+import type { Tone } from '@/lib/tones';
 import type { VendorContract, VendorContractWritePayload } from '@/types/vendorContract';
 
 export type ContractDisplayStatus = 'active' | 'archived';
@@ -14,8 +18,9 @@ export function getContractDisplayStatus(
     return contract.is_archived ? 'archived' : 'active';
 }
 
-export function getContractStatusColor(status: ContractDisplayStatus): string {
-    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
+/** Status badge tone (§4.9): active reads as success, archived as neutral. */
+export function getContractStatusTone(status: ContractDisplayStatus): Extract<Tone, 'success' | 'neutral'> {
+    return status === 'archived' ? 'neutral' : 'success';
 }
 
 /**
@@ -42,12 +47,13 @@ export function buildVendorContractPayload(
     return payload as VendorContractWritePayload;
 }
 
-export function formatContractCost(contract: VendorContract): string | null {
+/** Annual cost in the UI locale (I18N-03: never a hard-coded `cs-CZ`). */
+export function formatContractCost(contract: VendorContract, locale: string): string | null {
     if (contract.annual_cost === null || contract.annual_cost === undefined) {
         return null;
     }
     const amount = Number(contract.annual_cost);
-    const rendered = Number.isFinite(amount) ? amount.toLocaleString('cs-CZ') : String(contract.annual_cost);
+    const rendered = Number.isFinite(amount) ? formatNumberValue(amount, locale) : String(contract.annual_cost);
     return contract.currency ? `${rendered} ${contract.currency}` : rendered;
 }
 
@@ -97,12 +103,14 @@ export function buildVendorContractColumns({
                         </span>
                     ) : null}
                     {isContractReferenceDuplicate(contract) ? (
-                        <span
-                            className="inline-flex w-fit items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-warning-text"
+                        <Badge
+                            tone="warning"
+                            size="sm"
+                            className="w-fit"
                             data-testid={`vendor-contract-duplicate-${contract.id}`}
                         >
                             {t('vendors:contracts.columns.duplicate_flag')}
-                        </span>
+                        </Badge>
                     ) : null}
                 </div>
             ),
@@ -110,8 +118,11 @@ export function buildVendorContractColumns({
         {
             key: 'arrangement_type',
             label: t('vendors:contracts.columns.arrangement_type'),
+            // GAP-C-09 / PM-4: the stored workbook code shown with its translated label.
             render: (contract) => (
-                <span className="text-sm text-foreground">{contract.arrangement_type ?? '—'}</span>
+                <span className="text-sm text-foreground">
+                    {contract.arrangement_type ? closedListLabel(t, 'TypUjednani', contract.arrangement_type) : '—'}
+                </span>
             ),
         },
         {
@@ -120,22 +131,15 @@ export function buildVendorContractColumns({
             render: (contract) => (
                 <div className="flex flex-wrap items-center gap-1.5">
                     {contract.main_contract === 'Ano' ? (
-                        <span className="inline-flex items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-warning-text">
-                            {t('vendors:contracts.columns.main_flag')}
-                        </span>
+                        <Badge tone="warning" size="sm">{t('vendors:contracts.columns.main_flag')}</Badge>
                     ) : null}
                     {contract.roi_scope === 'Ano' ? (
-                        <span className="inline-flex items-center rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-accent-text">
-                            {t('vendors:contracts.columns.roi_flag')}
-                        </span>
+                        <Badge tone="info" size="sm">{t('vendors:contracts.columns.roi_flag')}</Badge>
                     ) : null}
                     {contract.derived?.cif === 'Ano' ? (
-                        <span
-                            className="inline-flex items-center rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-destructive"
-                            data-testid={`vendor-contract-cif-${contract.id}`}
-                        >
+                        <Badge tone="danger" size="sm" data-testid={`vendor-contract-cif-${contract.id}`}>
                             {t('vendors:contracts.columns.cif')}
-                        </span>
+                        </Badge>
                     ) : null}
                     {contract.main_contract !== 'Ano' &&
                     contract.roi_scope !== 'Ano' &&
@@ -184,7 +188,7 @@ export function buildVendorContractColumns({
             headerClassName: 'text-right',
             render: (contract) => (
                 <span className="text-sm text-foreground tabular-nums">
-                    {formatContractCost(contract) ?? '—'}
+                    {formatContractCost(contract, locale ?? 'en') ?? '—'}
                 </span>
             ),
         },
@@ -194,13 +198,7 @@ export function buildVendorContractColumns({
             className: 'w-[120px]',
             render: (contract) => {
                 const status = getContractDisplayStatus(contract);
-                return (
-                    <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getContractStatusColor(status)}`}
-                    >
-                        {t(`vendors:status.${status}`)}
-                    </span>
-                );
+                return <Badge tone={getContractStatusTone(status)}>{t(`vendors:status.${status}`)}</Badge>;
             },
         },
         {
@@ -210,40 +208,29 @@ export function buildVendorContractColumns({
             render: (contract) => (
                 <div className="flex items-center justify-end gap-1">
                     {resolveCapabilityFlag(contract.capabilities, 'can_update') ? (
-                        <button
-                            type="button"
+                        <RowActionButton
+                            icon={Pencil}
+                            label={t('vendors:contracts.actions.edit')}
                             data-testid={`vendor-contract-edit-${contract.id}`}
                             onClick={(event) => onEdit(contract, event)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
-                            aria-label={t('vendors:contracts.actions.edit')}
-                            title={t('vendors:contracts.actions.edit')}
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </button>
+                        />
                     ) : null}
                     {resolveCapabilityFlag(contract.capabilities, 'can_archive') ? (
-                        <button
-                            type="button"
+                        <RowActionButton
+                            icon={Archive}
+                            tone="danger"
+                            label={t('vendors:contracts.actions.archive')}
                             data-testid={`vendor-contract-archive-${contract.id}`}
                             onClick={(event) => void onArchive(contract, event)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            aria-label={t('vendors:contracts.actions.archive')}
-                            title={t('vendors:contracts.actions.archive')}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </button>
+                        />
                     ) : null}
                     {resolveCapabilityFlag(contract.capabilities, 'can_restore') ? (
-                        <button
-                            type="button"
+                        <RowActionButton
+                            icon={ArchiveRestore}
+                            label={t('vendors:contracts.actions.restore')}
                             data-testid={`vendor-contract-restore-${contract.id}`}
                             onClick={(event) => void onRestore(contract, event)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-glass-hover transition-colors"
-                            aria-label={t('vendors:contracts.actions.restore')}
-                            title={t('vendors:contracts.actions.restore')}
-                        >
-                            <ArchiveRestore className="h-4 w-4" />
-                        </button>
+                        />
                     ) : null}
                 </div>
             ),

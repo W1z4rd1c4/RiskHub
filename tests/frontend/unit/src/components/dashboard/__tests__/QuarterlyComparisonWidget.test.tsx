@@ -11,21 +11,29 @@ vi.mock('@/services/dashboardApi', () => ({
     },
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { period?: string }) => {
-            if (key === 'quarterly.no_snapshot_banner') return `missing ${options?.period ?? ''}`;
-            if (key === 'quarterly.comparison_unavailable') return 'Comparison unavailable';
-            if (key === 'quarterly.missing_definition') return 'Metric definition unavailable';
-            if (key === 'quarterly.not_available') return 'N/A';
-            if (key === 'quarterly.new_from_zero') return `New (from 0) +${(options as { change?: number })?.change}`;
-            if (key === 'quarterly.source.live') return 'Live';
-            if (key === 'quarterly.source.stored') return 'Stored';
-            if (key === 'quarterly.source.missing') return 'Missing';
-            return key;
-        },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    return {
+        useFormat: () => ({
+            date: (value: string) => formatters.formatDateValue(value, 'en'),
+            dateTime: (value: string) => formatters.formatDateTimeValue(value, 'en'),
+        }),
+        useTranslation: () => ({
+            t: (key: string, options?: { period?: string }) => {
+                if (key === 'quarterly.no_snapshot_banner') return `missing ${options?.period ?? ''}`;
+                if (key === 'quarterly.comparison_unavailable') return 'Comparison unavailable';
+                if (key === 'quarterly.missing_definition') return 'Metric definition unavailable';
+                if (key === 'quarterly.not_available') return 'N/A';
+                if (key === 'quarterly.new_from_zero') return `New (from 0) +${(options as { change?: number })?.change}`;
+                if (key === 'quarterly.source.live') return 'Live';
+                if (key === 'quarterly.source.stored') return 'Stored';
+                if (key === 'quarterly.source.missing') return 'Missing';
+                if (key === 'quarterly.vs') return 'vs';
+                return key;
+            },
+        }),
+    };
+});
 
 vi.mock('@/components/ui/ThemedSelect', () => ({
     ThemedSelect: ({
@@ -53,6 +61,10 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 
 import { QuarterlyComparisonWidget } from '@/components/dashboard/QuarterlyComparisonWidget';
 import { QuarterMetricCard } from '@/components/dashboard/QuarterMetricCard';
+import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
+
+const enDate = (value: string) => formatDateValue(value, 'en');
+const enDateTime = (value: string) => formatDateTimeValue(value, 'en');
 
 function comparisonPayload(overrides: Record<string, unknown> = {}) {
     return {
@@ -129,13 +141,22 @@ describe('QuarterlyComparisonWidget', () => {
         render(<QuarterlyComparisonWidget />);
 
         expect(await screen.findByText('New (from 0) +1')).toBeInTheDocument();
-        expect(screen.getByText('2026-Q2 · Live')).toBeInTheDocument();
-        expect(screen.getByText('2026-Q1 · Live')).toBeInTheDocument();
+        // Formatted for the locale; the exact instant stays machine-readable on <time dateTime>.
+        const evidence = screen.getByLabelText('quarterly.observation_evidence');
+        expect(within(evidence).getByText('2026-Q2 · Live')).toBeInTheDocument();
+        expect(within(evidence).getByText('2026-Q1 · Live')).toBeInTheDocument();
         const priorityCard = screen.getByRole('group', { name: 'quarterly.priority_risks' });
-        expect(within(priorityCard).getByText('2026-Q2 · Live 2026-04-23T00:00:00Z')).toBeInTheDocument();
-        expect(within(priorityCard).getByText('2026-Q1 · Stored 2026-01-20T12:00:00Z')).toBeInTheDocument();
-        expect(screen.getByText('2026-04-01T00:00:00Z – 2026-04-23T00:00:00Z')).toBeInTheDocument();
-        expect(screen.getByText('2026-01-01T00:00:00Z – 2026-01-23T00:00:00Z')).toBeInTheDocument();
+        expect(priorityCard).toHaveTextContent(`2026-Q2 · Live ${enDateTime('2026-04-23T00:00:00Z')}`);
+        expect(priorityCard).toHaveTextContent(`2026-Q1 · Stored ${enDateTime('2026-01-20T12:00:00Z')}`);
+        expect(evidence).toHaveTextContent(`${enDate('2026-04-01T00:00:00Z')} – ${enDate('2026-04-23T00:00:00Z')}`);
+        expect(evidence).toHaveTextContent(`${enDate('2026-01-01T00:00:00Z')} – ${enDate('2026-01-23T00:00:00Z')}`);
+        expect(Array.from(evidence.querySelectorAll('time')).map((node) => node.getAttribute('datetime'))).toEqual([
+            '2026-04-01T00:00:00Z',
+            '2026-04-23T00:00:00Z',
+            '2026-01-01T00:00:00Z',
+            '2026-01-23T00:00:00Z',
+        ]);
+        expect(evidence).not.toHaveTextContent('2026-04-01T00:00:00Z');
     });
 
     it('shows each stock metric\'s own observation sources and times', async () => {
@@ -185,13 +206,14 @@ describe('QuarterlyComparisonWidget', () => {
         render(<QuarterlyComparisonWidget />);
 
         const priorityCard = await screen.findByRole('group', { name: 'quarterly.priority_risks' });
-        expect(within(priorityCard).getByText('2026-Q2 · Live 2026-04-23T00:00:00Z')).toBeInTheDocument();
-        expect(within(priorityCard).getByText('2026-Q1 · Stored 2026-01-20T12:00:00Z')).toBeInTheDocument();
+        expect(priorityCard).toHaveTextContent(`2026-Q2 · Live ${enDateTime('2026-04-23T00:00:00Z')}`);
+        expect(priorityCard).toHaveTextContent(`2026-Q1 · Stored ${enDateTime('2026-01-20T12:00:00Z')}`);
 
         const vendorCard = screen.getByRole('group', { name: 'quarterly.active_vendors' });
-        expect(within(vendorCard).getByText('2026-Q2 · Stored 2026-04-11T09:30:00Z')).toBeInTheDocument();
+        expect(vendorCard).toHaveTextContent(`2026-Q2 · Stored ${enDateTime('2026-04-11T09:30:00Z')}`);
         expect(within(vendorCard).getByText('2026-Q1 · Missing N/A')).toBeInTheDocument();
-        expect(vendorCard).not.toHaveTextContent('2026-04-23T00:00:00Z');
+        expect(vendorCard).not.toHaveTextContent(enDateTime('2026-04-23T00:00:00Z'));
+        expect(vendorCard.querySelector('time')).toHaveAttribute('datetime', '2026-04-11T09:30:00Z');
     });
 
     it('renders missing snapshot metadata as unavailable snapshot deltas', async () => {
@@ -305,8 +327,10 @@ describe('QuarterlyComparisonWidget', () => {
 
         render(<QuarterlyComparisonWidget />);
 
-        expect(await screen.findAllByTitle('Comparison unavailable')).toHaveLength(2);
-        expect(screen.queryByTitle('quarterly.no_snapshot_hint')).not.toBeInTheDocument();
+        // GAP-B-19: the reason is visible text, not only a `title` tooltip.
+        expect(await screen.findAllByText('Comparison unavailable')).toHaveLength(2);
+        expect(screen.queryByText('quarterly.no_snapshot_hint')).not.toBeInTheDocument();
+        expect(document.querySelector('[title]')).toBeNull();
     });
 
     it('names a missing metric definition separately from a missing observation', () => {
@@ -331,6 +355,6 @@ describe('QuarterlyComparisonWidget', () => {
             thisValue={4}
         />);
 
-        expect(screen.getByTitle('Metric definition unavailable')).toBeInTheDocument();
+        expect(screen.getByTestId('quarter-metric-hint-priority_risks')).toHaveTextContent('Metric definition unavailable');
     });
 });

@@ -4,6 +4,7 @@ import { ApiClientError, apiClient, isForbiddenApiError } from '@/services/apiCl
 import { isAbortError } from '@/services/api/requestRuntime';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { isQuestionnaireOverdue } from '@/lib/questionnaireStatus';
 import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireClarification, RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 
@@ -109,11 +110,10 @@ export function useRiskQuestionnaireDetailWorkflow({
         [template],
     );
 
-    const isOverdue = useMemo(() => {
-        if (!ownedQuestionnaire) return false;
-        if (ownedQuestionnaire.status === 'submitted') return false;
-        return new Date(ownedQuestionnaire.due_at).getTime() < Date.now();
-    }, [ownedQuestionnaire]);
+    const isOverdue = useMemo(
+        () => (ownedQuestionnaire ? isQuestionnaireOverdue(ownedQuestionnaire) : false),
+        [ownedQuestionnaire],
+    );
 
     const capabilities = ownedQuestionnaire?.capabilities ?? null;
     const canSaveDraft = resolveCapabilityFlag(

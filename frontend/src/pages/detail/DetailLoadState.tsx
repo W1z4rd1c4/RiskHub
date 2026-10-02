@@ -1,8 +1,11 @@
-import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
+import { PAGE_TITLE_CLASS } from '@/components/layout/PageHeader';
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/ui/state';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTranslation } from '@/i18n/hooks';
-import { cn } from '@/lib/utils';
 
 interface DetailLoadUnavailableStateProps {
     backLabel: string;
@@ -23,6 +26,9 @@ export function DetailLoadUnavailableState({
     onRetry,
 }: DetailLoadUnavailableStateProps) {
     const { t } = useTranslation('common');
+    // D7 / NAV-01: this state replaces the whole detail route, so it carries
+    // the route's `h1` (focused by the layout after navigation) and title.
+    usePageTitle(t('detail_load.unavailable_title'));
 
     return (
         <div
@@ -30,26 +36,23 @@ export function DetailLoadUnavailableState({
             data-testid="detail-load-unavailable"
             role="alert"
         >
-            <div className="rounded-full bg-amber-500/15 p-4 text-amber-300">
+            <div className="rounded-full bg-warning/15 p-4 text-warning-text">
                 <AlertTriangle className="h-8 w-8" aria-hidden="true" />
             </div>
             <div>
-                <h2 className="text-xl font-bold text-foreground">{t('detail_load.unavailable_title')}</h2>
+                <h1 tabIndex={-1} data-page-title="" className={PAGE_TITLE_CLASS}>{t('detail_load.unavailable_title')}</h1>
                 <p className="mt-2 max-w-lg text-sm font-medium text-muted-foreground">
                     {t('detail_load.unavailable_description')}
                 </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3">
                 {onRetry ? (
-                    <Button type="button" onClick={onRetry} disabled={isRetrying}>
-                        <RefreshCw className={cn('h-4 w-4', isRetrying && 'animate-spin')} aria-hidden="true" />
+                    <Button variant="accent" onClick={onRetry} isLoading={isRetrying}>
+                        {isRetrying ? null : <RefreshCw aria-hidden="true" />}
                         {t('actions.retry')}
                     </Button>
                 ) : null}
-                <Button type="button" variant="secondary" onClick={onBack}>
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    {backLabel}
-                </Button>
+                <BackButton label={backLabel} onClick={onBack} />
             </div>
         </div>
     );
@@ -58,19 +61,14 @@ export function DetailLoadUnavailableState({
 export function DetailStaleWarning({ isRetrying = false, onRetry }: DetailStaleWarningProps) {
     const { t } = useTranslation('common');
 
+    // §4.15: a refetch error over stale data is the shared ErrorState banner.
     return (
-        <div
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
-            role="alert"
-        >
-            <div>
-                <p className="font-bold">{t('detail_load.stale_title')}</p>
-                <p className="text-amber-100/80">{t('detail_load.stale_description')}</p>
-            </div>
-            <Button type="button" variant="secondary" onClick={onRetry} disabled={isRetrying}>
-                <RefreshCw className={cn('h-4 w-4', isRetrying && 'animate-spin')} aria-hidden="true" />
-                {t('actions.retry')}
-            </Button>
-        </div>
+        <ErrorState
+            variant="banner"
+            title={t('detail_load.stale_title')}
+            message={t('detail_load.stale_description')}
+            onRetry={onRetry}
+            isRetrying={isRetrying}
+        />
     );
 }

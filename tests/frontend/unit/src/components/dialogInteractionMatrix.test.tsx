@@ -14,7 +14,6 @@ import { getSidebarNavRoutes } from '@/routing';
 
 // --- Real dialog / alertdialog surfaces under test -------------------------
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { KriMismatchDialog } from '@/components/kri-form/KriMismatchDialog';
 import { RoleDeleteDialog } from '@/components/riskhub/roles/RoleDeleteDialog';
 import { RoleModal } from '@/components/riskhub/roles/RoleModal';
@@ -458,18 +457,6 @@ describe('Dialog interaction matrix — alertdialog surfaces (FR-P2c-1)', () => 
         ));
     });
 
-    it('[owner.archive-confirm-dialog] ArchiveConfirmDialog', async () => {
-        await assertDialogContract('alertdialog', (onClose) => (
-            <ArchiveConfirmDialog
-                isOpen
-                onClose={onClose}
-                onConfirm={async () => {}}
-                resourceType="control"
-                resourceName="Access Control Review"
-            />
-        ));
-    });
-
     it('[owner.kri-mismatch-dialog] KriMismatchDialog', async () => {
         await assertDialogContract('alertdialog', (onClose) => (
             <KriMismatchDialog
@@ -590,7 +577,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ExecutionLogModal.tsx:74) + unlabeled form fields; axe button-name + label fail.
     it('[owner.execution-log-modal] ExecutionLogModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <ExecutionLogModal
                 isOpen
                 onClose={onClose}
@@ -602,14 +589,14 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KRIValueModal.tsx:96) + unlabeled value/backdate inputs; axe button-name + label fail.
     it('[owner.kri-value-modal] KRIValueModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <KRIValueModal kri={kriFixture} isOpen onClose={onClose} onSuccess={() => {}} />
         ));
     });
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KRIHistoryEditModal.tsx:84) + unlabeled value/reason inputs; axe button-name + label fail.
     it('[owner.kri-history-edit-modal] KRIHistoryEditModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <KRIHistoryEditModal
                 isOpen
                 onClose={onClose}
@@ -644,9 +631,16 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (OrphanQuickViewModal.tsx:128), axe button-name fails.
     it('[owner.orphan-quick-view-modal] OrphanQuickViewModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
-            <OrphanQuickViewModal isOpen onClose={onClose} orphan={orphanFixture} />
-        ));
+        await assertDialogContract(
+            'dialog',
+            (onClose) => <OrphanQuickViewModal isOpen onClose={onClose} orphan={orphanFixture} />,
+            // Deterministic loaded sentinel: the modal flips to its details after the
+            // item fetch plus a 150ms entry delay. Waiting here keeps that update inside
+            // the test's async scope instead of racing the contract (act() warning flake).
+            async (surface) => {
+                await within(surface).findByTestId('orphan-quick-view-ready');
+            },
+        );
     });
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ResolveOrphanModal.tsx:58), axe button-name fails.
@@ -689,8 +683,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
             'dialog',
             (onClose) => (
                 <KRIModal
-                    risk_id={1}
-                    kri={null}
+                    kri={kriFixture}
                     isOpen
                     onClose={onClose}
                     onSave={async () => ({ kind: 'updated' })}
@@ -702,7 +695,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
                 // the owner selector to await its independent lookup.
                 await waitFor(() => expect(surface.contains(document.activeElement)).toBe(true));
                 const user = userEvent.setup();
-                await user.click(within(surface).getByRole('combobox', { name: 'Risk Owner (Default)' }));
+                await user.click(within(surface).getByRole('combobox', { name: 'KRI Owner' }));
                 await screen.findByRole('option', { name: 'Matrix KRI Owner' });
                 await user.keyboard('{Escape}');
                 await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
@@ -904,7 +897,7 @@ describe('Dialog interaction matrix — RiskHubModalFrame consumers (FR-P2c-1)',
             http.get('*/api/v1/access/users', () => HttpResponse.json([])),
         );
         await assertTriggeredDialogContract('dialog', <DepartmentsPanel />, async (user) => {
-            const edit = await screen.findByRole('button', { name: 'Edit' });
+            const edit = await screen.findByRole('button', { name: 'Edit IT' });
             edit.focus();
             await user.click(edit);
             return edit;
@@ -917,7 +910,7 @@ describe('Dialog interaction matrix — RiskHubModalFrame consumers (FR-P2c-1)',
             http.get('*/api/v1/riskhub/risk-types', () => HttpResponse.json([riskTypeHubFixture])),
         );
         await assertTriggeredDialogContract('dialog', <RiskTypesPanel />, async (user) => {
-            const edit = await screen.findByRole('button', { name: 'Edit' });
+            const edit = await screen.findByRole('button', { name: 'Edit Operational' });
             edit.focus();
             await user.click(edit);
             return edit;
@@ -931,7 +924,7 @@ describe('Dialog interaction matrix — RiskHubModalFrame consumers (FR-P2c-1)',
             http.get('*/api/v1/riskhub/roles', () => HttpResponse.json([roleFixture])),
         );
         await assertTriggeredDialogContract('dialog', <ApprovalScenariosPanel />, async (user) => {
-            const configure = await screen.findByRole('button', { name: 'Configure' });
+            const configure = await screen.findByRole('button', { name: 'Configure: Risk update' });
             configure.focus();
             await user.click(configure);
             return configure;
@@ -949,7 +942,8 @@ describe('Dialog interaction matrix — row-triggered delete confirms (FR-P2c-1,
         await assertTriggeredDialogContract('alertdialog', <DepartmentsPanel />, async (user) => {
             // Loaded sentinel: the row delete action only exists once the list +
             // capabilities loaded and the row exposes `can_delete`.
-            const del = await screen.findByRole('button', { name: 'Delete' });
+            // D10: soft-deleted, restorable rows are archived ("Archive <name>").
+            const del = await screen.findByRole('button', { name: /^Archive / });
             del.focus();
             await user.click(del);
             return del;
@@ -963,7 +957,8 @@ describe('Dialog interaction matrix — row-triggered delete confirms (FR-P2c-1,
             http.get('*/api/v1/riskhub/risk-types', () => HttpResponse.json([riskTypeHubFixture])),
         );
         await assertTriggeredDialogContract('alertdialog', <RiskTypesPanel />, async (user) => {
-            const del = await screen.findByRole('button', { name: 'Delete' });
+            // D10: soft-deleted, restorable rows are archived ("Archive <name>").
+            const del = await screen.findByRole('button', { name: /^Archive / });
             del.focus();
             await user.click(del);
             return del;

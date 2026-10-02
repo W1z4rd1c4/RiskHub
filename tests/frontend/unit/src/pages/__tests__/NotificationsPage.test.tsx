@@ -837,17 +837,20 @@ describe('NotificationsPage read-state controls', () => {
         await waitFor(() => expect(readRequests).toBe(1));
         const allTab = screen.getByRole('tab', { name: 'All' });
         const unreadTab = screen.getByRole('tab', { name: /Unread/ });
-        const pagination = screen.getByText('Page 1 of 2').parentElement!;
-        const [previousPage, nextPage] = within(pagination).getAllByRole('button');
+        // DS-29: the shared Pagination (named nav, named previous/next, aria-current page).
+        const pagination = screen.getByRole('navigation', { name: 'Pagination' });
+        const previousPage = within(pagination).getByRole('button', { name: 'Previous page' });
+        const nextPage = within(pagination).getByRole('button', { name: 'Next page' });
         expect(allTab).toBeDisabled();
         expect(unreadTab).toBeDisabled();
-        expect(previousPage).toBeDisabled();
-        expect(nextPage).toBeDisabled();
+        // The pager stays focusable while blocked (aria-disabled), so a pressed control keeps focus.
+        expect(previousPage).toHaveAttribute('aria-disabled', 'true');
+        expect(nextPage).toHaveAttribute('aria-disabled', 'true');
         const requestsBeforeAttemptedNavigation = totalListRequests;
         fireEvent.click(allTab);
         fireEvent.click(nextPage);
         expect(totalListRequests).toBe(requestsBeforeAttemptedNavigation);
-        expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Go to page 1', current: 'page' })).toBeInTheDocument();
         expect(screen.queryByText('All-view sentinel')).not.toBeInTheDocument();
         releaseRead();
 
@@ -859,7 +862,7 @@ describe('NotificationsPage read-state controls', () => {
 
         expect(await screen.findByText('Unread item 21')).toBeInTheDocument();
         expect(screen.queryByText('Unread item 1')).not.toBeInTheDocument();
-        expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
         expect(unreadListRequests).toBe(2);
         expect(screen.getAllByRole('button', { name: 'Mark as read' })).toHaveLength(20);
     });
@@ -920,8 +923,8 @@ describe('NotificationsPage read-state controls', () => {
         renderPage();
         await user.click(await screen.findByRole('tab', { name: 'Unread' }));
         await waitFor(() => expect(observedSkips).toContain('0'));
-        const pagination = screen.getByText('Page 1 of 2').parentElement!;
-        await user.click(within(pagination).getAllByRole('button')[1]);
+        const pagination = screen.getByRole('navigation', { name: 'Pagination' });
+        await user.click(within(pagination).getByRole('button', { name: 'Next page' }));
         expect(await screen.findByText(lastPageItem.title)).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/notifications?tab=unread&page=2');
 
@@ -930,7 +933,7 @@ describe('NotificationsPage read-state controls', () => {
         expect(await screen.findByText(priorPageItem.title)).toBeInTheDocument();
         expect(screen.queryByText(lastPageItem.title)).not.toBeInTheDocument();
         expect(observedSkips.at(-1)).toBe('0');
-        expect(screen.queryByText('Page 2 of 2')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Go to page 2', current: 'page' })).not.toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/notifications?tab=unread');
 
         await user.click(screen.getByRole('button', { name: 'History back' }));
@@ -961,15 +964,15 @@ describe('NotificationsPage read-state controls', () => {
         const user = userEvent.setup();
         renderPage();
         await user.click(await screen.findByRole('tab', { name: 'Unread' }));
-        const pagination = await screen.findByText('Page 1 of 2');
-        await user.click(within(pagination.parentElement!).getAllByRole('button')[1]);
-        expect(await screen.findByText('Page 2 of 2')).toBeInTheDocument();
+        const pagination = await screen.findByRole('navigation', { name: 'Pagination' });
+        await user.click(within(pagination).getByRole('button', { name: 'Next page' }));
+        expect(await screen.findByRole('button', { name: 'Go to page 2', current: 'page' })).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Mark all as read' }));
 
         expect(await screen.findByText('No notifications')).toBeInTheDocument();
         expect(screen.getAllByText('All caught up!')).toHaveLength(2);
-        expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
         expect(markAllRequests).toBe(1);
     });
 

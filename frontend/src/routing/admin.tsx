@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { BookOpen, Server } from 'lucide-react';
+import { BookOpen, ServerCog } from 'lucide-react';
 
 import { AdminConsoleRouteGuard } from '@/authz/BusinessRouteGuards';
 import type { AppRouteDef } from './types';
@@ -19,7 +19,8 @@ export const adminRoutes: AppRouteDef[] = [
     nav: {
       href: '/admin',
       labelKey: 'admin',
-      icon: Server,
+      // Not `ENTITY_ICONS.asset` (Server): the console is not the Asset register (NAV-03).
+      icon: ServerCog,
       group: 'administration',
       isVisible: ({ authz }) => authz.canViewAdminConsole,
       order: 140,

@@ -1,10 +1,9 @@
-import { useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-    ArrowLeft,
+    Archive,
     Edit,
-    Trash2,
     History,
     Plus,
     Target,
@@ -14,10 +13,15 @@ import { controlApi } from '@/services/controlApi';
 import type { Control } from '@/types/control';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { ControlRiskLoadingOverlay } from '@/components/controls/ControlRiskLoadingOverlay';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
@@ -26,10 +30,12 @@ import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { controlDetailTabs, useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
-import { getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
+import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
+import { CONTROL_STATUS_LABEL_KEYS, getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
-import { useContentTabs } from '@/hooks/useContentTabs';
+import { LoadingState } from '@/components/ui/state';
+
+const CONTROL_TABS_ID_PREFIX = 'control-detail';
 
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -38,7 +44,6 @@ export function ControlDetailPage() {
 
 function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
     const navigate = useNavigate();
-    const location = useLocation();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/controls');
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
@@ -60,36 +65,17 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
     });
 
     const workflow = useControlDetailWorkflow({ control, controlId, fetchControl, navigate, returnTo });
-    const { setApprovalMessage } = workflow;
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: controlDetailTabs,
-        activeTab: workflow.activeTab,
-        onChange: workflow.setActiveTab,
-        idPrefix: 'control-detail',
-    });
-
-    useEffect(() => {
-        const flash = (location.state as { controlFlash?: { message: string; tone: 'warn' } } | null)?.controlFlash;
-        if (!flash) {
-            return;
-        }
-        setApprovalMessage({ key: flash.message, isError: false });
-        void navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true });
-    }, [location.hash, location.pathname, location.search, location.state, navigate, setApprovalMessage]);
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">{t('loading.control_data')}</p>
-            </div>
+            <LoadingState layout="page" label={t('loading.control_data')} />
         );
     }
 
     if (loadOutcome === 'unavailable' || !control) {
         return (
             <DetailLoadUnavailableState
-                backLabel={t('navigation:tabs.controls')}
+                backLabel={t('controls:detail.back_to_catalog')}
                 isRetrying={isRetrying}
                 onBack={() => navigate(returnTo)}
                 onRetry={controlId === null ? undefined : () => void fetchControl()}
@@ -109,19 +95,14 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
     const canLinkRisk = resolveCapabilityFlag(control.capabilities, 'can_link_risk');
     const canUnlinkRisk = resolveCapabilityFlag(control.capabilities, 'can_unlink_risk');
     const canCreateIssue = resolveCapabilityFlag(control.capabilities, 'can_create_issue');
-    const actionMessageText = (key: string) => (
-        key.startsWith('errorKeys.')
-            ? t(key, { ns: 'errorKeys' })
-            : key.includes(':')
-                ? t(key)
-                : key
-    );
+    const actionMessageText = (key: string) => translateUiMessage(t, key);
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             {loadOutcome === 'stale-with-error' ? (
                 <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchControl()} />
             ) : null}
+            <ApprovalQueuedNotice />
             {/* Approval/Error Message Banner */}
             {workflow.approvalMessage && (
                 <DetailActionBanner
@@ -136,32 +117,34 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
             )}
 
             <EntityDetailHeader
-                backAction={(
-                    <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => navigate(returnTo)}
-                        className="text-xs font-black uppercase tracking-widest"
-                    >
-                        <ArrowLeft className="h-3 w-3" aria-hidden="true" /> {t('controls:detail.back_to_catalog')}
-                    </Button>
-                )}
+                back={{ label: t('controls:detail.back_to_catalog'), onClick: () => void navigate(returnTo) }}
+                breadcrumbs={[{ label: t('navigation:sidebar.controls'), to: returnTo }, { label: control.name }]}
                 identifierSeparatorLabel={t('detail_header.identifier_separator')}
                 title={control.name}
                 statuses={(
                     <>
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border border-white/10 ${getControlStatusColor(displayStatus)}`}>
-                            {t(`controls:status.${displayStatus}`)}
-                        </span>
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
-                            <MonitoringIcon className="h-3 w-3" />
+                        <Badge className={getControlStatusColor(displayStatus)} data-status={displayStatus}>
+                            {t(CONTROL_STATUS_LABEL_KEYS[displayStatus])}
+                        </Badge>
+                        <Badge icon={MonitoringIcon} className={monitoring.badgeClassName}>
                             {t(monitoring.labelKey)}
-                        </span>
+                        </Badge>
                     </>
                 )}
                 description={control.description}
                 actions={(
                     <>
+                    {/* Edit button: show for controls:write OR control owner */}
+                    {canUpdateControl && (
+                        <Button
+                            type="button"
+                            variant="accent"
+                            onClick={() => navigate(appendRegisterReturnTo(`/controls/${control.id}/edit`, returnTo))}
+                        >
+                            <Edit aria-hidden="true" />
+                            {t('controls:edit_control')}
+                        </Button>
+                    )}
                     <ContextualIssueAction
                         buttonLabel={tIssues('actions.new_issue')}
                         canCreateIssue={canCreateIssue}
@@ -173,70 +156,42 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                         onCreated={(issue) => navigate(`/issues/${issue.id}`)}
                         onOpen={() => workflow.setIsIssueModalOpen(true)}
                     />
-                    {/* Edit button: show for controls:write OR control owner */}
-                    {canUpdateControl && (
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            onClick={() => navigate(appendRegisterReturnTo(`/controls/${control.id}/edit`, returnTo))}
-                            title={t('controls:edit_control')}
-                            aria-label={t('controls:edit_control')}
-                        >
-                            <Edit className="h-5 w-5" aria-hidden="true" />
-                        </Button>
-                    )}
                     {control.is_archived ? (
                         canRestoreControl && <Button
                             type="button"
-                            variant="secondary"
-                            size="icon"
+                            variant="outline"
                             onClick={workflow.handleRestore}
-                            title={t('controls:actions.unarchive')}
-                            aria-label={t('controls:actions.unarchive')}
                         >
-                            <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                            <RotateCcw aria-hidden="true" />
+                            {t('controls:actions.unarchive')}
                         </Button>
                     ) : (
                         canArchiveControl && <Button
                             type="button"
                             variant="destructive"
-                            size="icon"
                             onClick={() => workflow.setIsArchiveDialogOpen(true)}
-                            title={t('actions.archive')}
-                            aria-label={t('actions.archive')}
                         >
-                            <Trash2 className="h-5 w-5" aria-hidden="true" />
+                            <Archive aria-hidden="true" />
+                            {t('actions.archive')}
                         </Button>
                     )}
                     </>
                 )}
             />
 
-            {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10" role="tablist" aria-label={control.name}>
-                <button
-                    {...getTabProps('overview', 0)}
-                    className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'overview'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <Target className="h-4 w-4 inline mr-2" />{t('controls:tabs.overview')}
-                </button>
-                <button
-                    {...getTabProps('history', 1)}
-                    className={`px-6 py-3 font-bold transition-colors ${workflow.activeTab === 'history'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <History className="h-4 w-4 inline mr-2" />{t('controls:detail.execution_history')}
-                </button>
-            </div>
+            <TabList
+                tabs={[
+                    { id: 'overview', label: t('controls:tabs.overview'), icon: Target },
+                    { id: 'history', label: t('controls:detail.execution_history'), icon: History },
+                ]}
+                activeTab={workflow.activeTab}
+                onChange={workflow.setActiveTab}
+                idPrefix={CONTROL_TABS_ID_PREFIX}
+                ariaLabel={control.name}
+            />
 
             {/* Overview Tab */}
-            <div {...getPanelProps('overview')}>
+            <TabPanel tab="overview" activeTab={workflow.activeTab} idPrefix={CONTROL_TABS_ID_PREFIX}>
                 {workflow.activeTab === 'overview' && <ControlDetailOverviewTab
                     control={control}
                     t={t}
@@ -259,31 +214,30 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                     onCloseRiskModal={workflow.closeRiskModal}
                     onRetryLinkedRisks={() => void workflow.retryLinkedRisks()}
                 />}
-            </div>
+            </TabPanel>
 
             {/* History Tab */}
-            <div {...getPanelProps('history')}>
+            <TabPanel tab="history" activeTab={workflow.activeTab} idPrefix={CONTROL_TABS_ID_PREFIX}>
                 {workflow.activeTab === 'history' && <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >
-                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
-                            <History className="h-4 w-4 text-accent" />
-                            {t('controls:detail.execution_audit_trail')}
-                        </h3>
-                        {canLogExecution && (
-                            <button
+                    <CardHeader
+                        icon={History}
+                        title={t('controls:detail.execution_audit_trail')}
+                        className="mb-8 border-b border-border pb-4"
+                        actions={canLogExecution ? (
+                            <Button
+                                variant="accent"
                                 data-testid="control-log-execution"
                                 onClick={() => workflow.setIsLogModalOpen(true)}
-                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent-text text-xs font-black uppercase tracking-widest hover:bg-accent hover:text-accent-foreground transition-[background-color,color,box-shadow] flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
                             >
-                                <Plus className="h-3.5 w-3.5" />
+                                <Plus aria-hidden="true" />
                                 {t('controls:execution.log_execution')}
-                            </button>
-                        )}
-                    </div>
+                            </Button>
+                        ) : undefined}
+                    />
 
                     <ExecutionHistory
                         controlId={control.id}
@@ -294,26 +248,36 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                         refreshKey={workflow.historyKey}
                     />
                 </motion.div>}
-            </div>
+            </TabPanel>
 
-            <ExecutionLogModal
-                isOpen={workflow.isLogModalOpen}
-                onClose={() => workflow.setIsLogModalOpen(false)}
-                controlId={control.id}
-                controlName={control.name}
-                onSuccess={workflow.handleExecutionLogged}
-            />
+            {/* Mounted only while open (PG-22): the modal's dirty-task guard registers a
+                route blocker, and a data router runs one blocker at a time, so a closed
+                modal must not hold one beside the page's issue quick-create guard. */}
+            {workflow.isLogModalOpen && (
+                <ExecutionLogModal
+                    isOpen
+                    onClose={() => workflow.setIsLogModalOpen(false)}
+                    controlId={control.id}
+                    controlName={control.name}
+                    onSuccess={workflow.handleExecutionLogged}
+                />
+            )}
 
-            <ArchiveConfirmDialog
+            {/* Archive confirmation (D10, PM-1): the control archive API records
+                a required reason; a failure stays inside the open dialog. */}
+            <ConfirmDialog
                 isOpen={workflow.isArchiveDialogOpen}
                 onClose={() => workflow.setIsArchiveDialogOpen(false)}
                 onConfirm={workflow.handleArchive}
-                resourceType="control"
-                resourceName={control.name}
+                intent="archive"
+                entityLabel={t('common:labels.control')}
+                entityName={control.name}
+                reason="required"
+                reasonPlaceholder={t('common:labels.archive_reason_placeholder')}
             />
 
             <ControlRiskLoadingOverlay isVisible={workflow.isLoadingRisk} />
-        </div>
+        </PageContainer>
     );
 }
 

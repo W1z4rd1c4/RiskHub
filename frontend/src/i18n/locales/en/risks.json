@@ -2,6 +2,7 @@
   "title": "Risk Register",
   "page_subtitle": "Track and manage organizational risks with gross/net scoring from OS 18.",
   "new_risk": "New Risk",
+  "priority_label": "Priority risk",
   "create_risk": "Create Risk",
   "edit_risk": "Edit Risk",
   "view_risk": "View Risk",
@@ -64,6 +65,7 @@
   "questionnaires": {
     "title": "Assessment questionnaires",
     "subtitle": "Questionnaire history and current status for this risk.",
+    "open_row": "Open questionnaire sent {{date}}",
     "assessment_summary_title": "Assessment Summary",
     "assessment_summary_empty": "No submitted assessment yet.",
     "assessment_summary_submitted_at": "Submitted",
@@ -74,7 +76,6 @@
     "send_success": "Questionnaire sent.",
     "send_open_exists": "An open questionnaire already exists. Opening it.",
     "send_requires_owner": "Set a risk owner to send a questionnaire.",
-    "owner_required": "Owner required",
     "open": "Open",
     "current_due": "Due",
     "empty": "No questionnaires have been sent for this risk yet.",
@@ -88,7 +89,7 @@
   },
   "questionnaire": {
     "title": "Risk Assessment Questionnaire",
-    "required": "Required",
+    "not_answered": "Not answered",
     "readonly_hint": "Read-only: you are not assigned to submit this questionnaire.",
     "validation_missing": "Please answer all required questions.",
     "validation_required": "This question is required.",
@@ -118,7 +119,8 @@
       "sent": "Pending",
       "in_progress": "In progress",
       "submitted": "Submitted",
-      "overdue": "Overdue"
+      "overdue": "Overdue",
+      "unknown": "Unknown status"
     },
     "actions": {
       "save": "Save progress"
@@ -172,7 +174,8 @@
   "scoring": {
     "inherent_risk": "Inherent Risk",
     "residual_risk": "Residual Risk",
-    "risk_score": "Risk Score"
+    "risk_score": "Risk Score",
+    "factors_short": "(P {{probability}} × I {{impact}})"
   },
   "filters": {
     "all_categories": "All Categories",
@@ -187,7 +190,7 @@
   },
   "register": {
     "views": { "all": "All", "category": "By Category", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "vendor": "By Vendor" },
-    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band" },
     "net_bands": { "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical" },
     "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
     "export": { "title": "Export filtered risks" }
@@ -215,16 +218,24 @@
     "controls": "Controls",
     "kris": "KRIs",
     "pending": "Pending",
-    "pending_tooltip": "Changes Pending Approval"
+    "pending_tooltip": "Changes Pending Approval",
+    "control_count": "{{count}} controls",
+    "control_count_one": "{{count}} control",
+    "control_count_few": "{{count}} controls",
+    "control_count_other": "{{count}} controls",
+    "kri_count": "{{count}} KRIs",
+    "kri_count_one": "{{count}} KRI",
+    "kri_count_few": "{{count}} KRIs",
+    "kri_count_other": "{{count}} KRIs",
+    "kri_breach": "KRI breach"
   },
   "actions": {
     "link_control": "Link Control",
     "link_kri": "Link KRI",
-    "unlink": "Unlink",
     "unarchive": "Unarchive",
     "export": "Export",
     "export_excel": "Export CSV",
-    "back_to_register": "Back to Register"
+    "back_to_register": "Back to Risks"
   },
   "form": {
     "owner_search": {
@@ -236,7 +247,8 @@
       "loading": "Searching owners…",
       "failed": "Owner search failed. Your selected owner is unchanged.",
       "no_visible_matches": "No matching owners in this result set. Refine the search or choose All roles.",
-      "refine": "Showing up to 50 matching owners. Refine your search to find other owners."
+      "refine": "Showing up to 50 matching owners. Refine your search to find other owners.",
+      "role_filter": "Filter owners by role"
     },
     "steps": {
       "identity": "Identity",
@@ -245,7 +257,11 @@
     },
     "errors": {
       "process_required": "Process is required",
-      "category_required": "Category is required"
+      "category_required": "Category is required",
+      "name_required": "Risk Name is required.",
+      "description_required": "Risk Description is required.",
+      "department_required": "Department is required.",
+      "owner_required": "Risk Owner is required."
     },
     "financial": {
       "loss": "Loss",
@@ -317,7 +333,6 @@
     "subprocess": "Subprocess",
     "ownership": "Ownership",
     "connections": "Connections",
-    "unassigned": "Unassigned",
     "no_department": "No Dept",
     "risk_appetite_indicators": "Risk Appetite Indicators",
     "add_kri": "Add KRI",
@@ -331,7 +346,10 @@
     "archived_controls": "Archived Controls ({{count}})",
     "manage_existing_links": "Manage Existing Links",
     "linked_vendors": "Linked Vendors",
-    "no_vendors_linked": "No vendors linked to this risk."
+    "no_vendors_linked": "No vendors linked to this risk.",
+    "core_function_badge": "Core",
+    "vendor_risk_score": "Vendor risk score: {{score}} of 5",
+    "score_of_five": "{{score}}/5"
   },
   "history": {
     "recorded_by": "Recorded by",
@@ -340,13 +358,10 @@
   "tooltips": {
     "unarchive_risk": "Unarchive risk"
   },
-  "confirmation": {
-    "archive_title": "Archive Risk",
-    "archive_message": "\"{{riskName}}\"\n\nThis will move the risk to archived status."
-  },
   "messages": {
     "archive_submitted_for_approval": "Archive request submitted for approval. The risk has not been archived yet.",
     "restore_success": "Risk restored successfully.",
+    "restore_failed": "The risk could not be restored.",
     "view_pending_approvals_prefix": "View pending approvals in the",
     "view_pending_approvals_suffix": "section."
   },

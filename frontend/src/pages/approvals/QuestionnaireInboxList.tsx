@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock } from 'lucide-react';
 
+import { QuestionnaireStatusBadge } from '@/components/risks/QuestionnaireStatusBadge';
+import { Button } from '@/components/ui/button';
+import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
-import { cn } from '@/lib/utils';
 import type { CollectionOutcome } from '@/pages/shared/collectionPageState';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
-
-import { getQuestionnaireStatusBadge, getQuestionnaireStatusLabel } from './approvalsPresentation';
 
 interface QuestionnaireInboxListProps {
     questionnaires: RiskQuestionnaireListItem[];
@@ -28,18 +28,17 @@ export function QuestionnaireInboxList({
 }: QuestionnaireInboxListProps) {
     if (outcome.kind === 'initial-loading') {
         return (
-            <div className="flex items-center justify-center py-20" role="status">
-                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                <span className="sr-only">{t('common:loading.generic')}</span>
-            </div>
+            <LoadingState className="py-20" label={t('common:loading.generic')} />
         );
     }
 
     if (outcome.kind === 'denied') {
         return (
-            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                {t('approvals:errors.questionnaire_access_denied')}
-            </div>
+            <AccessDeniedState
+                layout="section"
+                descriptionKey="errors.questionnaire_access_denied"
+                ns="approvals"
+            />
         );
     }
 
@@ -56,30 +55,27 @@ export function QuestionnaireInboxList({
 
     if (outcome.kind === 'empty') {
         return (
-            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
-                <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_questionnaires')}</p>
-            </div>
+            <EmptyState
+                icon={CheckCircle2}
+                title={t('empty_state.all_caught_up')}
+                description={t('empty_state.no_questionnaires')}
+                className="rounded-2xl border-2 border-dashed border-border"
+            />
         );
     }
 
     return (
         <div className="space-y-4">
             {loadError && (
-                <div role="alert" className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                    <span>{loadError}</span>
-                    <button
-                        type="button"
-                        onClick={onRetry}
-                        aria-busy={retrying}
-                        aria-disabled={retrying}
-                        className="ml-auto rounded-lg border border-current px-3 py-2 font-medium"
-                    >
-                        {t('common:actions.retry')}
-                    </button>
+                <>
+                    <ErrorState
+                        variant={hasStaleData ? 'banner' : 'block'}
+                        message={loadError}
+                        onRetry={onRetry}
+                        isRetrying={retrying}
+                    />
                     {retrying && <span role="status" className="sr-only">{t('approvals:status.questionnaire_retrying')}</span>}
-                </div>
+                </>
             )}
             {(outcome.kind === 'content' || hasStaleData) && questionnaires.map((questionnaire) => (
                 <motion.div
@@ -90,31 +86,27 @@ export function QuestionnaireInboxList({
                 >
                     <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
                         <div className="flex flex-col gap-2 min-w-[140px]">
-                            <span
-                                className={cn(
-                                    'px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border w-fit',
-                                    getQuestionnaireStatusBadge(questionnaire),
-                                )}
-                            >
-                                {getQuestionnaireStatusLabel(questionnaire, t)}
-                            </span>
-                            <div className="text-xs text-slate-500">
+                            <QuestionnaireStatusBadge questionnaire={questionnaire} className="w-fit" />
+                            <div className="text-xs text-muted-foreground">
                                 {t('risks:questionnaire.meta.due')} {formatDateValue(questionnaire.due_at, locale)}
                             </div>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-bold text-white mb-1 truncate">
+                            <h3
+                                id={`questionnaire-inbox-${questionnaire.id}-title`}
+                                className="text-base font-bold text-foreground mb-1 truncate"
+                            >
                                 {questionnaire.risk_name ?? t('common:fallbacks.unknown_risk')}
                             </h3>
-                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
+                                    <Clock className="h-3 w-3" aria-hidden="true" />
                                     {t('risks:questionnaire.meta.sent')} {formatDateValue(questionnaire.sent_at, locale)}
                                 </span>
                                 <span>
-                                    by{' '}
-                                    <span className="text-accent">
+                                    {t('risks:questionnaire.meta.sender')}:{' '}
+                                    <span className="text-foreground">
                                         {questionnaire.sent_by_user_name ?? t('common:fallbacks.unknown_user')}
                                     </span>
                                 </span>
@@ -122,12 +114,13 @@ export function QuestionnaireInboxList({
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <button
+                            <Button
+                                variant="outline"
                                 onClick={() => onOpenRisk(questionnaire.risk_id)}
-                                className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 hover:border-white/20 transition-all text-sm"
+                                aria-describedby={`questionnaire-inbox-${questionnaire.id}-title`}
                             >
                                 {t('risks:questionnaires.open')}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </motion.div>

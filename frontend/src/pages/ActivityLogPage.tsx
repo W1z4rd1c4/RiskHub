@@ -1,16 +1,24 @@
-import { Activity, RefreshCw, ShieldX } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthz } from '@/authz/useAuthz';
 import { useActivityLogPageState, type ActiveTab } from '@/hooks/useActivityLogPageState';
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
 import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries';
-import { ActivityLogPagination } from '@/components/activity-log/ActivityLogPagination';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Pagination } from '@/components/tables/Pagination';
+import { buttonVariants } from '@/components/ui/button';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { AccessDeniedState } from '@/components/ui/state';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 // ─────────────────────────────────────────────────────────────
 // Tab definitions
 // ─────────────────────────────────────────────────────────────
+
+const ACTIVITY_LOG_TABS_ID_PREFIX = 'activity-log';
 
 const TABS: { id: ActiveTab; labelKey: string }[] = [
     { id: 'kri', labelKey: 'activity_log.entities.kri' },
@@ -31,68 +39,47 @@ export function ActivityLogPage() {
 
     if (state.outcome.kind === 'denied' || readDenied) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <div className="p-4 bg-rose-500/10 rounded-2xl">
-                    <ShieldX className="h-12 w-12 text-rose-400" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground">{t('access.denied')}</h2>
-                <p className="text-muted-foreground text-center max-w-md">
-                    {t('access.denied_activity_log')}
-                </p>
-            </div>
+            <PageContainer>
+                <PageHeader title={t('admin:activity_log.title')} icon={Activity} />
+                <AccessDeniedState descriptionKey="access.denied_activity_log" />
+            </PageContainer>
         );
     }
 
     return (
-        <div className="flex flex-col gap-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-accent/10 rounded-xl">
-                        <Activity className="h-6 w-6 text-accent" />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-bold">{t('admin:activity_log.title')}</h1>
-                        <p className="text-muted-foreground text-sm">{t('activity_log.subtitle')}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    {authz.canReadControls ? (
-                        <Link
-                            to="/audit-trail"
-                            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-bold text-foreground"
-                        >
-                            {t('controls:audit_trail.title')}
-                        </Link>
-                    ) : null}
-                    <button
-                        onClick={() => state.refresh()}
-                        disabled={state.isSearchSettling}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-muted-foreground hover:text-foreground disabled:cursor-wait disabled:opacity-60"
-                        title={t('tooltips.refresh_log')}
-                        aria-label={t('tooltips.refresh_log')}
-                    >
-                        <RefreshCw className={`h-5 w-5 ${state.isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
+        <PageContainer>
+            <PageHeader
+                title={t('admin:activity_log.title')}
+                description={t('activity_log.subtitle')}
+                icon={Activity}
+                actions={(
+                    <>
+                        {authz.canReadControls ? (
+                            <Link to="/audit-trail" className={buttonVariants({ variant: 'outline' })}>
+                                {t('controls:audit_trail.title')}
+                            </Link>
+                        ) : null}
+                        <RefreshButton
+                            iconOnly
+                            variant="outline"
+                            label={t('tooltips.refresh_log')}
+                            onRefresh={() => state.refresh()}
+                            isFetching={state.isLoading || state.isSearchSettling}
+                        />
+                    </>
+                )}
+            />
 
-            {/* Tabs */}
-            <div className="flex items-center gap-1">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        data-testid={`activity-log-tab-${tab.id}`}
-                        onClick={() => state.setActiveTab(tab.id)}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${state.activeTab === tab.id
-                            ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/25'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                            }`}
-                    >
-                        {t(tab.labelKey)}
-                    </button>
-                ))}
-            </div>
+            {/* Tabs (AX-07, D8): a real tablist with roving tabindex and arrow keys */}
+            <TabList
+                variant="pill"
+                tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.labelKey), testId: `activity-log-tab-${tab.id}` }))}
+                activeTab={state.activeTab}
+                onChange={state.setActiveTab}
+                idPrefix={ACTIVITY_LOG_TABS_ID_PREFIX}
+                ariaLabel={t('activity_log.entity_tabs_label')}
+                className="self-start"
+            />
 
             {/* Filter Bar (view mode + filters) */}
             <ActivityLogFilterBar
@@ -120,25 +107,34 @@ export function ActivityLogPage() {
                 canViewEntityFilters={resolveCapabilityFlag(state.capabilities, 'can_view_entity_filters')}
             />
 
-            {/* Entries List */}
-            <ActivityLogEntries
-                entries={state.entries}
-                outcome={state.outcome}
-                needsRiskSelection={state.needsRiskSelection}
-                onRetry={state.refresh}
-            />
-
-            {/* Pagination */}
-            {state.total > state.limit && (
-                <ActivityLogPagination
-                    page={state.page}
-                    setPage={state.setPage}
-                    limit={state.limit}
-                    total={state.total}
-                    isLoading={state.isLoading}
+            {/* The tab switches the entity whose entries and pages are listed. */}
+            <TabPanel
+                tab={state.activeTab}
+                activeTab={state.activeTab}
+                idPrefix={ACTIVITY_LOG_TABS_ID_PREFIX}
+                className="flex flex-col gap-6"
+            >
+                {/* Entries List */}
+                <ActivityLogEntries
+                    entries={state.entries}
+                    outcome={state.outcome}
+                    needsRiskSelection={state.needsRiskSelection}
+                    onRetry={state.refresh}
                 />
-            )}
-        </div>
+
+                {/* Pagination */}
+                {state.total > state.limit && (
+                    <Pagination
+                        currentPage={state.page + 1}
+                        totalPages={Math.ceil(state.total / state.limit)}
+                        totalItems={state.total}
+                        itemsPerPage={state.limit}
+                        isLoading={state.isLoading}
+                        onPageChange={(page) => state.setPage(page - 1)}
+                    />
+                )}
+            </TabPanel>
+        </PageContainer>
     );
 }
 

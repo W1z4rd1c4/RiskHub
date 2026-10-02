@@ -1,7 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Download, FileDown, X } from 'lucide-react';
+import { Download, FileDown } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
-import { DialogShell } from '@/components/DialogShell';
+import { Button } from '@/components/ui/button';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
 
 export type ExportFormat = 'csv';
 export type ExportPurpose = 'current_view' | 'evaluation' | 'point_in_time';
@@ -41,7 +46,6 @@ export function ExportDialog({
     const { t } = useTranslation('common');
     const supportsCurrentView = Boolean(onCurrentViewSubmit);
     const titleId = useId();
-    const dateLabelId = useId();
     const purposeId = useId();
     const submitButtonRef = useRef<HTMLButtonElement>(null);
     const [asOfDate, setAsOfDate] = useState<string>(getTodayLocalDate());
@@ -88,129 +92,78 @@ export function ExportDialog({
             isOpen={isOpen}
             onClose={onClose}
             titleId={titleId}
-            closeDisabled={isSubmitting}
+            isBusy={isSubmitting}
             dataTestId={dataTestId}
-            backdropClassName="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
-            contentClassName="w-full max-w-lg glass-card !p-0 overflow-hidden shadow-2xl border border-white/10"
+            size="md"
+            className="max-w-lg"
         >
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-accent/10 rounded-lg">
-                        <FileDown className="h-5 w-5 text-accent" />
-                    </div>
-                    <div>
-                        <h3 id={titleId} className="text-xl font-black text-white">
-                            {title ?? t('export.title')}
-                        </h3>
-                    </div>
-                </div>
+            <DialogHeader title={title ?? t('export.title')} icon={FileDown} closeLabel={t('actions.close')} />
 
-                <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                    aria-label={t('actions.close')}
-                    className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors disabled:opacity-60"
-                >
-                    <X className="h-5 w-5 text-slate-300" />
-                </button>
-            </div>
-
-            <div className="p-6 space-y-5">
+            <DialogBody className="space-y-5">
                 {supportsCurrentView && (
-                    <fieldset className="space-y-2">
-                        <legend className="ml-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                            {t('export.purpose.label')}
-                        </legend>
-                        <label
-                            htmlFor={`${purposeId}-current`}
-                            aria-label={t('export.purpose.current_view.title')}
-                            className="flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 has-[:checked]:border-accent/50 has-[:checked]:bg-accent/10"
-                        >
-                            <input
-                                id={`${purposeId}-current`}
-                                type="radio"
-                                name="export-purpose"
-                                value="current_view"
-                                checked={purpose === 'current_view'}
-                                onChange={() => { setPurpose('current_view'); setSubmitFailed(false); }}
-                                data-testid="export-purpose-current-view"
-                                className="mt-1 accent-[var(--color-accent)]"
-                            />
-                            <span>
-                                <span className="block font-bold text-white">{t('export.purpose.current_view.title')}</span>
-                                <span className="block text-sm text-slate-400">{t('export.purpose.current_view.description')}</span>
-                            </span>
-                        </label>
-                        <label
-                            htmlFor={`${purposeId}-${datedPurpose}`}
-                            aria-label={t(`export.purpose.${datePurposeKey}.title`)}
-                            className="flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 has-[:checked]:border-accent/50 has-[:checked]:bg-accent/10"
-                        >
-                            <input
-                                id={`${purposeId}-${datedPurpose}`}
-                                type="radio"
-                                name="export-purpose"
-                                value={datedPurpose}
-                                checked={purpose === datedPurpose}
-                                onChange={() => { setPurpose(datedPurpose); setSubmitFailed(false); }}
-                                data-testid={datedPurpose === 'evaluation'
+                    <RadioGroup<ExportPurpose>
+                        variant="card"
+                        name={`${purposeId}-purpose`}
+                        legend={t('export.purpose.label')}
+                        legendClassName="ml-1 text-eyebrow"
+                        value={purpose}
+                        onValueChange={(next) => { setPurpose(next); setSubmitFailed(false); }}
+                        options={[
+                            {
+                                value: 'current_view',
+                                label: t('export.purpose.current_view.title'),
+                                description: t('export.purpose.current_view.description'),
+                                testId: 'export-purpose-current-view',
+                            },
+                            {
+                                value: datedPurpose,
+                                label: t(`export.purpose.${datePurposeKey}.title`),
+                                description: t(`export.purpose.${datePurposeKey}.description`),
+                                testId: datedPurpose === 'evaluation'
                                     ? 'export-purpose-evaluation'
-                                    : 'export-purpose-point-in-time'}
-                                className="mt-1 accent-[var(--color-accent)]"
-                            />
-                            <span>
-                                <span className="block font-bold text-white">{t(`export.purpose.${datePurposeKey}.title`)}</span>
-                                <span className="block text-sm text-slate-400">{t(`export.purpose.${datePurposeKey}.description`)}</span>
-                            </span>
-                        </label>
-                    </fieldset>
+                                    : 'export-purpose-point-in-time',
+                            },
+                        ]}
+                    />
                 )}
                 {purpose === datedPurpose && (
-                    <div className="space-y-2">
-                        <span id={dateLabelId} className="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                            {t(dateMode === 'evaluation' ? 'export.fields.evaluation_date' : 'export.fields.date')}
-                        </span>
-                        <input
-                            type="date"
-                            aria-labelledby={dateLabelId}
-                            value={asOfDate}
-                            onChange={(e) => setAsOfDate(e.target.value)}
-                            data-testid="export-date-input"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                        />
-                    </div>
+                    <Field label={t(dateMode === 'evaluation' ? 'export.fields.evaluation_date' : 'export.fields.date')}>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                type="date"
+                                value={asOfDate}
+                                onChange={(e) => setAsOfDate(e.target.value)}
+                                data-testid="export-date-input"
+                            />
+                        )}
+                    </Field>
                 )}
                 {submitFailed && (
-                    <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    <InlineMessage tone="danger">
                         {t('export.errors.failed')}
-                    </p>
+                    </InlineMessage>
                 )}
-            </div>
+            </DialogBody>
 
-            <div className="p-6 border-t border-white/5 flex items-center justify-end gap-3 bg-white/[0.02]">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                    className="px-5 py-2.5 rounded-xl text-slate-300 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-60"
-                >
+            <DialogFooter>
+                <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
                     {t('export.actions.cancel', t('actions.cancel'))}
-                </button>
-                <button
+                </Button>
+                <Button
                     ref={submitButtonRef}
                     type="button"
-                    onClick={handleSubmit}
+                    variant="accent"
+                    onClick={() => void handleSubmit()}
                     disabled={isSubmitting || (purpose === datedPurpose && !asOfDate)}
                     data-testid="export-submit-button"
-                    className="px-5 py-2.5 rounded-xl bg-accent text-slate-950 font-bold hover:bg-accent/90 transition-all flex items-center gap-2 disabled:opacity-60"
                 >
-                    <Download className="h-4 w-4" />
+                    <Download aria-hidden="true" />
                     {purpose === 'current_view'
                         ? t('export.actions.submit_current')
                         : t(dateMode === 'evaluation' ? 'export.actions.submit_evaluation' : 'export.actions.submit_snapshot')}
-                </button>
-            </div>
+                </Button>
+            </DialogFooter>
         </DialogShell>
     );
 }

@@ -1,3 +1,5 @@
+import { parseRiskNetBand, toBackendRiskNetBand } from '../risks/riskRegisterConfig';
+
 type CommitteePopulationFilter = { committee_scope?: boolean };
 
 export type ProcessSemanticFilters = { cif?: boolean };
@@ -51,6 +53,16 @@ export function canonicalAssetCriticality(value: string | undefined): string | u
     return ASSET_CRITICALITY_CODES[normalized] ?? normalized;
 }
 
+/**
+ * PG-40: risk band links may carry the language-neutral code (`?net_band=critical`)
+ * or the legacy stored value (`?net_band=Kritick%C3%A9`); requests always send the
+ * stored value. Unknown values pass through unchanged.
+ */
+function riskBandValue(params: URLSearchParams, key: string): string | undefined {
+    const raw = textValue(params, key);
+    return toBackendRiskNetBand(parseRiskNetBand(raw)) ?? raw;
+}
+
 function scoreValue(params: URLSearchParams, key: string): number | undefined {
     const value = Number(params.get(key));
     return Number.isInteger(value) && value >= 1 && value <= 5 ? value : undefined;
@@ -86,8 +98,8 @@ export function parseRiskSemanticFilters(params: URLSearchParams): RiskSemanticF
         response: params.get('response') === 'acceptance' ? 'acceptance' : undefined,
         gross_probability: scoreValue(params, 'gross_probability'),
         gross_impact: scoreValue(params, 'gross_impact'),
-        gross_band: textValue(params, 'gross_band'),
-        net_band: textValue(params, 'net_band'),
+        gross_band: riskBandValue(params, 'gross_band'),
+        net_band: riskBandValue(params, 'net_band'),
     };
 }
 

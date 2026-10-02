@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback, useId } from 'react';
-import { motion } from 'framer-motion';
-import { X, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
-import { DialogShell } from '@/components/DialogShell';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
 import { useDashboardFilterSelector } from '../../contexts/DashboardFilterContext';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { classifyRiskScore, riskScoreVariantClass } from '@/lib/riskScoreTheme';
+import { classifyRiskScore, riskScoreVariantClass } from '@/lib/severity';
 import { logError } from '@/services/logger';
+import { SeverityBadge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { ErrorState } from '@/components/ui/state';
 
 interface RiskInCell {
     id: number;
@@ -67,7 +69,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
     };
 
     const getSeverityLabel = () => {
-        return t(`issues.severity.${classifyRiskScore(score, thresholds)}`);
+        return t(`risk_levels.${classifyRiskScore(score, thresholds)}`);
     };
 
     const handleRiskClick = (riskId: number) => {
@@ -82,110 +84,93 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
             onClose={onClose}
             titleId={titleId}
             descriptionIds={[descriptionId]}
-            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
-            contentClassName="w-full max-w-lg glass-card !p-0 overflow-hidden shadow-2xl"
+            size="md"
+            className="max-w-lg"
         >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/5">
-                <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${riskScoreVariantClass('card', score, thresholds)}`}>
-                        <AlertTriangle className={`h-5 w-5 ${getSeverityColor()}`} />
-                    </div>
-                    <div>
-                        <h3 id={titleId} className="text-lg font-bold text-white">
-                            {t('risk_drilldown.title', {
-                                riskType: riskType === 'gross' ? t('risk_drilldown.gross') : t('risk_drilldown.net'),
-                                probability,
-                                impact,
-                            })}
-                        </h3>
-                        <p id={descriptionId} className="text-sm text-slate-500">
-                            Score: {score} • <span className={getSeverityColor()}>{getSeverityLabel()}</span>
-                        </p>
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label={t('common:actions.close')}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                >
-                    <X className="h-5 w-5" />
-                </button>
-            </div>
+            <DialogHeader
+                title={t('risk_drilldown.title', {
+                    riskType: riskType === 'gross' ? t('risk_drilldown.gross') : t('risk_drilldown.net'),
+                    probability,
+                    impact,
+                })}
+                descriptionId={descriptionId}
+                description={(
+                    <>
+                        {t('risk_drilldown.score_value', { score })} • <span className={getSeverityColor()}>{getSeverityLabel()}</span>
+                    </>
+                )}
+            />
 
             {/* Content */}
-            <div className="p-6 max-h-[400px] overflow-y-auto custom-scrollbar">
+            <DialogBody className="max-h-[400px] custom-scrollbar">
                 <WidgetShell
                     title={contentTitle}
                     isLoading={isLoading}
                     error={error ? new Error(error) : null}
                     isEmpty={risks.length === 0}
                     emptyLabel={t('risk_drilldown.no_risks_at_position')}
-                    loadingFallback={(
-                        <div className="flex items-center justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    )}
                     errorFallback={(
-                        <div className="text-center py-8 text-rose-400">
-                            {error}
-                        </div>
-                    )}
-                    emptyFallback={(
-                        <div className="text-center py-8 text-slate-500">
-                            {t('risk_drilldown.no_risks_at_position')}
-                        </div>
+                        <ErrorState message={error} onRetry={() => { void fetchRisks(); }} />
                     )}
                 >
                     <div className="space-y-2">
-                        {risks.map((risk) => (
-                            <motion.button
-                                key={risk.id}
-                                onClick={() => handleRiskClick(risk.id)}
-                                className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 transition-colors group"
-                                whileHover={{ x: 4 }}
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-white group-hover:text-accent transition-colors">
-                                            {risk.name}
-                                        </h4>
-                                        {risk.description && (
-                                            <p className="text-sm text-slate-400 mt-1 line-clamp-2">
-                                                {risk.description}
-                                            </p>
-                                        )}
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            {risk.department_name}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1 shrink-0">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
-                                            >
-                                                Score: {risk.net_score}
+                        {risks.map((risk) => {
+                            const band = classifyRiskScore(risk.net_score, thresholds);
+                            return (
+                                // One action per row: a nested inner panel (Card as="button", §4.10)
+                                // inside the dialog surface; the hover nudge is CSS (reduced-motion safe).
+                                <Card
+                                    key={risk.id}
+                                    as="button"
+                                    tone="nested"
+                                    padding="compact"
+                                    interactive
+                                    onClick={() => handleRiskClick(risk.id)}
+                                    className="group motion-safe:hover:translate-x-1"
+                                >
+                                    <span className="flex items-start justify-between gap-4">
+                                        <span className="block flex-1 min-w-0">
+                                            <span className="block font-bold text-foreground group-hover:text-accent-text transition-colors">
+                                                {risk.name}
                                             </span>
-                                            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />
-                                        </div>
-                                        <p className="text-xs text-slate-500">
-                                            {risk.owner_name || t('issues:fallbacks.unassigned')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </motion.button>
-                        ))}
+                                            {risk.description && (
+                                                <span className="block text-sm text-muted-foreground mt-1 line-clamp-2">
+                                                    {risk.description}
+                                                </span>
+                                            )}
+                                            <span className="block text-xs text-muted-foreground mt-2">
+                                                {risk.department_name}
+                                            </span>
+                                        </span>
+                                        <span className="flex flex-col items-end gap-1 shrink-0">
+                                            <span className="flex items-center gap-2">
+                                                {/* D1: the band label travels with the band colour. */}
+                                                <SeverityBadge band={band} label={t(`risk_levels.${band}`)} size="sm" />
+                                                <span
+                                                    className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}
+                                                >
+                                                    {t('risk_drilldown.score_value', { score: risk.net_score })}
+                                                </span>
+                                                <ExternalLink aria-hidden="true" className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {risk.owner_name || t('common:fallbacks.unassigned')}
+                                            </span>
+                                        </span>
+                                    </span>
+                                </Card>
+                            );
+                        })}
                     </div>
                 </WidgetShell>
-            </div>
+            </DialogBody>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02]">
-                <p className="text-xs text-slate-500 text-center">
-                    {t('risk_drilldown.footer_prefix')} <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white font-mono">Esc</kbd> {t('risk_drilldown.footer_suffix')}
+            <DialogFooter className="justify-center">
+                <p className="text-xs text-muted-foreground text-center">
+                    {t('risk_drilldown.footer_prefix')} <kbd className="px-1.5 py-0.5 bg-tint/10 rounded text-foreground font-mono">Esc</kbd> {t('risk_drilldown.footer_suffix')}
                 </p>
-            </div>
+            </DialogFooter>
         </DialogShell>
     );
 }

@@ -65,7 +65,8 @@ describe('native account creation', () => {
 
     it('does not grant native invitation actions to a CRO without the backend capability', async () => {
         renderCreate(false);
-        await screen.findByText(/access denied/i);
+        // SM-07: the shared access-denied state (heading + explanation), once.
+        expect(await screen.findByRole('heading', { name: /access denied/i })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /create account/i })).not.toBeInTheDocument();
         expect(document.querySelector('input[type="password"]')).toBeNull();
     });

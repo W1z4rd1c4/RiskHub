@@ -4,41 +4,82 @@ import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Shared action primitive (audit §4.7, D4).
+ *
+ * - `accent` is THE primary call to action and the default variant (the
+ *   deprecated `default` alias was removed in Phase 4, roadmap 4.3).
+ * - `outline` / `ghost` hover with the neutral `tint` token instead of the
+ *   saturated accent fill (DS-29); focus uses the shared `focus-ring` utility.
+ * - Icon-only sizes (`icon`, `iconCompact`) require an accessible name at the
+ *   type level (`aria-label` or `aria-labelledby`).
+ * - `isLoading` shows a spinner, sets `aria-busy` and disables the control.
+ * - Dialog footers pair a `secondary` Cancel (bordered, tint hover) with an
+ *   `accent` or `destructive` confirm; `link` uses the `accent-text` role (§4.3).
+ */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        accent:
+          "bg-accent text-accent-foreground shadow-sm hover:bg-accent-hover",
+        secondary:
+          "bg-secondary text-secondary-foreground border border-border shadow-sm hover:bg-tint/10",
+        outline:
+          "border border-input bg-transparent shadow-sm hover:bg-tint/10 hover:text-foreground",
+        ghost: "hover:bg-tint/10 hover:text-foreground",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        warning:
+          "bg-warning text-warning-foreground shadow-sm hover:bg-warning/90",
+        success:
+          "bg-success text-success-foreground shadow-sm hover:bg-success/90",
+        link: "text-accent-text underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
+        lg: "h-11 px-6 text-base",
         compact: "h-8 rounded-md px-3 text-xs",
         icon: "h-10 w-10",
         iconCompact: "h-8 w-8 rounded-md",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "accent",
       size: "default",
     },
   }
 )
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+type ButtonVariantProps = VariantProps<typeof buttonVariants>
+
+export type ButtonVariant = NonNullable<ButtonVariantProps["variant"]>
+export type ButtonSize = NonNullable<ButtonVariantProps["size"]>
+export type IconButtonSize = Extract<ButtonSize, "icon" | "iconCompact">
+type TextButtonSize = Exclude<ButtonSize, IconButtonSize>
+
+const ICON_BUTTON_SIZES: ReadonlySet<ButtonSize> = new Set<IconButtonSize>(["icon", "iconCompact"])
+
+interface ButtonBaseProps
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "aria-label" | "aria-labelledby"> {
+  variant?: ButtonVariant | null
   isLoading?: boolean
 }
+
+type TextButtonProps = ButtonBaseProps & {
+  size?: TextButtonSize | null
+  "aria-label"?: string
+  "aria-labelledby"?: string
+}
+
+/** Icon-only buttons have no visible text, so an accessible name is mandatory. */
+type IconButtonProps = ButtonBaseProps & { size: IconButtonSize } & (
+  | { "aria-label": string; "aria-labelledby"?: string }
+  | { "aria-label"?: string; "aria-labelledby": string }
+)
+
+export type ButtonProps = TextButtonProps | IconButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({
@@ -52,6 +93,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     variant,
     ...props
   }, ref) => {
+    const isIconOnly = size != null && ICON_BUTTON_SIZES.has(size)
+    const spinner = <Loader2 aria-hidden="true" className="animate-spin" />
+
     return (
       <button
         {...props}
@@ -61,8 +105,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         type={type ?? "button"}
       >
-        {isLoading ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
-        {children}
+        {isLoading && isIconOnly ? spinner : (
+          <>
+            {isLoading ? spinner : null}
+            {children}
+          </>
+        )}
       </button>
     )
   }

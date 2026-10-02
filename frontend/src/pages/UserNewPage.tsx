@@ -1,8 +1,12 @@
-import { ArrowLeft, Shield, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { AccessDeniedState, ErrorState, LoadingState } from '@/components/ui/state';
 import type { DirectoryImportResponse } from '@/types/directory';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useSessionSnapshot } from '@/services/session';
 import { NativeInviteForm } from './users/NativeInviteForm';
@@ -50,50 +54,34 @@ export function UserNewPage() {
     });
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center justify-between">
-                <button
-                    onClick={() => {
-                        void navigate('/users');
-                    }}
-                    className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-                >
-                    <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-                    {t('user_new.back_to_users', { ns: 'admin' })}
-                </button>
-            </div>
-
-            <div className="flex items-center gap-4 mb-2">
-                <div className="bg-accent/20 p-3 rounded-2xl">
-                    <UserPlus className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold text-white">{t('user_new.title', { ns: 'admin' })}</h1>
-                    <p className="text-slate-400">{t('user_new.subtitle', { ns: 'admin' })}</p>
-                </div>
-            </div>
+        <PageContainer size="form">
+            <PageHeader
+                title={t('user_new.title', { ns: 'admin' })}
+                description={t('user_new.subtitle', { ns: 'admin' })}
+                icon={UserPlus}
+                back={{ label: t('user_new.back_to_users', { ns: 'admin' }), onClick: () => void navigate('/users') }}
+                breadcrumbs={[
+                    { label: t('sidebar.users', { ns: 'navigation' }), to: '/users' },
+                    { label: t('user_new.title', { ns: 'admin' }) },
+                ]}
+            />
 
             {localUserWorkflow.errorKey && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
-                    <Shield className="h-5 w-5 shrink-0" />
-                    <p>{t(localUserWorkflow.errorKey, { ns: 'errorKeys' })}</p>
-                </div>
+                <InlineMessage tone="danger">{translateUiMessage(t, localUserWorkflow.errorKey)}</InlineMessage>
             )}
 
+            {/* DS-17 / SM-07: one loading, error (with retry) and access-denied
+                rendering, from the shared state primitives. */}
             {isAuthConfigLoading ? (
-                <div className="glass-card p-6 text-slate-300">
-                    {t('user_new.loading_auth_mode', { ns: 'admin' })}
-                </div>
+                <LoadingState layout="section" label={t('user_new.loading_auth_mode', { ns: 'admin' })} />
             ) : authConfigError ? (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
-                    <Shield className="h-5 w-5 shrink-0" />
-                    <p>
-                        {t('user_new.auth_mode_load_failed', { ns: 'admin' })}
-                        <button type="button" className="ml-3 underline" onClick={retryAccess}>{t('native_users.retry', { ns: 'admin' })}</button>
-                    </p>
-                </div>
+                <ErrorState
+                    message={t('user_new.auth_mode_load_failed', { ns: 'admin' })}
+                    onRetry={retryAccess}
+                    retryLabel={t('native_users.retry', { ns: 'admin' })}
+                />
             ) : isNative ? (
-                canInvite ? <NativeInviteForm /> : <p role="alert">{t('access.denied', { ns: 'common' })}</p>
+                canInvite ? <NativeInviteForm /> : <AccessDeniedState layout="section" />
             ) : isDirectoryFirstMode && canImportDirectoryUser ? (
                 <UserNewDirectoryImportSection
                     authConfig={authConfig}
@@ -114,12 +102,9 @@ export function UserNewPage() {
                     setFormData={localUserWorkflow.setFormData}
                 />
             ) : (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
-                    <Shield className="h-5 w-5 shrink-0" />
-                    <p>{t('access.denied', { ns: 'common' })}</p>
-                </div>
+                <AccessDeniedState layout="section" />
             )}
-        </div>
+        </PageContainer>
     );
 }
 
