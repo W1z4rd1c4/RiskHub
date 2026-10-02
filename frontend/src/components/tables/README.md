@@ -25,6 +25,14 @@ UI components for `tables` area.
 - `RowRestoreButton.tsx` — `RowActionButton` + `ArchiveRestore` with the shared
   `common:actions.restore` / `restore_named` vocabulary: the register row
   "restore from archive" action (PG-28).
+- `registerGroupPresentation.ts` — pure presentation model for the grouped register view:
+  `buildRegisterGroupCards(groups, definition)` turns the API `CollectionGroup`s into the card models
+  (`label`, `count`, optional `activeCount` / `highlightedCount`) that `CollectionGroupDrillDown` renders;
+  `RegisterGroupPresentationDefinition` lets a module hide the active/highlighted counts or supply
+  `groupLabel` / `fallbackLabel`.
+- `tableError/` — the shared table error contract: `TableErrorState`, `resolveTableErrorContract` /
+  `useTableErrorContract` and their types (see its own README). `TableErrorState` is a thin adapter
+  over the `ErrorState` / `AccessDeniedState` page states in `components/ui/state.tsx`.
 - `SortableTable.tsx` — data table on the `components/ui/table.tsx` primitives:
   sortable headers, loading skeleton, error contract, `rowHref` (navigation
   link), `onRowActivate` (in-page selection: named first-cell button with

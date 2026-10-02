@@ -35,12 +35,9 @@ import { cn } from '@/lib/utils';
  *   close and footer cancel while a mutation is in flight (PG-22), and
  *   `dirtyGuard` routes every close request through `useDirtyTaskGuard`.
  *
- * The raw class props (`containerClassName`, `backdropClassName`,
- * `contentClassName`) are deprecated: every owner migrated to `size` +
- * Header/Body/Footer in W6 (roadmap 2.1), and the dialog-inventory contract
- * (`frontend/scripts/a11y/validate-dialog-inventory.mjs`) holds their use at 0.
- * A passed class string still replaces the v2 recipe for that layer exactly as
- * in v1 until the props are deleted in Phase 4 (roadmap 4.3).
+ * The v1 raw class props (`containerClassName`, `backdropClassName`,
+ * `contentClassName`) were removed in Phase 4 (roadmap 4.3): the shell owns
+ * every layer; callers pick a `size` and add layout-only `className`.
  */
 
 export type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -84,12 +81,6 @@ export interface DialogShellProps {
     /** Routes every close request through `useDirtyTaskGuard().requestLocalLeave`. */
     dirtyGuard?: DialogDirtyGuard;
     dataTestId?: string;
-    /** @deprecated Migration only (audit §4.11): drop it; the shell owns the layer. */
-    containerClassName?: string;
-    /** @deprecated Migration only (audit §4.11): drop it; the backdrop is `bg-overlay`. */
-    backdropClassName?: string;
-    /** @deprecated Migration only (audit §4.11): use `size` (+ `className` for layout). */
-    contentClassName?: string;
 }
 
 const DIALOG_CONTAINER = 'fixed inset-0 z-modal flex items-center justify-center p-4';
@@ -153,9 +144,6 @@ function DialogShellRoot({
     role = 'dialog',
     size,
     className,
-    containerClassName,
-    backdropClassName,
-    contentClassName,
     dataTestId,
 }: DialogShellProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -383,23 +371,19 @@ function DialogShellRoot({
 
     if (!isOpen || typeof document === 'undefined') return null;
 
-    // A deprecated class prop replaces that layer's v2 recipe exactly as in v1
-    // (no production caller passes one since W6; removed in Phase 4).
-    const surfaceClassName = contentClassName === undefined
-        ? cn(DIALOG_SURFACE, DIALOG_SIZES[size ?? 'md'], className)
-        : cn('relative', contentClassName);
+    const surfaceClassName = cn(DIALOG_SURFACE, DIALOG_SIZES[size ?? 'md'], className);
 
     return (
         <>
             {createPortal(
                 <AnimatePresence>
-                    <div className={containerClassName ?? DIALOG_CONTAINER}>
+                    <div className={DIALOG_CONTAINER}>
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className={backdropClassName ?? DIALOG_BACKDROP}
+                            className={DIALOG_BACKDROP}
                             data-dialog-backdrop="true"
                             onClick={requestClose}
                         />

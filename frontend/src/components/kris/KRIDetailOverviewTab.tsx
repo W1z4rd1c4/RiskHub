@@ -184,7 +184,7 @@ export function KRIDetailOverviewTab({
                                                 <User aria-hidden="true" className="h-4 w-4 text-accent-text" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-foreground leading-none">{linkedRisk.owner?.name || t('overview.unassigned', { ns: 'kris' })}</p>
+                                                <p className="text-sm font-bold text-foreground leading-none">{linkedRisk.owner?.name || t('common:fallbacks.unassigned')}</p>
                                                 {linkedRisk.owner?.email && <p className="text-xs text-muted-foreground mt-1">{linkedRisk.owner.email}</p>}
                                             </div>
                                         </div>

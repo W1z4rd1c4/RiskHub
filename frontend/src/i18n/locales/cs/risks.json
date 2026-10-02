@@ -190,7 +190,7 @@
   },
   "register": {
     "views": { "all": "Vše", "category": "Podle kategorie", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "vendor": "Podle dodavatele" },
-    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo" },
     "net_bands": { "low": "Nízké", "medium": "Střední", "high": "Vysoké", "critical": "Kritické" },
     "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
     "export": { "title": "Export filtrovaných rizik" }
@@ -333,7 +333,6 @@
     "subprocess": "Podproces",
     "ownership": "Vlastnictví",
     "connections": "Vazby",
-    "unassigned": "Nepřiřazeno",
     "no_department": "Bez oddělení",
     "risk_appetite_indicators": "Indikátory rizikového apetitu",
     "add_kri": "Přidat KRI",

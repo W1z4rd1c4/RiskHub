@@ -12,9 +12,14 @@ import type { SafeTFunction } from '@/i18n/hooks';
  * - `unlink`: removes a link, not the record. `Unlink` + "Remove link".
  * - `send`: outbound (bulk) send. `Send`, accent action, count-aware title.
  * - `discard`: drop unsaved input (dirty guard).
- * - `generic`: caller-supplied copy; the deprecated `variant` picks the look.
+ * - `revoke`: withdraw access or a pending request (revoke a session,
+ *   deactivate a user, cancel an approval or a pending change). Reversible by
+ *   granting / requesting again, so `AlertTriangle` + warning action, never
+ *   `Trash2`; the caller supplies the copy.
+ * - `generic`: a non-destructive confirmation with caller-supplied copy
+ *   (accent action, info tone).
  */
-export type ConfirmIntent = 'archive' | 'delete' | 'unlink' | 'send' | 'discard' | 'generic';
+export type ConfirmIntent = 'archive' | 'delete' | 'unlink' | 'send' | 'discard' | 'revoke' | 'generic';
 
 /**
  * Reason policy (PM-1): show a reason field when the module's API accepts one;
@@ -22,22 +27,13 @@ export type ConfirmIntent = 'archive' | 'delete' | 'unlink' | 'send' | 'discard'
  */
 export type ConfirmReasonPolicy = 'none' | 'optional' | 'required';
 
-/** @deprecated Look of `intent="generic"` only; new call sites pick an intent. */
-export type ConfirmLegacyVariant = 'danger' | 'warning' | 'info';
-
 export interface ConfirmPresentation {
     icon: LucideIcon;
     tone: DialogTone;
     action: DialogFooterIntent;
 }
 
-const LEGACY_PRESENTATION: Readonly<Record<ConfirmLegacyVariant, ConfirmPresentation>> = {
-    danger: { icon: Trash2, tone: 'danger', action: 'destructive' },
-    warning: { icon: AlertTriangle, tone: 'warning', action: 'warning' },
-    info: { icon: AlertTriangle, tone: 'info', action: 'accent' },
-};
-
-export function confirmPresentation(intent: ConfirmIntent, variant: ConfirmLegacyVariant): ConfirmPresentation {
+export function confirmPresentation(intent: ConfirmIntent): ConfirmPresentation {
     switch (intent) {
         case 'archive':
             return { icon: Archive, tone: 'danger', action: 'destructive' };
@@ -48,9 +44,10 @@ export function confirmPresentation(intent: ConfirmIntent, variant: ConfirmLegac
         case 'send':
             return { icon: Send, tone: 'default', action: 'accent' };
         case 'discard':
+        case 'revoke':
             return { icon: AlertTriangle, tone: 'warning', action: 'warning' };
         case 'generic':
-            return LEGACY_PRESENTATION[variant];
+            return { icon: AlertTriangle, tone: 'info', action: 'accent' };
     }
 }
 
@@ -132,6 +129,7 @@ export function resolveConfirmCopy(
                 reasonLabel,
                 reasonPlaceholder,
             };
+        case 'revoke':
         case 'generic':
             return {
                 title: t('confirm.generic.title'),

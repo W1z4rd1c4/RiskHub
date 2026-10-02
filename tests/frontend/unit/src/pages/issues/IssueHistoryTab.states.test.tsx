@@ -63,4 +63,36 @@ describe('IssueHistoryTab states (GAP-C-11, PG-21)', () => {
         ).toBeInTheDocument();
         expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
     });
+    it('pages long histories with the shared Pagination and hides it for one page (GAP-C-11)', () => {
+        const onPageChange = vi.fn();
+        const { rerender } = renderWithoutProviders(
+            <IssueHistoryTab
+                canViewActivityHistory
+                historyItems={[entry]}
+                isHistoryLoading={false}
+                historyPage={1}
+                historyTotal={60}
+                historyPageSize={25}
+                onHistoryPageChange={onPageChange}
+                t={t}
+            />,
+        );
+
+        screen.getByRole('button', { name: /next/i }).click();
+        expect(onPageChange).toHaveBeenCalledWith(2);
+
+        rerender(
+            <IssueHistoryTab
+                canViewActivityHistory
+                historyItems={[entry]}
+                isHistoryLoading={false}
+                historyPage={1}
+                historyTotal={1}
+                historyPageSize={25}
+                onHistoryPageChange={onPageChange}
+                t={t}
+            />,
+        );
+        expect(screen.queryByRole('button', { name: /next/i })).not.toBeInTheDocument();
+    });
 });

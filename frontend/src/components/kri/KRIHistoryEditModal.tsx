@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { formatKriUnit } from '@/lib/kriUnits';
 import { formatKriPeriodDate } from '@/lib/kriHistory';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 
 interface KRIHistoryEditModalProps {
     isOpen: boolean;
@@ -29,6 +30,12 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [result, setResult] = useState<{ type: 'success' | 'approval'; messageKey: string } | null>(null);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    // PG-22: the corrected value and reason are never discarded silently.
+    const { acceptCurrentSnapshot, confirmationDialog, requestLocalLeave } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: JSON.stringify([newValue, reason]),
+        enabled: isOpen,
+    });
     const titleId = useId();
     const descriptionId = useId();
     const formId = useId();
@@ -45,6 +52,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
                 reason: reason.trim(),
             };
             const response = await kriApi.requestHistoryEdit(kriId, entry.id, data);
+            acceptCurrentSnapshot();
 
             if ('approval_id' in response) {
                 // 202 - Approval required
@@ -73,6 +81,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
             titleId={titleId}
             descriptionIds={[descriptionId]}
             isBusy={isSubmitting}
+            dirtyGuard={{ requestLocalLeave, confirmationDialog }}
             size="md"
         >
             <DialogHeader
@@ -98,7 +107,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, 
 
                     {errorKey && (
                         <InlineMessage tone="danger">
-                            {t(errorKey, { ns: 'errorKeys' })}
+                            {translateUiMessage(t, errorKey)}
                         </InlineMessage>
                     )}
 

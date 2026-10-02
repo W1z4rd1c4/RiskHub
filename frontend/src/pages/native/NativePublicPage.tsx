@@ -79,7 +79,7 @@ export default function NativePublicPage() {
             action.clearSession(); action.setError(reason);
         }} />;
     return <NativeFrame title={title} error={action.error} pending={action.pending || config.isAuthConfigLoading}>
-        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
+        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button variant="accent" onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
             !config.isAuthConfigLoading && !permitted ? <p role="alert">{t('native.errors.forbidden')}</p> :
                 finished ? <p role="status">{t(finished === 'accepted' ? 'native.reset_sent' : 'native.reset_done')}</p> :
                     uncertain ? null : permitted && <form className="space-y-4" onSubmit={submit}>
@@ -102,7 +102,7 @@ export default function NativePublicPage() {
                             </Field> : <Field label={t('native.new_password')} help={t('native.password_help')} required>
                                 {(field) => <Input {...field} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />}
                             </Field>}
-                            <Button type="submit" disabled={action.pending}>{t(!enrollment && !recovery && !grant ? 'native.send_reset' : 'native.continue')}</Button>
+                            <Button variant="accent" type="submit" disabled={action.pending}>{t(!enrollment && !recovery && !grant ? 'native.send_reset' : 'native.continue')}</Button>
                         </>}
                     </form>}
         <Link to="/login" className="block underline" onClick={leave}>{t('native.back_login')}</Link>

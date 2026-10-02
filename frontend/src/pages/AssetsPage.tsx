@@ -63,7 +63,7 @@ export function AssetsPage() {
             groupLabel: (group) => {
                 if (group.value.startsWith('criticality:')) return t(`values.preliminary_criticality.${group.value.slice('criticality:'.length)}`, t('values.unknown'));
                 if (group.value.startsWith('type:')) return t(`values.asset_type.${group.value.slice('type:'.length)}`, t('values.unknown'));
-                if (group.value === '__unassigned__') return t('register.groups.unassigned');
+                if (group.value === '__unassigned__') return t('common:fallbacks.unassigned');
                 if (group.value === '__unclassified__') return t('register.groups.unclassified');
                 if (group.value === '__unlinked_process__') return t('register.groups.no_linked_process');
                 if (group.value === '__unlinked_vendor__') return t('register.groups.no_linked_vendor');

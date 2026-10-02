@@ -13,7 +13,7 @@ import { controlApi } from '@/services/controlApi';
 import type { Control } from '@/types/control';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Badge } from '@/components/ui/badge';
@@ -250,20 +250,30 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
                 </motion.div>}
             </TabPanel>
 
-            <ExecutionLogModal
-                isOpen={workflow.isLogModalOpen}
-                onClose={() => workflow.setIsLogModalOpen(false)}
-                controlId={control.id}
-                controlName={control.name}
-                onSuccess={workflow.handleExecutionLogged}
-            />
+            {/* Mounted only while open (PG-22): the modal's dirty-task guard registers a
+                route blocker, and a data router runs one blocker at a time, so a closed
+                modal must not hold one beside the page's issue quick-create guard. */}
+            {workflow.isLogModalOpen && (
+                <ExecutionLogModal
+                    isOpen
+                    onClose={() => workflow.setIsLogModalOpen(false)}
+                    controlId={control.id}
+                    controlName={control.name}
+                    onSuccess={workflow.handleExecutionLogged}
+                />
+            )}
 
-            <ArchiveConfirmDialog
+            {/* Archive confirmation (D10, PM-1): the control archive API records
+                a required reason; a failure stays inside the open dialog. */}
+            <ConfirmDialog
                 isOpen={workflow.isArchiveDialogOpen}
                 onClose={() => workflow.setIsArchiveDialogOpen(false)}
                 onConfirm={workflow.handleArchive}
-                resourceType="control"
-                resourceName={control.name}
+                intent="archive"
+                entityLabel={t('common:labels.control')}
+                entityName={control.name}
+                reason="required"
+                reasonPlaceholder={t('common:labels.archive_reason_placeholder')}
             />
 
             <ControlRiskLoadingOverlay isVisible={workflow.isLoadingRisk} />

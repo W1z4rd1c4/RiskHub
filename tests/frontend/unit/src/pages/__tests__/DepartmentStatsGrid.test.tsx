@@ -70,6 +70,9 @@ describe('DepartmentStatsGrid', () => {
         for (const domain of ['controls', 'issues', 'processes', 'assets', 'vendors']) {
             expect(screen.getByTestId(`department-overview-card-${domain}`)).toHaveTextContent('N/A');
         }
+        // A string count skips i18next plural selection, so the label must still resolve (never a raw key).
+        expect(screen.getByRole('button', { name: 'Controls N/A attention' })).toHaveTextContent('N/A attention');
+        expect(screen.getByRole('button', { name: 'Vendors N/A DORA' })).toHaveTextContent('N/A DORA');
     });
 
     it('exposes every total as an independently named, unfiltered action', async () => {
@@ -103,7 +106,7 @@ describe('DepartmentStatsGrid', () => {
             ['risks', 'Risks 5 high', { net_band: 'high' }],
             ['risks', 'Risks 4 critical', { net_band: 'critical' }],
             ['controls', 'Controls 3 attention', { monitoring_status: 'needs_review' }],
-            ['kris', 'KRIs 1 breaches', { monitoring_status: 'breach' }],
+            ['kris', 'KRIs 1 breach', { monitoring_status: 'breach' }],
             ['kris', 'KRIs 2 overdue', { monitoring_status: 'not_submitted' }],
             ['issues', 'Issues 6 open', { status: 'open' }],
             ['issues', 'Issues 7 overdue', { overdue: true }],

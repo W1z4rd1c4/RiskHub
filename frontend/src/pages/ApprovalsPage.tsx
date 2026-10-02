@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { Search } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -59,12 +59,7 @@ export default function ApprovalsPage() {
         refreshActiveView,
         retryQuestionnaires,
     } = useApprovalsPageState();
-    const translateError = (errorKey: string | null) => {
-        if (!errorKey) return null;
-        return errorKey.startsWith('errorKeys.')
-            ? t(errorKey, { ns: 'errorKeys' })
-            : t(errorKey);
-    };
+    const translateError = (errorKey: string | null) => (errorKey ? translateUiMessage(t, errorKey) : null);
     const rangeStart = approvalTotal === 0 ? 0 : approvalSkip + 1;
     const rangeEnd = approvalTotal === 0
         ? 0
@@ -217,10 +212,10 @@ export default function ApprovalsPage() {
                 onConfirm={() => {
                     void confirmCancel();
                 }}
+                intent="revoke"
                 title={t('dialogs.cancel_title')}
                 message={t('dialogs.cancel_message')}
                 confirmLabel={t('common:actions.confirm')}
-                variant="warning"
                 isLoading={isCancelling}
                 errorText={translateError(cancelErrorKey)}
             />

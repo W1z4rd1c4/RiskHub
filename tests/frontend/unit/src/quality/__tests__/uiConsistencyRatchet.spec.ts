@@ -33,6 +33,11 @@ describe('ui-consistency-ratchet patterns', () => {
     expect(count('white-alpha', 'className="bg-white border-border"')).toBe(0);
   });
 
+  it('counts transition-all (DS-31) but not transition-colors or named properties', () => {
+    expect(count('transition-all', 'transition-all hover:transition-all')).toBe(2);
+    expect(count('transition-all', 'transition-colors transition-[transform,opacity] transition-allow')).toBe(0);
+  });
+
   it('counts sub-11px arbitrary font sizes and font-black only', () => {
     expect(count('micro-font', 'text-[9px] text-[10px] text-[10.5px] text-[11px] text-[12px]')).toBe(3);
     expect(count('font-black', 'font-black md:font-black font-bold')).toBe(2);
@@ -47,6 +52,29 @@ describe('ui-consistency-ratchet patterns', () => {
     expect(count('raw-text-input', source, 'src/components/ui/input.tsx')).toBe(0);
     expect(count('raw-table', source, 'src/components/tables/SortableTable.tsx')).toBe(0);
     expect(count('raw-table', source, 'src/components/tables/Pagination.tsx')).toBe(1);
+  });
+
+  it('counts animated and aliased bypasses of the element bans (roadmap 4.5)', () => {
+    expect(count('raw-button', '<motion.button type="button" onClick={go}>')).toBe(1);
+    expect(count('raw-button', "const MotionButton = motion.create('button'); const Old = motion(\"button\");")).toBe(2);
+    expect(count('raw-button', '<div role="button" tabIndex={0}> <span role={\'button\'}>')).toBe(2);
+    expect(count('raw-button', '<a onClick={() => go()} className="x"> <motion.a onClick={go}>')).toBe(2);
+    expect(count('raw-button', '<a href="/x" onClick={track}> <Button onClick={go}>')).toBe(0);
+    expect(count('raw-button', "const SELECTOR = 'a, button, [role=\"button\"]';")).toBe(0);
+    expect(count('raw-text-input', '<motion.input value={v} /> <motion.textarea />')).toBe(2);
+    expect(count('raw-text-input', "motion.create('input')")).toBe(1);
+    expect(count('raw-table', "<motion.table> motion.create('table')")).toBe(2);
+    expect(count('raw-button', '<motion.button />', 'src/components/ui/button.tsx')).toBe(0);
+  });
+
+  it('marks every pattern hard zero except the allowlisted ones, each with a reason', () => {
+    const allowlisted = PATTERNS.filter((entry: Pattern) => !entry.hardZero).map((entry: Pattern) => entry.id).sort();
+    expect(allowlisted).toEqual(['hex-literal', 'important-css']);
+    for (const entry of PATTERNS.filter((candidate: Pattern) => !candidate.hardZero)) {
+      for (const reason of Object.values(entry.allowlist ?? {})) {
+        expect(String(reason).length).toBeGreaterThan(20);
+      }
+    }
   });
 
   it('does not count non-text inputs as raw text inputs', () => {
@@ -97,49 +125,60 @@ describe('ui-consistency-ratchet comparison', () => {
     expect(counts['raw-button']).toEqual({});
   });
 
-  it('fails on an increase in a known file and on a new file with debt', () => {
-    const baseline = { 'text-white': { 'src/pages/A.tsx': 1 } };
-    const current = { 'text-white': { 'src/pages/A.tsx': 2, 'src/pages/New.tsx': 1 } };
+  const HEX_FILE = 'src/hooks/useRiskHubConfig.ts';
+
+  it('fails a hard-zero pattern on any match, whatever the baseline says', () => {
+    const result = compareCounts({ 'text-white': { 'src/pages/A.tsx': 5 } }, { 'text-white': { 'src/pages/A.tsx': 1 } });
+
+    expect(result.increases).toEqual([{ pattern: 'text-white', file: 'src/pages/A.tsx', before: 0, after: 1 }]);
+    expect(result.unbaselined).toEqual([]);
+    expect(result.retired).toEqual(['text-white']);
+  });
+
+  it('fails an allowlisted pattern on an increase in its file and on any unlisted file', () => {
+    const baseline = { 'hex-literal': { [HEX_FILE]: 1, 'src/pages/Unlisted.tsx': 4 } };
+    const current = { 'hex-literal': { [HEX_FILE]: 2, 'src/pages/Unlisted.tsx': 1, 'src/pages/New.tsx': 1 } };
     const result = compareCounts(baseline, current);
 
     expect(result.increases).toEqual([
-      { pattern: 'text-white', file: 'src/pages/A.tsx', before: 1, after: 2 },
-      { pattern: 'text-white', file: 'src/pages/New.tsx', before: 0, after: 1 },
+      { pattern: 'hex-literal', file: HEX_FILE, before: 1, after: 2 },
+      { pattern: 'hex-literal', file: 'src/pages/New.tsx', before: 0, after: 1 },
+      { pattern: 'hex-literal', file: 'src/pages/Unlisted.tsx', before: 0, after: 1 },
     ]);
-    expect(result.totals['text-white']).toEqual({ before: 1, after: 3 });
+    expect(result.totals['hex-literal']).toEqual({ before: 1, after: 4 });
     expect(formatComparison(result).join('\n')).toContain('src/pages/New.tsx  0 -> 1 (+1)');
   });
 
   it('reports decreases (including deleted files) without failing', () => {
-    const baseline = { 'text-white': { 'src/pages/A.tsx': 3, 'src/pages/Gone.tsx': 2 } };
-    const current = { 'text-white': { 'src/pages/A.tsx': 1 } };
-    const result = compareCounts(baseline, current);
+    const baseline = { 'hex-literal': { [HEX_FILE]: 3 } };
+    const result = compareCounts(baseline, { 'hex-literal': { [HEX_FILE]: 1 } });
 
     expect(result.increases).toEqual([]);
-    expect(result.decreases).toHaveLength(2);
-    expect(result.totals['text-white']).toEqual({ before: 5, after: 1 });
+    expect(result.decreases).toEqual([{ pattern: 'hex-literal', file: HEX_FILE, before: 3, after: 1 }]);
+    expect(compareCounts(baseline, { 'hex-literal': {} }).decreases).toHaveLength(1);
   });
 
-  it('flags patterns that have no baseline and baseline patterns that were retired', () => {
-    const result = compareCounts({ retired: { 'src/x.tsx': 1 } }, { 'text-white': {} });
-    expect(result.unbaselined).toEqual(['text-white']);
-    expect(result.retired).toEqual(['retired']);
+  it('flags allowlisted patterns without a baseline and drops retired or hard-zero baseline entries', () => {
+    const result = compareCounts({ retired: { 'src/x.tsx': 1 }, 'text-white': {} }, { 'hex-literal': {}, 'text-white': {} });
+    expect(result.unbaselined).toEqual(['hex-literal']);
+    expect(result.retired).toEqual(['retired', 'text-white']);
   });
 
-  it('only lets --update-baseline lower counts unless forced', () => {
-    const baseline = { 'text-white': { 'src/pages/A.tsx': 1 } };
+  it('only lets --update-baseline lower counts unless forced, and never records hard-zero patterns', () => {
+    const baseline = { 'hex-literal': { [HEX_FILE]: 1 } };
 
-    const lowered = planBaselineUpdate(baseline, { 'text-white': {} });
+    const lowered = planBaselineUpdate(baseline, { 'hex-literal': {}, 'text-white': {} });
     expect(lowered.ok).toBe(true);
-    expect(lowered.document?.counts['text-white']).toEqual({});
-    expect(lowered.document?.totals['text-white']).toBe(0);
+    expect(lowered.document?.counts['hex-literal']).toEqual({});
+    expect(lowered.document?.totals['hex-literal']).toBe(0);
+    expect(lowered.document?.counts).not.toHaveProperty('text-white');
 
-    const raised = planBaselineUpdate(baseline, { 'text-white': { 'src/pages/A.tsx': 2 } });
+    const raised = planBaselineUpdate(baseline, { 'hex-literal': { [HEX_FILE]: 2 } });
     expect(raised.ok).toBe(false);
     expect(raised.document).toBeNull();
 
-    const forced = planBaselineUpdate(baseline, { 'text-white': { 'src/pages/A.tsx': 2 } }, { force: true });
+    const forced = planBaselineUpdate(baseline, { 'hex-literal': { [HEX_FILE]: 2 } }, { force: true });
     expect(forced.ok).toBe(true);
-    expect(forced.document?.counts['text-white']).toEqual({ 'src/pages/A.tsx': 2 });
+    expect(forced.document?.counts['hex-literal']).toEqual({ [HEX_FILE]: 2 });
   });
 });

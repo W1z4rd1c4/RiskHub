@@ -16,7 +16,7 @@ interface WorkflowSummarySectionProps {
 export function WorkflowSummarySection({ errorKey, issue }: WorkflowSummarySectionProps) {
     const { t } = useTranslation('issues');
     const format = useFormat();
-    const formatDateTime = (value: string | null | undefined) => format.dateTime(value) || t('fallbacks.not_set');
+    const formatDateTime = (value: string | null | undefined) => format.dateTime(value) || t('common:fallbacks.not_set');
     const remediation = issue.remediation_plan;
     const nextStepLabel = useMemo(() => {
         if (issue.status === 'open' || issue.status === 'triaged') {

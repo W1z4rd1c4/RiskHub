@@ -197,7 +197,7 @@ describe('Sidebar badge polling', () => {
         );
 
         const approvals = await screen.findByRole('link', { name: 'sidebar.approvals sidebar_badges.workflow' });
-        expect(approvals.querySelector('.sidebar-nav-badge [aria-hidden="true"]')).toHaveTextContent('4');
+        expect(approvals.querySelector('.bg-nav-badge [aria-hidden="true"]')).toHaveTextContent('4');
         expect(await screen.findByRole('link', { name: 'sidebar.governance sidebar_badges.orphan_count' })).toBeInTheDocument();
     });
 });

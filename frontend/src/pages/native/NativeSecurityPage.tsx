@@ -103,10 +103,10 @@ export default function NativeSecurityPage() {
         <p>{t('native.backup_help')}</p>
         {notificationFailed && <p role="alert">{t('native.notification_failed')}</p>}
         <ul className="grid grid-cols-2 gap-2 font-mono text-sm">{codes.map((code) => <li key={code}>{code}</li>)}</ul>
-        <Button onClick={leave}>{t('native.backup_ack')}</Button>
+        <Button variant="accent" onClick={leave}>{t('native.backup_ack')}</Button>
     </NativeFrame>;
     if (completed || uncertain) return <NativeFrame title={t('native.security_title')} error={action.error}>
-        {completed && <p role="status">{t('native.changed')}</p>}<Button onClick={leave}>{t('native.back_login')}</Button>
+        {completed && <p role="status">{t('native.changed')}</p>}<Button variant="accent" onClick={leave}>{t('native.back_login')}</Button>
     </NativeFrame>;
     if (config.authConfig?.identity?.mode === 'native' && config.authConfig.password_login_enabled && !session.token) {
         return <NativeLoginView config={config.authConfig} onSession={(response) => {
@@ -118,9 +118,9 @@ export default function NativeSecurityPage() {
     const enabled = config.authConfig?.identity?.mode === 'native' && canManage;
     return <NativeFrame title={t(verifyingEmail ? 'native.email_confirm_title' : 'native.security_title')} pending={action.pending || config.isAuthConfigLoading} error={action.error}>
         {unchanged && <p role="status">{t('native.password_unchanged')}</p>}
-        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
+        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button variant="accent" onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
             !config.isAuthConfigLoading && !enabled ? <p role="alert">{t('native.errors.forbidden')}</p> :
-                accountError ? <><p role="alert">{t('native.errors.unavailable')}</p><Button onClick={() => setRetry((value) => value + 1)}>{t('native.retry')}</Button></> :
+                accountError ? <><p role="alert">{t('native.errors.unavailable')}</p><Button variant="accent" onClick={() => setRetry((value) => value + 1)}>{t('native.retry')}</Button></> :
                     !account ? <p role="status">{t('native.pending')}</p> :
                         verifyingEmail && !grant ? <p role="alert">{t('native.missing_link')}</p> :
                             emailSent ? <p role="status">{t('native.email_sent')}</p> : <form className="space-y-4" onSubmit={submit}>
@@ -154,7 +154,7 @@ export default function NativeSecurityPage() {
                                         {(field) => <Input {...field} autoComplete="one-time-code" value={factor} onChange={(event) => setFactor(event.target.value)} required disabled={action.pending} />}
                                     </Field>
                                 </>}
-                                <Button type="submit" disabled={action.pending}>{t('native.confirm_change')}</Button>
+                                <Button variant="accent" type="submit" disabled={action.pending}>{t('native.confirm_change')}</Button>
                             </form>}
         <p className="text-sm text-muted-foreground">{t('native.recovery_help')}</p>
         <Link className="block underline" to="/settings" onClick={() => { action.cancel(); setGrant(''); }}>{t('native.back_settings')}</Link>

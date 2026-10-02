@@ -16,7 +16,7 @@ interface IssueOverviewTabProps {
 
 export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProps) {
     const format = useFormat();
-    const formatDateTime = (value: string | null) => format.dateTime(value) || t('fallbacks.not_set');
+    const formatDateTime = (value: string | null) => format.dateTime(value) || t('common:fallbacks.not_set');
     return (
         <section className="space-y-5" data-testid="issue-overview-panel">
             <Card as="section" className="space-y-4">
@@ -31,7 +31,7 @@ export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProp
                     />
                     <IssueMetaBlock
                         label={t('detail.fields.department')}
-                        value={issue.department_name || t('fallbacks.unknown_department')}
+                        value={issue.department_name || t('common:fallbacks.unknown_department')}
                     />
                     <IssueMetaBlock
                         label={t('detail.fields.opened')}
@@ -43,7 +43,7 @@ export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProp
                     />
                     <IssueMetaBlock
                         label={t('detail.fields.created_by')}
-                        value={issue.created_by_name || t('fallbacks.unknown_user')}
+                        value={issue.created_by_name || t('common:fallbacks.unknown_user')}
                     />
                 </dl>
             </Card>
@@ -123,7 +123,7 @@ export function IssueOverviewTab({ issue, sourceLabel, t }: IssueOverviewTabProp
                                             {exceptionActorName(
                                                 exception.requested_by_name,
                                                 exception.approved_by_name,
-                                                t('fallbacks.unknown_user'),
+                                                t('common:fallbacks.unknown_user'),
                                             )}
                                         </p>
                                     </li>

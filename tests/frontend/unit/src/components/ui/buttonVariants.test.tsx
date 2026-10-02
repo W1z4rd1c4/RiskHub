@@ -6,21 +6,20 @@ import { renderWithoutProviders, screen } from '@test/render';
 
 /**
  * Audit 2026-09-30 §4.7 / roadmap 1.4 (D4, DS-09, DS-29): the Button variant
- * and size contract. `accent` is THE primary CTA; existing variant names keep
- * their look except the outline/ghost hover, which no longer floods with the
- * saturated accent fill.
+ * and size contract. `accent` is THE primary CTA and the default; the
+ * outline/ghost/secondary hovers use the neutral tint instead of a saturated
+ * fill, and `link` reads in the accent-text role.
  */
 
 const VARIANT_TOKENS: Record<ButtonVariant, string[]> = {
     accent: ['bg-accent', 'text-accent-foreground', 'hover:bg-accent-hover'],
-    default: ['bg-primary', 'text-primary-foreground', 'hover:bg-primary/90'],
-    secondary: ['bg-secondary', 'text-secondary-foreground'],
+    secondary: ['bg-secondary', 'text-secondary-foreground', 'border', 'border-border', 'hover:bg-tint/10'],
     outline: ['border', 'border-input', 'bg-transparent'],
     ghost: ['hover:text-foreground'],
     destructive: ['bg-destructive', 'text-destructive-foreground'],
     warning: ['bg-warning', 'text-warning-foreground'],
     success: ['bg-success', 'text-success-foreground'],
-    link: ['underline-offset-4', 'hover:underline'],
+    link: ['text-accent-text', 'underline-offset-4', 'hover:underline'],
 };
 
 describe('Button variants', () => {
@@ -35,9 +34,11 @@ describe('Button variants', () => {
         expect(button.className).not.toMatch(/\bdark:/);
     });
 
-    it('keeps the deprecated `default` variant as the fallback for unspecified callers', () => {
-        renderWithoutProviders(<Button>Legacy</Button>);
-        expect(screen.getByRole('button', { name: 'Legacy' }).className).toContain('bg-primary');
+    it('falls back to the accent variant for unspecified callers (the `default` alias is gone)', () => {
+        renderWithoutProviders(<Button>Primary</Button>);
+        const classes = screen.getByRole('button', { name: 'Primary' }).className.split(/\s+/);
+        expect(classes).toContain('bg-accent');
+        expect(classes).not.toContain('bg-primary');
     });
 
     it.each(['outline', 'ghost'] as const)('%s hover uses a neutral tint, not the saturated accent fill (DS-29)', (variant) => {

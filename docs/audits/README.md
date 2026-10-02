@@ -31,7 +31,8 @@ operating posture against the repository state at the cited commit/date.
 - [`2026-09-30-frontend-ui-consistency-audit.md`](./2026-09-30-frontend-ui-consistency-audit.md):
   frontend UI and UX consistency audit at `ba42b38` (343/343 UI files, rendered
   contrast in all three themes), with the binding design decisions, the target
-  design standard, a phased remediation roadmap and the findings register.
+  design standard, a phased remediation roadmap and the findings register; an
+  additive §13 records the remediation status after waves W1–W10 (2026-10-02).
 
 ## Notes
 

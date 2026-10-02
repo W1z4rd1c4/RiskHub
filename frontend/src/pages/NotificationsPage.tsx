@@ -406,7 +406,7 @@ export function NotificationsPage() {
                                         onClick={() => void toggleReadState(notification)}
                                         aria-disabled={pendingMutation !== null}
                                         aria-describedby={error ? `notifications-${notification.id}-error` : undefined}
-                                        className="px-0 text-accent-text hover:text-accent-text"
+                                        className="px-0"
                                     >
                                         {notification.is_read ? t('actions.mark_unread') : t('actions.mark_read')}
                                     </Button>

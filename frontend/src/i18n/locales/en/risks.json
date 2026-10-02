@@ -190,7 +190,7 @@
   },
   "register": {
     "views": { "all": "All", "category": "By Category", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "vendor": "By Vendor" },
-    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band" },
     "net_bands": { "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical" },
     "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
     "export": { "title": "Export filtered risks" }
@@ -333,7 +333,6 @@
     "subprocess": "Subprocess",
     "ownership": "Ownership",
     "connections": "Connections",
-    "unassigned": "Unassigned",
     "no_department": "No Dept",
     "risk_appetite_indicators": "Risk Appetite Indicators",
     "add_kri": "Add KRI",

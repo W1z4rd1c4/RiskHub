@@ -1,7 +1,10 @@
 {
   "title": "Oznámení",
   "subtitle": {
-    "unread_count": "{{count}} nepřečtených",
+    "unread_count_one": "{{count}} nepřečtené",
+    "unread_count_few": "{{count}} nepřečtená",
+    "unread_count_many": "{{count}} nepřečteného",
+    "unread_count_other": "{{count}} nepřečtených",
     "stale": "Počty oznámení nemusí být aktuální.",
     "unavailable": "Počty oznámení nejsou dostupné."
   },

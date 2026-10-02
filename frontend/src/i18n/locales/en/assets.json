@@ -134,7 +134,7 @@
             "vendor": "By Vendor"
         },
         "filters": {
-            "add": "Filters", "active_count": "{{count}} active filters", "clear_all": "Clear all",
+            "add": "Filters", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all",
             "remove": "Remove {{label}} filter", "lifecycle": "Lifecycle", "department": "Owning Department",
             "business_owner": "Business Owner", "ict_owner": "ICT Owner", "asset_type": "Asset type",
             "asset_level": "Asset level", "deployment_model": "Deployment model", "criticality": "Resulting criticality",
@@ -147,7 +147,7 @@
         "lifecycle": { "active": "Active", "archived": "Archived", "all": "All records" },
         "boolean": { "any": "Any", "yes": "Yes", "no": "No" },
         "groups": {
-            "unassigned": "Unassigned", "unclassified": "Unclassified", "no_linked_process": "No linked Process", "no_linked_vendor": "No linked Vendor"
+            "unclassified": "Unclassified", "no_linked_process": "No linked Process", "no_linked_vendor": "No linked Vendor"
         },
         "export": { "title": "Export matching Assets" }
     },

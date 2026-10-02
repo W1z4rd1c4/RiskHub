@@ -7,6 +7,7 @@ import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { translateUiMessage } from '@/i18n/hooks';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { AccessUserRead, RoleWithPermissions } from '@/types/access';
 
@@ -184,7 +185,7 @@ export function AccessEditFooter({
             {errorKey && (
                 <div className="px-6 pb-4">
                     <InlineMessage tone="danger">
-                        {errorMessage ?? t(errorKey, { ns: 'errorKeys' })}
+                        {errorMessage ?? translateUiMessage(t, errorKey)}
                     </InlineMessage>
                 </div>
             )}

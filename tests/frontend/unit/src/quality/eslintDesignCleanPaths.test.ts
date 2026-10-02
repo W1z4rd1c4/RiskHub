@@ -77,6 +77,8 @@ describe('eslint.config.js — G-ESLINT design clean paths', () => {
         ['<span className="font-black">x</span>', /font-black is retired/],
         ['<span className="dark:bg-card">x</span>', /No dark: variants/],
         ['<span className="bg-[#fff]">x</span>', /Arbitrary colour literal/],
+        ['<span className="transition-all duration-200">x</span>', /No transition-all/],
+        ['<span className="hover:transition-all">x</span>', /No transition-all/],
         ['<button type="button">x</button>', /<Button>/],
         ['<input aria-label="x" />', /<Input> or <Checkbox>/],
         ['<input type="checkbox" aria-label="x" />', /<Input> or <Checkbox>/],
@@ -85,6 +87,16 @@ describe('eslint.config.js — G-ESLINT design clean paths', () => {
         ['<table><tbody><tr><td>1</td></tr></tbody></table>', /<SortableTable>/],
         ['<Table><tr onClick={props.open}><td>1</td></tr></Table>', /Mouse-only row activation/],
         ['<label>Orphan</label>', /Unassociated label/],
+        // Roadmap 4.5: bypasses of the element bans.
+        ['<motion.button type="button" onClick={props.go}>x</motion.button>', /Animated or namespaced raw element/],
+        ['<motion.input aria-label="x" />', /Animated or namespaced raw element/],
+        ['<motion.textarea aria-label="x" />', /Animated or namespaced raw element/],
+        ['<motion.table><tbody /></motion.table>', /Animated or namespaced raw element/],
+        ['<motion.tr onClick={props.open}><td>1</td></motion.tr>', /Mouse-only row activation/],
+        ['<motion.a onClick={props.go}>x</motion.a>', /anchor without href/],
+        ['<a onClick={props.go}>x</a>', /anchor without href/],
+        ['<div role="button" tabIndex={0} onClick={props.go}>x</div>', /role="button"/],
+        ["<span role={'button'}>x</span>", /role="button"/],
     ])('bans %s', (body, message) => {
         const messages = lint(jsx(body));
         expect(messages.some((text) => message.test(text))).toBe(true);
@@ -98,8 +110,23 @@ describe('eslint.config.js — G-ESLINT design clean paths', () => {
         '<label className="sr-only">wrap <input type="radio" aria-label="x" /></label>',
         '<label>Owner <NativeSelect value="" /></label>',
         '<label htmlFor="x">Owner</label>',
+        '<motion.div whileHover={{ y: -2 }}><Button>x</Button></motion.div>',
+        '<motion.a href="/x" onClick={props.track}>x</motion.a>',
+        '<Card as="button" interactive onClick={props.go}>x</Card>',
+        '<span className="transition-colors duration-base transition-[transform,opacity]">x</span>',
     ])('allows %s', (body) => {
         expect(lint(jsx(body))).toEqual([]);
+    });
+
+    it.each([
+        "const MotionButton = motion.create('button');",
+        'const MotionInput = motion("input");',
+    ])('bans the factory bypass %s', (code) => {
+        expect(lint(code).some((text) => /motion\.create\(\) of a raw element/.test(text))).toBe(true);
+    });
+
+    it('allows motion.create of a primitive component', () => {
+        expect(lint('const MotionCard = motion.create(Card);')).toEqual([]);
     });
 
     it('keeps the raw-ID and ADR-008 selectors of the base block', () => {

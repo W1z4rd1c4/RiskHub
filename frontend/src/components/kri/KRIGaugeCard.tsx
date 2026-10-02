@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion';
 import type { KeyRiskIndicator, KRIMonitoringFields } from '@/types/kri';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import { useFormat, useTranslation } from '@/i18n/hooks';
 import { formatKriUnit } from '@/lib/kriUnits';
@@ -59,11 +59,14 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
     const pointerToneClass = `${monitoring.gaugeToneClassName} fill-current`;
 
     return (
-        <motion.button
-            type="button"
-            whileHover={{ y: -4, scale: 1.01 }}
+        // The whole card is one action (Card as="button", §4.10); the hover lift is CSS so it
+        // honours prefers-reduced-motion.
+        <Card
+            as="button"
+            padding="compact"
+            interactive
             onClick={onClick}
-            className="glass-card interactive-card p-5 cursor-pointer group w-full text-left"
+            className="group p-5 motion-safe:hover:-translate-y-1"
         >
             <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
@@ -118,6 +121,6 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                     <span>{t('overview.max_value', { ns: 'kris', value: formatNumber(upper_limit), unit: formatKriUnit(unit, t, upper_limit) })}</span>
                 </div>
             </div>
-        </motion.button>
+        </Card>
     );
 }

@@ -20,9 +20,9 @@ are test artifacts; the isolated harness does not replace the strict live-route
 accessibility gates or establish full WCAG conformance.
 
 `theme-rendered-contrast.spec.ts` (G-RENDER) reuses this harness and
-`dialog-contract.html` to count sub-AA text per theme and surface against
-`tests/frontend/e2e/rendered-contrast-baseline.json`; it runs under the same
-config (see `docs/E2E_TESTING.md`).
+`dialog-contract.html` to measure the text on every surface per theme; it is a
+hard zero (no text below AA) and runs under the same config (see
+`docs/E2E_TESTING.md`).
 
 `design-system.html` (`designSystemMain.tsx`) is the Phase 1 primitive harness
 (audit 2026-09-30 §5.3 exit criterion): every `components/ui` primitive, the

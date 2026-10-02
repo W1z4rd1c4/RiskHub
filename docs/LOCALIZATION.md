@@ -33,9 +33,12 @@ This guide defines how localization works across UI, backend messages, reports, 
   `cs` needs `_one`, `_few` and `_other` (optional `_many`), `en` needs `_one` and `_other`.
   Strict key parity still applies, so `en` mirrors any `cs`-only suffix (for example `_few`).
   Count-free values (`Active filters: {{count}}`, `Archived risks ({{count}})`, `{{count}}%`)
-  are exempt through `frontend/scripts/i18n/plural-allowlist.json`. `i18n:validate:plurals`
-  ratchets the remaining legacy families in `frontend/scripts/i18n/plural-baseline.json`: new
-  violations fail, and fixed ones are locked in with `npm run i18n:validate:plurals -- --update-baseline`.
+  are exempt through `frontend/scripts/i18n/plural-allowlist.json`. `i18n:validate:plurals` has
+  zero tolerance: the legacy baseline was burned down to 0 (GAP-B-14), so any `{{count}}` string
+  without its plural family fails, with no baseline file to update. When the noun agrees with a
+  different number than the one shown (`"{{shown}} of {{count}} users"`), pass the governing total
+  as `count` and the other figure under another name. A string `count` (`'N/A'`) skips plural
+  selection in i18next, so resolve the `_other` key explicitly for unavailable values.
 - `i18n:scan` flags single-word JSX text (`<span>Uncategorised</span>`, `Limit:`). Genuine
   non-words go in `frontend/scripts/i18n/allowlist.json`: `tokenPatterns` for global tokens
   (codes, units, symbols) and `scopedExceptions` (`path`, `text`, `reason`) for file-local cases

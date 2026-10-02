@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
@@ -29,7 +29,6 @@ vi.mock('@/contexts/AuthContext', () => ({
     }),
 }));
 
-
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
         getControl: (...args: unknown[]) => mockGetControl(...args),
@@ -54,20 +53,6 @@ vi.mock('@/components/executions/ExecutionHistory', () => ({
 
 vi.mock('@/components/executions/ExecutionLogModal', () => ({
     ExecutionLogModal: () => null,
-}));
-
-vi.mock('@/components/ArchiveConfirmDialog', () => ({
-    ArchiveConfirmDialog: ({
-        isOpen,
-        onConfirm,
-    }: {
-        isOpen: boolean;
-        onConfirm: (reason: string) => void;
-    }) => isOpen ? (
-        <button type="button" onClick={() => onConfirm('Control retired')}>
-            confirm-control-archive
-        </button>
-    ) : null,
 }));
 
 vi.mock('@/components/RiskQuickViewModal', () => ({
@@ -214,8 +199,11 @@ describe('ControlDetailPage issue entry', () => {
 
         await screen.findByRole('heading', { level: 1, name: 'Quarterly Access Review' });
         fireEvent.click(screen.getByRole('button', { name: /archive/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'confirm-control-archive' }));
+        const dialog = await screen.findByRole('alertdialog', { name: /archive/i });
+        fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: '  Control retired ' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: /^archive$/i }));
 
+        // The reason is trimmed before it reaches the API (the former ArchiveConfirmDialog contract).
         await waitFor(() => expect(mockDeleteControl).toHaveBeenCalledWith(13, 'Control retired'));
         expect(mockNavigate).toHaveBeenCalledWith(returnTo);
     });

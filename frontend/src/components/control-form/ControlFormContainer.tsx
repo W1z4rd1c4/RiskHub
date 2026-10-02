@@ -7,7 +7,7 @@ import {
     ShieldCheck,
     Link as LinkIcon,
 } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useFocusFirstInvalidField } from '@/hooks/useFocusFirstInvalidField';
 import { Button } from '@/components/ui/button';
@@ -245,7 +245,7 @@ export function ControlForm({
                             </Button>
                         ) : undefined}
                     >
-                        {visibleError.startsWith('errorKeys.') ? t(visibleError, { ns: 'errorKeys' }) : visibleError}
+                        {translateUiMessage(t, visibleError)}
                     </InlineMessage>
                 )}
 

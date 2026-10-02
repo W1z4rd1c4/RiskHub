@@ -208,7 +208,7 @@ export function KRIStatusWidget() {
 
                 <Link
                     to={activeTab === 'overdue' ? OVERDUE_KRIS_PATH : DUE_SOON_KRIS_PATH}
-                    className="text-eyebrow block w-full py-3 text-center bg-tint/[0.03] hover:bg-tint/5 hover:text-foreground border-t border-border transition-colors focus-ring"
+                    className="block w-full border-t border-border bg-tint/[0.03] py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-tint/5 hover:text-foreground focus-ring"
                 >
                     {activeTab === 'overdue' ? t('kri.view_all_overdue') : t('kri.view_all')}
                 </Link>

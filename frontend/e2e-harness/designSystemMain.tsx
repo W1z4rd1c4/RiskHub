@@ -67,11 +67,11 @@ await i18n.changeLanguage(locale);
 
 const noop = () => undefined;
 const BUTTON_VARIANTS: readonly ButtonVariant[] = [
-  'accent', 'default', 'secondary', 'outline', 'ghost', 'destructive', 'warning', 'success', 'link',
+  'accent', 'secondary', 'outline', 'ghost', 'destructive', 'warning', 'success', 'link',
 ];
 const MESSAGE_TONES: readonly InlineMessageTone[] = ['info', 'success', 'warning', 'danger', 'neutral'];
 const TOAST_TONES: readonly ToastTone[] = ['success', 'info', 'warning', 'danger'];
-const CONFIRM_INTENTS: readonly ConfirmIntent[] = ['archive', 'delete', 'unlink', 'send', 'discard', 'generic'];
+const CONFIRM_INTENTS: readonly ConfirmIntent[] = ['archive', 'delete', 'unlink', 'send', 'discard', 'revoke', 'generic'];
 const OPTIONS = [
   { value: 'operations', label: 'Operations' },
   { value: 'finance', label: 'Finance' },

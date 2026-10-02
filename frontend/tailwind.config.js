@@ -166,6 +166,10 @@ export default {
 					DEFAULT: 'hsl(var(--nav-active))',
 					foreground: 'hsl(var(--nav-active-foreground))'
 				},
+				'nav-badge': {
+					DEFAULT: 'hsl(var(--nav-badge))',
+					foreground: 'hsl(var(--nav-badge-foreground))'
+				},
 				'badge-count': {
 					DEFAULT: 'hsl(var(--badge-count))',
 					foreground: 'hsl(var(--badge-count-foreground))'

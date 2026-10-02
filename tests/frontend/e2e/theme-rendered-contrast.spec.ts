@@ -1,6 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 import {
@@ -22,33 +19,17 @@ import {
  *
  * Every visible text element on the harness surfaces is measured with the
  * compositing algorithm of `helpers/renderedContrast.ts` and classified against
- * AA (4.5:1, 3:1 for large text), 3:1 and 1.5:1. Until Phase 3 exit the counts
- * are compared with `rendered-contrast-baseline.json` and may only go down.
- * Rewrite the baseline after an intended improvement with:
- *
- *   UPDATE_CONTRAST_BASELINE=1 npx playwright test -c playwright.workflow-contrast.config.ts \
- *     theme-rendered-contrast --workers=1
- *
- * `=1` refuses to raise a recorded count; `UPDATE_CONTRAST_BASELINE=force` is reserved for a
- * reviewed, explained increase (for example a new surface state that adds text).
+ * AA (4.5:1, 3:1 for large text), 3:1 and 1.5:1. Since the Phase 3 exit the spec
+ * is a HARD ZERO (audit §5.5 phase exit, §5.6 exit criteria): no surface may
+ * render a text element below AA, or white text on a light background, in any
+ * theme. There is no baseline file and no update mode.
  */
 
 type AuditTheme = 'light' | 'riskhub' | 'dark';
-type RatchetedMetric = 'belowAA' | 'below3' | 'below1_5' | 'whiteOnLight';
-type BaselineEntry = Pick<RenderedContrastCounts, 'total' | RatchetedMetric>;
-
-interface Baseline {
-  description: string;
-  totals: Record<AuditTheme, BaselineEntry>;
-  surfaces: Record<AuditTheme, Record<string, BaselineEntry>>;
-}
+type ZeroMetric = Extract<keyof RenderedContrastCounts, 'belowAA' | 'below3' | 'below1_5' | 'whiteOnLight'>;
 
 const THEMES: readonly AuditTheme[] = ['light', 'riskhub', 'dark'];
-const RATCHETED: readonly RatchetedMetric[] = ['belowAA', 'below3', 'below1_5', 'whiteOnLight'];
-const BASELINE_PATH = path.resolve(__dirname, 'rendered-contrast-baseline.json');
-const BASELINE_MODE = process.env.UPDATE_CONTRAST_BASELINE;
-const UPDATE_BASELINE = BASELINE_MODE === '1' || BASELINE_MODE === 'force';
-const FORCE_BASELINE = BASELINE_MODE === 'force';
+const ZERO_METRICS: readonly ZeroMetric[] = ['belowAA', 'below3', 'below1_5', 'whiteOnLight'];
 
 const HYBRID_AUTH_CONFIG = {
   auth_mode: 'hybrid_dev',
@@ -98,57 +79,14 @@ const DESIGN_SYSTEM_SECTIONS = [
   'page-header', 'buttons', 'forms', 'badges', 'surfaces', 'navigation', 'tables', 'states', 'feedback',
 ] as const;
 const DESIGN_SYSTEM_DIALOGS = [
-  'shell', 'confirm-archive', 'confirm-delete', 'confirm-unlink', 'confirm-send', 'confirm-discard', 'confirm-generic',
+  'shell', 'confirm-archive', 'confirm-delete', 'confirm-unlink', 'confirm-send', 'confirm-discard', 'confirm-revoke',
+  'confirm-generic',
 ] as const;
 /** `auth-frame`: signed out, no stored theme → OS scheme; `auth-frame-app-theme`: stored theme kept → `<html>` theme. */
 const DESIGN_SYSTEM_VIEWS = ['auth-frame', 'auth-frame-app-theme'] as const;
 
-function expectedSurfaceKeys(): string[] {
-  return [
-    ...Object.entries(WORKFLOW_STATES).flatMap(([family, states]) => states.map((state) => `workflow/${family}/${state}`)),
-    ...DIALOG_OWNERS.flatMap(({ owner, sites }) => [
-      `dialog/${owner}/closed`,
-      ...sites.map((site) => `dialog/${site}/open`),
-    ]),
-    ...DESIGN_SYSTEM_SECTIONS.map((section) => `design-system/${section}`),
-    ...DESIGN_SYSTEM_DIALOGS.map((dialog) => `design-system/dialog/${dialog}/open`),
-    ...DESIGN_SYSTEM_VIEWS.map((view) => `design-system/view/${view}`),
-  ].sort();
-}
-
-function readBaseline(): Baseline | null {
-  if (!fs.existsSync(BASELINE_PATH)) return null;
-  return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as Baseline;
-}
-
-function writeBaseline(update: (surfaces: Baseline['surfaces']) => void): void {
-  const current = readBaseline();
-  const surfaces = (current?.surfaces ?? {}) as Baseline['surfaces'];
-  for (const theme of THEMES) surfaces[theme] ??= {};
-  update(surfaces);
-  const sortedSurfaces = Object.fromEntries(THEMES.map((theme) => [
-    theme,
-    Object.fromEntries(Object.entries(surfaces[theme]).sort(([left], [right]) => left.localeCompare(right))),
-  ])) as Baseline['surfaces'];
-  const totals = Object.fromEntries(THEMES.map((theme) => {
-    const entries = Object.values(sortedSurfaces[theme]);
-    const sum = (metric: keyof BaselineEntry) => entries.reduce((total, entry) => total + entry[metric], 0);
-    return [theme, {
-      total: sum('total'), belowAA: sum('belowAA'), below3: sum('below3'),
-      below1_5: sum('below1_5'), whiteOnLight: sum('whiteOnLight'),
-    }];
-  })) as Baseline['totals'];
-  const baseline: Baseline = {
-    description: 'G-RENDER rendered-contrast ratchet (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1, §5.2 item 0.3). '
-      + 'Counts of visible text elements per theme and harness surface; belowAA/below3/below1_5/whiteOnLight may only go down. '
-      + 'Regenerate with UPDATE_CONTRAST_BASELINE=1 (see theme-rendered-contrast.spec.ts).',
-    totals,
-    surfaces: sortedSurfaces,
-  };
-  fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
-}
-
-async function enforceBaseline(
+/** Attaches the measurements and fails every surface with a text element below AA (hard zero). */
+async function enforceZero(
   testInfo: TestInfo,
   theme: AuditTheme,
   measured: Map<string, RenderedContrastAudit>,
@@ -159,43 +97,11 @@ async function enforceBaseline(
   });
   for (const [key, audit] of measured) {
     expect(audit.counts.total, `${theme} ${key} rendered no measurable text`).toBeGreaterThan(0);
-  }
-  if (UPDATE_BASELINE) {
-    expect(testInfo.config.workers, 'UPDATE_CONTRAST_BASELINE must run with --workers=1').toBe(1);
-    const previous = readBaseline()?.surfaces[theme] ?? {};
-    const raised = [...measured].flatMap(([key, { counts }]) => RATCHETED
-      .filter((metric) => previous[key] !== undefined && counts[metric] > previous[key]![metric])
-      .map((metric) => `${key} ${metric} ${previous[key]![metric]} -> ${counts[metric]}`));
-    if (!FORCE_BASELINE) {
-      expect(raised, `${theme}: UPDATE_CONTRAST_BASELINE=1 only lowers counts; use =force for a reviewed increase`)
-        .toEqual([]);
-    }
-    writeBaseline((surfaces) => {
-      for (const [key, { counts }] of measured) {
-        surfaces[theme][key] = {
-          total: counts.total, belowAA: counts.belowAA, below3: counts.below3,
-          below1_5: counts.below1_5, whiteOnLight: counts.whiteOnLight,
-        };
-      }
-    });
-    return;
-  }
-  const baseline = readBaseline();
-  expect(baseline, `missing ${path.basename(BASELINE_PATH)}`).not.toBeNull();
-  for (const [key, audit] of measured) {
-    const recorded = baseline!.surfaces[theme]?.[key];
-    expect.soft(recorded, `${theme} ${key} has no baseline entry; run with UPDATE_CONTRAST_BASELINE=1`).toBeTruthy();
-    if (!recorded) continue;
-    for (const metric of RATCHETED) {
-      const message = `${theme} ${key}: ${metric} rose above the committed baseline (${recorded[metric]}). Worst: ${
-        JSON.stringify(audit.failures.slice(0, 8))}`;
-      expect.soft(audit.counts[metric], message).toBeLessThanOrEqual(recorded[metric]);
-      if (audit.counts[metric] < recorded[metric]) {
-        testInfo.annotations.push({
-          type: 'rendered-contrast-improved',
-          description: `${theme} ${key} ${metric} ${recorded[metric]} -> ${audit.counts[metric]}; lower the baseline`,
-        });
-      }
+    for (const metric of ZERO_METRICS) {
+      expect.soft(
+        audit.counts[metric],
+        `${theme} ${key}: ${metric} must be 0 (G-RENDER hard zero). Worst: ${JSON.stringify(audit.failures.slice(0, 8))}`,
+      ).toBe(0);
     }
   }
 }
@@ -224,26 +130,10 @@ async function expectTheme(page: Page, theme: AuditTheme): Promise<void> {
   await expect(page.locator('html')).toHaveClass(new RegExp(`(^|\\s)theme-${theme}(\\s|$)`));
 }
 
-test.describe('G-RENDER rendered contrast baseline', () => {
-  test('baseline covers exactly the measured surface matrix', () => {
-    const expected = expectedSurfaceKeys();
+test.describe('G-RENDER rendered contrast (hard zero)', () => {
+  test('measures every dialog-contract parent site', () => {
     const ownedSites = DIALOG_OWNERS.flatMap(({ sites }) => sites).sort();
     expect(ownedSites, 'every dialog-contract parent site is measured').toEqual([...DIALOG_CONTRACT_PARENT_SITE_IDS].sort());
-    if (UPDATE_BASELINE) {
-      writeBaseline((surfaces) => {
-        for (const theme of THEMES) {
-          for (const key of Object.keys(surfaces[theme])) {
-            if (!expected.includes(key)) delete surfaces[theme][key];
-          }
-        }
-      });
-      return;
-    }
-    const baseline = readBaseline();
-    expect(baseline, `missing ${path.basename(BASELINE_PATH)}`).not.toBeNull();
-    for (const theme of THEMES) {
-      expect(Object.keys(baseline!.surfaces[theme] ?? {}).sort(), `${theme} baseline surfaces`).toEqual(expected);
-    }
   });
 
   for (const theme of THEMES) {
@@ -264,7 +154,7 @@ test.describe('G-RENDER rendered contrast baseline', () => {
           await settle(page, page.locator('body'));
           measured.set(`workflow/${family}/${state}`, await auditRenderedContrast(page.locator('body')));
         }
-        await enforceBaseline(testInfo, theme, measured);
+        await enforceZero(testInfo, theme, measured);
       });
     }
 
@@ -321,7 +211,7 @@ test.describe('G-RENDER rendered contrast baseline', () => {
           }
         }
         expect(unexpectedNetwork, 'dialog-contract API mock covers every request').toEqual([]);
-        await enforceBaseline(testInfo, theme, measured);
+        await enforceZero(testInfo, theme, measured);
       });
     }
 
@@ -376,7 +266,7 @@ test.describe('G-RENDER rendered contrast baseline', () => {
       }
 
       expect(requests, 'the design-system harness makes no API requests').toEqual([]);
-      await enforceBaseline(testInfo, theme, measured);
+      await enforceZero(testInfo, theme, measured);
     });
   }
 });

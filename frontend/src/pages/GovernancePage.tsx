@@ -10,12 +10,11 @@ import type { ApprovalCreatedResponse } from '@/types/approval';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { governanceKeys } from '@/lib/queryKeys';
-import { useAuthz } from '@/authz/useAuthz';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
-import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 import { ErrorState, LoadingState } from '@/components/ui/state';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -325,20 +324,21 @@ function GovernancePageInner() {
                 {statBars.map((bar) => {
                     const isActive = activeTab === bar.id;
                     return bar.clickable ? (
-                        <motion.button
+                        // A pressed-card toggle: the whole card is one action (Card as="button", §4.10).
+                        <Card
                             key={bar.id}
-                            type="button"
-                            variants={item}
+                            as="button"
+                            interactive
                             onClick={() => selectTab(bar.id as GovernanceItemType)}
                             aria-pressed={isActive}
                             data-testid={`governance-filter-card-${bar.id}`}
                             className={cn(
-                                'glass-card interactive-card group flex flex-col justify-between relative overflow-hidden cursor-pointer text-left focus-ring',
+                                'group relative flex flex-col justify-between overflow-hidden',
                                 isActive && 'ring-2 ring-accent',
                             )}
                         >
                             {statCardContents(bar, isActive)}
-                        </motion.button>
+                        </Card>
                     ) : (
                         <motion.div
                             key={bar.id}
@@ -387,23 +387,11 @@ function GovernancePageInner() {
     );
 }
 
-function GovernanceDeniedHeader() {
-    const { t } = useTranslation('admin');
-    return <PageHeader title={t('governance.title')} />;
-}
-
+/**
+ * CRO-only business route. Access is owned by the route-level `GovernanceRouteGuard`
+ * (`routing/business.tsx`); the page does not duplicate it (audit NAV-05). The backend
+ * still authorises every orphan API call.
+ */
 export default function GovernancePage() {
-    const authz = useAuthz();
-
-    // CRO-only business route. Keep a local guard so direct page mounts never hit orphan APIs for blocked roles.
-    if (!authz.canViewGovernance) {
-        return (
-            <PageContainer>
-                <GovernanceDeniedHeader />
-                <ReadAccessDeniedState />
-            </PageContainer>
-        );
-    }
-
     return <GovernancePageInner />;
 }

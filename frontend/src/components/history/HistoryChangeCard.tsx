@@ -60,7 +60,7 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
                             : Minus;
 
                     return (
-                        <div key={index} className="group transition-all">
+                        <div key={index} className="group">
                             <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-eyebrow group-hover:text-foreground transition-colors">
                                     {field.label}
@@ -80,7 +80,7 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
                             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
                                 {/* Before */}
                                 <div className={cn(
-                                    "px-3 py-2 rounded-lg border transition-all",
+                                    "px-3 py-2 rounded-lg border transition-colors",
                                     "bg-nested border-border"
                                 )}>
                                     <span className="text-sm font-bold text-foreground truncate block">
@@ -100,7 +100,7 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
 
                                 {/* After */}
                                 <div className={cn(
-                                    "px-3 py-2 rounded-lg border transition-all shadow-lg shadow-black/20",
+                                    "px-3 py-2 rounded-lg border transition-colors shadow-lg shadow-black/20",
                                     isChanged ? "bg-accent/5 border-accent/20" : "bg-nested border-border"
                                 )}>
                                     <span className={cn(

@@ -15,7 +15,7 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
@@ -284,12 +284,13 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 )
             }
 
-            {/* Record Value Modal */}
+            {/* Record Value Modal: mounted only while open (PG-22) so its dirty-task
+                route blocker never coexists with another guarded dialog's. */}
             {
-                kri && (
+                kri && isValueModalOpen && (
                     <KRIValueModal
                         kri={kri}
-                        isOpen={isValueModalOpen}
+                        isOpen
                         onClose={() => setIsValueModalOpen(false)}
                         onSuccess={handleRecordSuccess}
                     />
@@ -324,7 +325,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                         entityName={kri.metric_name}
                         reason="required"
                         isLoading={isDeleting}
-                        errorText={deleteErrorKey ? t(deleteErrorKey, { ns: 'errorKeys' }) : null}
+                        errorText={deleteErrorKey ? translateUiMessage(t, deleteErrorKey) : null}
                     />
                 </>
             )}

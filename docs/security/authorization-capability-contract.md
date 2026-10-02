@@ -53,6 +53,26 @@ guard through the `Button` loading state. Login (SSO, demo, native, loading and 
 views) moves onto `AuthFrame`; the production SSO copy follows the active i18n language
 only, with no change to the auth flow. Backend authority is unchanged.
 
+Wave W10 (roadmap Phase 4 cleanup, 2026-10-02) changes presentation and one read-only list
+sort; no capability flag, route gate, mutation or payload changes.
+`frontend/src/pages/GovernancePage.tsx` drops its duplicate in-page
+`authz.canViewGovernance` check (NAV-05): access stays owned by the route-level
+`GovernanceRouteGuard` in `frontend/src/routing/business.tsx` (asserted by the routing manifest
+test), and the backend still authorises every orphan call.
+`backend/app/services/_register_listings/issues.py` lets `GET /issues` sort by `department_name`
+and `owner_user_name` (PG-42) through aliased Department and User outer joins with nulls last; the
+scope clause, filters and returned fields are unchanged and the names were already part of
+`IssueSummary`, so no new data is exposed. `ExecutionLogModal`, `KRIValueModal` and
+`KRIHistoryEditModal` gain the `useDirtyTaskGuard` close confirmation only (same submit calls);
+issue history is paged (`skip`/`limit` 25) behind the same `can_view_activity_history` gate;
+error text renders through `translateUiMessage`. `frontend/src/components/layout/Sidebar.tsx` only
+moves its active and badge styling from `sidebar.css` onto theme tokens, with unchanged
+navigation projection and visibility predicates. `ConfirmDialog` drops its deprecated `variant`
+and `showInput` props: `UsersPage` (deactivate/reactivate), `SessionsPanel` (revoke),
+`ApprovalsPage` (cancel), `PendingChangeCancellationDialog` and the dirty-task guard pick an
+`intent` instead, with the same open conditions, handlers and `isLoading` guards. Backend
+authority is unchanged.
+
 Wave W7 (roadmap 2.4–2.13) adds confirmations and shared page patterns only.
 Archive, unlink, pending-creation cancel and batch-send actions open a
 `ConfirmDialog` that calls the same API with the same arguments; the archive reason

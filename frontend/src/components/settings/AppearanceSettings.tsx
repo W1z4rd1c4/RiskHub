@@ -51,7 +51,7 @@ export function AppearanceSettings() {
                                     key={option.value}
                                     data-testid={`theme-${option.value}`}
                                     className={cn(
-                                        "relative flex cursor-pointer flex-col items-start rounded-xl border-2 p-4 text-left transition-all focus-within:ring-2 focus-within:ring-accent",
+                                        "relative flex cursor-pointer flex-col items-start rounded-xl border-2 p-4 text-left transition-colors focus-within:ring-2 focus-within:ring-accent",
                                         isSelected
                                             ? "border-accent bg-accent/10"
                                             : "border-border bg-tint/5 hover:border-tint/20 hover:bg-tint/10"

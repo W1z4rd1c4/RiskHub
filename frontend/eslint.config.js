@@ -95,6 +95,7 @@ const DESIGN_CLASS_RESTRICTIONS = [
   ...classBan("(?<![\\w-])(?:[a-z-]+:)*font-black(?![\\w-])", "font-black is retired (D6). Use font-semibold or font-bold (§4.5)."),
   ...classBan("(?<![\\w-])dark:(?=[!a-z\\[-])", "No dark: variants. Theme through tokens (§4.2)."),
   ...classBan("-\\[[^\\] \"]*(?:#[0-9a-fA-F]{3}|rgba?\\(|hsla?\\()", "Arbitrary colour literal. Add a token (§4.2)."),
+  ...classBan("(?<![\\w-])(?:[a-z-]+:)*transition-all(?![\\w-])", "No transition-all (DS-31). Use transition-colors duration-base, or name the properties (§4.6)."),
 ];
 // Raw elements outside the primitives (components/ui gets the class bans
 // only). `<input>` stays legal only for types without a drop-in
@@ -112,6 +113,33 @@ const DESIGN_ELEMENT_RESTRICTIONS = [
   {
     selector: "JSXOpeningElement[name.name='tr'] > JSXAttribute[name.name='onClick']",
     message: "Mouse-only row activation (AX-02). Use SortableTable row activation.",
+  },
+  // Bypasses of the bans above (roadmap 4.5, mirrored in the G-RATCHET raw-* patterns): an
+  // animated or namespaced raw element (`motion.button`, `motion.input`, `motion.table` …), a
+  // factory-built one (`motion.create('button')`), `role="button"` on a non-button, and an
+  // anchor (`a` / `motion.a`) that acts as a button (onClick, no href).
+  {
+    selector:
+      "JSXOpeningElement[name.type='JSXMemberExpression'][name.property.name=/^(?:button|input|textarea|select|table)$/]",
+    message: "Animated or namespaced raw element. Use the primitive (<Button>, <Card as=\"button\">, <Input>, <Textarea>, ui/table) and animate a motion.div wrapper (§4.7).",
+  },
+  {
+    selector: "JSXOpeningElement[name.type='JSXMemberExpression'][name.property.name='tr'] > JSXAttribute[name.name='onClick']",
+    message: "Mouse-only row activation (AX-02). Use SortableTable row activation.",
+  },
+  {
+    selector:
+      "CallExpression:matches([callee.name='motion'], [callee.object.name='motion'][callee.property.name='create']) > Literal[value=/^(?:a|button|input|textarea|select|table)$/]",
+    message: "motion.create() of a raw element bypasses the primitives. Animate a motion.div wrapper around the primitive (§4.7).",
+  },
+  {
+    selector: "JSXAttribute[name.name='role']:matches([value.value='button'], [value.expression.value='button'])",
+    message: "role=\"button\" on a non-button element. Use <Button> or <Card as=\"button\"> (§4.7).",
+  },
+  {
+    selector:
+      "JSXOpeningElement:matches([name.name='a'], [name.property.name='a']):has(> JSXAttribute[name.name='onClick']):not(:has(> JSXAttribute[name.name='href']))",
+    message: "An anchor without href acting as a button. Use <Button> (actions) or <Link> (navigation) (§4.7).",
   },
   {
     selector:

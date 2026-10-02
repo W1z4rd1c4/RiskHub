@@ -8,10 +8,11 @@ import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
 import { isApprovalCreatedResponse } from '@/types/approval';
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { formatKriUnit } from '@/lib/kriUnits';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 
 interface KRIValueModalProps {
     kri: KeyRiskIndicator;
@@ -31,6 +32,13 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
         value: kri.current_value,
     });
 
+    // PG-22: a typed value is never discarded silently (Escape, backdrop, close or Cancel).
+    const { acceptCurrentSnapshot, confirmationDialog, requestLocalLeave } = useDirtyTaskGuard({
+        busy: isSaving,
+        currentSnapshot: JSON.stringify(formData),
+        enabled: isOpen,
+    });
+
     const titleId = useId();
     const subtitleId = useId();
     const valueInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +56,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
             setSubmitResult(null);
 
             const response = await kriApi.recordValue(kri.id, formData);
+            acceptCurrentSnapshot();
 
             if (isApprovalCreatedResponse(response)) {
                 setSubmitResult('pending_approval');
@@ -84,6 +93,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
             descriptionIds={[subtitleId]}
             initialFocusRef={valueInputRef}
             isBusy={isSaving}
+            dirtyGuard={{ requestLocalLeave, confirmationDialog }}
             size="md"
         >
             <DialogHeader
@@ -111,7 +121,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
                 {errorKey && (
                     <InlineMessage tone="danger">
-                        {t(errorKey, { ns: 'errorKeys' })}
+                        {translateUiMessage(t, errorKey)}
                     </InlineMessage>
                 )}
 
@@ -183,7 +193,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
             </DialogBody>
 
             <DialogFooter
-                onCancel={handleClose}
+                onCancel={() => requestLocalLeave(handleClose)}
                 cancelLabel={submitResult ? t('common:actions.close') : t('common:actions.cancel')}
                 submitLabel={submitResult ? undefined : (isSaving ? t('common:loading.generic') : t('value_modal.title', { ns: 'kris' }))}
                 submitIcon={<Save aria-hidden="true" />}

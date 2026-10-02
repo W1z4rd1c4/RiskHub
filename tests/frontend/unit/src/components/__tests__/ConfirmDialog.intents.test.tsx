@@ -179,10 +179,23 @@ describe('ConfirmDialog reason policy (PM-1)', () => {
         expect(props.onConfirm).toHaveBeenCalledWith('');
     });
 
-    it('keeps the deprecated showInput / inputRequired props working', () => {
-        const { dialog } = renderConfirm({ title: 'Legacy', message: 'Legacy body', showInput: true, inputRequired: false, inputLabel: 'Request reason' });
+    it('revoke: warning action and AlertTriangle, never Trash2, with caller copy', () => {
+        const { dialog } = renderConfirm({ intent: 'revoke', title: 'Revoke session?', confirmLabel: 'Revoke' });
+
+        expect(dialog).toHaveAccessibleName('Revoke session?');
+        expect(within(dialog).getByRole('button', { name: 'Revoke' })).toHaveClass('bg-warning');
+        expect(dialog.querySelector('svg.lucide-triangle-alert, svg.lucide-alert-triangle')).toBeInTheDocument();
+        expect(dialog.querySelector('svg.lucide-trash-2')).not.toBeInTheDocument();
+    });
+
+    it('generic: a non-destructive accent confirmation with an optional reason label override', () => {
+        const { dialog } = renderConfirm({ title: 'Request link', reason: 'optional', reasonLabel: 'Request reason' });
+
+        expect(dialog).toHaveAccessibleName('Request link');
         expect(within(dialog).getByRole('textbox', { name: /Request reason/ })).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: 'Confirm' })).toHaveClass('bg-accent');
         expect(within(dialog).getByRole('button', { name: 'Confirm' })).toBeEnabled();
+        expect(dialog.querySelector('svg.lucide-trash-2')).not.toBeInTheDocument();
     });
 });
 

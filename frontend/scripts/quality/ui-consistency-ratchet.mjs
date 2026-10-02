@@ -2,11 +2,15 @@
 /**
  * G-RATCHET (D15): UI-consistency regression ratchet.
  *
- * Counts design-system debt patterns per (pattern, file) across `src/**` and compares the
- * counts with the committed `ui-consistency-baseline.json`. Any increase fails; a file that
- * is new to the baseline fails as soon as it has a count above 0. Counts may only go down:
- * `--update-baseline` rewrites the baseline only when no count increased, unless `--force`
- * is passed (reserved for pure file moves/renames, which reviewers verify via the totals).
+ * Counts design-system debt patterns per (pattern, file) across `src/**`.
+ *
+ * - Hard-zero patterns (`hardZero: true`, audit §5.5 phase exit / §5.6 item 4.5): every match
+ *   fails. They have no baseline tolerance and never appear in the baseline file.
+ * - Allowlisted patterns keep a per-file count in the committed `ui-consistency-baseline.json`,
+ *   but only for the files their `allowlist` names with a reason; a match anywhere else fails,
+ *   and an allowlisted file may not exceed its baseline count. `--update-baseline` rewrites the
+ *   baseline only when no count increased, unless `--force` is passed (reserved for pure file
+ *   moves/renames, which reviewers verify via the totals).
  *
  * ESLint suppressions and inline disables are forbidden in this repository (ADR-013), so the
  * ratchet is a standalone script rather than an eslint-suppressions baseline.
@@ -26,6 +30,10 @@ const TEST_PATH_RE = /(?:^|\/)(?:__tests__|test)\//;
 const UI_PRIMITIVES_RE = /^src\/components\/ui\//;
 // The sanctioned table primitives (§4.13, D14): `components/ui/**` and SortableTable itself.
 const TABLE_PRIMITIVES_RE = /^src\/components\/(?:ui\/|tables\/SortableTable\.tsx$)/;
+// An element name optionally reached through a namespace such as `motion.button` / `m.button`.
+const MEMBER = '(?:[A-Za-z_$][\\w$]*\\.)?';
+// `motion.create('button')` / legacy `motion('button')` build the same raw element.
+const motionFactory = (tags) => `\\bmotion(?:\\.create)?\\(\\s*["'\`](?:${tags})["'\`]`;
 const PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
 
@@ -34,6 +42,8 @@ const PALETTE =
  * `kind: 'source'` scans src/**\/*.{ts,tsx}; `kind: 'css'` scans src/**\/*.css.
  * `exclude` skips the sanctioned primitive implementations for element bans.
  * `lineFilter` counts a match only on lines that also match the filter.
+ * `hardZero` patterns fail on any match; the others name each tolerated file in `allowlist`
+ * with the reason it may keep its (baselined) matches.
  */
 export const PATTERNS = [
   {
@@ -65,23 +75,59 @@ export const PATTERNS = [
     regex: /-\[[^\] "]*(?:#[0-9a-fA-F]{3}|rgba?\(|hsla?\()/g,
     covers: 'DS-24, PG-01',
   },
-  { id: 'hex-literal', kind: 'source', regex: /['"`]#[0-9a-fA-F]{3,8}['"`]/g, covers: 'DS-05' },
+  {
+    id: 'hex-literal',
+    kind: 'source',
+    regex: /['"`]#[0-9a-fA-F]{3,8}['"`]/g,
+    covers: 'DS-05',
+    allowlist: {
+      'src/hooks/useRiskHubConfig.ts':
+        'Risk-type colours are user-chosen stored data (DEFAULT_RISK_TYPE_COLOR and the offline fallback types), not UI colours.',
+    },
+  },
   { id: 'text-accent-as-text', kind: 'source', regex: /\btext-accent(?![\w-])/g, covers: 'DS-19' },
   { id: 'dark-variant', kind: 'source', regex: /(?<![\w-])dark:(?=[!a-z[-])/g, covers: 'DS-20' },
   { id: 'inline-style', kind: 'source', regex: /\bstyle=\{/g, covers: 'PG-01' },
-  { id: 'raw-button', kind: 'source', regex: /<button\b/g, exclude: UI_PRIMITIVES_RE, covers: 'DS-10' },
+  {
+    id: 'raw-button',
+    kind: 'source',
+    // `<button>` and its bypasses: `<motion.button>`, `motion.create('button')`, `role="button"` and
+    // an anchor with `onClick` but no `href` (look-aheads stay inside the opening tag).
+    regex: new RegExp(
+      [
+        `<${MEMBER}button\\b`,
+        motionFactory('button'),
+        // A JSX attribute follows whitespace; a CSS selector string such as `[role="button"]` does not.
+        `(?<=\\s)role=\\{?["'\`]button["'\`]`,
+        `<${MEMBER}a\\b(?=(?:=>|[^>])*\\bonClick=)(?!(?:=>|[^>])*\\bhref=)`,
+      ].join('|'),
+      'g',
+    ),
+    exclude: UI_PRIMITIVES_RE,
+    covers: 'DS-10',
+  },
   {
     id: 'raw-text-input',
     kind: 'source',
     // The look-ahead stays inside the opening tag (an arrow `=>` is not its end) and accepts
     // `type="checkbox"` as well as `type={'checkbox'}`.
-    regex: /<(?:textarea|input)\b(?!(?:=>|[^>])*\btype=\{?["'`](?:checkbox|radio|hidden|range|color|file)["'`])/g,
+    regex: new RegExp(
+      `<${MEMBER}(?:textarea|input)\\b(?!(?:=>|[^>])*\\btype=\\{?["'\`](?:checkbox|radio|hidden|range|color|file)["'\`])|${motionFactory('textarea|input')}`,
+      'g',
+    ),
     exclude: UI_PRIMITIVES_RE,
     covers: 'DS-02',
   },
-  { id: 'raw-table', kind: 'source', regex: /<table\b/g, exclude: TABLE_PRIMITIVES_RE, covers: 'DS-11' },
+  {
+    id: 'raw-table',
+    kind: 'source',
+    regex: new RegExp(`<${MEMBER}table\\b|${motionFactory('table')}`, 'g'),
+    exclude: TABLE_PRIMITIVES_RE,
+    covers: 'DS-11',
+  },
   { id: 'btn-classes', kind: 'source', regex: /\bbtn-(?:primary|secondary)\b/g, covers: 'DS-09, GAP-D-05' },
   { id: 'z-arbitrary', kind: 'source', regex: /\bz-\[\d+\]/g, covers: 'DS-27' },
+  { id: 'transition-all', kind: 'source', regex: /(?<![\w-])(?:[a-z-]+:)*transition-all(?![\w-])/g, covers: 'DS-31' },
   { id: 'radius-offscale', kind: 'source', regex: /\brounded-(?:3xl|\[)/g, covers: 'DS-25' },
   {
     id: 'pill-inline',
@@ -98,8 +144,17 @@ export const PATTERNS = [
     exclude: UI_PRIMITIVES_RE,
     covers: 'DS-17',
   },
-  { id: 'important-css', kind: 'css', regex: /!important\b/g, covers: 'DS-05' },
-];
+  {
+    id: 'important-css',
+    kind: 'css',
+    regex: /!important\b/g,
+    covers: 'DS-05',
+    allowlist: {
+      'src/index.css':
+        'The prefers-reduced-motion override must beat utility, keyframe and inline animation sources (audit §5.6 item 4.1: at most 4).',
+    },
+  },
+].map((pattern) => ({ ...pattern, hardZero: !pattern.allowlist }));
 
 export function isScannedPath(relPath) {
   if (TEST_FILE_RE.test(relPath) || TEST_PATH_RE.test(relPath)) return false;
@@ -150,45 +205,56 @@ export function totalsOf(counts) {
   );
 }
 
+const patternById = (patterns) => new Map(patterns.map((pattern) => [pattern.id, pattern]));
+
 /**
  * Compares baseline counts with current counts.
- * - `increases`: (pattern, file) counts above baseline (a file absent from the baseline counts as 0).
+ * - `increases`: (pattern, file) counts above what is tolerated. A hard-zero pattern tolerates 0
+ *   everywhere; an allowlisted pattern tolerates its baseline count in allowlisted files only
+ *   (a file absent from the baseline, or outside the allowlist, counts as 0).
  * - `decreases`: counts below baseline (including files that no longer exist or are clean).
- * - `unbaselined`: patterns that have no baseline entry yet (must be seeded with --update-baseline).
- * - `retired`: baseline patterns that are no longer ratcheted.
+ * - `unbaselined`: allowlisted patterns that have no baseline entry yet (seed with --update-baseline).
+ * - `retired`: baseline patterns that are hard-zero or no longer ratcheted (dropped on update).
  */
-export function compareCounts(baselineCounts, currentCounts) {
+export function compareCounts(baselineCounts, currentCounts, patterns = PATTERNS) {
+  const byId = patternById(patterns);
   const increases = [];
   const decreases = [];
   const unbaselined = [];
   const totals = {};
 
   for (const [patternId, current] of Object.entries(currentCounts)) {
-    const baseline = baselineCounts[patternId];
+    const pattern = byId.get(patternId);
+    const hardZero = pattern?.hardZero ?? false;
+    const baseline = hardZero ? {} : baselineCounts[patternId];
     if (!baseline) {
       unbaselined.push(patternId);
       continue;
     }
+    const tolerated = (file) => (hardZero || !(pattern?.allowlist && file in pattern.allowlist) ? 0 : baseline[file] ?? 0);
     const files = new Set([...Object.keys(baseline), ...Object.keys(current)]);
     for (const file of [...files].sort()) {
-      const before = baseline[file] ?? 0;
+      const before = tolerated(file);
       const after = current[file] ?? 0;
       if (after > before) increases.push({ pattern: patternId, file, before, after });
       if (after < before) decreases.push({ pattern: patternId, file, before, after });
     }
     totals[patternId] = {
-      before: Object.values(baseline).reduce((sum, n) => sum + n, 0),
+      before: [...files].reduce((sum, file) => sum + tolerated(file), 0),
       after: Object.values(current).reduce((sum, n) => sum + n, 0),
     };
   }
 
-  const retired = Object.keys(baselineCounts).filter((id) => !(id in currentCounts));
+  const retired = Object.keys(baselineCounts).filter((id) => !(id in currentCounts) || byId.get(id)?.hardZero);
   return { increases, decreases, unbaselined, retired, totals };
 }
 
-export function buildBaselineDocument(counts) {
+/** The baseline only records allowlisted (non-hard-zero) patterns; hard-zero entries are dropped. */
+export function buildBaselineDocument(counts, patterns = PATTERNS) {
+  const byId = patternById(patterns);
   const sortedCounts = Object.fromEntries(
     Object.keys(counts)
+      .filter((id) => !byId.get(id)?.hardZero)
       .sort()
       .map((id) => [
         id,
@@ -198,7 +264,7 @@ export function buildBaselineDocument(counts) {
   return {
     version: BASELINE_VERSION,
     description:
-      'G-RATCHET baseline (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1). Counts may only go down; regenerate with `' +
+      'G-RATCHET baseline (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1). Only allowlisted patterns are recorded (every other pattern is hard zero); counts may only go down; regenerate with `' +
       UPDATE_COMMAND +
       '`.',
     totals: totalsOf(sortedCounts),
@@ -208,14 +274,14 @@ export function buildBaselineDocument(counts) {
 
 /**
  * Decides whether `--update-baseline` may rewrite the baseline. Increases are refused unless
- * `force` is set; new (unbaselined) patterns are seeded; retired patterns are dropped.
+ * `force` is set; new allowlisted patterns are seeded; hard-zero and retired patterns are dropped.
  */
-export function planBaselineUpdate(baselineCounts, currentCounts, { force = false } = {}) {
-  const comparison = compareCounts(baselineCounts, currentCounts);
+export function planBaselineUpdate(baselineCounts, currentCounts, { force = false, patterns = PATTERNS } = {}) {
+  const comparison = compareCounts(baselineCounts, currentCounts, patterns);
   if (comparison.increases.length > 0 && !force) {
     return { ok: false, comparison, document: null };
   }
-  return { ok: true, comparison, document: buildBaselineDocument(currentCounts) };
+  return { ok: true, comparison, document: buildBaselineDocument(currentCounts, patterns) };
 }
 
 function formatDelta(before, after) {
@@ -245,10 +311,10 @@ export function formatComparison(comparison, { maxRows = 40 } = {}) {
     }
   }
   if (comparison.unbaselined.length > 0) {
-    lines.push(`Patterns without a baseline: ${comparison.unbaselined.join(', ')}`);
+    lines.push(`Allowlisted patterns without a baseline: ${comparison.unbaselined.join(', ')}`);
   }
   if (comparison.retired.length > 0) {
-    lines.push(`Baseline patterns no longer ratcheted: ${comparison.retired.join(', ')}`);
+    lines.push(`Baseline entries to drop (hard-zero or retired patterns): ${comparison.retired.join(', ')}`);
   }
   return lines;
 }
@@ -330,7 +396,7 @@ export function main(argv = process.argv.slice(2)) {
     console.error(`UI consistency ratchet: FAIL (${files.length} files, ${PATTERNS.length} patterns)`);
     for (const line of report) console.error(line);
     console.error(
-      'Counts may only go down (audit §4.1 G-RATCHET). Use design-system tokens/primitives instead of the flagged pattern.',
+      'Hard-zero patterns allow no match; allowlisted patterns may only go down (audit §4.1 G-RATCHET, §5.6). Use design-system tokens/primitives instead of the flagged pattern.',
     );
     return 1;
   }

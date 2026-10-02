@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useId } from 'react';
-import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../services/dashboardApi';
@@ -12,6 +11,7 @@ import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { classifyRiskScore, riskScoreVariantClass } from '@/lib/severity';
 import { logError } from '@/services/logger';
 import { SeverityBadge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { ErrorState } from '@/components/ui/state';
 
 interface RiskInCell {
@@ -117,12 +117,16 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                         {risks.map((risk) => {
                             const band = classifyRiskScore(risk.net_score, thresholds);
                             return (
-                                <motion.button
+                                // One action per row: a nested inner panel (Card as="button", §4.10)
+                                // inside the dialog surface; the hover nudge is CSS (reduced-motion safe).
+                                <Card
                                     key={risk.id}
-                                    type="button"
+                                    as="button"
+                                    tone="nested"
+                                    padding="compact"
+                                    interactive
                                     onClick={() => handleRiskClick(risk.id)}
-                                    className="w-full text-left p-4 rounded-lg bg-tint/5 hover:bg-tint/10 border border-border transition-colors group focus-ring"
-                                    whileHover={{ x: 4 }}
+                                    className="group motion-safe:hover:translate-x-1"
                                 >
                                     <span className="flex items-start justify-between gap-4">
                                         <span className="block flex-1 min-w-0">
@@ -150,11 +154,11 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                                 <ExternalLink aria-hidden="true" className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                                             </span>
                                             <span className="block text-xs text-muted-foreground">
-                                                {risk.owner_name || t('issues:fallbacks.unassigned')}
+                                                {risk.owner_name || t('common:fallbacks.unassigned')}
                                             </span>
                                         </span>
                                     </span>
-                                </motion.button>
+                                </Card>
                             );
                         })}
                     </div>

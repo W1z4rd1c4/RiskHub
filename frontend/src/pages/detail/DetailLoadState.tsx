@@ -47,7 +47,7 @@ export function DetailLoadUnavailableState({
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3">
                 {onRetry ? (
-                    <Button onClick={onRetry} isLoading={isRetrying}>
+                    <Button variant="accent" onClick={onRetry} isLoading={isRetrying}>
                         {isRetrying ? null : <RefreshCw aria-hidden="true" />}
                         {t('actions.retry')}
                     </Button>

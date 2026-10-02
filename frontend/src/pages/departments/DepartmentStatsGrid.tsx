@@ -95,6 +95,12 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
         },
     ];
 
+    // i18next skips plural selection for a string `count`, so an unavailable metric renders the `_other` form directly.
+    const healthLabel = (action: HealthAction) =>
+        action.count == null
+            ? t(`${action.labelKey}_other`, { count: t('fallbacks.not_available') })
+            : t(action.labelKey, { count: action.count });
+
     return (
         <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="department-stats-grid">
             {cards.map(({ key, count, health, icon: Icon }) => (
@@ -127,15 +133,11 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                                 variant="outline"
                                 size="compact"
                                 data-testid={`department-overview-card-${key}-${action.key}`}
-                                aria-label={`${t(`department_detail.tabs.${key}`)} ${t(action.labelKey, {
-                                    count: action.count ?? t('fallbacks.not_available'),
-                                })}`}
+                                aria-label={`${t(`department_detail.tabs.${key}`)} ${healthLabel(action)}`}
                                 onClick={() => onSelectTab(key, action.filters)}
                                 className="h-auto max-w-full whitespace-normal break-words rounded-full py-1 text-left font-normal text-muted-foreground [overflow-wrap:anywhere] hover:border-accent/40"
                             >
-                                {t(action.labelKey, {
-                                    count: action.count ?? t('fallbacks.not_available'),
-                                })}
+                                {healthLabel(action)}
                             </Button>
                         ))}
                     </div>

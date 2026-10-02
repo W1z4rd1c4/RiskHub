@@ -152,10 +152,10 @@ export function SessionsPanel() {
                 isOpen={pendingRevokeSession !== null}
                 onClose={() => setPendingRevokeSession(null)}
                 onConfirm={handleConfirmRevoke}
+                intent="revoke"
                 title={t('sessions.revoke')}
                 message={t('sessions.revoke_confirm', { name: pendingRevokeSession?.user_name ?? '' })}
                 confirmLabel={t('sessions.revoke')}
-                variant="warning"
                 isLoading={revokeMutation.isPending}
             />
         </div>

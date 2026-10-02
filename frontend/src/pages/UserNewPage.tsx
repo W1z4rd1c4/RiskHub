@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { AccessDeniedState, ErrorState, LoadingState } from '@/components/ui/state';
 import type { DirectoryImportResponse } from '@/types/directory';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useSessionSnapshot } from '@/services/session';
 import { NativeInviteForm } from './users/NativeInviteForm';
@@ -67,7 +67,7 @@ export function UserNewPage() {
             />
 
             {localUserWorkflow.errorKey && (
-                <InlineMessage tone="danger">{t(localUserWorkflow.errorKey, { ns: 'errorKeys' })}</InlineMessage>
+                <InlineMessage tone="danger">{translateUiMessage(t, localUserWorkflow.errorKey)}</InlineMessage>
             )}
 
             {/* DS-17 / SM-07: one loading, error (with retry) and access-denied

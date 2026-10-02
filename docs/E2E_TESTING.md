@@ -179,8 +179,9 @@ primitive family, each opened `DialogShell` / `ConfirmDialog` intent, and the
 public `AuthFrame` both on the OS scheme and on a stored app theme) in the light, riskhub and dark themes, with the compositing algorithm of
 `tests/frontend/e2e/helpers/renderedContrast.ts`. Per theme and surface it counts
 text below AA (4.5:1, or 3:1 for large text), below 3:1, below 1.5:1 and white
-text on a light background, and fails when any count rises above
-`tests/frontend/e2e/rendered-contrast-baseline.json`. Targeted probes require
+text on a light background. It is a hard zero (audit 2026-09-30 §5.5 phase exit,
+§5.6): any non-zero count on any surface in any theme fails; there is no baseline
+file and no update mode. Targeted probes require
 4.5:1 for the typed title and selected severity in the issue quick-create dialog
 in every theme (the temporary 2:1 light floor was raised to 4.5:1 when the
 Phase 2.1 dialog-surface fix, NEW-V1-01 / DS-07, landed), check that `/login`
@@ -190,9 +191,7 @@ It runs in the `ci` project of `e2e.yml` and needs no backend locally:
 
 ```bash
 cd frontend
-npx playwright test -c playwright.workflow-contrast.config.ts theme-rendered-contrast
-# After an intended improvement, lower the committed baseline:
-UPDATE_CONTRAST_BASELINE=1 npx playwright test -c playwright.workflow-contrast.config.ts theme-rendered-contrast --workers=1
+npx playwright test -c playwright.workflow-contrast.config.ts theme-rendered-contrast --workers=1
 ```
 
 `theme-contrast-matrix.spec.ts` (live backend) also measures every axe
@@ -200,7 +199,7 @@ UPDATE_CONTRAST_BASELINE=1 npx playwright test -c playwright.workflow-contrast.c
 a gradient, are ratcheted per `theme@viewport` and route in
 `tests/frontend/e2e/theme-contrast-incomplete-baseline.json`; rewrite it with the
 same `UPDATE_CONTRAST_BASELINE=1 … --workers=1` run of that spec.
-`UPDATE_CONTRAST_BASELINE=1` refuses to raise a recorded count in either baseline;
+`UPDATE_CONTRAST_BASELINE=1` refuses to raise a recorded count;
 `UPDATE_CONTRAST_BASELINE=force` is reserved for a reviewed, explained increase.
 
 ## Debugging

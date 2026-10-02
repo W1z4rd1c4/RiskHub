@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Building2, Link as LinkIcon, Star, Tag, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { UserAvatar } from '@/components/access/UserAvatar';
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import { CardHeader } from '@/components/ui/card';
 import { useTranslation } from '@/i18n/hooks';
@@ -85,12 +86,11 @@ export function RiskSummaryCards({
 
                 <div className="space-y-5">
                     <div className="flex gap-3 items-start">
-                        <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent-text text-xs font-bold">
-                            {risk.owner?.name?.[0] || 'U'}
-                        </div>
+                        {/* GAP-D-27: the one avatar recipe (no hard-coded 'U' fallback). */}
+                        <UserAvatar name={risk.owner?.name} className="h-8 w-8 text-xs" />
                         <div>
                             <p className="text-eyebrow">{t('fields.owner', { ns: 'risks' })}</p>
-                            <p className="text-sm font-bold text-foreground leading-snug">{risk.owner?.name || t('overview.unassigned', { ns: 'risks' })}</p>
+                            <p className="text-sm font-bold text-foreground leading-snug">{risk.owner?.name || t('common:fallbacks.unassigned')}</p>
                             <p className="text-xs text-muted-foreground">{risk.owner?.email || ''}</p>
                         </div>
                     </div>

@@ -68,7 +68,6 @@ export function AuditLogsTable({ logs, regionLabel, language, resolveUserName, t
                                     type="button"
                                     variant="link"
                                     size="compact"
-                                    className="text-accent-text"
                                     onClick={() => onViewDetails(log.extra || {})}
                                 >
                                     {t('audit.view')}

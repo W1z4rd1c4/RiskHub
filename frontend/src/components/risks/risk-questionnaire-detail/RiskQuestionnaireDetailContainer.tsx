@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 
-import { useFormat, useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { DialogBody, DialogShell } from '@/components/ui/dialog';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
@@ -83,9 +83,7 @@ export function RiskQuestionnaireDetail({
                     <div className="space-y-6">
                         {workflow.errorKey ? (
                             <InlineMessage tone="danger">
-                                {workflow.errorKey.startsWith('errorKeys.')
-                                    ? t(workflow.errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                                    : t(workflow.errorKey)}
+                                {translateUiMessage(t, workflow.errorKey)}
                             </InlineMessage>
                         ) : null}
 

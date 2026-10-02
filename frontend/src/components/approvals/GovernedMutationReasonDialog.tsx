@@ -48,7 +48,6 @@ export function GovernedMutationReasonDialog({
             title={useRequestCopy ? t(`${namespace}:link_approval.${kind}.title`) : undefined}
             message={useRequestCopy ? t(`${namespace}:link_approval.${kind}.message`) : undefined}
             confirmLabel={useRequestCopy ? t(`${namespace}:link_approval.continue`) : undefined}
-            variant="info"
             isLoading={isLoading}
             reason={reasonRequired ? 'required' : 'none'}
             reasonLabel={t(`${namespace}:form.request_reason`)}

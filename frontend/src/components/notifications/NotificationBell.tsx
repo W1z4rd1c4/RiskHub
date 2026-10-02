@@ -226,7 +226,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
             >
                 <Bell aria-hidden="true" className="text-muted-foreground" />
                 {unreadCount > 0 && (
-                    <span aria-hidden="true" className="notification-count-badge absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-2xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                    <span aria-hidden="true" className="absolute -top-1 -right-1 bg-badge-count text-badge-count-foreground text-2xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
@@ -343,7 +343,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                                                 aria-busy={pendingMutation === notification.id}
                                                 aria-disabled={pendingMutation !== null}
                                                 aria-describedby={error ? `notification-${notification.id}-error` : undefined}
-                                                className={`px-0 text-accent-text ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                className={`px-0 ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
                                             >
                                                 {notification.is_read ? t('actions.mark_unread') : t('actions.mark_read')}
                                             </Button>
@@ -371,7 +371,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                                     aria-busy={pendingMutation === 'all'}
                                     aria-disabled={pendingMutation !== null}
                                     aria-describedby={mutationError?.target === 'all' ? 'notification-mark-all-error' : undefined}
-                                    className={`px-0 text-accent-text ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    className={`px-0 ${pendingMutation !== null ? 'cursor-not-allowed opacity-50' : ''}`}
                                 >
                                     {tCommon('actions.mark_all_read')}
                                 </Button>

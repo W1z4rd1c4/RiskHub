@@ -22,9 +22,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame, RiskHubShowArchivedToggle } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import { useRiskHubConfigResource } from './useRiskHubConfigResource';
-
-/** Stored default colour of a new risk type (data, not a UI colour). */
-const DEFAULT_RISK_TYPE_COLOR = '#64748b';
+import { DEFAULT_RISK_TYPE_COLOR } from '@/hooks/useRiskHubConfig';
 
 interface RiskTypeModalProps {
     isOpen: boolean;

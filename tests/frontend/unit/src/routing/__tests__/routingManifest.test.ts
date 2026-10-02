@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AdminConsoleRouteGuard,
   AuditTrailRouteGuard,
+  GovernanceRouteGuard,
 } from '@/authz/BusinessRouteGuards';
 import { buildAuthz, type AuthUser, type PermissionChecker } from '@/authz/policy';
 import { adminRoutes } from '@/routing/admin';
@@ -161,6 +162,10 @@ describe('routing manifest parity', () => {
     expectRouteElementGuard(businessRoutes, 'audit-trail', AuditTrailRouteGuard);
     expectRouteElementGuard(adminRoutes, 'admin', AdminConsoleRouteGuard);
     expectRouteElementGuard(adminRoutes, 'admin-docs', AdminConsoleRouteGuard);
+  });
+
+  it('owns Governance access at the route level (NAV-05: the page keeps no duplicate guard)', () => {
+    expectRouteElementGuard(businessRoutes, 'governance', GovernanceRouteGuard);
   });
 
   it('matches admin sidebar visibility contract', () => {

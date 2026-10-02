@@ -14,7 +14,6 @@ import { getSidebarNavRoutes } from '@/routing';
 
 // --- Real dialog / alertdialog surfaces under test -------------------------
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { KriMismatchDialog } from '@/components/kri-form/KriMismatchDialog';
 import { RoleDeleteDialog } from '@/components/riskhub/roles/RoleDeleteDialog';
 import { RoleModal } from '@/components/riskhub/roles/RoleModal';
@@ -458,18 +457,6 @@ describe('Dialog interaction matrix — alertdialog surfaces (FR-P2c-1)', () => 
         ));
     });
 
-    it('[owner.archive-confirm-dialog] ArchiveConfirmDialog', async () => {
-        await assertDialogContract('alertdialog', (onClose) => (
-            <ArchiveConfirmDialog
-                isOpen
-                onClose={onClose}
-                onConfirm={async () => {}}
-                resourceType="control"
-                resourceName="Access Control Review"
-            />
-        ));
-    });
-
     it('[owner.kri-mismatch-dialog] KriMismatchDialog', async () => {
         await assertDialogContract('alertdialog', (onClose) => (
             <KriMismatchDialog
@@ -590,7 +577,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (ExecutionLogModal.tsx:74) + unlabeled form fields; axe button-name + label fail.
     it('[owner.execution-log-modal] ExecutionLogModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <ExecutionLogModal
                 isOpen
                 onClose={onClose}
@@ -602,14 +589,14 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KRIValueModal.tsx:96) + unlabeled value/backdate inputs; axe button-name + label fail.
     it('[owner.kri-value-modal] KRIValueModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <KRIValueModal kri={kriFixture} isOpen onClose={onClose} onSuccess={() => {}} />
         ));
     });
 
     // C5a — accessible-name fixed (was RED):icon-only close button lacks aria-label (KRIHistoryEditModal.tsx:84) + unlabeled value/reason inputs; axe button-name + label fail.
     it('[owner.kri-history-edit-modal] KRIHistoryEditModal', async () => {
-        await assertDialogContract('dialog', (onClose) => (
+        await assertDataRouterDialogContract('dialog', (onClose) => (
             <KRIHistoryEditModal
                 isOpen
                 onClose={onClose}

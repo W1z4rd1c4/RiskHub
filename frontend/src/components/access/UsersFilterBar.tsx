@@ -132,7 +132,7 @@ export function UsersFilterBar({
                         </Button>
                     )}
                     <span className="text-xs text-muted-foreground ml-2">
-                        {t('access.of_users', { count: filteredCount, total: totalCount })}
+                        {t('access.of_users', { shown: filteredCount, count: totalCount })}
                     </span>
                 </div>
             )}

@@ -66,13 +66,13 @@ export function NativeFactor({ challenge, mode, token, onSession, onDone, onCanc
         <p>{t('native.backup_help')}</p>
         {notificationFailed && <p role="alert">{t('native.notification_failed')}</p>}
         <ul className="grid grid-cols-2 gap-2 font-mono text-sm">{codes.map((value) => <li key={value}>{value}</li>)}</ul>
-        <Button onClick={() => { setCodes(null); onDone(); }}>{t('native.backup_ack')}</Button>
+        <Button variant="accent" onClick={() => { setCodes(null); onDone(); }}>{t('native.backup_ack')}</Button>
     </NativeFrame>;
     return <NativeFrame title={t(isLogin ? 'native.factor_title' : 'native.setup_title')} error={action.error} pending={action.pending}>
         <>
             {!isLogin && !setup ? <>
                 <p>{t('native.setup_help')}</p>
-                <Button disabled={action.pending} onClick={() => void action.run(
+                <Button variant="accent" disabled={action.pending} onClick={() => void action.run(
                     (signal) => nativeAuthApi.setup({ challenge: challenge.challenge }, { signal, token }), setSetup, failed,
                 )}>{t('native.setup_start')}</Button>
             </> : <form className="space-y-4" onSubmit={submit}>
@@ -88,7 +88,7 @@ export function NativeFactor({ challenge, mode, token, onSession, onDone, onCanc
                 <Field label={t(method === 'totp' ? 'native.code' : 'native.recovery_code')} required>
                     {(field) => <Input {...field} value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" inputMode={method === 'totp' ? 'numeric' : 'text'} required disabled={action.pending} />}
                 </Field>
-                <Button type="submit" disabled={action.pending}>{t('native.verify')}</Button>
+                <Button variant="accent" type="submit" disabled={action.pending}>{t('native.verify')}</Button>
             </form>}
             <Button variant="outline" onClick={abandon}>{t('native.cancel')}</Button>
         </>

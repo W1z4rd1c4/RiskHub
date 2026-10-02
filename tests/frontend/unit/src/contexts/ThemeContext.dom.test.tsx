@@ -16,8 +16,20 @@ function ThemeProbe() {
   );
 }
 
+/** The three theme blocks' `--background` tokens, as declared in `src/index.css`. */
+const THEME_BACKGROUNDS = `
+  :root { --background: 222 47% 11%; }
+  .theme-dark { --background: 0 0% 0%; }
+  .theme-light { --background: 0 0% 98%; }
+`;
+
 describe('ThemeProvider document contract', () => {
   beforeEach(() => {
+    document.head.querySelectorAll('style[data-theme-tokens]').forEach((element) => element.remove());
+    const tokens = document.createElement('style');
+    tokens.dataset.themeTokens = 'true';
+    tokens.textContent = THEME_BACKGROUNDS;
+    document.head.appendChild(tokens);
     document.documentElement.className = '';
     document.documentElement.style.colorScheme = '';
     document.head.querySelectorAll('meta[name="theme-color"]').forEach((element) => element.remove());
@@ -28,7 +40,7 @@ describe('ThemeProvider document contract', () => {
     localStorage.setItem('riskhub-theme', 'riskhub');
   });
 
-  it('synchronizes the root class, native color scheme, and single theme color', async () => {
+  it('synchronizes the root class, native color scheme, and the --background theme color', async () => {
     render(
       <AuthProvider>
         <ThemeProvider>
@@ -42,19 +54,19 @@ describe('ThemeProvider document contract', () => {
 
     await waitFor(() => expect(root).toHaveClass('theme-riskhub'));
     expect(root.style.colorScheme).toBe('dark');
-    expect(themeColor).toHaveAttribute('content', '#0f172a');
+    expect(themeColor).toHaveAttribute('content', 'hsl(222 47% 11%)');
     expect(document.head.querySelectorAll('meta[name="theme-color"]')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Light' }));
     await waitFor(() => expect(root).toHaveClass('theme-light'));
     expect(root).not.toHaveClass('theme-riskhub', 'theme-dark');
     expect(root.style.colorScheme).toBe('light');
-    expect(themeColor).toHaveAttribute('content', '#f8fafc');
+    expect(themeColor).toHaveAttribute('content', 'hsl(0 0% 98%)');
 
     fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
     await waitFor(() => expect(root).toHaveClass('theme-dark'));
     expect(root).not.toHaveClass('theme-riskhub', 'theme-light');
     expect(root.style.colorScheme).toBe('dark');
-    expect(themeColor).toHaveAttribute('content', '#000000');
+    expect(themeColor).toHaveAttribute('content', 'hsl(0 0% 0%)');
   });
 });

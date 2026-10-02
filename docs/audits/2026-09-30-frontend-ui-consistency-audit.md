@@ -2566,3 +2566,203 @@ The R2-V3 scripts, logs, JSON results and 114 screenshots lived in session scrat
 7. Store per-surface, per-theme counts as JSON.
 
 **Recommendation (D15):** commit this as `tests/frontend/e2e/helpers/renderedContrastAudit.ts` plus `tests/frontend/e2e/theme-rendered-contrast.spec.ts`, run it in the `ci` Playwright project over all three themes, fail on measured contrast (not only on axe `violations`), and compare against a committed `rendered-contrast-baseline.json` (light 208 / riskhub 99 / dark 92 elements below 4.5:1) that may only go down until it becomes a hard zero at Phase 3 exit (§4.1 G-RENDER, §5.2 item 0.3).
+
+---
+
+## 13. Remediation status (2026-10-02)
+
+Additive record (see **Status** in §1): the outcome of remediation waves W1–W10 against the §6 register, checked on the tree of the W10 change that appends this section. The audit above stays point-in-time evidence; follow-up work belongs in GitHub Issues and pull requests. Paths and line numbers in this section refer to that tree, not to `ba42b38`.
+
+### 13.1 Summary
+
+| Status | At W10 start (after W9) | Final | 🔴 | 🟡 | 🟢 |
+|---|---|---|---|---|---|
+| FIXED | 98 | **122** | 8 | 66 | 48 |
+| PARTIAL | 18 | 0 | — | — | — |
+| OPEN | 6 | 0 | — | — | — |
+| WONTFIX (decision) | 2 | **2** | 0 | 1 | 1 |
+| **Total** | **124** | **124** | **8** | **67** | **49** |
+
+- All 8 🔴 entries are fixed. Merged **Also** IDs share the status of their primary (§12.1); AX-13 is not in the register (§11.1).
+- The two WONTFIX entries follow recorded product decisions (§13.4); no entry is left PARTIAL or OPEN.
+- **Phase 4 exit criteria (§5.6) are met:** `grep -c '!important' frontend/src/index.css` returns 3 (≤ 4; all three sit in the `prefers-reduced-motion` block); ESLint runs the design bans at error across `src/**`; `npm ls date-fns @radix-ui/react-tabs` reports both absent; the rendered-contrast spec is a hard zero in all three themes; the ADR-015 status note is in [`ADR-015`](../adr/ADR-015-frontend-design-system-foundation.md).
+
+### 13.2 Waves
+
+| Wave | Commit | Subject | Roadmap |
+|---|---|---|---|
+| W1 | `91dcdb7a` | fix(frontend): W1 phase-0 UI remediation — dead code, a11y names, tokens, ADR-015 addendum | §5.2 0.1, 0.5–0.11, 0.13–0.17 |
+| W2 | `ac52ea20` | feat(frontend): W2 phase-0 UI guards — consistency ratchet, rendered-contrast gate, i18n plurals, D2 light stop-gap | §5.2 0.2–0.4, 0.12 |
+| W3 | `bff4dc51` | feat(frontend): W3 phase-1 foundations — design tokens, severity/tones/cssTokens, Button variants and derived buttons | §5.3 1.1–1.4 |
+| W4 | `4a48ac6b` | feat(frontend): W4 phase-1 primitives — form controls, Badge/Card/InlineMessage, DialogShell v2 + ConfirmDialog intents, Tabs, table/SortableTable/Pagination | §5.3 1.5–1.9 |
+| W5 | `61e6e393` | feat(frontend): W5 phase-1 page shell, states, feedback, formatting and public frame | §5.3 1.10–1.15 |
+| W6 | `68a8f34d` | feat(frontend): W6 phase-2 themed dialogs, text-token and tint codemods, D2 stop-gap removal | §5.4 2.1–2.3 |
+| W7 | `c45cf94e` | feat(frontend): W7 phase-2 shared-pattern adoption | §5.4 2.4–2.13 |
+| W8 | `79cbff6c` | feat(frontend): W8 phase-3a–3d module migrations | §5.5 3a–3d |
+| W9 | `9b5d4d9b` | feat(frontend): W9 phase-3e–3i module migrations | §5.5 3e–3i |
+| W10 | the change that appends this section | Phase 4 cleanup, docs and this remediation status | §5.6 4.1–4.6 |
+
+### 13.3 Per-entry status
+
+One row per register entry, in register order (§6). **Fixed in** names the waves of §13.2 (a parenthesis says which part a wave did); **Note** is the evidence in the final tree. Every row was re-checked against the code by the W10 reviewers.
+
+| # | ID | Sev | Status | Fixed in | Note |
+|---|---|---|---|---|---|
+| 1 | DS-01 | 🔴 | FIXED | W1 (shells), W2 (stop-gap), W6 (codemod, stop-gap removal), W9 (login family) | `grep -rn text-white frontend/src` → 0 (incl. `hover:`); D2 stop-gap deleted from `index.css`; G-ESLINT ban + G-RENDER spec |
+| 2 | DS-02 | 🔴 | FIXED | W6 (colour), W8, W9 (Field + primitives) | raw `<input>/<textarea>/<select>` outside `components/ui` = only range/color/sr-only radio (RiskFormScoringStep, RiskTypesPanel:131, AppearanceSettings:60…); ratchet `raw-text-input` 0 |
+| 3 | DS-03 | 🔴 | FIXED | W6, W7, W9 | `grep -rnE "text-slate-[0-9]"` → 0; raw status palette → 0 (ratchet `raw-palette` 0) |
+| 4 | NEW-V1-02 | 🟡 | FIXED | W2 | `theme-contrast-matrix.spec.ts:172` reads `result.incomplete` vs `theme-contrast-incomplete-baseline.json`; `theme-rendered-contrast.spec.ts` (hard zero in 3 themes since W10; its baseline file is deleted) |
+| 5 | DS-05 | 🟡 | FIXED | W3, W7, W8, W9; W10 (remaps, sidebar.css) | chart/heat/nav/badge tokens (`index.css` `--chart-*`, `--heat-*`, `--nav-active`, `--badge-count`); `useChartTheme` → `readCssColor` (0 hex); `useStatusTheme`, `adminConsoleRoute.css`, `vendorRoute.css`, `sidebar.css` deleted; `!important` in index.css 3 |
+| 6 | DS-18 | 🟡 | FIXED | W1 | `grep accent-rgb\|--color-accent src` → 0; `tests/.../design-system/cssVarsDeclared.test.ts` |
+| 7 | DS-19 | 🟡 | FIXED | W6, W9 | ratchet `text-accent-as-text` 0 |
+| 8 | DS-22 | 🟡 | FIXED | W6 | ratchet `white-alpha` 0; `.theme-light tr` / `bg-white\/` remaps gone from index.css |
+| 9 | GAP-D-14 | 🟡 | FIXED | W8 | no `opacity-` in `RiskLinkedControlsSection.tsx` / `VendorLinkedEntitiesTab.tsx`; state via `Badge` |
+| 10 | GAP-D-15 | 🟡 | FIXED | W6 | `RiskKriSection.tsx:59-60` `text-muted-foreground` |
+| 11 | DS-20 | 🟢 | FIXED | W1, W3; W10 | `darkMode` gone, `boxShadow.glass: 'var(--glass-shadow)'`, dead `[data-radix-select-trigger]` rules gone; last ad hoc `bg-card` (ErrorBoundary, DocumentationLibrary) → `Card` (`grep bg-card src` → 0) |
+| 12 | DS-21 | 🟢 | FIXED | W10 | `.theme-light aside, .theme-light nav` rule deleted from `index.css` |
+| 13 | DS-33 | 🟢 | FIXED | W3 (tokens); W10 | `sidebar.css` deleted; nav/badge colours on `--nav-active` / `--nav-badge` / `--badge-count` tokens (contrast-tested in `statusTokenContrast.test.ts`) |
+| 14 | GAP-D-24 | 🟢 | FIXED | W6 | `RiskScoreMatrix.tsx:88` `ring-foreground ring-offset-background` |
+| 15 | DS-14 | 🟡 | FIXED | W3 → W9 | ratchet `micro-font` 0, `font-black` 0; `.text-eyebrow` / `text-2xs` |
+| 16 | DS-25 | 🟡 | FIXED | W3, W9 | `tailwind.config.js` `borderRadius.DEFAULT: var(--radius-sm)`; ratchet `radius-offscale` 0 |
+| 17 | DS-27 | 🟢 | FIXED | W3; W10 | `zIndex` tokens; last `z-[10050]` (select.tsx) / `z-[60]` (MainLayout) → `z-popover` / `z-skiplink`; `grep "z-\[" src` → 0 |
+| 18 | DS-30 | 🟢 | FIXED | W4, W9 | one dialog close (`ui/dialog.tsx` `[&_svg]:size-5`); Button `[&_svg]:size-4`; roles in §4.6 |
+| 19 | DS-31 | 🟢 | FIXED | W3; W10 (sites), W10 (guard) | `transitionDuration` tokens; last 6 `transition-all` (StepIndicator, HistoryChangeCard, AppearanceSettings) → `transition-colors`; ESLint + ratchet ban `transition-all` |
+| 20 | DS-32 | 🟢 | FIXED | W6, W9 | `placeholder-slate` 0; `.docs-reader-*` removed |
+| 21 | DS-04 | 🔴 | FIXED | W1, W4, W8 | `SystemSettingsPanel.tsx` `Field` + `Switch` + "Save {name}" (`:91`) + `useFeedback`; `role="switch"` only in `ui/switch.tsx` |
+| 22 | DS-07 | 🟡 | FIXED | W4, W6; W10 (4.3) | `ui/dialog.tsx` themed `bg-popover` surface; deprecated `containerClassName/backdropClassName/contentClassName` props removed (`:38` note); `ArchiveConfirmDialog.tsx` deleted |
+| 23 | DS-08 | 🟡 | FIXED | W1, W6 | all dialogs on DialogShell v2 padding; 0 raw `contentClassName` |
+| 24 | DS-09 | 🟡 | FIXED | W3, W8, W9; W10 (variant alignment) | `accent` variant; `.btn-primary`/`.btn-secondary` 0; ratchet `btn-classes` 0; 0 `<Button className="…bg-accent…">` |
+| 25 | DS-10 | 🟡 | FIXED | W4, W8, W9; W10 (4.3) | Textarea/Checkbox/RadioGroup/Switch/NativeSelect primitives; ratchet raw-button/raw-text-input 0; `TEXTAREA_CLASS`, `ISSUE_*_BUTTON`, `useStatusTheme` gone; `IssueCreateForm.tsx:179` `<form>`; KRI `KriFormStepIndicator`; `pages/detail/DetailField.tsx`; 4.3 wrapper deletion done |
+| 26 | DS-11 | 🟡 | FIXED | W4, W6, W8, W9 | ratchet `raw-table` 0; global `th`/`tr` rules gone |
+| 27 | DS-12 | 🟡 | FIXED | W4, W7; W10 (4.4) | `ui/tabs.tsx` on `useContentTabs`; `@radix-ui/react-tabs` removed from `package.json` |
+| 28 | DS-13 | 🟡 | FIXED | W4, W8, W9 | `ui/badge.tsx`; ratchet `pill-inline` 0; `PendingChangeBadge` in all `has_pending_*` registers incl. Threat (`threatColumns.tsx:111`); `RowRestoreButton` |
+| 29 | PG-07 | 🟡 | FIXED | W4, W7 (W10 deleted the wrapper) | `ConfirmDialog intent="archive|unlink|send"` at every site (KRIDetail:322, ThreatDetail:408, VendorContracts:573, RiskQuestionnairesPanel:303, LinkManagementDialog:139, ThreatRiskLinks:185, RiskRegisterLinks:670); PM-1 reason policy; the deprecated `variant` / `showInput` / `input*` props are gone (6 legacy callers on `revoke` / `discard` / `generic`) |
+| 30 | PG-22 | 🟡 | FIXED | W6; W10 | `isBusy` on all three; `useDirtyTaskGuard` + `dirtyGuard` now in `ExecutionLogModal`, `KRIValueModal`, `KRIHistoryEditModal` |
+| 31 | GAP-B-07 | 🟡 | FIXED | W4, W8 | `ApprovalScenariosPanel.tsx:179` `MultiSelect`; `common:actions.remove` en+cs |
+| 32 | GAP-D-05 | 🟡 | FIXED | W1 | `grep btn-secondary` → 0 |
+| 33 | GAP-D-07 | 🟡 | FIXED | W8, W9 | `components/approvals/PendingChangePanel.tsx`; Asset/Threat/Process/Vendor copies deleted |
+| 34 | DS-28 | 🟢 | FIXED | W5, W9; W10 | READMEs updated (layout/tables W9); stale ui README `TEXTAREA_CLASS` line fixed (`README.md:64`); `SearchableEntitySelect` on `Input` |
+| 35 | DS-29 | 🟢 | FIXED | W4, W7; W10 (StepIndicator) | one `Pagination` (pages/compact/cursor) at KRIDetailHistory, Approvals, ActivityLog, Notifications, ICT DQ; `DialogShell` classNames → `cn`; ErrorBoundary `Button`; StepIndicator now `focus-ring` (W10) |
+| 36 | PG-28 | 🟢 | FIXED | W3, W8, W9 | `components/tables/RowRestoreButton.tsx` in risk/control/kri/asset/process/threat/vendor columns |
+| 37 | PG-29 | 🟢 | FIXED | W8 | `PendingChangeBadge` in kri/issue/control/risk columns |
+| 38 | PG-31 | 🟢 | FIXED | W8 | `components/risks/RiskGroupMetaBody.tsx` |
+| 39 | PG-43 | 🟢 | FIXED | W1 | MiniHeatmap/GroupedView/CategoryDrillDown deleted |
+| 40 | GAP-D-21 | 🟢 | FIXED | W1 | `ViewSwitcher` deleted |
+| 41 | GAP-D-22 | 🟢 | FIXED | W8, W9 | `ict-register/RegisterFilterCard.tsx` in all 8 filter bars; status select named |
+| 42 | GAP-D-26 | 🟢 | FIXED | W4, W9 | `ui/native-select.tsx`; `bg-background p-2` recipe → 0 |
+| 43 | DS-15 | 🟡 | FIXED | W5, W7 | `<h1>` only in PageHeader/EntityDetailHeader/AuthFrame/state pages; `routePageTitleContract.test.ts`; `fontFamily.heading` |
+| 44 | DS-16 | 🟡 | FIXED | W5, W7 | `PageContainer` (`maxWidth.page/form`); Approvals `Input` + `Pagination` + `ErrorState` |
+| 45 | NAV-01 | 🟡 | FIXED | W5, W7 | `usePageTitle` via PageHeader; `layout/useRouteFocus.ts` |
+| 46 | NAV-02 | 🟡 | FIXED | W7 | `activeNavHref` for `/audit-trail`, `/vendor-reports` (`business.tsx:312,322`); `Breadcrumbs`; Department `return_to` (`DepartmentDetailPage.tsx:37`); `/notifications` has no sidebar parent (bell-owned, W7 note) |
+| 47 | AX-06 | 🟡 | FIXED | W5, W7 | `common:actions.back_to_detail` in Threat/Process/Asset/Vendor blocked views and Risk/Control edit |
+| 48 | PG-08 | 🟡 | FIXED | W7, W8 | labelled action rows; KRI `Button variant="success"` + `ContextualIssueAction` (`KRIDetailPage.tsx:160-164`) |
+| 49 | SM-05 | 🟡 | FIXED | W7, W8 | `pages/detail/EditBlockedState.tsx`, `OwnershipGovernanceAlert` |
+| 50 | NAV-03 | 🟢 | FIXED | W9 | `constants/entityIcons.ts` (`ENTITY_ICONS`) |
+| 51 | NAV-04 | 🟢 | FIXED | W7 | `MainLayout.tsx:50` `<Suspense fallback={<LoadingState layout="page" />}>` |
+| 52 | NAV-05 | 🟢 | FIXED | W10 (code), W10 (README) | `GovernancePage.tsx` duplicate `canViewGovernance` early return removed (route `GovernanceRouteGuard` owns it; `routingManifest.test.ts` asserts it); rule in `routing/README.md:27` |
+| 53 | NAV-06 | 🟢 | WONTFIX (decision) | — | `business.tsx` grouping unchanged — §3.1 PO default "keep the current grouping" |
+| 54 | DS-17 | 🟡 | FIXED | W5, W7 | `ui/state.tsx`; Issues `ReadAccessDeniedState descriptionKey` (`IssuesPage.tsx:29`); IssueNew `useCreateCapabilityGate`; AuditTrail `descriptionKey` |
+| 55 | GAP-C-11 | 🟡 | FIXED | W7, W8; W10 (paging) | error branches in Sessions/Logs/LogSettings/Departments/Roles/VendorRegisterLinks/SubOutsourcing; issue history translated + now paged (`useIssueHistory.ts` skip/limit 25, the previous page kept only for the same Issue, + `Pagination` in `IssueHistoryTab`) |
+| 56 | FB-01 | 🟡 | FIXED | W5, W7, W8 | `useFeedback` toasts (`useRisksPageState.ts:182-193`); flashes → toasts; D12/PM-2 approval-queued notice |
+| 57 | GAP-D-09 | 🟡 | FIXED | W9 | `RiskDetailQuestionnairesTab.tsx:71` `InlineMessage tone="warning"`; success via toast |
+| 58 | FB-02 | 🟢 | FIXED | W9 | `RefreshButton` (Governance/Departments/AuditTrail); Governance live dot tied to `isFetching` (`GovernancePage.tsx:295`) |
+| 59 | GAP-C-08 | 🟢 | FIXED | W9 | `VendorContractsSection.tsx:483` field error only |
+| 60 | GAP-D-20 | 🟢 | FIXED | W9 | `WidgetShell.tsx:41-49` Loading/Error/EmptyState defaults |
+| 61 | SM-15 | 🟢 | FIXED | W8 | `UsersPage.tsx:296` `InlineMessage` |
+| 62 | PG-02 | 🔴 | FIXED | W1, W9 | `RiskQuickViewModal.tsx:30-40` `useRiskThresholds` + `SeverityBadge` + `useRiskTypes`; ADR-008 lint selector (`eslint.config.js:44`) |
+| 63 | PG-01 | 🟡 | FIXED | W3, W7, W9 | `lib/severity.ts` 4-step scale; `issues.severity` legend keys gone from dashboard; committee heat tokens; tooltips 8px |
+| 64 | DS-06 | 🟡 | FIXED | W1, W6, W7; W10 (status notes) | spec S5 "resolved (2026-10-02)" (`FRONTEND-UX-REMEDIATION-SPEC.md:429`); ADR-015 implementation note (`:7`); raw palette 0 |
+| 65 | PG-32 | 🟢 | FIXED | W1 | dead `getControlStatusColor` cases removed |
+| 66 | AX-01 | 🔴 | FIXED | W1, W4, W8 | named icon buttons; `links.remove_named` (`LinkedItemList.tsx:59`, `RiskRegisterLinksSection.tsx:218`); icon sizes typed to require a name |
+| 67 | AX-02 | 🔴 | FIXED | W1, W4, W9 | `QuestionnaireHistoryTable.tsx:80` `onRowActivate`; every register passes `rowHref`; ESLint `tr[onClick]` ban |
+| 68 | AX-00 | 🟡 | FIXED | W2, W8, W9 (W10 retired/extended patterns) | G-RATCHET; G-ESLINT on `src/` (label, `tr onClick`, element bans); scanner `allowShortWord: true` (`scan-hardcoded-ui.mjs:238`); plural validator |
+| 69 | AX-04 | 🟡 | FIXED | W4, W8, W9 | `Field` + primitives; ESLint unassociated-label selector (`eslint.config.js:146`); named selects (e.g. `HistoryComparisonPanel.tsx:199,211`) |
+| 70 | AX-05 | 🟡 | FIXED | W4, W7, W8 | `InlineMessage` role by tone; `DetailActionBanner.tsx:43`; `VendorInlineMessage` deleted |
+| 71 | AX-09 | 🟡 | FIXED | W1 | `LanguageContext.tsx:55-58` sets `<html lang>`; prod login writer gone (preview keeps its local one) |
+| 72 | DS-26 | 🟡 | FIXED | W3, W4, W8, W9 | `.focus-ring` + global `:focus-visible` (`index.css`); 0 `focus:border-accent` colour-only focus |
+| 73 | GAP-B-16 | 🟡 | FIXED | W9 | `IctCommitteeExecutiveSummarySection.tsx:272,314` `aria-label={cell.ariaLabel}` |
+| 74 | GAP-C-15 | 🟡 | FIXED | W8 | `LocalizationSettings.tsx` `RadioGroup`, flag `aria-hidden` |
+| 75 | GAP-D-10 | 🟡 | FIXED | W9 | `DepartmentTable.tsx:53` `ui/table` sortable headers with `aria-sort` |
+| 76 | GAP-D-11 | 🟡 | FIXED | W9; W10 (HistoryTrendChart) | `ChartFrame` in the 6 dashboard charts; `HistoryTrendChart` now in `ChartFrame` (summary, hidden table, `EmptyState`) |
+| 77 | GAP-D-12 | 🟡 | FIXED | W9 | `FilterBar.tsx:143` `aria-expanded`, `:246` `aria-pressed`; risk-level keys |
+| 78 | GAP-D-13 | 🟡 | FIXED | W9 | `ResolveOrphan*Selection` `RadioGroup` + `EmptyState kind="no-results"` |
+| 79 | GAP-D-16 | 🟡 | FIXED | W8 | `PermissionMatrix.tsx` `Checkbox` / sr-only granted state; emoji icons gone |
+| 80 | AX-10 | 🟢 | FIXED | W8 | `AccessUserRow.tsx:56` `aria-expanded`; bell `aria.bell_unread` count + Escape (`NotificationBell.tsx`) |
+| 81 | AX-14 | 🟢 | FIXED | W7 | `Sidebar.tsx` sr-only `badgeLabel` |
+| 82 | PG-46 | 🟢 | FIXED | W8 | `RiskStatusBadge.tsx:45` `risks:priority_label` |
+| 83 | GAP-B-19 | 🟢 | FIXED | W9 | coverage hint visible text (`IctCommitteeRoiReadinessSection.tsx:88`); no `aria-disabled` |
+| 84 | GAP-D-25 | 🟢 | FIXED | W9 | `ApprovalValueChange.tsx:27-35` `<del>`/`<ins>` + sr-only old/new |
+| 85 | I18N-01 | 🟡 | FIXED | W1, W8, W9; W10 | literals keyed; risk form errors keyed; issue links are `Link`s; dead `getApprovalBannerMessage` (English fallback) deleted with its test and the orphaned `common:approval.submitted_for_approval` key |
+| 86 | I18N-03 | 🟡 | FIXED | W5, W7, W8 | `useFormat()`; private Intl helpers deleted; no `cs-CZ` literals |
+| 87 | PG-03 | 🟡 | FIXED | W7, W8, W9 | `getPermissionLabel` (RolesTable:120), `getControlEffectivenessMeta`, translated frequencies, `lib/questionnaireStatus.ts` |
+| 88 | GAP-B-14 | 🟡 | FIXED | W2, W8, W9; W10 | concatenations → whole-phrase keys (W8/W9); legacy plural baseline (cs 25 / en 34) burned to 0, baseline file deleted, validator zero-tolerance |
+| 89 | GAP-C-09 | 🟡 | FIXED | W9 | `lib/closedListLabels.ts` (PM-4: labels translated, raw values kept) |
+| 90 | GAP-D-01 | 🟡 | FIXED | W8 | `ControlFormExecutionStep.tsx:17-40` translated enums; `ControlFormStatusStep` `CONTROL_STATUS_LABEL_KEYS` |
+| 91 | GAP-D-02 | 🟡 | FIXED | W8, W9 | `lib/humanizeCode.ts`; `grep "replace(/_/g, ' ')\|replaceAll('_', ' ')" src` → 0 |
+| 92 | GAP-D-03 | 🟡 | FIXED | W8 | `lib/kriUnits.ts` `formatKriUnit`; no raw `{kri.unit}` |
+| 93 | GAP-D-04 | 🟡 | FIXED | W8 | `HistoryComparisonPanel.tsx:19-21` `kris:breach_status.*`; `triggerAriaLabel` baseline/target |
+| 94 | GAP-D-06 | 🟡 | FIXED | W8 | `lib/roleLabels.ts` `getRoleLabel` (RiskFormOwnershipStep:66) |
+| 95 | PG-30 | 🟢 | FIXED | W8; W10 | registers use `common:fallbacks.*` + `common:actions.export`; last module copies (`issues:fallbacks.unassigned` in RiskDrilldownModal, `risks/kris:overview.unassigned`, `controls:detail.unassigned`) and the Asset/Process/Threat register group labels (`register.groups.unassigned` / `uncategorized`) → `common:fallbacks.*`, as are the Issue `fallbacks.not_set` / `unknown_user` / `unknown_department` and `controls:detail.not_available` duplicates; the module copies are deleted (en+cs). Issues keeps only its entity-specific `fallbacks.unknown_{risk,control,kri,execution,link}` family (picked per linked entity type). `vendors:labels.unassigned` stays: its Czech text is the Vendor-specific "Bez oddělení" (no Department), not the shared fallback |
+| 96 | PG-35 | 🟢 | FIXED | W7 | `useLanguage()`; no `i18n.language as …`; dead `fallbackErrorKey` gone from useVendorsPageState |
+| 97 | PG-36 | 🟢 | FIXED | W5 (helper); W10, W10 | `translateUiMessage(t, key)` is the one idiom: 0 `t(key, { ns: 'errorKeys' })` left for stored error keys (17 sites plus ConfirmDialog migrated in W10) |
+| 98 | PG-37 | 🟢 | FIXED | W4, W8 | `ControlFormRiskLinkStep.tsx:99` `Field optional`; `common:labels.optional` |
+| 99 | PG-40 | 🟢 | FIXED | W8, W9 | band codes in URLs (`net_band=critical`), mapped back in `riskBandValue` |
+| 100 | I18N-05 | 🟢 | FIXED | W10 | `xlsx` key deleted; cs assets "GDPR relevance"/"AI relevance" and admin strings translated |
+| 101 | I18N-06 | 🟢 | FIXED | W5 (W10 maintains) | `docs/LOCALIZATION.md` formatting/plurals/scanner scope/`<html lang>` sections; broken `cd ""` gone |
+| 102 | I18N-07 | 🟢 | FIXED | W10 | `date-fns` removed from `package.json` |
+| 103 | GAP-B-24 | 🟢 | FIXED | W9 | `QuestionAnswerField.tsx:33` `risks:questionnaire.not_answered` |
+| 104 | GAP-D-23 | 🟢 | FIXED | W9 | `DocumentationMarkdown.tsx:244,334` `documentation.anchor_link`, sr-only new-tab hint |
+| 105 | RS-01 | 🟡 | FIXED | W9 | `GovernancePage.tsx` / `DashboardSummarySections.tsx:33` auto-fit `minmax(11rem,1fr)` |
+| 106 | RS-02 | 🟡 | FIXED | W1, W9 | `AuthFrame.tsx:186` `min-h-screen overflow-y-auto` |
+| 107 | RS-03 | 🟢 | FIXED | W5, W7 | `PageHeader.tsx:89` `flex flex-wrap … gap-4` |
+| 108 | RS-04 | 🟢 | FIXED | W10 (verification) | re-check (no code change, per Fix): Playwright at 1024×768 and 736px (lg content column) in `cs`, 3 themes, design-system + 4 workflow-contrast families → 0 page overflow, 0 unscrolled overflow; the 35 fixed `w-[Npx]` sites are table column hints inside `ui/table` `overflow-x-auto`, wrapping filter bars, or `lg:` min widths that fit 672px (probe kept in session scratch, not committed) |
+| 109 | GAP-D-19 | 🟡 | FIXED | W6, W8, W9 | `CardHeader` in all risk-overview sections and dashboard sections |
+| 110 | PG-41 | 🟢 | FIXED | W8 | `riskColumns.tsx:66` CSS `truncate` |
+| 111 | PG-25 | 🟡 | FIXED | W8 | KRI pill row dropped; toolbar `onClearAll` only |
+| 112 | PG-34 | 🟢 | FIXED | W1, W6 | `KriModalFooter.tsx` deleted; title id on heading |
+| 113 | PG-05 | 🟡 | FIXED | W8 | `IssuesFilterBar.tsx:50,55` `columns.status` prefix + `buildFacetChip` |
+| 114 | PG-42 | 🟢 | FIXED | W10 (PM-6 minimal backend change) | backend `/issues` sort fields `department_name` / `owner_user_name` (`_register_listings/issues.py`, aliased outer joins, nulls last; pytest `test_issue_list_sorts_by_department_and_owner_names`); `issueColumns.tsx` both `sortable: true`; sort field lists + type extended |
+| 115 | GAP-B-03 | 🟢 | FIXED | W8 | Risk Hub row actions inert with `disabledReason` (RolesTable pattern) |
+| 116 | SM-09 | 🟡 | FIXED | W1, W9 | `vendorRoute.css`, `vendorRouteUi.tsx` deleted; disposition in `vendor-route-overhaul-2026-03-08.md:125` |
+| 117 | GAP-D-08 | 🟡 | FIXED | W7 | `ProcessesPage.tsx:168` `PendingChangeCancellationDialog` |
+| 118 | GAP-D-18 | 🟡 | FIXED | W8 | `NativeUserLifecyclePanel.tsx` `InlineMessage` tones, destructive variants |
+| 119 | GAP-D-27 | 🟢 | FIXED | W8, W9; W10 (avatar), W10 (count) | `UserAvatar` for every single-initial avatar (the `'U'` fallbacks in RiskSummaryCards and ControlDetailOverviewTab and the Sidebar `charAt(0)` avatar replaced); DirectoryUserRow status `Badge`; AuditDetails copy via `useFeedback`; DepartmentStatsGrid numeric count / `_other` form |
+| 120 | GAP-D-17 | 🟡 | FIXED | W7, W8 | `HealthPanel.tsx:51` `ErrorState`; units via `format.number(…, { style: 'unit' })` |
+| 121 | SM-10 | 🟢 | FIXED | W9 | `components/documentation/DocumentationLibrary.tsx` shared by page + settings |
+| 122 | SM-11 | 🟡 | WONTFIX (decision) | W9 (rest) | one filter (type select removed), translated label; the `department_name === 'Uncategorised'` sentinel stays isolated in `resolveOrphanHelpers.ts` (`UNCATEGORISED_DEPARTMENT_NAME`) because `OrphanedItemDetail` exposes no Department id/code (PM-6: no backend change unless impossible otherwise) |
+| 123 | GAP-B-01 | 🔴 | FIXED | W1, W9 | prod `/login` never renders `preview_note` (`previewNotes` only from ProdLoginPreviewPage; unit tests) |
+| 124 | DS-24 | 🟡 | FIXED | W5, W9 | `AuthFrame` (+ `<main>`), `BrandWordmark`, `LanguageSwitch`; no `border-white/8` etc. |
+
+### 13.4 Won't fix by decision
+
+| ID | Sev | What is done | Why the rest stays | Reopen when |
+|---|---|---|---|---|
+| NAV-06 | 🟢 | Nothing: `departments` stays in `overview`, `evidence` and `risk_hub` in `administration` (`frontend/src/routing/business.tsx`) | §3.1 leaves sidebar grouping to the product owner with the default "keep the current grouping"; the PM confirmed the default (2026-10-02) | the product owner decides a new information architecture |
+| SM-11 | 🟡 | One filter (the duplicate type select is removed) and a translated label (W9) | The remaining `department_name === 'Uncategorised'` comparison needs a stable Department id or code, which the orphan API (`OrphanedItemDetail`) does not expose. PM-6 allows a backend change only when a finding cannot be fixed otherwise, so the sentinel stays isolated in one constant (`UNCATEGORISED_DEPARTMENT_NAME`, `frontend/src/components/governance/resolveOrphanHelpers.ts`) | the orphan API returns a Department id or code; the helper then compares that one field |
+
+### 13.5 Resolved decisions
+
+The items §3.1 left to the product owner, and the questions that came up during remediation, were settled by the PM before the waves that needed them. They are final and are recorded here as resolved.
+
+| ID | Decision | Resolves | Applied in |
+|---|---|---|---|
+| PM-1 | Archive always goes through `ConfirmDialog intent="archive"`. A reason field is shown when the module's archive API accepts a reason; it is required only when the archive is routed through approval, otherwise optional. The Threat API takes no reason, so Threat shows no reason field and needs no backend change. Errors stay inside the dialog | §3.1 "Archive reason policy"; D10 (reason policy, "PO to confirm"); the Threat backend change in PG-07 | W4 (intents), W7 (all archive sites), W10 (`ArchiveConfirmDialog` deleted) |
+| PM-2 | An approval-queued save returns to the entity page with a persistent pending banner linking to `/approvals` plus a success toast, in every module (the Process divergence is aligned) | §3.1 "Approval-queued behaviour"; D12 | W7 (`useApprovalQueued`), W8 |
+| PM-3 | Vendor tier "standard" uses the neutral tone | §3.1 "Vendor tier 'standard' band" | W3 (`lib/severity`), W6 |
+| PM-4 | Czech closed-list DORA codes: display labels are translated (en + cs); stored raw values stay unchanged | §3.1 "Closed-list code translation"; GAP-C-09 | W9 (`lib/closedListLabels.ts`) |
+| PM-5 | KRI edit stays a modal, on `DialogShell` v2, not a page | the KRI edit surface (PG-34, DS-07) | W6, W8 |
+| PM-6 | No backend change unless a finding cannot be fixed otherwise; a necessary change stays minimal and ships with backend tests | scope of every wave | W10: one change, `GET /issues` sorts by `department_name` / `owner_user_name` (PG-42, `backend/app/services/_register_listings/issues.py` with `test_issue_list_sorts_by_department_and_owner_names`); SM-11 remainder WONTFIX |
+| Disabled style | Disabled controls use the primitives' faded (opacity) style; no dashed disabled borders | the disabled look across forms and row actions (DS-09, GAP-B-03) | W8, W9 |
+
+The design-owned items of §3.1 (control radius, Czech `_many`, `MultiSelect`) were already resolved by the design lead on 2026-10-01 and are applied (radius W3, optional `_many` in the W2 plural validator, `MultiSelect` W4).
+
+### 13.6 Guards in place
+
+| Guard | Enforces | Where it runs |
+|---|---|---|
+| G-RATCHET | `frontend/scripts/quality/ui-consistency-ratchet.mjs`, 20 patterns over `frontend/src`. Hard zero for every pattern except the allowlisted `hex-literal` (3, `frontend/src/hooks/useRiskHubConfig.ts`) and `important-css` (3, the reduced-motion block); the baseline may only go down | `npm run quality:ui-ratchet` in `lint.yml` and `maintenance-governance.yml` |
+| G-ESLINT | Design bans at error on all of `src/**/*.{ts,tsx}`: `text-white`, raw palette, white/black alpha, sub-11px font, `font-black`, `dark:`, arbitrary colour literals, `transition-all`; raw `button` / `input` / `textarea` / `select` / `table`, `motion.*` and `motion.create()` bypasses, `role="button"`, anchors acting as buttons, `tr onClick`, unassociated labels; ADR-008 thresholds. `src/components/ui/**` gets the class bans only | `npm run lint` (`frontend/eslint.config.js`); contract test `tests/frontend/unit/src/quality/eslintDesignCleanPaths.test.ts` |
+| G-RENDER | `tests/frontend/e2e/theme-rendered-contrast.spec.ts`: every visible text element on the workflow-contrast families, the opened dialog-contract sites and the design-system harness, in light, riskhub and dark, must have 0 below AA, 0 below 3:1, 0 below 1.5:1 and 0 white-on-light. Hard zero: no baseline file, no update mode | Playwright `ci` project in `e2e.yml`; `playwright.workflow-contrast.config.ts` locally |
+| Plural validator | `frontend/scripts/i18n/validate-plurals.mjs`: every `{{count}}` string in en and cs is a plural family (`_one` / `_few` / `_other`, optional `_many`). Zero tolerance; the legacy baseline is deleted | `npm run i18n:test` in `security.yml` |
+
+Supporting guards from earlier waves stay on: the axe `incomplete` contrast baseline in `theme-contrast-matrix.spec.ts` (NEW-V1-02), the dialog-inventory contract, the jsx-a11y strict-zero gate, the hard-coded UI string scanner and the status-token contrast unit tests.

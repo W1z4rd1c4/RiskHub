@@ -26,7 +26,7 @@ export function MainLayout() {
                         event.preventDefault();
                         mainRef.current?.focus();
                     }}
-                    className="fixed left-4 top-4 z-[60] -translate-y-24 rounded-lg bg-accent px-4 py-2 font-bold text-accent-foreground shadow-lg transition-transform focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="fixed left-4 top-4 z-skiplink -translate-y-24 rounded-lg bg-accent px-4 py-2 font-bold text-accent-foreground shadow-lg transition-transform focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                     {t('skip_to_main')}
                 </a>

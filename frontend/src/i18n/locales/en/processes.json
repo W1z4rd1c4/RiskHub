@@ -241,7 +241,10 @@
         },
         "filters": {
             "add": "Filters",
-            "active_count": "{{count}} active filters",
+            "active_count_one": "{{count}} active filter",
+            "active_count_few": "{{count}} active filters",
+            "active_count_many": "{{count}} active filters",
+            "active_count_other": "{{count}} active filters",
             "clear_all": "Clear all",
             "remove": "Remove {{label}} filter",
             "lifecycle": "Lifecycle",
@@ -277,7 +280,6 @@
             "no": "No"
         },
         "groups": {
-            "unassigned": "Unassigned",
             "unclassified": "Unclassified",
             "no_linked_vendor": "No linked Vendor"
         },

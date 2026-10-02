@@ -217,12 +217,49 @@ describe('IssueDetailPage tabs', () => {
                 {
                     entity_type: 'issue',
                     entity_id: 42,
-                    limit: 100,
+                    // GAP-C-11: the first page of the paged history (no fixed limit of 100).
+                    skip: 0,
+                    limit: 25,
                 },
                 expect.objectContaining({ signal: expect.any(AbortSignal) }),
             )
         );
         expect(await screen.findByText('Issue updated')).toBeInTheDocument();
+    });
+
+    it('pages the history through the shared Pagination (GAP-C-11)', async () => {
+        const entry = (id: number) => ({
+            id,
+            entity_type: 'issue',
+            entity_id: 42,
+            entity_name: 'Access Review Gap',
+            action: 'update',
+            actor_id: 8,
+            actor_name: 'Anna Kowalski',
+            department_id: 3,
+            changes: null,
+            description: `History entry ${id}`,
+            created_at: '2026-02-02T10:00:00Z',
+        });
+        mockListActivity.mockImplementation(async (filters: { skip?: number }) => ({
+            items: [entry((filters.skip ?? 0) + 1)],
+            total: 30,
+            skip: filters.skip ?? 0,
+            limit: 25,
+        }));
+        renderIssueDetailPage();
+
+        await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+        expect(await screen.findByText('History entry 1')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+        expect(await screen.findByText('History entry 26')).toBeInTheDocument();
+        expect(mockListActivity).toHaveBeenLastCalledWith(
+            { entity_type: 'issue', entity_id: 42, skip: 25, limit: 25 },
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
     });
 
     it('does not fetch history when backend capability denies activity history', async () => {

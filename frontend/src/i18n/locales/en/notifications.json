@@ -1,7 +1,10 @@
 {
   "title": "Notifications",
   "subtitle": {
-    "unread_count": "{{count}} unread",
+    "unread_count_one": "{{count}} unread",
+    "unread_count_few": "{{count}} unread",
+    "unread_count_many": "{{count}} unread",
+    "unread_count_other": "{{count}} unread",
     "stale": "Notification totals may be out of date.",
     "unavailable": "Notification totals are unavailable."
   },

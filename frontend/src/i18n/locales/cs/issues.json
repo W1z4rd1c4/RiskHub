@@ -218,7 +218,10 @@
     },
     "filters": {
       "add": "Přidat filtr",
-      "active_count": "Aktivní filtry: {{count}}",
+      "active_count_one": "{{count}} aktivní filtr",
+      "active_count_few": "{{count}} aktivní filtry",
+      "active_count_many": "{{count}} aktivního filtru",
+      "active_count_other": "{{count}} aktivních filtrů",
       "clear_all": "Vymazat vše",
       "remove": "Odebrat {{label}}"
     },
@@ -227,19 +230,14 @@
     }
   },
   "fallbacks": {
-    "not_set": "Nenastaveno",
     "n_a": "N/A",
-    "unknown_user": "Neznámý uživatel",
-    "unknown_department": "Neznámé oddělení",
     "unknown_risk": "Neznámé riziko",
     "unknown_control": "Neznámá kontrola",
     "unknown_execution": "Neznámé provedení",
     "unknown_kri": "Neznámé KRI",
     "unknown_link": "Neznámá vazba",
     "unlinked_vendor": "Bez propojeného dodavatele",
-    "unassigned": "Nepřiřazeno",
     "no_description": "Bez popisu.",
-    "uncategorized": "Bez kategorie",
     "no_process": "Bez procesu"
   }
 }

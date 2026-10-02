@@ -4,6 +4,28 @@
 
 Accepted
 
+**Implementation note (2026-10-02).** [Addendum 1](#addendum-1--severity-scale-tokens-and-ui-contract-defaults-2026-10-01)
+is implemented by the UI-remediation waves on branch `claude/sweet-brahmagupta-6lgulo`
+(audit roadmap Phases 0–4, see the
+[audit](../audits/2026-09-30-frontend-ui-consistency-audit.md)):
+`fix(frontend): W1 phase-0 UI remediation — dead code, a11y names, tokens, ADR-015 addendum`
+(this addendum), `feat(frontend): W2 phase-0 UI guards — consistency ratchet, rendered-contrast
+gate, i18n plurals, D2 light stop-gap`, `feat(frontend): W3 phase-1 foundations — design tokens,
+severity/tones/cssTokens, Button variants and derived buttons`, `feat(frontend): W4 phase-1
+primitives …`, `feat(frontend): W5 phase-1 page shell, states, feedback, formatting and public
+frame`, `feat(frontend): W6 phase-2 themed dialogs, text-token and tint codemods, D2 stop-gap
+removal`, `feat(frontend): W7 phase-2 shared-pattern adoption`, `feat(frontend): W8 phase-3a–3d
+module migrations` and `feat(frontend): W9 phase-3e–3i module migrations`. Decision 1's
+requirement that all rival status palettes migrate to the tokens is now enforced rather than
+asserted: the UI-consistency ratchet (`frontend/scripts/quality/ui-consistency-ratchet.mjs`) holds
+`raw-palette` at 0 (audit DS-06 closed; the spec row S5 is resolved). The Phase 4 cleanup (W10)
+left two allowlisted residuals in the ratchet baseline, every other pattern being a hard zero:
+`hex-literal` (the stored default and fallback risk-type colours in
+`frontend/src/hooks/useRiskHubConfig.ts`; risk-type colours are user-configured data, not UI colour
+classes) and `important-css` (the three `prefers-reduced-motion` declarations in `index.css`). The
+audit's §13 records the final remediation status. `text-subtle` (D14) was not added because it is
+conditional on 4.5:1 in all three themes.
+
 ## Context
 
 `components.json` declares a full shadcn/ui scaffold, but `src/components/ui/` contains only
@@ -78,7 +100,8 @@ token layer; abandoning semantic tokens requires superseding this ADR.
 
 ### Status
 
-Accepted (2026-10-01). Records the binding design decisions D1, D3, D4, D5, D6 (as amended
+Accepted (2026-10-01); implemented 2026-10-02 (see the implementation note under the ADR
+Status). Records the binding design decisions D1, D3, D4, D5, D6 (as amended
 2026-10-01) and D14 of the
 [frontend UI consistency audit](../audits/2026-09-30-frontend-ui-consistency-audit.md) (§3, §4),
 the product-owner default for the vendor tier band (audit §3.1), and the reversal of FR-P1-8.
@@ -93,8 +116,9 @@ tokens (danger 382 vs 232, warning 301 vs 162, success 163 vs 146, info 70 vs 46
 Six live severity maps disagree (a "medium" risk is blue in the register and amber on the
 dashboard; issue "high" is red in lists and orange in charts), one modal hard-codes its score
 thresholds, and chart and committee colours live in hex tables (audit PG-01, PG-02). The
-remediation spec row S5 had been marked "resolved"; it is now "partially resolved"
-([spec §5](../dora-ict-register/FRONTEND-UX-REMEDIATION-SPEC.md)). Decision 1 also defined
+remediation spec row S5 had been marked "resolved"; this addendum reclassified it "partially
+resolved" until the palette migration was real, and it closed again on 2026-10-02 when the
+ratchet's `raw-palette` count reached 0 ([spec §5](../dora-ict-register/FRONTEND-UX-REMEDIATION-SPEC.md)). Decision 1 also defined
 only a 3-step RAG scale, which cannot express the four risk-score bands that
 [ADR-008](./ADR-008-risk-threshold-ssot.md) configures. This addendum fixes the vocabulary
 before the codemods start, so they have one target.
@@ -193,6 +217,7 @@ after the codemods have run requires a superseding ADR.
   contrast acceptance; extended to every token family this addendum adds, in all three themes.
 - `tests/frontend/unit/src/design-system/cssVarsDeclared.test.ts` — every `var(--x)` used in
   `frontend/src` is declared (audit DS-18).
-- Planned with the Phase 1–2 work: `severityConsistency.test.ts` (every adapter maps each band
-  to the same token family) and the UI-consistency ratchet script with its committed baseline,
-  whose `raw-palette` count reaching 0 closes spec row S5.
+- `tests/frontend/unit/src/design-system/severityConsistency.test.tsx` (every adapter maps each
+  band to the same token family) and the UI-consistency ratchet script
+  (`frontend/scripts/quality/ui-consistency-ratchet.mjs`) with its committed baseline
+  (`ui-consistency-baseline.json`); its `raw-palette` count is 0, which closes spec row S5.

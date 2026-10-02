@@ -88,7 +88,7 @@
   },
   "register": {
     "views": { "all": "Vše", "category": "Podle formy kontroly", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "risk": "Podle rizika", "vendor": "Podle dodavatele" },
-    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count": "Aktivní filtry: {{count}}", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "process": "Proces", "category": "Forma kontroly", "monitoring_status": "Stav monitoringu" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "process": "Proces", "category": "Forma kontroly", "monitoring_status": "Stav monitoringu" },
     "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
     "export": { "title": "Export filtrovaných kontrol" }
   },
@@ -131,7 +131,10 @@
     "open_control": "Otevřít kontrolu {{name}}",
     "export_csv": "Exportovat CSV",
     "all_results": "Všechny výsledky",
-    "total_records": "{{count}} celkem záznamů",
+    "total_records_one": "Celkem {{count}} záznam",
+    "total_records_few": "Celkem {{count}} záznamy",
+    "total_records_many": "Celkem {{count}} záznamu",
+    "total_records_other": "Celkem {{count}} záznamů",
     "columns": {
       "date_time": "Datum/Čas",
       "control": "Kontrola",
@@ -172,7 +175,6 @@
       "inherent_risk_level": "Inherentní úroveň rizika (1-5)",
       "initial_status": "Výchozí stav",
       "link_to_risk_optional": "Propojit s rizikem (volitelné)",
-      "uncategorized": "Bez kategorie",
       "effectiveness": "Efektivita"
     },
     "effectiveness": {
@@ -210,10 +212,8 @@
     "standard_configuration": "Standardní konfigurace",
     "control_form": "Forma kontroly",
     "ownership_responsibility": "Vlastnictví a odpovědnost",
-    "unassigned": "Nepřiřazeno",
     "department_position": "Oddělení / Pozice",
     "no_department": "Bez oddělení",
-    "not_available": "N/A",
     "methodology_source": "Metodika a zdroj",
     "methodology_ref": "Odkaz metodiky",
     "data_source": "Zdroj dat",

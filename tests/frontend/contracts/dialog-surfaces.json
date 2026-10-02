@@ -1,7 +1,6 @@
 {
   "primitive": { "file": "frontend/src/components/ui/dialog.tsx" },
   "implementationSurfaces": [
-    { "id": "archive-confirm-dialog", "component": "ArchiveConfirmDialog", "file": "frontend/src/components/ArchiveConfirmDialog.tsx", "role": "alertdialog", "kind": "delegate", "delegatesTo": "ConfirmDialog", "verificationCaseIds": ["owner.archive-confirm-dialog"] },
     { "id": "confirm-dialog", "component": "ConfirmDialog", "file": "frontend/src/components/ConfirmDialog.tsx", "role": "alertdialog", "kind": "semantic", "verificationCaseIds": ["owner.confirm-dialog", "owner.departments-delete", "owner.risk-types-delete"] },
     { "id": "control-create-dialog", "component": "ControlCreateDialog", "file": "frontend/src/components/ControlCreateDialog.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.control-create-dialog"] },
     { "id": "destination-launcher", "component": "DestinationLauncher", "file": "frontend/src/components/layout/DestinationLauncher.tsx", "role": "dialog", "kind": "semantic", "verificationCaseIds": ["owner.destination-launcher"] },
@@ -46,7 +45,7 @@
     { "id": "confirm.asset-detail", "component": "ConfirmDialog", "file": "frontend/src/pages/AssetDetailPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "export.assets-page", "component": "ExportDialog", "file": "frontend/src/pages/AssetsPage.tsx", "verificationCaseId": "owner.export-dialog" },
     { "id": "execution-log.control-detail", "component": "ExecutionLogModal", "file": "frontend/src/pages/ControlDetailPage.tsx", "verificationCaseId": "owner.execution-log-modal" },
-    { "id": "archive.control-detail", "component": "ArchiveConfirmDialog", "file": "frontend/src/pages/ControlDetailPage.tsx", "verificationCaseId": "owner.archive-confirm-dialog" },
+    { "id": "archive.control-detail", "component": "ConfirmDialog", "file": "frontend/src/pages/ControlDetailPage.tsx", "verificationCaseId": "owner.confirm-dialog" },
     { "id": "export.controls-page", "component": "ExportDialog", "file": "frontend/src/pages/ControlsPage.tsx", "verificationCaseId": "owner.export-dialog" },
     { "id": "resolve.governance-page", "component": "ResolveOrphanModal", "file": "frontend/src/pages/GovernancePage.tsx", "verificationCaseId": "owner.resolve-orphan-modal" },
     { "id": "orphan-view.governance-page", "component": "OrphanQuickViewModal", "file": "frontend/src/pages/GovernancePage.tsx", "verificationCaseId": "owner.orphan-quick-view-modal" },

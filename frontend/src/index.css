@@ -51,7 +51,9 @@
     --accent-hover: 210 100% 55%;
     --accent-text: 210 100% 65%;
 
-    --destructive: 0 91% 71%;
+    /* 73% (was 71%): a 12px danger Badge (bg-destructive/10) on a hovered glass card
+       (--glass-hover) measured 4.42:1; 73% clears AA there (4.67:1). */
+    --destructive: 0 91% 73%;
     --destructive-foreground: 222 47% 11%;
 
     /* Semantic status tokens (ADR-015 / FR-P1-1). --destructive stays the
@@ -118,14 +120,18 @@
     --heat-2-foreground: 213 31% 91%;
     --heat-3: 0 72% 44%;
     --heat-3-foreground: 213 31% 91%;
-    --heat-4: 0 91% 71%;
+    --heat-4: 0 91% 73%;
     --heat-4-foreground: 222 47% 11%;
-    /* --nav-active: active sidebar item fill. Static HSL of the hex values it
-       replaces in components/layout/sidebar.css (#1d4ed8 / #f8fafc). */
+    /* --nav-active: active sidebar item fill (the former sidebar.css hex pair,
+       #1d4ed8 / #f8fafc; navy in light). --nav-badge: the sidebar item count pill
+       (#1e40af / #f8fafc; slate in light), distinct from --nav-active so the pill
+       stays visible on the active item. */
     --nav-active: 224 76% 48%;
     --nav-active-foreground: 210 40% 98%;
-    /* --badge-count: notification count badge. Static HSL of #be123c / #f8fafc,
-       the values it replaces below; the same in every theme. */
+    --nav-badge: 226 71% 40%;
+    --nav-badge-foreground: 210 40% 98%;
+    /* --badge-count: notification count badge (#be123c / #f8fafc); the same in
+       every theme. */
     --badge-count: 345 83% 41%;
     --badge-count-foreground: 210 40% 98%;
 
@@ -168,6 +174,10 @@
   }
 }
 
+/* The only important-flagged declarations in the app (audit §5.6 item 4.1: at most 4). A reduced-motion
+   preference must beat every animation and transition source: Tailwind utilities
+   (`animate-*`, `transition-*`), `tailwindcss-animate` enter/exit keyframes and inline
+   styles, all of which out-rank a plain declaration here. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -286,7 +296,7 @@
 
   /* UI-contract token families (audit §4.2) — see :root for rationale.
      --tint is a 75% grey, not white: True Dark used to dim the white-alpha
-     utilities with !important remaps (bg-white/5 → 3%, bg-white/10 → 5%,
+     utilities with forced remaps (bg-white/5 → 3%, bg-white/10 → 5%,
      border-white/10 → 8%, border-white/20 → 12%). Those remaps were deleted with
      the tint codemod (O6); this base reproduces them within ΔE2000 ≤ 2.2 on the
      background, glass and popover surfaces, while hover tints (never remapped)
@@ -317,22 +327,10 @@
   --heat-4-foreground: 222 47% 11%;
   --nav-active: 224 76% 48%;
   --nav-active-foreground: 210 40% 98%;
+  --nav-badge: 226 71% 40%;
+  --nav-badge-foreground: 210 40% 98%;
   --badge-count: 345 83% 41%;
   --badge-count-foreground: 210 40% 98%;
-}
-
-/* True Dark - Base */
-.theme-dark,
-.theme-dark body {
-  background-color: #000000 !important;
-  color: #f1f1f1 !important;
-}
-
-/* True Dark - Sidebar */
-.theme-dark aside,
-.theme-dark nav {
-  background-color: rgba(0, 0, 0, 0.95) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* =================================
@@ -425,64 +423,8 @@
   --heat-4-foreground: 0 0% 100%;
   --nav-active: 222 47% 11%;
   --nav-active-foreground: 210 40% 98%;
+  --nav-badge: 217 33% 17%;
+  --nav-badge-foreground: 210 40% 98%;
   --badge-count: 345 83% 41%;
   --badge-count-foreground: 210 40% 98%;
-}
-
-.notification-count-badge,
-.theme-light .notification-count-badge {
-  background-color: #be123c !important;
-  color: #f8fafc !important;
-}
-
-.theme-light [data-testid="logout-button"] {
-  color: #be123c !important;
-}
-
-/* Light theme - Form inputs are themed by the token-driven Input primitive
-   (bg-input/40, text-foreground); select triggers are themed by tokens in
-   ThemedSelect / select.tsx. The former blanket `.theme-light input {…!important}`
-   rule was removed (FR-P5-10 / P4): being `!important` it overrode the
-   design-system Input in the light theme. */
-
-/* Light theme - Sidebar & Navigation */
-.theme-light aside,
-.theme-light nav {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-
-/* =================================
-   THEMED SELECT - All Themes
-   ================================= */
-
-/* Select triggers are themed by tokens in ThemedSelect / select.tsx; Radix
-   emits no `data-radix-select-trigger` attribute, so no trigger rules here. */
-
-/* Light Theme - Select Dropdown */
-.theme-light .themed-select-content {
-  background-color: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
-}
-
-.theme-light .themed-select-item {
-  color: #334155 !important;
-}
-
-.theme-light .themed-select-item:hover,
-.theme-light .themed-select-item[data-highlighted] {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  color: #0f172a !important;
-}
-
-/* True Dark Theme - Select Dropdown */
-.theme-dark .themed-select-content {
-  background-color: rgba(10, 10, 10, 0.98) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.theme-dark .themed-select-item:hover,
-.theme-dark .themed-select-item[data-highlighted] {
-  background-color: rgba(255, 255, 255, 0.05) !important;
 }

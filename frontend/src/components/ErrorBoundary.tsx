@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import i18n from '@/i18n';
 
 type ErrorBoundaryProps = {
@@ -51,17 +52,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 aria-describedby="route-error-boundary-description"
                 className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground"
             >
-                <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-sm">
+                {/* DS-20 / D5: the canonical glass card surface, not an ad hoc card fill. */}
+                <Card className="w-full max-w-md">
                     <h1 id="route-error-boundary-title" className="text-xl font-semibold">
                         {title}
                     </h1>
                     <p id="route-error-boundary-description" className="mt-2 text-sm text-muted-foreground">
                         {description}
                     </p>
-                    <Button onClick={this.reset} className="mt-4">
+                    <Button variant="accent" onClick={this.reset} className="mt-4">
                         {retryLabel}
                     </Button>
-                </div>
+                </Card>
             </section>
         );
     }

@@ -100,23 +100,11 @@ describe('DialogShell v2 — themed surface and sizes', () => {
         expect(dialog).not.toHaveClass('max-w-md');
     });
 
-    it('keeps deprecated class props verbatim so unmigrated dialogs render unchanged (O4)', async () => {
-        const { dialog } = await openDialog(
-            <V2Dialog
-                shell={{
-                    size: 'lg',
-                    containerClassName: 'fixed inset-0 z-modal flex items-center justify-center p-8',
-                    backdropClassName: 'absolute inset-0 legacy-backdrop',
-                    contentClassName: 'w-full max-w-sm legacy-surface',
-                }}
-            />,
-        );
-        expect(dialog).toHaveClass('relative', 'w-full', 'max-w-sm', 'legacy-surface');
-        expect(dialog).not.toHaveClass('bg-popover');
-        expect(dialog).not.toHaveClass('max-w-2xl');
-        expect(backdrop()).toHaveClass('legacy-backdrop');
-        expect(backdrop()).not.toHaveClass('bg-overlay');
-        expect(backdrop().parentElement).toHaveClass('p-8');
+    it('owns every layer: the container, the bg-overlay backdrop and the themed surface (roadmap 4.3)', async () => {
+        const { dialog } = await openDialog(<V2Dialog shell={{ size: 'lg' }} />);
+        expect(dialog).toHaveClass('relative', 'bg-popover', 'max-w-2xl');
+        expect(backdrop()).toHaveClass('bg-overlay');
+        expect(backdrop().parentElement).toHaveClass('fixed', 'inset-0', 'z-modal');
     });
 
     it('attaches the sub-components to the primitive', () => {

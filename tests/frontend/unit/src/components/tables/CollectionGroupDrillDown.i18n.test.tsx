@@ -10,7 +10,7 @@ const localizedGroupLabel = (group: { value: string; label: string }) => {
         return i18n.t('processes:values.preliminary_criticality.critical');
     }
     if (group.value === '__unassigned__') {
-        return i18n.t('processes:register.groups.unassigned');
+        return i18n.t('common:fallbacks.unassigned');
     }
     return group.label;
 };

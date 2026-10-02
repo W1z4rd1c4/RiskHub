@@ -135,7 +135,7 @@ export function ProcessesPage() {
                         const code = group.value.slice('criticality:'.length);
                         return t(`values.preliminary_criticality.${code}`, t('values.unknown'));
                     }
-                    if (group.value === '__unassigned__') return t('register.groups.unassigned');
+                    if (group.value === '__unassigned__') return t('common:fallbacks.unassigned');
                     if (group.value === '__unclassified__') return t('register.groups.unclassified');
                     if (group.value === '__unlinked_vendor__') return t('register.groups.no_linked_vendor');
                     return group.label;

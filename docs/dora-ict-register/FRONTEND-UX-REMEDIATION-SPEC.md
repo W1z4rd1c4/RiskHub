@@ -385,7 +385,7 @@ remaining ledger finding to a disposition.
 
 | ID | Requirement | Source |
 |----|-------------|--------|
-| FR-P5-1 | Migrate all rival status palettes to the semantic tokens, **including the committee Excel-pastel pills** (re-tuned to read red/amber/green in dark theme). | N20, S5, decision 6 |
+| FR-P5-1 | Migrate all rival status palettes to the semantic tokens, **including the committee Excel-pastel pills** (re-tuned to read red/amber/green in dark theme). **Disposition (2026-10-02): resolved** by the UI-remediation waves — the UI-consistency ratchet holds `raw-palette` at 0 across `frontend/src`, and the committee and vendor-tier pills, severity badges, charts and heatmaps take their colours from `lib/severity.ts` and the status/severity/chart tokens ([ADR-015 Addendum 1](../adr/ADR-015-frontend-design-system-foundation.md#addendum-1--severity-scale-tokens-and-ui-contract-defaults-2026-10-01), implemented). | N20, S5, decision 6 |
 | FR-P5-2 | Desktop-first advisory notice below `lg` (neutral copy: optimized for ≥ 1024px, **with a path to an accessible alternative**; **must not** tell users to reduce zoom); **no reflow shell**. SC 1.4.4 / 1.4.10 recorded as accepted exceptions. | N2, C6, ADR-014 |
 | FR-P5-3 | Dense tables/heatmaps get horizontal-scroll containers at `≥ lg` (fix `overflow-hidden` clipping) — no narrow-viewport layout. | ADR-014 consequences |
 | FR-P5-4 | Date formatting via `formatDateValue`; currency right-aligned + `tabular-nums`; truncated cells get `title` + hover cue. | S9 (format), P8, P9 |
@@ -395,7 +395,7 @@ remaining ledger finding to a disposition.
 | FR-P5-8 | Readiness screens (Committee + DQ) link to the register export, **gated on `can_download_dora_register`** (test allowed + denied). | N21, S2 |
 | FR-P5-9 | Residual `aria-label` sweep: icon-only actions, `Pagination` page buttons, `SearchableEntitySelect` search inputs. | S8, P5, P7 |
 | FR-P5-10 | Remove the dead light-theme `!important` input rule that kills `.vendor-input` theming. | P4 |
-| FR-P5-11 | Tokenize residual radius / z-index / motion durations. | P11 |
+| FR-P5-11 | Tokenize residual radius / z-index / motion durations. **Disposition (2026-10-02): resolved.** `tailwind.config.js` defines the `borderRadius`, `zIndex`, `transitionDuration` and `maxWidth` scales (audit DS-25, DS-27, DS-31, DS-16); the last two `z-[n]` literals (`frontend/src/components/ui/select.tsx`, `frontend/src/components/layout/MainLayout.tsx`) moved to the `z-popover` / `z-skiplink` tokens in the Phase 4 cleanup, and the ratchet holds `radius-offscale`, `z-arbitrary` and `transition-all` at a hard zero. | P11 |
 
 - **Acceptance.** **Every ledger finding reaches an explicit disposition** — `resolved`,
   `accepted limitation` (**C6**), or `deferred` (with rationale) — with **no un-triaged findings**;
@@ -426,7 +426,7 @@ disposition is **resolved** at the target-phase checkpoint unless noted.
 | S2 | 🟡 | 5 | FR-P5-8 | **re-scoped** (export exists; discoverability + capability gate) |
 | S3 | 🟡 | 4 | FR-P4-2 | resolved |
 | S4 | 🟡 | 4 | FR-P4-1, FR-P4-4, FR-P4-5, FR-P4-9…12 | resolved |
-| S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | **partially resolved** — tokens landed (FR-P1-1..3); the FR-P5-1 palette migration is incomplete (raw palette still outnumbers status tokens, audit DS-06). Stays partial until the UI-consistency ratchet `raw-palette` reaches 0; see [ADR-015 Addendum 1](../adr/ADR-015-frontend-design-system-foundation.md#addendum-1--severity-scale-tokens-and-ui-contract-defaults-2026-10-01) |
+| S5 | 🟡 | 1 (tokens) / 5 (migrate) | FR-P1-1..3, FR-P5-1 | **resolved (2026-10-02)** — tokens landed (FR-P1-1..3) and the FR-P5-1 palette migration is complete: the UI-consistency ratchet `raw-palette` count is 0 (audit DS-06; it had been partially resolved while raw palette still outnumbered status tokens); see [ADR-015 Addendum 1](../adr/ADR-015-frontend-design-system-foundation.md#addendum-1--severity-scale-tokens-and-ui-contract-defaults-2026-10-01) |
 | S6 | 🟡 | 2a | FR-P2a-3 | resolved |
 | S7 | 🟡 | 2c | FR-P2c-1..4 | resolved — validated manifest: 26 implementation owners, 48 application render sites, 5 non-dialog surfaces; 29 unit contract cases + 48 browser render-site drivers, 0 skipped |
 | S8 | 🟡 | 5 | FR-P5-9 | resolved |
@@ -445,7 +445,7 @@ disposition is **resolved** at the target-phase checkpoint unless noted.
 | P8 | 🟢 | 5 | FR-P5-4 | resolved |
 | P9 | 🟢 | 5 | FR-P5-4 | resolved |
 | P10 | 🟢 | 5 | FR-P5-7 | resolved |
-| P11 | 🟢 | 5 | FR-P5-11 | resolved |
+| P11 | 🟢 | 5 | FR-P5-11 | resolved (2026-10-02) — radius, z-index and motion durations are tokens; the ratchet holds `radius-offscale`, `z-arbitrary` and `transition-all` at 0 (audit DS-25, DS-27, DS-31) |
 | P12 | 🟢 | 4 | FR-P4-5 | resolved |
 
 **Disposition taxonomy:** `resolved` (fixed + verified at its phase checkpoint) · `accepted

@@ -13,6 +13,13 @@ interface RiskTypeDisplay {
     sort_order: number;
 }
 
+/**
+ * Stored default colour of a risk type (data, not a UI colour): the value a new
+ * risk type is saved with and the swatch shown for an unknown type code. Risk
+ * type colours are user-chosen data, so they stay hex (G-RATCHET allowlist).
+ */
+export const DEFAULT_RISK_TYPE_COLOR = '#64748b';
+
 // Fallback risk types when config is unavailable
 const FALLBACK_RISK_TYPES: RiskTypeDisplay[] = [
     {
@@ -86,7 +93,7 @@ export function useRiskTypes() {
         // Helper to get color from code
         getColor: (code: string) => {
             const match = riskTypes.find(t => t.code === code);
-            return match?.color || '#64748b';
+            return match?.color || DEFAULT_RISK_TYPE_COLOR;
         },
         // Helper to get initials for compact badge (first 2 chars of code or first letter of each word)
         getInitials: (code: string) => {

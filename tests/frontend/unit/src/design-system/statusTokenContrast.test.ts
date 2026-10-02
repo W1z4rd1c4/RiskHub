@@ -123,6 +123,7 @@ const FILL_PAIR_TOKENS = [
   'heat-3',
   'heat-4',
   'nav-active',
+  'nav-badge',
   'badge-count',
 ] as const;
 const HEAT_TOKENS = ['heat-0', 'heat-1', 'heat-2', 'heat-3', 'heat-4'] as const;
@@ -139,6 +140,8 @@ const NEW_TOKENS = [
   ...HEAT_TOKENS.flatMap((token) => [token, `${token}-foreground`]),
   'nav-active',
   'nav-active-foreground',
+  'nav-badge',
+  'nav-badge-foreground',
   'badge-count',
   'badge-count-foreground',
 ] as const;

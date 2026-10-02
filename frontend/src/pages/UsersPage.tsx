@@ -383,13 +383,13 @@ export function UsersPage() {
                 isOpen={confirmDialogOpen}
                 onClose={handleToggleClose}
                 onConfirm={toggleUserStatus}
+                intent={userToToggle?.is_active ? 'revoke' : 'generic'}
                 title={userToToggle?.is_active ? t('access.confirmation.deactivate_user_title') : t('access.confirmation.reactivate_user_title')}
                 message={t('access.confirmation.toggle_user_message', {
                     action: userToToggle?.is_active ? t('access.actions.deactivate') : t('access.actions.reactivate'),
                     name: userToToggle?.name ?? '',
                 })}
                 confirmLabel={userToToggle?.is_active ? t('access.actions.deactivate') : t('access.actions.reactivate')}
-                variant={userToToggle?.is_active ? 'danger' : 'info'}
                 isLoading={isToggling}
             />
 

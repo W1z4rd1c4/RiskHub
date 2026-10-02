@@ -25,6 +25,9 @@ export const ISSUE_SORT_FIELDS: NonNullable<IssueListFilters['sort_by']>[] = [
     'due_at',
     'updated_at',
     'created_at',
+    // PG-42: Department and Owner sort by display name (backend `/issues` sort fields).
+    'department_name',
+    'owner_user_name',
 ];
 
 export interface IssuesPageInitialState {

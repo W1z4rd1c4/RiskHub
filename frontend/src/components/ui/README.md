@@ -14,7 +14,8 @@ per file under **Contents**) plus the rules for using and extending it.
   with local classes. Colour meaning comes from `lib/tones.ts` and
   `lib/severity.ts` (D1); no raw palette classes, hex literals, white-alpha
   classes or `dark:` variants (D3, D14) — the ratchet in
-  `frontend/scripts/quality/ui-consistency-ratchet.mjs` only lets counts go down.
+  `frontend/scripts/quality/ui-consistency-ratchet.mjs` holds them at a hard zero
+  (only stored risk-type colour data is allowlisted).
 - **One channel per message** (§4.15–4.16, D9):
 
   | Situation | Use |
@@ -45,9 +46,10 @@ per file under **Contents**) plus the rules for using and extending it.
 - `button.tsx` — shared action primitive; 40px default/icon and the only named
   compact exception (32px compact/iconCompact), plus 44px `lg`; safe native
   `type="button"`, and disabled + `aria-busy` loading behavior. Variants:
-  `accent` is THE primary CTA (D4); `default` is a deprecated alias; `secondary`,
-  `outline`, `ghost`, `destructive`, `warning`, `success`, `link` (`secondary`
-  and `link` keep their pre-§4.7 looks until their callers migrate in W7).
+  `accent` is THE primary CTA and the default variant (D4; the deprecated
+  `default` alias was removed in Phase 4); `secondary` (bordered, tint hover),
+  `outline`, `ghost`, `destructive`, `warning`, `success`, `link`
+  (`accent-text`).
   Icon-only sizes require `aria-label` or `aria-labelledby` at the type level.
 - `BackButton.tsx` — labelled back navigation; `label` names the destination
   (D14). `to` renders a router link, `onClick` renders a button.
@@ -58,8 +60,8 @@ per file under **Contents**) plus the rules for using and extending it.
   `SearchableEntitySelect`), optional decorative `leadingIcon`; invalid styling
   follows `aria-invalid`. `Textarea` and `NativeSelect` share the recipe.
 - `textarea.tsx` — `Textarea` (≥5rem, `resize-y`; `autoResize` grows with the
-  content). The remaining copied `TEXTAREA_CLASS` constants (AssetForm,
-  ResolveOrphanModal) migrate to it with their forms.
+  content). Feature forms use it instead of declaring a local textarea class
+  (`TEXTAREA_CLASS` is gone).
 - `checkbox.tsx` — `Checkbox`, a native checkbox with `onCheckedChange` and
   `indeterminate`; name it with `Field layout="inline"` or `aria-label`
   ("Select {name}" for row selection).
@@ -128,8 +130,9 @@ per file under **Contents**) plus the rules for using and extending it.
   `dirtyGuard` (`useDirtyTaskGuard`). `DialogHeader` (h2 title on the shell's
   `titleId`, tone icon, close), `DialogBody`, `DialogFooter` (Cancel then the
   primary action, right-aligned), also as `DialogShell.Header/Body/Footer`.
-  The class props are deprecated and unused (dialog-inventory ratchet at 0);
-  import from `@/components/ui/dialog`.
+  The v1 raw class props (`containerClassName`, `backdropClassName`,
+  `contentClassName`) were removed in Phase 4; import from
+  `@/components/ui/dialog`.
 - `state.tsx` — page and region states (§4.15, DS-17, GAP-C-11): `layout`
   `page` / `section` / `inline`, no card surface of their own. `Spinner`
   (decorative, or announced with `label`), `Skeleton` (`bg-tint/10`,
@@ -147,7 +150,7 @@ per file under **Contents**) plus the rules for using and extending it.
   falls through to an empty state. `TableErrorState` and
   `pages/shared/ReadAccessDeniedState` are thin adapters/aliases over them.
 - `toast.tsx` — toast primitives on `@radix-ui/react-toast` (§4.16, D9):
-  bottom-right `ToastViewport` (`z-toast`, F8 jumps to it), `Toast` on the
+  `ToastProvider`, bottom-right `ToastViewport` (`z-toast`, F8 jumps to it), `Toast` on the
   `bg-popover` / `shadow-popover` surface with a tone icon
   (success/info/warning/danger), `ToastTitle`, `ToastDescription`,
   `ToastAction`, named `ToastClose`. `danger` is announced assertively, other

@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, BookOpen, Building2, Calendar, ShieldAlert, User } from 'lucide-react';
 
+import { UserAvatar } from '@/components/access/UserAvatar';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { CardHeader } from '@/components/ui/card';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { translateUiMessage } from '@/i18n/hooks';
 import { getControlEffectivenessMeta } from '@/lib/monitoringStatus';
 import { formatControlForm, formatControlFrequency, getControlRiskLevelColor } from '@/pages/controls/controlsPagePresentation';
 import type { Control, ControlRiskLink } from '@/types/control';
@@ -155,12 +157,11 @@ export function ControlDetailOverviewTab({
 
                     <div className="space-y-5">
                         <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent-text text-xs font-bold">
-                                {control.control_owner?.name?.[0] || 'U'}
-                            </div>
+                            {/* GAP-D-27: the one avatar recipe (no hard-coded 'U' fallback). */}
+                            <UserAvatar name={control.control_owner?.name} className="h-8 w-8 text-xs" />
                             <div>
                                 <p className="text-eyebrow">{t('controls:fields.owner')}</p>
-                                <p className="text-sm font-bold text-foreground leading-snug">{control.control_owner?.name || t('controls:detail.unassigned')}</p>
+                                <p className="text-sm font-bold text-foreground leading-snug">{control.control_owner?.name || t('common:fallbacks.unassigned')}</p>
                                 <p className="text-xs text-muted-foreground">{control.control_owner?.email || ''}</p>
                             </div>
                         </div>
@@ -172,7 +173,7 @@ export function ControlDetailOverviewTab({
                                 <p className="text-eyebrow">{t('controls:detail.department_position')}</p>
                                 <p className="text-sm font-bold text-foreground leading-snug">{control.department?.name || t('controls:detail.no_department')}</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    {control.process_owner_position || t('controls:detail.not_available')}
+                                    {control.process_owner_position || t('common:fallbacks.not_available')}
                                 </p>
                             </div>
                         </div>
@@ -186,7 +187,7 @@ export function ControlDetailOverviewTab({
                         <div>
                             <p className="text-eyebrow mb-1">{t('controls:detail.methodology_ref')}</p>
                             <p className="text-sm font-medium text-foreground bg-tint/5 p-2 rounded-lg border border-border font-mono truncate">
-                                {control.methodology_reference || t('controls:detail.not_available')}
+                                {control.methodology_reference || t('common:fallbacks.not_available')}
                             </p>
                         </div>
                         <div>
@@ -222,7 +223,7 @@ export function ControlDetailOverviewTab({
 
                 {linkErrorKey && (
                     <InlineMessage tone="danger" className="mb-3">
-                        {t(linkErrorKey, { ns: 'errorKeys' })}
+                        {translateUiMessage(t, linkErrorKey)}
                     </InlineMessage>
                 )}
 

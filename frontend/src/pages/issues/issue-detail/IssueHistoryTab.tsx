@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/tables/Pagination';
 import { Card } from '@/components/ui/card';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { useFormat, type SafeTFunction } from '@/i18n/hooks';
@@ -10,6 +11,11 @@ interface IssueHistoryTabProps {
     historyLoadFailed?: boolean;
     isHistoryRefetching?: boolean;
     onRetryHistory?: () => void;
+    /** GAP-C-11: server paging of the history (1-based page, total entries, page size). */
+    historyPage?: number;
+    historyTotal?: number;
+    historyPageSize?: number;
+    onHistoryPageChange?: (page: number) => void;
     t: SafeTFunction;
 }
 
@@ -36,9 +42,15 @@ export function IssueHistoryTab({
     historyLoadFailed = false,
     isHistoryRefetching = false,
     onRetryHistory,
+    historyPage = 1,
+    historyTotal = 0,
+    historyPageSize = 0,
+    onHistoryPageChange,
     t,
 }: IssueHistoryTabProps) {
     const format = useFormat();
+    const historyTotalPages = historyPageSize > 0 ? Math.ceil(historyTotal / historyPageSize) : 1;
+    const showPagination = Boolean(onHistoryPageChange) && historyTotalPages > 1;
     return (
         <Card as="section" className="space-y-4" data-testid="issue-history-panel">
             {!canViewActivityHistory ? (
@@ -50,26 +62,38 @@ export function IssueHistoryTab({
             ) : historyItems.length === 0 ? (
                 <EmptyState layout="inline" icon={null} title={t('detail.messages.no_history')} />
             ) : (
-                <ul className="space-y-2">
-                    {historyItems.map((entry) => (
-                        <li key={entry.id} className="rounded-xl border border-border bg-nested px-4 py-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-sm font-semibold text-foreground">
-                                    {ISSUE_HISTORY_ACTION_KEYS[entry.action]
-                                        ? t(ISSUE_HISTORY_ACTION_KEYS[entry.action])
-                                        : t('issues:detail.history_actions.other')}
+                <>
+                    <ul className="space-y-2">
+                        {historyItems.map((entry) => (
+                            <li key={entry.id} className="rounded-xl border border-border bg-nested px-4 py-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        {ISSUE_HISTORY_ACTION_KEYS[entry.action]
+                                            ? t(ISSUE_HISTORY_ACTION_KEYS[entry.action])
+                                            : t('issues:detail.history_actions.other')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {format.dateTime(entry.created_at) || t('common:fallbacks.not_set')}
+                                    </p>
+                                </div>
+                                <p className="text-sm text-foreground mt-1">{entry.description}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {entry.actor_name || t('detail.messages.system')}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {format.dateTime(entry.created_at) || t('fallbacks.not_set')}
-                                </p>
-                            </div>
-                            <p className="text-sm text-foreground mt-1">{entry.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {entry.actor_name || t('detail.messages.system')}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
+                            </li>
+                        ))}
+                    </ul>
+                    {showPagination && onHistoryPageChange ? (
+                        <Pagination
+                            currentPage={historyPage}
+                            totalPages={historyTotalPages}
+                            totalItems={historyTotal}
+                            itemsPerPage={historyPageSize}
+                            onPageChange={onHistoryPageChange}
+                            isLoading={isHistoryRefetching}
+                        />
+                    ) : null}
+                </>
             )}
         </Card>
     );

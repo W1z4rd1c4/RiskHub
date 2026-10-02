@@ -12,7 +12,7 @@ export function buildIssueColumns({
     format: Pick<FormatApi, 'dateTime'>;
     t: SafeTFunction;
 }): Column<IssueSummary>[] {
-    const formatDateTime = (value: string | null) => format.dateTime(value) || t('issues:fallbacks.not_set');
+    const formatDateTime = (value: string | null) => format.dateTime(value) || t('common:fallbacks.not_set');
     return [
         {
             key: 'title',
@@ -33,11 +33,14 @@ export function buildIssueColumns({
         {
             key: 'department_name',
             label: t('issues:columns.department'),
-            render: (issue) => <span className="text-sm text-foreground">{issue.department_name || t('issues:fallbacks.unknown_department')}</span>,
+            // PG-42: sortable like the peer registers (backend sorts by Department name).
+            sortable: true,
+            render: (issue) => <span className="text-sm text-foreground">{issue.department_name || t('common:fallbacks.unknown_department')}</span>,
         },
         {
             key: 'owner_user_name',
             label: t('issues:columns.owner'),
+            sortable: true,
             render: (issue) => <span className="text-sm text-foreground">{issue.owner_user_name || t('common:fallbacks.unassigned')}</span>,
         },
         {

@@ -15,10 +15,10 @@ import { getGroupedSidebarNav, resolveActiveSidebarHref } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BrandWordmark } from '@/components/layout/BrandWordmark';
+import { UserAvatar } from '@/components/access/UserAvatar';
 import { Button } from '@/components/ui/button';
 import { DestinationLauncher } from '@/components/layout/DestinationLauncher';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
-import './sidebar.css';
 
 export function Sidebar() {
     const location = useLocation();
@@ -206,23 +206,23 @@ export function Sidebar() {
                                             className={cn(
                                                 'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200',
                                                 isActive
-                                                    ? 'sidebar-nav-link--active'
+                                                    ? 'bg-nav-active text-nav-active-foreground shadow-lg'
                                                     : 'text-muted-foreground hover:bg-tint/5 hover:text-foreground'
                                             )}
                                         >
-                                            <div className="sidebar-nav-content flex items-center gap-3">
-                                                <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-icon-muted group-hover:text-foreground')} />
+                                            <div className="flex items-center gap-3">
+                                                <item.icon className={cn('h-5 w-5', !isActive && 'text-icon-muted group-hover:text-foreground')} />
                                                 {item.label}
                                             </div>
                                             {item.badge !== undefined && (
-                                                <span className="sidebar-nav-badge inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs font-bold">
+                                                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-nav-badge px-1.5 text-2xs font-bold text-nav-badge-foreground">
                                                     {/* AX-14: the bare number reads as "Approvals 3"; the
                                                         sr-only text names what is counted. */}
                                                     <span aria-hidden="true">{item.badge}</span>
                                                     <span className="sr-only">{item.badgeLabel}</span>
                                                 </span>
                                             )}
-                                            {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
+                                            {isActive && item.badge === undefined && <ChevronRight className="h-4 w-4" />}
                                         </Link>
                                     );
                                 })}
@@ -242,9 +242,7 @@ export function Sidebar() {
                 <div className="mt-4 shrink-0 space-y-4 border-t border-border pt-4">
                     {user && (
                         <div className="flex items-center gap-3 px-2">
-                            <div aria-hidden="true" className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                                <span className="text-xs font-bold text-accent-text">{user.name.charAt(0)}</span>
-                            </div>
+                            <UserAvatar name={user.name} className="h-8 w-8 text-xs" />
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
                                 <p className="text-xs text-muted-foreground truncate">{user.role_display_name}</p>

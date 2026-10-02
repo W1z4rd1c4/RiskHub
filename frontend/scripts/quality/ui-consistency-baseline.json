@@ -1,56 +1,16 @@
 {
   "version": 1,
-  "description": "G-RATCHET baseline (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1). Counts may only go down; regenerate with `npm run quality:ui-ratchet -- --update-baseline`.",
+  "description": "G-RATCHET baseline (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1). Only allowlisted patterns are recorded (every other pattern is hard zero); counts may only go down; regenerate with `npm run quality:ui-ratchet -- --update-baseline`.",
   "totals": {
-    "arbitrary-color": 0,
-    "btn-classes": 0,
-    "dark-variant": 0,
-    "font-black": 0,
-    "hex-literal": 7,
-    "important-css": 31,
-    "inline-style": 0,
-    "micro-font": 0,
-    "pill-inline": 0,
-    "radius-offscale": 0,
-    "raw-button": 0,
-    "raw-palette": 0,
-    "raw-table": 0,
-    "raw-text-input": 0,
-    "spinner-adhoc": 0,
-    "text-accent-as-text": 0,
-    "text-white": 0,
-    "white-alpha": 0,
-    "z-arbitrary": 2
+    "hex-literal": 3,
+    "important-css": 3
   },
   "counts": {
-    "arbitrary-color": {},
-    "btn-classes": {},
-    "dark-variant": {},
-    "font-black": {},
     "hex-literal": {
-      "src/components/riskhub/RiskTypesPanel.tsx": 1,
-      "src/contexts/ThemeContext.tsx": 3,
       "src/hooks/useRiskHubConfig.ts": 3
     },
     "important-css": {
-      "src/components/layout/sidebar.css": 8,
-      "src/index.css": 23
-    },
-    "inline-style": {},
-    "micro-font": {},
-    "pill-inline": {},
-    "radius-offscale": {},
-    "raw-button": {},
-    "raw-palette": {},
-    "raw-table": {},
-    "raw-text-input": {},
-    "spinner-adhoc": {},
-    "text-accent-as-text": {},
-    "text-white": {},
-    "white-alpha": {},
-    "z-arbitrary": {
-      "src/components/layout/MainLayout.tsx": 1,
-      "src/components/ui/select.tsx": 1
+      "src/index.css": 3
     }
   }
 }

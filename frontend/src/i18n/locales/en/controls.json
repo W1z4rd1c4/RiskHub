@@ -88,7 +88,7 @@
   },
   "register": {
     "views": { "all": "All", "category": "By Control Form", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "risk": "By Risk", "vendor": "By Vendor" },
-    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "process": "Process", "category": "Control Form", "monitoring_status": "Monitoring status" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "process": "Process", "category": "Control Form", "monitoring_status": "Monitoring status" },
     "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
     "export": { "title": "Export filtered controls" }
   },
@@ -131,7 +131,10 @@
     "open_control": "Open control {{name}}",
     "export_csv": "Export CSV",
     "all_results": "All Results",
-    "total_records": "{{count}} Total Records",
+    "total_records_one": "{{count}} Total Record",
+    "total_records_few": "{{count}} Total Records",
+    "total_records_many": "{{count}} Total Records",
+    "total_records_other": "{{count}} Total Records",
     "columns": {
       "date_time": "Date/Time",
       "control": "Control",
@@ -172,7 +175,6 @@
       "inherent_risk_level": "Inherent Risk Level (1-5)",
       "initial_status": "Initial Status",
       "link_to_risk_optional": "Link to Risk (Optional)",
-      "uncategorized": "Uncategorized",
       "effectiveness": "Effectiveness"
     },
     "effectiveness": {
@@ -210,10 +212,8 @@
     "standard_configuration": "Standard Configuration",
     "control_form": "Control Form",
     "ownership_responsibility": "Ownership & Responsibility",
-    "unassigned": "Unassigned",
     "department_position": "Department / Position",
     "no_department": "No Dept",
-    "not_available": "N/A",
     "methodology_source": "Methodology & Source",
     "methodology_ref": "Methodology Ref",
     "data_source": "Data Source",

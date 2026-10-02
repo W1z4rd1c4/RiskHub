@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { PlusCircle } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { InlineMessage } from '@/components/ui/inline-message';
@@ -136,9 +136,7 @@ export function IssueQuickCreateModal({
             <DialogBody>
                 {errorKey && (
                     <InlineMessage tone="danger">
-                        {errorKey.startsWith('errorKeys.')
-                            ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                            : t(errorKey)}
+                        {translateUiMessage(t, errorKey)}
                     </InlineMessage>
                 )}
 

@@ -7,15 +7,15 @@ import { cn } from "@/lib/utils"
 /**
  * Shared action primitive (audit §4.7, D4).
  *
- * - `accent` is THE primary call to action. `default` is a deprecated alias
- *   kept so existing callers render unchanged until they migrate.
+ * - `accent` is THE primary call to action and the default variant (the
+ *   deprecated `default` alias was removed in Phase 4, roadmap 4.3).
  * - `outline` / `ghost` hover with the neutral `tint` token instead of the
  *   saturated accent fill (DS-29); focus uses the shared `focus-ring` utility.
  * - Icon-only sizes (`icon`, `iconCompact`) require an accessible name at the
  *   type level (`aria-label` or `aria-labelledby`).
  * - `isLoading` shows a spinner, sets `aria-busy` and disables the control.
- * - `secondary` and `link` keep their pre-§4.7 looks until their callers
- *   migrate in wave W7 (see the notes on each variant).
+ * - Dialog footers pair a `secondary` Cancel (bordered, tint hover) with an
+ *   `accent` or `destructive` confirm; `link` uses the `accent-text` role (§4.3).
  */
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
@@ -24,13 +24,8 @@ const buttonVariants = cva(
       variant: {
         accent:
           "bg-accent text-accent-foreground shadow-sm hover:bg-accent-hover",
-        default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        // Pending W7 (audit §4.7): keeps its current look this wave. The target
-        // recipe (adds `border border-border`, hovers with `bg-tint/10`) lands
-        // with the caller migration and its visual diff.
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground border border-border shadow-sm hover:bg-tint/10",
         outline:
           "border border-input bg-transparent shadow-sm hover:bg-tint/10 hover:text-foreground",
         ghost: "hover:bg-tint/10 hover:text-foreground",
@@ -40,10 +35,7 @@ const buttonVariants = cva(
           "bg-warning text-warning-foreground shadow-sm hover:bg-warning/90",
         success:
           "bg-success text-success-foreground shadow-sm hover:bg-success/90",
-        // Pending W7 (audit §4.7): keeps its current look this wave. Target text
-        // token is `text-accent-text` (link / info role, §4.3), applied with the
-        // caller migration.
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-accent-text underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -54,7 +46,7 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "accent",
       size: "default",
     },
   }

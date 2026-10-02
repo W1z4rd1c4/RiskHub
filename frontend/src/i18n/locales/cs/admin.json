@@ -65,7 +65,7 @@
       "attention": "Vyžaduje pozornost",
       "pending": "Čeká",
       "processing": "Zpracovává se",
-      "dead_letter": "Dead letter",
+      "dead_letter": "Nedoručitelné",
       "oldest_pending": "Nejstarší čekající",
       "none": "Žádné",
       "last_dispatch": "Poslední dispatch",
@@ -104,7 +104,10 @@
     "event_feed": "Auditní události",
     "live": "Živě",
     "all_events": "Všechny události",
-    "last_n": "Posledních {{count}}",
+    "last_n_one": "Poslední {{count}}",
+    "last_n_few": "Poslední {{count}}",
+    "last_n_many": "Posledního {{count}}",
+    "last_n_other": "Posledních {{count}}",
     "no_events": "Nebyly nalezeny žádné auditní události v aktuálním okně.",
     "view": "Zobrazit",
     "details_modal": {
@@ -291,12 +294,15 @@
     "all_permissions": "Všechna oprávnění",
     "any_action": "Jakákoliv akce",
     "clear": "Vymazat",
-    "of_users": "{{count}} z {{total}} uživatelů",
+    "of_users_one": "{{shown}} z {{count}} uživatele",
+    "of_users_few": "{{shown}} z {{count}} uživatelů",
+    "of_users_many": "{{shown}} z {{count}} uživatele",
+    "of_users_other": "{{shown}} z {{count}} uživatelů",
     "stats": {
       "total_users": "Celkem uživatelů",
       "active": "Aktivní",
       "privileged": "Privilegovaní",
-      "sys_admins": "Sys Admins"
+      "sys_admins": "Správci systému"
     },
     "roles": {
       "all": "Všechny role",
@@ -370,7 +376,10 @@
     },
     "modal": {
       "title": "Upravit nastavení přístupu",
-      "permissions_count": "{{count}} oprávnění",
+      "permissions_count_one": "{{count}} oprávnění",
+      "permissions_count_few": "{{count}} oprávnění",
+      "permissions_count_many": "{{count}} oprávnění",
+      "permissions_count_other": "{{count}} oprávnění",
       "reports_to": "Nadřízený",
       "no_manager_top_level": "Bez nadřízeného (nejvyšší úroveň)",
       "unsaved_changes": "Neuložené změny",

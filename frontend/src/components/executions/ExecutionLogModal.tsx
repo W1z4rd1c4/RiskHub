@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import { controlApi } from '@/services/controlApi';
 import { apiClient } from '@/services/apiClient';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import type { ControlExecutionCreate } from '@/types/execution';
 import { ExecutionResult } from '@/types/execution';
 import { getExecutionResultMeta } from '@/lib/executionResult';
@@ -11,6 +11,7 @@ import { InlineMessage } from '@/components/ui/inline-message';
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 
 interface ExecutionLogModalProps {
     isOpen: boolean;
@@ -41,6 +42,12 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
         notes: '',
         next_scheduled: '',
     });
+    // PG-22: typed input is never lost silently; every close goes through the guard.
+    const { acceptCurrentSnapshot, confirmationDialog, requestLocalLeave } = useDirtyTaskGuard({
+        busy: isSubmitting,
+        currentSnapshot: JSON.stringify(formData),
+        enabled: isOpen,
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,6 +59,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                 ...formData,
                 next_scheduled: formData.next_scheduled || undefined,
             });
+            acceptCurrentSnapshot();
             onSuccess?.();
             onClose();
         } catch (err: unknown) {
@@ -68,6 +76,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
             titleId={titleId}
             descriptionIds={[descriptionId]}
             isBusy={isSubmitting}
+            dirtyGuard={{ requestLocalLeave, confirmationDialog }}
             size="md"
             className="max-w-lg"
         >
@@ -86,7 +95,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                 <form id={formId} onSubmit={handleSubmit} className="space-y-6">
                     {errorKey && (
                         <InlineMessage tone="danger">
-                            {t(errorKey, { ns: 'errorKeys' })}
+                            {translateUiMessage(t, errorKey)}
                         </InlineMessage>
                     )}
 

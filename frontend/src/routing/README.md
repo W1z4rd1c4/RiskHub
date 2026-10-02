@@ -10,6 +10,7 @@ Route manifest definitions and route metadata for the RiskHub frontend applicati
 - `business.tsx`
 - `core.tsx`
 - `index.ts`
+- `public.tsx` — pre-auth routes (`/login`, SSO callback, `/landing`, native `/auth/local/*`); no guards
 - `types.ts`
 
 ## Notes
@@ -22,5 +23,16 @@ Route manifest definitions and route metadata for the RiskHub frontend applicati
 - Every routed page renders one title source (`PageHeader`, `EntityDetailHeader`, `RegisterListShell`,
   `EditBlockedState`, `AuthFrame`, or `usePageTitle`) so it has one `h1` and a translated
   `document.title`; `tests/frontend/unit/src/routing/__tests__/routePageTitleContract.test.ts` enforces it.
+
+- **Route guards (NAV-05): one owner per route.** A route whose whole page is gated by a single boolean
+  `Authz` flag (`canViewGovernance`, `canViewActivityLog`, `canViewUsersRoute`, `isPlatformAdmin`,
+  `canViewAdminConsole`, `canReadControls` for `/audit-trail`) wraps its `element` in the named guard
+  from `frontend/src/authz/BusinessRouteGuards.ts`. The guard renders `ReadAccessDeniedState` (the
+  `AccessDeniedState` primitive) and the page component must not repeat the check: no `if (!authz.canX)`
+  early return at the top of a routed page that already has a route guard. New guards are one more
+  `createBusinessRouteGuard('<authzKey>')` export there, applied in this folder's manifest. In-page
+  checks remain for partial access (a readable page that hides a tab or action) and for denials returned
+  by the API (`AccessDeniedState`). Client-side guards are UX only; the backend capability checks stay
+  authoritative.
 
 Keep this README updated when responsibilities or structure in this folder change.

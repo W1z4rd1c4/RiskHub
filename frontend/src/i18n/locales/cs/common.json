@@ -76,9 +76,6 @@
     "stale_title": "Tyto informace mohou být zastaralé",
     "stale_description": "Nejnovější data záznamu se nepodařilo načíst. Poslední úspěšná verze zůstává viditelná."
   },
-  "formats": {
-    "excel": "CSV"
-  },
   "export": {
     "button": "Export",
     "title": "Export dat",
@@ -103,7 +100,6 @@
       }
     },
     "formats": {
-      "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
@@ -473,7 +469,6 @@
     "result_count_other": "{{count}} položek"
   },
   "approval": {
-    "submitted_for_approval": "Odesláno ke schválení",
     "queued": {
       "toast_title": "Odesláno ke schválení",
       "toast_body": "Změna se projeví po schválení.",
@@ -568,24 +563,62 @@
       "recent_activity": "Nedávná aktivita"
     },
     "health": {
-      "high_risk": "{{count}} vysokých rizik",
-      "high_risks": "{{count}} vysokých",
-      "critical_risks": "{{count}} kritických",
-      "attention_controls": "{{count}} vyžaduje pozornost",
-      "inactive_controls": "{{count}} neaktivních",
-      "kri_breaches": "{{count}} překročení",
-      "kri_overdue": "{{count}} po termínu",
-      "open_issues": "{{count}} otevřených",
-      "overdue_issues": "{{count}} po termínu",
-      "critical_processes": "{{count}} kritických",
-      "cif_processes": "{{count}} CIF",
-      "critical_assets": "{{count}} kritických",
-      "legacy_assets": "{{count}} legacy",
-      "critical_vendors": "{{count}} kritických",
-      "dora_vendors": "{{count}} DORA",
-      "active_users": "{{count}} aktivních",
-      "accountability_gaps": "{{count}} mezer v odpovědnosti",
-      "significant_vendors": "{{count}} významných"
+      "high_risks_one": "{{count}} vysoké",
+      "high_risks_few": "{{count}} vysoká",
+      "high_risks_many": "{{count}} vysokého",
+      "high_risks_other": "{{count}} vysokých",
+      "critical_risks_one": "{{count}} kritické",
+      "critical_risks_few": "{{count}} kritická",
+      "critical_risks_many": "{{count}} kritického",
+      "critical_risks_other": "{{count}} kritických",
+      "attention_controls_one": "{{count}} vyžaduje pozornost",
+      "attention_controls_few": "{{count}} vyžadují pozornost",
+      "attention_controls_many": "{{count}} vyžaduje pozornost",
+      "attention_controls_other": "{{count}} vyžaduje pozornost",
+      "kri_breaches_one": "{{count}} překročení",
+      "kri_breaches_few": "{{count}} překročení",
+      "kri_breaches_many": "{{count}} překročení",
+      "kri_breaches_other": "{{count}} překročení",
+      "kri_overdue_one": "{{count}} po termínu",
+      "kri_overdue_few": "{{count}} po termínu",
+      "kri_overdue_many": "{{count}} po termínu",
+      "kri_overdue_other": "{{count}} po termínu",
+      "open_issues_one": "{{count}} otevřený",
+      "open_issues_few": "{{count}} otevřené",
+      "open_issues_many": "{{count}} otevřeného",
+      "open_issues_other": "{{count}} otevřených",
+      "overdue_issues_one": "{{count}} po termínu",
+      "overdue_issues_few": "{{count}} po termínu",
+      "overdue_issues_many": "{{count}} po termínu",
+      "overdue_issues_other": "{{count}} po termínu",
+      "critical_processes_one": "{{count}} kritický",
+      "critical_processes_few": "{{count}} kritické",
+      "critical_processes_many": "{{count}} kritického",
+      "critical_processes_other": "{{count}} kritických",
+      "cif_processes_one": "{{count}} CIF",
+      "cif_processes_few": "{{count}} CIF",
+      "cif_processes_many": "{{count}} CIF",
+      "cif_processes_other": "{{count}} CIF",
+      "critical_assets_one": "{{count}} kritické",
+      "critical_assets_few": "{{count}} kritická",
+      "critical_assets_many": "{{count}} kritického",
+      "critical_assets_other": "{{count}} kritických",
+      "legacy_assets_one": "{{count}} legacy",
+      "legacy_assets_few": "{{count}} legacy",
+      "legacy_assets_many": "{{count}} legacy",
+      "legacy_assets_other": "{{count}} legacy",
+      "critical_vendors_one": "{{count}} kritický",
+      "critical_vendors_few": "{{count}} kritičtí",
+      "critical_vendors_many": "{{count}} kritického",
+      "critical_vendors_other": "{{count}} kritických",
+      "dora_vendors_one": "{{count}} DORA",
+      "dora_vendors_few": "{{count}} DORA",
+      "dora_vendors_many": "{{count}} DORA",
+      "dora_vendors_other": "{{count}} DORA",
+      "active_users_one": "{{count}} aktivní",
+      "active_users_few": "{{count}} aktivní",
+      "active_users_many": "{{count}} aktivního",
+      "active_users_other": "{{count}} aktivních"
     },
     "recent_activity": {
       "title": "Nedávná aktivita",
@@ -804,6 +837,10 @@
   "error_boundary": {
     "title": "Něco se pokazilo",
     "description": "Stránku se nepodařilo zobrazit."
+  },
+  "history_chart": {
+    "summary": "Vývoj – {{label}}: poslední hodnota {{latest}} ({{period}}); nejnižší {{min}}, nejvyšší {{max}}.",
+    "period": "Období"
   },
   "values": {
     "closed_lists": {

@@ -76,10 +76,6 @@ vi.mock('@/components/executions/ExecutionLogModal', () => ({
     ),
 }));
 
-vi.mock('@/components/ArchiveConfirmDialog', () => ({
-    ArchiveConfirmDialog: () => null,
-}));
-
 vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
     IssueQuickCreateModal: () => null,
 }));

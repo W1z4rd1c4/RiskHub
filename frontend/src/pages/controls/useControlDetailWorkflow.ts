@@ -149,11 +149,16 @@ export function useControlDetailWorkflow({
         return () => linkedRisksControllerRef.current?.abort();
     }, [controlId, fetchLinkedRisks]);
 
-    async function handleArchive(reason: string): Promise<void> {
+    /**
+     * `ConfirmDialog intent="archive"` handler: archives with the trimmed
+     * reason and closes the dialog once the archive succeeds or is queued for
+     * approval; a failure rejects so the dialog stays open with its error.
+     */
+    async function handleArchive(reason?: string): Promise<void> {
         if (!control) return;
         const ownerId = control.id;
         const outcome = await runArchive({
-            archive: () => controlApi.deleteControl(ownerId, reason),
+            archive: () => controlApi.deleteControl(ownerId, (reason ?? '').trim()),
             approvalKey: 'controls:detail.archive_approval_submitted',
             isCurrent: () => detailOwnerRef.current === ownerId,
             onImmediate: () => {
@@ -164,6 +169,7 @@ export function useControlDetailWorkflow({
         if (outcome.kind === 'failed') {
             throw outcome.error;
         }
+        setIsArchiveDialogOpen(false);
     }
 
     async function handleRestore(): Promise<void> {

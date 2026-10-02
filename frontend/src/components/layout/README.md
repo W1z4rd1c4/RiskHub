@@ -17,15 +17,18 @@ UI components for `layout` area.
   returns the text for the live region. When a state-shell `h1` (loading / denied) is replaced by the
   loaded record's `h1` and that swap dropped focus to the body, focus follows the new `h1`. Search-param
   and in-page tab changes are not route changes.
+- `DesktopOnlyNotice.tsx` — the desktop-first advisory (FR-P5-2, C6, ADR-014): below the `lg` breakpoint
+  it replaces the layout with a neutral notice that points to an accessible alternative and never asks
+  the user to reduce zoom; a notice, not a reflow shell. Rendered by `MainLayout`.
 - `Sidebar.tsx` — grouped navigation; the active item follows `resolveActiveSidebarHref` (including a
   route's `activeNavHref`, NAV-02). Count badges keep the number visual-only and add sr-only context
   (`navigation:sidebar_badges.*`, AX-14); the notification bell carries the unread count in its name and
-  `aria-current="page"` on `/notifications`.
+  `aria-current="page"` on `/notifications`. The active item uses the `nav-active` token pair and count
+  pills the `nav-badge` pair (no route CSS file).
 - `DestinationLauncher.tsx` — the sidebar "Go to" palette (Ctrl/⌘+K): a `DialogShell` with an `Input`
   combobox (`aria-activedescendant`) over one listbox of destination and record options (ghost `Button`
   rows with the entity icons from `constants/entityIcons`), debounced record search, polite status lines
   and a retry `Button`.
-- `sidebar.css` — the active nav item colours (`.sidebar-nav-link--active`) per theme.
 - `AuthFrame.tsx` — frame for every public / pre-auth page (audit 2026-09-30 §4.20, DS-24): `<main>` that
   scrolls instead of clipping (RS-02), header with `BrandWordmark` + `LanguageSwitch`, one card with an
   optional `eyebrow`, the focused `h1` (mirrored into `document.title`, or `documentTitle` when the tab title

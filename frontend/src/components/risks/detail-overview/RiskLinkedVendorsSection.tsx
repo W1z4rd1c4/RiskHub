@@ -44,7 +44,7 @@ export function RiskLinkedVendorsSection({
                             <span className="flex items-start justify-between gap-3">
                                 <span className="min-w-0">
                                     <span className="block truncate text-sm font-bold text-foreground">{vendor.name}</span>
-                                    <span className="block truncate text-xs text-muted-foreground">{vendor.department_name || t('overview.unassigned', { ns: 'risks' })}</span>
+                                    <span className="block truncate text-xs text-muted-foreground">{vendor.department_name || t('common:fallbacks.unassigned')}</span>
                                 </span>
                                 <Badge
                                     size="sm"

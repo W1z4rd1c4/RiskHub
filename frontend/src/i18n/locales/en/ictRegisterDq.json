@@ -51,10 +51,16 @@
     "empty": "No checks match the filter",
     "all_clear": {
         "title": "All clear — no findings",
-        "body": "All {{count}} checks pass. No violating rows across the register.",
+        "body_one": "The only check passes. No violating rows across the register.",
+        "body_few": "All {{count}} checks pass. No violating rows across the register.",
+        "body_many": "All {{count}} checks pass. No violating rows across the register.",
+        "body_other": "All {{count}} checks pass. No violating rows across the register.",
         "body_with_unmeasurable": "Passing checks: {{passed}}. Not yet measurable: {{notMeasurable}}. No findings are currently reported."
     },
-    "rows_scoped": "Showing {{shown}} of {{count}} rows (limited to your access).",
+    "rows_scoped_one": "Showing {{shown}} of {{count}} row (limited to your access).",
+    "rows_scoped_few": "Showing {{shown}} of {{count}} rows (limited to your access).",
+    "rows_scoped_many": "Showing {{shown}} of {{count}} rows (limited to your access).",
+    "rows_scoped_other": "Showing {{shown}} of {{count}} rows (limited to your access).",
     "rows_loading": "Loading violation details…",
     "rows_error": "Violation details could not be loaded.",
     "rows_empty": "No visible violating rows.",

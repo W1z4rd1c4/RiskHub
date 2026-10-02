@@ -109,12 +109,14 @@ for (const entry of delegates) {
     if (!target || target.kind !== 'semantic') {
         fail(`${entry.id} delegates to ${entry.delegatesTo ?? '(missing delegatesTo)'}, which is not a semantic DialogShell owner`);
     }
-    if (entry.legacyClassProps?.length) fail(`${entry.id} is a delegate and cannot record legacyClassProps`);
 }
 
 const registeredComponents = new Set(implementations.map((entry) => entry.component));
 for (const entry of [...implementations, ...renderSites, ...nonDialogs]) {
     if (!entry.id || !entry.component || !entry.file) fail(`malformed entry ${JSON.stringify(entry)}`);
+    // Roadmap 4.3: the deprecated DialogShell class props were deleted from the API (TypeScript now
+    // rejects them), so the former `legacyClassProps` ratchet field is retired.
+    if ('legacyClassProps' in entry) fail(`${entry.id} records the retired legacyClassProps field`);
     if (!existsSync(resolve(repoRoot, entry.file))) fail(`${entry.id} references missing file ${entry.file}`);
 }
 for (const entry of renderSites) {
@@ -127,11 +129,9 @@ const semanticComponents = new Set(
         .filter((entry) => ['semantic', 'transparent-wrapper', 'delegate'].includes(entry.kind))
         .map((entry) => entry.component),
 );
-const LEGACY_CLASS_PROPS = new Set(['backdropClassName', 'containerClassName', 'contentClassName']);
 const directOwners = [];
 const semanticRenderSites = [];
 const delegateRenderSites = [];
-const legacyClassPropsByOwner = new Map();
 const dialogShellDefinitions = [];
 const delegateKeys = new Set(delegates.map((entry) => `${entry.delegatesTo}|${entry.file}|${entry.component}`));
 
@@ -153,17 +153,6 @@ for (const path of collectTsxFiles(sourceRoot)) {
                 const owner = componentOwner(node);
                 if (!owner) fail(`cannot determine DialogShell owner in ${file}`);
                 directOwners.push(`${owner}|${file}`);
-                const legacyProps = legacyClassPropsByOwner.get(`${owner}|${file}`) ?? new Set();
-                for (const attribute of node.attributes.properties) {
-                    if (
-                        ts.isJsxAttribute(attribute)
-                        && ts.isIdentifier(attribute.name)
-                        && LEGACY_CLASS_PROPS.has(attribute.name.text)
-                    ) {
-                        legacyProps.add(attribute.name.text);
-                    }
-                }
-                legacyClassPropsByOwner.set(`${owner}|${file}`, legacyProps);
             }
             if (tag && semanticComponents.has(tag)) {
                 const owner = componentOwner(node);
@@ -212,24 +201,6 @@ compareMultisets(
     delegateRenderSites,
 );
 
-// Ratchet (audit §4.11 guard): deprecated DialogShell class props may only go down.
-const legacyProblems = [];
-for (const entry of directImplementations) {
-    const recorded = new Set(entry.legacyClassProps ?? []);
-    const observed = legacyClassPropsByOwner.get(`${entry.component}|${entry.file}`) ?? new Set();
-    for (const prop of observed) {
-        if (!recorded.has(prop)) {
-            legacyProblems.push(`${entry.id} passes deprecated ${prop}; use size/className and DialogHeader/DialogBody/DialogFooter`);
-        }
-    }
-    for (const prop of recorded) {
-        if (!observed.has(prop)) {
-            legacyProblems.push(`${entry.id} no longer passes ${prop}; remove it from legacyClassProps (ratchet)`);
-        }
-    }
-}
-if (legacyProblems.length) fail(`DialogShell legacy class props drifted\n${legacyProblems.join('\n')}`);
-const legacyPropUses = directImplementations.reduce((total, entry) => total + (entry.legacyClassProps?.length ?? 0), 0);
 compareMultisets(
     'application render sites drifted',
     renderSites
@@ -270,6 +241,5 @@ compareMultisets('matrix verification cases drifted', [...expectedCaseIds], obse
 console.log(
     `Dialog inventory verified: ${implementations.length} implementation owners, `
     + `${renderSites.length} application render sites, ${nonDialogs.length} non-dialog surfaces, `
-    + `${expectedCaseIds.size} executable contract cases, `
-    + `${legacyPropUses} deprecated DialogShell class-prop uses (ratchet).`,
+    + `${expectedCaseIds.size} executable contract cases.`,
 );

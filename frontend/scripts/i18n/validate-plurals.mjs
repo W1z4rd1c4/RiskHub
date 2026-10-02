@@ -8,19 +8,16 @@
  * Count-free uses (a percentage, a `Label: {{count}}` value, a parenthesised `({{count}})`
  * tally) are exempt via `plural-allowlist.json`.
  *
- * Ratchet mode: existing violations are listed in `plural-baseline.json` and may only go
- * down. A violation not in the baseline fails; `--update-baseline` rewrites the baseline only
- * when nothing new was added (unless `--force`).
+ * Zero tolerance: the legacy baseline was burned down to 0 in the W10 cleanup (audit 4.6,
+ * GAP-B-14), so any `{{count}}` string without plural forms fails. There is no baseline file.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BASELINE_VERSION = 1;
 export const COUNT_TOKEN = '{{count}}';
 export const REQUIRED_FORMS = { cs: ['one', 'few', 'other'], en: ['one', 'other'] };
 export const LOCALES = Object.keys(REQUIRED_FORMS);
-export const UPDATE_COMMAND = 'npm run i18n:validate:plurals -- --update-baseline';
 const PLURAL_SUFFIX_RE = /_(zero|one|two|few|many|other)$/;
 
 export function flattenLeaves(obj, prefix = '', out = new Map()) {
@@ -92,35 +89,6 @@ export function findPluralViolations(locale, namespaces, { invariantPatterns = [
   return violations;
 }
 
-/** Compares current violation ids with the baseline ids for each locale. */
-export function compareWithBaseline(baseline, current) {
-  const added = [];
-  const fixed = [];
-  for (const locale of LOCALES) {
-    const before = new Set(baseline[locale] ?? []);
-    const now = new Set(current[locale].map((violation) => violation.id));
-    for (const violation of current[locale]) {
-      if (!before.has(violation.id)) added.push({ locale, ...violation });
-    }
-    for (const id of [...before].sort()) {
-      if (!now.has(id)) fixed.push({ locale, id });
-    }
-  }
-  return { added, fixed };
-}
-
-export function buildBaselineDocument(current) {
-  return {
-    version: BASELINE_VERSION,
-    description:
-      'Locale families that interpolate {{count}} without full plural forms (GAP-B-14). May only shrink; regenerate with `' +
-      UPDATE_COMMAND +
-      '`.',
-    totals: Object.fromEntries(LOCALES.map((locale) => [locale, current[locale].length])),
-    violations: Object.fromEntries(LOCALES.map((locale) => [locale, current[locale].map((v) => v.id).sort()])),
-  };
-}
-
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -136,11 +104,7 @@ function loadLocale(localesDir, locale) {
 
 function parseArgs(argv) {
   const rootArg = argv.find((arg) => arg.startsWith('--root='));
-  return {
-    update: argv.includes('--update-baseline'),
-    force: argv.includes('--force'),
-    root: rootArg ? rootArg.slice('--root='.length) : null,
-  };
+  return { root: rootArg ? rootArg.slice('--root='.length) : null };
 }
 
 export function main(argv = process.argv.slice(2)) {
@@ -151,7 +115,6 @@ export function main(argv = process.argv.slice(2)) {
   const scriptDir = join(frontendRoot, 'scripts', 'i18n');
   const localesDir = join(frontendRoot, 'src', 'i18n', 'locales');
   const allowlistPath = join(scriptDir, 'plural-allowlist.json');
-  const baselinePath = join(scriptDir, 'plural-baseline.json');
 
   const allowlist = existsSync(allowlistPath) ? readJson(allowlistPath) : {};
   const options = {
@@ -168,45 +131,22 @@ export function main(argv = process.argv.slice(2)) {
   const current = Object.fromEntries(
     LOCALES.map((locale) => [locale, findPluralViolations(locale, loadLocale(localesDir, locale), options)]),
   );
-  const baseline = existsSync(baselinePath) ? readJson(baselinePath).violations ?? {} : null;
-  const { added, fixed } = compareWithBaseline(baseline ?? {}, current);
-  const summary = LOCALES.map((locale) => `${locale} ${current[locale].length}`).join(' / ');
+  const total = LOCALES.reduce((sum, locale) => sum + current[locale].length, 0);
 
-  const printAdded = (log) => {
-    for (const violation of added) {
-      log(`  [${violation.locale}] ${violation.id} is missing _${violation.missing.join(', _')}`);
+  if (total > 0) {
+    console.error(`i18n plural validator: FAIL (${total} {{count}} families without plural forms)`);
+    for (const locale of LOCALES) {
+      for (const violation of current[locale]) {
+        console.error(`  [${locale}] ${violation.id} is missing _${violation.missing.join(', _')}`);
+      }
     }
-  };
-
-  if (args.update) {
-    if (baseline && added.length > 0 && !args.force) {
-      console.error('i18n plural validator: refusing to add violations to the baseline:');
-      printAdded(console.error);
-      return 1;
-    }
-    writeFileSync(baselinePath, `${JSON.stringify(buildBaselineDocument(current), null, 2)}\n`, 'utf8');
-    console.log(`i18n plural validator: baseline written (${summary}).`);
-    return 0;
-  }
-
-  if (!baseline) {
-    console.error(`i18n plural validator: missing plural-baseline.json. Seed it with \`${UPDATE_COMMAND}\`.`);
-    return 1;
-  }
-
-  if (added.length > 0) {
-    console.error(`i18n plural validator: FAIL (${added.length} new {{count}} strings without plural forms)`);
-    printAdded(console.error);
     console.error(
       'Use whole-phrase plural keys: cs needs _one/_few/_other (optional _many), en needs _one/_other (docs/LOCALIZATION.md).',
     );
     return 1;
   }
 
-  console.log(`i18n plural validator: PASS (families without plural forms: ${summary}; baseline may only shrink)`);
-  if (fixed.length > 0) {
-    console.log(`${fixed.length} baseline entries are fixed; lock them in with \`${UPDATE_COMMAND}\`.`);
-  }
+  console.log('i18n plural validator: PASS (every {{count}} string is a plural family)');
   return 0;
 }
 

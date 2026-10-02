@@ -3,10 +3,10 @@
 Unit tests for design-system tokens. `statusTokenContrast.test.ts` verifies the
 status color tokens meet color-contrast (accessibility) thresholds, and covers the
 UI-contract token families (`tint`, `overlay`, `severity-high*`, `chart-1…8`,
-`heat-0…4`, `nav-active`, `badge-count`) in all three themes: AA for text and
+`heat-0…4`, `nav-active`, `nav-badge`, `badge-count`) in all three themes: AA for text and
 fill/foreground pairs, 3:1 for chart series, a monotonic heat scale.
 `sharedShellTextTokens.test.tsx` guards the shared shells (StepIndicator,
-ReadAccessDeniedState, ArchiveConfirmDialog, SortableTable empty text) against raw
+ReadAccessDeniedState, the archive ConfirmDialog, SortableTable empty text) against raw
 `text-white` / `text-slate-*` text colours (DS-01, DS-03).
 `cssVarsDeclared.test.ts` asserts every `var(--x)` used in `frontend/src` (and
 `tailwind.config.js`) is declared in a stylesheet under `frontend/src`, with a

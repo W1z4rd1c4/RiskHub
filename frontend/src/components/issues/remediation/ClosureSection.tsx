@@ -31,7 +31,7 @@ export function ClosedSection({ issue }: ClosedSectionProps) {
             <dl>
                 <SummaryField
                     label={t('workflow.fields.validation_note')}
-                    value={issue.validation_note || t('fallbacks.not_set')}
+                    value={issue.validation_note || t('common:fallbacks.not_set')}
                 />
             </dl>
         </Card>

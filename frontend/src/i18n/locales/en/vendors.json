@@ -50,7 +50,10 @@
     },
     "filters": {
       "add": "Add filter",
-      "active_count": "{{count}} active filters",
+      "active_count_one": "{{count}} active filter",
+      "active_count_few": "{{count}} active filters",
+      "active_count_many": "{{count}} active filters",
+      "active_count_other": "{{count}} active filters",
       "clear_all": "Clear all",
       "remove": "Remove {{label}}",
       "lifecycle": "Lifecycle",

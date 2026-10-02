@@ -63,15 +63,15 @@ DialogShell v2 (audit 2026-09-30 §4.11) adds three checks:
   owner imported `@/components/ui/dialog` (W6); an optional
   `primitive.legacyShim`, if declared again, may only re-export the primitive.
 - **Delegates.** An implementation with `kind: "delegate"` renders another
-  semantic owner (`delegatesTo`) instead of `DialogShell`, for example
-  `ArchiveConfirmDialog` → `ConfirmDialog intent="archive"`. Its own render sites
-  stay tracked; its internal render of the target is not a separate site.
-- **Deprecated class-prop ratchet.** `legacyClassProps` records which of
-  `containerClassName`, `backdropClassName` and `contentClassName` each owner
-  still passes. Adding one fails; dropping one fails until the manifest entry is
-  updated, so the count only goes down as dialogs migrate to `size` and
-  `DialogHeader` / `DialogBody` / `DialogFooter`. Since W6 (roadmap 2.1) every
-  owner is on the v2 API and the ratchet total is 0, so any new use fails.
+  semantic owner (`delegatesTo`) instead of `DialogShell`. Its own render sites
+  stay tracked; its internal render of the target is not a separate site. (The
+  former `ArchiveConfirmDialog` delegate was deleted in Phase 4, roadmap 4.3:
+  archive call sites render `ConfirmDialog intent="archive"` directly.)
+- **Deprecated class props removed.** `containerClassName`, `backdropClassName`
+  and `contentClassName` were deleted from the `DialogShell` API in Phase 4
+  (roadmap 4.3), so TypeScript rejects them; the former `legacyClassProps`
+  manifest ratchet is retired and the validator fails if an entry still
+  declares it.
 
 ## Verification layers
 

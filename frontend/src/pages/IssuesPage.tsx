@@ -81,7 +81,7 @@ export function IssuesPage() {
             groupLabel: (group) => formatIssueGroupLabel(group, {
                 unlinkedVendor: t('fallbacks.unlinked_vendor'),
                 uncategorized: t('common:fallbacks.uncategorized'),
-                unknownDepartment: t('fallbacks.unknown_department'),
+                unknownDepartment: t('common:fallbacks.unknown_department'),
                 noProcess: t('fallbacks.no_process'),
                 unknownRiskType: t('common:fallbacks.unknown_type'),
             }),

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
 import { AuthConfigErrorView, LoadingLoginView, LoginNotConfiguredView } from '@/pages/login/LoginStateViews';
 import { NativeLoginView } from '@/pages/native/NativeLoginView';
@@ -133,7 +133,7 @@ export default function LoginPage() {
         [prodAuthTranslate],
     );
     const authConfigRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
-        ? t(stripErrorKeyPrefix(session.logoutErrorKey), { ns: 'errorKeys' })
+        ? translateUiMessage(t, session.logoutErrorKey)
         : null;
     const ssoLogoutRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
         ? prodErrorTranslate(stripErrorKeyPrefix(session.logoutErrorKey))
@@ -145,7 +145,7 @@ export default function LoginPage() {
             : errorKey ? prodErrorTranslate(stripErrorKeyPrefix(errorKey)) : '';
     const demoErrorMessage = authErrorParam === 'sso_callback_failed'
         ? t('sso_callback.exchange_failed')
-        : errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
+        : errorKey ? translateUiMessage(t, errorKey) : null;
     const handleCompleteSsoLogout = useCallback(async () => {
         setIsCompletingSsoLogout(true);
         try {

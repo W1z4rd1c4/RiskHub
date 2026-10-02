@@ -60,7 +60,7 @@ function DialogHarness({ role, withInitialFocus = false, onClose }: HarnessProps
                 descriptionIds={['dh-desc']}
                 role={role}
                 initialFocusRef={withInitialFocus ? secondRef : undefined}
-                contentClassName="relative w-full max-w-md bg-slate-900 p-6"
+                size="md"
             >
                 <h2 id="dh-title">Confirm action</h2>
                 <p id="dh-desc">This needs your attention.</p>

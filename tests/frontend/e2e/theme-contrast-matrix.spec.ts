@@ -219,10 +219,20 @@ async function waitForFiniteAnimations(locator: Locator): Promise<void> {
   });
 }
 
+/**
+ * D6 (audit 2026-09-30 §3): text is at least 12px, except the one `text-eyebrow` recipe
+ * (11px, uppercase, weight ≥ 600) that labels sections and fields.
+ */
 async function expectReadableTypography(locator: Locator, label: string): Promise<void> {
   await expect(locator, label).toBeVisible();
-  const fontSize = await locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
-  expect(fontSize, `${label} font-size`).toBeGreaterThanOrEqual(12);
+  const { fontSize, isEyebrow } = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      fontSize: Number.parseFloat(style.fontSize),
+      isEyebrow: style.textTransform === 'uppercase' && Number.parseInt(style.fontWeight, 10) >= 600,
+    };
+  });
+  expect(fontSize, `${label} font-size`).toBeGreaterThanOrEqual(isEyebrow ? 11 : 12);
 }
 
 async function settledComputedColors(locator: Locator, label: string): Promise<{ background: string; foreground: string }> {
@@ -247,14 +257,16 @@ async function expectCanonicalNeutralHover(page: Page, locator: Locator, label: 
   await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} leaves hover` }).toBe(false);
   await settledComputedColors(locator, `${label} normal`);
   expect(await renderedContrast(locator), `${label} normal contrast`).toBeGreaterThanOrEqual(4.5);
-  const semanticBackground = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--secondary))');
+  // §4.7 secondary recipe (Phase 4): the neutral hover is the theme-aware `tint` at 10%, not a
+  // saturated or secondary fill; compare the colour channels and the alpha.
+  const semanticBackground = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--tint) / 0.1)');
   const semanticChannels = semanticBackground.match(/[\d.]+/g)?.map(Number) ?? [];
   await locator.hover();
   await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} enters hover` }).toBe(true);
   const hoverColors = await settledComputedColors(locator, label);
   expect(await renderedContrast(locator), `${label} hover contrast`).toBeGreaterThanOrEqual(4.5);
   const hoverChannels = hoverColors.background.match(/[\d.]+/g)?.map(Number) ?? [];
-  semanticChannels.slice(0, 3).forEach((channel, index) => {
+  semanticChannels.slice(0, 4).forEach((channel, index) => {
     expect(Math.abs((hoverChannels[index] ?? Number.POSITIVE_INFINITY) - channel), `${label} semantic hover background channel ${index}`)
       .toBeLessThanOrEqual(1);
   });
@@ -304,7 +316,8 @@ async function expectCitedMutedForegrounds(
   const mutedForeground = await resolveThemeColor(page, 'color', 'hsl(var(--muted-foreground))');
 
   await visit(page, '/departments');
-  const departmentCard = page.locator('main button.glass-card').first();
+  // Department cards are the shared `Card as="button"` (glass surface, §4.10).
+  const departmentCard = page.locator('main button.glass').first();
   for (const label of ['Risk Register', 'Control Catalog', 'KRIs']) {
     const metadata = departmentCard.getByText(label, { exact: true });
     await expect(metadata, `${theme} Department ${label} metadata`).toBeVisible();
@@ -348,8 +361,9 @@ async function expectCitedMutedForegrounds(
   await visit(page, '/');
   const statusWidget = page.getByRole('region', { name: 'KRI Status' });
   for (const metadata of [
-    statusWidget.getByText('quarterly', { exact: true }),
-    statusWidget.getByRole('button', { name: 'View All' }),
+    statusWidget.getByText(/^quarterly$/i),
+    // The view-all action navigates, so it is a link (W9).
+    statusWidget.getByRole('link', { name: /View All/i }),
   ]) {
     await expect(metadata, `${theme} KRI status metadata`).toBeVisible();
     expect(await metadata.evaluate((element) => getComputedStyle(element).color))
@@ -550,10 +564,12 @@ test.describe('UX-24 audited theme matrix', () => {
     await visit(page, riskRoute);
 
     const grossRiskMatrix = page.getByRole('group', { name: 'Gross Risk' });
+    // D1 (ADR-015 Addendum 1): low → success, medium → warning, high → severity-high,
+    // critical → destructive; blue (`info`) never encodes severity.
     const semanticBands = [
       { selector: '.bg-success\\/40', token: '--success' },
-      { selector: '.bg-info\\/40', token: '--info' },
       { selector: '.bg-warning\\/40', token: '--warning' },
+      { selector: '.bg-severity-high\\/40', token: '--severity-high' },
       { selector: '.bg-destructive\\/40', token: '--destructive' },
     ] as const;
 
@@ -589,10 +605,11 @@ test.describe('UX-24 audited theme matrix', () => {
     const lightMutedForeground = await resolveThemeColor(page, 'color', 'hsl(var(--muted-foreground))');
     const lightAccentText = await resolveThemeColor(page, 'color', 'hsl(var(--accent-text))');
     const lightSecondaryForeground = await resolveThemeColor(page, 'color', 'hsl(var(--secondary-foreground))');
-    const lightSecondaryHover = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--secondary) / 0.8)');
-    const lightWarning = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--warning))');
+    // §4.7 secondary recipe: the hover surface is the neutral tint at 10%.
+    const lightSecondaryHover = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--tint) / 0.1)');
+    const lightAccent = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--accent))');
+    const lightAccentForeground = await resolveThemeColor(page, 'color', 'hsl(var(--accent-foreground))');
     const lightWarningText = await resolveThemeColor(page, 'color', 'hsl(var(--warning-text))');
-    const lightWarningForeground = await resolveThemeColor(page, 'color', 'hsl(var(--warning-foreground))');
     expect(await departmentHeading.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
 
@@ -631,10 +648,11 @@ test.describe('UX-24 audited theme matrix', () => {
       });
     });
     await visit(page, '/');
-    const dueSoonCard = page.locator('main').filter({ hasText: 'UX-24 Due Soon KRI' });
     const kriStatusWidget = page.getByRole('region', { name: 'KRI Status' });
+    const dueSoonCard = kriStatusWidget;
     const kriStatusHeading = kriStatusWidget.getByRole('heading', { name: 'KRI Status' });
-    const dueSoonHeading = kriStatusWidget.getByRole('heading', { name: 'UX-24 Due Soon KRI' });
+    // W9: the KRI row title is text inside the row link, not a heading.
+    const dueSoonHeading = kriStatusWidget.getByText('UX-24 Due Soon KRI', { exact: true });
     expect(await kriStatusHeading.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
     expect(await dueSoonHeading.evaluate((element) => getComputedStyle(element).color))
@@ -643,10 +661,11 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(dueStateLabel, 'KRI due-state label');
     expect(await dueStateLabel.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightWarningText);
-    await expectReadableTypography(dueSoonCard.getByText('quarterly', { exact: true }), 'KRI frequency label');
-    await expectReadableTypography(dueSoonCard.getByRole('button', { name: /View All/i }), 'KRI view-all action');
-    const upcomingTab = kriStatusWidget.getByRole('button', { name: 'Upcoming', exact: true });
-    const overdueTab = kriStatusWidget.getByRole('button', { name: 'Overdue', exact: true });
+    await expectReadableTypography(dueSoonCard.getByText(/^quarterly$/i), 'KRI frequency label');
+    await expectReadableTypography(dueSoonCard.getByRole('link', { name: /View All/i }), 'KRI view-all action');
+    // D8: the status views are the shared Tabs primitive (pill variant, role="tab").
+    const upcomingTab = kriStatusWidget.getByRole('tab', { name: 'Upcoming', exact: true });
+    const overdueTab = kriStatusWidget.getByRole('tab', { name: 'Overdue', exact: true });
     expect(await overdueTab.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightMutedForeground);
     await overdueTab.hover();
@@ -657,16 +676,17 @@ test.describe('UX-24 audited theme matrix', () => {
     await overdueTab.click();
     await expect.poll(
       () => overdueTab.evaluate((element) => getComputedStyle(element).backgroundColor),
-      { message: 'selected overdue tab reaches its semantic warning fill' },
-    ).toBe(lightWarning);
+      { message: 'selected overdue tab reaches the selected pill fill' },
+    ).toBe(lightAccent);
     await expect.poll(
       () => overdueTab.evaluate((element) => getComputedStyle(element).color),
       { message: 'selected overdue tab reaches its paired foreground' },
-    ).toBe(lightWarningForeground);
+    ).toBe(lightAccentForeground);
     await upcomingTab.click();
-    const dashboardStatCard = page.getByRole('button', { name: /Total Controls/i });
-    expect(await dashboardStatCard.evaluate((element) => element.tagName)).toBe('BUTTON');
-    const dashboardStatValue = dashboardStatCard.getByRole('heading', { level: 3 });
+    // The KPI card navigates, so it is one link (W9); its value is the last text line.
+    const dashboardStatCard = page.getByRole('link', { name: /Total Controls/i });
+    expect(await dashboardStatCard.evaluate((element) => element.tagName)).toBe('A');
+    const dashboardStatValue = dashboardStatCard.locator('p').last();
     expect(await dashboardStatValue.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
     await expect(dashboardStatCard.getByText('Live', { exact: true })).toHaveCount(0);
@@ -866,9 +886,10 @@ test.describe('UX-24 audited theme matrix', () => {
     expect(await controlGaugeCard.locator('svg rect').nth(1)
       .evaluate((element) => getComputedStyle(element).color)).toBe(successGaugeZone);
     await expectSemanticFocusRing(page, controlGaugeCard, 'Control gauge card');
+    // W8: "Add KRI" is an outline Button (foreground text), not an accent-text link look.
     const addKriButton = page.getByRole('button', { name: /Add KRI/i });
     expect(await addKriButton.evaluate((element) => getComputedStyle(element).color))
-      .toBe(lightAccentText);
+      .toBe(lightForeground);
     await page.getByRole('button', { name: /Link Existing/i }).first().click();
     const linkDialog = page.getByTestId('link-management-dialog');
     await expect(linkDialog).toBeVisible();
@@ -892,7 +913,7 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(linkSearchResult.getByText('Level', { exact: true }), 'Link result Level label');
     await expectReadableTypography(linkSearchResult.getByText('3/5', { exact: true }), 'Link result Level value');
     await expectReadableTypography(linkSearchResult.getByText('Freq', { exact: true }), 'Link result Freq label');
-    await expectReadableTypography(linkSearchResult.getByText('quarterly', { exact: true }), 'Link result Freq value');
+    await expectReadableTypography(linkSearchResult.getByText(/^quarterly$/i), 'Link result Freq value');
     await expectReadableTypography(suggestions.getByRole('button', { name: /Unarchive/i }), 'Link result action');
     await waitForFiniteAnimations(linkDialog);
     const linkSearchStateAxe = await new AxeBuilder({ page })
@@ -916,7 +937,7 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(linkDialog.getByText('Owner Information'), 'link owner heading');
     await expectReadableTypography(linkDialog.getByRole('button', { name: 'Change' }), 'link change action');
     await expectReadableTypography(linkDialog.getByRole('button', { name: 'Create Link' }), 'create-link action');
-    await linkDialog.getByTitle('Close').click();
+    await linkDialog.getByRole('button', { name: /^close$/i }).first().click();
     const manageExistingLinksButton = page.getByRole('button', { name: /Manage Existing Links/i });
     await manageExistingLinksButton.click();
     const existingLinksDialog = page.getByTestId('link-management-dialog');
@@ -927,7 +948,7 @@ test.describe('UX-24 audited theme matrix', () => {
       'Existing Link notes',
     );
     await expectReadableTypography(
-      existingLinksDialog.getByText('high', { exact: true }),
+      existingLinksDialog.getByText(/^high$/i),
       'Existing Link effectiveness',
     );
     await waitForFiniteAnimations(existingLinksDialog);
@@ -939,7 +960,7 @@ test.describe('UX-24 audited theme matrix', () => {
       existingLinksStateAxe.violations,
       JSON.stringify(existingLinksStateAxe.violations, null, 2),
     ).toEqual([]);
-    await existingLinksDialog.getByTitle('Close').click();
+    await existingLinksDialog.getByRole('button', { name: /^close$/i }).first().click();
     await expect(existingLinksDialog).toBeHidden();
     await expect(manageExistingLinksButton).toBeFocused();
     await expectSemanticFocusRing(page, controlGaugeCard, 'Control gauge card after dialog close');
@@ -1100,18 +1121,20 @@ test.describe('UX-24 audited theme matrix', () => {
       });
     });
     await visit(page, '/?view=risk-committee');
+    // Shared `Card` sections render the `glass` surface class; legacy sections keep `glass-card`.
     await expect(page.getByText('UX-24 Critical Risk')).toBeVisible();
-    const criticalRiskCard = page.locator('main .glass-card').filter({ hasText: 'UX-24 Critical Risk' });
+    const criticalRiskCard = page.locator('main :is(.glass-card, .glass)').filter({ hasText: 'UX-24 Critical Risk' });
     await expectReadableTypography(
       criticalRiskCard.getByText('UX-24 Critical Risk'),
       'committee critical-risk title',
     );
     const committeeMetadata = [
       page.getByText('Operations · Claims Processing / FNOL', { exact: true }),
-      page.locator('main .glass-card').filter({ hasText: 'UX-24 Operations' })
+      page.locator('main :is(.glass-card, .glass)').filter({ hasText: 'UX-24 Operations' })
         .getByText('2 Risks', { exact: true }),
-      page.locator('main .glass-card').filter({ hasText: 'UX-24 Activity' })
-        .getByText('Today', { exact: true }),
+      // I18N-03: the activity time is a locale-aware relative `<time>` (useFormat), not a fixed "Today".
+      page.locator('main :is(.glass-card, .glass)').filter({ hasText: 'UX-24 Activity' })
+        .locator('time').first(),
     ];
     for (const metadata of committeeMetadata) {
       await expect(metadata).toBeVisible();
@@ -1134,7 +1157,7 @@ test.describe('UX-24 audited theme matrix', () => {
     expect(await criticalRiskCard.getByText('Deterministic typography-state fixture.', { exact: true })
       .evaluate((element) => getComputedStyle(element).color)).toBe(lightMutedForeground);
     await expectReadableTypography(
-      page.locator('main .glass-card').filter({ hasText: 'UX-24 Activity' }).getByText('Approve', { exact: true }),
+      page.locator('main :is(.glass-card, .glass)').filter({ hasText: 'UX-24 Activity' }).getByText('Approve', { exact: true }),
       'committee activity action',
     );
 
@@ -1160,12 +1183,14 @@ test.describe('UX-24 audited theme matrix', () => {
     await editAccessButton.click();
     const accessDialog = page.getByRole('dialog', { name: /Edit Access Settings/i });
     await expect(accessDialog.getByTestId('access-edit-ready')).toBeVisible();
+    // Save stays disabled until the access selection changes. The Button primitive fades a
+    // disabled control and takes it out of pointer interaction (no hover token; the accent
+    // hover is asserted on the enabled Add User action above).
     const accessSaveButton = accessDialog.getByRole('button', { name: 'Save' });
-    await accessSaveButton.hover();
-    await expect.poll(
-      () => accessSaveButton.evaluate((element) => getComputedStyle(element).backgroundColor),
-      { message: 'Access Save reaches the opaque accent hover token' },
-    ).toBe(accentHover);
+    await expect(accessSaveButton).toBeDisabled();
+    expect(await accessSaveButton.evaluate((element) => getComputedStyle(element).opacity)).toBe('0.5');
+    expect(await accessSaveButton.evaluate((element) => getComputedStyle(element).backgroundColor))
+      .toBe(accentFill);
     await accessDialog.getByRole('button', { name: 'Close' }).click();
 
     const showPermissionsButton = page.getByRole('button', { name: 'Show all permissions' }).first();
@@ -1184,7 +1209,7 @@ test.describe('UX-24 audited theme matrix', () => {
     await logout(page);
     await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
     await visit(page, '/settings');
-    const staticCard = page.locator('main .glass-card').first();
+    const staticCard = page.locator('main :is(.glass-card, .glass)').first();
     const staticBefore = await staticCard.evaluate((element) => {
       const style = getComputedStyle(element);
       return { backgroundColor: style.backgroundColor, transitionProperty: style.transitionProperty };
@@ -1195,7 +1220,7 @@ test.describe('UX-24 audited theme matrix', () => {
     expect(staticAfter).toBe(staticBefore.backgroundColor);
 
     await visit(page, '/departments');
-    const interactiveCard = page.locator('main button.glass-card').first();
+    const interactiveCard = page.locator('main button.glass').first();
     const interactiveBefore = await interactiveCard.evaluate((element) => {
       const style = getComputedStyle(element);
       return { backgroundColor: style.backgroundColor, transitionProperty: style.transitionProperty };
@@ -1425,9 +1450,11 @@ test.describe('UX-24 audited theme matrix', () => {
       { message: 'Vendor detail Back action reaches the secondary hover surface' },
     ).toBe(lightSecondaryHover);
     const accentText = await resolveThemeColor(page, 'color', 'hsl(var(--accent-text))');
-    const linkedControlCard = page.getByRole('button', { name: /UX-24 Linked Control/i });
-    const linkedControlTitle = linkedControlCard.getByRole('heading', { name: 'UX-24 Linked Control' });
-    await expectSemanticFocusRing(page, linkedControlCard, 'Vendor linked Control card');
+    // W9: linked Control / Risk cards are an `article` whose title button stretches over the
+    // card (one action, no nested interactive content); the title text is that button.
+    const linkedControlTitle = page.getByRole('button', { name: /UX-24 Linked Control/i });
+    const linkedControlCard = page.locator('article').filter({ has: linkedControlTitle });
+    await expectSemanticFocusRing(page, linkedControlTitle, 'Vendor linked Control card');
     await linkedControlCard.hover();
     await expect.poll(
       () => linkedControlTitle.evaluate((element) => getComputedStyle(element).color),
@@ -1435,9 +1462,9 @@ test.describe('UX-24 audited theme matrix', () => {
     ).toBe(accentText);
     expect(await linkedControlCard.locator('svg rect').nth(1)
       .evaluate((element) => getComputedStyle(element).color)).toBe(successGaugeZone);
-    const linkedRiskCard = page.getByRole('button', { name: /UX-24 Linked Risk/i });
-    const linkedRiskTitle = linkedRiskCard.getByRole('heading', { name: /UX-24-R: UX-24 Linked Risk/ });
-    await expectSemanticFocusRing(page, linkedRiskCard, 'Vendor linked Risk card');
+    const linkedRiskTitle = page.getByRole('button', { name: /UX-24-R: UX-24 Linked Risk/ });
+    const linkedRiskCard = page.locator('article').filter({ has: linkedRiskTitle });
+    await expectSemanticFocusRing(page, linkedRiskTitle, 'Vendor linked Risk card');
     await linkedRiskCard.hover();
     await expect.poll(
       () => linkedRiskTitle.evaluate((element) => getComputedStyle(element).color),
@@ -1511,9 +1538,10 @@ test.describe('UX-24 audited theme matrix', () => {
       vendorRow.getByText('Inactive', { exact: true }),
       'Vendor status',
     );
+    // PG-28: archived register rows use the shared RowRestoreButton ("Restore {name}").
     await expectReadableTypography(
-      vendorRow.getByRole('button', { name: 'Unarchive' }),
-      'Vendor Unarchive action',
+      vendorRow.getByRole('button', { name: /^Restore\b/ }),
+      'Vendor Restore action',
     );
 
     await visit(page, '/processes');
@@ -1623,7 +1651,9 @@ test.describe('UX-24 audited theme matrix', () => {
     await expect(governanceStaticCard).toBeVisible();
     expect(await governanceActionCard.getByText('Pending Orphans', { exact: true })
       .evaluate((element) => getComputedStyle(element).color)).toBe(lightMutedForeground);
-    expect(await governanceActionCard.getByRole('heading', { level: 3 })
+    // The filter card is one button (Card as="button", §4.10), so its count is phrasing text,
+    // not a heading; the count is the card's last text line.
+    expect(await governanceActionCard.locator('p').last()
       .evaluate((element) => getComputedStyle(element).color)).toBe(lightForeground);
     const governanceCardLabels = [
       ['risk', 'Risks', 'Action Required'],
@@ -1675,10 +1705,11 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(uncategorised, 'Governance uncategorised metadata');
     expect(await responsibility.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightMutedForeground);
+    // The uncategorised marker is a soft warning Badge (§4.9): warning text on the 10% warning tint.
     expect(await uncategorised.evaluate((element) => getComputedStyle(element).color))
-      .toBe(lightWarningForeground);
-    expect(await uncategorised.locator('..').evaluate((element) => getComputedStyle(element).backgroundColor))
-      .toBe(lightWarning);
+      .toBe(lightWarningText);
+    expect(await uncategorised.evaluate((element) => getComputedStyle(element).backgroundColor))
+      .toBe(await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--warning) / 0.1)'));
     const vendorOrphanRow = orphanedTable.getByRole('row').filter({ hasText: 'UX-24 Orphaned Vendor' });
     await vendorOrphanRow.hover();
     await expect.poll(
@@ -1718,11 +1749,13 @@ test.describe('UX-24 audited theme matrix', () => {
     const resolveDialog = page.getByRole('dialog');
     await expect(resolveDialog).toBeVisible();
     const resolveSubmitButton = resolveDialog.getByRole('button', { name: /Resolve Item|Link Risk|Submit for Approval/i });
-    await resolveSubmitButton.hover();
-    await expect.poll(
-      () => resolveSubmitButton.evaluate((element) => getComputedStyle(element).backgroundColor),
-      { message: 'Resolve primary action reaches the opaque accent hover token' },
-    ).toBe(accentHover);
+    // The fixture orphan has no owner candidates for this user, so the primary action stays
+    // disabled until an owner is chosen: the Button primitive fades it on the accent fill (the
+    // accent hover is asserted on the enabled Vendor Create action below).
+    await expect(resolveSubmitButton).toBeDisabled();
+    expect(await resolveSubmitButton.evaluate((element) => getComputedStyle(element).opacity)).toBe('0.5');
+    expect(await resolveSubmitButton.evaluate((element) => getComputedStyle(element).backgroundColor))
+      .toBe(accentFill);
     await resolveDialog.getByRole('button', { name: 'Close' }).click();
 
     await visit(page, '/vendors/new');

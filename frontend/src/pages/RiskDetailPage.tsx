@@ -18,7 +18,7 @@ import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab'
 import { RiskPriorityBadge, RiskStatusBadge } from '@/components/risks/RiskStatusBadge';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
@@ -120,7 +120,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                 <DetailActionBanner
                     approvalsLabel={t('navigation:tabs.approvals')}
                     message={approvalMessage}
-                    messageText={approvalMessage.isError ? t(approvalMessage.key, { ns: 'errorKeys' }) : t(approvalMessage.key)}
+                    messageText={translateUiMessage(t, approvalMessage.key)}
                     onClose={() => setApprovalMessage(null)}
                     onNavigateApprovals={() => navigate('/approvals')}
                     pendingText={t('risks:messages.view_pending_approvals_prefix')}
@@ -135,7 +135,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                     onDismiss={() => setLinkErrorKey(null)}
                     dismissLabel={t('actions.close')}
                 >
-                    {t(linkErrorKey, { ns: 'errorKeys' })}
+                    {translateUiMessage(t, linkErrorKey)}
                 </InlineMessage>
             )}
 
@@ -274,9 +274,7 @@ function RiskDetailRoute({ rawId }: { rawId: string | undefined }) {
                 reason="required"
                 reasonPlaceholder={t('common:labels.archive_reason_placeholder')}
                 isLoading={isDeleting}
-                errorText={approvalMessage?.isError
-                    ? t(approvalMessage.key, { ns: 'errorKeys' })
-                    : null}
+                errorText={approvalMessage?.isError ? translateUiMessage(t, approvalMessage.key) : null}
             />
 
         </PageContainer>

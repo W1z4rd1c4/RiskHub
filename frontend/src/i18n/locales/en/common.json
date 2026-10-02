@@ -76,9 +76,6 @@
     "stale_title": "This information may be out of date",
     "stale_description": "The latest record data could not be loaded. The last successful version remains visible."
   },
-  "formats": {
-    "excel": "CSV"
-  },
   "export": {
     "button": "Export",
     "title": "Export data",
@@ -103,7 +100,6 @@
       }
     },
     "formats": {
-      "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
@@ -473,7 +469,6 @@
     "result_count_other": "{{count}} items"
   },
   "approval": {
-    "submitted_for_approval": "Submitted for approval",
     "queued": {
       "toast_title": "Submitted for approval",
       "toast_body": "The change takes effect once it is approved.",
@@ -568,24 +563,62 @@
       "recent_activity": "Recent Activity"
     },
     "health": {
-      "high_risk": "{{count}} high risk",
-      "high_risks": "{{count}} high",
-      "critical_risks": "{{count}} critical",
-      "attention_controls": "{{count}} attention",
-      "inactive_controls": "{{count}} inactive",
-      "kri_breaches": "{{count}} breaches",
-      "kri_overdue": "{{count}} overdue",
-      "open_issues": "{{count}} open",
-      "overdue_issues": "{{count}} overdue",
-      "critical_processes": "{{count}} critical",
-      "cif_processes": "{{count}} CIF",
-      "critical_assets": "{{count}} critical",
-      "legacy_assets": "{{count}} legacy",
-      "critical_vendors": "{{count}} critical",
-      "dora_vendors": "{{count}} DORA",
-      "active_users": "{{count}} active",
-      "accountability_gaps": "{{count}} accountability gaps",
-      "significant_vendors": "{{count}} significant"
+      "high_risks_one": "{{count}} high",
+      "high_risks_few": "{{count}} high",
+      "high_risks_many": "{{count}} high",
+      "high_risks_other": "{{count}} high",
+      "critical_risks_one": "{{count}} critical",
+      "critical_risks_few": "{{count}} critical",
+      "critical_risks_many": "{{count}} critical",
+      "critical_risks_other": "{{count}} critical",
+      "attention_controls_one": "{{count}} attention",
+      "attention_controls_few": "{{count}} attention",
+      "attention_controls_many": "{{count}} attention",
+      "attention_controls_other": "{{count}} attention",
+      "kri_breaches_one": "{{count}} breach",
+      "kri_breaches_few": "{{count}} breaches",
+      "kri_breaches_many": "{{count}} breaches",
+      "kri_breaches_other": "{{count}} breaches",
+      "kri_overdue_one": "{{count}} overdue",
+      "kri_overdue_few": "{{count}} overdue",
+      "kri_overdue_many": "{{count}} overdue",
+      "kri_overdue_other": "{{count}} overdue",
+      "open_issues_one": "{{count}} open",
+      "open_issues_few": "{{count}} open",
+      "open_issues_many": "{{count}} open",
+      "open_issues_other": "{{count}} open",
+      "overdue_issues_one": "{{count}} overdue",
+      "overdue_issues_few": "{{count}} overdue",
+      "overdue_issues_many": "{{count}} overdue",
+      "overdue_issues_other": "{{count}} overdue",
+      "critical_processes_one": "{{count}} critical",
+      "critical_processes_few": "{{count}} critical",
+      "critical_processes_many": "{{count}} critical",
+      "critical_processes_other": "{{count}} critical",
+      "cif_processes_one": "{{count}} CIF",
+      "cif_processes_few": "{{count}} CIF",
+      "cif_processes_many": "{{count}} CIF",
+      "cif_processes_other": "{{count}} CIF",
+      "critical_assets_one": "{{count}} critical",
+      "critical_assets_few": "{{count}} critical",
+      "critical_assets_many": "{{count}} critical",
+      "critical_assets_other": "{{count}} critical",
+      "legacy_assets_one": "{{count}} legacy",
+      "legacy_assets_few": "{{count}} legacy",
+      "legacy_assets_many": "{{count}} legacy",
+      "legacy_assets_other": "{{count}} legacy",
+      "critical_vendors_one": "{{count}} critical",
+      "critical_vendors_few": "{{count}} critical",
+      "critical_vendors_many": "{{count}} critical",
+      "critical_vendors_other": "{{count}} critical",
+      "dora_vendors_one": "{{count}} DORA",
+      "dora_vendors_few": "{{count}} DORA",
+      "dora_vendors_many": "{{count}} DORA",
+      "dora_vendors_other": "{{count}} DORA",
+      "active_users_one": "{{count}} active",
+      "active_users_few": "{{count}} active",
+      "active_users_many": "{{count}} active",
+      "active_users_other": "{{count}} active"
     },
     "recent_activity": {
       "title": "Recent activity",
@@ -804,6 +837,10 @@
   "error_boundary": {
     "title": "Something went wrong",
     "description": "The page could not be displayed."
+  },
+  "history_chart": {
+    "summary": "{{label}} trend: latest value {{latest}} ({{period}}); lowest {{min}}, highest {{max}}.",
+    "period": "Period"
   },
   "values": {
     "closed_lists": {

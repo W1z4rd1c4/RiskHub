@@ -2,7 +2,7 @@ import { ShieldAlert, UserCheck } from 'lucide-react';
 
 import { DialogFooter } from '@/components/ui/dialog';
 import { InlineMessage } from '@/components/ui/inline-message';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 
 interface ResolveOrphanFooterProps {
     canSubmit: boolean;
@@ -67,7 +67,7 @@ export function ResolveOrphanFooter({
             {errorKey && (
                 <div className="px-6 pb-4">
                     <InlineMessage tone="danger" icon={ShieldAlert}>
-                        {t(errorKey, { ns: 'errorKeys' })}
+                        {translateUiMessage(t, errorKey)}
                     </InlineMessage>
                 </div>
             )}

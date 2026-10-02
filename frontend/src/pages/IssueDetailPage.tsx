@@ -16,7 +16,7 @@ import { IssueOverviewTab } from './issues/issue-detail/IssueOverviewTab';
 import { IssueWorkflowTab } from './issues/issue-detail/IssueWorkflowTab';
 import type { IssueDetailTab } from './issues/issue-detail/issueDetail.types';
 import { useIssueDetail } from './issues/issue-detail/useIssueDetail';
-import { useIssueHistory } from './issues/issue-detail/useIssueHistory';
+import { ISSUE_HISTORY_PAGE_SIZE, useIssueHistory } from './issues/issue-detail/useIssueHistory';
 import { resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { LoadingState } from '@/components/ui/state';
@@ -40,7 +40,16 @@ export function IssueDetailPage() {
         rawId: id,
     });
     const canViewActivityHistory = resolveCapabilityFlag(issue?.capabilities, 'can_view_activity_history');
-    const { historyItems, isHistoryLoading, historyLoadFailed, isHistoryRefetching, refreshHistory } = useIssueHistory({
+    const {
+        historyItems,
+        isHistoryLoading,
+        historyLoadFailed,
+        isHistoryRefetching,
+        refreshHistory,
+        historyPage,
+        historyTotal,
+        setHistoryPage,
+    } = useIssueHistory({
         activeTab,
         canViewActivityHistory,
         issue,
@@ -139,6 +148,10 @@ export function IssueDetailPage() {
                             historyLoadFailed={historyLoadFailed}
                             isHistoryRefetching={isHistoryRefetching}
                             onRetryHistory={() => void refreshHistory()}
+                            historyPage={historyPage}
+                            historyTotal={historyTotal}
+                            historyPageSize={ISSUE_HISTORY_PAGE_SIZE}
+                            onHistoryPageChange={setHistoryPage}
                             t={t}
                         />
                     ) : null}

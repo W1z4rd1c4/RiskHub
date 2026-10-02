@@ -3,7 +3,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SortableTable, type Column } from '@/components/tables/SortableTable';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
@@ -57,14 +57,16 @@ describe('shared shell text tokens', () => {
         expect(screen.getByRole('heading', { level: 2 })).toHaveClass('text-foreground');
     });
 
-    it('ArchiveConfirmDialog title, labels and reason field use text tokens', () => {
+    it('archive ConfirmDialog title, labels and reason field use text tokens', () => {
         render(
-            <ArchiveConfirmDialog
+            <ConfirmDialog
                 isOpen
                 onClose={vi.fn()}
                 onConfirm={vi.fn(async () => undefined)}
-                resourceType="risk"
-                resourceName="Vendor outage"
+                intent="archive"
+                entityLabel="Risk"
+                entityName="Vendor outage"
+                reason="required"
             />,
         );
 

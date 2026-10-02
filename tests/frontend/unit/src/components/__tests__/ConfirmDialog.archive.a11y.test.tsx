@@ -4,7 +4,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -13,17 +13,34 @@ vi.mock('framer-motion', () => ({
     },
 }));
 
-function renderArchiveDialog(overrides: Partial<Parameters<typeof ArchiveConfirmDialog>[0]> = {}) {
+interface ArchiveDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (reason?: string) => unknown;
+}
+
+/** The required-reason archive confirmation (PM-1, D10) as the record detail pages render it. */
+function ArchiveDialog(props: ArchiveDialogProps) {
+    return (
+        <ConfirmDialog
+            {...props}
+            intent="archive"
+            entityLabel="Control"
+            entityName="Quarterly access review"
+            reason="required"
+        />
+    );
+}
+
+function renderArchiveDialog(overrides: Partial<ArchiveDialogProps> = {}) {
     const props = {
         isOpen: true,
         onClose: vi.fn(),
         onConfirm: vi.fn(async () => undefined),
-        resourceType: 'control' as const,
-        resourceName: 'Quarterly access review',
         ...overrides,
     };
 
-    const result = render(<ArchiveConfirmDialog {...props} />);
+    const result = render(<ArchiveDialog {...props} />);
     return { ...result, props };
 }
 
@@ -35,15 +52,13 @@ function ControlledArchiveDialog({ onClose }: { onClose: () => void }) {
             <button type="button" onClick={() => setIsOpen(true)}>
                 Open archive confirmation
             </button>
-            <ArchiveConfirmDialog
+            <ArchiveDialog
                 isOpen={isOpen}
                 onClose={() => {
                     setIsOpen(false);
                     onClose();
                 }}
                 onConfirm={vi.fn(async () => undefined)}
-                resourceType="control"
-                resourceName="Quarterly access review"
             />
         </>
     );
@@ -57,7 +72,7 @@ function deferred() {
     return { promise, resolve };
 }
 
-describe('ArchiveConfirmDialog accessibility', () => {
+describe('ConfirmDialog intent="archive" accessibility', () => {
     it('renders through a portal as a labelled modal dialog that describes the archive context and exposes reason validation', async () => {
         const user = userEvent.setup();
         const { container, props } = renderArchiveDialog();

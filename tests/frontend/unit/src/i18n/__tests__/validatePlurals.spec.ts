@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  buildBaselineDocument,
-  compareWithBaseline,
   compileInvariantPatterns,
   findPluralViolations,
+  main,
   needsPluralForms,
 } from '../../../../../../frontend/scripts/i18n/validate-plurals.mjs';
 
@@ -81,22 +84,42 @@ describe('validate-plurals', () => {
     expect(() => compileInvariantPatterns({ invariantValuePatterns: [{ pattern: '%' }] })).toThrow(/reason/);
   });
 
-  it('ratchets: new violations are reported, fixed ones can shrink the baseline', () => {
-    const baseline = { cs: ['common:items', 'common:old'], en: ['common:items'] };
-    const current = {
-      cs: [
-        { id: 'common:items', missing: ['one', 'few', 'other'] },
-        { id: 'common:new', missing: ['few'] },
-      ],
-      en: [{ id: 'common:items', missing: ['one', 'other'] }],
-    };
+  describe('zero tolerance (no baseline)', () => {
+    const roots: string[] = [];
 
-    const { added, fixed } = compareWithBaseline(baseline, current);
-    expect(added).toEqual([{ locale: 'cs', id: 'common:new', missing: ['few'] }]);
-    expect(fixed).toEqual([{ locale: 'cs', id: 'common:old' }]);
+    function fixtureRoot(cs: object, en: object): string {
+      const root = mkdtempSync(join(tmpdir(), 'plurals-'));
+      roots.push(root);
+      for (const [locale, content] of [['cs', cs], ['en', en]] as const) {
+        const dir = join(root, 'src', 'i18n', 'locales', locale);
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, 'common.json'), JSON.stringify(content));
+      }
+      return root;
+    }
 
-    const document = buildBaselineDocument(current);
-    expect(document.totals).toEqual({ cs: 2, en: 1 });
-    expect(document.violations.cs).toEqual(['common:items', 'common:new']);
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+    });
+
+    it('fails on any {{count}} string without plural forms', () => {
+      const root = fixtureRoot({ items: '{{count}} položek' }, { items: '{{count}} items' });
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      expect(main([`--root=${root}`])).toBe(1);
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('[cs] common:items is missing _one, _few, _other'));
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('[en] common:items is missing _one, _other'));
+    });
+
+    it('passes once every {{count}} string is a plural family', () => {
+      const root = fixtureRoot(
+        { items_one: '{{count}} položka', items_few: '{{count}} položky', items_many: '{{count}} položky', items_other: '{{count}} položek' },
+        { items_one: '{{count}} item', items_few: '{{count}} items', items_many: '{{count}} items', items_other: '{{count}} items' },
+      );
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+      expect(main([`--root=${root}`])).toBe(0);
+    });
   });
 });

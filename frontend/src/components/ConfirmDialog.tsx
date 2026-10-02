@@ -3,14 +3,13 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
 import { InlineMessage } from '@/components/ui/inline-message';
 import { Textarea } from '@/components/ui/textarea';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 
 import {
     confirmPresentation,
     resolveConfirmCopy,
     type ConfirmIntent,
-    type ConfirmLegacyVariant,
     type ConfirmReasonPolicy,
 } from './confirmDialogCopy';
 
@@ -48,16 +47,6 @@ interface ConfirmDialogProps {
      * unreachable while the dialog stays open for retry.
      */
     errorText?: string | null;
-    /** @deprecated Use `intent`; read only for `intent="generic"`. */
-    variant?: ConfirmLegacyVariant;
-    /** @deprecated Use `reason="required"` or `reason="optional"`. */
-    showInput?: boolean;
-    /** @deprecated Use `reasonLabel`. */
-    inputLabel?: string;
-    /** @deprecated Use `reasonPlaceholder`. */
-    inputPlaceholder?: string;
-    /** @deprecated Use `reason="required"` or `reason="optional"`. */
-    inputRequired?: boolean;
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -89,11 +78,6 @@ export function ConfirmDialog({
     cancelLabel,
     isLoading = false,
     errorText = null,
-    variant = 'danger',
-    showInput = false,
-    inputLabel,
-    inputPlaceholder,
-    inputRequired = true,
 }: ConfirmDialogProps) {
     const { t } = useTranslation('common');
     const titleId = useId();
@@ -110,13 +94,12 @@ export function ConfirmDialog({
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isPending, setIsPending] = useState(false);
 
-    const reasonPolicy: ConfirmReasonPolicy = reason
-        ?? (showInput ? (inputRequired ? 'required' : 'optional') : 'none');
+    const reasonPolicy: ConfirmReasonPolicy = reason ?? 'none';
     const busy = isLoading || isPending;
-    const presentation = confirmPresentation(intent, variant);
+    const presentation = confirmPresentation(intent);
     const copy = resolveConfirmCopy(t, { intent, entityLabel, entityName, count });
     const resolvedMessage = message ?? copy.message;
-    const resolvedReasonLabel = reasonLabel ?? inputLabel ?? copy.reasonLabel;
+    const resolvedReasonLabel = reasonLabel ?? copy.reasonLabel;
     const showEntity = Boolean(entityName) && intent !== 'unlink';
     const displayedError = errorText ?? submitError;
 
@@ -160,7 +143,7 @@ export function ConfirmDialog({
             (error: unknown) => {
                 if (generationRef.current !== generation) return;
                 setIsPending(false);
-                setSubmitError(t(apiClient.toUiMessageKey(error), { ns: 'errorKeys' }));
+                setSubmitError(translateUiMessage(t, apiClient.toUiMessageKey(error)));
             },
         );
     };
@@ -217,7 +200,7 @@ export function ConfirmDialog({
                                         setReasonValue(event.target.value);
                                         if (validationError) setValidationError(null);
                                     }}
-                                    placeholder={reasonPlaceholder ?? inputPlaceholder ?? copy.reasonPlaceholder}
+                                    placeholder={reasonPlaceholder ?? copy.reasonPlaceholder}
                                     rows={3}
                                     disabled={busy}
                                     aria-required={reasonPolicy === 'required'}

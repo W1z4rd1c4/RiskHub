@@ -57,12 +57,8 @@ export function DocumentationReader({
     const maintainerReference = getMaintainerReference(doc);
 
     return (
-        <div
-            className={cn(
-                'flex min-h-[500px] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-glass',
-                className,
-            )}
-        >
+        // DS-20 / D5: the reader is a glass `Card` (edge-to-edge sections), not an ad hoc card fill.
+        <Card padding="none" className={cn('flex min-h-[500px] flex-col overflow-hidden', className)}>
             <div className="space-y-3 border-b border-border px-8 py-6">
                 {header}
                 <div className="flex flex-wrap items-center gap-2">
@@ -111,7 +107,7 @@ export function DocumentationReader({
                     </article>
                 </div>
             </div>
-        </div>
+        </Card>
     );
 }
 
