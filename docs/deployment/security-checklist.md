@@ -241,7 +241,9 @@ path so existing exact fingerprints keep their canonical path convention.
 Screenshots use browser-native animation handling under the actual CSP; failed
 login readiness retains diagnostic DOM state and an explicitly failed screenshot.
 Component frontend probes explicitly target their paired live backend (8010 for
-dev and 8011 for test), including their authentication reference checks. The
+dev and 8011 for test), including their authentication reference checks. Each
+backend remains alive only inside its paired frontend capture callback; the
+existing process-group cleanup runs afterward, including when capture fails. The
 harness retains its cleanup and failure-evidence behavior.
 Artifact upload excludes temporary workspaces, secret fixture directories and
 environment files while retaining reports, command results, scans and SBOMs.

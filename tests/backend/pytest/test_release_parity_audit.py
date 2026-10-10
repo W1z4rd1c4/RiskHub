@@ -5470,6 +5470,7 @@ def test_fixture_group_diagnostic_is_disposable_and_non_networked() -> None:
 def test_component_frontends_use_their_live_paired_backend(tmp_path: Path) -> None:
     launches = {}
     references = {}
+    alive = set()
 
     class AuditStub:
         ui_dir = tmp_path
@@ -5477,9 +5478,19 @@ def test_component_frontends_use_their_live_paired_backend(tmp_path: Path) -> No
 
         def _start_background_service(self, command_id, command, **kwargs):
             launches[command_id] = {"command": command, **kwargs}
+            if command_id.startswith("path_backend_"):
+                alive.add(kwargs["listener_port"])
+                callback = kwargs.get("on_ready")
+                if callback:
+                    callback()
+                alive.remove(kwargs["listener_port"])
+            else:
+                port = 8010 if command_id.endswith("dev") else 8011
+                assert port in alive, "paired backend must outlive frontend capture"
             return {"context_id": command_id, "started": True}
 
         def _capture_backend_fingerprint(self, context_id, base_url):
+            assert int(base_url.rsplit(":", 1)[1]) in alive
             references[context_id] = base_url
             return {"auth_mode": "hybrid_dev"}
 
@@ -5622,3 +5633,90 @@ def test_audit_fixture_shell_executes_only_with_original_nonroot_identity(
         "pipefail",
         str(audit_script),
     ]
+
+
+@pytest.mark.parametrize("ready,callback_fails", [(True, False), (True, True), (False, False)])
+def test_component_callback_runs_inside_live_process_cleanup_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ready: bool, callback_fails: bool
+) -> None:
+    processes = []
+    events = []
+    real_popen = subprocess.Popen
+
+    def launch(*args, **kwargs):
+        process = real_popen(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    def callback():
+        assert processes[0].poll() is None
+        os.kill(processes[0].pid, 0)
+        events.append("dependent-capture-while-backend-alive")
+        if callback_fails:
+            raise RuntimeError("dependent capture failed")
+
+    monkeypatch.setattr(FINGERPRINTS_MODULE.subprocess, "Popen", launch)
+    monkeypatch.setattr(
+        FINGERPRINTS_MODULE, "resolve_listener_source_identity", lambda _port: {}
+    )
+    arguments = {
+        "context_id": "component-lifecycle",
+        "command": "sleep 30",
+        "logs_dir": tmp_path,
+        "root_dir": REPO_ROOT,
+        "baseline": {"git_sha": BASELINE_GIT_SHA},
+        "readiness_url": "http://127.0.0.1:8010/api/v1/readyz",
+        "listener_port": 8010,
+        "wait_http": lambda *_args, **_kwargs: ready,
+        "http_json": lambda *_args, **_kwargs: (200, {}),
+        "capture_screenshot": lambda *_args, **_kwargs: (False, None, None),
+        "captured_at_utc": lambda: "2026-10-10T00:00:00+00:00",
+        "max_wait_sec": 1 if ready else 0,
+        "on_ready": callback,
+    }
+    if callback_fails:
+        with pytest.raises(RuntimeError, match="dependent capture failed"):
+            FINGERPRINTS_MODULE.start_background_service(**arguments)
+    else:
+        fingerprint = FINGERPRINTS_MODULE.start_background_service(**arguments)
+        assert fingerprint["started"] is ready
+    assert events == (["dependent-capture-while-backend-alive"] if ready else [])
+    assert len(processes) == 1
+    assert processes[0].poll() is not None
+
+
+def test_failed_paired_backend_keeps_frontend_missing_evidence_blocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    audit = ReleaseParityAudit("failed-component-pair", run_prod_readiness=False)
+    audit.baseline = {"git_sha": BASELINE_GIT_SHA}
+    audit.startup_paths = [
+        {"id": f"{component}_runtime_{mode}"}
+        for component in ("backend", "frontend")
+        for mode in ("dev", "test")
+    ]
+    calls = []
+
+    def failed_backend(context_id, _command, **_kwargs):
+        calls.append(context_id)
+        assert context_id.startswith("path_backend_")
+        return {"context_id": context_id, "started": False}
+
+    monkeypatch.setattr(audit, "_start_background_service", failed_backend)
+    RUNTIME_MODULE._append_component_runtime_paths(audit)
+    audit._ensure_startup_path_runtime_coverage()
+    assert calls == ["path_backend_runtime_dev", "path_backend_runtime_test"]
+    for mode in ("dev", "test"):
+        frontend = next(
+            item for item in audit.runtime_fingerprints
+            if item["startup_path_id"] == f"frontend_runtime_{mode}"
+        )
+        assert frontend["not_executed"] is True
+    findings, decision = _evaluate_prod_readiness(
+        [*audit.runtime_fingerprints, _valid_prod_readiness_fingerprint(tmp_path / "prod")],
+        tmp_path,
+    )
+    assert decision["decision"] == "NO-GO"
+    ids = {item["id"] for item in findings}
+    for mode in ("dev", "test"):
+        assert f"P1-startup-path-not-ready-frontend_runtime_{mode}" in ids

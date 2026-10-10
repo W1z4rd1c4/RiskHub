@@ -213,55 +213,42 @@ def _append_compose_runtime(
 
 
 def _append_component_runtime_paths(audit: RuntimeAuditFacade) -> None:
-    backend_dev_fp = audit._start_background_service(
-        "path_backend_runtime_dev",
-        "backend/scripts/runtime/dev.sh --port 8010 --no-reload",
-        readiness_url="http://localhost:8010/api/v1/readyz",
-        listener_port=8010,
-        endpoint_base_url="http://localhost:8010",
-    )
-    backend_dev_fp["startup_path_id"] = "backend_runtime_dev"
-    audit.runtime_fingerprints.append(backend_dev_fp)
+    for mode, backend_port, frontend_port in (("dev", 8010, 5174), ("test", 8011, 5175)):
+        backend_url = f"http://localhost:{backend_port}"
+        frontend_fp: dict[str, Any] | None = None
 
-    backend_test_fp = audit._start_background_service(
-        "path_backend_runtime_test",
-        "backend/scripts/runtime/test.sh --port 8011",
-        readiness_url="http://localhost:8011/api/v1/readyz",
-        listener_port=8011,
-        endpoint_base_url="http://localhost:8011",
-    )
-    backend_test_fp["startup_path_id"] = "backend_runtime_test"
-    audit.runtime_fingerprints.append(backend_test_fp)
+        def capture_paired_frontend() -> None:
+            nonlocal frontend_fp
+            frontend_fp = audit._start_background_service(
+                f"path_frontend_runtime_{mode}",
+                f"VITE_DEV_API_TARGET={backend_url} frontend/scripts/runtime/{mode}.sh "
+                f"-- --port {frontend_port} --strictPort",
+                readiness_url=f"http://localhost:{frontend_port}",
+                listener_port=frontend_port,
+                screenshot_url=f"http://localhost:{frontend_port}/login",
+                screenshot_file=audit.ui_dir / f"frontend_runtime_{mode}_login.png",
+            )
+            frontend_fp["startup_path_id"] = f"frontend_runtime_{mode}"
+            frontend_fp["frontend_runtime_kind"] = f"vite_{mode}_component"
+            frontend_fp["auth_mode_reference"] = audit._capture_backend_fingerprint(
+                f"frontend_runtime_{mode}_reference", backend_url
+            ).get("auth_mode")
 
-    frontend_dev_fp = audit._start_background_service(
-        "path_frontend_runtime_dev",
-        "VITE_DEV_API_TARGET=http://localhost:8010 frontend/scripts/runtime/dev.sh -- --port 5174 --strictPort",
-        readiness_url="http://localhost:5174",
-        listener_port=5174,
-        screenshot_url="http://localhost:5174/login",
-        screenshot_file=audit.ui_dir / "frontend_runtime_dev_login.png",
-    )
-    frontend_dev_fp["startup_path_id"] = "frontend_runtime_dev"
-    frontend_dev_fp["frontend_runtime_kind"] = "vite_dev_component"
-    frontend_dev_fp["auth_mode_reference"] = audit._capture_backend_fingerprint(
-        "frontend_runtime_dev_reference", "http://localhost:8010"
-    ).get("auth_mode")
-    audit.runtime_fingerprints.append(frontend_dev_fp)
-
-    frontend_test_fp = audit._start_background_service(
-        "path_frontend_runtime_test",
-        "VITE_DEV_API_TARGET=http://localhost:8011 frontend/scripts/runtime/test.sh -- --port 5175 --strictPort",
-        readiness_url="http://localhost:5175",
-        listener_port=5175,
-        screenshot_url="http://localhost:5175/login",
-        screenshot_file=audit.ui_dir / "frontend_runtime_test_login.png",
-    )
-    frontend_test_fp["startup_path_id"] = "frontend_runtime_test"
-    frontend_test_fp["frontend_runtime_kind"] = "vite_test_component"
-    frontend_test_fp["auth_mode_reference"] = audit._capture_backend_fingerprint(
-        "frontend_runtime_test_reference", "http://localhost:8011"
-    ).get("auth_mode")
-    audit.runtime_fingerprints.append(frontend_test_fp)
+        # The service helper owns cleanup. Capture the dependent frontend before
+        # it returns and terminates this backend's process group.
+        backend_fp = audit._start_background_service(
+            f"path_backend_runtime_{mode}",
+            f"backend/scripts/runtime/{mode}.sh --port {backend_port}"
+            + (" --no-reload" if mode == "dev" else ""),
+            readiness_url=f"{backend_url}/api/v1/readyz",
+            listener_port=backend_port,
+            endpoint_base_url=backend_url,
+            on_ready=capture_paired_frontend,
+        )
+        backend_fp["startup_path_id"] = f"backend_runtime_{mode}"
+        audit.runtime_fingerprints.append(backend_fp)
+        if frontend_fp is not None:
+            audit.runtime_fingerprints.append(frontend_fp)
 
 
 def _execute_dynamic_paths(audit: RuntimeAuditFacade) -> None:
