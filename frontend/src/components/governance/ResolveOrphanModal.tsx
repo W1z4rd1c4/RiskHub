@@ -81,7 +81,7 @@ export function ResolveOrphanModal({
                 {workflow.isInitialized && (
                     <motion.div
                         data-testid="resolve-orphan-ready"
-                        initial={{ opacity: 0 }}
+                        initial={{ opacity: 1 }}
                         animate={{ opacity: 1 }}
                         className="space-y-8"
                     >

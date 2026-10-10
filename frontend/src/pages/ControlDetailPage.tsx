@@ -219,7 +219,7 @@ function ControlDetailRoute({ rawId }: { rawId: string | undefined }) {
             {/* History Tab */}
             <TabPanel tab="history" activeTab={workflow.activeTab} idPrefix={CONTROL_TABS_ID_PREFIX}>
                 {workflow.activeTab === 'history' && <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >

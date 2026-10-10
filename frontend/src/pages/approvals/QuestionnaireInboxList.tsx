@@ -80,7 +80,7 @@ export function QuestionnaireInboxList({
             {(outcome.kind === 'content' || hasStaleData) && questionnaires.map((questionnaire) => (
                 <motion.div
                     key={questionnaire.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 1, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card p-0 overflow-hidden"
                 >

@@ -95,7 +95,7 @@ export function RiskScoreMatrix({
                                 const visualCell = (
                                     <motion.span
                                         key={`${p}-${i}`}
-                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        initial={{ opacity: 1, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
                                         className={`${cellClasses} ${onSelect

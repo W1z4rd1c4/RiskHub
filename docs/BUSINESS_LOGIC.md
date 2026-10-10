@@ -403,6 +403,7 @@ presentation and recovery contract does not change backend authorization policy.
 
 Orphaned item governance uses backend workflow helpers:
 - Orphan list/detail payloads are scoped from the current target entity department, not only orphan metadata.
+- The Governance overview cache preserves actor, effective-permission, scope and filter isolation. Its key also includes the committed resolved-item count and latest resolution timestamp, so another worker’s approval cannot leave the requesting operator viewing a cached pending orphan; equal or out-of-order resolution timestamps still change the count.
 - Responses include backend-authoritative `request_reason_required` on every orphan list/detail row without requiring separate read authority for the target resource. It is true when the live accountability policy can govern the reassignment or when an enabled fixed Process, Asset, or Vendor policy protects the target or its complete applicable downstream cascade (Process to Asset/Vendor; Asset to Vendor). Threat reassignment uses the accountability policy only.
 - Responses may include additive `capabilities` metadata for resolve/detail visibility and required resolution fields.
 - Resolution locks the orphan row and target entity, validates the orphan is still pending, and rejects stale resolutions with conflict semantics instead of overwriting a target that has already been reassigned.
