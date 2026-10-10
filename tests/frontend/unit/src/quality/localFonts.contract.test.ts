@@ -50,7 +50,10 @@ describe('production font assets', () => {
             const block = match[1];
             const family = block.match(/font-family:\s*['"]([^'"]+)['"]\s*;/)?.[1];
             const assets = Array.from(block.matchAll(/url\((?:\.\/)?([^)'\"]+\.woff2)\)/g), (url) =>
-                resolve(frontendRoot, stylesheet, '..', url[1])
+                // Vite resolves /src URLs from the frontend root, not the filesystem root.
+                url[1].startsWith('/')
+                    ? resolve(frontendRoot, url[1].slice(1))
+                    : resolve(frontendRoot, stylesheet, '..', url[1])
             );
             return { family, assets };
         });
