@@ -142,13 +142,12 @@ export class ApprovalsPage {
 
     async waitForApprovalsReady(timeout = 15000): Promise<void> {
         await waitForDataLoad(this.page, timeout);
-        const ready = await Promise.race([
-            this.approvalCards.first().waitFor({ state: 'visible', timeout }).then(() => true),
-            this.emptyState.waitFor({ state: 'visible', timeout }).then(() => true),
-        ]).catch(() => false);
-        if (!ready) {
-            throw new Error('Approvals list did not reach a ready state (cards or empty state).');
-        }
+        // A single alternative locator stops when either rendered state is ready;
+        // racing two waits leaves the losing branch running until page teardown.
+        await this.approvalCards.first().or(this.emptyState).first().waitFor({
+            state: 'visible',
+            timeout,
+        });
     }
 
     async getApprovalCount(): Promise<number> {

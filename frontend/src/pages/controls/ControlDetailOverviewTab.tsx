@@ -124,7 +124,7 @@ export function ControlDetailOverviewTab({
         <>
             <motion.div
                 variants={container}
-                initial="hidden"
+                initial={false}
                 animate="show"
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >

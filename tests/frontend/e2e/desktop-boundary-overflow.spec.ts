@@ -307,7 +307,7 @@ test.describe('Supported desktop resilience (#156)', () => {
         await expectTableKeyboardReach(riskManagerPage, '/threats');
     });
 
-    test('keeps Department metrics contained in both locales, long text, and all supported geometries', async ({ riskManagerPage }) => {
+    test('keeps Department metrics contained in both locales, long text, and all supported geometries', async ({ riskManagerPage }, testInfo) => {
         for (const locale of ['en', 'cs'] as const) {
             await setLocale(riskManagerPage, locale);
             await riskManagerPage.setViewportSize({ width: 1024, height: 900 });
@@ -335,6 +335,10 @@ test.describe('Supported desktop resilience (#156)', () => {
             await departmentStatus.evaluate((element) => {
                 element.textContent = `${element.textContent}${'DELIBERATELYLONGDEPARTMENTSTATUS'.repeat(6)}`;
             });
+            for (const text of [departmentName, departmentCode, departmentStatus, firstMetricLabel]) {
+                expect(await text.evaluate((element) => getComputedStyle(element).overflowWrap),
+                    `${locale} Department long text retains intrinsic wrapping`).toBe('anywhere');
+            }
 
             const listCardGeometry = await listCard.evaluate((element) => ({
                 clientWidth: element.clientWidth,
@@ -399,6 +403,10 @@ test.describe('Supported desktop resilience (#156)', () => {
             await expectContained(departmentCode, listCard, `${locale} Department list code`);
             await expectContained(departmentStatus, listCard, `${locale} Department list status`);
             await expectNoDocumentHorizontalOverflow(riskManagerPage, `${locale} Department list 1024x900`);
+            await testInfo.attach(`department-long-card-${locale}-1024x900`, {
+                body: await listCard.screenshot({ animations: 'disabled' }),
+                contentType: 'image/png',
+            });
 
             for (const viewport of SUPPORTED_VIEWPORTS) {
                 await riskManagerPage.setViewportSize(viewport);
@@ -425,11 +433,15 @@ test.describe('Supported desktop resilience (#156)', () => {
                     }
                 }
                 await expectNoDocumentHorizontalOverflow(riskManagerPage, `${locale} Department ${viewport.width}x${viewport.height}`);
+                await testInfo.attach(`department-metrics-${locale}-${viewport.width}x${viewport.height}`, {
+                    body: await grid.screenshot({ animations: 'disabled' }),
+                    contentType: 'image/png',
+                });
             }
         }
     });
 
-    test('keeps Vendor, Risk, Control, and Asset headers semantic and contained for CRO with text spacing', async ({ croPage }) => {
+    test('keeps Vendor, Risk, Control, and Asset headers semantic and contained for CRO with text spacing', async ({ croPage }, testInfo) => {
         await setLocale(croPage, 'en');
         await croPage.setViewportSize(DETAIL_HEADER_VIEWPORTS[0]);
         await installLongDetailFixture(croPage, 'vendors');
@@ -461,6 +473,9 @@ test.describe('Supported desktop resilience (#156)', () => {
                     const header = croPage.locator('main header').filter({ has: croPage.getByRole('heading', { level: 1 }) }).first();
                     await expect(header).toBeVisible();
                     await expect(header.getByRole('heading', { level: 1 })).toHaveCount(1);
+                    expect(await header.locator('[aria-current="page"]').evaluate((element) => (
+                        getComputedStyle(element).overflowWrap
+                    )), `${locale} ${route} breadcrumb intrinsic wrapping`).toBe('anywhere');
                     await expectContained(
                         header.getByRole('heading', { level: 1 }),
                         header,
@@ -486,6 +501,16 @@ test.describe('Supported desktop resilience (#156)', () => {
                     await textAction.evaluate((element) => {
                         element.textContent = 'DELIBERATELYLONGUNBROKENACTION'.repeat(6);
                     });
+                    const actionTextGeometry = await textAction.evaluate((element) => ({
+                        height: element.getBoundingClientRect().height,
+                        clientHeight: element.clientHeight,
+                        scrollHeight: element.scrollHeight,
+                        overflowWrap: getComputedStyle(element).overflowWrap,
+                    }));
+                    expect(actionTextGeometry.overflowWrap, `${locale} ${route} action intrinsic wrapping`).toBe('anywhere');
+                    expect(actionTextGeometry.height, `${locale} ${route} action minimum hit target`).toBeGreaterThanOrEqual(40);
+                    expect(actionTextGeometry.scrollHeight, `${locale} ${route} action vertical text clipping`)
+                        .toBeLessThanOrEqual(actionTextGeometry.clientHeight + 1);
                     for (const button of await headerButtons.all()) {
                         await expectContained(
                             button,
@@ -503,6 +528,10 @@ test.describe('Supported desktop resilience (#156)', () => {
                         croPage,
                         `${locale} ${route} ${viewport.width}x${viewport.height} header`,
                     );
+                    await testInfo.attach(`long-header-${locale}-${route.split('/')[1]}-${viewport.width}x${viewport.height}`, {
+                        body: await header.screenshot({ animations: 'disabled' }),
+                        contentType: 'image/png',
+                    });
                 }
             }
             await croPage.setViewportSize(DETAIL_HEADER_VIEWPORTS[0]);

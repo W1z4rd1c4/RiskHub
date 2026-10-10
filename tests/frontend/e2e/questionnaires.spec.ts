@@ -80,7 +80,7 @@ test.describe('questionnaire workflow', () => {
                     name: /assessment questionnaires|hodnoticí dotazníky/i,
                 })
                 .click();
-            await page.getByRole('button', { name: /open|otevřít/i }).click();
+            await page.getByRole('button', { name: /^(Open|Otevřít)$/i }).click();
             await expect(page.getByTestId('risk-questionnaire-ready')).toBeVisible({
                 timeout: 15000,
             });

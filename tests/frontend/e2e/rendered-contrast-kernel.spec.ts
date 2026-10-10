@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { normalizeComputedColor, readComputedColor } from './helpers/computedColor';
 import { measureRenderedContrast, type Rgba } from './helpers/renderedContrast';
 import { auditRenderedContrast } from './helpers/renderedContrastAudit';
 
@@ -12,13 +13,12 @@ const EQUIVALENT_COLORS = [
   ['Oklab', 'oklab(from rgb(51 102 153) l a b)'],
   ['Oklch', 'oklch(from rgb(51 102 153) l c h)'],
   ['Display P3', 'color(from rgb(51 102 153) display-p3 r g b)'],
-  ['linear sRGB', 'color(from rgb(51 102 153) srgb-linear r g b)'],
   ['Tailwind color-mix', 'color-mix(in oklab, rgb(51 102 153) 100%, transparent)'],
 ] as const;
 
-function expectColor(actual: Rgba, expected: Rgba): void {
+function expectColor(actual: Rgba, expected: Rgba, message?: string): void {
   for (let index = 0; index < 4; index += 1) {
-    expect(actual[index]).toBeCloseTo(expected[index]!, 2);
+    expect(actual[index], message).toBeCloseTo(expected[index]!, 2);
   }
 }
 
@@ -39,6 +39,35 @@ test.describe('rendered contrast browser color normalization', () => {
       await expect(page.locator('html > span')).toHaveCount(0);
     });
   }
+
+  test('linear sRGB preserves the browser-normalized fractional channels and contrast', async ({ page }) => {
+    const color = 'color(from rgb(51 102 153) srgb-linear r g b)';
+    await page.setContent(`<body style="background:white">
+      <span id="sample" style="color:${color}">Sample</span>
+      <span id="reference">Reference</span>
+    </body>`);
+    expect(await page.evaluate((value) => CSS.supports('color', value), color)).toBe(true);
+    const computed = await page.locator('#sample').evaluate((element) => getComputedStyle(element).color);
+    // A browser's sRGB -> linear -> sRGB round trip is not numerically lossless.
+    // Use its actual computed color as the conversion oracle, rather than
+    // assuming ideal [51, 102, 153] channels or rounding the measured channels.
+    const normalized = await page.locator('#reference').evaluate((element, value) => {
+      (element as HTMLElement).style.color = `color(from ${value} srgb r g b / alpha)`;
+      return getComputedStyle(element).color;
+    }, computed);
+    const match = normalized.match(/^color\(srgb\s+([^)]+)\)$/);
+    expect(match, `Browser normalization: ${computed} -> ${normalized}`).not.toBeNull();
+    const channels = match![1]!.trim().split(/[\s/]+/).map(Number);
+    expect([3, 4]).toContain(channels.length);
+    expect(channels.every(Number.isFinite)).toBe(true);
+    const expected: Rgba = [channels[0]! * 255, channels[1]! * 255, channels[2]! * 255, channels[3] ?? 1];
+    const sample = await page.locator('#sample').evaluate(measureRenderedContrast);
+    const reference = await page.locator('#reference').evaluate(measureRenderedContrast);
+    expectColor(sample.foreground, expected, `Browser normalization: ${computed} -> ${normalized}`);
+    expectColor(sample.background, [255, 255, 255, 1]);
+    expect(sample.ratio).toBeCloseTo(reference.ratio, 3);
+    await expect(page.locator('html > span')).toHaveCount(0);
+  });
 
   for (const [name, color] of [
     ['percentage RGB alpha', 'rgb(20% 40% 60% / 40%)'],
@@ -98,5 +127,38 @@ test.describe('rendered contrast browser color normalization', () => {
     expect(audit.counts).toEqual({
       total: 4, belowAA: 3, below3: 3, below1_5: 3, whiteOnLight: 3, skippedGradient: 0,
     });
+  });
+});
+
+test.describe('computed color semantic equality', () => {
+  for (const [name, color, legacy, differentChannel, differentAlpha] of [
+    [
+      'risk score', 'oklab(0.485555 -0.109064 0.0630848 / 0.4)',
+      'rgba(19, 114, 54, 0.4)', 'rgba(20, 114, 54, 0.4)', 'rgba(19, 114, 54, 0.41)',
+    ],
+    [
+      'neutral hover', 'oklab(0.206403 -0.00300531 -0.0387002 / 0.1)',
+      'rgba(15, 23, 41, 0.1)', 'rgba(16, 23, 41, 0.1)', 'rgba(15, 23, 41, 0.11)',
+    ],
+  ] as const) {
+    test(`${name} matches legacy RGBA while rejecting channel and alpha changes`, async ({ page }) => {
+      await page.setContent(`<span id="sample" style="color:${color};background-color:${color}">Sample</span>`);
+      const normalized = await page.evaluate(normalizeComputedColor, color);
+      expect(normalized).toBe(legacy);
+      expect(await page.evaluate(normalizeComputedColor, legacy)).toBe(normalized);
+      expect(await page.evaluate(normalizeComputedColor, differentChannel)).not.toBe(normalized);
+      expect(await page.evaluate(normalizeComputedColor, differentAlpha)).not.toBe(normalized);
+      expect(await readComputedColor(page.locator('#sample'), 'color')).toBe(normalized);
+      expect(await readComputedColor(page.locator('#sample'), 'backgroundColor')).toBe(normalized);
+      await expect(page.locator('html > span')).toHaveCount(0);
+    });
+  }
+
+  test('rejects unsupported colors without leaving normalization probes', async ({ page }) => {
+    await page.setContent('<body>Unchanged</body>');
+    await expect(page.evaluate(normalizeComputedColor, 'not-a-color'))
+      .rejects.toThrow('Cannot normalize computed color: not-a-color');
+    await expect(page.locator('html > span')).toHaveCount(0);
+    await expect(page.locator('body')).toHaveText('Unchanged');
   });
 });

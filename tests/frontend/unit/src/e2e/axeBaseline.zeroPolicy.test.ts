@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -48,6 +51,16 @@ function validEvidence() {
 }
 
 describe('axe evidence is immutable strict-zero policy', () => {
+  it('attaches raw violations before the smoke scan throws on a finding', () => {
+    const smoke = readFileSync(resolve(process.cwd(), '../tests/frontend/e2e/accessibility-smoke.spec.ts'), 'utf8');
+    const attachment = smoke.indexOf('await testInfo.attach(`axe-failure-');
+    const rawViolations = smoke.indexOf('violations: analysis.violations');
+    const assertion = smoke.indexOf('assertZeroAxeFindings(findings,');
+    expect(attachment).toBeGreaterThan(0);
+    expect(rawViolations).toBeGreaterThan(attachment);
+    expect(assertion).toBeGreaterThan(rawViolations);
+  });
+
   it('pins exactly 27 logical routes per theme and 81 empty evidence cells', () => {
     expect(AXE_BASELINE_ROUTES).toEqual(REQUIRED_LOGICAL_ROUTES);
 

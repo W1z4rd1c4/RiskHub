@@ -15,7 +15,7 @@ import { logError } from '@/services/logger';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 /** Long localised counts wrap inside the card instead of overflowing it (RS-04, `cs` at 1024px). */
-const DEPARTMENT_BADGE_CLASS = 'h-auto max-w-full whitespace-normal break-words py-0.5 uppercase [overflow-wrap:anywhere]';
+const DEPARTMENT_BADGE_CLASS = 'h-auto max-w-full whitespace-normal py-0.5 uppercase [overflow-wrap:anywhere]';
 
 export function DepartmentsPage() {
     const navigate = useNavigate();
@@ -116,10 +116,10 @@ export function DepartmentsPage() {
                                         <ENTITY_ICONS.department aria-hidden="true" className="size-6 text-muted-foreground group-hover:text-accent-text" />
                                     </div>
                                     <div className="min-w-0">
-                                        <h3 className="max-w-full break-words text-lg font-bold text-foreground [overflow-wrap:anywhere] group-hover:text-accent-text transition-colors">
+                                        <h3 className="max-w-full text-lg font-bold text-foreground [overflow-wrap:anywhere] group-hover:text-accent-text transition-colors">
                                             {dept.name}
                                         </h3>
-                                        <p className="max-w-full break-words text-xs text-muted-foreground [overflow-wrap:anywhere] font-mono">{dept.code}</p>
+                                        <p className="max-w-full text-xs text-muted-foreground [overflow-wrap:anywhere] font-mono">{dept.code}</p>
                                     </div>
                                 </div>
                                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
@@ -144,7 +144,7 @@ export function DepartmentsPage() {
                             </div>
 
                             {/* Metrics Grid */}
-                            <div className="grid min-w-0 grid-cols-2 gap-2 text-center xl:grid-cols-5 [&>div]:min-w-0 [&_span]:max-w-full [&_span]:break-words [&_span]:[overflow-wrap:anywhere]">
+                            <div className="grid min-w-0 grid-cols-2 gap-2 text-center xl:grid-cols-5 [&>div]:min-w-0 [&_span]:max-w-full [&_span]:[overflow-wrap:anywhere]">
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <Users aria-hidden="true" className="h-4 w-4 text-accent-text" />
                                     <span className="text-lg font-bold text-foreground">{dept.user_count}</span>

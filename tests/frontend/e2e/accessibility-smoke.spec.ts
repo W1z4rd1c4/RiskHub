@@ -145,6 +145,19 @@ async function auditRoutes(
       findingCount: findings.length,
       findings,
     });
+    // Keep raw rule/check data (including measured contrast) even when the
+    // strict-zero assertion stops this route loop before its final attachment.
+    if (findings.length > 0) {
+      await testInfo.attach(`axe-failure-${project}-${theme}`, {
+        body: JSON.stringify({
+          logicalRoute: route.logicalRoute,
+          resolvedUrl,
+          findings,
+          violations: analysis.violations,
+        }, null, 2),
+        contentType: 'application/json',
+      });
+    }
     assertZeroAxeFindings(findings, `${project}/${theme} ${route.logicalRoute} (${resolvedUrl})`);
   }
 

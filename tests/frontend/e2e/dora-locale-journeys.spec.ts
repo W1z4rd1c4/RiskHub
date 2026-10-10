@@ -22,6 +22,7 @@ interface LocaleJourney {
     oppositeAssetType: string;
     yes: string;
     oppositeYes: string;
+    newValuePrefix: string;
     myRequests: string;
     oppositeMyRequests: string;
 }
@@ -34,6 +35,7 @@ const journeys: LocaleJourney[] = [
         oppositeAssetType: 'Aplikace',
         yes: 'Yes',
         oppositeYes: 'Ano',
+        newValuePrefix: 'New Value',
         myRequests: 'My Requests',
         oppositeMyRequests: 'Moje žádosti',
     },
@@ -44,6 +46,7 @@ const journeys: LocaleJourney[] = [
         oppositeAssetType: 'Application',
         yes: 'Ano',
         oppositeYes: 'Yes',
+        newValuePrefix: 'Nová hodnota',
         myRequests: 'Moje žádosti',
         oppositeMyRequests: 'My Requests',
     },
@@ -60,18 +63,35 @@ async function selectLanguage(page: Page, language: 'en' | 'cs'): Promise<void> 
     // Native radios do not emit onChange for the already-selected language.
     await expect(languageOption).toBeVisible();
     if (!(await languageOption.isChecked())) {
-        const saved = page.waitForResponse((response) => (
-            response.request().method() === 'PUT'
-            && new URL(response.url()).pathname === '/api/v1/preferences'
-        ));
-        await languageOption.check();
-        expect((await saved).status()).toBe(200);
+        // LanguageProvider activates the asynchronously loaded locale before
+        // persisting it; check() assumes the controlled radio changes immediately.
+        const [saved] = await Promise.all([
+            page.waitForResponse((response) => (
+                response.request().method() === 'PUT'
+                && new URL(response.url()).pathname === '/api/v1/preferences'
+                && response.request().postDataJSON().language === language
+            )),
+            languageOption.click(),
+        ]);
+        expect(saved.status()).toBe(200);
     }
     await expect(languageOption).toBeChecked();
+    await expect(page.locator('html')).toHaveAttribute('lang', language);
+    const reloadedPreferences = page.waitForResponse((response) => (
+        response.request().method() === 'GET'
+        && new URL(response.url()).pathname === '/api/v1/preferences'
+    ));
     await page.reload();
     if (new URL(page.url()).pathname === '/login') {
         await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
+        await page.goto('/settings');
     }
+    const persisted = await reloadedPreferences;
+    expect(persisted.status()).toBe(200);
+    expect(await persisted.json()).toMatchObject({ language });
+    await page.getByTestId('settings-tab-localization').click();
+    await expect(page.getByTestId(`language-${language}`)).toBeChecked();
+    await expect(page.locator('html')).toHaveAttribute('lang', language);
 }
 
 async function cleanupLocaleJourney(
@@ -192,8 +212,14 @@ test.describe('DORA localized register and governed approval journeys', () => {
             expect(approvalId).not.toBeNull();
             const governedDiff = riskManagerPage.getByTestId(`approval-governed-mutation-${approvalId}`);
             await expect(governedDiff).toBeVisible();
-            await expect(governedDiff.getByText(journey.yes, { exact: true }).first()).toBeVisible();
-            await expect(governedDiff.getByText(journey.oppositeYes, { exact: true })).toHaveCount(0);
+            const proposedValues = governedDiff.getByRole('insertion');
+            await expect(proposedValues.filter({
+                hasText: new RegExp(`^${journey.newValuePrefix}: ${journey.yes}$`),
+            }).first()).toBeVisible();
+            const allChangeValues = proposedValues.or(governedDiff.getByRole('deletion'));
+            await expect(allChangeValues.filter({
+                hasText: new RegExp(`: ${journey.oppositeYes}$`),
+            })).toHaveCount(0);
             const cancelled = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'POST'
                 && /\/api\/v1\/approvals\/\d+\/cancel$/.test(new URL(response.url()).pathname)

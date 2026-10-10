@@ -122,6 +122,8 @@ describe('DepartmentStatsGrid', () => {
         for (const [tab, name, filters] of actions) {
             const card = screen.getByTestId(`department-overview-card-${tab}`);
             const healthAction = within(card).getByRole('button', { name });
+            expect(healthAction).toHaveClass('h-auto', 'max-w-full', 'whitespace-normal', '[overflow-wrap:anywhere]');
+            expect(healthAction).not.toHaveClass('break-words');
             expect(
                 screen.getByTestId(`department-overview-card-${tab}-total`),
             ).not.toContainElement(healthAction);

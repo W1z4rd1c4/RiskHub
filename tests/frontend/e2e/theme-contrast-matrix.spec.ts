@@ -7,6 +7,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from '@playwrigh
 import { getApiBaseUrl, getControlByName, getDemoTokenByAccountName, getVendorByRegistration } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser, logout } from './helpers/login';
 import { E2E_CONTROLS, E2E_VENDORS } from './fixtures/e2e-data';
+import { normalizeComputedColor, readComputedColor } from './helpers/computedColor';
 import { measureRenderedContrast, renderedContrast } from './helpers/renderedContrast';
 import { waitForDataLoad } from './helpers/wait';
 
@@ -260,16 +261,12 @@ async function expectCanonicalNeutralHover(page: Page, locator: Locator, label: 
   // §4.7 secondary recipe (Phase 4): the neutral hover is the theme-aware `tint` at 10%, not a
   // saturated or secondary fill; compare the colour channels and the alpha.
   const semanticBackground = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--tint) / 0.1)');
-  const semanticChannels = semanticBackground.match(/[\d.]+/g)?.map(Number) ?? [];
   await locator.hover();
   await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} enters hover` }).toBe(true);
   const hoverColors = await settledComputedColors(locator, label);
   expect(await renderedContrast(locator), `${label} hover contrast`).toBeGreaterThanOrEqual(4.5);
-  const hoverChannels = hoverColors.background.match(/[\d.]+/g)?.map(Number) ?? [];
-  semanticChannels.slice(0, 4).forEach((channel, index) => {
-    expect(Math.abs((hoverChannels[index] ?? Number.POSITIVE_INFINITY) - channel), `${label} semantic hover background channel ${index}`)
-      .toBeLessThanOrEqual(1);
-  });
+  expect(await page.evaluate(normalizeComputedColor, hoverColors.background), `${label} semantic hover background`)
+    .toBe(await page.evaluate(normalizeComputedColor, semanticBackground));
   expect(hoverColors.foreground, `${label} semantic hover foreground`)
     .toBe(await resolveThemeColor(page, 'color', 'hsl(var(--secondary-foreground))'));
 }
@@ -581,8 +578,8 @@ test.describe('UX-24 audited theme matrix', () => {
         'backgroundColor',
         `hsl(var(${band.token}) / 0.4)`,
       );
-      expect(await cell.evaluate((element) => getComputedStyle(element).backgroundColor))
-        .toBe(semanticColor);
+      expect(await readComputedColor(cell, 'backgroundColor'))
+        .toBe(await page.evaluate(normalizeComputedColor, semanticColor));
     }
   });
 
@@ -593,7 +590,9 @@ test.describe('UX-24 audited theme matrix', () => {
     await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
     const routes = await resolveAuditRoutes(page);
 
-    const sidebarGroupLabels = page.locator('aside [id^="sidebar-group-"] > button > span');
+    const sidebarGroupLabels = page.getByRole('navigation', { name: 'Primary navigation' })
+      .locator('p[id^="sidebar-group-"]');
+    await expect(sidebarGroupLabels).toHaveText(['Overview', 'Registers', 'ICT Register', 'Administration']);
     for (let index = 0; index < await sidebarGroupLabels.count(); index += 1) {
       await expectReadableTypography(sidebarGroupLabels.nth(index), `sidebar group ${index + 1}`);
     }
@@ -606,7 +605,8 @@ test.describe('UX-24 audited theme matrix', () => {
     const lightAccentText = await resolveThemeColor(page, 'color', 'hsl(var(--accent-text))');
     const lightSecondaryForeground = await resolveThemeColor(page, 'color', 'hsl(var(--secondary-foreground))');
     // §4.7 secondary recipe: the hover surface is the neutral tint at 10%.
-    const lightSecondaryHover = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--tint) / 0.1)');
+    const lightSecondaryHover = await page.evaluate(normalizeComputedColor,
+      await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--tint) / 0.1)'));
     const lightAccent = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--accent))');
     const lightAccentForeground = await resolveThemeColor(page, 'color', 'hsl(var(--accent-foreground))');
     const lightWarningText = await resolveThemeColor(page, 'color', 'hsl(var(--warning-text))');
@@ -623,11 +623,11 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(currentValueHeading, 'KRI current-value heading');
     expect(await currentValueHeading.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
-    for (const limitValue of await currentValueCard.locator('strong').all()) {
-      await expectReadableTypography(limitValue, 'KRI limit value');
-      expect(await limitValue.evaluate((element) => getComputedStyle(element).color))
-        .toBe(lightForeground);
-    }
+    const limitRange = currentValueCard.getByText(/^Limits: /);
+    await expect(limitRange).toHaveCount(1);
+    await expectReadableTypography(limitRange, 'KRI limits range');
+    expect(await limitRange.evaluate((element) => getComputedStyle(element).color))
+      .toBe(lightMutedForeground);
 
     await page.route('**/api/v1/kris/overdue*', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
@@ -818,7 +818,7 @@ test.describe('UX-24 audited theme matrix', () => {
       { message: 'Risk detail Back action reaches the readable hover foreground' },
     ).toBe(lightSecondaryForeground);
     await expect.poll(
-      () => riskBackButton.evaluate((element) => getComputedStyle(element).backgroundColor),
+      () => readComputedColor(riskBackButton, 'backgroundColor'),
       { message: 'Risk detail Back action reaches the secondary hover surface' },
     ).toBe(lightSecondaryHover);
     const classificationCard = page.locator('main .glass-card').filter({
@@ -882,9 +882,9 @@ test.describe('UX-24 audited theme matrix', () => {
     await expectReadableTypography(controlGaugeValue, 'Control gauge value');
     expect(await controlGaugeValue.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightForeground);
-    const successGaugeZone = await resolveThemeColor(page, 'color', 'hsl(var(--success) / 0.2)');
-    expect(await controlGaugeCard.locator('svg rect').nth(1)
-      .evaluate((element) => getComputedStyle(element).color)).toBe(successGaugeZone);
+    const successGaugeZone = await page.evaluate(normalizeComputedColor,
+      await resolveThemeColor(page, 'color', 'hsl(var(--success) / 0.2)'));
+    expect(await readComputedColor(controlGaugeCard.locator('svg rect').nth(1), 'color')).toBe(successGaugeZone);
     await expectSemanticFocusRing(page, controlGaugeCard, 'Control gauge card');
     // W8: "Add KRI" is an outline Button (foreground text), not an accent-text link look.
     const addKriButton = page.getByRole('button', { name: /Add KRI/i });
@@ -903,7 +903,7 @@ test.describe('UX-24 audited theme matrix', () => {
       'Link Search results heading',
     );
     await expectReadableTypography(linkDialog.getByText('1 item', { exact: true }), 'Link Search result count');
-    const suggestions = linkDialog.getByText('Initial Suggestions').locator('..').locator('..');
+    const suggestions = linkDialog.getByText('Initial suggestions', { exact: true }).locator('..').locator('..');
     const linkSearchResult = suggestions.getByRole('button', { name: /UX-24 Link Search Control/i });
     await expectReadableTypography(linkSearchResult.getByText('Archived', { exact: true }), 'Link result Archived badge');
     await expectReadableTypography(
@@ -1032,7 +1032,7 @@ test.describe('UX-24 audited theme matrix', () => {
       { message: 'Control detail Back action reaches the readable hover foreground' },
     ).toBe(lightSecondaryForeground);
     await expect.poll(
-      () => controlBackButton.evaluate((element) => getComputedStyle(element).backgroundColor),
+      () => readComputedColor(controlBackButton, 'backgroundColor'),
       { message: 'Control detail Back action reaches the secondary hover surface' },
     ).toBe(lightSecondaryHover);
     await page.getByRole('tab', { name: 'Execution History' }).click();
@@ -1196,15 +1196,19 @@ test.describe('UX-24 audited theme matrix', () => {
     const showPermissionsButton = page.getByRole('button', { name: 'Show all permissions' }).first();
     await expect(showPermissionsButton).toBeVisible();
     await showPermissionsButton.click();
-    await expect(page.getByTestId('permission-matrix-action').first()).toBeVisible();
+    const permissionAction = page.getByTestId('permission-matrix-action').first();
+    await expect(permissionAction).toBeVisible();
     await expectReadableTypography(
-      page.getByTestId('permission-matrix-action').first(),
+      permissionAction,
       'permission action',
     );
+    const permissionLabel = permissionAction.locator(':scope > span:not(.sr-only)');
+    await expect(permissionLabel).toHaveCount(1);
     await expectReadableTypography(
-      page.getByTestId('permission-matrix-action').first().locator('span').last(),
+      permissionLabel,
       'permission description',
     );
+    await expect(permissionAction.locator(':scope > .sr-only')).toHaveText('Granted');
 
     await logout(page);
     await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
@@ -1446,7 +1450,7 @@ test.describe('UX-24 audited theme matrix', () => {
       { message: 'Vendor detail Back action reaches the readable hover foreground' },
     ).toBe(lightSecondaryForeground);
     await expect.poll(
-      () => vendorBackButton.evaluate((element) => getComputedStyle(element).backgroundColor),
+      () => readComputedColor(vendorBackButton, 'backgroundColor'),
       { message: 'Vendor detail Back action reaches the secondary hover surface' },
     ).toBe(lightSecondaryHover);
     const accentText = await resolveThemeColor(page, 'color', 'hsl(var(--accent-text))');
@@ -1460,8 +1464,7 @@ test.describe('UX-24 audited theme matrix', () => {
       () => linkedControlTitle.evaluate((element) => getComputedStyle(element).color),
       { message: 'linked Control title reaches the readable hover foreground' },
     ).toBe(accentText);
-    expect(await linkedControlCard.locator('svg rect').nth(1)
-      .evaluate((element) => getComputedStyle(element).color)).toBe(successGaugeZone);
+    expect(await readComputedColor(linkedControlCard.locator('svg rect').nth(1), 'color')).toBe(successGaugeZone);
     const linkedRiskTitle = page.getByRole('button', { name: /UX-24-R: UX-24 Linked Risk/ });
     const linkedRiskCard = page.locator('article').filter({ has: linkedRiskTitle });
     await expectSemanticFocusRing(page, linkedRiskTitle, 'Vendor linked Risk card');
@@ -1471,8 +1474,7 @@ test.describe('UX-24 audited theme matrix', () => {
       { message: 'linked Risk title reaches the readable hover foreground' },
     ).toBe(accentText);
     const linkedKriCard = page.getByRole('button', { name: /UX-24 Linked KRI/i });
-    expect(await linkedKriCard.locator('svg rect').nth(1)
-      .evaluate((element) => getComputedStyle(element).color)).toBe(successGaugeZone);
+    expect(await readComputedColor(linkedKriCard.locator('svg rect').nth(1), 'color')).toBe(successGaugeZone);
     await expectReadableTypography(linkedKriCard.getByText('Metric Detail'), 'KRI gauge descriptor');
     await expectReadableTypography(linkedKriCard.getByText(/min$/), 'KRI gauge minimum');
     await expectReadableTypography(linkedKriCard.getByText(/max$/), 'KRI gauge maximum');
@@ -1708,8 +1710,9 @@ test.describe('UX-24 audited theme matrix', () => {
     // The uncategorised marker is a soft warning Badge (§4.9): warning text on the 10% warning tint.
     expect(await uncategorised.evaluate((element) => getComputedStyle(element).color))
       .toBe(lightWarningText);
-    expect(await uncategorised.evaluate((element) => getComputedStyle(element).backgroundColor))
-      .toBe(await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--warning) / 0.1)'));
+    expect(await readComputedColor(uncategorised, 'backgroundColor'))
+      .toBe(await page.evaluate(normalizeComputedColor,
+        await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--warning) / 0.1)')));
     const vendorOrphanRow = orphanedTable.getByRole('row').filter({ hasText: 'UX-24 Orphaned Vendor' });
     await vendorOrphanRow.hover();
     await expect.poll(

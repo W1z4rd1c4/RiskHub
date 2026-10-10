@@ -753,9 +753,25 @@ async function driveUx157Notifications(
 
     await page.goto(`/controls/${controlId}`);
     await waitForDataLoad(page);
-    await page.getByRole('button', { name: config.labels.notificationBell, exact: true }).click();
+    const bell = page.getByRole('button').and(page.getByTestId('notification-bell-button'));
+    // The bell announces the shell's unread count, so its accessible name is
+    // intentionally more informative than the count-free destination label.
+    await expect(bell).toHaveAccessibleName(config.locale === 'en'
+        ? /^Notifications(?:, \d+ unread)?$/
+        : /^Oznámení(?:, \d+ nepřečten(?:é|á|ých))?$/);
+    await expect(bell).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(bell).toHaveAttribute('aria-expanded', 'false');
+    await bell.click();
     const dropdown = page.getByTestId('notification-dropdown-panel');
     await expect(dropdown).toBeVisible();
+    await expect(dropdown).toHaveRole('dialog');
+    await expect(dropdown).toHaveAccessibleName(config.labels.notificationBell);
+    await expect(bell).toHaveAttribute('aria-expanded', 'true');
+    await expect(bell).toHaveAttribute('aria-controls', await dropdown.getAttribute('id') as string);
+    // Opening loads the intercepted one-unread collection and updates the name.
+    await expect(bell).toHaveAccessibleName(config.locale === 'en'
+        ? 'Notifications, 1 unread'
+        : 'Oznámení, 1 nepřečtené');
 
     const bellRowAction = dropdown.getByRole('button', { name: config.labels.markRead });
     await bellRowAction.focus();

@@ -118,7 +118,7 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                     >
                         <span className="mb-2 flex items-center gap-3">
                             <Icon className="!size-5 text-accent-text transition-transform group-hover:scale-110" aria-hidden="true" />
-                            <span className="min-w-0 break-words text-xs uppercase tracking-wider text-muted-foreground [overflow-wrap:anywhere]">
+                            <span className="min-w-0 text-xs uppercase tracking-wider text-muted-foreground [overflow-wrap:anywhere]">
                                 {t(`department_detail.tabs.${key}`)}
                             </span>
                         </span>
@@ -135,7 +135,7 @@ export function DepartmentStatsGrid({ department, onSelectTab }: DepartmentStats
                                 data-testid={`department-overview-card-${key}-${action.key}`}
                                 aria-label={`${t(`department_detail.tabs.${key}`)} ${healthLabel(action)}`}
                                 onClick={() => onSelectTab(key, action.filters)}
-                                className="h-auto max-w-full whitespace-normal break-words rounded-full py-1 text-left font-normal text-muted-foreground [overflow-wrap:anywhere] hover:border-accent/40"
+                                className="h-auto max-w-full whitespace-normal rounded-full py-1 text-left font-normal text-muted-foreground [overflow-wrap:anywhere] hover:border-accent/40"
                             >
                                 {healthLabel(action)}
                             </Button>
