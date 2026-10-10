@@ -71,6 +71,7 @@ RiskHub production deploys must satisfy these invariants:
 - Entra-side disablement is not instant logout today; RiskHub revokes on the next `AD_DEPROVISION_CHECK_INTERVAL_MINUTES` cycle plus the remaining access-token lifetime.
 - Admin Console session revocation must go through `/api/v1/admin/sessions/{user_id}/revoke`; it rejects self-revocation, bumps `token_version`, revokes active refresh rows, and records the admin activity in one transaction.
 - The Entra verifier cache must be scoped by tenant, client, discovery URL, clock skew, allowed email domains, and business-role token claim; discovery/JWKS calls remain protected by the outbound egress guard.
+- JWKS refresh attempts share a per-verifier 60-second cooldown, including failures, scheduled refreshes, and unknown or same-`kid` key rotation. Unknown-key misses reuse that bounded negative-cache window without storing attacker-supplied identifiers. A newly rotated key can require a retry after the window; invalid claims never trigger a refresh, and expired metadata fails closed during provider failures. Cached valid keys remain usable without waiting on in-flight refresh I/O.
 - Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
 - Confirm bootstrap admin/CRO external IDs are distinct when both are supplied.

@@ -236,15 +236,22 @@ async function expectReadableTypography(locator: Locator, label: string): Promis
   expect(fontSize, `${label} font-size`).toBeGreaterThanOrEqual(isEyebrow ? 11 : 12);
 }
 
-async function settledComputedColors(locator: Locator, label: string): Promise<{ background: string; foreground: string }> {
+async function settledComputedColors(locator: Locator, label: string, maintainHover = false): Promise<{ background: string; foreground: string }> {
   let previous = '';
   let stableSamples = 0;
   await expect.poll(async () => {
-    const current = await locator.evaluate((element) => {
+    // Async dialog content can move a correctly hovered footer away from the
+    // stationary pointer. Sample the requested interaction state, not a stable
+    // but unhovered colour after that layout shift.
+    if (maintainHover && !await locator.evaluate(element => element.matches(':hover'))) {
+      await locator.hover({ timeout: 1_000 });
+    }
+    const sample = await locator.evaluate((element) => {
       const style = getComputedStyle(element);
-      return JSON.stringify({ background: style.backgroundColor, foreground: style.color });
+      return { hovered: element.matches(':hover'), background: style.backgroundColor, foreground: style.color };
     });
-    stableSamples = current === previous ? stableSamples + 1 : 0;
+    const current = JSON.stringify({ background: sample.background, foreground: sample.foreground });
+    stableSamples = (!maintainHover || sample.hovered) && current === previous ? stableSamples + 1 : 0;
     previous = current;
     return stableSamples;
   }, { intervals: [100, 100, 100, 100], message: `${label} computed hover colors settle`, timeout: 3_000 })
@@ -264,7 +271,7 @@ async function expectCanonicalInteractiveCardHover(page: Page, card: Locator, la
   expect(await card.evaluate((element) => getComputedStyle(element).transitionProperty)).not.toContain('all');
   await card.hover();
   await expect.poll(() => card.evaluate((element) => element.matches(':hover'))).toBe(true);
-  const hover = await settledComputedColors(card, `${label} hover`);
+  const hover = await settledComputedColors(card, `${label} hover`, true);
   expect(await page.evaluate(normalizeComputedColor, hover.background), `${label} exact glass-hover token`)
     .toBe(await page.evaluate(normalizeComputedColor, glassHover));
   expect(hover.background, `${label} observable hover color`).not.toBe(normal.background);
@@ -291,7 +298,7 @@ async function expectCanonicalNeutralHover(page: Page, locator: Locator, label: 
   const semanticBackground = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--tint) / 0.1)');
   await locator.hover();
   await expect.poll(() => locator.evaluate((element) => element.matches(':hover')), { message: `${label} enters hover` }).toBe(true);
-  const hoverColors = await settledComputedColors(locator, label);
+  const hoverColors = await settledComputedColors(locator, label, true);
   expect(await renderedContrast(locator), `${label} hover contrast`).toBeGreaterThanOrEqual(4.5);
   expect(await page.evaluate(normalizeComputedColor, hoverColors.background), `${label} semantic hover background`)
     .toBe(await page.evaluate(normalizeComputedColor, semanticBackground));
@@ -304,7 +311,7 @@ async function expectCanonicalActiveViewHover(page: Page, locator: Locator, labe
   await expect(locator, `${label} active state`).toHaveAttribute('aria-pressed', 'true');
   await page.mouse.move(0, 0);
   await locator.hover();
-  const hoverColors = await settledComputedColors(locator, label);
+  const hoverColors = await settledComputedColors(locator, label, true);
   expect(await renderedContrast(locator), `${label} settled hover contrast`).toBeGreaterThanOrEqual(4.5);
   expect(hoverColors.background, `${label} settled hover background`)
     .toBe(await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--accent))'));
@@ -396,6 +403,43 @@ async function expectCitedMutedForegrounds(
   }
 }
 
+test('hover sampling retains the interaction when async content moves its target', async ({ page }) => {
+  await page.setContent(`<!doctype html>
+    <style>
+      button { position: absolute; left: 20px; top: 20px; background: rgb(255, 255, 255); color: rgb(0, 0, 0); }
+      button:hover { background: rgb(0, 0, 0); color: rgb(255, 255, 255); }
+    </style>
+    <button type="button">Moving footer</button>
+    <script>
+      const button = document.querySelector('button');
+      button.dataset.enters = '0';
+      button.dataset.leaves = '0';
+      button.addEventListener('mouseleave', () => {
+        button.dataset.leaves = String(Number(button.dataset.leaves) + 1);
+      });
+      button.addEventListener('mouseenter', () => {
+        button.dataset.enters = String(Number(button.dataset.enters) + 1);
+        if (button.dataset.enters === '1') setTimeout(() => { button.style.top = '200px'; }, 50);
+      });
+    </script>
+  `);
+  // Match the application's standards mode: bare :hover has link-only quirks
+  // semantics without a doctype, even while button:hover styles still apply.
+  expect(await page.evaluate(() => document.compatMode)).toBe('CSS1Compat');
+  const button = page.getByRole('button', { name: 'Moving footer' });
+  await button.hover();
+  await expect.poll(() => button.evaluate(element => element.getBoundingClientRect().top)).toBe(200);
+  // Layout alone can retain Chromium's cached :hover. Force a hit-test at the
+  // original position, then prove the helper starts from genuinely lost hover.
+  await page.mouse.move(21, 21);
+  await expect.poll(() => button.evaluate(element => element.matches(':hover'))).toBe(false);
+  expect(Number(await button.getAttribute('data-leaves'))).toBeGreaterThanOrEqual(1);
+  const colors = await settledComputedColors(button, 'moving footer', true);
+  expect(colors).toEqual({ background: 'rgb(0, 0, 0)', foreground: 'rgb(255, 255, 255)' });
+  expect(await button.evaluate(element => element.matches(':hover'))).toBe(true);
+  expect(Number(await button.getAttribute('data-enters'))).toBeGreaterThanOrEqual(2);
+});
+
 test.describe('UX-24 audited theme matrix', () => {
   for (const theme of THEMES) {
     test(`keeps migrated Button hover pairs readable and semantic in ${theme}`, async ({ page }) => {
@@ -418,8 +462,18 @@ test.describe('UX-24 audited theme matrix', () => {
       );
 
       await visit(page, riskRoute!);
+      const suggestionsResponse = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return response.request().method() === 'GET'
+          && url.pathname.replace(/\/$/, '') === '/api/v1/controls'
+          && url.searchParams.get('limit') === '20'
+          && JSON.parse(url.searchParams.get('filters') ?? '{}').lifecycle === 'active';
+      });
       await page.getByRole('button', { name: /link existing/i }).first().click();
+      expect((await suggestionsResponse).status()).toBe(200);
       const linkDialog = page.getByTestId('link-management-dialog');
+      await expect(linkDialog.getByText(/^[1-9]\d* items?$/)).toBeVisible();
+      await waitForFiniteAnimations(linkDialog);
       await expectCanonicalNeutralHover(
         page,
         linkDialog.getByRole('button', { name: /close/i }).last(),
