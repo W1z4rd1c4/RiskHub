@@ -252,6 +252,34 @@ async function settledComputedColors(locator: Locator, label: string): Promise<{
   return JSON.parse(previous) as { background: string; foreground: string };
 }
 
+async function expectCanonicalInteractiveCardHover(page: Page, card: Locator, label: string): Promise<void> {
+  await expect(card, label).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => card.evaluate((element) => element.matches(':hover'))).toBe(false);
+  const normal = await settledComputedColors(card, `${label} normal`);
+  const glass = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--glass))');
+  const glassHover = await resolveThemeColor(page, 'backgroundColor', 'hsl(var(--glass-hover))');
+  expect(await page.evaluate(normalizeComputedColor, normal.background))
+    .toBe(await page.evaluate(normalizeComputedColor, glass));
+  expect(await card.evaluate((element) => getComputedStyle(element).transitionProperty)).not.toContain('all');
+  await card.hover();
+  await expect.poll(() => card.evaluate((element) => element.matches(':hover'))).toBe(true);
+  const hover = await settledComputedColors(card, `${label} hover`);
+  expect(await page.evaluate(normalizeComputedColor, hover.background), `${label} exact glass-hover token`)
+    .toBe(await page.evaluate(normalizeComputedColor, glassHover));
+  expect(hover.background, `${label} observable hover color`).not.toBe(normal.background);
+  expect(await renderedContrast(card.getByRole('heading').first()), `${label} hovered heading contrast`)
+    .toBeGreaterThanOrEqual(4.5);
+  const reducedMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  try {
+    expect(await card.evaluate((element) => getComputedStyle(element).transitionProperty)).toBe('none');
+    expect(await card.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe('0s');
+  } finally {
+    await page.emulateMedia({ reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
+  }
+}
+
 async function expectCanonicalNeutralHover(page: Page, locator: Locator, label: string): Promise<void> {
   await expect(locator, label).toBeVisible();
   await page.mouse.move(0, 0);
@@ -424,6 +452,9 @@ test.describe('UX-24 audited theme matrix', () => {
         page.getByRole('button', { name: /unarchive/i }),
         `${theme} Vendor restore`,
       );
+
+      await visit(page, '/departments');
+      await expectCanonicalInteractiveCardHover(page, page.locator('main button.glass').first(), `${theme} Department card`);
 
       await logout(page);
       await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN);
@@ -1224,17 +1255,7 @@ test.describe('UX-24 audited theme matrix', () => {
     expect(staticAfter).toBe(staticBefore.backgroundColor);
 
     await visit(page, '/departments');
-    const interactiveCard = page.locator('main button.glass').first();
-    const interactiveBefore = await interactiveCard.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return { backgroundColor: style.backgroundColor, transitionProperty: style.transitionProperty };
-    });
-    await interactiveCard.hover();
-    expect(interactiveBefore.transitionProperty).not.toContain('all');
-    await expect.poll(
-      () => interactiveCard.evaluate((element) => getComputedStyle(element).backgroundColor),
-      { message: 'interactive card reaches its observable hover color' },
-    ).not.toBe(interactiveBefore.backgroundColor);
+    await expectCanonicalInteractiveCardHover(page, page.locator('main button.glass').first(), 'light Department card');
 
     const vendorRoute = routes.find((route) => route.startsWith('/vendors/'));
     if (!vendorRoute) {
