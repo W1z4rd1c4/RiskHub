@@ -2,20 +2,11 @@ import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
 import {
   Activity,
-  AlertOctagon,
-  AlertTriangle,
-  Building2,
   ClipboardCheck,
-  ClipboardList,
   Command,
   FileChartColumn,
-  Handshake,
   Scale,
-  Server,
-  ShieldAlert,
   ShieldCheck,
-  Target,
-  Workflow,
 } from 'lucide-react';
 
 import {
@@ -23,6 +14,7 @@ import {
   AuditTrailRouteGuard,
   GovernanceRouteGuard,
 } from '@/authz/BusinessRouteGuards';
+import { ENTITY_ICONS } from '@/constants/entityIcons';
 import type { AppRouteDef } from './types';
 
 const ApprovalsPage = lazy(() => import('@/pages/ApprovalsPage'));
@@ -90,7 +82,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/controls',
       labelKey: 'controls',
-      icon: ClipboardList,
+      icon: ENTITY_ICONS.control,
       group: 'registers',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'controls'),
       order: 30,
@@ -106,7 +98,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/risks',
       labelKey: 'risks',
-      icon: ShieldAlert,
+      icon: ENTITY_ICONS.risk,
       group: 'registers',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'risks'),
       order: 40,
@@ -130,7 +122,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/issues',
       labelKey: 'issues',
-      icon: AlertOctagon,
+      icon: ENTITY_ICONS.issue,
       group: 'registers',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'issues'),
       order: 50,
@@ -146,7 +138,7 @@ export const businessRoutes: AppRouteDef[] = [
       href: '/kris',
       labelKey: 'kris',
       supportingTermKey: 'kris',
-      icon: Target,
+      icon: ENTITY_ICONS.kri,
       group: 'registers',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'risks'),
       order: 60,
@@ -161,7 +153,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/vendors',
       labelKey: 'vendors',
-      icon: Handshake,
+      icon: ENTITY_ICONS.vendor,
       group: 'registers',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'vendors'),
       order: 70,
@@ -177,7 +169,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/processes',
       labelKey: 'processes',
-      icon: Workflow,
+      icon: ENTITY_ICONS.process,
       group: 'ict_register',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'processes'),
       order: 75,
@@ -193,7 +185,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/assets',
       labelKey: 'assets',
-      icon: Server,
+      icon: ENTITY_ICONS.asset,
       group: 'ict_register',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'assets'),
       order: 76,
@@ -209,7 +201,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/threats',
       labelKey: 'threats',
-      icon: AlertTriangle,
+      icon: ENTITY_ICONS.threat,
       group: 'ict_register',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'threats'),
       order: 77,
@@ -258,7 +250,7 @@ export const businessRoutes: AppRouteDef[] = [
     nav: {
       href: '/departments',
       labelKey: 'departments',
-      icon: Building2,
+      icon: ENTITY_ICONS.department,
       group: 'overview',
       isVisible: ({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'departments'),
       order: 80,
@@ -317,6 +309,7 @@ export const businessRoutes: AppRouteDef[] = [
     key: 'vendor-reports',
     path: 'vendor-reports',
     element: <VendorReportsPage />,
+    activeNavHref: '/evidence',
   },
   {
     key: 'audit-trail',
@@ -326,6 +319,7 @@ export const businessRoutes: AppRouteDef[] = [
         <AuditTrailPage />
       </AuditTrailRouteGuard>
     ),
+    activeNavHref: '/evidence',
   },
   {
     key: 'risk-hub',

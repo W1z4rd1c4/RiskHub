@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
@@ -112,32 +113,43 @@ describe('UX-157 pinned control names', () => {
         await waitFor(() => expect(download).toBeEnabled());
     });
 
+    // AX-06 / D14: the back control names its destination and navigates there
+    // (honouring `return_to`); the refresh control keeps its pinned name.
     it.each([
-        ['en', 'Back', 'Refresh'],
-        ['cs', 'Zpět', 'Obnovit'],
+        ['en', 'Back to Departments', 'Refresh'],
+        ['cs', 'Zpět na oddělení', 'Obnovit'],
     ] as const)('names both Department detail actions in %s', async (language, backName, refreshName) => {
         await i18n.changeLanguage(language);
         const user = userEvent.setup();
-        const onBack = vi.fn();
         const onRefresh = vi.fn();
         render(
-            <DepartmentDetailHeader
-                department={{ name: 'Operations', code: 'OPS' } as never}
-                onBack={onBack}
-                onRefresh={onRefresh}
-            />,
+            <MemoryRouter initialEntries={['/departments/3']}>
+                <Routes>
+                    <Route
+                        path="/departments/3"
+                        element={(
+                            <DepartmentDetailHeader
+                                department={{ name: 'Operations', code: 'OPS' } as never}
+                                returnTo="/departments?q=ops"
+                                onRefresh={onRefresh}
+                            />
+                        )}
+                    />
+                    <Route path="/departments" element={<p>Department register</p>} />
+                </Routes>
+            </MemoryRouter>,
         );
 
-        const back = screen.getByRole('button', { name: backName });
+        const back = screen.getByRole('link', { name: backName });
         const refresh = screen.getByRole('button', { name: refreshName });
-        expect(back).toHaveAttribute('type', 'button');
+        expect(back).toHaveAttribute('href', '/departments?q=ops');
         expect(refresh).toHaveAttribute('type', 'button');
         expect(back.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
         expect(refresh.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-        await user.click(back);
         await user.click(refresh);
-        expect(onBack).toHaveBeenCalledOnce();
         expect(onRefresh).toHaveBeenCalledOnce();
+        await user.click(back);
+        expect(await screen.findByText('Department register')).toBeInTheDocument();
     });
 
 });

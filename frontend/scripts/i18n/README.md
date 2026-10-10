@@ -8,10 +8,19 @@ Folder for `frontend/scripts/i18n` implementation assets.
 
 - `allowlist.json`
 - `inventory-ui-text.mjs`
+- `plural-allowlist.json`
 - `scan-hardcoded-ui.mjs`
 - `validate-key-usage.mjs`
 - `validate-parity.mjs`
+- `validate-plurals.mjs`
 
 ## Notes
+
+- `scan-hardcoded-ui.mjs` flags single-word JSX text; `allowlist.json` holds global `tokenPatterns`
+  and file-local `scopedExceptions` (`path`, `text`, `reason`; stale entries fail).
+- `validate-plurals.mjs` (`npm run i18n:validate:plurals`) requires `{{count}}` strings to be plural
+  families (`cs` `_one/_few/_other`, `en` `_one/_other`) with zero tolerance (no baseline);
+  `plural-allowlist.json` exempts count-free forms. `validate-key-usage.mjs` treats a plural family
+  (`key_one`, `key_other`, ...) as an existing key. See `docs/LOCALIZATION.md`.
 
 Keep this README updated when responsibilities or structure in this folder change.

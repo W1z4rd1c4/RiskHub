@@ -1,9 +1,12 @@
 import type { MouseEvent } from 'react';
-import { ArchiveRestore } from 'lucide-react';
 
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import type { Column } from '@/components/tables/SortableTable';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import type { Tone } from '@/lib/tones';
 import type { Asset } from '@/types/asset';
 
 import { assetDepartmentDisplay, assetDerivedBooleanLabel, assetDerivedCriticalityLabel, assetOwnerDisplayName, getAssetDisplayStatus, type AssetDisplayStatus } from './assetsPagePresentation';
@@ -16,8 +19,9 @@ type BuildAssetColumnsParams = {
     canRestoreAsset: (asset: Asset) => boolean;
 };
 
-export function getAssetStatusColor(status: AssetDisplayStatus): string {
-    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
+/** Lifecycle status tone (D1): active reads success, archived neutral. */
+export function getAssetStatusTone(status: AssetDisplayStatus): Tone {
+    return status === 'archived' ? 'neutral' : 'success';
 }
 
 export function buildAssetColumns({
@@ -98,31 +102,17 @@ export function buildAssetColumns({
                 return (
                     <div className="flex items-center gap-2">
                         <div className="flex flex-col items-start gap-1">
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getAssetStatusColor(status)}`}
-                            >
-                                {t(`assets:status.${status}`)}
-                            </span>
+                            <Badge tone={getAssetStatusTone(status)}>{t(`assets:status.${status}`)}</Badge>
                             {resolveCapabilityFlag(asset.capabilities, 'has_pending_change') ? (
-                                <span
-                                    data-testid={`asset-pending-change-${asset.id}`}
-                                    className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-bold text-warning-text"
-                                >
-                                    {t('assets:pending_change.badge')}
-                                </span>
+                                <PendingChangeBadge data-testid={`asset-pending-change-${asset.id}`} />
                             ) : null}
                         </div>
                         {status === 'archived' && canRestoreAsset(asset) ? (
-                            <button
-                                type="button"
+                            <RowRestoreButton
+                                itemName={asset.name}
                                 data-testid={`asset-restore-${asset.id}`}
                                 onClick={(event) => void onRestore(asset.id, event)}
-                                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                aria-label={t('assets:actions.restore')}
-                                title={t('assets:actions.restore')}
-                            >
-                                <ArchiveRestore className="h-4 w-4" />
-                            </button>
+                            />
                         ) : null}
                     </div>
                 );

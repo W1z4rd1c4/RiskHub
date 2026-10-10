@@ -4,8 +4,8 @@
  *
  * Asserts CURRENT behavior: the Contracts section lives on the Vendor detail
  * behind the tab=contracts deep-link, entered 08_Smlouvy fields round-trip
- * through the inline dialog, closed lists come verbatim from the workbook
- * reference registry, TWO main contracts render side by side without error
+ * through the inline dialog, closed lists localize the workbook reference
+ * registry codes, TWO main contracts render side by side without error
  * (exactly-one-main is a DQ finding — ticket #50 — never a write constraint),
  * and the vendor form's register extension constrains substitutability to the
  * closed Substituce list. Contract maintenance follows vendor_contracts:write
@@ -34,8 +34,12 @@ import { waitForDataLoad } from './helpers/wait';
 import { ApprovalsPage } from './pages/ApprovalsPage';
 import { VendorDetailPage } from './pages/VendorDetailPage';
 
-// TypUjednani — verbatim workbook closed list (docs/dora-ict-register spec section 3.1).
-const TYP_UJEDNANI = ['Samostatné', 'Rámcové (master)', 'Navazující'];
+// TypUjednani keeps workbook values but renders English labels (GAP-C-09).
+const TYP_UJEDNANI = [
+    'Standalone arrangement',
+    'Master (overarching) arrangement',
+    'Subsequent arrangement',
+];
 // MenaList — verbatim workbook closed list.
 const MENA_LIST = ['CZK', 'EUR', 'USD', 'GBP'];
 // TypKodu — verbatim workbook closed list (vendor register identifier type).
@@ -205,16 +209,16 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         const detailPage = new VendorDetailPage(riskManagerPage);
         await detailPage.navigateToSection(vendorId, 'contracts');
 
-        // Active seeded rows render with their workbook-coded columns verbatim.
+        // Active seeded rows render localized labels for their workbook-coded columns.
         const mainRow = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.MAIN_ROI.contract_reference);
         await expect(mainRow).toBeVisible();
-        await expect(mainRow.getByText('Rámcové (master)', { exact: true })).toBeVisible();
+        await expect(mainRow.getByText('Master (overarching) arrangement', { exact: true })).toBeVisible();
         await expect(mainRow.getByText(MAIN_FLAG)).toBeVisible();
         await expect(mainRow.getByText('RoI', { exact: true })).toBeVisible();
 
         const secondRow = detailPage.contractRowByText(E2E_VENDOR_CONTRACTS.SECOND_MAIN.contract_reference);
         await expect(secondRow).toBeVisible();
-        await expect(secondRow.getByText('Samostatné', { exact: true })).toBeVisible();
+        await expect(secondRow.getByText('Standalone arrangement', { exact: true })).toBeVisible();
 
         // The section always fetches include_archived: the archived seeded row
         // stays visible inline, carrying restore as its only row action.
@@ -243,7 +247,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         ).toHaveCount(0);
     });
 
-    test('Create flow offers verbatim workbook closed lists and the new contract lands in the table', async ({ riskManagerPage }) => {
+    test('Create flow offers localized workbook closed lists and the new contract lands in the table', async ({ riskManagerPage }) => {
         const vendorId = await seededVendorId();
         const uniqueReference = `E2E-CTR-UI ${Date.now()}`;
 
@@ -253,13 +257,13 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await riskManagerPage.getByTestId('vendor-contract-add').click();
         await expect(riskManagerPage.getByTestId('vendor-contract-form')).toBeVisible();
 
-        // Arrangement type dropdown carries the TypUjednani workbook list verbatim.
+        // Arrangement type renders translated labels while preserving workbook values.
         await riskManagerPage.getByTestId('vendor-contract-field-arrangement_type').click();
         await expect(riskManagerPage.getByRole('option')).toHaveCount(TYP_UJEDNANI.length + 1); // + "Not set"
         for (const value of TYP_UJEDNANI) {
             await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
         }
-        await riskManagerPage.getByRole('option', { name: 'Samostatné', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'Standalone arrangement', exact: true }).click();
 
         // Currency dropdown carries the MenaList workbook list verbatim.
         await riskManagerPage.getByTestId('vendor-contract-field-currency').click();
@@ -272,13 +276,20 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await riskManagerPage.getByTestId('vendor-contract-field-contract_reference').fill(uniqueReference);
         await riskManagerPage.getByTestId('vendor-contract-field-start_date').fill('2026-01-01');
         await riskManagerPage.getByTestId('vendor-contract-field-annual_cost').fill('12000');
+        const saved = riskManagerPage.waitForResponse((response) => (
+            response.request().method() === 'POST'
+            && new URL(response.url()).pathname === `/api/v1/vendors/${vendorId}/contracts`
+        ));
         await riskManagerPage.getByTestId('vendor-contract-form-save').click();
+        const savedResponse = await saved;
+        expect(savedResponse.status()).toBe(201);
+        expect((await savedResponse.json()).arrangement_type).toBe('Samostatné');
 
         // The form closes and the refreshed table carries the new row.
         await expect(riskManagerPage.getByTestId('vendor-contract-form')).toHaveCount(0);
         const createdRow = detailPage.contractRowByText(uniqueReference);
         await expect(createdRow).toBeVisible();
-        await expect(createdRow.getByText('Samostatné', { exact: true })).toBeVisible();
+        await expect(createdRow.getByText('Standalone arrangement', { exact: true })).toBeVisible();
 
         const created = await getContractByReference(vendorId, uniqueReference);
         expect(created).not.toBeNull();
@@ -304,8 +315,15 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
 
         await riskManagerPage.getByTestId('vendor-contract-field-internal_contract_number').fill('TAS-EDITED-42');
         await riskManagerPage.getByTestId('vendor-contract-field-arrangement_type').click();
-        await riskManagerPage.getByRole('option', { name: 'Navazující', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'Subsequent arrangement', exact: true }).click();
+        const saved = riskManagerPage.waitForResponse((response) => (
+            response.request().method() === 'PATCH'
+            && new URL(response.url()).pathname === `/api/v1/vendors/${vendorId}/contracts/${created.id}`
+        ));
         await riskManagerPage.getByTestId('vendor-contract-form-save').click();
+        const savedResponse = await saved;
+        expect(savedResponse.status()).toBe(200);
+        expect((await savedResponse.json()).arrangement_type).toBe('Navazující');
         await expect(form).toHaveCount(0);
 
         // Hard reload: a fresh document proves persistence beyond the query cache.
@@ -313,7 +331,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         const editedRow = detailPage.contractRowByText(uniqueReference);
         await expect(editedRow).toBeVisible();
         await expect(editedRow.getByText('TAS-EDITED-42', { exact: true })).toBeVisible();
-        await expect(editedRow.getByText('Navazující', { exact: true })).toBeVisible();
+        await expect(editedRow.getByText('Subsequent arrangement', { exact: true })).toBeVisible();
     });
 
     test('protected Vendor contract edit and archive preserve approved truth until independent approval', async ({
@@ -365,14 +383,18 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             await expect(requestReason).toHaveAttribute('id', 'vendor-contract-request-reason');
             await expect(requestReason).toBeFocused();
             await expect(requestReason).toHaveAttribute('aria-invalid', 'true');
-            const requestReasonAlert = riskManagerPage.getByRole('alert');
-            await expect(requestReasonAlert).toContainText(
+            // GAP-C-08: the focused field describes its single inline error.
+            const requestReasonError = riskManagerPage.locator('#vendor-contract-request-reason-error');
+            await expect(requestReason).toHaveAccessibleDescription(
                 /A request reason is required|Je vyžadován důvod žádosti/,
             );
-            await requestReasonAlert.scrollIntoViewIfNeeded();
-            await expect(requestReasonAlert).toBeVisible();
+            await expect(requestReasonError).toContainText(
+                /A request reason is required|Je vyžadován důvod žádosti/,
+            );
+            await requestReasonError.scrollIntoViewIfNeeded();
+            await expect(requestReasonError).toBeVisible();
             const contrast = await new AxeBuilder({ page: riskManagerPage })
-                .include('[role="alert"]')
+                .include('#vendor-contract-request-reason-error')
                 .withRules(['color-contrast'])
                 .analyze();
             const axeColorContrastResults = [
@@ -389,7 +411,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
                     )))
                     .join('\n'),
             ).toEqual([]);
-            const renderedColors = await requestReasonAlert.evaluate((element) => {
+            const renderedColors = await requestReasonError.evaluate((element) => {
                 const backgrounds: string[] = [];
                 let current: Element | null = element;
                 while (current) {
@@ -407,7 +429,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             );
             expect(
                 ratio,
-                `Rendered blank-reason alert color-contrast ratio was ${ratio.toFixed(2)}:1`,
+                `Rendered blank-reason field error color-contrast ratio was ${ratio.toFixed(2)}:1`,
             ).toBeGreaterThanOrEqual(4.5);
             await requestReason.fill(reason);
 
@@ -418,6 +440,9 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             ));
             await riskManagerPage.getByTestId('vendor-contract-form-save').click();
             expect((await queued).status()).toBe(202);
+            // D12 / PM-2: the requester stays on the entity page with the pending
+            // notice; its link opens the queued request.
+            await riskManagerPage.getByTestId('approval-queued-notice-link').click();
             await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
 
             expect((await getContractByReference(vendorId, contractReference))!.note).toBe(originalNote);
@@ -456,6 +481,9 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
             ));
             await archiveDialog.getByRole('button', { name: /Archive contract|Archivovat smlouvu/ }).click();
             expect((await archiveQueued).status()).toBe(202);
+            // D12 / PM-2: the requester stays on the entity page with the pending
+            // notice; its link opens the queued request.
+            await riskManagerPage.getByTestId('approval-queued-notice-link').click();
             await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
             expect((await getContractByReference(vendorId, contractReference))!.is_archived).toBe(false);
 
@@ -520,6 +548,10 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
 
         // Archive: the row swaps its actions to restore-only.
         await riskManagerPage.getByTestId(`vendor-contract-archive-${created.id}`).click();
+        const archiveDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(archiveDialog).toContainText(uniqueReference);
+        expect((await getContractByReference(vendorId, uniqueReference))!.is_archived).toBe(false);
+        await archiveDialog.getByRole('button', { name: /Archive contract|Archivovat smlouvu/ }).click();
         await expect(riskManagerPage.getByTestId(`vendor-contract-restore-${created.id}`)).toBeVisible();
         await expect(riskManagerPage.getByTestId(`vendor-contract-archive-${created.id}`)).toHaveCount(0);
         await expect(riskManagerPage.getByTestId(`vendor-contract-edit-${created.id}`)).toHaveCount(0);
@@ -581,11 +613,11 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         // Substitutability offers EXACTLY the four Substituce values (+ the
         // empty choice) — the seeded value is already on the closed list, so
         // no legacy easy/medium/hard entry is prepended.
-        const substitutabilityField = riskManagerPage
-            .locator('.vendor-field')
-            .filter({ hasText: /^(Replaceability|Nahraditelnost)/ })
+        // D13: the field is a shared `Field`, so its select is named by the visible label.
+        const substitutabilityCombobox = riskManagerPage
+            .getByRole('combobox', { name: /^(Replaceability|Nahraditelnost)/ })
             .first();
-        await substitutabilityField.getByRole('combobox').click();
+        await substitutabilityCombobox.click();
         await expect(riskManagerPage.getByRole('option')).toHaveCount(SUBSTITUCE.length + 1);
         for (const value of SUBSTITUCE) {
             await expect(riskManagerPage.getByRole('option', { name: value, exact: true })).toBeVisible();
@@ -605,7 +637,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId('vendor-register-identifier_type')).toContainText('EUID');
         await expect(riskManagerPage.getByTestId('vendor-register-identifier_value')).toHaveValue('E2E-EUID-0001');
-        await expect(substitutabilityField.getByRole('combobox')).toContainText('Easily substitutable');
+        await expect(substitutabilityCombobox).toContainText('Easily substitutable');
 
     });
 });

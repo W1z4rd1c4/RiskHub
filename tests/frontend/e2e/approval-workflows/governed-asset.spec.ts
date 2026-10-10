@@ -34,6 +34,17 @@ async function getAssetBusinessOwnerId(assetId: number): Promise<number> {
     return asset.business_owner_user_id;
 }
 
+async function openQueuedRequest(page: Page, response: Response): Promise<void> {
+    const queued = await response.json() as { approval_id: number };
+    expect(queued.approval_id).toBeGreaterThan(0);
+    const href = `/approvals?tab=mine&approvalId=${queued.approval_id}`;
+    await expect(page.getByTestId('approval-queued-notice')).toBeVisible();
+    const link = page.getByTestId('approval-queued-notice-link');
+    await expect(link).toHaveAttribute('href', href);
+    await link.click();
+    await expect(page).toHaveURL(href);
+}
+
 async function requestCard(page: Page, reason: string): Promise<Locator> {
     const card = page.locator(APPROVAL_CARD).filter({ hasText: reason }).first();
     await expect(card).toBeVisible();
@@ -68,7 +79,9 @@ async function submitGovernedDialog(
     await dialog.getByRole('textbox', { name: /Request reason|Důvod žádosti/ }).fill(reason);
     const submitted = page.waitForResponse(responseMatches);
     await dialog.getByRole('button', { name: /Continue|Pokračovat|Archive|Archivovat/ }).click();
-    expect((await submitted).status()).toBe(202);
+    const response = await submitted;
+    expect(response.status()).toBe(202);
+    await openQueuedRequest(page, response);
 }
 
 test.describe('Governed protected Asset workflow (#86)', () => {
@@ -153,8 +166,12 @@ test.describe('Governed protected Asset workflow (#86)', () => {
             && new URL(response.url()).pathname === '/api/v1/assets'
         ));
         await riskManagerPage.getByTestId('asset-form-submit').click();
-        expect((await createdProposal).status()).toBe(202);
+        const createdResponse = await createdProposal;
+        expect(createdResponse.status()).toBe(202);
         expect(await getAssetByName(assetName)).toBeNull();
+        // D12 / PM-2 keeps rowless creation on the register with the exact request link.
+        await expect(riskManagerPage).toHaveURL(/\/assets(?:\?.*)?$/);
+        await openQueuedRequest(riskManagerPage, createdResponse);
 
         const ownCard = await requestCard(riskManagerPage, createReason);
         await expect(ownCard.getByRole('button', { name: /Approve|Schválit/ })).toHaveCount(0);

@@ -51,10 +51,10 @@ export function AppearanceSettings() {
                                     key={option.value}
                                     data-testid={`theme-${option.value}`}
                                     className={cn(
-                                        "relative flex cursor-pointer flex-col items-start rounded-xl border-2 p-4 text-left transition-all focus-within:ring-2 focus-within:ring-accent",
+                                        "relative flex cursor-pointer flex-col items-start rounded-xl border-2 p-4 text-left transition-colors focus-within:ring-2 focus-within:ring-accent",
                                         isSelected
                                             ? "border-accent bg-accent/10"
-                                            : "border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10"
+                                            : "border-border bg-tint/5 hover:border-tint/20 hover:bg-tint/10"
                                     )}
                                 >
                                     <input
@@ -72,7 +72,7 @@ export function AppearanceSettings() {
                                     {isSelected && (
                                         <div className="absolute top-3 right-3" aria-hidden="true">
                                             <div className="w-5 h-5 rounded-full bg-accent flex items-center justify-center">
-                                                <Check className="h-3 w-3 text-white" />
+                                                <Check className="h-3 w-3 text-accent-foreground" />
                                             </div>
                                         </div>
                                     )}
@@ -80,17 +80,17 @@ export function AppearanceSettings() {
                                     {/* Icon */}
                                     <div aria-hidden="true" className={cn(
                                         "w-10 h-10 rounded-lg flex items-center justify-center mb-3",
-                                        isSelected ? "bg-accent/20" : "bg-white/10"
+                                        isSelected ? "bg-accent/20" : "bg-tint/10"
                                     )}>
                                         <Icon className={cn(
                                             "h-5 w-5",
-                                            isSelected ? "text-accent" : "text-slate-400"
+                                            isSelected ? "text-accent-text" : "text-muted-foreground"
                                         )} />
                                     </div>
 
                                     {/* Label */}
                                     <span id={labelId} className={cn(
-                                        "font-semibold mb-1",
+                                        "mb-1 font-semibold",
                                         isSelected ? "text-accent-text" : "text-foreground"
                                     )}>
                                         {option.label}

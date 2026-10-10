@@ -7,6 +7,7 @@ Folder for `tests/frontend/unit/src/quality/__tests__` implementation assets.
 ## Contents
 
 - `debtBudget.spec.ts`
+- `uiConsistencyRatchet.spec.ts`
 
 ## Notes
 

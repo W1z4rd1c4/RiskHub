@@ -15,7 +15,7 @@ const REGISTERS = [
     { path: '/risks', prefix: 'risks', stateTrigger: 'risks-lifecycle-filter-trigger', stateName: { en: 'Lifecycle', cs: 'Životní cyklus' } },
     { path: '/controls', prefix: 'controls', stateTrigger: 'controls-lifecycle-filter-trigger', stateName: { en: 'Lifecycle', cs: 'Životní cyklus' } },
     { path: '/kris', prefix: 'kris', stateTrigger: 'kris-lifecycle-filter-trigger', stateName: { en: 'Lifecycle', cs: 'Životní cyklus' } },
-    { path: '/issues', prefix: 'issues', stateTrigger: 'issues-status-filter-trigger', stateName: { en: 'All statuses', cs: 'Všechny stavy' } },
+    { path: '/issues', prefix: 'issues', stateTrigger: 'issues-status-filter-trigger', stateName: { en: 'Status', cs: 'Stav' } },
 ] as const;
 
 const VIEWPORTS = [
@@ -209,10 +209,11 @@ test.describe('desktop control-system geometry (#155)', () => {
         }
     });
 
-    test('keeps every Asset detail back state on the shared 40px control contract', async ({ deptHeadPage }) => {
+    test('keeps every Asset detail back state on the shared 40px control contract', async ({ deptHeadPage }, testInfo) => {
         const asset = await getAssetByName(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
         expect(asset).not.toBeNull();
         const assetId = asset!.id;
+        const editBackLabel = `Back to ${asset!.name}`;
         let state: 'error' | 'governed-blocked' | 'ownership-blocked' | 'edit' | 'view' = 'view';
 
         await setLocale(deptHeadPage, 'en');
@@ -275,11 +276,11 @@ test.describe('desktop control-system geometry (#155)', () => {
         );
 
         const scenarios = [
-            { state: 'error' as const, path: `/assets/${assetId}`, destination: '/assets' },
-            { state: 'governed-blocked' as const, path: `/assets/${assetId}/edit`, destination: `/assets/${assetId}` },
-            { state: 'ownership-blocked' as const, path: `/assets/${assetId}/edit`, destination: `/assets/${assetId}` },
-            { state: 'edit' as const, path: `/assets/${assetId}/edit`, destination: `/assets/${assetId}` },
-            { state: 'view' as const, path: `/assets/${assetId}`, destination: '/assets' },
+            { state: 'error' as const, path: `/assets/${assetId}`, destination: '/assets', backLabel: 'Back to Assets' },
+            { state: 'governed-blocked' as const, path: `/assets/${assetId}/edit`, destination: `/assets/${assetId}`, backLabel: editBackLabel },
+            { state: 'ownership-blocked' as const, path: `/assets/${assetId}/edit`, destination: `/assets/${assetId}`, backLabel: editBackLabel },
+            { state: 'edit' as const, path: `/assets/${assetId}/edit`, destination: `/assets/${assetId}`, backLabel: editBackLabel },
+            { state: 'view' as const, path: `/assets/${assetId}`, destination: '/assets', backLabel: 'Back to Assets' },
         ];
 
         for (const viewport of VIEWPORTS) {
@@ -287,7 +288,7 @@ test.describe('desktop control-system geometry (#155)', () => {
             for (const scenario of scenarios) {
                 state = scenario.state;
                 await deptHeadPage.goto(scenario.path);
-                const back = deptHeadPage.getByRole('button', { name: 'Back to Assets' });
+                const back = deptHeadPage.getByRole('button', { name: scenario.backLabel, exact: true });
                 await expectControlGeometry(
                     back,
                     40,
@@ -295,6 +296,22 @@ test.describe('desktop control-system geometry (#155)', () => {
                     `${scenario.state} Asset back ${viewport.width}x${viewport.height}`,
                 );
                 await expect(back).toHaveAttribute('type', 'button');
+                const containment = await back.evaluate((element) => {
+                    const container = element.closest('header') ?? element.closest('main');
+                    if (!container) throw new Error('Asset back control has no page container');
+                    const controlBounds = element.getBoundingClientRect();
+                    const containerBounds = container.getBoundingClientRect();
+                    return {
+                        left: controlBounds.left - containerBounds.left,
+                        right: containerBounds.right - controlBounds.right,
+                        top: controlBounds.top - containerBounds.top,
+                        bottom: containerBounds.bottom - controlBounds.bottom,
+                    };
+                });
+                for (const [edge, inset] of Object.entries(containment)) {
+                    expect(inset, `${scenario.state} Asset back ${edge} containment at ${viewport.width}px`)
+                        .toBeGreaterThanOrEqual(0);
+                }
 
                 if (scenario.state === 'error') {
                     await expect(deptHeadPage.getByTestId('detail-load-unavailable')).toBeVisible();
@@ -312,6 +329,10 @@ test.describe('desktop control-system geometry (#155)', () => {
                     await expect(deptHeadPage.getByTestId('asset-detail-edit')).toBeVisible();
                 }
 
+                await testInfo.attach(`asset-back-${scenario.state}-${viewport.width}`, {
+                    body: await deptHeadPage.screenshot({ animations: 'disabled' }),
+                    contentType: 'image/png',
+                });
                 await back.click();
                 await expect(deptHeadPage).toHaveURL(new RegExp(`${scenario.destination}(?:\\?.*)?$`));
             }

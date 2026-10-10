@@ -21,7 +21,7 @@ describe('W3 verified frontend dead-code deletion', () => {
         expect(source).not.toContain('canChangeUserActiveStatus');
         expect(source).not.toContain('canBreakGlassEnableUser');
         expect(source).not.toContain('canEditAccessUser');
-        expect(source).toContain('userScopeBadgeClassName');
+        expect(source).toContain('userScopeTone');
     });
 
     it('keeps ApprovalList capability gating backend-driven without current user id props', () => {

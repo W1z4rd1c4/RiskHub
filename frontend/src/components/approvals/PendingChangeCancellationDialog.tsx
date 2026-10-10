@@ -25,12 +25,12 @@ export function PendingChangeCancellationDialog({
             isOpen={isOpen}
             onClose={onClose}
             onConfirm={onConfirm}
+            intent="revoke"
             title={t('pending_change_cancellation.title')}
             message={t('pending_change_cancellation.message', { targetName })}
             confirmLabel={errorText
                 ? t('actions.retry')
                 : t('pending_change_cancellation.confirm')}
-            variant="danger"
             isLoading={isLoading}
             errorText={errorText}
         />

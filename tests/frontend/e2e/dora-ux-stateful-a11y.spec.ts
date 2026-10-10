@@ -73,8 +73,11 @@ interface Ux157JourneyConfig {
         adminTabs: [string, string, string, string];
         appearanceTab: string;
         approvalsTabs: [string, string, string, string];
+        approvalQueuedToast: string;
+        pendingApproval: string;
+        pendingApprovalBody: string;
         archive: string;
-        back: string;
+        backToDepartments: string;
         breakGlass: string;
         breakGlassEnable: string;
         breakGlassReason: string;
@@ -123,8 +126,11 @@ const UX157_EN_LABELS: Ux157JourneyConfig['labels'] = {
     adminTabs: ['System Health', 'Application Logs', 'Audit Logs', 'Active Sessions'],
     appearanceTab: 'Appearance',
     approvalsTabs: ['Pending Queue', 'My Requests', 'Risk Assessment', 'History'],
+    approvalQueuedToast: 'Submitted for approval',
+    pendingApproval: 'Pending approval',
+    pendingApprovalBody: 'The record stays unchanged until the request is approved.',
     archive: 'Archive',
-    back: 'Back',
+    backToDepartments: 'Back to Departments',
     breakGlass: 'Break-glass',
     breakGlassEnable: 'Break-glass enable',
     breakGlassReason: 'Reason',
@@ -183,8 +189,11 @@ const UX157_JOURNEYS: Ux157JourneyConfig[] = [
             adminTabs: ['Stav systému', 'Aplikační logy', 'Auditní logy', 'Aktivní relace'],
             appearanceTab: 'Vzhled',
             approvalsTabs: ['Fronta čekajících', 'Moje žádosti', 'Hodnocení rizik', 'Historie'],
+            approvalQueuedToast: 'Odesláno ke schválení',
+            pendingApproval: 'Čeká na schválení',
+            pendingApprovalBody: 'Záznam zůstane beze změny, dokud žádost nebude schválena.',
             archive: 'Archivovat',
-            back: 'Zpět',
+            backToDepartments: 'Zpět na oddělení',
             breakGlass: 'Break-glass',
             breakGlassEnable: 'Povolit break-glass',
             breakGlassReason: 'Důvod',
@@ -483,8 +492,10 @@ async function driveUx157RiskAuthoring(page: Page, config: Ux157JourneyConfig): 
     await acceptanceApprover.fill('UX-157 Governance Board');
     await acceptanceDate.fill('2026-08-30');
     await acceptanceJustification.fill('Bounded browser evidence for the approval-queued status.');
-    const selectedScoreLabels = grossGroup.locator('span.text-foreground.font-black')
-        .or(netGroup.locator('span.text-foreground.font-black'));
+    // The selected cell's visible score is paired with its checked radio.
+    // Font-weight utilities are presentation details, not selection semantics.
+    const selectedScoreLabels = grossSelected.locator('..').getByText('12', { exact: true })
+        .or(netSelected.locator('..').getByText('2', { exact: true }));
     await expect(selectedScoreLabels).toHaveCount(2);
     await expect.poll(async () => selectedScoreLabels.evaluateAll((labels) => labels.every((label) => {
         let current: Element | null = label;
@@ -499,12 +510,26 @@ async function driveUx157RiskAuthoring(page: Page, config: Ux157JourneyConfig): 
     const submit = page.getByRole('button', { name: config.labels.createRisk });
     await submit.focus();
     await expect(submit).toBeFocused();
-    await submit.click();
+    const queuedStatus = page.getByRole('status').filter({ hasText: config.labels.approvalQueuedToast });
+    await Promise.all([
+        expect(queuedStatus).toHaveAttribute('aria-live', 'polite'),
+        submit.click(),
+    ]);
 
-    const queuedStatus = page.getByRole('status');
-    await expect(queuedStatus).toHaveCount(1);
-    await expect(queuedStatus).toContainText(`UX-157 ${config.locale.toUpperCase()} risk creation queued for approval.`);
-    await expect(submit).toBeFocused();
+    // Approval-routed creates return to the register with localized feedback;
+    // no Risk exists yet, so there is no detail destination or retained submit.
+    await expect(page).toHaveURL(/\/risks$/);
+    const queuedToast = page.getByRole('listitem').filter({ hasText: config.labels.approvalQueuedToast });
+    await expect(queuedToast).toBeVisible();
+    await expect(queuedToast).toHaveAttribute('data-tone', 'success');
+    const pendingNotice = page.getByTestId('approval-queued-notice');
+    await expect(pendingNotice).toContainText(config.labels.pendingApproval);
+    await expect(pendingNotice).toContainText(config.labels.pendingApprovalBody);
+    await expect(pendingNotice).not.toHaveAttribute('role');
+    await expect(pendingNotice.getByTestId('approval-queued-notice-link')).toHaveAttribute(
+        'href', `/approvals?tab=mine&approvalId=${15700 + (config.locale === 'en' ? 1 : 2)}`,
+    );
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toBeFocused();
     expect(submittedPayload).toMatchObject({
         process: 'UX-157 Process 15',
         subprocess: 'UX-157 Subprocess 15',
@@ -554,11 +579,13 @@ async function driveUx157NamedRouteControls(
 
     await page.goto(`/departments/${departmentId}`);
     await waitForDataLoad(page);
-    for (const name of [config.labels.back, config.labels.refresh]) {
-        const button = page.getByRole('button', { name, exact: true });
-        await expect(button).toBeVisible();
-        await expect(button.locator('svg')).toHaveAttribute('aria-hidden', 'true');
-    }
+    const back = page.getByRole('link', { name: config.labels.backToDepartments, exact: true });
+    await expect(back).toBeVisible();
+    await expect(back).toHaveAttribute('href', '/departments');
+    await expect(back.locator('svg')).toHaveAttribute('aria-hidden', 'true');
+    const refresh = page.getByRole('button', { name: config.labels.refresh, exact: true });
+    await expect(refresh).toBeVisible();
+    await expect(refresh.locator('svg')).toHaveAttribute('aria-hidden', 'true');
 }
 
 async function assertContentTabs(
@@ -726,9 +753,25 @@ async function driveUx157Notifications(
 
     await page.goto(`/controls/${controlId}`);
     await waitForDataLoad(page);
-    await page.getByRole('button', { name: config.labels.notificationBell, exact: true }).click();
+    const bell = page.getByRole('button').and(page.getByTestId('notification-bell-button'));
+    // The bell announces the shell's unread count, so its accessible name is
+    // intentionally more informative than the count-free destination label.
+    await expect(bell).toHaveAccessibleName(config.locale === 'en'
+        ? /^Notifications(?:, \d+ unread)?$/
+        : /^Oznámení(?:, \d+ nepřečten(?:é|á|ých))?$/);
+    await expect(bell).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(bell).toHaveAttribute('aria-expanded', 'false');
+    await bell.click();
     const dropdown = page.getByTestId('notification-dropdown-panel');
     await expect(dropdown).toBeVisible();
+    await expect(dropdown).toHaveRole('dialog');
+    await expect(dropdown).toHaveAccessibleName(config.labels.notificationBell);
+    await expect(bell).toHaveAttribute('aria-expanded', 'true');
+    await expect(bell).toHaveAttribute('aria-controls', await dropdown.getAttribute('id') as string);
+    // Opening loads the intercepted one-unread collection and updates the name.
+    await expect(bell).toHaveAccessibleName(config.locale === 'en'
+        ? 'Notifications, 1 unread'
+        : 'Oznámení, 1 nepřečtené');
 
     const bellRowAction = dropdown.getByRole('button', { name: config.labels.markRead });
     await bellRowAction.focus();
@@ -907,15 +950,15 @@ async function driveUx157UsersAndAdmin(page: Page, config: Ux157JourneyConfig): 
     failDirectoryImport = false;
     await importButton.click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole('status')).toHaveCount(1);
+    await expect(page.getByRole('main').getByRole('status')).toHaveCount(1);
 
     const usersCheck = page.getByRole('button', { name: config.labels.checkDirectory, exact: true }).first();
     await usersCheck.click();
-    await expect(page.getByRole('status')).toHaveCount(1);
+    await expect(page.getByRole('main').getByRole('status')).toHaveCount(1);
     failDirectoryCheck = true;
     await usersCheck.focus();
     await usersCheck.click();
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('status')).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(1);
     await expect(page.getByRole('alert')).toContainText(config.labels.retryGuidance);
     await expect(usersCheck).toBeFocused();
@@ -958,11 +1001,11 @@ async function driveUx157UsersAndAdmin(page: Page, config: Ux157JourneyConfig): 
     const adminCheck = page.getByRole('button', { name: config.labels.checkDirectory, exact: true });
     await expect(adminCheck).toBeVisible();
     await adminCheck.click();
-    await expect(page.getByRole('status')).toHaveCount(1);
+    await expect(page.getByRole('main').getByRole('status')).toHaveCount(1);
     failDirectoryCheck = true;
     await adminCheck.focus();
     await adminCheck.click();
-    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('status')).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(1);
     await expect(page.getByRole('alert')).toContainText(config.labels.retryGuidance);
     await expect(adminCheck).toBeFocused();
@@ -1176,7 +1219,8 @@ async function driveLoadingAndError(
     falseContentSelector: string,
     label: string,
 ): Promise<void> {
-    // LOADING — hold the backing request open, scan the aria-busy spinner state.
+    // LOADING — hold the backing request open and scan the busy placeholder
+    // alongside its independently announced live status.
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
         release = resolve;
@@ -1190,11 +1234,19 @@ async function driveLoadingAndError(
         }
     };
     await page.route(endpoint, holdHandler);
-    // Do NOT waitForDataLoad here: [data-loading="true"] is intentionally held.
+    // Do NOT waitForDataLoad here: the first-load placeholder is intentionally held.
     await page.goto(route, { waitUntil: 'domcontentloaded' });
     const loadingState = page.getByTestId(loadingTestId);
     await expect(loadingState).toBeVisible({ timeout: 20000 });
-    await expect(loadingState).toHaveAttribute('aria-busy', 'true');
+    const loadingPlaceholder = loadingState.locator('[data-loading-placeholder]');
+    await expect(loadingPlaceholder).toHaveAttribute('aria-busy', 'true');
+    const loadingStatus = loadingState.getByRole('status');
+    await expect(loadingStatus).toBeVisible();
+    await expect(loadingStatus).toHaveAttribute('aria-live', 'polite');
+    await expect(loadingStatus).not.toHaveText('');
+    await expect(loadingStatus).not.toHaveAttribute('aria-busy');
+    expect(await loadingStatus.evaluate((element) => element.closest('[aria-busy="true"]') === null))
+        .toBe(true);
     await expect(page.locator(falseContentSelector)).toHaveCount(0);
     await axeScanZero(page, [`[data-testid="${loadingTestId}"]`], `${label} loading state (${theme})`);
     release();

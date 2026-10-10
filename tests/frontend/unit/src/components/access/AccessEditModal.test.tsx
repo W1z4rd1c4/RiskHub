@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { HTMLAttributes, ReactNode } from 'react';
@@ -189,8 +189,8 @@ describe('AccessEditModal', () => {
         expect(accessApiMocks.listAccessRoles).toHaveBeenCalledTimes(1);
         expect(departmentApiMocks.getDepartments).not.toHaveBeenCalled();
         expect(accessApiMocks.listAccessUsers).not.toHaveBeenCalled();
-        expect(screen.queryByRole('button', { name: /employee/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /department head/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio', { name: /employee/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio', { name: /department head/i })).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/reports to/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/global/i)).not.toBeInTheDocument();
@@ -199,7 +199,7 @@ describe('AccessEditModal', () => {
         await user.type(nameInput, 'Updated User');
         await user.clear(emailInput);
         await user.type(emailInput, 'updated.user@riskhub.test');
-        await user.click(screen.getByRole('button', { name: /administrator/i }));
+        await user.click(screen.getByRole('radio', { name: /administrator/i }));
         await user.click(screen.getByRole('button', { name: /save/i }));
 
         await waitFor(() => {
@@ -243,7 +243,7 @@ describe('AccessEditModal', () => {
         await user.type(nameInput, 'Pending User');
         await user.clear(emailInput);
         await user.type(emailInput, 'duplicate@riskhub.test');
-        await user.click(screen.getByRole('button', { name: /administrator/i }));
+        await user.click(screen.getByRole('radio', { name: /administrator/i }));
         await user.click(screen.getByRole('button', { name: /save/i }));
 
         await waitFor(() => {
@@ -283,7 +283,7 @@ describe('AccessEditModal', () => {
         const [, emailInput] = await screen.findAllByRole('textbox');
         await user.clear(emailInput);
         await user.type(emailInput, 'duplicate@riskhub.test');
-        await user.click(screen.getByRole('button', { name: /administrator/i }));
+        await user.click(screen.getByRole('radio', { name: /administrator/i }));
         await user.click(screen.getByRole('button', { name: /save/i }));
 
         expect(await screen.findByText('Email already registered')).toBeInTheDocument();
@@ -341,12 +341,12 @@ describe('AccessEditModal', () => {
         await screen.findByText('Employee');
         expect(screen.queryByDisplayValue('Original User')).not.toBeInTheDocument();
         expect(screen.queryByDisplayValue('user@riskhub.test')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio', { name: /administrator/i })).not.toBeInTheDocument();
         expect(accessApiMocks.listAccessRoles).toHaveBeenCalledTimes(1);
         expect(departmentApiMocks.getDepartments).toHaveBeenCalledTimes(1);
         expect(accessApiMocks.listAccessUsers).toHaveBeenCalledTimes(1);
 
-        await user.click(screen.getByRole('button', { name: /department head/i }));
+        await user.click(screen.getByRole('radio', { name: /department head/i }));
         await user.selectOptions(screen.getByLabelText(/no department/i), '20');
         await user.selectOptions(screen.getByLabelText(/no manager/i), '77');
         await user.click(screen.getByText(/global/i));
@@ -362,6 +362,40 @@ describe('AccessEditModal', () => {
         });
         expect(onSaved).toHaveBeenCalledTimes(1);
         expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes the role and access-scope choices as named radio groups with the current selection (AX-04, GAP-D-16)', async () => {
+        departmentApiMocks.getDepartments.mockResolvedValue([{ id: 10, name: 'Operations' }]);
+        render(
+            <AccessEditModal
+                isOpen
+                onClose={vi.fn()}
+                user={makeAccessUser({
+                    capabilities: {
+                        can_edit_identity: false,
+                        can_edit_business_access: true,
+                        can_edit_role: true,
+                        can_deactivate: false,
+                        can_revoke_sessions: false,
+                    },
+                })}
+                onSaved={vi.fn()}
+            />
+        );
+
+        const user = userEvent.setup();
+        const roleGroup = await screen.findByRole('radiogroup', { name: /role/i });
+        const employee = within(roleGroup).getByRole('radio', { name: 'Employee' });
+        const head = within(roleGroup).getByRole('radio', { name: 'Department Head' });
+        expect(employee).toBeChecked();
+        expect(head).not.toBeChecked();
+
+        await user.click(head);
+        expect(head).toBeChecked();
+        expect(employee).not.toBeChecked();
+
+        const scopeGroup = screen.getByRole('radiogroup', { name: /access scope/i });
+        expect(within(scopeGroup).getByRole('radio', { name: /department/i })).toBeChecked();
     });
 
     it('uses backend capabilities to hide locally allowed access actions', async () => {
@@ -388,7 +422,7 @@ describe('AccessEditModal', () => {
         await screen.findByText('Original User');
 
         expect(screen.queryByDisplayValue('Original User')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio', { name: /administrator/i })).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
     });
@@ -409,7 +443,7 @@ describe('AccessEditModal', () => {
         await screen.findByText('Original User');
 
         expect(screen.queryByDisplayValue('Original User')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio', { name: /administrator/i })).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
         expect(accessApiMocks.updateAccessUser).not.toHaveBeenCalled();

@@ -41,7 +41,9 @@ export class VendorsPage {
         return this.page.getByTestId('export-date-input');
     }
 
-    private async waitForVendorsResponse(expected: { search?: string; include_archived?: boolean } = {}): Promise<void> {
+    private async waitForVendorsResponse(
+        expected: { search?: string; include_archived?: boolean; lifecycle?: string } = {},
+    ): Promise<void> {
         await this.page.waitForResponse(
             (response) => matchesCollectionResponse(response, '/api/v1/vendors', expected),
             { timeout: 15000 },

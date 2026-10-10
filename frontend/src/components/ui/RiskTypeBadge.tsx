@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { cn } from '@/lib/utils';
 
@@ -11,16 +12,14 @@ interface RiskTypeBadgeProps {
 
 export function RiskTypeBadge({ label, color, title, className, testId }: RiskTypeBadgeProps) {
     return (
-        <span
+        <Badge
+            shape="rounded"
             title={title}
             data-testid={testId}
-            className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2 py-1 text-xs font-black uppercase tracking-widest text-foreground',
-                className,
-            )}
+            className={cn('gap-1.5 rounded-lg px-2 uppercase tracking-widest text-foreground', className)}
         >
             <ColorSwatch color={color} />
             <span className="truncate">{label}</span>
-        </span>
+        </Badge>
     );
 }

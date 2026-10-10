@@ -52,7 +52,7 @@ const DISPLAY_CRITICAL = /Critical|Kritické/;
 const DISPLAY_OVER_TOLERANCE = /Above tolerance|NAD TOLERANCI/;
 
 // Dual-language matchers — heading/KPI/coverage/tab text is localized. The ICT
-// Committee tab renders as a <button> whose accessible name is the localized
+// Committee tab uses the shared semantic tab role; its accessible name is the localized
 // label (dashboard.json → views.ict_committee: "ICT Committee" / "Výbor pro
 // řízení rizik ICT"); the Landmark icon contributes no accessible text.
 const ICT_COMMITTEE_TAB = /ICT Committee|Výbor pro řízení rizik ICT/;
@@ -66,7 +66,7 @@ async function openCommitteeTab(page: Page): Promise<void> {
         await page.getByRole('link', { name: /^Dashboard$/ }).click();
         await page.waitForURL((url) => url.pathname === '/' && url.search === '');
     }
-    await page.getByRole('button', { name: ICT_COMMITTEE_TAB }).click();
+    await page.getByRole('tab', { name: ICT_COMMITTEE_TAB }).click();
     await page.waitForURL((url) => url.pathname === '/' && url.searchParams.get('view') === 'ict-committee');
     await waitForDataLoad(page);
 }
@@ -99,10 +99,10 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(riskManagerPage).toHaveURL(/\/\?view=ict-committee$/);
         // The committee body renders inside the dashboard.
         await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
-        // The ICT Committee tab is the active tab (aria-current=page).
-        await expect(riskManagerPage.getByRole('button', { name: ICT_COMMITTEE_TAB })).toHaveAttribute(
-            'aria-current',
-            'page',
+        // The shared tab contract exposes the active panel through aria-selected.
+        await expect(riskManagerPage.getByRole('tab', { name: ICT_COMMITTEE_TAB })).toHaveAttribute(
+            'aria-selected',
+            'true',
         );
     });
 
@@ -115,7 +115,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
 
         // Clicking the ICT Committee tab pushes ?view=ict-committee (a history
         // entry, not a replace) and renders the committee body.
-        await riskManagerPage.getByRole('button', { name: ICT_COMMITTEE_TAB }).click();
+        await riskManagerPage.getByRole('tab', { name: ICT_COMMITTEE_TAB }).click();
         await expect(riskManagerPage).toHaveURL(/\/\?view=ict-committee$/);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.getByTestId(COMMITTEE_BODY)).toBeVisible();
@@ -231,7 +231,7 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
             },
             {
                 source: `committee-migration-link-${BAND_CRITICAL}-${BAND_CRITICAL}`,
-                href: '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9&net_band=Kritick%C3%A9',
+                href: '/risks?committee_scope=true&ict_linked=true&gross_band=critical&net_band=critical',
                 summary: /Gross band: (Critical|Kritické)/,
             },
         ] as const;
@@ -328,6 +328,6 @@ test.describe('ICT Register — ICT Risk Committee tab (Deterministic)', () => {
         await expect(employeePage.getByTestId('committee-dashboard')).toHaveCount(0);
         await expect(employeePage.getByTestId('committee-loading')).toHaveCount(0);
         // The tab is not offered.
-        await expect(employeePage.getByRole('button', { name: ICT_COMMITTEE_TAB })).toHaveCount(0);
+        await expect(employeePage.getByRole('tab', { name: ICT_COMMITTEE_TAB })).toHaveCount(0);
     });
 });

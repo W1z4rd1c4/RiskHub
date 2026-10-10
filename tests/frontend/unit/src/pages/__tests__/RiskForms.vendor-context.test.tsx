@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { RiskNewPage } from '@/pages/RiskNewPage';
 
 const mockNavigate = vi.fn();
@@ -74,7 +76,7 @@ describe('RiskNewPage vendor context', () => {
     });
 
     it('auto-links a new risk to the vendor and returns to vendor detail', async () => {
-        render(<RiskNewPage />);
+        render(<RiskNewPage />, { wrapper: FeedbackProvider });
 
         expect(await screen.findByTestId('risk-back-label')).toHaveTextContent(/Back to vendor|Zpět na dodavatele/i);
 
@@ -83,31 +85,21 @@ describe('RiskNewPage vendor context', () => {
         await waitFor(() => {
             expect(mockLinkRisk).toHaveBeenCalledWith(12, 77);
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-            state: {
-                vendorFlash: expect.objectContaining({
-                    tone: 'success',
-                    ctaHref: '/risks/77',
-                }),
-            },
-        });
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+        // D9 / FB-01: the vendor-context outcome is a toast, not router state.
+        expect(document.querySelector('li[data-tone="success"]')).not.toBeNull();
     });
 
     it('returns to the vendor with a warning when linking fails after create', async () => {
         mockLinkRisk.mockRejectedValueOnce(new Error('link failed'));
 
-        render(<RiskNewPage />);
+        render(<RiskNewPage />, { wrapper: FeedbackProvider });
         fireEvent.click(await screen.findByRole('button', { name: 'submit' }));
 
         await waitFor(() => {
-            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-                state: {
-                    vendorFlash: expect.objectContaining({
-                        tone: 'warn',
-                        ctaHref: '/risks/77',
-                    }),
-                },
-            });
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+            // D9 / FB-01: the vendor-context outcome is a toast, not router state.
+            expect(document.querySelector('li[data-tone="warning"]')).not.toBeNull();
         });
     });
 
@@ -119,18 +111,13 @@ describe('RiskNewPage vendor context', () => {
             proposal_version: 1,
         });
 
-        render(<RiskNewPage />);
+        render(<RiskNewPage />, { wrapper: FeedbackProvider });
         fireEvent.click(await screen.findByRole('button', { name: 'submit' }));
 
         await waitFor(() => {
-            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-                state: {
-                    vendorFlash: expect.objectContaining({
-                        tone: 'warn',
-                        ctaHref: '/risks/77',
-                    }),
-                },
-            });
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+            // D9 / FB-01: the vendor-context outcome is a toast, not router state.
+            expect(document.querySelector('li[data-tone="warning"]')).not.toBeNull();
         });
     });
 
@@ -141,7 +128,7 @@ describe('RiskNewPage vendor context', () => {
             capabilities: { can_create_linked_risk: false },
         });
 
-        render(<RiskNewPage />);
+        render(<RiskNewPage />, { wrapper: FeedbackProvider });
 
         await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
         expect(screen.queryByTestId('risk-back-label')).not.toBeInTheDocument();
@@ -151,7 +138,7 @@ describe('RiskNewPage vendor context', () => {
         const returnTo = '/risks?q=claims&view=department&page=3#group-heading';
         mockSearchParams = new URLSearchParams({ return_to: returnTo });
 
-        render(<RiskNewPage />);
+        render(<RiskNewPage />, { wrapper: FeedbackProvider });
         await screen.findByRole('button', { name: 'cancel' });
         fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
         expect(mockNavigate).toHaveBeenCalledWith(returnTo);

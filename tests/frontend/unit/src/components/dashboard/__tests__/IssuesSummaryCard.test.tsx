@@ -1,8 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { IssuesSummaryCard } from '@/components/dashboard/IssuesSummaryCard';
-
-const mockNavigate = vi.fn();
 
 const translations: Record<string, string> = {
     'issues.summary.title': 'Issues Summary',
@@ -18,19 +17,17 @@ vi.mock('@/i18n/hooks', () => ({
         t: (key: string) => translations[key] ?? key,
         i18n: { language: 'en' },
     }),
+    useFormat: () => ({ number: (value: number) => String(value) }),
 }));
 
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-    return {
-        ...actual,
-        useNavigate: () => mockNavigate,
-    };
-});
+function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{location.pathname}{location.search}</output>;
+}
 
-describe('IssuesSummaryCard', () => {
-    it('keeps high/critical and core rows clickable, while median age remains informational', () => {
-        render(
+function renderCard() {
+    return render(
+        <MemoryRouter>
             <IssuesSummaryCard
                 issueSummary={{
                     open_issues: 20,
@@ -39,31 +36,41 @@ describe('IssuesSummaryCard', () => {
                     median_days_open: 11,
                 }}
             />
+            <LocationProbe />
+        </MemoryRouter>,
+    );
+}
+
+describe('IssuesSummaryCard', () => {
+    it('renders the drill-down rows as named links, while median age remains informational', () => {
+        renderCard();
+
+        expect(screen.getByRole('heading', { level: 2, name: 'Issues Summary' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open: 20' })).toHaveAttribute(
+            'href',
+            '/issues?include_closed=false&exclude_active_exceptions=true',
         );
-
-        const openButton = screen.getByRole('button', { name: 'Open: 20' });
-        const overdueButton = screen.getByRole('button', { name: 'Overdue: 8' });
-        const highCriticalButton = screen.getByRole('button', { name: 'High/Critical Open: 4' });
-
-        expect(openButton).toHaveAttribute('type', 'button');
-        expect(overdueButton).toHaveAttribute('type', 'button');
-        expect(highCriticalButton).toHaveAttribute('type', 'button');
-        expect(screen.queryByRole('button', { name: 'Median Age (days): 11' })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Overdue: 8' })).toHaveAttribute(
+            'href',
+            '/issues?include_closed=false&exclude_active_exceptions=true&overdue=true',
+        );
+        expect(screen.getByRole('link', { name: 'High/Critical Open: 4' })).toHaveAttribute(
+            'href',
+            '/issues?include_closed=false&exclude_active_exceptions=true&severity_group=high_critical',
+        );
+        expect(screen.queryByRole('link', { name: /Median Age/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        expect(screen.getByTestId('issues-summary-median_age_days')).toHaveTextContent('Median Age (days)');
         expect(screen.getAllByText('Aggregate metric (no direct filter)')).toHaveLength(1);
+    });
 
-        fireEvent.click(openButton);
-        fireEvent.click(overdueButton);
-        fireEvent.click(highCriticalButton);
+    it('navigates to the filtered issue register on activation', () => {
+        renderCard();
 
-        expect(mockNavigate).toHaveBeenNthCalledWith(1, '/issues?include_closed=false&exclude_active_exceptions=true');
-        expect(mockNavigate).toHaveBeenNthCalledWith(
-            2,
-            '/issues?include_closed=false&exclude_active_exceptions=true&overdue=true'
+        fireEvent.click(screen.getByRole('link', { name: 'Overdue: 8' }));
+
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            '/issues?include_closed=false&exclude_active_exceptions=true&overdue=true',
         );
-        expect(mockNavigate).toHaveBeenNthCalledWith(
-            3,
-            '/issues?include_closed=false&exclude_active_exceptions=true&severity_group=high_critical'
-        );
-        expect(mockNavigate).toHaveBeenCalledTimes(3);
     });
 });

@@ -15,6 +15,9 @@ export interface LabelProps
   required?: boolean
 }
 
+/** Label typography, shared with `Field`'s text label for groups. */
+export const labelTextClassName = "text-sm font-medium leading-none text-foreground"
+
 /**
  * Accessible label primitive styled to the glass/dark aesthetic (ADR-015,
  * FR-P2a-2). Built on `@radix-ui/react-label` so text-selection on the label
@@ -28,7 +31,7 @@ const Label = React.forwardRef<
   <LabelPrimitive.Root
     ref={ref}
     className={cn(
-      "text-sm font-medium leading-none text-foreground",
+      labelTextClassName,
       "peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
       className
     )}

@@ -27,7 +27,7 @@ test.describe('Change Tracking', () => {
         expect(updateIndex).toBeGreaterThanOrEqual(0);
 
         await activityLogPage.expandEntry(updateIndex);
-        await expect(activityLogPage.entryCards.nth(updateIndex)).toContainText('description');
+        await expect(activityLogPage.entryCards.nth(updateIndex)).toContainText(/Description|Popis/);
         await expect(activityLogPage.entryCards.nth(updateIndex)).toContainText('Updated by E2E seed');
     });
 
@@ -65,7 +65,12 @@ test.describe('Change Tracking', () => {
         await expect(entryCard).toContainText('Original value');
         await expect(entryCard).toContainText('Updated by E2E seed');
 
-        const entryHtml = await entryCard.innerHTML();
-        expect(entryHtml).toMatch(/text-rose|text-emerald|description/);
+        const oldValue = entryCard.getByText('Original value', { exact: true });
+        const newValue = entryCard.getByText('Updated by E2E seed', { exact: true });
+        await expect(oldValue).toHaveCSS('text-decoration-line', 'line-through');
+        await expect(newValue).toHaveCSS('text-decoration-line', 'none');
+        const oldColor = await oldValue.evaluate((element) => getComputedStyle(element).color);
+        const newColor = await newValue.evaluate((element) => getComputedStyle(element).color);
+        expect(oldColor).not.toBe(newColor);
     });
 });

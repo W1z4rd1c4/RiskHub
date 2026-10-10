@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { RouterProvider, createMemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RiskEditPage } from '@/pages/RiskEditPage';
 import { lookupApi } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
@@ -38,7 +39,7 @@ function renderRiskEdit(returnTo: string) {
     const queryClient = createTestQueryClient();
     const router = createMemoryRouter([
         { path: '/risks/:id/edit', element: <><RiskEditPage /><LocationProbe /></> },
-        { path: '/risks/:id', element: <LocationProbe /> },
+        { path: '/risks/:id', element: <><ApprovalQueuedNotice /><LocationProbe /></> },
     ], { initialEntries: [`/risks/10/edit?return_to=${encodeURIComponent(returnTo)}`] });
     return render(
         <QueryClientProvider client={queryClient}>
@@ -95,7 +96,7 @@ describe('RiskEditPage workflow navigation', () => {
         });
     });
 
-    it('keeps an approval-queued edit on its route with the validated list working set', async () => {
+    it('returns an approval-queued edit to the risk with the pending notice and the validated list working set (D12)', async () => {
         const returnTo = '/risks?q=payments&page=4#group-heading';
         vi.mocked(riskApi.updateRisk).mockResolvedValueOnce({
             status: 'approval_required',
@@ -106,9 +107,10 @@ describe('RiskEditPage workflow navigation', () => {
 
         await submitEdit();
 
-        expect(await screen.findByText('Queued for approval')).toBeInTheDocument();
+        const notice = await screen.findByTestId('approval-queued-notice');
+        expect(notice.querySelector('a')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=88');
         expect(screen.getByTestId('location')).toHaveTextContent(
-            `/risks/10/edit?return_to=${encodeURIComponent(returnTo)}`,
+            `/risks/10?return_to=${encodeURIComponent(returnTo)}`,
         );
     });
 });

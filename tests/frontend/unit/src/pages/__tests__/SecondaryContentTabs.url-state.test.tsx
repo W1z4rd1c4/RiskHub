@@ -79,6 +79,17 @@ describe('secondary content-tab routes', () => {
         expect(screen.getByText('Appearance content')).toBeInTheDocument();
     });
 
+    it('renders Settings with the shared PageHeader, PageContainer and document title (D7, D11, NAV-01)', () => {
+        renderPage(<SettingsPage />, '/settings');
+
+        const headings = screen.getAllByRole('heading', { level: 1 });
+        expect(headings).toHaveLength(1);
+        expect(headings[0]).toHaveTextContent('Platform Settings');
+        expect(headings[0]).toHaveClass('font-heading', 'text-3xl', 'font-bold', 'text-foreground');
+        expect(headings[0].closest('.max-w-page')).not.toBeNull();
+        expect(document.title).toBe('Platform Settings · RiskHub');
+    });
+
     it('omits the Risk Hub default while preserving unrelated params', async () => {
         const user = userEvent.setup();
         renderPage(<RiskHubPage />, '/riskhub?tab=questionnaires&source=audit');

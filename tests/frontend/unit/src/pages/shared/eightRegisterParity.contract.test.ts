@@ -42,7 +42,9 @@ describe('ICT-GOV #83 eight-register frontend contract', () => {
         expect(pageSource).toContain('isAccessDenied={state.isAccessDenied}');
         expect(pageSource).toContain('isError={Boolean(state.errorKey)}');
         expect(pageSource).toContain('isLoading={state.isLoading}');
-        expect(pageSource).toContain('state.hasLoadedOnce');
+        // DS-17: the empty message is always the real empty copy, never "Loading data…".
+        expect(pageSource).toContain('emptyMessage=');
+        expect(pageSource).not.toContain("t('common:loading.data')");
         expect(stateSource).toContain('parseRegisterUrlState');
         expect(stateSource).toContain('buildRegisterUrlParams');
         expect(stateSource).toContain('useCollectionDataState');

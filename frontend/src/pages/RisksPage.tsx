@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
@@ -24,7 +25,7 @@ export function RisksPage() {
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/risks');
     const { language } = useLanguage();
-    const { t } = useTranslation('risks');
+    const { t } = useTranslation(['risks', 'common']);
     const { getColor, getDisplayName, getInitials } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } = useIctRegisterSemanticPageState(parseRiskSemanticFilters);
@@ -40,7 +41,7 @@ export function RisksPage() {
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate(appendRegisterReturnTo('/risks/new', returnTo))} createLabel={t('new_risk')} exportLabel={t('actions.export')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/risks/new', returnTo))} createLabel={t('new_risk')} exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentRisks(); onClose(); }}
             onSubmit={async (payload) => { await state.exportRiskSnapshot(payload); onClose(); }}
@@ -50,7 +51,7 @@ export function RisksPage() {
         table={{ keyExtractor: (risk) => risk.id, onRowClick: (risk) => void navigate(appendRegisterReturnTo(`/risks/${risk.id}`, returnTo)), rowHref: (risk) => appendRegisterReturnTo(`/risks/${risk.id}`, returnTo), rowLabel: (risk) => risk.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage} onRetry={() => void state.fetchRisks()}
-        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_risks') : t('common:loading.data')}
+        emptyMessage={t('empty_state.no_risks')}
         grouping={{
             groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,
@@ -61,13 +62,13 @@ export function RisksPage() {
                     (key, fallback) => t(key, fallback),
                 )
                 : formatRiskGroupLabel(group, {
-                    unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.not_available'),
+                    unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.uncategorized'),
                     unknownDepartment: t('common:fallbacks.unassigned'), noProcess: t('common:fallbacks.not_available'),
                     unknownRiskType: t('common:fallbacks.unknown_type'),
                 }),
         }}
         testIdPrefix="risks"
-        toolbar={<div className="space-y-4"><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isPopulationLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
+        toolbar={<div className="space-y-4"><ApprovalQueuedNotice /><SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} /><RiskRegisterFilterBar facets={state.facets} filters={state.filters} isPopulationLocked={semanticFilters.committee_scope === true} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchRisks()} onSearchChange={state.updateSearch} search={state.search} /></div>}
     />;
 }
 

@@ -165,7 +165,7 @@ export interface IssueListFilters {
     linked_vendor_id?: number;
     search?: string;
     include_closed?: boolean;
-    sort_by?: 'title' | 'severity' | 'status' | 'opened_at' | 'due_at' | 'updated_at' | 'created_at';
+    sort_by?: 'title' | 'severity' | 'status' | 'opened_at' | 'due_at' | 'updated_at' | 'created_at' | 'department_name' | 'owner_user_name';
     sort_order?: 'asc' | 'desc';
     sort?: CollectionSort | null;
     group_by?: string;

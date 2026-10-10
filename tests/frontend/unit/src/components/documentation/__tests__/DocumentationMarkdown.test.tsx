@@ -56,6 +56,22 @@ describe('DocumentationMarkdown', () => {
         expect(within(heading).getByRole('link', { name: 'Anchor link for Přehled' })).toBeInTheDocument();
     });
 
+    it('tells assistive technology that external links open a new tab (GAP-D-23)', () => {
+        render(
+            <DocumentationMarkdown
+                content={'See [Policy](https://example.com/policy).'}
+                currentDoc={makeDoc()}
+                docs={[makeDoc()]}
+                onOpenDoc={vi.fn()}
+                onNavigateApp={vi.fn()}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: /^Policy\s?\(opens in new tab\)$/ });
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
     it('keeps anchor link affordance and in-document scroll behavior', async () => {
         render(
             <DocumentationMarkdown

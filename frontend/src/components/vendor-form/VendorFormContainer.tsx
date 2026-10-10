@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react';
-import { AlertCircle, Save, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Textarea } from '@/components/ui/textarea';
 import { IMPACT_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 
 import {
     buildVendorPayload,
     filterSuggestions,
     getSubprocessSuggestions,
     vendorOwnerChangeRequiresApproval,
+    withCurrentDepartmentOption,
+    withCurrentOwnerOption,
 } from './vendorForm.mappers';
 import { VendorClassificationSection } from './VendorClassificationSection';
 import { VendorIdentitySection } from './VendorIdentitySection';
@@ -56,15 +59,28 @@ export function VendorFormContainer({
     const [error, setError] = useState<string | null>(null);
     const [requestReason, setRequestReason] = useState('');
     const [requestReasonError, setRequestReasonError] = useState<string | null>(null);
+    // The required field the last validation failed on: its `Field` repeats the
+    // form-top message (§4.16: field error + one form-top InlineMessage).
+    const [invalidField, setInvalidField] = useState<VendorFormField | null>(null);
     const accountabilityScenario = useAccountabilityReassignmentScenario();
     const canManageAccountability = !isEdit
         || resolveCapabilityFlag(initialData?.capabilities, 'can_manage_accountability');
 
     const lookups = useVendorLookups({ accountabilityEnabled: canManageAccountability });
-    const { formData, handleChange } = useVendorFormState({
+    const { formData, handleChange: applyChange } = useVendorFormState({
         initialData,
         users: lookups.users,
     });
+    const handleChange = (field: VendorFormField, value: unknown) => {
+        if (field === invalidField) setInvalidField(null);
+        applyChange(field, value);
+    };
+    // A required field filled indirectly (the owner autofills the department) stops showing the error.
+    const fieldError = (field: VendorFormField) => {
+        const value = formData[field];
+        const isBlank = value === undefined || value === null || value === 0 || String(value).trim() === '';
+        return invalidField === field && isBlank ? error : null;
+    };
     const {
         acceptCurrentSnapshot,
         confirmationDialog,
@@ -103,7 +119,10 @@ export function VendorFormContainer({
         requestReason,
         requestReasonRequired,
         onAccepted: acceptCurrentSnapshot,
-        onValidationError: focusVendorValidationField,
+        onValidationError: (field) => {
+            setInvalidField(field === 'request_reason' ? null : field);
+            focusVendorValidationField(field);
+        },
         setError,
         setRequestReasonError,
         setIsSubmitting,
@@ -123,35 +142,14 @@ export function VendorFormContainer({
         () => getSubprocessSuggestions(lookups.subprocessesByProcess, formData.process, formData.subprocess),
         [formData.process, formData.subprocess, lookups.subprocessesByProcess],
     );
-    const ownerOptions = useMemo(() => {
-        const options = [...lookups.ownerOptions];
-        if (
-            initialData?.outsourcing_owner_user_id
-            && initialData.outsourcing_owner
-            && !options.some((option) => option.value === String(initialData.outsourcing_owner_user_id))
-        ) {
-            options.push({
-                value: String(initialData.outsourcing_owner_user_id),
-                label: [
-                    `${initialData.outsourcing_owner.name} — ${initialData.outsourcing_owner.email}`,
-                    initialData.outsourcing_owner.department_name,
-                    initialData.outsourcing_owner.role_name,
-                ].filter(Boolean).join(' · '),
-            });
-        }
-        return options;
-    }, [initialData, lookups.ownerOptions]);
-    const departmentOptions = useMemo(() => {
-        const options = [...lookups.departmentOptions];
-        if (
-            initialData?.department_id
-            && initialData.department_name
-            && !options.some((option) => option.value === String(initialData.department_id))
-        ) {
-            options.push({ value: String(initialData.department_id), label: initialData.department_name });
-        }
-        return options;
-    }, [initialData, lookups.departmentOptions]);
+    const ownerOptions = useMemo(
+        () => withCurrentOwnerOption(lookups.ownerOptions, initialData),
+        [initialData, lookups.ownerOptions],
+    );
+    const departmentOptions = useMemo(
+        () => withCurrentDepartmentOption(lookups.departmentOptions, initialData),
+        [initialData, lookups.departmentOptions],
+    );
 
     return (
         <form
@@ -161,26 +159,22 @@ export function VendorFormContainer({
             className="space-y-6"
         >
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
-            {error ? (
-                <VendorInlineMessage tone="danger">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error}</p>
-                </VendorInlineMessage>
-            ) : null}
+            {error ? <InlineMessage tone="danger">{error}</InlineMessage> : null}
 
             {lookups.isOwnerLookupError ? (
-                <VendorInlineMessage tone="warn">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <div className="flex flex-1 items-center justify-between gap-3">
-                        <p className="text-sm font-medium">{t('errors.owner_lookup_failed')}</p>
-                        <button type="button" onClick={() => void lookups.refetchOwners()} className="text-xs font-black uppercase tracking-widest">
+                <InlineMessage
+                    tone="warning"
+                    action={(
+                        <Button type="button" variant="outline" size="compact" onClick={() => void lookups.refetchOwners()}>
                             {t('actions.refresh')}
-                        </button>
-                    </div>
-                </VendorInlineMessage>
+                        </Button>
+                    )}
+                >
+                    {t('errors.owner_lookup_failed')}
+                </InlineMessage>
             ) : null}
 
-            <VendorIdentitySection formData={formData} onChange={handleChange} />
+            <VendorIdentitySection formData={formData} onChange={handleChange} nameError={fieldError('name')} />
             <VendorOwnershipSection
                 canManageAccountability={canManageAccountability}
                 departmentOptions={departmentOptions}
@@ -191,6 +185,11 @@ export function VendorFormContainer({
                 onOwnerSearchChange={lookups.setOwnerSearch}
                 processSuggestions={processSuggestions}
                 subprocessSuggestions={subprocessSuggestions}
+                errors={{
+                    department_id: fieldError('department_id'),
+                    outsourcing_owner_user_id: fieldError('outsourcing_owner_user_id'),
+                    process: fieldError('process'),
+                }}
             />
             <VendorClassificationSection
                 financialRange={financialRange}
@@ -206,14 +205,12 @@ export function VendorFormContainer({
                 required={requestReasonRequired}
                 error={requestReasonError}
                 help={t('form.request_reason_help')}
-                labelClassName="vendor-label"
-                className="vendor-field space-y-0"
             >
                 {(control) => (
-                    <textarea
+                    <Textarea
                         {...control}
                         data-testid="vendor-form-request-reason"
-                        className="vendor-input min-h-24"
+                        className="min-h-24"
                         value={requestReason}
                         onChange={(event) => {
                             setRequestReason(event.target.value);
@@ -237,9 +234,9 @@ export function VendorFormContainer({
                 ) : null}
                 <Button
                     type="submit"
+                    variant="accent"
                     disabled={isSubmitting || accountabilityScenarioUnavailable}
                     isLoading={isSubmitting}
-                    className="bg-accent text-accent-foreground hover:bg-accent-hover hover:text-accent-foreground"
                 >
                     {!isSubmitting ? <Save className="h-4 w-4" aria-hidden="true" /> : null}
                     {submitLabel}

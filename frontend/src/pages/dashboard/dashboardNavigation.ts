@@ -9,10 +9,3 @@ export async function exportDashboardSummary(filters: DashboardFilters): Promise
         controlForm: filters.controlForm,
     });
 }
-
-export function openDashboardPath(
-    navigate: (path: string) => void,
-    path: string,
-): void {
-    navigate(path);
-}

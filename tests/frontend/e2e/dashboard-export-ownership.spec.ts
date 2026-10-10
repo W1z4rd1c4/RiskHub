@@ -67,16 +67,16 @@ for (const view of ['risk-committee', 'ict-committee']) {
         const requests = await mockDashboard(page);
         const tabName = view === 'risk-committee' ? 'Risk Committee' : 'ICT Committee';
         await page.goto(`/?view=${view}`);
-        await expect(page.getByRole('button', { name: tabName, exact: true })).toBeVisible();
+        await expect(page.getByRole('tab', { name: tabName, exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: exportName })).toHaveCount(0);
         expect(requests).toHaveLength(0);
         await page.reload();
-        await expect(page.getByRole('button', { name: tabName, exact: true })).toBeVisible();
+        await expect(page.getByRole('tab', { name: tabName, exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: exportName })).toHaveCount(0);
         expect(requests).toHaveLength(0);
-        await page.getByRole('button', { name: 'Overview', exact: true }).click();
+        await page.getByRole('tab', { name: 'Overview', exact: true }).click();
         await expect(page.getByRole('button', { name: exportName })).toBeVisible();
-        await page.getByRole('button', { name: tabName, exact: true }).click();
+        await page.getByRole('tab', { name: tabName, exact: true }).click();
         await expect(page.getByRole('button', { name: exportName })).toHaveCount(0);
         await page.goBack();
         await expect(page.getByRole('button', { name: exportName })).toBeVisible();
@@ -90,7 +90,7 @@ for (const view of ['risk-committee', 'ict-committee']) {
 test('backend denial hides the Overview export', async ({ page }) => {
     await mockDashboard(page, { allowed: false });
     await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Overview', exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: exportName })).toHaveCount(0);
 });
 
@@ -117,11 +117,11 @@ test('delayed failure and retry keep original normalized filters across filter/h
     await page.goBack();
     await page.goForward();
     await expect(button).toBeDisabled();
-    await page.getByRole('button', { name: 'Risk Committee', exact: true }).click();
+    await page.getByRole('tab', { name: 'Risk Committee', exact: true }).click();
     releaseFailure();
     await expect(page.getByRole('button', { name: exportName })).toHaveCount(0);
     await expect(page.getByText('Overview summary CSV export failed.', { exact: false })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Overview', exact: true }).click();
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
     const alert = page.getByRole('alert').filter({ hasText: 'Overview summary CSV export failed.' });
     await expect(alert).toBeVisible();
     const download = page.waitForEvent('download');
@@ -147,22 +147,25 @@ for (const language of ['en', 'cs']) {
                 const button = page.getByRole('button', { name: label, exact: true });
                 await expect(button).toBeVisible();
                 await expect(button).toHaveText(label);
-                expect(await renderedContrast(button.locator('span'))).toBeGreaterThanOrEqual(4.5);
+                expect(await renderedContrast(button)).toBeGreaterThanOrEqual(4.5);
                 await button.hover();
                 await button.evaluate(async (element) => {
                     await Promise.all(element.getAnimations().map((animation) => animation.finished));
                 });
-                expect(await renderedContrast(button.locator('span'))).toBeGreaterThanOrEqual(4.5);
+                expect(await renderedContrast(button)).toBeGreaterThanOrEqual(4.5);
                 await button.focus();
                 await expect(button).toBeFocused();
                 await page.keyboard.press('Enter');
-                const alert = page.getByRole('alert').filter({ hasText: language === 'en' ? 'Overview summary CSV export failed.' : 'Export souhrnu přehledu do CSV selhal.' });
+                const failure = language === 'en' ? 'Overview summary CSV export failed.' : 'Export souhrnu přehledu do CSV selhal.';
+                const alert = page.getByRole('alert').filter({ hasText: failure });
                 await expect(alert).toBeVisible();
-                expect(await renderedContrast(alert.locator('p'))).toBeGreaterThanOrEqual(4.5);
+                expect(await renderedContrast(alert.getByText(failure).first())).toBeGreaterThanOrEqual(4.5);
                 const bounds = await button.boundingBox();
                 expect(bounds && bounds.x >= 0 && bounds.x + bounds.width <= width).toBeTruthy();
                 const audit = await new AxeBuilder({ page })
-                    .include(`button[title="${label}"]`).include('[role="alert"]')
+                    // Scoped to the export and its failure message: other widgets' load-error alerts on the
+                    // mocked dashboard are still fading in and are not under test here.
+                    .include('[data-testid="dashboard-overview-export"]').include('[data-testid="dashboard-overview-export-error"]')
                     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
                 expect(audit.violations).toEqual([]);
             });

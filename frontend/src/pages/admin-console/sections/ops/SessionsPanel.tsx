@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { RefreshCw } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button } from '@/components/ui/button';
-import { useTranslation } from '@/i18n/hooks';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
 import { adminApi, type ActiveSession } from '@/services/adminApi';
@@ -12,6 +12,7 @@ import { ApiClientError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 
 import { SessionsTable } from './SessionsTable';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
 type DirectoryOutcome = {
     kind: 'status' | 'alert';
@@ -26,7 +27,13 @@ export function SessionsPanel() {
     const [directorySyncing, setDirectorySyncing] = useState(false);
     const [revokeError, setRevokeError] = useState<string | null>(null);
 
-    const { data: sessions, isLoading } = useQuery({
+    const {
+        data: sessions,
+        isLoading,
+        isError: isSessionsError,
+        isFetching: isSessionsFetching,
+        refetch: refetchSessions,
+    } = useQuery({
         queryKey: adminKeys.sessions(),
         queryFn: () => adminApi.getActiveSessions(),
     });
@@ -42,10 +49,11 @@ export function SessionsPanel() {
         onMutate: () => setRevokeError(null),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.sessions() }),
         onError: (error) => {
-            const message = error instanceof ApiClientError
-                ? (error.rawMessage ?? error.messageKey)
-                : t('sessions.revoke_failed');
-            setRevokeError(message);
+            setRevokeError(
+                error instanceof ApiClientError
+                    ? translateUiMessage(t, error.messageKey)
+                    : t('sessions.revoke_failed'),
+            );
             void queryClient.invalidateQueries({ queryKey: adminKeys.sessions() });
         },
     });
@@ -83,62 +91,71 @@ export function SessionsPanel() {
     };
 
     if (isLoading) {
-        return <div className="admin-muted text-center py-8">{t('sessions.loading')}</div>;
+        return <LoadingState label={t('sessions.loading')} />;
+    }
+
+    if (isSessionsError && !sessions) {
+        return (
+            <ErrorState
+                title={t('sessions.title')}
+                onRetry={() => void refetchSessions()}
+                isRetrying={isSessionsFetching}
+            />
+        );
     }
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="admin-title text-lg font-semibold">{t('sessions.title')}</h3>
+                <h2 className="text-lg font-semibold text-foreground">{t('sessions.title')}</h2>
                 <div className="flex items-center gap-3">
-                    <p className="admin-subtle text-sm">
+                    <p className="text-sm text-muted-foreground">
                         {t('sessions.description')}
                     </p>
                     {canRunDirectoryCheckAll && (
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={handleCheckAllDirectory}
-                            aria-busy={directorySyncing}
-                            aria-disabled={directorySyncing}
-                            className="text-xs"
-                        >
-                            <RefreshCw className={`h-3.5 w-3.5 ${directorySyncing ? 'animate-spin' : ''}`} aria-hidden="true" />
-                            {directorySyncing
+                        <RefreshButton
+                            onRefresh={() => void handleCheckAllDirectory()}
+                            isFetching={directorySyncing}
+                            label={directorySyncing
                                 ? t('users.checking_directory')
                                 : t('users.check_directory')}
-                        </Button>
+                            className="text-xs"
+                        />
                     )}
                 </div>
             </div>
 
             {directoryOutcome && (
-                <div
-                    role={directoryOutcome.kind}
-                    className="admin-surface-muted admin-text rounded-lg border px-3 py-2 text-xs"
-                >
+                <InlineMessage tone={directoryOutcome.kind === 'alert' ? 'danger' : 'success'}>
                     {directoryOutcome.message}
-                </div>
+                </InlineMessage>
             )}
-            {revokeError && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
-                    {revokeError}
-                </div>
-            )}
+            {revokeError && <InlineMessage tone="danger">{revokeError}</InlineMessage>}
 
-            <SessionsTable
-                canRevokeSessions={canRevokeSessions}
-                sessions={sessions}
-                onRevoke={setPendingRevokeSession}
-            />
+            {isSessionsError ? (
+                <ErrorState
+                    variant="banner"
+                    onRetry={() => void refetchSessions()}
+                    isRetrying={isSessionsFetching}
+                />
+            ) : null}
+            {sessions && sessions.length === 0 ? (
+                <EmptyState title={t('common:empty.no_data')} />
+            ) : (
+                <SessionsTable
+                    canRevokeSessions={canRevokeSessions}
+                    sessions={sessions}
+                    onRevoke={setPendingRevokeSession}
+                />
+            )}
             <ConfirmDialog
                 isOpen={pendingRevokeSession !== null}
                 onClose={() => setPendingRevokeSession(null)}
                 onConfirm={handleConfirmRevoke}
+                intent="revoke"
                 title={t('sessions.revoke')}
                 message={t('sessions.revoke_confirm', { name: pendingRevokeSession?.user_name ?? '' })}
                 confirmLabel={t('sessions.revoke')}
-                variant="warning"
                 isLoading={revokeMutation.isPending}
             />
         </div>

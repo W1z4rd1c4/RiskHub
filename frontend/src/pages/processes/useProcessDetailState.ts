@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { logError } from '@/services/logger';
+import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
 import { processApi } from '@/services/processApi';
 import type { Process } from '@/types/process';
 
@@ -30,17 +30,19 @@ export function useProcessDetailState({ mode }: UseProcessDetailStateOptions) {
         load: (processId) => processApi.getProcess(processId),
     });
 
+    const restoreWithFeedback = useRestoreWithFeedback();
     const restoreProcess = useCallback(async () => {
         if (!process) {
             return;
         }
-        try {
-            await processApi.restoreProcess(process.id);
-            await fetchProcess();
-        } catch (restoreError) {
-            logError('Error restoring process:', restoreError);
-        }
-    }, [fetchProcess, process]);
+        // D9: restore outcomes (success and failure) are toasts.
+        const restored = process;
+        await restoreWithFeedback({
+            restore: () => processApi.restoreProcess(restored.id),
+            name: restored.l1_process,
+            refresh: () => fetchProcess(),
+        });
+    }, [fetchProcess, restoreWithFeedback, process]);
 
     return {
         canArchive: resolveCapabilityFlag(process?.capabilities, 'can_archive'),

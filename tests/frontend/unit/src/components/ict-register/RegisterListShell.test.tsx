@@ -238,6 +238,11 @@ describe('RegisterListShell', () => {
         );
         expect(screen.getByText('Access denied')).toBeInTheDocument();
         expect(screen.queryByTestId('processes-register-shell')).not.toBeInTheDocument();
+        // D7: the denied register still has its one page h1.
+        expect(screen.getByTestId('processes-register-access-denied')).toBeInTheDocument();
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+        expect(screen.getByRole('heading', { level: 1, name: 'Processes' })).toBeInTheDocument();
+        expect(screen.queryByText('Filters')).not.toBeInTheDocument();
     });
 
     it('keeps last-good rows visible behind the shared retry banner', () => {

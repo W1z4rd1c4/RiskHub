@@ -20,7 +20,7 @@
     "export": "Export",
     "refresh": "Refresh",
     "unarchive": "Unarchive",
-    "back_to_register": "Back to Register"
+    "back_to_register": "Back to Vendors"
   },
   "messages": {
     "archive_confirm": "Archive vendor {{vendorName}}?"
@@ -50,7 +50,10 @@
     },
     "filters": {
       "add": "Add filter",
-      "active_count": "{{count}} active filters",
+      "active_count_one": "{{count}} active filter",
+      "active_count_few": "{{count}} active filters",
+      "active_count_many": "{{count}} active filters",
+      "active_count_other": "{{count}} active filters",
       "clear_all": "Clear all",
       "remove": "Remove {{label}}",
       "lifecycle": "Lifecycle",
@@ -459,7 +462,10 @@
       "create": "Create entry",
       "edit": "Edit entry",
       "archive": "Archive entry",
-      "restore": "Restore entry"
+      "restore": "Restore entry",
+      "edit_named": "Edit entry {{name}}",
+      "archive_named": "Archive entry {{name}}",
+      "restore_named": "Restore entry {{name}}"
     },
     "form": {
       "not_set": "Not set",
@@ -493,6 +499,8 @@
     "select_asset_placeholder": "Select an Asset...",
     "select_process_placeholder": "Select a Process...",
     "s_code": "ICT service (S-code)",
+    "asset_label": "Asset",
+    "process_label": "Process",
     "add": "Link",
     "remove": "Remove link",
     "no_metadata": "No link details",

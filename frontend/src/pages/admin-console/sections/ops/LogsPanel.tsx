@@ -1,15 +1,24 @@
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
+import { Badge } from '@/components/ui/badge';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { formatDateTimeValue } from '@/i18n/formatters';
-import { useTranslation } from '@/i18n/hooks';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { useFormat, useTranslation } from '@/i18n/hooks';
 import { adminKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
+import type { Tone } from '@/lib/tones';
 import { adminApi } from '@/services/adminApi';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+
+const LOG_LEVEL_TONES: Readonly<Record<string, Tone>> = {
+    INFO: 'info',
+    WARNING: 'warning',
+    ERROR: 'danger',
+};
 
 export function LogsPanel() {
-    const { t, i18n } = useTranslation('admin');
+    const { t } = useTranslation('admin');
+    const format = useFormat();
     const [eventFilter, setEventFilter] = useState<string>('');
     const [eventTypes, setEventTypes] = useState<string[]>([]);
 
@@ -18,7 +27,13 @@ export function LogsPanel() {
         queryKey: adminKeys.logEventTypes(limit),
         queryFn: () => adminApi.getTechnicalLogs({ event_type: undefined, limit }),
     });
-    const { data: logs, isLoading } = useQuery({
+    const {
+        data: logs,
+        isLoading,
+        isError: isLogsError,
+        isFetching: isLogsFetching,
+        refetch: refetchLogs,
+    } = useQuery({
         queryKey: adminKeys.logs(eventFilter),
         queryFn: () => adminApi.getTechnicalLogs({ event_type: eventFilter || undefined, limit }),
     });
@@ -34,14 +49,25 @@ export function LogsPanel() {
     }, [eventFilter, eventVocabulary, isEventVocabularyError, logs]);
 
     if (isLoading && !eventVocabulary && eventTypes.length === 0) {
-        return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
+        return <LoadingState label={t('application_logs.loading')} />;
+    }
+
+    const retryLogs = () => void refetchLogs();
+    let logsRegion: ReactNode = null;
+    if (isLoading) {
+        logsRegion = <LoadingState label={t('application_logs.loading')} />;
+    } else if (isLogsError && !logs) {
+        logsRegion = <ErrorState title={t('application_logs.title')} onRetry={retryLogs} isRetrying={isLogsFetching} />;
+    } else if (!logs || logs.length === 0) {
+        logsRegion = <EmptyState title={t('common:empty.no_data')} />;
     }
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="admin-title text-lg font-semibold">{t('application_logs.title')}</h3>
+                <h2 className="text-lg font-semibold text-foreground">{t('application_logs.title')}</h2>
                 <ThemedSelect
+                    triggerAriaLabel={t('application_logs.columns.event')}
                     value={eventFilter}
                     onValueChange={setEventFilter}
                     placeholder={t('application_logs.all_events')}
@@ -51,43 +77,44 @@ export function LogsPanel() {
                 />
             </div>
 
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                <table className="w-full text-sm">
-                    <thead className="admin-table-head sticky top-0">
-                        <tr className="border-b border-white/10">
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.time')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.level')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.event')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.user')}</th>
-                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.details')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            {isLogsError && logs ? (
+                <ErrorState variant="banner" onRetry={retryLogs} isRetrying={isLogsFetching} />
+            ) : null}
+
+            {logsRegion ?? (
+            <div className="max-h-96 overflow-y-auto">
+                <Table density="compact" regionLabel={t('application_logs.title')} className="text-sm">
+                    <THead>
+                        <TR>
+                            <TH>{t('application_logs.columns.time')}</TH>
+                            <TH>{t('application_logs.columns.level')}</TH>
+                            <TH>{t('application_logs.columns.event')}</TH>
+                            <TH>{t('application_logs.columns.user')}</TH>
+                            <TH>{t('application_logs.columns.details')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
                         {logs?.map((log) => (
-                            <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
-                                <td className="admin-subtle whitespace-nowrap py-2 px-3">
-                                    {formatDateTimeValue(log.timestamp, i18n.language)}
-                                </td>
-                                <td className="py-2 px-3">
-                                    <span className={cn(
-                                        'px-2 py-0.5 rounded text-xs font-medium',
-                                        log.level === 'INFO' && 'bg-blue-500/20 text-blue-400',
-                                        log.level === 'WARNING' && 'bg-amber-500/20 text-amber-400',
-                                        log.level === 'ERROR' && 'bg-red-500/20 text-red-400',
-                                    )}>
+                            <TR key={log.id}>
+                                <TD className="whitespace-nowrap text-muted-foreground">
+                                    {format.dateTime(log.timestamp)}
+                                </TD>
+                                <TD>
+                                    <Badge shape="rounded" tone={LOG_LEVEL_TONES[log.level] ?? 'neutral'}>
                                         {log.level}
-                                    </span>
-                                </td>
-                                <td className="admin-title py-2 px-3">{log.event_type}</td>
-                                <td className="admin-muted py-2 px-3">{log.user_name || t('common:fallbacks.unknown_user')}</td>
-                                <td className="admin-subtle max-w-xs truncate py-2 px-3" title={log.description || ''}>
+                                    </Badge>
+                                </TD>
+                                <TD className="text-foreground">{log.event_type}</TD>
+                                <TD className="text-muted-foreground">{log.user_name || t('common:fallbacks.unknown_user')}</TD>
+                                <TD className="max-w-xs truncate text-muted-foreground" title={log.description || ''}>
                                     {log.description || t('common:fallbacks.not_available')}
-                                </td>
-                            </tr>
+                                </TD>
+                            </TR>
                         ))}
-                    </tbody>
-                </table>
+                    </TBody>
+                </Table>
             </div>
+            )}
         </div>
     );
 }

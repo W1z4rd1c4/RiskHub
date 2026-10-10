@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useFeedback } from '@/hooks/useFeedback';
 import { ApiClientError, apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { isAbortError } from '@/services/api/requestRuntime';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
@@ -43,7 +44,9 @@ export function useRiskQuestionnairesTabData({
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
+    // GAP-D-09: "sent" is a success toast (D9); only "already open" stays on the tab as a warning.
+    const [openExistsNotice, setOpenExistsNotice] = useState<string | null>(null);
+    const feedback = useFeedback();
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [latestSubmitted, setLatestSubmitted] = useState<RiskQuestionnaireDetail | null>(null);
     const [latestSubmittedLoading, setLatestSubmittedLoading] = useState(false);
@@ -218,7 +221,7 @@ export function useRiskQuestionnairesTabData({
         setLatestSubmittedRefreshKey(0);
         setLoadOutcome('initial-loading');
         setErrorKey(null);
-        setMessage(null);
+        setOpenExistsNotice(null);
     }, [riskId]);
 
     useEffect(() => {
@@ -231,19 +234,19 @@ export function useRiskQuestionnairesTabData({
         const controller = new AbortController();
         sendControllerRef.current = controller;
         const ownerId = riskId;
-        setMessage(null);
+        setOpenExistsNotice(null);
         setErrorKey(null);
         setSending(true);
         try {
             await riskQuestionnairesApi.sendForRisk(ownerId, { signal: controller.signal });
             if (controller.signal.aborted || ownerRef.current !== ownerId) return;
-            setMessage(t('risks:questionnaires.send_success'));
+            feedback.success({ title: t('risks:questionnaires.send_success') });
             await refresh();
         } catch (error) {
             if (isAbortError(error) || controller.signal.aborted || ownerRef.current !== ownerId) return;
             const messageText = error instanceof Error ? error.message : '';
             if (messageText.toLowerCase().includes('open questionnaire already exists')) {
-                setMessage(t('risks:questionnaires.send_open_exists'));
+                setOpenExistsNotice(t('risks:questionnaires.send_open_exists'));
                 await refresh();
                 if (openItem) setSelectedId(openItem.id);
                 return;
@@ -266,7 +269,7 @@ export function useRiskQuestionnairesTabData({
         refreshLatestSubmitted: () => latestSubmittedId && loadLatestSubmitted(latestSubmittedId),
         loadOutcome,
         loading,
-        message,
+        openExistsNotice,
         openItem,
         reconcile,
         refresh,

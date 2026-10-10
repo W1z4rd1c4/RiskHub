@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -63,7 +63,8 @@ describe('IctRegisterDqPage loading + error branches (FR-P3-4)', () => {
         await renderPage();
 
         const loading = await screen.findByTestId('dq-loading');
-        expect(loading).toHaveAttribute('aria-busy', 'true');
+        expect(within(loading).getByRole('status')).toHaveTextContent(/\S/);
+        expect(loading.querySelector('[data-loading-placeholder][aria-busy="true"]')).not.toBeNull();
         // C3: the 0/0/0 summary tiles must not render during load.
         expect(screen.queryByTestId('dq-summary-total')).not.toBeInTheDocument();
     });

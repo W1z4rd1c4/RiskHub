@@ -3,6 +3,7 @@
  * Shows delta badges with directional arrows.
  */
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
 
@@ -27,6 +28,8 @@ const deltaBgColors: Record<HistoryStatus, string> = {
 };
 
 export function HistoryChangeCard({ title, fields, className }: HistoryChangeCardProps) {
+    const { t } = useTranslation('common');
+
     if (!fields || fields.length === 0) {
         return null;
     }
@@ -37,12 +40,12 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
             <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
-                <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                <h4 className="text-eyebrow">
                     {title}
                 </h4>
-                <div className="flex gap-12 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                    <span className="w-24">Baseline</span>
-                    <span className="w-24">Current</span>
+                <div className="text-eyebrow flex gap-12">
+                    <span className="w-24">{t('labels.baseline')}</span>
+                    <span className="w-24">{t('labels.current')}</span>
                 </div>
             </div>
 
@@ -57,18 +60,18 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
                             : Minus;
 
                     return (
-                        <div key={index} className="group transition-all">
+                        <div key={index} className="group">
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-muted-foreground transition-colors">
+                                <span className="text-eyebrow group-hover:text-foreground transition-colors">
                                     {field.label}
                                 </span>
                                 {field.delta && isChanged && (
                                     <span className={cn(
-                                        "flex items-center gap-1 px-2 py-0.5 text-[9px] font-black rounded-full border transform group-hover:scale-105 transition-all uppercase tracking-tighter",
+                                        "flex items-center gap-1 px-2 py-0.5 text-2xs font-bold rounded-full border transform group-hover:scale-105 transition-transform uppercase tracking-wide",
                                         deltaBgColors[tone],
                                         toneColors[tone]
                                     )}>
-                                        <DirectionIcon className="h-2 w-2" />
+                                        <DirectionIcon aria-hidden="true" className="h-2.5 w-2.5" />
                                         {field.delta}
                                     </span>
                                 )}
@@ -77,7 +80,7 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
                             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
                                 {/* Before */}
                                 <div className={cn(
-                                    "px-3 py-2 rounded-lg border transition-all",
+                                    "px-3 py-2 rounded-lg border transition-colors",
                                     "bg-nested border-border"
                                 )}>
                                     <span className="text-sm font-bold text-foreground truncate block">
@@ -97,7 +100,7 @@ export function HistoryChangeCard({ title, fields, className }: HistoryChangeCar
 
                                 {/* After */}
                                 <div className={cn(
-                                    "px-3 py-2 rounded-lg border transition-all shadow-lg shadow-black/20",
+                                    "px-3 py-2 rounded-lg border transition-colors shadow-lg shadow-black/20",
                                     isChanged ? "bg-accent/5 border-accent/20" : "bg-nested border-border"
                                 )}>
                                     <span className={cn(

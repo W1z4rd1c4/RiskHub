@@ -21,6 +21,31 @@ Blocked by `npm run quality:debt`:
 4. Any explicit `any` type usage, except approved and time-boxed allowlist entries.
 5. Any production comment debt markers (`TODO`, `FIXME`, `HACK`, `XXX`).
 
+Ratcheted by `npm run quality:ui-ratchet` (G-RATCHET, `frontend/scripts/quality/ui-consistency-ratchet.mjs`):
+
+1. Design-system debt patterns from the 2026-09-30 UI-consistency audit (§4.1): `text-white`,
+   raw palette colours, white/black alpha utilities, sub-11px fonts, `font-black`, raw
+   `<button>`/text inputs/`<table>` outside the primitives, `dark:` variants, `style=` props,
+   `btn-primary`/`btn-secondary`, arbitrary colours/z-index/radii, ad-hoc spinners, `transition-all`, and
+   `!important` in `src/**/*.css`.
+2. Since Phase 4 (audit §5.6 item 4.5) every pattern is a hard zero — any match fails, with no
+   baseline tolerance — except the allowlisted ones: `hex-literal` (stored risk-type colour data
+   in `src/hooks/useRiskHubConfig.ts`) and `important-css` (the reduced-motion override in
+   `src/index.css`, at most 4). The raw-element patterns also catch the bypasses
+   (`motion.button` / `motion.input` / `motion.table`, `motion.create('button')`,
+   `role="button"`, an `<a>` with `onClick` and no `href`).
+3. Allowlisted per-file counts live in `frontend/scripts/quality/ui-consistency-baseline.json`
+   and may only go down; a match in a file outside a pattern's allowlist fails.
+   `npm run quality:ui-ratchet -- --update-baseline` locks in decreases and refuses increases;
+   `--force` is reserved for pure file moves/renames and needs explicit PR review.
+4. Module paths whose counts reached zero join the G-ESLINT clean paths
+   (`DESIGN_CLEAN_PATHS` in `frontend/eslint.config.js`): there `npx eslint` hard-bans the same
+   class patterns and raw `<button>`/`<input>`/`<textarea>`/`<select>`/`<table>` elements, so a
+   regression fails lint instead of only the ratchet. The list only grows (audit §4.1, §5.5).
+   Since W9 the clean paths are all of `frontend/src` with no pending exceptions: only the
+   `components/ui` primitives, which own the raw elements, keep the class bans without the
+   element bans (`DESIGN_CLASS_BAN_ONLY_PATHS`).
+
 ### Backend
 
 Blocked by CI Ruff hard gate (`ruff check app`) and suppression budget gate (`python3 scripts/tools/suppression_budget.py`) against `backend/app/**`.

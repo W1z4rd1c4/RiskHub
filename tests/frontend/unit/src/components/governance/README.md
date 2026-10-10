@@ -7,6 +7,7 @@ Vitest coverage for governance components.
 ## Contents
 
 - `OrphanedItemsTable.test.tsx`
+- `ResolveOrphanSelections.test.tsx`
 
 ## Notes
 

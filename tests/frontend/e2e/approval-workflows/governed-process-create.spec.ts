@@ -32,6 +32,9 @@ async function submitProtectedCreation(page: Page, processName: string, reason: 
     ));
     await page.getByTestId('process-form-submit').click();
     expect((await submitted).status()).toBe(202);
+    // D12 / PM-2: the requester stays on the entity page with the pending
+    // notice; its link opens the queued request.
+    await page.getByTestId('approval-queued-notice-link').click();
     await expect(page).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
 }
 
@@ -137,6 +140,9 @@ test.describe('Governed protected Process creation (#85)', () => {
                 && /\/api\/v1\/approvals\/\d+\/cancel$/.test(new URL(response.url()).pathname)
             ));
             await pendingCreation.getByRole('button', { name: /Cancel request|Zrušit žádost/ }).click();
+            // GAP-D-08: the cancel is confirmed in a dialog before it is sent.
+            await riskManagerPage.getByRole('alertdialog')
+                .getByRole('button', { name: /Cancel request|Zrušit žádost/ }).click();
             expect((await cancelled).status()).toBe(200);
             await expect(pendingCreation).toHaveCount(0);
             await expect(pendingPanel.getByRole('heading', { name: otherProcessName, exact: true })).toBeVisible();

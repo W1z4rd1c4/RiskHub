@@ -221,7 +221,8 @@ test.describe('Governed protected Process edit (#84)', () => {
                 name: assetName,
                 preliminary_criticality: 'low',
             });
-            await createPrimaryProcessLink(asset.id, process.id);
+            const processId = process.id;
+            await createPrimaryProcessLink(asset.id, processId);
             await createAssetVendorLinkViaApi(asset.id, {
                 vendor_id: vendor!.id,
                 ict_service_code: ictServiceCode,
@@ -241,7 +242,7 @@ test.describe('Governed protected Process edit (#84)', () => {
             await riskManagerPage.getByTestId('process-form-request-reason').fill(reason);
             const queued = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'PATCH'
-                && new URL(response.url()).pathname === `/api/v1/processes/${process.id}`
+                && new URL(response.url()).pathname === `/api/v1/processes/${processId}`
             ));
             await riskManagerPage.getByTestId('process-form-submit').click();
             expect((await queued).status()).toBe(202);
@@ -259,18 +260,18 @@ test.describe('Governed protected Process edit (#84)', () => {
                 name: 'E2E-VENDOR-006 Finance Reporting SaaS',
             }).locator('..');
             await expect(processImpact).toHaveCount(1);
-            await expect(processImpact.getByText('No', { exact: true })).toBeVisible();
-            await expect(processImpact.getByText('Yes', { exact: true })).toBeVisible();
-            await expect(processImpact.getByText('Low', { exact: true })).toBeVisible();
-            await expect(processImpact.getByText('Critical', { exact: true })).toBeVisible();
+            await expect(processImpact.getByRole('deletion').filter({ hasText: /^Old Value: No$/ })).toBeVisible();
+            await expect(processImpact.getByRole('insertion').filter({ hasText: /^New Value: Yes$/ })).toBeVisible();
+            await expect(processImpact.getByRole('deletion').filter({ hasText: /^Old Value: Low$/ })).toBeVisible();
+            await expect(processImpact.getByRole('insertion').filter({ hasText: /^New Value: Critical$/ })).toBeVisible();
             await expect(assetImpact).toHaveCount(1);
-            await expect(assetImpact.getByText('No', { exact: true })).toBeVisible();
-            await expect(assetImpact.getByText('Yes', { exact: true })).toBeVisible();
-            await expect(assetImpact.getByText('Low', { exact: true })).toBeVisible();
-            await expect(assetImpact.getByText('Critical', { exact: true })).toBeVisible();
+            await expect(assetImpact.getByRole('deletion').filter({ hasText: /^Old Value: No$/ })).toBeVisible();
+            await expect(assetImpact.getByRole('insertion').filter({ hasText: /^New Value: Yes$/ })).toBeVisible();
+            await expect(assetImpact.getByRole('deletion').filter({ hasText: /^Old Value: Low$/ })).toBeVisible();
+            await expect(assetImpact.getByRole('insertion').filter({ hasText: /^New Value: Critical$/ })).toBeVisible();
             await expect(vendorImpact).toHaveCount(1);
-            await expect(vendorImpact.getByText('Standard provider', { exact: true })).toBeVisible();
-            await expect(vendorImpact.getByText('Critical provider', { exact: true })).toBeVisible();
+            await expect(vendorImpact.getByRole('deletion').filter({ hasText: /^Old Value: Standard provider$/ })).toBeVisible();
+            await expect(vendorImpact.getByRole('insertion').filter({ hasText: /^New Value: Critical provider$/ })).toBeVisible();
 
             expect((await getCompositeState('processes', process.id)).cif).toBe('no');
             expect((await getCompositeState('assets', asset.id)).cif).toBe('no');
@@ -283,7 +284,7 @@ test.describe('Governed protected Process edit (#84)', () => {
             await resolverApprovals.clickApprove(resolverIndex);
             await resolverApprovals.submitResolution(`Approve ${reason}`, 'approve');
 
-            await expect.poll(async () => (await getCompositeState('processes', process.id)).cif)
+            await expect.poll(async () => (await getCompositeState('processes', processId)).cif)
                 .toBe('yes');
             const assetState = await getCompositeState('assets', asset.id);
             expect(assetState.cif).toBe('yes');

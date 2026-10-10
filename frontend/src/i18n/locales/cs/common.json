@@ -4,6 +4,7 @@
     "cancel": "Zrušit",
     "delete": "Smazat",
     "edit": "Upravit",
+    "edit_named": "Upravit {{name}}",
     "create": "Vytvořit",
     "close": "Zavřít",
     "confirm": "Potvrdit",
@@ -17,7 +18,6 @@
     "view": "Zobrazit",
     "back": "Zpět",
     "next": "Další",
-    "previous": "Předchozí",
     "select": "Vybrat",
     "clear": "Vymazat",
     "apply": "Použít",
@@ -26,6 +26,10 @@
     "yes": "Ano",
     "no": "Ne",
     "archive": "Archivovat",
+    "remove_link": "Odebrat propojení",
+    "archive_named": "Archivovat {{name}}",
+    "send": "Odeslat",
+    "discard": "Zahodit",
     "unarchive": "Obnovit z archivu",
     "view_all": "Zobrazit vše →",
     "add_control": "Přidat kontrolu",
@@ -34,24 +38,43 @@
     "deleting": "Mazání...",
     "retry": "Zkusit znovu",
     "stay": "Zůstat",
-    "leave": "Odejít"
+    "leave": "Odejít",
+    "dismiss_message": "Zavřít zprávu",
+    "clear_selection_named": "Zrušit výběr: {{name}}",
+    "remove": "Odebrat",
+    "remove_named": "Odebrat {{name}}",
+    "back_to_detail": "Zpět na {{name}}",
+    "restore": "Obnovit",
+    "restore_named": "Obnovit {{name}}"
+  },
+  "links": {
+    "remove_named": "Odebrat vazbu: {{name}}"
   },
   "brand": {
     "name": "RiskHub"
   },
+  "page_title": {
+    "template": "{{page}} · RiskHub",
+    "edit": "Úprava: {{name}}"
+  },
+  "breadcrumbs": {
+    "label": "Drobečková navigace"
+  },
+  "edit_blocked": {
+    "title": "Úpravy jsou dočasně uzamčeny",
+    "description": "Před úpravou tohoto záznamu je nutné vyřešit čekající řízenou změnu."
+  },
   "not_found_page": {
     "title": "Stránka nebyla nalezena",
     "description": "Tato adresa neodpovídá žádné dostupné stránce.",
-    "dashboard": "Přehled"
+    "dashboard": "Přehled",
+    "back": "Zpět na předchozí stránku"
   },
   "detail_load": {
     "unavailable_title": "Záznam není dostupný",
     "unavailable_description": "Tento záznam teď nelze načíst. Zkuste to znovu nebo se vraťte do registru.",
     "stale_title": "Tyto informace mohou být zastaralé",
     "stale_description": "Nejnovější data záznamu se nepodařilo načíst. Poslední úspěšná verze zůstává viditelná."
-  },
-  "formats": {
-    "excel": "CSV"
   },
   "export": {
     "button": "Export",
@@ -77,7 +100,6 @@
       }
     },
     "formats": {
-      "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
@@ -96,6 +118,8 @@
   },
   "labels": {
     "name": "Název",
+    "baseline": "Výchozí",
+    "current": "Aktuální",
     "description": "Popis",
     "status": "Stav",
     "type": "Typ",
@@ -103,6 +127,10 @@
     "department": "Oddělení",
     "owner": "Vlastník",
     "process": "Proces",
+    "vendor": "Dodavatel",
+    "asset": "Aktivum",
+    "threat": "Hrozba",
+    "risk_type": "Typ rizika",
     "gross": "Hrubé",
     "net": "Čisté",
     "form": "Forma",
@@ -124,6 +152,7 @@
     "overview": "Přehled",
     "all": "Vše",
     "none": "Žádné",
+    "optional": "(nepovinné)",
     "unknown": "Neznámé",
     "loading": "Načítání...",
     "no_data": "Žádná data k dispozici",
@@ -138,7 +167,24 @@
     "by": "od",
     "approved_on": "Schváleno dne",
     "proposed_changes": "Navržené změny",
-    "rejected_on": "Zamítnuto dne"
+    "rejected_on": "Zamítnuto dne",
+    "label_value": "{{label}}: {{value}}",
+    "quoted": "„{{text}}“"
+  },
+  "roles": {
+    "admin": "Administrátor",
+    "cro": "Chief Risk Officer",
+    "ceo": "Generální ředitel",
+    "cfo": "Finanční ředitel",
+    "coo": "Provozní ředitel",
+    "ciso": "Chief Information Security Officer",
+    "risk_manager": "Risk manažer",
+    "actuarial": "Aktuárská funkce",
+    "compliance": "Compliance officer",
+    "internal_audit": "Interní audit",
+    "department_head": "Vedoucí oddělení",
+    "employee": "Zaměstnanec",
+    "viewer": "Čtenář"
   },
   "errors": {
     "generic": "Došlo k chybě. Zkuste to prosím znovu.",
@@ -168,14 +214,76 @@
     "deleted": "Úspěšně smazáno.",
     "submitted": "Úspěšně odesláno."
   },
+  "feedback": {
+    "region_label": "Oznámení ({hotkey})",
+    "announce_label": "Oznámení",
+    "dismiss": "Zavřít oznámení",
+    "default_title": {
+      "success": "Hotovo",
+      "info": "Pro informaci",
+      "warning": "Zkontrolujte prosím",
+      "danger": "Něco se pokazilo"
+    }
+  },
   "confirmation": {
-    "delete_title": "Potvrdit smazání",
     "delete_message": "Opravdu chcete smazat tuto položku? Tuto akci nelze vrátit zpět.",
     "unsaved_title": "Neuložené změny",
     "unsaved_changes": "Máte neuložené změny. Opravdu chcete odejít?",
     "archive_title": "Archivovat {{type}}",
-    "archive_reversible": "Tuto akci může administrátor vrátit zpět.",
-    "remove_link": "Opravdu chcete odebrat toto propojení?"
+    "archive_reversible": "Tuto akci může administrátor vrátit zpět."
+  },
+  "confirm": {
+    "archive": {
+      "title": "Archivovat záznam typu {{entity}}?",
+      "title_generic": "Archivovat tuto položku?",
+      "title_count": "Archivovat {{count}} položek?",
+      "title_count_one": "Archivovat {{count}} položku?",
+      "title_count_few": "Archivovat {{count}} položky?",
+      "title_count_other": "Archivovat {{count}} položek?",
+      "busy": "Archivace…",
+      "reason_placeholder": "Vysvětlete, proč se položka archivuje"
+    },
+    "delete": {
+      "title": "Smazat záznam typu {{entity}}?",
+      "title_generic": "Smazat tuto položku?",
+      "title_count": "Smazat {{count}} položek?",
+      "title_count_one": "Smazat {{count}} položku?",
+      "title_count_few": "Smazat {{count}} položky?",
+      "title_count_other": "Smazat {{count}} položek?",
+      "body": "Tuto akci nelze vrátit zpět.",
+      "busy": "Mazání…"
+    },
+    "unlink": {
+      "title": "Odebrat propojení s položkou {{name}}?",
+      "title_generic": "Odebrat toto propojení?",
+      "title_count": "Odebrat {{count}} propojení?",
+      "title_count_one": "Odebrat {{count}} propojení?",
+      "title_count_few": "Odebrat {{count}} propojení?",
+      "title_count_other": "Odebrat {{count}} propojení?",
+      "body": "Odebere se pouze propojení; propojený záznam zůstane zachován.",
+      "busy": "Odebírání propojení…"
+    },
+    "send": {
+      "title": "Odeslat záznam typu {{entity}}?",
+      "title_generic": "Odeslat nyní?",
+      "title_count": "Odeslat {{count}} položek?",
+      "title_count_one": "Odeslat {{count}} položku?",
+      "title_count_few": "Odeslat {{count}} položky?",
+      "title_count_other": "Odeslat {{count}} položek?",
+      "body": "Odeslání proběhne okamžitě a nelze jej vzít zpět.",
+      "busy": "Odesílání…"
+    },
+    "discard": {
+      "title": "Zahodit neuložené změny?",
+      "body": "Neuložené změny budou ztraceny."
+    },
+    "generic": {
+      "title": "Opravdu pokračovat?"
+    },
+    "reason": {
+      "label": "Důvod",
+      "placeholder": "Vysvětlete důvod této změny"
+    }
   },
   "pending_change_cancellation": {
     "title": "Zrušit čekající žádost?",
@@ -189,8 +297,10 @@
     "to": "až",
     "entries": "záznamů",
     "per_page": "na stránku",
-    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů",
-    "go_to_page": "Přejít na stránku {{page}}"
+    "go_to_page": "Přejít na stránku {{page}}",
+    "previous_page": "Předchozí stránka",
+    "next_page": "Další stránka",
+    "label": "Stránkování"
   },
   "date": {
     "today": "Dnes",
@@ -213,6 +323,7 @@
     "by_flag": "Dle příznaku"
   },
   "hero": {
+    "page_title": "Řízení podnikových rizik",
     "tagline": "Platforma pro řízení podnikových rizik nové generace.",
     "subtitle": "Vytvořeno pro moderní pojišťovny v regulaci Solvency II.",
     "access_platform": "Přístup k platformě",
@@ -238,7 +349,8 @@
     "risk_data": "Načítání dat rizika...",
     "control_data": "Načítání dat kontroly...",
     "history": "Načítání historie...",
-    "activity_log": "Načítání logu aktivit..."
+    "activity_log": "Načítání logu aktivit...",
+    "named": "Načítání: {{name}}…"
   },
   "empty": {
     "no_data": "Žádná data",
@@ -302,6 +414,7 @@
     "all_processes": "Všechny procesy",
     "all_categories": "Všechny kategorie",
     "all_actions": "Všechny akce",
+    "action": "Akce",
     "select_person": "Vybrat osobu...",
     "select_department": "Vybrat oddělení...",
     "select_risk": "Vybrat riziko...",
@@ -350,11 +463,28 @@
     "create_link": "Vytvořit propojení",
     "search_results": "Výsledky hledání",
     "initial_suggestions": "Počáteční návrhy",
-    "result_singular": "položka",
-    "result_plural": "položek"
+    "result_count": "{{count}} položek",
+    "result_count_one": "{{count}} položka",
+    "result_count_few": "{{count}} položky",
+    "result_count_other": "{{count}} položek"
   },
   "approval": {
-    "submitted_for_approval": "Odesláno ke schválení"
+    "queued": {
+      "toast_title": "Odesláno ke schválení",
+      "toast_body": "Změna se projeví po schválení.",
+      "title": "Čeká na schválení",
+      "body": "Vaše žádost byla odeslána ke schválení. Záznam zůstane beze změny, dokud žádost nebude schválena.",
+      "open": "Otevřít ve schvalování"
+    }
+  },
+  "outcome": {
+    "archived": "Archivováno: {{name}}",
+    "archived_generic": "Záznam byl archivován",
+    "restored": "Obnoveno: {{name}}",
+    "restored_generic": "Záznam byl obnoven",
+    "restore_failed": "Záznam se nepodařilo obnovit.",
+    "link_removed": "Vazba byla odebrána",
+    "deleted": "Smazáno: {{name}}"
   },
   "activity_log": {
     "subtitle": "Přehled zaznamenaných akcí uživatelů a systému.",
@@ -370,9 +500,54 @@
       "users": "Uživatelé"
     },
     "select_risk": "Vyberte riziko pro zobrazení aktivity.",
-    "select_risk_hint": "Pro načtení záznamů vyberte riziko ve filtru výše."
+    "select_risk_hint": "Pro načtení záznamů vyberte riziko ve filtru výše.",
+    "entity_tabs_label": "Aktivita podle typu entity",
+    "view_modes_label": "Zobrazení aktivity",
+    "empty_value": "(prázdné)",
+    "entity_types": {
+      "risk": "Riziko",
+      "control": "Kontrola",
+      "kri": "KRI",
+      "risk_questionnaire": "Dotazník rizika",
+      "vendor": "Dodavatel",
+      "vendor_assessment": "Hodnocení dodavatele",
+      "vendor_incident": "Incident dodavatele",
+      "vendor_sla": "SLA dodavatele",
+      "vendor_remediation": "Náprava dodavatele",
+      "issue": "Nález",
+      "issue_remediation": "Náprava nálezu",
+      "issue_exception": "Výjimka nálezu",
+      "user": "Uživatel",
+      "department": "Oddělení",
+      "approval": "Schválení",
+      "control_execution": "Provedení kontroly",
+      "kri_value": "Hodnota KRI",
+      "control_risk_link": "Vazba kontrola–riziko",
+      "role": "Role",
+      "config": "Konfigurace",
+      "process": "Proces",
+      "asset": "Aktivum",
+      "threat": "Hrozba"
+    },
+    "fields": {
+      "name": "Název",
+      "description": "Popis",
+      "status": "Stav",
+      "category": "Kategorie",
+      "owner_id": "Vlastník",
+      "department_id": "Oddělení",
+      "risk_type": "Typ rizika",
+      "risk_id_code": "ID rizika",
+      "frequency": "Frekvence",
+      "control_form": "Forma kontroly",
+      "is_priority": "Priorita",
+      "is_archived": "Archivováno",
+      "role": "Role",
+      "email": "E-mail"
+    }
   },
   "department_detail": {
+    "back_to_departments": "Zpět na oddělení",
     "tabs": {
       "label": "Pracovní prostor oddělení",
       "overview": "Přehled",
@@ -388,24 +563,62 @@
       "recent_activity": "Nedávná aktivita"
     },
     "health": {
-      "high_risk": "{{count}} vysokých rizik",
-      "high_risks": "{{count}} vysokých",
-      "critical_risks": "{{count}} kritických",
-      "attention_controls": "{{count}} vyžaduje pozornost",
-      "inactive_controls": "{{count}} neaktivních",
-      "kri_breaches": "{{count}} překročení",
-      "kri_overdue": "{{count}} po termínu",
-      "open_issues": "{{count}} otevřených",
-      "overdue_issues": "{{count}} po termínu",
-      "critical_processes": "{{count}} kritických",
-      "cif_processes": "{{count}} CIF",
-      "critical_assets": "{{count}} kritických",
-      "legacy_assets": "{{count}} legacy",
-      "critical_vendors": "{{count}} kritických",
-      "dora_vendors": "{{count}} DORA",
-      "active_users": "{{count}} aktivních",
-      "accountability_gaps": "{{count}} mezer v odpovědnosti",
-      "significant_vendors": "{{count}} významných"
+      "high_risks_one": "{{count}} vysoké",
+      "high_risks_few": "{{count}} vysoká",
+      "high_risks_many": "{{count}} vysokého",
+      "high_risks_other": "{{count}} vysokých",
+      "critical_risks_one": "{{count}} kritické",
+      "critical_risks_few": "{{count}} kritická",
+      "critical_risks_many": "{{count}} kritického",
+      "critical_risks_other": "{{count}} kritických",
+      "attention_controls_one": "{{count}} vyžaduje pozornost",
+      "attention_controls_few": "{{count}} vyžadují pozornost",
+      "attention_controls_many": "{{count}} vyžaduje pozornost",
+      "attention_controls_other": "{{count}} vyžaduje pozornost",
+      "kri_breaches_one": "{{count}} překročení",
+      "kri_breaches_few": "{{count}} překročení",
+      "kri_breaches_many": "{{count}} překročení",
+      "kri_breaches_other": "{{count}} překročení",
+      "kri_overdue_one": "{{count}} po termínu",
+      "kri_overdue_few": "{{count}} po termínu",
+      "kri_overdue_many": "{{count}} po termínu",
+      "kri_overdue_other": "{{count}} po termínu",
+      "open_issues_one": "{{count}} otevřený",
+      "open_issues_few": "{{count}} otevřené",
+      "open_issues_many": "{{count}} otevřeného",
+      "open_issues_other": "{{count}} otevřených",
+      "overdue_issues_one": "{{count}} po termínu",
+      "overdue_issues_few": "{{count}} po termínu",
+      "overdue_issues_many": "{{count}} po termínu",
+      "overdue_issues_other": "{{count}} po termínu",
+      "critical_processes_one": "{{count}} kritický",
+      "critical_processes_few": "{{count}} kritické",
+      "critical_processes_many": "{{count}} kritického",
+      "critical_processes_other": "{{count}} kritických",
+      "cif_processes_one": "{{count}} CIF",
+      "cif_processes_few": "{{count}} CIF",
+      "cif_processes_many": "{{count}} CIF",
+      "cif_processes_other": "{{count}} CIF",
+      "critical_assets_one": "{{count}} kritické",
+      "critical_assets_few": "{{count}} kritická",
+      "critical_assets_many": "{{count}} kritického",
+      "critical_assets_other": "{{count}} kritických",
+      "legacy_assets_one": "{{count}} legacy",
+      "legacy_assets_few": "{{count}} legacy",
+      "legacy_assets_many": "{{count}} legacy",
+      "legacy_assets_other": "{{count}} legacy",
+      "critical_vendors_one": "{{count}} kritický",
+      "critical_vendors_few": "{{count}} kritičtí",
+      "critical_vendors_many": "{{count}} kritického",
+      "critical_vendors_other": "{{count}} kritických",
+      "dora_vendors_one": "{{count}} DORA",
+      "dora_vendors_few": "{{count}} DORA",
+      "dora_vendors_many": "{{count}} DORA",
+      "dora_vendors_other": "{{count}} DORA",
+      "active_users_one": "{{count}} aktivní",
+      "active_users_few": "{{count}} aktivní",
+      "active_users_many": "{{count}} aktivního",
+      "active_users_other": "{{count}} aktivních"
     },
     "recent_activity": {
       "title": "Nedávná aktivita",
@@ -424,14 +637,26 @@
     "no_matches_title": "Žádné odpovídající dokumenty",
     "no_matches_subtitle": "Zkuste jiný tag filtr.",
     "view_manual": "Zobrazit manuál",
-    "maintainer_reference": "Reference správce:"
+    "maintainer_reference": "Reference správce:",
+    "anchor_link": "Odkaz na sekci {{heading}}",
+    "anchor_link_untitled": "Odkaz na sekci",
+    "opens_in_new_tab": "otevře se v nové záložce"
+  },
+  "severity": {
+    "low": "Nízká",
+    "medium": "Střední",
+    "high": "Vysoká",
+    "critical": "Kritická"
   },
   "tables": {
     "items": "Položky",
     "active": "Aktivní",
     "items_count": "{{count}} položek",
+    "items_count_one": "{{count}} položka",
+    "items_count_few": "{{count}} položky",
+    "items_count_other": "{{count}} položek",
+    "back_to_groups": "Zpět na skupiny",
     "high_risk": "Vysoké riziko",
-    "inherited_risk_heatmap": "Heatmapa zděděného rizika",
     "error": {
       "message": "Tuto tabulku se nepodařilo načíst. Zkuste to prosím znovu.",
       "retry": "Zkusit znovu"
@@ -464,7 +689,8 @@
     "unknown_asset": "Neznámé aktivum",
     "unknown_threat": "Neznámá hrozba",
     "unknown_contract": "Neznámá smlouva",
-    "unknown_sub_outsourcing": "Neznámý subdodavatel"
+    "unknown_sub_outsourcing": "Neznámý subdodavatel",
+    "uncategorized": "Bez kategorie"
   },
   "audit": {
     "columns": {
@@ -559,16 +785,11 @@
   "risk_committee": {
     "critical_risks": "Kritická rizika",
     "critical_vendors": "Kritičtí dodavatelé",
-    "days_ago": "před {{count}} dny",
-    "months_ago": "před {{count}} měsíci",
     "no_critical_risks": "Aktuálně žádná kritická rizika",
     "no_department_exposure_data": "Žádná data o expozici oddělení",
     "no_recent_significant_activity": "Žádná nedávná významná aktivita",
     "no_summary_data": "Souhrnná data nejsou dostupná",
-    "no_vendors_in_scope": "Žádní dodavatelé v rozsahu",
-    "today": "Dnes",
-    "weeks_ago": "před {{count}} týdny",
-    "yesterday": "Včera"
+    "no_vendors_in_scope": "Žádní dodavatelé v rozsahu"
   },
   "sections": {
     "recent_activity": "Nedávná aktivita",
@@ -607,8 +828,72 @@
     "total_controls": "Celkem kontrol",
     "vendors": "Dodavatelé"
   },
+  "multi_select": {
+    "selected_count": "Vybráno: {{count}}",
+    "selected_count_one": "{{count}} vybraná položka",
+    "selected_count_few": "{{count}} vybrané položky",
+    "selected_count_other": "{{count}} vybraných položek"
+  },
   "error_boundary": {
     "title": "Něco se pokazilo",
     "description": "Stránku se nepodařilo zobrazit."
+  },
+  "history_chart": {
+    "summary": "Vývoj – {{label}}: poslední hodnota {{latest}} ({{period}}); nejnižší {{min}}, nejvyšší {{max}}.",
+    "period": "Období"
+  },
+  "values": {
+    "closed_lists": {
+      "AnoNe": {
+        "yes": "Ano",
+        "no": "Ne"
+      },
+      "TypUjednani": {
+        "standalone": "Samostatné",
+        "master": "Rámcové (master)",
+        "subsequent": "Navazující"
+      },
+      "SystemEvidence": {
+        "other": "Jiné"
+      },
+      "TypOsoby": {
+        "legal_person": "Právnická osoba",
+        "individual_entrepreneur": "Fyzická osoba podnikající"
+      },
+      "VyznamVazby": {
+        "critical_support": "Kritická podpora procesu",
+        "significant_support": "Významná podpora procesu",
+        "supporting": "Podpůrná vazba",
+        "indirect_shared": "Nepřímá / sdílená vazba",
+        "bcm_dr": "BCM/DR vazba",
+        "not_assessed": "Neposouzeno"
+      },
+      "RoleDodavatele": {
+        "supplies": "Dodává",
+        "operates": "Provozuje",
+        "hosts": "Hostuje",
+        "manages": "Spravuje",
+        "supports": "Podporuje",
+        "processes_data": "Zpracovává data",
+        "backup_recovery": "Zálohuje / obnova",
+        "security_service": "Bezpečnostní služba",
+        "other": "Jiné"
+      },
+      "Reliance": {
+        "not_significant": "Nevýznamná",
+        "low": "Nízká závislost",
+        "material": "Zásadní závislost",
+        "full": "Úplná závislost"
+      },
+      "TypZavislostiAktiv": {
+        "runtime": "Běhová (runtime)",
+        "data": "Datová",
+        "network_infrastructure": "Síťová / infrastrukturní",
+        "security": "Bezpečnostní",
+        "backup_recovery": "Zálohovací / recovery",
+        "operational": "Provozní",
+        "other": "Jiná"
+      }
+    }
   }
 }

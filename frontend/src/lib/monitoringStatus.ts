@@ -1,66 +1,15 @@
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock3,
-    type LucideIcon,
-    ShieldQuestion,
-    Sparkles,
-} from 'lucide-react';
-
-import type { ControlMonitoringStatus } from '@/types/control';
+import { BADGE_TONES, type BadgeTone, type StatusTone } from '@/lib/tones';
+import type { ControlEffectiveness, ControlMonitoringStatus } from '@/types/control';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 
-type BadgeTone = {
-    badgeClassName: string;
-    textClassName: string;
-    gaugeToneClassName: string;
-    gaugeZoneClassName: string;
-    icon: LucideIcon;
-};
+// Status tones live in `lib/tones.ts` (audit 2026-09-30 §4.4 A); the
+// monitoring metas below are built on them.
 
 type MonitoringMeta<TStatus extends string> = BadgeTone & {
     labelKey: string;
     sortPriority: number;
     status: TStatus;
 };
-
-const BADGE_TONES = {
-    success: {
-        badgeClassName: 'bg-success/10 text-success-text border border-success/20',
-        textClassName: 'text-success-text',
-        gaugeToneClassName: 'text-success-text',
-        gaugeZoneClassName: 'text-success/20',
-        icon: CheckCircle2,
-    },
-    warning: {
-        badgeClassName: 'bg-warning/10 text-warning-text border border-warning/20',
-        textClassName: 'text-warning-text',
-        gaugeToneClassName: 'text-warning-text',
-        gaugeZoneClassName: 'text-warning/20',
-        icon: Clock3,
-    },
-    danger: {
-        badgeClassName: 'bg-destructive/10 text-destructive border border-destructive/20',
-        textClassName: 'text-destructive',
-        gaugeToneClassName: 'text-destructive',
-        gaugeZoneClassName: 'text-destructive/20',
-        icon: AlertTriangle,
-    },
-    info: {
-        badgeClassName: 'bg-info/10 text-accent-text border border-info/20',
-        textClassName: 'text-accent-text',
-        gaugeToneClassName: 'text-accent-text',
-        gaugeZoneClassName: 'text-info/20',
-        icon: Sparkles,
-    },
-    neutral: {
-        badgeClassName: 'bg-muted text-muted-foreground border border-border',
-        textClassName: 'text-muted-foreground',
-        gaugeToneClassName: 'text-muted-foreground',
-        gaugeZoneClassName: 'text-muted-foreground/20',
-        icon: ShieldQuestion,
-    },
-} as const;
 
 const CONTROL_MONITORING_META: Record<ControlMonitoringStatus, MonitoringMeta<ControlMonitoringStatus>> = {
     new: {
@@ -152,4 +101,22 @@ export function getKriMonitoringMeta(status?: KRIMonitoringStatus | null) {
         return KRI_MONITORING_FALLBACK;
     }
     return KRI_MONITORING_META[status] ?? KRI_MONITORING_FALLBACK;
+}
+
+// Control ↔ risk link effectiveness (PG-19): an outcome rating on the status
+// tones, three distinct steps, always rendered with its translated label.
+const CONTROL_EFFECTIVENESS_TONE: Readonly<Record<ControlEffectiveness, StatusTone>> = {
+    high: 'success',
+    medium: 'warning',
+    low: 'danger',
+};
+
+export function getControlEffectivenessMeta(level?: ControlEffectiveness | string | null): {
+    labelKey: string | null;
+    tone: StatusTone;
+} {
+    if (level === 'high' || level === 'medium' || level === 'low') {
+        return { labelKey: `controls:form.effectiveness.${level}`, tone: CONTROL_EFFECTIVENESS_TONE[level] };
+    }
+    return { labelKey: null, tone: 'neutral' };
 }

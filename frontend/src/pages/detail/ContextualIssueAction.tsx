@@ -34,7 +34,7 @@ export function ContextualIssueAction({
                     type="button"
                     variant="outline"
                     onClick={onOpen}
-                    className="bg-white/5 text-foreground hover:border-accent/50"
+                    className="bg-tint/5 text-foreground hover:border-accent/50"
                 >
                     <FileText className="h-4 w-4" aria-hidden="true" />
                     {buttonLabel}

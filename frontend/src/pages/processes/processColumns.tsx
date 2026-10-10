@@ -1,8 +1,11 @@
 import type { MouseEvent } from 'react';
-import { ArchiveRestore } from 'lucide-react';
 
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import type { Column } from '@/components/tables/SortableTable';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
+import { Badge } from '@/components/ui/badge';
+import type { Tone } from '@/lib/tones';
 import type { Process } from '@/types/process';
 
 import {
@@ -22,8 +25,9 @@ type BuildProcessColumnsParams = {
     canRestoreProcess: (process: Process) => boolean;
 };
 
-export function getProcessStatusColor(status: ProcessDisplayStatus): string {
-    return status === 'archived' ? 'text-muted-foreground bg-muted' : 'text-success-text bg-success/10';
+/** Lifecycle status tone (D1): active reads success, archived neutral. */
+export function getProcessStatusTone(status: ProcessDisplayStatus): Tone {
+    return status === 'archived' ? 'neutral' : 'success';
 }
 
 export function buildProcessColumns({
@@ -48,7 +52,7 @@ export function buildProcessColumns({
             className: 'w-[340px] min-w-[240px]',
             render: (process) => (
                 <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">{process.l1_process}</span>
+                    <span className="text-sm font-bold text-foreground">{process.l1_process}</span>
                     {process.l2_subprocess ? (
                         <span className="text-xs text-muted-foreground">{process.l2_subprocess}</span>
                     ) : null}
@@ -118,31 +122,17 @@ export function buildProcessColumns({
                 return (
                     <div className="flex items-center gap-2">
                         <div className="flex flex-col items-start gap-1">
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
-                            >
-                                {t(`processes:status.${status}`)}
-                            </span>
+                            <Badge tone={getProcessStatusTone(status)}>{t(`processes:status.${status}`)}</Badge>
                             {process.pending_change ? (
-                                <span
-                                    data-testid={`process-pending-change-${process.id}`}
-                                    className="inline-flex items-center rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-200"
-                                >
-                                    {t('processes:pending_change.badge')}
-                                </span>
+                                <PendingChangeBadge data-testid={`process-pending-change-${process.id}`} />
                             ) : null}
                         </div>
                         {status === 'archived' && canRestoreProcess(process) ? (
-                            <button
-                                type="button"
+                            <RowRestoreButton
+                                itemName={process.l1_process}
                                 data-testid={`process-restore-${process.id}`}
                                 onClick={(event) => void onRestore(process.id, event)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                                aria-label={t('processes:actions.restore')}
-                                title={t('processes:actions.restore')}
-                            >
-                                <ArchiveRestore className="h-4 w-4" />
-                            </button>
+                            />
                         ) : null}
                     </div>
                 );

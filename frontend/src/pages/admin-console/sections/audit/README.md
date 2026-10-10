@@ -11,7 +11,7 @@ Audit-log, details-modal, export, and log-rotation panels for the Admin Console 
 - `AuditLogsTable.tsx`
 - `LogSettingsPanel.tsx`
 - `auditExport.ts`
-- `auditPresentation.ts`
+- `auditPresentation.ts` - audit event tone and translated event names (`admin:audit.events.<code>`, humanized fallback, GAP-D-02)
 
 ## Notes
 

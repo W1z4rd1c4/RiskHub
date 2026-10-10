@@ -34,6 +34,15 @@
     "process_memory": "Využití paměti procesu",
     "active_users": "Aktivní uživatelé",
     "in_last_24h": "Za posledních 24 hodin",
+    "job_status": {
+      "running": "Běží",
+      "succeeded": "Úspěšně dokončeno",
+      "failed": "Selhalo",
+      "stopped": "Zastaveno",
+      "pending": "Čeká",
+      "processing": "Zpracovává se",
+      "dead_letter": "Nedoručitelné"
+    },
     "scheduler": {
       "title": "Běh plánovače",
       "subtitle": "Vlastnictví, stav zámku a poslední spuštění plánovaných úloh.",
@@ -56,7 +65,7 @@
       "attention": "Vyžaduje pozornost",
       "pending": "Čeká",
       "processing": "Zpracovává se",
-      "dead_letter": "Dead letter",
+      "dead_letter": "Nedoručitelné",
       "oldest_pending": "Nejstarší čekající",
       "none": "Žádné",
       "last_dispatch": "Poslední dispatch",
@@ -95,13 +104,17 @@
     "event_feed": "Auditní události",
     "live": "Živě",
     "all_events": "Všechny události",
-    "last_n": "Posledních {{count}}",
+    "last_n_one": "Poslední {{count}}",
+    "last_n_few": "Poslední {{count}}",
+    "last_n_many": "Posledního {{count}}",
+    "last_n_other": "Posledních {{count}}",
     "no_events": "Nebyly nalezeny žádné auditní události v aktuálním okně.",
     "view": "Zobrazit",
     "details_modal": {
       "title": "Detail auditní události",
       "copy": "Kopírovat JSON",
-      "copied": "Zkopírováno"
+      "copied": "Zkopírováno",
+      "copy_failed": "Podrobnosti auditu se nepodařilo zkopírovat."
     },
     "columns": {
       "timestamp": "Časové razítko",
@@ -109,13 +122,37 @@
       "user": "Uživatel",
       "client_ip": "IP klienta",
       "details": "Podrobnosti"
+    },
+    "events": {
+      "create": "Vytvořeno",
+      "update": "Upraveno",
+      "delete": "Smazáno",
+      "archive": "Archivováno",
+      "approve": "Schváleno",
+      "reject": "Zamítnuto",
+      "escalate": "Eskalováno",
+      "status_change": "Změna stavu",
+      "link": "Propojeno",
+      "unlink": "Odpojeno",
+      "login": "Přihlášení",
+      "failed_login": "Neúspěšné přihlášení",
+      "refresh": "Obnovení relace",
+      "failed_refresh": "Neúspěšné obnovení relace",
+      "logout": "Odhlášení",
+      "logout_all": "Odhlášení ze všech zařízení",
+      "cancel": "Zrušeno",
+      "refresh_session_context_changed": "Změna kontextu relace při obnovení",
+      "jwks_fallback_exhausted": "Vyčerpána záložní cesta klíčů poskytovatele identity"
     }
   },
   "sessions": {
     "title": "Aktivní relace",
     "description": "Uživatelé s aktivitou za posledních 24 hodin",
     "loading": "Načítání relací...",
-    "devices": "zařízení",
+    "devices_count": "{{count}} zařízení",
+    "devices_count_one": "{{count}} zařízení",
+    "devices_count_few": "{{count}} zařízení",
+    "devices_count_other": "{{count}} zařízení",
     "revoke_failed": "Nepodařilo se zrušit relaci.",
     "online": "Online",
     "offline": "Offline",
@@ -257,12 +294,15 @@
     "all_permissions": "Všechna oprávnění",
     "any_action": "Jakákoliv akce",
     "clear": "Vymazat",
-    "of_users": "{{count}} z {{total}} uživatelů",
+    "of_users_one": "{{shown}} z {{count}} uživatele",
+    "of_users_few": "{{shown}} z {{count}} uživatelů",
+    "of_users_many": "{{shown}} z {{count}} uživatele",
+    "of_users_other": "{{shown}} z {{count}} uživatelů",
     "stats": {
       "total_users": "Celkem uživatelů",
       "active": "Aktivní",
       "privileged": "Privilegovaní",
-      "sys_admins": "Sys Admins"
+      "sys_admins": "Správci systému"
     },
     "roles": {
       "all": "Všechny role",
@@ -336,7 +376,10 @@
     },
     "modal": {
       "title": "Upravit nastavení přístupu",
-      "permissions_count": "{{count}} oprávnění",
+      "permissions_count_one": "{{count}} oprávnění",
+      "permissions_count_few": "{{count}} oprávnění",
+      "permissions_count_many": "{{count}} oprávnění",
+      "permissions_count_other": "{{count}} oprávnění",
       "reports_to": "Nadřízený",
       "no_manager_top_level": "Bez nadřízeného (nejvyšší úroveň)",
       "unsaved_changes": "Neuložené změny",
@@ -351,6 +394,7 @@
       "resource": "Zdroj",
       "permissions_capabilities": "Oprávnění a schopnosti",
       "click_to_toggle": "Kliknutím přepnete oprávnění.",
+      "granted": "Uděleno",
       "resources": {
         "users": {
           "label": "Uživatelé",
@@ -438,6 +482,16 @@
     "load_failed_help": "Přeřazení je zakázáno, dokud není dostupný autoritativní seznam osiřelých položek. Zkuste data obnovit.",
     "refresh": "Obnovit data",
     "live_status": "Živý stav systému",
+    "live_status_stale": "Data nemusí být aktuální",
+    "may_be_out_of_date": "Data správy mohou být neaktuální. Zůstává zobrazen poslední úspěšně načtený seznam.",
+    "scan_status_label": "Stav skenování: {{status}}",
+    "last_scan_at": "Poslední skenování: {{date}}",
+    "scan_status": {
+      "succeeded": "Dokončeno",
+      "failed": "Selhalo",
+      "running": "Probíhá",
+      "pending": "Čeká"
+    },
     "pending_orphans": "Čekající položky",
     "orphaned_controls": "Osiřelé kontroly",
     "orphaned_kris": "Osiřelé KRI",
@@ -466,14 +520,6 @@
     "orphaned_assets_section": "Osiřelá aktiva",
     "orphaned_vendors_section": "Osiřelí dodavatelé",
     "resolve": "Vyřešit",
-    "all_types": "Všechny typy",
-    "risks_only": "Pouze rizika",
-    "controls_only": "Pouze kontroly",
-    "kris_only": "Pouze KRI",
-    "threats_only": "Pouze hrozby",
-    "processes_only": "Pouze procesy",
-    "assets_only": "Pouze aktiva",
-    "vendors_only": "Pouze dodavatelé",
     "orphaned_items": "Osiřelé položky",
     "all_clear": "Vše v pořádku",
     "no_orphans": "Nebyly nalezeny žádné osiřelé položky. Spravované záznamy mají platná přiřazení.",
@@ -565,17 +611,31 @@
       "status_active": "Aktivní",
       "status_emerging": "Vznikající",
       "select_all": "Vybrat vše (filtry)",
+      "select_all_visible": "Vybrat všechna zobrazená rizika",
+      "select_risk": "Vybrat {{name}}",
       "owner": "Vlastník",
       "empty": "Pro aktuální filtry nebyla nalezena žádná rizika.",
       "select_all_hint": "Odešle se všem rizikům odpovídajícím filtrům.",
       "selected_count": "Vybráno: {{count}}",
-      "send": "Odeslat dotazníky"
+      "selected_count_one": "Vybráno: {{count}}",
+      "selected_count_few": "Vybráno: {{count}}",
+      "selected_count_other": "Vybráno: {{count}}",
+      "loading": "Načítání rizik…",
+      "send": "Odeslat dotazníky",
+      "confirm_title": "Odeslat dotazníky pro {{count}} rizik?",
+      "confirm_title_one": "Odeslat dotazník pro {{count}} riziko?",
+      "confirm_title_few": "Odeslat dotazníky pro {{count}} rizika?",
+      "confirm_title_other": "Odeslat dotazníky pro {{count}} rizik?",
+      "confirm_all_title": "Odeslat dotazníky pro všechna odpovídající rizika?",
+      "confirm_body": "Vlastník každého vybraného rizika obdrží dotazník hodnocení. Odeslané dotazníky nelze vzít zpět.",
+      "confirm_all_body": "Vlastník každého rizika odpovídajícího aktuálním filtrům obdrží dotazník hodnocení. Odeslané dotazníky nelze vzít zpět."
     }
   },
   "roles_panel": {
     "title": "Role platformy",
-    "show_deleted": "Zobrazit smazané",
+    "show_deleted": "Zobrazit archivované",
     "add_role": "Přidat roli",
+    "empty": "Zatím nejsou žádné role.",
     "columns": {
       "role_name": "Název role",
       "permissions": "Oprávnění",
@@ -586,14 +646,16 @@
       "full_access": "Plný přístup",
       "system": "Systém",
       "active": "Aktivní",
-      "deleted": "Smazané"
+      "deleted": "Archivované"
     },
     "actions": {
-      "edit_disabled": "Roli {{role}} nelze upravit",
-      "restore": "Obnovit"
+      "edit_disabled": "Roli {{role}} nelze upravit"
     },
-    "delete_confirm": "Opravdu chcete smazat {{name}}?",
-    "cannot_delete_assigned": "Nelze smazat: k této roli je přiřazeno {{count}} uživatelů.",
+    "archive_confirm": "Archivovat roli {{name}}? Později ji lze obnovit.",
+    "cannot_archive_assigned": "Nelze archivovat: k této roli je přiřazeno {{count}} uživatelů.",
+    "cannot_archive_assigned_one": "Nelze archivovat: k této roli je přiřazen {{count}} uživatel.",
+    "cannot_archive_assigned_few": "Nelze archivovat: k této roli jsou přiřazeni {{count}} uživatelé.",
+    "cannot_archive_assigned_other": "Nelze archivovat: k této roli je přiřazeno {{count}} uživatelů.",
     "modal": {
       "edit_title": "Upravit roli",
       "new_title": "Nová role",
@@ -620,8 +682,9 @@
   },
   "departments_panel": {
     "title": "Oddělení",
-    "show_deleted": "Zobrazit smazané",
+    "show_deleted": "Zobrazit archivované",
     "add_department": "Přidat oddělení",
+    "empty": "Zatím nejsou žádná oddělení.",
     "columns": {
       "name_code": "Název / Kód",
       "manager": "Vedoucí",
@@ -631,13 +694,13 @@
     },
     "badges": {
       "active": "Aktivní",
-      "deleted": "Smazané"
+      "deleted": "Archivované"
     },
     "actions": {
-      "restore": "Obnovit"
+      "edit_disabled": "Oddělení {{name}} nelze upravit"
     },
-    "delete_confirm": "Opravdu chcete smazat {{name}}?",
-    "delete_blocked_title": "Nelze smazat kvůli navázaným položkám:",
+    "archive_confirm": "Archivovat oddělení {{name}}? Později je lze obnovit.",
+    "archive_blocked_reason": "Nelze archivovat kvůli navázaným položkám: {{items}}",
     "linked_counts": {
       "users": "Uživatelé: {{count}}",
       "risks": "Rizika: {{count}}",
@@ -670,8 +733,9 @@
   },
   "risk_types_panel": {
     "title": "Typy rizik",
-    "show_deleted": "Zobrazit smazané",
+    "show_deleted": "Zobrazit archivované",
     "add_type": "Přidat typ",
+    "empty": "Zatím nejsou žádné typy rizik.",
     "columns": {
       "color": "Barva",
       "code": "Kód",
@@ -681,13 +745,16 @@
     "badges": {
       "system": "Systém",
       "active": "Aktivní",
-      "deleted": "Smazané"
+      "deleted": "Archivované"
     },
     "actions": {
-      "restore": "Obnovit"
+      "edit_disabled": "Typ rizika {{name}} nelze upravit"
     },
-    "delete_confirm": "Opravdu chcete smazat {{name}}?",
-    "delete_warning": "⚠️ {{count}} rizik bude bez kategorie.",
+    "delete_warning": "{{count}} rizik zůstane bez kategorie.",
+    "delete_warning_one": "{{count}} riziko zůstane bez kategorie.",
+    "delete_warning_few": "{{count}} rizika zůstanou bez kategorie.",
+    "delete_warning_other": "{{count}} rizik zůstane bez kategorie.",
+    "archive_confirm": "Archivovat typ rizika {{name}}? Později jej lze obnovit.",
     "modal": {
       "edit_title": "Upravit typ rizika",
       "new_title": "Nový typ rizika",
@@ -714,6 +781,7 @@
   "approval_scenarios": {
     "title": "Scénáře schvalování",
     "subtitle": "Nastavte, které obchodní akce vyžadují schválení před provedením.",
+    "empty": "Nejsou nastaveny žádné scénáře schvalování.",
     "requires_approval": "Vyžaduje schválení",
     "approver_roles": "Role schvalovatelů",
     "enabled": "Povoleno",
@@ -724,12 +792,16 @@
       "approvers": "Schvalovatelé"
     },
     "special_roles": {
+      "risk_owner": "Vlastník rizika",
       "risk_owner_dynamic": "Vlastník rizika (dynamický)"
     },
     "modal": {
       "configure": "Nastavit: {{name}}",
       "select_roles": "Vyberte role...",
-      "roles_selected": "Vybráno rolí: {{count}}"
+      "roles_selected": "Vybráno rolí: {{count}}",
+      "roles_selected_one": "{{count}} vybraná role",
+      "roles_selected_few": "{{count}} vybrané role",
+      "roles_selected_other": "{{count}} vybraných rolí"
     },
     "fixed_policy": {
       "title": "Pevná pravidla schvalování",
@@ -757,7 +829,9 @@
   },
   "system_settings": {
     "title": "Nastavení systému",
-    "saved": "Uloženo",
+    "save_named": "Uložit nastavení {{name}}",
+    "range": "Povolený rozsah: {{min}}–{{max}}",
+    "empty": "Nejsou k dispozici žádná nastavení systému.",
     "errors": {
       "save_failed": "Uložení se nezdařilo"
     },
@@ -777,12 +851,9 @@
     }
   },
   "confirmations": {
-    "delete_department": "Smazat oddělení?",
-    "delete_department_desc": "Tato akce trvale odstraní oddělení. Tuto akci nelze vrátit zpět.",
-    "delete_risk_type": "Smazat typ rizika?",
-    "delete_risk_type_desc": "Tato akce trvale odstraní typ rizika. Tuto akci nelze vrátit zpět.",
-    "delete_role": "Smazat roli?",
-    "delete_role_desc": "Tato akce trvale odstraní roli. Tuto akci nelze vrátit zpět."
+    "archive_department": "Archivovat oddělení?",
+    "archive_risk_type": "Archivovat typ rizika?",
+    "archive_role": "Archivovat roli?"
   },
   "errors": {
     "failed_to_load_settings": "Nepodařilo se načíst nastavení",

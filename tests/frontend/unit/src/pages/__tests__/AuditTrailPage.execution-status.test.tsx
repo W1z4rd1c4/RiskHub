@@ -52,14 +52,33 @@ function executionResponse(name = 'Quarterly Review Control') {
     };
 }
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string, options?: { count?: number }) => (
-            typeof options?.count === 'number' ? `${key}:${options.count}` : key
-        ),
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string, options?: { count?: number }) => (
+                typeof options?.count === 'number' ? `${key}:${options.count}` : key
+            ),
+            i18n: { language: 'en' },
+        }),
+        translateUiMessage: (t: (key: string) => string, key: string | null | undefined) => (key ? t(key) : ''),
+        useFormat: () => format,
+    };
+});
 
 vi.mock('@/services/executionApi', () => ({
     executionApi: {
@@ -147,6 +166,44 @@ describe('AuditTrailPage execution status rendering', () => {
         expect(screen.getByText('Access Governance')).toBeInTheDocument();
     });
 
+    it('renders the table on the shared primitives with a toned result badge and a named open action', async () => {
+        getExecutionsMock.mockResolvedValue(executionResponse());
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Quarterly Review Control');
+        expect(screen.getByRole('region', { name: 'tables.horizontal_scroll_region' })).toBeInTheDocument();
+        screen.getAllByRole('columnheader').forEach((header) => expect(header).toHaveAttribute('scope', 'col'));
+        expect(screen.getByText('controls:executions.issues_found').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning');
+        // AX-02: the row is also reachable by keyboard through the named chevron action.
+        expect(screen.getByRole('button', { name: 'audit_trail.open_control' })).toHaveAttribute('type', 'button');
+    });
+
+    it('marks the CSV action busy while the download runs (FB-02)', async () => {
+        const download = createDeferred<void>();
+        downloadAuditTrailCsvMock.mockReturnValue(download.promise);
+        getExecutionsMock.mockResolvedValue(executionResponse());
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Quarterly Review Control');
+        const csv = screen.getByRole('button', { name: 'audit_trail.export_csv' });
+        await userEvent.click(csv);
+
+        await waitFor(() => expect(csv).toHaveAttribute('aria-busy', 'true'));
+        expect(csv).toBeDisabled();
+        download.resolve();
+        await waitFor(() => expect(csv).not.toHaveAttribute('aria-busy', 'true'));
+    });
+
     it('shows the CSV action only when execution list capabilities allow export', async () => {
         getExecutionsMock.mockResolvedValue({
             items: [],
@@ -166,7 +223,7 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('audit_trail.total_records:0');
-        await userEvent.click(screen.getByRole('button', { name: 'CSV' }));
+        await userEvent.click(screen.getByRole('button', { name: 'audit_trail.export_csv' }));
 
         await waitFor(() => {
             expect(downloadAuditTrailCsvMock).toHaveBeenCalledWith({ result: undefined });
@@ -192,7 +249,7 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('audit_trail.total_records:0');
-        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'audit_trail.export_csv' })).not.toBeInTheDocument();
     });
 
     it('renders a denied state when execution list access is forbidden', async () => {
@@ -212,7 +269,7 @@ describe('AuditTrailPage execution status rendering', () => {
         await screen.findByText('access.denied');
         expect(screen.getByText('access.denied_control_execution_history')).toBeInTheDocument();
         expect(screen.queryByText('access.denied_activity_log')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'audit_trail.export_csv' })).not.toBeInTheDocument();
         expect(screen.queryByText('audit_trail.total_records:0')).not.toBeInTheDocument();
         expect(screen.queryByText('common:empty.no_executions')).not.toBeInTheDocument();
         expect(screen.queryByText('audit_trail.all_results')).not.toBeInTheDocument();
@@ -258,12 +315,12 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('Quarterly Review Control');
-        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.columns.result' }));
         await userEvent.click(screen.getByText('results.failed'));
 
         await screen.findByText('access.denied');
         expect(screen.queryByText('Quarterly Review Control')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'audit_trail.export_csv' })).not.toBeInTheDocument();
     });
 
     it('does not retain rows from a different query when the new collection request fails', async () => {
@@ -278,7 +335,7 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('Unfiltered Review Control');
-        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.columns.result' }));
         await userEvent.click(screen.getByText('results.failed'));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('common:tables.error.message');
@@ -303,7 +360,7 @@ describe('AuditTrailPage execution status rendering', () => {
         expect(screen.queryByText('common:empty.no_executions')).not.toBeInTheDocument();
         expect(screen.queryByText('audit_trail.total_records:0')).not.toBeInTheDocument();
         expect(screen.queryByText('access.denied')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'audit_trail.export_csv' })).not.toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/audit-trail?source=audit#history');
 
         await userEvent.click(screen.getByRole('button', { name: 'common:actions.retry' }));
@@ -352,7 +409,7 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('Quarterly Review Control');
-        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.columns.result' }));
         await userEvent.click(screen.getByText('results.failed'));
         await waitFor(() => expect(getExecutionsMock).toHaveBeenLastCalledWith({
             skip: 0,
@@ -360,13 +417,13 @@ describe('AuditTrailPage execution status rendering', () => {
             result: 'failed',
         }));
 
-        const csvButton = screen.getByRole('button', { name: 'CSV' });
+        const csvButton = screen.getByRole('button', { name: 'audit_trail.export_csv' });
         await userEvent.click(csvButton);
         expect(csvButton).toBeDisabled();
         firstDownload.reject(new Error('CSV unavailable'));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('common:export.errors.failed');
-        expect(screen.getByRole('combobox', { name: 'audit_trail.all_results' })).toHaveTextContent('results.failed');
+        expect(screen.getByRole('combobox', { name: 'audit_trail.columns.result' })).toHaveTextContent('results.failed');
         expect(screen.getByTestId('location')).toHaveTextContent('/audit-trail?source=audit#history');
 
         await userEvent.click(screen.getByRole('button', { name: 'common:actions.retry' }));
@@ -389,7 +446,7 @@ describe('AuditTrailPage execution status rendering', () => {
             </MemoryRouter>,
         );
 
-        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.columns.result' }));
         await userEvent.click(screen.getByText('results.failed'));
         await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledTimes(2));
 
@@ -405,7 +462,7 @@ describe('AuditTrailPage execution status rendering', () => {
         });
         expect(screen.getByText('Newer Filtered Control')).toBeInTheDocument();
         expect(screen.queryByText('Older Unfiltered Control')).not.toBeInTheDocument();
-        expect(screen.getByRole('combobox', { name: 'audit_trail.all_results' })).toHaveTextContent('results.failed');
+        expect(screen.getByRole('combobox', { name: 'audit_trail.columns.result' })).toHaveTextContent('results.failed');
     });
 
     it('hides the prior query rows and CSV capability immediately while a new filter is pending', async () => {
@@ -424,7 +481,7 @@ describe('AuditTrailPage execution status rendering', () => {
                     const filter = host.querySelector('[aria-label="audit_trail.all_results"]');
                     if (!filter?.textContent?.includes('results.failed')) return;
                     filterCommitSnapshots.push({
-                        hasCsv: Array.from(host.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'CSV'),
+                        hasCsv: Array.from(host.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'audit_trail.export_csv'),
                         hasPriorRow: host.textContent?.includes('Unfiltered Review Control') ?? false,
                     });
                 }}
@@ -437,13 +494,13 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('Unfiltered Review Control');
-        expect(screen.getByRole('button', { name: 'CSV' })).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        expect(screen.getByRole('button', { name: 'audit_trail.export_csv' })).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.columns.result' }));
         fireEvent.click(screen.getByText('results.failed'));
 
         expect(filterCommitSnapshots).not.toContainEqual({ hasCsv: true, hasPriorRow: true });
         expect(screen.queryByText('Unfiltered Review Control')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'audit_trail.export_csv' })).not.toBeInTheDocument();
         await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledTimes(2));
 
         await act(async () => {
@@ -451,7 +508,7 @@ describe('AuditTrailPage execution status rendering', () => {
             await filteredRequest.promise;
         });
         expect(await screen.findByText('Filtered Review Control')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'CSV' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'audit_trail.export_csv' })).toBeInTheDocument();
     });
 
     it('does not let an older success reverse a newer forbidden collection result', async () => {
@@ -467,7 +524,7 @@ describe('AuditTrailPage execution status rendering', () => {
             </MemoryRouter>,
         );
 
-        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.columns.result' }));
         await userEvent.click(screen.getByText('results.failed'));
         await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledTimes(2));
 
@@ -504,7 +561,7 @@ describe('AuditTrailPage execution status rendering', () => {
         const retryButton = await screen.findByRole('button', { name: 'common:actions.retry' });
         await user.click(retryButton);
 
-        expect(retryButton).toBeDisabled();
+        expect(retryButton).toHaveAttribute('aria-disabled', 'true');
         expect(retryButton).toHaveAttribute('aria-busy', 'true');
         expect(retryButton).toHaveFocus();
         await user.click(retryButton);
@@ -515,5 +572,24 @@ describe('AuditTrailPage execution status rendering', () => {
             await retryRequest.promise;
         });
         expect(await screen.findByText('Recovered Review Control')).toBeInTheDocument();
+    });
+
+    it('opens the control from the named row chevron with the keyboard (AX-01/AX-02)', async () => {
+        getExecutionsMock.mockResolvedValue(executionResponse());
+        const user = userEvent.setup();
+
+        render(
+            <MemoryRouter initialEntries={['/audit-trail']}>
+                <AuditTrailPage />
+                <LocationProbe />
+            </MemoryRouter>,
+        );
+
+        const chevron = await screen.findByRole('button', { name: 'audit_trail.open_control' });
+        expect(chevron).toHaveAttribute('type', 'button');
+        chevron.focus();
+        await user.keyboard('{Enter}');
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/controls/9');
     });
 });

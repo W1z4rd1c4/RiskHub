@@ -1,11 +1,16 @@
 import type { MouseEvent } from 'react';
-import { AlertCircle, Lock, Star } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
+import { RiskPriorityBadge, RiskStatusBadge } from '@/components/risks/RiskStatusBadge';
+import { Badge } from '@/components/ui/badge';
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
+import { RowRestoreButton } from '@/components/tables/RowRestoreButton';
 import type { Column } from '@/components/tables/SortableTable';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { cn } from '@/lib/utils';
 import type { RiskSummary } from '@/types/risk';
-import { getRiskDisplayStatus, type RiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
+import { getRiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -17,19 +22,6 @@ type BuildRiskColumnsParams = {
     getScoreColor: (score: number) => string;
     handleRestoreRisk: (riskId: number, event: MouseEvent) => void | Promise<void>;
 };
-
-export function getRiskStatusColor(status: RiskDisplayStatus): string {
-    switch (status) {
-        case 'active':
-            return 'text-success-text bg-success/10';
-        case 'emerging':
-            return 'text-warning-text bg-warning/10';
-        case 'archived':
-            return 'text-muted-foreground bg-muted';
-        default:
-            return 'text-muted-foreground bg-muted';
-    }
-}
 
 export function buildRiskColumns({
     t,
@@ -49,19 +41,13 @@ export function buildRiskColumns({
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-foreground">{risk.name}</span>
-                        {risk.is_priority && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                        {risk.is_priority && <RiskPriorityBadge />}
                         {(resolveCapabilityFlag(risk.capabilities, 'has_pending_delete_approval')
                             || resolveCapabilityFlag(risk.capabilities, 'has_pending_update_approval')) && (
-                            <div
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-warning/10 text-warning-text border border-warning/20"
-                                title={t('columns.pending_tooltip')}
-                            >
-                                <Lock className="h-2.5 w-2.5" />
-                                {t('columns.pending')}
-                            </div>
+                            <PendingChangeBadge data-testid={`risk-pending-${risk.id}`} />
                         )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground">{risk.process}</span>
+                    <span className="text-xs text-muted-foreground">{risk.process}</span>
                 </div>
             ),
         },
@@ -75,20 +61,12 @@ export function buildRiskColumns({
             key: 'description',
             label: t('columns.description'),
             sortable: true,
-            render: (risk) => {
-                const text = risk.description || '';
-                const isLong = text.length > 20;
-                return (
-                    <div className="relative group/desc">
-                        <span
-                            className="text-xs text-muted-foreground cursor-help border-b border-dotted border-slate-600 hover:border-slate-400 transition-colors"
-                            title={text}
-                        >
-                            {isLong ? `${text.slice(0, 20)}...` : text}
-                        </span>
-                    </div>
-                );
-            },
+            // PG-41: CSS truncation with the full text as the tooltip (§4.13).
+            render: (risk) => (
+                <span className="block max-w-[200px] truncate text-xs text-muted-foreground" title={risk.description || undefined}>
+                    {risk.description || ''}
+                </span>
+            ),
         },
         {
             key: 'risk_type',
@@ -116,9 +94,9 @@ export function buildRiskColumns({
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getScoreColor(risk.gross_score)}`}>
+                    <Badge className={cn('tabular-nums', getScoreColor(risk.gross_score))}>
                         {risk.gross_score}
-                    </span>
+                    </Badge>
                 </div>
             ),
         },
@@ -129,9 +107,9 @@ export function buildRiskColumns({
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getScoreColor(risk.net_score)}`}>
+                    <Badge className={cn('tabular-nums', getScoreColor(risk.net_score))}>
                         {risk.net_score}
-                    </span>
+                    </Badge>
                 </div>
             ),
         },
@@ -139,14 +117,7 @@ export function buildRiskColumns({
             key: 'status',
             label: t('fields.status'),
             sortable: true,
-            render: (risk) => {
-                const displayStatus = getRiskDisplayStatus(risk);
-                return (
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getRiskStatusColor(displayStatus)}`}>
-                        {displayStatus}
-                </span>
-                );
-            },
+            render: (risk) => <RiskStatusBadge status={getRiskDisplayStatus(risk)} size="sm" />,
         },
         {
             key: 'control_count',
@@ -155,12 +126,12 @@ export function buildRiskColumns({
             className: 'text-center',
             render: (risk) => {
                 const count = risk.control_count || 0;
-                if (count === 0) return <span className="text-slate-600 text-[10px]">—</span>;
+                if (count === 0) return <span className="text-xs text-muted-foreground">—</span>;
                 return (
                     <div className="flex justify-center">
-                        <div className="px-2 py-0.5 rounded-md text-[10px] font-bold text-accent-text bg-info/10">
-                            {count} {count === 1 ? 'Ctrl' : 'Ctrls'}
-                        </div>
+                        <Badge tone="info" size="sm" shape="rounded">
+                            {t('risks:columns.control_count', { count })}
+                        </Badge>
                     </div>
                 );
             },
@@ -174,18 +145,20 @@ export function buildRiskColumns({
                 const count = risk.kri_count || 0;
                 const hasBreach = risk.has_breach || false;
 
-                if (count === 0) return <span className="text-slate-600 text-[10px]">—</span>;
+                if (count === 0) return <span className="text-xs text-muted-foreground">—</span>;
 
                 return (
                     <div className="flex justify-center">
-                        <div
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
-                                hasBreach ? 'text-destructive bg-destructive/10' : 'text-success-text bg-success/10'
-                            }`}
+                        <Badge
+                            tone={hasBreach ? 'danger' : 'success'}
+                            size="sm"
+                            shape="rounded"
+                            icon={hasBreach ? AlertCircle : undefined}
+                            title={hasBreach ? t('risks:columns.kri_breach') : undefined}
                         >
-                            {hasBreach && <AlertCircle className="h-3 w-3" />}
-                            {count} {count === 1 ? 'KRI' : 'KRIs'}
-                        </div>
+                            {t('risks:columns.kri_count', { count })}
+                            {hasBreach ? <span className="sr-only">{t('risks:columns.kri_breach')}</span> : null}
+                        </Badge>
                     </div>
                 );
             },
@@ -195,15 +168,12 @@ export function buildRiskColumns({
             label: '',
             render: (risk) => (
                 <div className="text-right flex items-center justify-end gap-2">
-                    {risk.is_archived &&
-                        resolveCapabilityFlag(risk.capabilities, 'can_restore') && (
-                        <button
+                    {risk.is_archived && resolveCapabilityFlag(risk.capabilities, 'can_restore') && (
+                        <RowRestoreButton
+                            itemName={risk.name}
                             onClick={(e) => handleRestoreRisk(risk.id, e)}
                             data-testid={`risk-unarchive-${risk.id}`}
-                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
-                        >
-                            {t('actions.unarchive')}
-                        </button>
+                        />
                     )}
                 </div>
             ),

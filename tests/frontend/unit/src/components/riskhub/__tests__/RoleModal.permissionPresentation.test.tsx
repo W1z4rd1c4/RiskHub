@@ -56,8 +56,8 @@ describe('RoleModal permission presentation', () => {
             expect(screen.getByText(token)).not.toBeVisible();
         }
 
-        await user.type(screen.getByLabelText('Role Identifier'), 'risk_editor');
-        await user.type(screen.getByLabelText('Display Name'), 'Risk Editor');
+        await user.type(screen.getByRole('textbox', { name: 'Role Identifier' }), 'risk_editor');
+        await user.type(screen.getByRole('textbox', { name: 'Display Name' }), 'Risk Editor');
         await user.click(screen.getByRole('checkbox', { name: 'Can manage risks' }));
         await user.click(screen.getByRole('button', { name: 'Save Role' }));
 

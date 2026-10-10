@@ -20,6 +20,7 @@ import {
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildThreatRegisterListParams,
     parseThreatRegisterFilters,
@@ -70,10 +71,10 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         forQuery,
         isLoading: collectionIsLoading,
         isQueryCurrent,
-        setErrorKey,
         setIsLoading,
     } = useCollectionDataState<ThreatListItem, ThreatListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const runRowRestore = useRestoreWithFeedback();
 
     const listParams = useMemo(() => buildThreatRegisterListParams({
         currentPage,
@@ -156,15 +157,18 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         value: ThreatRegisterFilters[K],
     ) => writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
 
+    // D9 / FB-01: a row restore reports through a toast and never flips the
+    // register into its error state.
     const restoreThreat = useCallback(async (threatId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await threatApi.restoreThreat(threatId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchThreats();
-        } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchThreats, isQueryCurrent, queryIdentity, setErrorKey]);
+        await runRowRestore({
+            restore: () => threatApi.restoreThreat(threatId),
+            name: items.find((item) => item.id === threatId)?.name,
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchThreats();
+            },
+        });
+    }, [fetchThreats, isQueryCurrent, items, queryIdentity, runRowRestore]);
 
     const exportThreats = useCallback(async () => {
         setIsExporting(true);

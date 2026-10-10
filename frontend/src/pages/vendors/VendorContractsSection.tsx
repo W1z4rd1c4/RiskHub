@@ -1,22 +1,27 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import { SortableTable } from '@/components/tables';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { TableErrorState, resolveTableErrorContract } from '@/components/tables/tableError';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { closedListOptions } from '@/lib/closedListLabels';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import type { VendorContract } from '@/types/vendorContract';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
 
 import { buildVendorContractColumns, buildVendorContractPayload } from './vendorContractsPresentation';
 
@@ -93,8 +98,15 @@ export function VendorContractsSection({
     canManageContracts,
     protectedChangeRequiresApproval,
 }: VendorContractsSectionProps) {
-    const { t, i18n } = useTranslation('vendors');
-    const navigate = useNavigate();
+    const { t } = useTranslation('vendors');
+    const format = useFormat();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
+    // D9: direct (non-approval) outcomes are confirmed with a success toast.
+    const feedback = useFeedback();
+    const contractName = (contract: VendorContract) =>
+        contract.contract_reference || t('common:fallbacks.unknown_contract');
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
@@ -118,15 +130,15 @@ export function VendorContractsSection({
 
     const listOptions = useMemo(() => {
         const lists = closedListsQuery.data ?? {};
-        const toOptions = (name: string) =>
-            (lists[name] ?? []).map((value) => ({ value: String(value), label: String(value) }));
+        // GAP-C-09 / PM-4: translated labels, the raw workbook codes stay the values.
+        const toOptions = (name: string) => closedListOptions(t, lists, name);
         return {
             recordsSystems: toOptions('SystemEvidence'),
             arrangementTypes: toOptions('TypUjednani'),
             yesNo: toOptions('AnoNe'),
             currencies: toOptions('MenaList'),
         };
-    }, [closedListsQuery.data]);
+    }, [closedListsQuery.data, t]);
 
     const refreshContracts = async () => {
         await queryClient.invalidateQueries({ queryKey: ictRegisterKeys.vendorContracts(vendorId) });
@@ -189,12 +201,17 @@ export function VendorContractsSection({
                 ? vendorContractApi.updateContract(vendorId, editingContract.id, buildPayload())
                 : vendorContractApi.createContract(vendorId, buildPayload()),
         onSuccess: async (result) => {
+            const wasEdit = editingContract !== null;
             setSectionError(null);
             closeForm();
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
+            feedback.success({
+                title: t(wasEdit ? 'common:success.updated' : 'common:success.created'),
+                description: result.contract_reference ?? undefined,
+            });
             await refreshContracts();
         },
         onError: handleMutationError,
@@ -203,13 +220,14 @@ export function VendorContractsSection({
     const archiveContract = useMutation({
         mutationFn: ({ contract, reason }: { contract: VendorContract; reason: string }) =>
             vendorContractApi.archiveContract(vendorId, contract.id, reason),
-        onSuccess: async (result) => {
+        onSuccess: async (result, { contract }) => {
             setSectionError(null);
             setPendingArchive(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
+            feedback.success({ title: t('common:outcome.archived', { name: contractName(contract) }) });
             await refreshContracts();
         },
         onError: handleMutationError,
@@ -217,8 +235,9 @@ export function VendorContractsSection({
 
     const restoreContract = useMutation({
         mutationFn: (contract: VendorContract) => vendorContractApi.restoreContract(vendorId, contract.id),
-        onSuccess: async () => {
+        onSuccess: async (_result, contract) => {
             setSectionError(null);
+            feedback.success({ title: t('common:outcome.restored', { name: contractName(contract) }) });
             await refreshContracts();
         },
         onError: handleMutationError,
@@ -229,15 +248,13 @@ export function VendorContractsSection({
     // would only add an exhaustive-deps burden without a real stability win.
     const columns = buildVendorContractColumns({
         t: (key, options) => t(key, options),
-        locale: i18n.language,
+        locale: format.locale,
         onEdit: openEditForm,
+        // GAP-C-06 / D10: every archive is confirmed; the reason is required
+        // only when the change is routed through approval (PM-1).
         onArchive: (contract) => {
-            if (protectedChangeRequiresApproval) {
-                setSectionError(null);
-                setPendingArchive(contract);
-                return;
-            }
-            archiveContract.mutate({ contract, reason: '' });
+            setSectionError(null);
+            setPendingArchive(contract);
         },
         onRestore: (contract) => restoreContract.mutate(contract),
     });
@@ -270,19 +287,15 @@ export function VendorContractsSection({
     const setField = (field: keyof ContractFormFields) => (value: string) =>
         setFields((previous) => ({ ...previous, [field]: value }));
 
-    const contractInputClass =
-        'w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none';
-
     const textInput = (field: keyof ContractFormFields, label: string, props: Record<string, unknown> = {}) => (
-        <Field label={label} labelClassName="vendor-label" className="vendor-field space-y-0">
+        <Field label={label}>
             {(control) => (
-                <input
+                <Input
                     {...control}
                     type="text"
                     data-testid={`vendor-contract-field-${field}`}
                     value={fields[field]}
                     onChange={(event) => setField(field)(event.target.value)}
-                    className={contractInputClass}
                     {...props}
                 />
             )}
@@ -290,43 +303,30 @@ export function VendorContractsSection({
     );
 
     return (
-        <div className="glass-card space-y-5">
-            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-success-text" />
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                        {t('contracts.title')}
-                    </h2>
-                </div>
-                {canManageContracts && !formOpen ? (
-                    <button
-                        type="button"
-                        data-testid="vendor-contract-add"
-                        onClick={openCreateForm}
-                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all flex items-center gap-2"
-                    >
-                        <Plus className="h-4 w-4" />
+        <Card as="section" className="space-y-5">
+            <CardHeader
+                icon={FileText}
+                title={t('contracts.title')}
+                className="mb-0"
+                actions={canManageContracts && !formOpen ? (
+                    <Button variant="accent" data-testid="vendor-contract-add" onClick={openCreateForm}>
+                        <Plus aria-hidden="true" />
                         {t('contracts.actions.add')}
-                    </button>
+                    </Button>
                 ) : null}
-            </div>
+            />
 
             {/* While the archive dialog is open, its focus trap owns the
                 rejected-mutation alert; after close, the page banner owns it. */}
             {sectionError && pendingArchive === null ? (
-                <div
-                    role="alert"
-                    className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-                >
-                    {sectionError}
-                </div>
+                <InlineMessage tone="danger">{sectionError}</InlineMessage>
             ) : null}
 
             {formOpen ? (
                 <form
                     noValidate
                     data-testid="vendor-contract-form"
-                    className="space-y-4 rounded-2xl border border-border bg-nested p-5"
+                    className="space-y-4 rounded-xl border border-border bg-nested p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
@@ -339,37 +339,22 @@ export function VendorContractsSection({
                     }}
                 >
                     {closedListsQuery.isError ? (
-                        <div
-                            role="status"
-                            className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-sm font-medium text-warning-text"
+                        <InlineMessage
+                            tone="warning"
+                            action={(
+                                <Button type="button" variant="outline" size="compact" onClick={() => void closedListsQuery.refetch()}>
+                                    {t('actions.refresh')}
+                                </Button>
+                            )}
                         >
-                            <span>{t('contracts.form.lists_failed')}</span>
-                            <button
-                                type="button"
-                                onClick={() => void closedListsQuery.refetch()}
-                                className="shrink-0 rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-glass-hover"
-                            >
-                                {t('actions.refresh')}
-                            </button>
-                        </div>
+                            {t('contracts.form.lists_failed')}
+                        </InlineMessage>
                     ) : null}
-                    {requestReasonError ? (
-                        <VendorInlineMessage
-                            role="alert"
-                            tone="danger"
-                            className="text-sm font-medium"
-                        >
-                            {requestReasonError}
-                        </VendorInlineMessage>
-                    ) : null}
-                    <div className="vendor-form-grid">
+                    {/* GAP-C-08: the request-reason error renders once, at its field. */}
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         {textInput('contract_reference', t('contracts.form.contract_reference'))}
                         {textInput('internal_contract_number', t('contracts.form.internal_contract_number'))}
-                        <Field
-                            label={t('contracts.form.records_system')}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
-                        >
+                        <Field label={t('contracts.form.records_system')}>
                             {(control) => (
                                 <ThemedSelect
                                     {...control}
@@ -385,8 +370,6 @@ export function VendorContractsSection({
                         </Field>
                         <Field
                             label={t('contracts.form.arrangement_type')}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
                         >
                             {(control) => (
                                 <ThemedSelect
@@ -403,8 +386,6 @@ export function VendorContractsSection({
                         </Field>
                         <Field
                             label={t('contracts.form.main_contract')}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
                         >
                             {(control) => (
                                 <ThemedSelect
@@ -421,8 +402,6 @@ export function VendorContractsSection({
                         </Field>
                         <Field
                             label={t('contracts.form.roi_scope')}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
                         >
                             {(control) => (
                                 <ThemedSelect
@@ -458,8 +437,6 @@ export function VendorContractsSection({
                         })}
                         <Field
                             label={t('contracts.form.currency')}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
                         >
                             {(control) => (
                                 <ThemedSelect
@@ -475,35 +452,25 @@ export function VendorContractsSection({
                             )}
                         </Field>
                     </div>
-                    <Field
-                        label={t('contracts.form.description')}
-                        labelClassName="vendor-label"
-                        className="vendor-field space-y-0"
-                    >
+                    <Field label={t('contracts.form.description')}>
                         {(control) => (
-                            <textarea
+                            <Textarea
                                 {...control}
                                 data-testid="vendor-contract-field-description"
                                 value={fields.description}
                                 onChange={(event) => setField('description')(event.target.value)}
                                 rows={2}
-                                className={contractInputClass}
                             />
                         )}
                     </Field>
-                    <Field
-                        label={t('contracts.form.note')}
-                        labelClassName="vendor-label"
-                        className="vendor-field space-y-0"
-                    >
+                    <Field label={t('contracts.form.note')}>
                         {(control) => (
-                            <textarea
+                            <Textarea
                                 {...control}
                                 data-testid="vendor-contract-field-note"
                                 value={fields.note}
                                 onChange={(event) => setField('note')(event.target.value)}
                                 rows={2}
-                                className={contractInputClass}
                             />
                         )}
                     </Field>
@@ -514,11 +481,9 @@ export function VendorContractsSection({
                             required
                             help={t('form.request_reason_help')}
                             error={requestReasonError}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
                         >
                             {(control) => (
-                                <textarea
+                                <Textarea
                                     {...control}
                                     ref={requestReasonRef}
                                     data-testid="vendor-contract-request-reason"
@@ -529,30 +494,24 @@ export function VendorContractsSection({
                                     }}
                                     rows={2}
                                     required
-                                    className={contractInputClass}
                                 />
                             )}
                         </Field>
                     ) : null}
                     <div className="flex items-center justify-end gap-3">
-                        <button
-                            type="button"
-                            data-testid="vendor-contract-form-cancel"
-                            onClick={closeForm}
-                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-foreground hover:text-foreground hover:bg-glass-hover transition-colors flex items-center gap-2"
-                        >
-                            <X className="h-4 w-4" />
+                        <Button variant="outline" data-testid="vendor-contract-form-cancel" onClick={closeForm}>
+                            <X aria-hidden="true" />
                             {t('actions.cancel')}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
+                            variant="accent"
                             data-testid="vendor-contract-form-save"
                             disabled={saveContract.isPending}
-                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                         >
-                            <Save className="h-4 w-4" />
+                            <Save aria-hidden="true" />
                             {editingContract ? t('actions.save') : t('contracts.actions.create')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             ) : null}
@@ -589,18 +548,17 @@ export function VendorContractsSection({
                     aria-label={t('contracts.archived_heading', { count: archivedContracts.length })}
                     className="space-y-3"
                 >
-                    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    <h3 className="text-eyebrow flex items-center gap-2">
                         <span className="h-2 w-2 rounded-full bg-muted-foreground" aria-hidden="true" />
                         {t('contracts.archived_heading', { count: archivedContracts.length })}
                     </h3>
-                    <div className="opacity-60 transition-opacity hover:opacity-100">
-                        <SortableTable
-                            data={archivedContracts}
-                            columns={columns}
-                            keyExtractor={(contract) => contract.id}
-                            horizontalRegionLabel={t('contracts.archived_table_label')}
-                        />
-                    </div>
+                    {/* GAP-D-14: no group opacity; each row carries its own Archived status badge. */}
+                    <SortableTable
+                        data={archivedContracts}
+                        columns={columns}
+                        keyExtractor={(contract) => contract.id}
+                        horizontalRegionLabel={t('contracts.archived_table_label')}
+                    />
                 </section>
             ) : null}
 
@@ -608,23 +566,22 @@ export function VendorContractsSection({
                 isOpen={pendingArchive !== null}
                 onClose={() => setPendingArchive(null)}
                 onConfirm={(reason) => {
-                    if (pendingArchive && reason?.trim()) {
-                        archiveContract.mutate({ contract: pendingArchive, reason: reason.trim() });
+                    if (pendingArchive) {
+                        archiveContract.mutate({ contract: pendingArchive, reason: reason?.trim() ?? '' });
                     }
                 }}
+                intent="archive"
                 title={t('contracts.actions.archive')}
                 message={t('contracts.archive_confirm', {
                     reference: pendingArchive?.contract_reference ?? '—',
                 })}
                 confirmLabel={t('contracts.actions.archive')}
-                variant="danger"
                 isLoading={archiveContract.isPending}
                 errorText={sectionError}
-                showInput
-                inputRequired
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason={protectedChangeRequiresApproval ? 'required' : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
             />
-        </div>
+        </Card>
     );
 }

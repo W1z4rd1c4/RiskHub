@@ -3,10 +3,13 @@
  * Renders a visual rail with status-colored dots and event details.
  */
 import { cn } from '@/lib/utils';
-import { Loader2, Edit3 } from 'lucide-react';
+import type { Tone } from '@/lib/tones';
+import { Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
-import { useTranslation } from '@/i18n/hooks';
-import { formatRelativeDateValue } from '@/i18n/formatters';
+import { useFormat, useTranslation } from '@/i18n/hooks';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState, LoadingState } from '@/components/ui/state';
 
 interface HistoryTimelineProps {
     items: HistoryTimelineItem[];
@@ -31,11 +34,12 @@ const statusBorderColors: Record<HistoryStatus, string> = {
     neutral: 'border-border',
 };
 
-const metaToneColors: Record<HistoryStatus, string> = {
-    success: 'bg-success/10 text-success-text border-success/20',
-    warning: 'bg-warning/10 text-warning-text border-warning/20',
-    danger: 'bg-destructive/10 text-destructive border-destructive/20',
-    neutral: 'bg-secondary text-muted-foreground border-border',
+/** History statuses are the semantic tones the `Badge` primitive already knows. */
+const META_TONES: Record<HistoryStatus, Tone> = {
+    success: 'success',
+    warning: 'warning',
+    danger: 'danger',
+    neutral: 'neutral',
 };
 
 export function HistoryTimeline({
@@ -46,23 +50,20 @@ export function HistoryTimeline({
     onItemAction,
     actionLabel
 }: HistoryTimelineProps) {
-    const { t, i18n } = useTranslation('common');
+    const { t } = useTranslation('common');
+    const format = useFormat();
     const resolvedEmptyMessage = emptyMessage ?? t('empty.no_history_available');
     const resolvedActionLabel = actionLabel ?? t('actions.request_correction');
 
     if (loading) {
         return (
-            <div className={cn('flex items-center justify-center py-12', className)}>
-                <Loader2 className="h-8 w-8 text-accent-text animate-spin" />
-            </div>
+            <LoadingState className={className} />
         );
     }
 
     if (!items || items.length === 0) {
         return (
-            <div className={cn('text-center py-12 text-muted-foreground text-sm', className)}>
-                {resolvedEmptyMessage}
-            </div>
+            <EmptyState layout="inline" icon={null} title={resolvedEmptyMessage} className={cn('justify-center py-12', className)} />
         );
     }
 
@@ -93,7 +94,7 @@ export function HistoryTimeline({
 
                             {/* Content */}
                             <div className={cn(
-                                "flex-1 glass-card p-4 transition-colors group-hover:bg-white/[0.03]",
+                                "flex-1 glass-card p-4 transition-colors group-hover:bg-tint/[0.03]",
                                 statusBorderColors[status]
                             )}>
                                 <div className="flex items-start justify-between gap-4">
@@ -101,17 +102,15 @@ export function HistoryTimeline({
                                         <div className="flex items-center gap-2">
                                             <h4 className="text-sm font-bold text-foreground truncate">{item.title}</h4>
                                             {item.badge && (
-                                                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-accent/20 text-accent-text border border-accent/30">
-                                                    {item.badge}
-                                                </span>
+                                                <Badge tone="accent" shape="rounded">{item.badge}</Badge>
                                             )}
                                         </div>
                                         {item.subtitle && (
                                             <p className="text-xs text-muted-foreground mt-0.5">{item.subtitle}</p>
                                         )}
                                     </div>
-                                    <time className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">
-                                        {formatRelativeDateValue(item.timestamp, i18n.language)}
+                                    <time className="text-eyebrow shrink-0">
+                                        {format.relative(item.timestamp)}
                                     </time>
                                 </div>
 
@@ -119,31 +118,27 @@ export function HistoryTimeline({
                                 {item.meta && item.meta.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5 mt-3">
                                         {item.meta.map((m, i) => (
-                                            <span
-                                                key={i}
-                                                className={cn(
-                                                    "px-2 py-0.5 text-[10px] font-medium rounded border",
-                                                    metaToneColors[m.tone || 'neutral']
-                                                )}
-                                            >
-                                                {m.label}: {m.value}
-                                            </span>
+                                            <Badge key={i} tone={META_TONES[m.tone || 'neutral']} shape="rounded">
+                                                {t('common:labels.label_value', { label: m.label, value: m.value })}
+                                            </Badge>
                                         ))}
                                     </div>
                                 )}
 
                                 {/* Action button */}
                                 {onItemAction && (
-                                    <button
+                                    <Button
+                                        variant="outline"
+                                        size="compact"
+                                        className="mt-3"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onItemAction(item);
                                         }}
-                                        className="mt-3 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary hover:bg-secondary border border-border hover:border-input rounded-lg transition-colors flex items-center gap-1.5"
                                     >
-                                        <Edit3 className="h-3 w-3" />
+                                        <Edit3 aria-hidden="true" />
                                         {resolvedActionLabel}
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>

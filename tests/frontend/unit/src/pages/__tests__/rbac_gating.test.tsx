@@ -738,7 +738,7 @@ describe('RBAC UI gating', () => {
 
         await renderWithRoute('/controls/1');
 
-        await screen.findByText('Mock Control');
+        await screen.findByRole('heading', { level: 1, name: 'Mock Control' });
         const uiUser = userEvent.setup();
         await uiUser.click(screen.getByRole('tab', { name: /execution history/i }));
 
@@ -777,7 +777,7 @@ describe('RBAC UI gating', () => {
 
         await renderWithRoute('/controls/1');
 
-        await screen.findByText('Mock Control');
+        await screen.findByRole('heading', { level: 1, name: 'Mock Control' });
         const uiUser = userEvent.setup();
         await uiUser.click(screen.getByRole('tab', { name: /execution history/i }));
 

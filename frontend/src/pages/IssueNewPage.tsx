@@ -1,87 +1,61 @@
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { IssueCreateForm } from '@/components/issues/IssueCreateForm';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Card } from '@/components/ui/card';
 import { issuesApi } from '@/services/issuesApi';
 import type { Issue } from '@/types/issue';
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
+import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 
 export function IssueNewPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/issues');
     const { t } = useTranslation('issues');
-    const [canCreate, setCanCreate] = useState(false);
-    const [isLoadingCapability, setIsLoadingCapability] = useState(true);
-
-    useEffect(() => {
-        let isCurrent = true;
-
-        async function loadCreateCapability() {
-            try {
-                const response = await issuesApi.list({ offset: 0, limit: 1 });
-                if (isCurrent) {
-                    setCanCreate(resolveCapabilityFlag(response.capabilities, 'can_create'));
-                }
-            } catch {
-                if (isCurrent) {
-                    setCanCreate(false);
-                }
-            } finally {
-                if (isCurrent) {
-                    setIsLoadingCapability(false);
-                }
-            }
-        }
-
-        void loadCreateCapability();
-
-        return () => {
-            isCurrent = false;
-        };
-    }, []);
+    // PG-14: the shared create-capability gate separates "denied" from a network
+    // failure (error + retry) instead of treating every failure as denied.
+    const createGate = useCreateCapabilityGate({
+        load: useCallback(() => issuesApi.list({ offset: 0, limit: 1 }), []),
+        logMessage: 'Failed to load issue create capabilities.',
+    });
 
     const handleCreated = (issue: Issue) => {
         void navigate(appendRegisterReturnTo(`/issues/${issue.id}`, returnTo));
     };
 
-    if (isLoadingCapability) {
-        return (
-            <div className="glass-card p-8" aria-busy="true">
-                <div className="h-5 w-40 rounded bg-white/10 animate-pulse" />
-            </div>
-        );
-    }
-
-    if (!canCreate) {
-        return (
-            <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
-                <AlertTriangle className="h-5 w-5" />
-                <span>{t('permissions.create_denied')}</span>
-            </div>
-        );
-    }
+    // D7 / D14: the page title, a labelled back control and breadcrumbs stay in
+    // place while the create capability loads or is denied.
+    const body = createGate.state === 'allowed' ? (
+        <Card as="section" className="space-y-6">
+            <IssueCreateForm onCreated={handleCreated} onCancel={() => navigate(returnTo)} />
+        </Card>
+    ) : (
+        <FormCapabilityGateState
+            state={createGate.state}
+            onRetry={createGate.retry}
+            deniedDescriptionKey="permissions.create_denied"
+            deniedNs="issues"
+        />
+    );
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center gap-4">
-                <div className="bg-accent/20 p-3 rounded-2xl">
-                    <Plus className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter">{t('new_page.title')}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
-                        {t('new_page.breadcrumb')}
-                    </p>
-                </div>
-            </div>
-
-            <section className="glass-card p-8 space-y-6">
-                <IssueCreateForm onCreated={handleCreated} onCancel={() => navigate(returnTo)} />
-            </section>
-        </div>
+        <PageContainer size="form">
+            <PageHeader
+                title={t('new_page.title')}
+                icon={Plus}
+                back={{ label: t('actions.back_to_issues'), onClick: () => void navigate(returnTo) }}
+                breadcrumbs={[
+                    { label: t('navigation:sidebar.issues'), to: returnTo },
+                    { label: t('new_page.title') },
+                ]}
+            />
+            {body}
+        </PageContainer>
     );
 }
 

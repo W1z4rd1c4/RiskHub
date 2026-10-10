@@ -1,6 +1,4 @@
-import { getKriDraftValidationErrorKey } from '@/components/kri/kriFormValidation';
 import type { KRIVendorOption } from '@/components/kri/KRIVendorSelector';
-import type { KRICreate } from '@/types/kri';
 import type { Risk, RiskSummary } from '@/types/risk';
 import type { LinkedRisk } from '@/types/vendorLink';
 
@@ -38,19 +36,6 @@ export function validateRiskSelection(
 ) {
     if (!riskId) {
         setError(t('kris:form.validation.risk_required'));
-        return false;
-    }
-    return true;
-}
-
-export function validateKriDetails(
-    formData: Partial<KRICreate> | undefined,
-    setError: (error: string | null) => void,
-    t: TranslateFn,
-) {
-    const validationError = getKriDraftValidationErrorKey(formData ?? {});
-    if (validationError) {
-        setError(t(validationError, { ns: 'kris' }));
         return false;
     }
     return true;

@@ -9,6 +9,8 @@ import {
     type SortDirection,
 } from '@/components/tables';
 import { TableErrorState } from '@/components/tables/tableError';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CollectionGroup } from '@/types/collection';
@@ -120,7 +122,20 @@ export function RegisterListShell<TItem extends object, TView extends string>({
 }: RegisterListShellProps<TItem, TView>) {
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
-    if (isAccessDenied) return <>{accessDeniedState}</>;
+    // D7 / DS-15: the register title is the route's one `h1` (and its
+    // `document.title`) in every state, including access denied. The
+    // `-register-shell` test id stays reserved for the readable register.
+    if (isAccessDenied) {
+        return (
+            <PageContainer data-testid={`${testIdPrefix}-register-access-denied`}>
+                <PageHeader title={title} />
+                {accessDeniedState}
+            </PageContainer>
+        );
+    }
+
+    const showExport = canExport && Boolean(exportDialog);
+    const showCreate = canCreate && Boolean(onCreate);
 
     const renderTable = (rows: TItem[]) => (
         <SortableTable
@@ -200,37 +215,38 @@ export function RegisterListShell<TItem extends object, TView extends string>({
 
     return (
         <>
-            <div className="space-y-8" data-testid={`${testIdPrefix}-register-shell`}>
-                <header className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-foreground">{title}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">{subtitle}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {canExport && exportDialog ? (
-                            <Button
-                                variant="secondary"
-                                onClick={() => setIsExportDialogOpen(true)}
-                                isLoading={isExporting}
-                                data-testid={`${testIdPrefix}-export-button`}
-                                className="font-semibold"
-                            >
-                                {!isExporting ? <Download aria-hidden="true" /> : null}
-                                {exportLabel}
-                            </Button>
-                        ) : null}
-                        {canCreate && onCreate ? (
-                            <Button
-                                onClick={onCreate}
-                                data-testid={`${testIdPrefix}-create-button`}
-                                className="bg-accent px-5 font-bold text-accent-foreground hover:bg-accent-hover hover:text-accent-foreground"
-                            >
-                                <Plus aria-hidden="true" />
-                                {createLabel}
-                            </Button>
-                        ) : null}
-                    </div>
-                </header>
+            <PageContainer data-testid={`${testIdPrefix}-register-shell`}>
+                <PageHeader
+                    title={title}
+                    description={subtitle}
+                    actions={showExport || showCreate ? (
+                        <>
+                            {showExport ? (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => setIsExportDialogOpen(true)}
+                                    isLoading={isExporting}
+                                    data-testid={`${testIdPrefix}-export-button`}
+                                    className="font-semibold"
+                                >
+                                    {!isExporting ? <Download aria-hidden="true" /> : null}
+                                    {exportLabel}
+                                </Button>
+                            ) : null}
+                            {showCreate ? (
+                                <Button
+                                    variant="accent"
+                                    onClick={onCreate}
+                                    data-testid={`${testIdPrefix}-create-button`}
+                                    className="px-5 font-bold"
+                                >
+                                    <Plus aria-hidden="true" />
+                                    {createLabel}
+                                </Button>
+                            ) : null}
+                        </>
+                    ) : undefined}
+                />
 
                 <div className="flex flex-wrap gap-1 p-1 glass rounded-xl">
                     {views.map((option) => (
@@ -255,7 +271,7 @@ export function RegisterListShell<TItem extends object, TView extends string>({
 
                 {toolbar}
                 {content}
-            </div>
+            </PageContainer>
 
             {exportDialog?.({
                 isOpen: isExportDialogOpen,

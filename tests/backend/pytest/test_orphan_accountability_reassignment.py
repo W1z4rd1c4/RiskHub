@@ -1243,6 +1243,13 @@ async def test_vendor_outsourcing_owner_orphan_waits_for_atomic_approval(
     assert vendor.governance_version == 1
     assert orphan.status == "pending"
 
+    # Prime the requesting operator's overview before another actor approves.
+    async with client_factory(user=test_user_cro) as requester:
+        pending_overview = await requester.get("/api/v1/orphaned-items/overview?status=pending")
+    assert pending_overview.status_code == 200, pending_overview.text
+    assert any(item["id"] == orphan_id for item in pending_overview.json()["items"])
+    assert pending_overview.json()["stats"]["vendor_count"] == 1
+
     async with client_factory(user=test_user_risk_manager) as approver:
         approved = await approver.post(
             f"/api/v1/approvals/{submitted.json()['approval_id']}/approve",
@@ -1250,6 +1257,11 @@ async def test_vendor_outsourcing_owner_orphan_waits_for_atomic_approval(
         )
     assert approved.status_code == 200, approved.text
     assert approved.json()["status"] == "approved"
+    async with client_factory(user=test_user_cro) as requester:
+        refreshed_overview = await requester.get("/api/v1/orphaned-items/overview?status=pending")
+    assert refreshed_overview.status_code == 200, refreshed_overview.text
+    assert all(item["id"] != orphan_id for item in refreshed_overview.json()["items"])
+    assert refreshed_overview.json()["stats"]["vendor_count"] == 0
     db_session.expire_all()
     vendor = await db_session.get(Vendor, vendor_id)
     orphan = await db_session.get(OrphanedItem, orphan_id)

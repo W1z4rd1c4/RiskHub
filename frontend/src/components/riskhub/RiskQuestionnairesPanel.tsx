@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { useCallback, useEffect, useState } from 'react';
+import { FileText, Send } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { departmentApi } from '@/services/departmentApi';
 import type { RiskStatus } from '@/types/risk';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { RefreshButton } from '@/components/ui/RefreshButton';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 import {
@@ -17,9 +26,13 @@ import {
 
 export function RiskQuestionnairesPanel() {
     const { t } = useTranslation('admin');
+    const format = useFormat();
     const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [result, setResult] = useState<BatchSendResponse | null>(null);
+    // GAP-B-05 / D10: the outbound batch send is confirmed first (send intent,
+    // count-aware title); a failure stays inside the open confirmation.
+    const [isSendConfirmOpen, setIsSendConfirmOpen] = useState(false);
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canBatchSend = riskHubCapabilityEnabled(riskHubCapabilities?.questionnaires, 'can_batch_send');
     const {
@@ -33,7 +46,11 @@ export function RiskQuestionnairesPanel() {
         setStatus,
         status,
     } = useRiskQuestionnaireFilters();
-    const { fetchRisks, loading, risks } = useRiskQuestionnaireRisks(filters);
+    const { fetchRisks, loadFailed, loading, risks } = useRiskQuestionnaireRisks(filters);
+    const reloadRisks = useCallback(() => fetchRisks(() => {
+        setErrorKey(null);
+        setResult(null);
+    }), [fetchRisks]);
     const {
         allVisibleSelected,
         selectedIds,
@@ -44,10 +61,8 @@ export function RiskQuestionnairesPanel() {
         updateSelectAll,
     } = useRiskQuestionnaireSelection(risks);
     const { handleBatchSend, sending } = useRiskQuestionnaireBatchSend({
-        fetchRisks: () => fetchRisks(() => {
-            setErrorKey(null);
-            setResult(null);
-        }, setErrorKey),
+        // The refresh after a send keeps the send result on screen (D9 outcome).
+        fetchRisks: () => fetchRisks(),
         filters,
         selectedIds,
         selectAll,
@@ -70,204 +85,232 @@ export function RiskQuestionnairesPanel() {
     }, []);
 
     useEffect(() => {
-        void fetchRisks(() => {
-            setErrorKey(null);
-            setResult(null);
-        }, setErrorKey);
-    }, [fetchRisks]);
+        void reloadRisks();
+    }, [reloadRisks]);
+
+    const errorText = translateUiMessage(t, errorKey);
+    const hasActiveFilters = Object.values(filters).some((value) => value !== undefined);
 
     return (
         <div className="space-y-6">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-accent" />
-                        {t('riskhub.tabs.questionnaires')}
-                    </h3>
-                    <p className="text-slate-400 text-sm">
-                        {t('riskhub.questionnaires.subtitle')}
-                    </p>
-                </div>
-                <button
-                    onClick={() => fetchRisks(() => {
-                        setErrorKey(null);
-                        setResult(null);
-                    }, setErrorKey)}
-                    disabled={loading}
-                    className={cn(
-                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
-                        "bg-white/5 border-white/10 text-white hover:bg-white/10",
-                        loading && "opacity-50 cursor-not-allowed"
-                    )}
-                >
-                    <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    {t('actions.refresh')}
-                </button>
-            </div>
+            <CardHeader
+                className="mb-0"
+                icon={FileText}
+                title={t('riskhub.tabs.questionnaires')}
+                description={t('riskhub.questionnaires.subtitle')}
+                actions={<RefreshButton onRefresh={() => void reloadRisks()} isFetching={loading} />}
+            />
 
-            {errorKey && (
-                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
-                </div>
+            {/* GAP-C-11: a refetch failure over stale rows is a banner; a first-load
+                failure is the table's own error state, never "no risks". */}
+            {loadFailed && !loading && risks.length > 0 ? (
+                <ErrorState variant="banner" onRetry={() => void reloadRisks()} />
+            ) : null}
+
+            {errorKey && !isSendConfirmOpen && (
+                <InlineMessage tone="danger">{errorText}</InlineMessage>
             )}
 
             {result && (
-                <div className="p-4 rounded-xl border bg-emerald-500/5 border-emerald-500/20 text-emerald-300">
-                    <div className="flex items-center gap-2 font-bold">
-                        <CheckCircle className="h-4 w-4" />
-                        {t('riskhub.questionnaires.results')}
-                    </div>
-                    <div className="mt-2 text-sm text-slate-300 space-y-1">
-                        <div>{t('riskhub.questionnaires.created')}: {result.created_count}</div>
-                        <div>{t('riskhub.questionnaires.skipped_no_owner')}: {result.skipped_no_owner.length}</div>
-                        <div>{t('riskhub.questionnaires.skipped_open')}: {result.skipped_open_exists.length}</div>
-                        {result.errors.length > 0 && (
-                            <div className="text-rose-300">{t('riskhub.questionnaires.errors')}: {result.errors.length}</div>
-                        )}
-                    </div>
-                </div>
+                // D9: the outcome of the send stays on screen as a summary (counts, no
+                // "Label: value" concatenation, GAP-B-14).
+                <InlineMessage tone="success" title={t('riskhub.questionnaires.results')}>
+                    <dl className="mt-1 grid grid-cols-[auto_auto] justify-start gap-x-4 gap-y-1 text-foreground">
+                        <dt>{t('riskhub.questionnaires.created')}</dt>
+                        <dd className="font-medium">{format.number(result.created_count)}</dd>
+                        <dt>{t('riskhub.questionnaires.skipped_no_owner')}</dt>
+                        <dd className="font-medium">{format.number(result.skipped_no_owner.length)}</dd>
+                        <dt>{t('riskhub.questionnaires.skipped_open')}</dt>
+                        <dd className="font-medium">{format.number(result.skipped_open_exists.length)}</dd>
+                        {result.errors.length > 0 ? (
+                            <>
+                                <dt className="text-destructive">{t('riskhub.questionnaires.errors')}</dt>
+                                <dd className="font-medium text-destructive">{format.number(result.errors.length)}</dd>
+                            </>
+                        ) : null}
+                    </dl>
+                </InlineMessage>
             )}
 
-            <div className="glass-card !p-0 overflow-hidden">
-                <div className="p-4 border-b border-white/5 grid grid-cols-1 md:grid-cols-5 gap-3">
-                    <ThemedSelect
-                        value={departmentId}
-                        onValueChange={setDepartmentId}
-                        placeholder={t('riskhub.questionnaires.department')}
-                        allowEmpty
-                        emptyLabel={t('riskhub.questionnaires.all_departments')}
-                        options={departments}
-                    />
-                    <input
-                        value={process}
-                        onChange={(e) => setProcess(e.target.value)}
-                        placeholder={t('riskhub.questionnaires.process')}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-accent/50"
-                    />
-                    <input
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        placeholder={t('riskhub.questionnaires.category')}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-accent/50"
-                    />
-                    <ThemedSelect
-                        value={status}
-                        onValueChange={(v) => setStatus(v as RiskStatus | '')}
-                        placeholder={t('common:labels.status')}
-                        allowEmpty
-                        emptyLabel={t('riskhub.questionnaires.all_statuses')}
-                        options={[
-                            { value: 'active', label: t('riskhub.questionnaires.status_active') },
-                            { value: 'emerging', label: t('riskhub.questionnaires.status_emerging') },
-                        ]}
-                    />
-                    {canBatchSend ? (
-                        <label className="flex items-center gap-2 text-xs text-slate-300 font-bold select-none">
-                            <input
-                                type="checkbox"
-                                checked={selectAll}
-                                onChange={(e) => updateSelectAll(e.target.checked)}
-                                className="accent-accent"
+            <Card tone="nested" padding="none" className="overflow-hidden">
+                <div className="grid grid-cols-1 items-end gap-3 border-b border-border p-4 md:grid-cols-5">
+                    <Field label={t('riskhub.questionnaires.department')}>
+                        {(field) => (
+                            <ThemedSelect
+                                {...field}
+                                value={departmentId}
+                                onValueChange={setDepartmentId}
+                                placeholder={t('riskhub.questionnaires.all_departments')}
+                                allowEmpty
+                                emptyLabel={t('riskhub.questionnaires.all_departments')}
+                                options={departments}
                             />
-                            {t('riskhub.questionnaires.select_all')}
-                        </label>
+                        )}
+                    </Field>
+                    <Field label={t('riskhub.questionnaires.process')}>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                value={process}
+                                onChange={(e) => setProcess(e.target.value)}
+                            />
+                        )}
+                    </Field>
+                    <Field label={t('riskhub.questionnaires.category')}>
+                        {(field) => (
+                            <Input
+                                {...field}
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                            />
+                        )}
+                    </Field>
+                    <Field label={t('common:labels.status')}>
+                        {(field) => (
+                            <ThemedSelect
+                                {...field}
+                                value={status}
+                                onValueChange={(v) => setStatus(v as RiskStatus | '')}
+                                placeholder={t('riskhub.questionnaires.all_statuses')}
+                                allowEmpty
+                                emptyLabel={t('riskhub.questionnaires.all_statuses')}
+                                options={[
+                                    { value: 'active', label: t('riskhub.questionnaires.status_active') },
+                                    { value: 'emerging', label: t('riskhub.questionnaires.status_emerging') },
+                                ]}
+                            />
+                        )}
+                    </Field>
+                    {canBatchSend ? (
+                        <Field
+                            layout="inline"
+                            label={t('riskhub.questionnaires.select_all')}
+                            className="h-10 items-center gap-2"
+                        >
+                            {(field) => (
+                                <Checkbox
+                                    {...field}
+                                    checked={selectAll}
+                                    onCheckedChange={updateSelectAll}
+                                />
+                            )}
+                        </Field>
                     ) : null}
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b border-white/5">
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {canBatchSend ? (
-                                        <input
-                                            type="checkbox"
-                                            checked={selectAll ? true : allVisibleSelected}
-                                            onChange={toggleAllVisible}
-                                            disabled={selectAll || risks.length === 0}
-                                            className="accent-accent"
-                                        />
-                                    ) : null}
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('governance.col_name')}
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('governance.col_description')}
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('governance.col_department')}
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('riskhub.questionnaires.owner')}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-6 text-slate-400 text-sm">
-                                        {t('console.loading')}
-                                    </td>
-                                </tr>
-                            ) : risks.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-10 text-slate-500 text-sm">
-                                        {t('riskhub.questionnaires.empty')}
-                                    </td>
-                                </tr>
-                            ) : (
-                                risks.map(risk => (
-                                    <tr key={risk.id} className="hover:bg-white/5">
-                                        <td className="px-4 py-3">
-                                            {canBatchSend ? (
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectAll ? true : selectedIds.has(risk.id)}
-                                                    onChange={() => toggleRisk(risk.id)}
-                                                    disabled={selectAll}
-                                                    className="accent-accent"
-                                                />
-                                            ) : null}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm font-bold text-white">{risk.name}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-400">{risk.description}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-400">{risk.department_name ?? '—'}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-400">
-                                            {risk.owner_id ? (risk.owner_name ?? t('common:fallbacks.unknown_user')) : '—'}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <Table density="compact" regionLabel={t('riskhub.tabs.questionnaires')}>
+                    <THead>
+                        <TR>
+                            <TH className="w-10">
+                                {canBatchSend ? (
+                                    <Checkbox
+                                        aria-label={t('riskhub.questionnaires.select_all_visible')}
+                                        checked={selectAll ? true : allVisibleSelected}
+                                        onCheckedChange={toggleAllVisible}
+                                        disabled={selectAll || risks.length === 0}
+                                    />
+                                ) : null}
+                            </TH>
+                            <TH>{t('common:labels.name')}</TH>
+                            <TH>{t('common:labels.description')}</TH>
+                            <TH>{t('common:labels.department')}</TH>
+                            <TH>{t('riskhub.questionnaires.owner')}</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
+                        {loading ? (
+                            <TR>
+                                <TD colSpan={5} className="py-6">
+                                    <LoadingState layout="inline" label={t('riskhub.questionnaires.loading')} />
+                                </TD>
+                            </TR>
+                        ) : loadFailed && risks.length === 0 ? (
+                            <TR>
+                                <TD colSpan={5} className="py-6">
+                                    <ErrorState
+                                        layout="inline"
+                                        onRetry={() => void reloadRisks()}
+                                        testId="risk-questionnaires-load-error"
+                                    />
+                                </TD>
+                            </TR>
+                        ) : risks.length === 0 ? (
+                            <TR>
+                                <TD colSpan={5}>
+                                    <EmptyState
+                                        kind={hasActiveFilters ? 'no-results' : 'no-data'}
+                                        title={t('riskhub.questionnaires.empty')}
+                                        testId="risk-questionnaires-empty"
+                                    />
+                                </TD>
+                            </TR>
+                        ) : (
+                            risks.map(risk => (
+                                <TR key={risk.id}>
+                                    <TD>
+                                        {canBatchSend ? (
+                                            <Checkbox
+                                                aria-label={t('riskhub.questionnaires.select_risk', { name: risk.name })}
+                                                checked={selectAll ? true : selectedIds.has(risk.id)}
+                                                onCheckedChange={() => toggleRisk(risk.id)}
+                                                disabled={selectAll}
+                                            />
+                                        ) : null}
+                                    </TD>
+                                    <TD className="text-sm font-medium text-foreground">{risk.name}</TD>
+                                    <TD className="text-sm text-muted-foreground">{risk.description}</TD>
+                                    <TD className="text-sm text-muted-foreground">{risk.department_name ?? '—'}</TD>
+                                    <TD className="text-sm text-muted-foreground">
+                                        {risk.owner_id ? (risk.owner_name ?? t('common:fallbacks.unknown_user')) : '—'}
+                                    </TD>
+                                </TR>
+                            ))
+                        )}
+                    </TBody>
+                </Table>
 
                 {canBatchSend ? (
-                    <div className="p-4 border-t border-white/5 flex items-center justify-between">
-                        <div className="text-xs text-slate-500">
+                    <div className="flex items-center justify-between gap-3 border-t border-border p-4">
+                        <p className="text-xs text-muted-foreground">
                             {selectAll
                                 ? t('riskhub.questionnaires.select_all_hint')
                                 : t('riskhub.questionnaires.selected_count', { count: selectedIds.size })}
-                        </div>
-                        <button
-                            onClick={handleBatchSend}
-                            disabled={sending || (!selectAll && selectedIds.size === 0)}
-                            className={cn(
-                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
-                                "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
-                                (sending || (!selectAll && selectedIds.size === 0)) && "opacity-50 cursor-not-allowed"
-                            )}
+                        </p>
+                        <Button
+                            variant="accent"
+                            onClick={() => {
+                                setErrorKey(null);
+                                setIsSendConfirmOpen(true);
+                            }}
+                            disabled={!selectAll && selectedIds.size === 0}
+                            isLoading={sending}
                         >
-                            <Send className={cn("h-4 w-4", sending && "animate-pulse")} />
+                            {sending ? null : <Send aria-hidden="true" />}
                             {t('riskhub.questionnaires.send')}
-                        </button>
+                        </Button>
                     </div>
                 ) : null}
-            </div>
+            </Card>
+            <ConfirmDialog
+                isOpen={isSendConfirmOpen}
+                onClose={() => {
+                    setIsSendConfirmOpen(false);
+                    setErrorKey(null);
+                }}
+                onConfirm={async () => {
+                    if (await handleBatchSend()) setIsSendConfirmOpen(false);
+                }}
+                intent="send"
+                title={selectAll
+                    ? t('riskhub.questionnaires.confirm_all_title')
+                    : t('riskhub.questionnaires.confirm_title', { count: selectedIds.size })}
+                message={selectAll
+                    ? t('riskhub.questionnaires.confirm_all_body')
+                    : t('riskhub.questionnaires.confirm_body')}
+                confirmLabel={t('riskhub.questionnaires.send')}
+                isLoading={sending}
+                errorText={isSendConfirmOpen && errorText ? errorText : null}
+            />
         </div>
     );
 }

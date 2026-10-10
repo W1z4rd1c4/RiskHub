@@ -112,6 +112,14 @@ describe('ApprovalList legacy pending changes', () => {
         expect(within(changes).getAllByText('Not set')).toHaveLength(2);
         expect(within(changes).getByText('Restricted change')).toBeInTheDocument();
 
+        // GAP-D-25: the change does not rely on strike-through and colour alone.
+        const ownerChange = within(changes).getByText('Bob Owner').closest('ins');
+        expect(ownerChange).not.toBeNull();
+        expect(ownerChange).toHaveTextContent(/^New Value: Bob Owner$/);
+        const oldOwner = ownerChange?.parentElement?.querySelector('del');
+        expect(oldOwner).toHaveTextContent(/^Old Value: /);
+        expect(oldOwner?.querySelector('.sr-only')).toHaveTextContent('Old Value');
+
         for (const unsafeText of [
             'owner_id',
             'department_id',
@@ -262,7 +270,8 @@ describe('ApprovalList legacy pending changes', () => {
         }
         expect(within(changes).getByText(formatNumberValue(97.25, 'en'))).toBeInTheDocument();
         expect(within(changes).getByText(formatNumberValue(99.5, 'en'))).toBeInTheDocument();
-        expect(within(changes).getByText('Percentage')).toBeInTheDocument();
+        // The KRI unit vocabulary is shared with the KRI register (lib/kriUnits).
+        expect(within(changes).getByText('% (Percentage)')).toBeInTheDocument();
         expect(within(changes).getByText('requests/minute')).toBeInTheDocument();
         expect(within(changes).getByText('Unknown user')).toBeInTheDocument();
         expect(within(changes).getByText('Unknown vendor')).toBeInTheDocument();

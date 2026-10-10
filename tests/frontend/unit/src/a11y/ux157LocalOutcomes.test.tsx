@@ -313,9 +313,11 @@ describe('UX-157 local outcomes', () => {
         const checkButton = await screen.findByRole('button', { name: 'Check AD' });
         await user.click(checkButton);
 
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'Checked 3 users (1 deprovisioned).',
-        );
+        // The empty session list is its own (shared EmptyState) status region;
+        // the directory outcome is the one status/alert this flow swaps.
+        const successStatus = await screen.findByText('Checked 3 users (1 deprovisioned).');
+        // The outcome renders through `InlineMessage` (success tone, polite status role).
+        expect(successStatus.closest('[role="status"]')).toHaveAttribute('data-tone', 'success');
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(checkButton).toHaveFocus();
 
@@ -325,7 +327,7 @@ describe('UX-157 local outcomes', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Directory check failed. Try again.',
         );
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByText('Checked 3 users (1 deprovisioned).')).not.toBeInTheDocument();
         expect(screen.getAllByRole('alert')).toHaveLength(1);
         expect(checkButton).toHaveFocus();
     });
@@ -412,7 +414,8 @@ describe('UX-157 local outcomes', () => {
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('Authentication mode is temporarily unavailable.');
         expect(screen.getAllByRole('alert')).toHaveLength(1);
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        // The user table announces its own first load (shared LoadingState); no outcome status may accompany the alert.
+        expect(screen.getAllByRole('status').map((status) => status.textContent)).toEqual(['Loading...']);
     });
 
     it('replaces a user status-toggle success with one failure alert and restores row-action focus', async () => {

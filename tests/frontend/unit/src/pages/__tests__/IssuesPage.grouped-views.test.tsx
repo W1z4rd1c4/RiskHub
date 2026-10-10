@@ -191,11 +191,11 @@ describe('IssuesPage grouped views', () => {
             expect(screen.getAllByText('Multi-risk execution issue')).toHaveLength(1);
         });
 
-        await ui.click(screen.getByRole('button', { name: 'Back' }));
+        await ui.click(screen.getByRole('button', { name: 'Back to groups' }));
         await ui.click(screen.getByRole('button', { name: /Compliance/i }));
         expect(await screen.findByText('Multi-risk execution issue')).toBeInTheDocument();
 
-        await ui.click(screen.getByRole('button', { name: 'Back' }));
+        await ui.click(screen.getByRole('button', { name: 'Back to groups' }));
         await ui.click(screen.getByRole('button', { name: /Uncategorized/i }));
         expect(await screen.findByText('Manual issue without linked risk')).toBeInTheDocument();
     });

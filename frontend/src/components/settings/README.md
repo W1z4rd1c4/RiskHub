@@ -11,7 +11,7 @@ UI components for `settings` area.
 - `AppearanceSettings.tsx`
 - `DocumentationSettings.tsx`
 - `index.ts`
-- `LocalizationSettings.tsx`
+- `LocalizationSettings.tsx` - the language choice is a named `RadioGroup` (GAP-C-15)
 - `NotificationSettings.tsx`
 - `ProfileSettings.tsx`
 

@@ -2,7 +2,15 @@ import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
 import { E2E_ASSETS } from './fixtures/e2e-data';
-import { cleanupGovernedProcessFixture, cleanupWithoutMaskingPrimaryFailure, getAssetByName } from './helpers/ict-register';
+import {
+    type ApprovalScenarioSnapshot,
+    cleanupGovernedProcessFixture,
+    cleanupWithoutMaskingPrimaryFailure,
+    getApprovalScenario,
+    getAssetByName,
+    getProcessByL1,
+    updateApprovalScenario,
+} from './helpers/ict-register';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { waitForDataLoad } from './helpers/wait';
 import { ApprovalsPage } from './pages/ApprovalsPage';
@@ -14,6 +22,7 @@ interface LocaleJourney {
     oppositeAssetType: string;
     yes: string;
     oppositeYes: string;
+    newValuePrefix: string;
     myRequests: string;
     oppositeMyRequests: string;
 }
@@ -26,6 +35,7 @@ const journeys: LocaleJourney[] = [
         oppositeAssetType: 'Aplikace',
         yes: 'Yes',
         oppositeYes: 'Ano',
+        newValuePrefix: 'New Value',
         myRequests: 'My Requests',
         oppositeMyRequests: 'Moje žádosti',
     },
@@ -36,6 +46,7 @@ const journeys: LocaleJourney[] = [
         oppositeAssetType: 'Application',
         yes: 'Ano',
         oppositeYes: 'Yes',
+        newValuePrefix: 'Nová hodnota',
         myRequests: 'Moje žádosti',
         oppositeMyRequests: 'My Requests',
     },
@@ -48,22 +59,50 @@ async function selectLanguage(page: Page, language: 'en' | 'cs'): Promise<void> 
     await page.goto('/settings');
     await waitForDataLoad(page);
     await page.getByTestId('settings-tab-localization').click();
-    const saved = page.waitForResponse((response) => (
-        response.request().method() === 'PUT'
+    const languageOption = page.getByTestId(`language-${language}`);
+    // Native radios do not emit onChange for the already-selected language.
+    await expect(languageOption).toBeVisible();
+    if (!(await languageOption.isChecked())) {
+        // LanguageProvider activates the asynchronously loaded locale before
+        // persisting it; check() assumes the controlled radio changes immediately.
+        const [saved] = await Promise.all([
+            page.waitForResponse((response) => (
+                response.request().method() === 'PUT'
+                && new URL(response.url()).pathname === '/api/v1/preferences'
+                && response.request().postDataJSON().language === language
+            )),
+            languageOption.click(),
+        ]);
+        expect(saved.status()).toBe(200);
+    }
+    await expect(languageOption).toBeChecked();
+    await expect(page.locator('html')).toHaveAttribute('lang', language);
+    const reloadedPreferences = page.waitForResponse((response) => (
+        response.request().method() === 'GET'
         && new URL(response.url()).pathname === '/api/v1/preferences'
     ));
-    await page.getByTestId(`language-${language}`).click();
-    expect((await saved).status()).toBe(200);
     await page.reload();
     if (new URL(page.url()).pathname === '/login') {
         await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
+        await page.goto('/settings');
     }
+    const persisted = await reloadedPreferences;
+    expect(persisted.status()).toBe(200);
+    expect(await persisted.json()).toMatchObject({ language });
+    await page.getByTestId('settings-tab-localization').click();
+    await expect(page.getByTestId(`language-${language}`)).toBeChecked();
+    await expect(page.locator('html')).toHaveAttribute('lang', language);
 }
 
-async function cleanupLocaleJourney(page: Page, processName: string): Promise<void> {
+async function cleanupLocaleJourney(
+    page: Page,
+    processName: string,
+    scenario: ApprovalScenarioSnapshot,
+): Promise<void> {
     const failures: unknown[] = [];
     for (const cleanup of [
         () => cleanupGovernedProcessFixture({ processName }),
+        () => updateApprovalScenario('protected_process_edit', scenario),
         () => selectLanguage(page, 'en'),
     ]) {
         try {
@@ -78,90 +117,120 @@ async function cleanupLocaleJourney(page: Page, processName: string): Promise<vo
 }
 
 test.describe('DORA localized register and governed approval journeys', () => {
+    let pendingCleanup: { processName: string; scenario: ApprovalScenarioSnapshot } | null = null;
+
+    // A timed-out test has exhausted its own budget. Playwright gives afterEach
+    // a separate teardown budget, so fixture-policy restoration can still finish.
+    test.afterEach(async ({ riskManagerPage }, testInfo) => {
+        if (!pendingCleanup) return;
+        const { processName, scenario } = pendingCleanup;
+        pendingCleanup = null;
+        const primaryFailure = testInfo.status === testInfo.expectedStatus
+            ? undefined
+            : testInfo.error ?? new Error(`Locale journey ended with ${testInfo.status}`);
+        await cleanupWithoutMaskingPrimaryFailure(
+            primaryFailure,
+            () => cleanupLocaleJourney(riskManagerPage, processName, scenario),
+            testInfo,
+        );
+    });
+
     for (const journey of journeys) {
         test(journey.title, async ({ riskManagerPage }) => {
             const processName = `E2E-LOCALE-${journey.language}-${Date.now()}`;
             const reason = `Locale evidence ${journey.language} ${processName}`;
             const asset = await getAssetByName(E2E_ASSETS.CORE_CLAIMS_SYSTEM.name);
             expect(asset).not.toBeNull();
-            let primaryFailure: unknown;
+            const scenario = await getApprovalScenario('protected_process_edit');
+            pendingCleanup = { processName, scenario };
 
-            try {
-                await selectLanguage(riskManagerPage, journey.language);
+            // This journey specifically exercises the queued governed path,
+            // with explicit policy setup and teardown for each locale.
+            await updateApprovalScenario('protected_process_edit', {
+                ...scenario,
+                requires_approval: true,
+            });
+            expect((await getApprovalScenario('protected_process_edit')).requires_approval).toBe(true);
+            await selectLanguage(riskManagerPage, journey.language);
 
-                await riskManagerPage.goto(`/assets/${asset!.id}`);
-                await waitForDataLoad(riskManagerPage);
-                await expect(riskManagerPage.getByRole('heading', {
-                    name: E2E_ASSETS.CORE_CLAIMS_SYSTEM.name,
-                })).toBeVisible();
-                await expect(riskManagerPage.getByText(journey.assetType, { exact: true }).first())
-                    .toBeVisible();
-                await expect(riskManagerPage.getByText(journey.oppositeAssetType, { exact: true }))
-                    .toHaveCount(0);
+            await riskManagerPage.goto(`/assets/${asset!.id}`);
+            await waitForDataLoad(riskManagerPage);
+            await expect(riskManagerPage.getByRole('heading', {
+                name: E2E_ASSETS.CORE_CLAIMS_SYSTEM.name,
+            })).toBeVisible();
+            await expect(riskManagerPage.getByText(journey.assetType, { exact: true }).first())
+                .toBeVisible();
+            await expect(riskManagerPage.getByText(journey.oppositeAssetType, { exact: true }))
+                .toHaveCount(0);
 
-                await riskManagerPage.goto('/processes/new');
-                await waitForDataLoad(riskManagerPage);
-                await riskManagerPage.getByTestId('process-form-l0-area').fill('Locale evidence');
-                await riskManagerPage.getByTestId('process-form-l1-process').fill(processName);
-                await riskManagerPage.getByTestId('process-form-owner').click();
-                await riskManagerPage.getByRole('option')
-                    .filter({ hasText: 'ops.analyst@riskhub.local' })
-                    .first()
-                    .click();
-                await riskManagerPage.getByTestId('process-form-cif-override').click();
-                await expect(riskManagerPage.getByRole('option', { name: journey.yes, exact: true }))
-                    .toBeVisible();
-                await riskManagerPage.getByRole('option', { name: journey.yes, exact: true }).click();
-                await riskManagerPage.getByTestId('process-form-request-reason').fill(reason);
-                const submitted = riskManagerPage.waitForResponse((response) => (
-                    response.request().method() === 'POST'
-                    && new URL(response.url()).pathname === '/api/v1/processes'
-                ));
-                await riskManagerPage.getByTestId('process-form-submit').click();
-                expect((await submitted).status()).toBe(202);
+            await riskManagerPage.goto('/processes/new');
+            await waitForDataLoad(riskManagerPage);
+            await riskManagerPage.getByTestId('process-form-l0-area').fill('Locale evidence');
+            await riskManagerPage.getByTestId('process-form-l1-process').fill(processName);
+            await riskManagerPage.getByTestId('process-form-owner').click();
+            await riskManagerPage.getByRole('option')
+                .filter({ hasText: 'ops.analyst@riskhub.local' })
+                .first()
+                .click();
+            await riskManagerPage.getByTestId('process-form-cif-override').click();
+            await expect(riskManagerPage.getByRole('option', { name: journey.yes, exact: true }))
+                .toBeVisible();
+            await riskManagerPage.getByRole('option', { name: journey.yes, exact: true }).click();
+            await riskManagerPage.getByTestId('process-form-request-reason').fill(reason);
+            const submitted = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && new URL(response.url()).pathname === '/api/v1/processes'
+            ));
+            await riskManagerPage.getByTestId('process-form-submit').click();
+            const submittedResponse = await submitted;
+            expect(submittedResponse.request().postDataJSON()).toMatchObject({
+                cif_override: 'yes',
+                request_reason: reason,
+            });
+            expect(submittedResponse.status()).toBe(202);
+            expect(await getProcessByL1(processName)).toBeNull();
 
-                const approvals = new ApprovalsPage(riskManagerPage);
-                await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+$/, {
-                    timeout: 15000,
-                });
-                await approvals.waitForApprovalsReady();
-                await expect(riskManagerPage.getByRole('tab', { name: journey.myRequests, exact: true }))
-                    .toBeVisible();
-                await expect(riskManagerPage.getByRole('tab', {
-                    name: journey.oppositeMyRequests,
-                    exact: true,
-                })).toHaveCount(0);
-                const requestIndex = await approvals.findCardByReason(reason);
-                const card = approvals.getCard(requestIndex);
-                await expect(card).toContainText(processName);
-                await expect(card).toContainText(reason);
-                const approvalId = new URL(riskManagerPage.url()).searchParams.get('approvalId');
-                expect(approvalId).not.toBeNull();
-                const governedDiff = riskManagerPage.getByTestId(`approval-governed-mutation-${approvalId}`);
-                await expect(governedDiff).toBeVisible();
-                await expect(governedDiff.getByText(journey.yes, { exact: true }).first()).toBeVisible();
-                await expect(governedDiff.getByText(journey.oppositeYes, { exact: true })).toHaveCount(0);
-                const cancelled = riskManagerPage.waitForResponse((response) => (
-                    response.request().method() === 'POST'
-                    && /\/api\/v1\/approvals\/\d+\/cancel$/.test(new URL(response.url()).pathname)
-                ));
-                await card.locator(
-                    'button[title="Cancel Request"], button[title="Zrušit požadavek"]',
-                ).click();
-                await riskManagerPage.getByRole('alertdialog')
-                    .getByRole('button', { name: /Confirm|Potvrdit/, exact: true })
-                    .click();
-                expect((await cancelled).status()).toBe(200);
-            } catch (error) {
-                primaryFailure = error;
-                throw error;
-            } finally {
-                await cleanupWithoutMaskingPrimaryFailure(
-                    primaryFailure,
-                    () => cleanupLocaleJourney(riskManagerPage, processName),
-                    test.info(),
-                );
-            }
+            const approvals = new ApprovalsPage(riskManagerPage);
+            // D12 / PM-2: the requester returns to the entity register with the
+            // pending notice; its link opens the queued request.
+            await riskManagerPage.getByTestId('approval-queued-notice-link').click({ timeout: 15000 });
+            await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+$/, {
+                timeout: 15000,
+            });
+            await approvals.waitForApprovalsReady();
+            await expect(riskManagerPage.getByRole('tab', { name: journey.myRequests, exact: true }))
+                .toBeVisible();
+            await expect(riskManagerPage.getByRole('tab', {
+                name: journey.oppositeMyRequests,
+                exact: true,
+            })).toHaveCount(0);
+            const requestIndex = await approvals.findCardByReason(reason);
+            const card = approvals.getCard(requestIndex);
+            await expect(card).toContainText(processName);
+            await expect(card).toContainText(reason);
+            const approvalId = new URL(riskManagerPage.url()).searchParams.get('approvalId');
+            expect(approvalId).not.toBeNull();
+            const governedDiff = riskManagerPage.getByTestId(`approval-governed-mutation-${approvalId}`);
+            await expect(governedDiff).toBeVisible();
+            const proposedValues = governedDiff.getByRole('insertion');
+            await expect(proposedValues.filter({
+                hasText: new RegExp(`^${journey.newValuePrefix}: ${journey.yes}$`),
+            }).first()).toBeVisible();
+            const allChangeValues = proposedValues.or(governedDiff.getByRole('deletion'));
+            await expect(allChangeValues.filter({
+                hasText: new RegExp(`: ${journey.oppositeYes}$`),
+            })).toHaveCount(0);
+            const cancelled = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'POST'
+                && /\/api\/v1\/approvals\/\d+\/cancel$/.test(new URL(response.url()).pathname)
+            ));
+            await card.locator(
+                'button[title="Cancel Request"], button[title="Zrušit požadavek"]',
+            ).click();
+            await riskManagerPage.getByRole('alertdialog')
+                .getByRole('button', { name: /Confirm|Potvrdit/, exact: true })
+                .click();
+            expect((await cancelled).status()).toBe(200);
         });
     }
 });

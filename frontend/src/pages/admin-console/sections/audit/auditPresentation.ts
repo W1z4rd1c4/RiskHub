@@ -1,18 +1,30 @@
+import { humanizeCode, translateCode } from '@/lib/humanizeCode';
+import type { Tone } from '@/lib/tones';
 import type { RecentLogEntry } from '@/services/adminApi';
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export function getAuditEventTypes(entries: RecentLogEntry[]): string[] {
     return [...new Set(entries.map((entry) => entry.event || ''))].filter(Boolean);
 }
 
-export function getAuditEventClassName(event: string | null): string {
-    if (event?.includes('create')) return 'bg-emerald-500/20 text-emerald-400';
-    if (event?.includes('update')) return 'bg-amber-500/20 text-amber-400';
-    if (event?.includes('delete')) return 'bg-red-500/20 text-red-400';
-    return 'bg-blue-500/20 text-blue-400';
+/** Badge tone of an audit event: create / update / delete read as success / warning / danger. */
+export function getAuditEventTone(event: string | null): Tone {
+    if (event?.includes('failed')) return 'danger';
+    if (event?.includes('create')) return 'success';
+    if (event?.includes('update')) return 'warning';
+    if (event?.includes('delete')) return 'danger';
+    return 'info';
 }
 
-export function formatAuditEvent(event: string | null, fallback: string): string {
-    return event?.replace(/_/g, ' ') || fallback;
+/**
+ * Display name of an audit event (GAP-D-02): `admin:audit.events.<code>` when a
+ * translation exists, otherwise the humanized code. Without `t` only the
+ * humanized code is returned.
+ */
+export function formatAuditEvent(event: string | null, fallback: string, t?: Translate): string {
+    if (!event) return fallback;
+    return t ? translateCode(t, 'audit.events', event) : humanizeCode(event);
 }
 
 export function formatAuditUser(

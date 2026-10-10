@@ -64,7 +64,7 @@ test.describe('questionnaire workflow', () => {
                 })
                 .click();
             await page.getByRole('button', { name: /send questionnaire|odeslat dotazník/i }).click();
-            await expect(page.getByText(/questionnaire sent|dotazník.*odeslán/i)).toBeVisible({ timeout: 15000 });
+            await expect(page.getByRole('region', { name: /Notifications|Oznámení/ }).getByText(/questionnaire sent|dotazník.*odeslán/i)).toBeVisible({ timeout: 15000 });
 
             // Logout CRO
             await logout(page);
@@ -80,7 +80,7 @@ test.describe('questionnaire workflow', () => {
                     name: /assessment questionnaires|hodnoticí dotazníky/i,
                 })
                 .click();
-            await page.getByRole('button', { name: /open|otevřít/i }).click();
+            await page.getByRole('button', { name: /^(Open|Otevřít)$/i }).click();
             await expect(page.getByTestId('risk-questionnaire-ready')).toBeVisible({
                 timeout: 15000,
             });

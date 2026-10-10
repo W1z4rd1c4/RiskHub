@@ -11,6 +11,9 @@ Risk register page support modules extracted for maintainability.
 - `risksPagePresentation.ts`
 - `useRisksPageState.ts`
 - `riskColumns.tsx`
+- `useRiskTypeLabel.ts` — risk-type code → the Risk register's display name (translated
+  built-in type, else the configured Risk Hub name) for surfaces that receive only the code:
+  the Control/KRI "by risk type" group cards and `components/risks/RiskGroupMetaBody`.
 
 The route composes these domain modules through the shared `RegisterListShell`;
 do not reintroduce page-local header, view-switcher, or table-state owners.

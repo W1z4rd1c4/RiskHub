@@ -60,6 +60,30 @@ describe('GovernedMutationDiff', () => {
         },
     );
 
+    it.each([
+        ['en', 'New Value: Yes', 'Ano'],
+        ['cs', 'Nová hodnota: Ano', 'Yes'],
+    ] as const)('exposes localized governed creation values as semantic insertions in %s', async (locale, insertedYes, oppositeYes) => {
+        await changeLanguage(locale);
+        render(
+            <GovernedMutationDiff
+                mutationKind="process.create"
+                before={{}}
+                after={{ l1_process: 'Locale evidence remains unchanged', cif_override: 'yes' }}
+                derivedImpact={{
+                    before: null,
+                    after: { cif: 'yes', criticality_class: 'critical' },
+                }}
+            />,
+        );
+
+        const insertions = screen.getAllByRole('insertion');
+        expect(insertions.some((value) => value.textContent === insertedYes)).toBe(true);
+        const allValues = [...insertions, ...screen.getAllByRole('deletion')];
+        expect(allValues.some((value) => value.textContent?.endsWith(`: ${oppositeYes}`))).toBe(false);
+        expect(screen.getByText('Locale evidence remains unchanged')).toBeInTheDocument();
+    });
+
     it('shows changed business values, derived impact, and readable impacted resources', async () => {
         await changeLanguage('en');
         render(

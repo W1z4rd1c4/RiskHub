@@ -87,7 +87,10 @@ describe('dashboard widget error states', () => {
             </MemoryRouter>,
         );
 
-        expect(await screen.findByTestId('widget-error')).toHaveTextContent('breach api unavailable');
+        const breachError = await screen.findByTestId('widget-error');
+        expect(breachError).toHaveAttribute('role', 'alert');
+        expect(breachError).toHaveTextContent('kri.breaches_load_failed');
+        expect(breachError).not.toHaveTextContent('breach api unavailable');
     });
 
     it('shows a WidgetShell error when status fetch fails', async () => {
@@ -99,7 +102,10 @@ describe('dashboard widget error states', () => {
             </MemoryRouter>,
         );
 
-        expect(await screen.findByTestId('widget-error')).toHaveTextContent('status api unavailable');
+        const statusError = await screen.findByTestId('widget-error');
+        expect(statusError).toHaveAttribute('role', 'alert');
+        expect(statusError).toHaveTextContent('kri.status_load_failed');
+        expect(statusError).not.toHaveTextContent('status api unavailable');
     });
 
     it('shows a non-blocking department filter error when departments cannot load', async () => {

@@ -57,6 +57,9 @@ ICT_REGISTER_MAP_GITLEAKS_FINGERPRINTS = [
     "1119445512ee2f704cec9049d8084b621f4bec7f:docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524",
     "docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524",
 ]
+HISTORICAL_COMMIT_SHA_GITLEAKS_FINGERPRINTS = [
+    "90d89d48af5e11442ef4867405e7cd177b89167a:.github/workflows/identity-obsolete-runs.yml:generic-api-key:27",
+]
 
 
 def _load_validator_module():
@@ -569,12 +572,13 @@ def test_grype_workflow_enforces_policy_expiry_before_scanning(tmp_path: Path) -
     assert not check.get("continue-on-error") and "if" not in check
     command = next(line.split() for line in check["run"].splitlines() if "--policy" in line)
     expired = tmp_path / "expired.yaml"
-    policy = yaml.safe_load(GRYPE_IGNORE.read_text(encoding="utf-8"))
     yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
-    # Preserve the strict human-readable format accepted by the CLI validator.
-    text = GRYPE_IGNORE.read_text(encoding="utf-8")
-    for item in policy["ignore"]:
-        text = text.replace(str(item["expires-on"]), yesterday)
+    # Exercise expiration even when the real policy has no active exceptions.
+    # The documented example supplies a complete narrow suppression fixture.
+    example = GRYPE_IGNORE.read_text(encoding="utf-8").split("# Example:\n", maxsplit=1)[1]
+    example = example.split("\n\nignore:", maxsplit=1)[0]
+    text = "\n".join(line.removeprefix("# ") for line in example.splitlines())
+    text = re.sub(r"expires-on: \d{4}-\d{2}-\d{2}", f"expires-on: {yesterday}", text)
     expired.write_text(text)
     command[0] = sys.executable
     command[-1] = str(expired)
@@ -584,15 +588,15 @@ def test_grype_workflow_enforces_policy_expiry_before_scanning(tmp_path: Path) -
 
 def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
     text = BACKEND_DOCKERFILE.read_text(encoding="utf-8")
-    digests = set(re.findall(r"FROM python:3\.13-alpine@sha256:([0-9a-f]{64})", text))
+    digests = set(re.findall(r"FROM python:3\.13\.16-alpine3\.24@sha256:([0-9a-f]{64})", text))
 
     assert digests == {
-        "7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a"
+        "2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a"
     }
     digest = digests.pop()
-    assert text.count(f"FROM python:3.13-alpine@sha256:{digest}") == 3
+    assert text.count(f"FROM python:3.13.16-alpine3.24@sha256:{digest}") == 3
     assert not re.search(
-        r"FROM python:3\.13-alpine(?!@)", text
+        r"FROM python:[^\s@]+\s", text
     ), "unpinned base image stage found"
 
 
@@ -661,6 +665,7 @@ def test_gitleaks_approved_ignores_are_exact_fingerprints() -> None:
     assert ignored_fingerprints == (
         DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS
         + ICT_REGISTER_MAP_GITLEAKS_FINGERPRINTS
+        + HISTORICAL_COMMIT_SHA_GITLEAKS_FINGERPRINTS
     )
     assert "scripts/install_lib/doctor.py" not in allowed_paths
     assert "doctor.py:generic-api-key" not in config_text
@@ -671,6 +676,8 @@ def test_gitleaks_approved_ignores_are_exact_fingerprints() -> None:
             not in broad_allowlist
         )
         assert "aquarius/profibank" not in broad_allowlist
+        assert "identity-obsolete-runs.yml" not in broad_allowlist
+        assert "125de63e7c482fe38f13df36c9ce9ef57d577cfa" not in broad_allowlist
 
 
 def test_security_workflow_keeps_scheduled_full_history_gitleaks_scan() -> None:
@@ -682,6 +689,31 @@ def test_security_workflow_keeps_scheduled_full_history_gitleaks_scan() -> None:
     assert "uses: gitleaks/gitleaks-action@" in secrets_job
     assert "GITLEAKS_CONFIG: .gitleaks.toml" in secrets_job
     assert "--log-opts=-1" not in secrets_job
+
+
+def test_security_workflow_scans_the_actual_dbtasks_target() -> None:
+    import yaml
+
+    workflow = yaml.safe_load(SECURITY_WORKFLOW.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["dbtasks-container-security"]
+    assert not job.get("continue-on-error", False)
+    steps = {step.get("name"): step for step in job["steps"] if step.get("name")}
+    assert "--target dbtasks -t riskhub-dbtasks:scan" in steps[
+        "Build Backend DB Tasks Image"
+    ]["run"]
+    trivy = steps["Run Trivy on Backend DB Tasks"]
+    assert not trivy.get("continue-on-error", False)
+    assert trivy["with"]["image-ref"] == "riskhub-dbtasks:scan"
+    assert trivy["with"]["severity"] == "CRITICAL,HIGH"
+    assert trivy["with"]["exit-code"] == "1"
+    grype = steps["Generate and Scan Backend DB Tasks SBOM"]
+    assert not grype.get("continue-on-error", False)
+    assert "riskhub-dbtasks:scan -o json > sbom-dbtasks.json" in grype["run"]
+    assert "sbom:/repo/sbom-dbtasks.json" in grype["run"]
+    assert "--fail-on high" in grype["run"]
+    assert steps["Upload DB Tasks Container Security Reports"]["with"][
+        "if-no-files-found"
+    ] == "error"
 
 
 def test_gitleaks_allowlist_excludes_local_generated_public_audit_noise() -> None:

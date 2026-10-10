@@ -41,6 +41,40 @@ describe('native user lifecycle', () => {
         expect(screen.queryByText(/Invitation sent/)).not.toBeInTheDocument();
     });
 
+    it('paints destructive operations with the destructive variant and keeps the rest neutral (GAP-D-18)', async () => {
+        view();
+
+        const suspend = await screen.findByRole('button', { name: /suspend account/i });
+        const reset = screen.getByRole('button', { name: /send password reset link/i });
+        expect(suspend).toHaveClass('bg-destructive');
+        expect(reset).not.toHaveClass('bg-destructive');
+        expect(reset).toHaveClass('border-input');
+    });
+
+    it('announces a successful operation as a success message and a failure as an alert (GAP-D-18)', async () => {
+        server.use(http.post('*/api/v1/users/42/password-reset', () => HttpResponse.json({ status: 'accepted' }, { status: 202 })));
+        const { unmount } = view();
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole('button', { name: /send password reset link/i }));
+        await user.type(screen.getByLabelText(/^reason/i), 'INC-206 reset request');
+        await user.click(screen.getByRole('button', { name: /confirm account action/i }));
+
+        const outcome = (await screen.findByText(/Password reset request accepted/)).closest('[data-tone]');
+        expect(outcome).toHaveAttribute('data-tone', 'success');
+        expect(outcome).toHaveAttribute('role', 'status');
+        unmount();
+
+        server.use(http.patch('*/api/v1/access/users/42', () => HttpResponse.json({ detail: 'last admin' }, { status: 409 })));
+        view();
+        await user.click(await screen.findByRole('button', { name: /suspend account/i }));
+        await user.type(screen.getByLabelText(/^reason/i), 'INC-206 departure');
+        await user.click(screen.getByRole('button', { name: /confirm account action/i }));
+
+        const failure = (await screen.findByText(/last eligible platform administrator/)).closest('[data-tone]');
+        expect(failure).toHaveAttribute('data-tone', 'danger');
+        expect(failure).toHaveAttribute('role', 'alert');
+    });
+
     it('preserves a committed reset when the following status refresh fails', async () => {
         let requests = 0;
         server.use(http.post('*/api/v1/users/42/password-reset', () => {

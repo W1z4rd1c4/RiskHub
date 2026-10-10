@@ -36,6 +36,125 @@ const jsxA11yBaselineRules = Object.fromEntries(
   ]),
 );
 
+const RAW_ID_LABEL_RESTRICTION = {
+  selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
+  message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
+};
+
+// ADR-008 (PG-02): risk-score bands come only from useRiskThresholds(). A
+// relational comparison (either operand order) between a risk-score operand
+// (identifier or non-computed member property) and an integer literal is a
+// hard-coded threshold:
+// - `net_score` / `gross_score` / `risk_score`: any positive integer;
+// - generic `score` / `level`: integers 6+ only, i.e. above the 1-5 axis, so
+//   1-5 vendor scores and 1-4 control levels stay legal.
+// `> 0` presence guards are never flagged.
+// Matches on `raw` because esquery regex attributes only test string values.
+const RISK_SCORE_NAMES = "/^(net_score|gross_score|risk_score)$/";
+const GENERIC_SCORE_NAMES = "/^(score|level)$/";
+const POSITIVE_INTEGER = "/^[1-9]\\d*$/";
+const MATRIX_RANGE_INTEGER = "/^([6-9]|[1-9]\\d+)$/";
+const scoreOperand = (side, names) =>
+  `:matches([${side}.type='Identifier'][${side}.name=${names}], ` +
+  `[${side}.type='MemberExpression'][${side}.computed=false][${side}.property.name=${names}])`;
+const integerOperand = (side, pattern) => `[${side}.type='Literal'][${side}.raw=${pattern}]`;
+const relationalComparison = (names, pattern) => [
+  `BinaryExpression[operator=/^[<>]=?$/]${scoreOperand("left", names)}${integerOperand("right", pattern)}`,
+  `BinaryExpression[operator=/^[<>]=?$/]${integerOperand("left", pattern)}${scoreOperand("right", names)}`,
+];
+const ADR008_THRESHOLD_RESTRICTIONS = [
+  ...relationalComparison(RISK_SCORE_NAMES, POSITIVE_INTEGER),
+  ...relationalComparison(GENERIC_SCORE_NAMES, MATRIX_RANGE_INTEGER),
+].map((selector) => ({
+  selector,
+  message: "Do not hardcode risk-score thresholds (ADR-008); use useRiskThresholds() with riskScoreVariantClass() from @/lib/severity.",
+}));
+
+// G-ESLINT (audit 2026-09-30 §4.1, D15, §5.5 per-module exit): hard design bans on
+// the paths that reached zero for the G-RATCHET patterns. The list only grows: a
+// module joins once its ratchet counts are 0. The regexes mirror
+// scripts/quality/ui-consistency-ratchet.mjs and run on both string literals and
+// template-literal chunks, so class strings built with `cn()` or templates are
+// covered. Flat-config rule arrays replace each other, so the block re-includes
+// the raw-ID and ADR-008 selectors of the base block.
+const classBan = (pattern, message) => [
+  { selector: `Literal[value=/${pattern}/]`, message },
+  { selector: `TemplateElement[value.raw=/${pattern}/]`, message },
+];
+const DESIGN_CLASS_RESTRICTIONS = [
+  ...classBan("(?<![\\w-])(?:[a-z-]+:)*text-white(?![\\w/-])", "Use text-foreground or a *-foreground token (§4.3)."),
+  ...classBan(
+    "(?<![\\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|from|to|via|fill|stroke|divide|outline|shadow|placeholder|decoration|accent|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\\d{2,3}\\b",
+    "Raw palette colour. Use a semantic token (§4.2-4.4).",
+  ),
+  ...classBan(
+    "(?<![\\w-])(?:[a-z-]+:)*(?:bg|text|border|ring|divide|from|to|via|fill|stroke)-(?:white|black)\\/[\\w.\\[\\]]+",
+    "White/black alpha. Use tint/overlay tokens (§4.2).",
+  ),
+  ...classBan("text-\\[(?:[0-9]|10)(?:\\.\\d+)?px\\]", "Below the 11px floor. Use text-eyebrow or text-xs (§4.5)."),
+  ...classBan("(?<![\\w-])(?:[a-z-]+:)*font-black(?![\\w-])", "font-black is retired (D6). Use font-semibold or font-bold (§4.5)."),
+  ...classBan("(?<![\\w-])dark:(?=[!a-z\\[-])", "No dark: variants. Theme through tokens (§4.2)."),
+  ...classBan("-\\[[^\\] \"]*(?:#[0-9a-fA-F]{3}|rgba?\\(|hsla?\\()", "Arbitrary colour literal. Add a token (§4.2)."),
+  ...classBan("(?<![\\w-])(?:[a-z-]+:)*transition-all(?![\\w-])", "No transition-all (DS-31). Use transition-colors duration-base, or name the properties (§4.6)."),
+];
+// Raw elements outside the primitives (components/ui gets the class bans
+// only). `<input>` stays legal only for types without a drop-in
+// primitive: range sliders, colour pickers, hidden/file inputs and the
+// sr-only radios of custom card pickers.
+const DESIGN_ELEMENT_RESTRICTIONS = [
+  { selector: "JSXOpeningElement[name.name='button']", message: "Use <Button> from components/ui/button (§4.7)." },
+  {
+    selector: "JSXOpeningElement[name.name='input']:not(:has(> JSXAttribute[name.name='type'][value.value=/^(?:radio|hidden|range|color|file)$/]))",
+    message: "Use <Input> or <Checkbox> inside <Field> (§4.8).",
+  },
+  { selector: "JSXOpeningElement[name.name='textarea']", message: "Use <Textarea> inside <Field> (§4.8)." },
+  { selector: "JSXOpeningElement[name.name='select']", message: "Use <ThemedSelect> or <NativeSelect> inside <Field> (§4.8)." },
+  { selector: "JSXOpeningElement[name.name='table']", message: "Use <SortableTable> or ui/table (§4.13)." },
+  {
+    selector: "JSXOpeningElement[name.name='tr'] > JSXAttribute[name.name='onClick']",
+    message: "Mouse-only row activation (AX-02). Use SortableTable row activation.",
+  },
+  // Bypasses of the bans above (roadmap 4.5, mirrored in the G-RATCHET raw-* patterns): an
+  // animated or namespaced raw element (`motion.button`, `motion.input`, `motion.table` …), a
+  // factory-built one (`motion.create('button')`), `role="button"` on a non-button, and an
+  // anchor (`a` / `motion.a`) that acts as a button (onClick, no href).
+  {
+    selector:
+      "JSXOpeningElement[name.type='JSXMemberExpression'][name.property.name=/^(?:button|input|textarea|select|table)$/]",
+    message: "Animated or namespaced raw element. Use the primitive (<Button>, <Card as=\"button\">, <Input>, <Textarea>, ui/table) and animate a motion.div wrapper (§4.7).",
+  },
+  {
+    selector: "JSXOpeningElement[name.type='JSXMemberExpression'][name.property.name='tr'] > JSXAttribute[name.name='onClick']",
+    message: "Mouse-only row activation (AX-02). Use SortableTable row activation.",
+  },
+  {
+    selector:
+      "CallExpression:matches([callee.name='motion'], [callee.object.name='motion'][callee.property.name='create']) > Literal[value=/^(?:a|button|input|textarea|select|table)$/]",
+    message: "motion.create() of a raw element bypasses the primitives. Animate a motion.div wrapper around the primitive (§4.7).",
+  },
+  {
+    selector: "JSXAttribute[name.name='role']:matches([value.value='button'], [value.expression.value='button'])",
+    message: "role=\"button\" on a non-button element. Use <Button> or <Card as=\"button\"> (§4.7).",
+  },
+  {
+    selector:
+      "JSXOpeningElement:matches([name.name='a'], [name.property.name='a']):has(> JSXAttribute[name.name='onClick']):not(:has(> JSXAttribute[name.name='href']))",
+    message: "An anchor without href acting as a button. Use <Button> (actions) or <Link> (navigation) (§4.7).",
+  },
+  {
+    selector:
+      "JSXElement[openingElement.name.name='label']:not(:has(JSXAttribute[name.name='htmlFor'])):not(:has(JSXOpeningElement[name.name=/^(?:input|select|textarea|Input|NativeSelect|ThemedSelect|Textarea|Checkbox|Switch)$/]))",
+    message: "Unassociated label (AX-04). Use <Field>.",
+  },
+];
+// W9 (audit §5.5 3e-3i): every module reached zero, so the clean paths are all
+// of `src` with no pending exceptions. Only the primitives own the raw elements
+// (components/ui): they keep the class bans but not the element bans (§4.1).
+// The table primitives in components/tables render through ui/table and get the
+// full ban like any other module.
+const DESIGN_CLEAN_PATHS = ["src/**/*.{ts,tsx}"];
+const DESIGN_CLASS_BAN_ONLY_PATHS = ["src/components/ui/**/*.{ts,tsx}"];
+
 const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
   "src/components/vendor-form/**/*.{ts,tsx}",
@@ -106,14 +225,8 @@ export default defineConfig([
       "react-hooks/set-state-in-effect": "off",
       "no-restricted-syntax": [
         "error",
-        {
-          selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
-          message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
-        },
-        {
-          selector: "BinaryExpression[operator='>='][left.property.name=/^(net_score|gross_score)$/][right.value=/^(5|10|15|16)$/]",
-          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
-        },
+        RAW_ID_LABEL_RESTRICTION,
+        ...ADR008_THRESHOLD_RESTRICTIONS,
       ],
     },
   },
@@ -124,31 +237,6 @@ export default defineConfig([
     files: ["src/**/*.{ts,tsx}"],
     plugins: { "jsx-a11y": jsxA11y },
     rules: jsxA11yBaselineRules,
-  },
-  {
-    files: [
-      "src/components/dashboard/**/*.{ts,tsx}",
-      "src/components/tables/MiniHeatmap.tsx",
-      "src/pages/departments/**/*.{ts,tsx}",
-      "src/pages/risks/**/*.{ts,tsx}",
-    ],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
-          message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
-        },
-        {
-          selector: "BinaryExpression[operator='>='][left.property.name=/^(net_score|gross_score)$/][right.value=/^(5|10|15|16)$/]",
-          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
-        },
-        {
-          selector: "BinaryExpression[operator='>='][left.name='score'][right.value=/^(5|10|15|16)$/]",
-          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
-        },
-      ],
-    },
   },
   {
     files: [
@@ -176,6 +264,30 @@ export default defineConfig([
         { max: 200, skipBlankLines: true, skipComments: true, IIFEs: true },
       ],
       complexity: ["error", 20],
+    },
+  },
+  {
+    files: DESIGN_CLEAN_PATHS,
+    ignores: DESIGN_CLASS_BAN_ONLY_PATHS,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        RAW_ID_LABEL_RESTRICTION,
+        ...ADR008_THRESHOLD_RESTRICTIONS,
+        ...DESIGN_CLASS_RESTRICTIONS,
+        ...DESIGN_ELEMENT_RESTRICTIONS,
+      ],
+    },
+  },
+  {
+    files: DESIGN_CLASS_BAN_ONLY_PATHS,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        RAW_ID_LABEL_RESTRICTION,
+        ...ADR008_THRESHOLD_RESTRICTIONS,
+        ...DESIGN_CLASS_RESTRICTIONS,
+      ],
     },
   },
   {

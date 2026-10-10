@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { Flame, Plus, Server, Trash2, Workflow } from 'lucide-react';
+import { Flame, Plus, Server, Unlink, Workflow } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
+import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useFeedback } from '@/hooks/useFeedback';
+import { Button } from '@/components/ui/button';
+import { CardHeader } from '@/components/ui/card';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
+import { LoadingState } from '@/components/ui/state';
 import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
 import { assetApi } from '@/services/assetApi';
@@ -17,7 +22,6 @@ import { processApi } from '@/services/processApi';
 import { riskRegisterLinksApi, threatApi } from '@/services/threatApi';
 import type { Risk } from '@/types/risk';
 import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
 import { ApiClientError, isForbiddenApiError } from '@/services/apiClient';
 import {
     processBusinessEditBlocked,
@@ -130,11 +134,7 @@ function LinkLane<T>({ children, isProtectedUnavailable, query, testId }: LinkLa
     const hasCachedData = query.data !== undefined;
 
     if (query.isPending && !hasCachedData) {
-        return (
-            <div className="py-12 text-center text-sm text-muted-foreground" role="status">
-                {t('common:loading.generic')}
-            </div>
-        );
+        return <LoadingState />;
     }
 
     if (isProtectedUnavailable || query.isError && !hasCachedData) {
@@ -182,6 +182,7 @@ function LinkBlock({
     isAddPending,
     processBlockedLabel,
 }: LinkBlockProps) {
+    const { t } = useTranslation('common');
     const [targetToLink, setTargetToLink] = useState('');
     const targetId = parseRegisterLinkTargetId(targetToLink);
     const selectedTargetBlocked = options.some(
@@ -191,35 +192,37 @@ function LinkBlock({
     return (
         <div className="space-y-4" data-testid={`${testIdPrefix}-block`}>
             <div className="flex items-center gap-2">
-                <Icon className={`h-4 w-4 ${iconClass}`} />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">{title}</h3>
+                <Icon aria-hidden="true" className={`h-4 w-4 ${iconClass}`} />
+                <h3 className="text-eyebrow">{title}</h3>
             </div>
             {rows.length === 0 ? (
-                <p className="text-xs text-slate-500">{emptyLabel}</p>
+                <p className="text-xs text-muted-foreground">{emptyLabel}</p>
             ) : (
                 <ul className="space-y-2" data-testid={`${testIdPrefix}-rows`}>
                     {rows.map((row) => (
                         <li
                             key={row.id}
-                            className="flex flex-wrap items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5"
+                            className="flex flex-wrap items-center justify-between gap-3 bg-tint/5 border border-border rounded-xl px-4 py-2.5"
                         >
-                            <span className="text-sm font-bold text-white truncate">{row.name}</span>
+                            <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
                             {row.processEditBlocked && processBlockedLabel ? (
                                 <p className="text-xs font-medium text-warning-text">{processBlockedLabel}</p>
                             ) : null}
                             {canManageLinks && row.canDelete ? (
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="ghost"
+                                    size="iconCompact"
                                     disabled={row.processEditBlocked}
                                     data-testid={`${testIdPrefix}-remove-${row.id}`}
                                     onClick={() => onRemove(row.id)}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label={t('common:links.remove_named', { name: row.name })}
+                                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                     title={row.processEditBlocked && processBlockedLabel
                                         ? processBlockedLabel
                                         : removeLabel}
                                 >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
+                                    <Unlink aria-hidden="true" />
+                                </Button>
                             ) : null}
                         </li>
                     ))}
@@ -238,8 +241,8 @@ function LinkBlock({
                             triggerTestId={`${testIdPrefix}-select`}
                         />
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        variant="accent"
                         data-testid={`${testIdPrefix}-add`}
                         disabled={targetId === null || selectedTargetBlocked || isAddPending}
                         onClick={() => {
@@ -248,11 +251,10 @@ function LinkBlock({
                                 setTargetToLink('');
                             }
                         }}
-                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus aria-hidden="true" />
                         {addLabel}
-                    </button>
+                    </Button>
                     {selectedTargetBlocked && processBlockedLabel ? (
                         <p className="md:col-span-4 text-xs font-medium text-warning-text">
                             {processBlockedLabel}
@@ -267,9 +269,14 @@ function LinkBlock({
 /** ICT Register link sections on the Risk detail: Threats, Processes, Assets (issue #47). */
 export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterLinksSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const feedback = useFeedback();
+    // D12 / PM-2: an approval-routed link change keeps the user on the risk
+    // with the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const [linkError, setLinkError] = useState<string | null>(null);
+    // GAP-C-01 (R3-02): threat link removal is confirmed first (D10 unlink).
+    const [pendingThreatRemoval, setPendingThreatRemoval] = useState<{ linkId: number; name: string } | null>(null);
     const [pendingProcessAction, setPendingProcessAction] = useState<
         { kind: 'add'; processId: number } | { kind: 'remove'; linkId: number } | null
     >(null);
@@ -289,6 +296,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         setLinkError(null);
         setPendingProcessAction(null);
         setPendingAssetAction(null);
+        setPendingThreatRemoval(null);
 
         return () => {
             ownerRef.current = null;
@@ -386,12 +394,13 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         mutationFn: ({ linkId, ownerId }: { linkId: number; ownerId: number }) =>
             riskRegisterLinksApi.removeThreatLink(ownerId, linkId),
         onSuccess: (_result, { ownerId }) => {
-            if (threatLinksLane.unavailableRef.current) return;
+            if (ownerRef.current !== ownerId || threatLinksLane.unavailableRef.current) return;
+            setPendingThreatRemoval(null);
+            feedback.success({ title: t('common:outcome.link_removed') });
             return invalidateOwnedLinks(ownerId, ictRegisterKeys.riskThreatLinks(ownerId));
         },
-        onError: (error, { ownerId }) => {
-            if (!threatLinksLane.unavailableRef.current) handleMutationError(error, ownerId);
-        },
+        // The failure is shown inside the open removal confirmation.
+        onError: (error) => logError('Risk threat link removal failed:', error),
     });
     const addProcessLink = useMutation({
         mutationFn: ({ ownerId, processId, reason }: { ownerId: number; processId: number; reason: string }) =>
@@ -400,7 +409,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || processLinksLane.unavailableRef.current) return;
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskProcessLinks(ownerId));
@@ -416,7 +425,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || processLinksLane.unavailableRef.current) return;
             setPendingProcessAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskProcessLinks(ownerId));
@@ -432,7 +441,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || assetLinksLane.unavailableRef.current) return;
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskAssetLinks(ownerId));
@@ -448,7 +457,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (ownerRef.current !== ownerId || assetLinksLane.unavailableRef.current) return;
             setPendingAssetAction(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskAssetLinks(ownerId));
@@ -470,16 +479,10 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
 
     return (
         <div className="glass-card space-y-6" data-testid="risk-register-links-section">
-            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('register_links.title')}
-                </h2>
-            </div>
+            <CardHeader title={t('register_links.title')} className="mb-0 border-b border-border pb-4" />
 
             {linkError && pendingProcessAction === null && pendingAssetAction === null ? (
-                <div className="border border-destructive/30 rounded-xl px-4 py-3 text-destructive text-sm font-medium">
-                    {linkError}
-                </div>
+                <InlineMessage tone="danger">{linkError}</InlineMessage>
             ) : null}
 
             <LinkLane
@@ -489,7 +492,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             >
             <LinkBlock
                 icon={Flame}
-                iconClass="text-amber-400"
+                iconClass="text-warning-text"
                 title={t('register_links.threats.title')}
                 emptyLabel={t('register_links.threats.empty')}
                 selectPlaceholder={t('register_links.threats.select_placeholder')}
@@ -513,7 +516,13 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                 searchValue={threatSearch}
                 onSearchChange={setThreatSearch}
                 onAdd={(threatId) => addThreatLink.mutate({ ownerId: risk.id, threatId })}
-                onRemove={(linkId) => removeThreatLink.mutate({ linkId, ownerId: risk.id })}
+                onRemove={(linkId) => setPendingThreatRemoval({
+                    linkId,
+                    name: registerLinkRowName(
+                        threatLinks.find((link) => link.id === linkId)?.threat_name,
+                        t('common:fallbacks.unknown_threat'),
+                    ),
+                })}
                 isAddPending={addThreatLink.isPending && addThreatLink.variables?.ownerId === risk.id}
             />
             </LinkLane>
@@ -525,7 +534,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             >
             <LinkBlock
                 icon={Workflow}
-                iconClass="text-sky-400"
+                iconClass="text-accent-text"
                 title={t('register_links.processes.title')}
                 emptyLabel={t('register_links.processes.empty')}
                 selectPlaceholder={t('register_links.processes.select_placeholder')}
@@ -572,7 +581,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             >
             <LinkBlock
                 icon={Server}
-                iconClass="text-emerald-400"
+                iconClass="text-success-text"
                 title={t('register_links.assets.title')}
                 emptyLabel={t('register_links.assets.empty')}
                 selectPlaceholder={t('register_links.assets.select_placeholder')}
@@ -651,6 +660,16 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
                         removeAssetLink.mutate({ linkId: pendingAssetAction.linkId, ownerId: risk.id, reason });
                     }
                 }}
+            />
+            <ConfirmDialog
+                isOpen={pendingThreatRemoval !== null && !threatLinksProtectedUnavailable}
+                onClose={() => setPendingThreatRemoval(null)}
+                onConfirm={() => (pendingThreatRemoval
+                    ? removeThreatLink.mutateAsync({ linkId: pendingThreatRemoval.linkId, ownerId: risk.id })
+                    : undefined)}
+                intent="unlink"
+                entityName={pendingThreatRemoval?.name}
+                isLoading={removeThreatLink.isPending && removeThreatLink.variables?.ownerId === risk.id}
             />
         </div>
     );

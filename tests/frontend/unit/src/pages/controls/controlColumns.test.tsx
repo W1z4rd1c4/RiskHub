@@ -27,7 +27,8 @@ describe('buildControlColumns', () => {
         render(<>{frequencyColumn?.render?.(control)}</>);
 
         expect(screen.getByText('semi-annually')).toBeInTheDocument();
-        expect(translate).toHaveBeenCalledWith('frequencies.semi-annually', {
+        // GAP-D-01: the literal `controls:frequencies.*` key (semi-annually has one now).
+        expect(translate).toHaveBeenCalledWith('controls:frequencies.semi-annually', {
             defaultValue: 'semi-annually',
         });
     });

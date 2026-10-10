@@ -102,6 +102,7 @@ jobs:
           npm run cleanup:deadcode | tee ../maintenance-frontend-cleanup.log
           node scripts/cleanup/validate-unreachable-report.mjs
           node scripts/quality/validate-no-inline-styles.mjs
+          npm run quality:ui-ratchet
           if git ls-files | grep -q '^tests/results/frontend/playwright/playwright-report/'; then
             echo "Tracked Playwright report artifacts are not allowed."
             exit 1

@@ -3,6 +3,8 @@ import { useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { RiskForm } from '@/components/RiskForm';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskApi } from '@/services/riskApi';
@@ -35,7 +37,7 @@ export function RiskEditPage() {
     if (loadOutcome === 'unavailable' || !risk) {
         return (
             <DetailLoadUnavailableState
-                backLabel={t('risks:title')}
+                backLabel={t('risks:actions.back_to_register')}
                 isRetrying={isRetrying}
                 onBack={() => navigate(returnTo)}
                 onRetry={riskId === null ? undefined : () => void fetchRisk()}
@@ -44,21 +46,25 @@ export function RiskEditPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <PageContainer size="form">
             {loadOutcome === 'stale-with-error' ? (
                 <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchRisk()} />
             ) : null}
-            <div className="flex items-center gap-4">
-                <div className="bg-accent/20 p-3 rounded-2xl">
-                    <Edit className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter">{t('risks:edit_risk')}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
-                        {t('risks:title')} / {t('common:actions.edit')}
-                    </p>
-                </div>
-            </div>
+            <PageHeader
+                title={t('risks:edit_risk')}
+                description={risk.name}
+                documentTitle={t('common:page_title.edit', { name: risk.name })}
+                icon={Edit}
+                back={{
+                    label: t('common:actions.back_to_detail', { name: risk.name }),
+                    onClick: () => void navigate(detailPath),
+                }}
+                breadcrumbs={[
+                    { label: t('navigation:sidebar.risks'), to: returnTo },
+                    { label: risk.name, to: detailPath },
+                    { label: t('risks:edit_risk') },
+                ]}
+            />
 
             {resolveCapabilityFlag(risk.capabilities, 'can_update') ? (
                 <RiskForm
@@ -66,11 +72,12 @@ export function RiskEditPage() {
                     isEdit={true}
                     onCancel={() => navigate(detailPath)}
                     onSuccess={() => navigate(detailPath)}
+                    approvalReturnTo={detailPath}
                 />
             ) : (
                 <FormCapabilityGateState state="denied" />
             )}
-        </div>
+        </PageContainer>
     );
 }
 
