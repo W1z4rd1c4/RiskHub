@@ -180,6 +180,14 @@ gaps that must stay aligned.
 This is an audit and maintenance artifact. It does not introduce SQL RLS, route
 changes, schema changes, or auth/session wire changes.
 
+On 2026-10-10, issues #256/#257 centralize governed Process, Process-extended,
+Asset, Vendor and Threat resolution guards. Reject requires a non-blank reason;
+cancel and authorized resolution expire malformed envelopes, including tampered
+privileged-pending status, without business mutation. Expiry releases impact
+locks exactly once through the shared terminal module. Locked live actor checks,
+family resolver authority, requester-only cancellation, and ordered locks remain
+mandatory. This changes no route, visibility, capability field, or approve replay.
+
 On 2026-09-10, issue #161 made consequential frontend actions recoverable
 without changing authority. Questionnaire Save, Submit, clarification creation,
 and clarification response apply their backend-authoritative mutation responses

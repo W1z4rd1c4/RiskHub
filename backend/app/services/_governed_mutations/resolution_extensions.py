@@ -57,10 +57,10 @@ from .process_mutations import (
     extended_process_approval_envelope_is_valid,
     strict_extended_process_identity,
 )
+from .resolution_envelope import load_resolution_envelope, reload_resolution_approval
+from .resolution_guards import require_pending_resolution, require_rejection_reason, resolution_envelope_is_valid
 from .resolution_lock_plan import GovernedProcessResolutionLocks, lock_governed_process_resolution_suffix
 from .terminal_transitions import finalize_governed_terminal_transition
-
-_PENDING = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 
 
 async def _load_envelope(
@@ -71,21 +71,7 @@ async def _load_envelope(
     ExtendedProcessMutationIdentity | None,
     list[GovernedMutationImpactLock],
 ]:
-    approval = (
-        await db.execute(select(ApprovalRequest).where(ApprovalRequest.id == approval_id).with_for_update())
-    ).scalar_one_or_none()
-    if approval is None:
-        raise NotFoundError("Approval request not found")
-    proposal = (
-        await db.execute(
-            select(GovernedMutationProposal)
-            .options(selectinload(GovernedMutationProposal.approval_request))
-            .where(GovernedMutationProposal.approval_request_id == approval.id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if proposal is None:
-        raise ValidationError("Approval is not a governed mutation proposal")
+    approval, proposal, locks = await load_resolution_envelope(db, approval_id)
     try:
         identity = strict_extended_process_identity(
             proposal,
@@ -93,22 +79,10 @@ async def _load_envelope(
         )
     except ValueError:
         identity = None
-    locks = list(
-        (
-            await db.execute(
-                select(GovernedMutationImpactLock)
-                .where(GovernedMutationImpactLock.proposal_id == proposal.id)
-                .order_by(GovernedMutationImpactLock.resource_type, GovernedMutationImpactLock.resource_id)
-                .with_for_update()
-            )
-        )
-        .scalars()
-        .all()
-    )
     return approval, proposal, identity, locks
 
 
-async def _expire_malformed_extended(
+async def expire_malformed_process_proposal(
     db: AsyncSession,
     *,
     approval: ApprovalRequest,
@@ -118,11 +92,10 @@ async def _expire_malformed_extended(
     requester_cancel: bool = False,
 ) -> ApprovalRequest:
     """Authorize a bounded expiry without trusting malformed proposal JSON."""
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(f"Cannot resolve request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     actor = (await _locked_actor_context(db, {current_user.id})).get(current_user.id)
-    if actor is None:
-        raise AuthorizationError("Approval actor identity no longer exists")
+    if actor is None or not actor.is_active:
+        raise AuthorizationError("Approval actor identity no longer exists or is inactive")
     if requester_cancel:
         if not (approval.requested_by_id == actor.id and proposal.requested_by_id == actor.id):
             raise AuthorizationError(
@@ -170,7 +143,9 @@ def _envelope_stale_reason(
     identity: ExtendedProcessMutationIdentity,
     locks: list[GovernedMutationImpactLock],
 ) -> str | None:
-    if not extended_process_approval_envelope_is_valid(proposal, identity):
+    if not resolution_envelope_is_valid(
+        approval, family_valid=extended_process_approval_envelope_is_valid(proposal, identity)
+    ):
         return "Governed mutation envelope integrity check failed"
     expected = sorted(
         (
@@ -489,15 +464,14 @@ async def approve_extended_process_mutation(
 ) -> ApprovalRequest:
     approval, proposal, identity, locks = await _load_envelope(db, approval_id)
     if identity is None:
-        return await _expire_malformed_extended(
+        return await expire_malformed_process_proposal(
             db,
             approval=approval,
             proposal=proposal,
             locks=locks,
             current_user=current_user,
         )
-    if approval.status not in _PENDING:
-        raise ValidationError(f"Cannot resolve request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     proposed_owner_id = (
         proposal.proposed_changes.get("after", {}).get("process_owner_user_id")
         if identity.mutation_kind == PROCESS_CREATE_KIND
@@ -823,24 +797,17 @@ async def approve_extended_process_mutation(
 async def reject_extended_process_mutation(
     db: AsyncSession, *, approval_id: int, current_user: User, resolution_notes: str
 ) -> ApprovalRequest:
-    reason = resolution_notes.strip()
-    if not reason:
-        raise ValidationError(
-            "A non-blank rejection reason is mandatory",
-            code="governed_mutation_rejection_reason_required",
-            status_code=422,
-        )
+    resolution_reason = require_rejection_reason(resolution_notes)
     approval, proposal, identity, locks = await _load_envelope(db, approval_id)
     if identity is None:
-        return await _expire_malformed_extended(
+        return await expire_malformed_process_proposal(
             db,
             approval=approval,
             proposal=proposal,
             locks=locks,
             current_user=current_user,
         )
-    if approval.status not in _PENDING:
-        raise ValidationError(f"Cannot resolve request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     resolver = (await _locked_actor_context(db, {current_user.id})).get(current_user.id)
     if resolver is None:
         raise AuthorizationError("Resolver identity no longer exists")
@@ -875,7 +842,7 @@ async def reject_extended_process_mutation(
         impact_locks=locks,
         department_id=department_id,
         status=ApprovalStatus.REJECTED,
-        resolution_notes=reason,
+        resolution_notes=resolution_reason,
     )
     await commit_service_boundary(db, boundary="governed_mutation.process_extended.reject")
     return await _reload(db, approval.id)
@@ -886,7 +853,7 @@ async def cancel_extended_process_mutation(
 ) -> ApprovalRequest:
     approval, proposal, identity, locks = await _load_envelope(db, approval_id)
     if identity is None:
-        return await _expire_malformed_extended(
+        return await expire_malformed_process_proposal(
             db,
             approval=approval,
             proposal=proposal,
@@ -894,8 +861,7 @@ async def cancel_extended_process_mutation(
             current_user=current_user,
             requester_cancel=True,
         )
-    if approval.status not in _PENDING:
-        raise ValidationError(f"Cannot resolve request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     if identity.requested_by_id != current_user.id:
         raise AuthorizationError(
             "Only the requester may cancel a governed mutation request",
@@ -938,19 +904,7 @@ async def cancel_extended_process_mutation(
 
 
 async def _reload(db: AsyncSession, approval_id: int) -> ApprovalRequest:
-    return (
-        await db.execute(
-            select(ApprovalRequest)
-            .options(
-                selectinload(ApprovalRequest.requested_by),
-                selectinload(ApprovalRequest.resolved_by),
-                selectinload(ApprovalRequest.governed_mutation_proposal).selectinload(
-                    GovernedMutationProposal.requested_by
-                ),
-            )
-            .where(ApprovalRequest.id == approval_id)
-        )
-    ).scalar_one()
+    return await reload_resolution_approval(db, approval_id)
 
 
 __all__ = ["approve_extended_process_mutation", "cancel_extended_process_mutation", "reject_extended_process_mutation"]

@@ -223,7 +223,7 @@ unsupported proposal kind/type, and any malformed exact Process proposal, is
 excluded from both paths. Such rows cannot enter queue/detail projection,
 capabilities, notification inbox list/count/read operations, delivery,
 business-mutation execution, or ordinary outcome delivery. For a malformed
-proposal of a recognized extended Process kind, a direct resolution action may
+proposal of a recognized Process kind, a direct resolution action may
 only invoke the bounded integrity-terminalization path described below. The
 resolver arm uses the snapshotted `scenario_approver_roles`. Existing-row
 proposals require the Process identified by the immutable proposal to exist;
@@ -262,13 +262,23 @@ and routes the outcome notification. It never overwrites approved operational
 truth. An unsupported or malformed immutable proposal cannot establish the
 trusted identity needed for business execution. An unsupported proposal
 kind/type remains excluded from resolution. A malformed proposal of a
-recognized extended Process kind instead fails closed through a bounded
+recognized Process kind instead fails closed through a bounded
 authorization path: it leaves the immutable proposal unchanged, applies no
 business mutation, moves the approval to terminal `EXPIRED`, releases every
 active impact lock associated with the proposal, records a safe expiry audit
 event, and enqueues the terminal expiry outbox event. The mutable envelope may
 be consulted only for bounded reviewer-scope authorization; it never supplies
 proposal identity or business-mutation data.
+
+The five resolution families share the pending-state and non-blank rejection
+reason rules. `PENDING_PRIVILEGED` is never a valid governed proposal state; it
+is admitted only to the existing authorized integrity-expiry path. Cancel also
+validates the envelope and expires malformed proposals rather than recording a
+successful cancellation. Every legitimate terminal state is refused on replay,
+so repeat attempts emit no additional terminal audit or outbox event. Shared
+envelope loaders refresh locked rows and preserve the approval -> proposal ->
+sorted impact-lock prefix; family-specific live authority and approve replay
+remain separate. A missing/blank submission reason is malformed in every family.
 
 Existing-row Process-governance paths use one deterministic lock order: approval
 envelope, proposal, impact locks ordered by resource identity, Process-owner
