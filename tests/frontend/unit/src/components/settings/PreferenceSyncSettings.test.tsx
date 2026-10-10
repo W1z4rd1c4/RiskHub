@@ -160,6 +160,50 @@ describe('account preference synchronization', () => {
         expect(saveLanguageMock).toHaveBeenLastCalledWith('cs');
     });
 
+    it('keeps the controlled radio unchanged while locale loading is pending, then saves the activated language', async () => {
+        const loaded = deferred();
+        const importCzech = vi.fn(async () => {
+            await loaded.promise;
+            return { resources: czechResources };
+        });
+        const instance = i18n.createInstance();
+        await instance
+            .use(createDynamicLocaleBackend(createRetryableLocaleLoader({
+                en: async () => ({ resources: englishResources }),
+                cs: importCzech,
+            })))
+            .init({
+                lng: 'en',
+                fallbackLng: false,
+                supportedLngs: ['en', 'cs'],
+                defaultNS: 'common',
+                ns: namespaces,
+                partialBundledLanguages: true,
+                resources: { en: englishResources },
+                react: { useSuspense: false },
+            });
+        saveLanguageMock.mockResolvedValue(undefined);
+        const user = userEvent.setup();
+        render(
+            <I18nextProvider i18n={instance}>
+                <LanguageProvider><LocalizationSettings /></LanguageProvider>
+            </I18nextProvider>,
+        );
+
+        await user.click(screen.getByTestId('language-cs'));
+
+        expect(importCzech).toHaveBeenCalledOnce();
+        expect(screen.getByTestId('language-en')).toBeChecked();
+        expect(screen.getByTestId('language-cs')).not.toBeChecked();
+        expect(saveLanguageMock).not.toHaveBeenCalled();
+
+        await act(async () => loaded.resolve());
+
+        expect(await screen.findByText('Uloženo')).toBeInTheDocument();
+        expect(screen.getByTestId('language-cs')).toBeChecked();
+        expect(saveLanguageMock).toHaveBeenCalledExactlyOnceWith('cs');
+    });
+
     it('normalizes a regional i18next language before exposing settings state', async () => {
         const instance = i18n.createInstance();
         await instance.init({

@@ -3,7 +3,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -117,10 +117,20 @@ async def get_orphaned_items_overview(
 ):
     """Get governance overview payload without triggering a scan."""
     _require_governance_operator(current_user)
+    # Approval may resolve an orphan in another worker after this actor cached
+    # the pending overview. Read committed resolution state before cache lookup;
+    # count also catches equal timestamps and out-of-order transaction commits.
+    resolution_revision = (
+        await db.execute(
+            select(func.count(OrphanedItem.id), func.max(OrphanedItem.resolved_at))
+            .where(OrphanedItem.status == "resolved")
+        )
+    ).one()
     cache_key = build_permission_sensitive_cache_key(
         current_user,
         item_type,
         status,
+        tuple(resolution_revision),
     )
     cached = ORPHAN_OVERVIEW_CACHE.get(cache_key)
     if cached is not None:

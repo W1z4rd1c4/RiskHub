@@ -86,7 +86,7 @@ function LinkedRiskCard({
 }
 
 const container = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 1 },
     show: {
         opacity: 1,
         transition: { staggerChildren: 0.1 },
@@ -94,7 +94,7 @@ const container = {
 };
 
 const item = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 1, y: 20 },
     show: { opacity: 1, y: 0 },
 };
 
@@ -124,7 +124,7 @@ export function ControlDetailOverviewTab({
         <>
             <motion.div
                 variants={container}
-                initial="hidden"
+                initial={false}
                 animate="show"
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >
@@ -201,7 +201,7 @@ export function ControlDetailOverviewTab({
             </motion.div>
 
             <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 1, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
                 className="glass-card"

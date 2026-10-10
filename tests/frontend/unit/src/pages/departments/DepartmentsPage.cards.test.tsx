@@ -57,6 +57,15 @@ describe('DepartmentsPage cards', () => {
         const critical = within(card).getByText(/^2\s/);
         expect(critical).toHaveAttribute('data-tone', 'danger');
         expect(critical).toHaveAttribute('data-severity', 'critical');
+        // `break-words` overrides `anywhere` in Tailwind 4 and restores a long
+        // flex item's unbroken min-content width. Keep only intrinsic wrapping.
+        for (const text of [heading, within(card).getByText('OPS'), breaching, critical]) {
+            expect(text).toHaveClass('[overflow-wrap:anywhere]');
+            expect(text).not.toHaveClass('break-words');
+        }
+        for (const badge of [breaching, critical]) {
+            expect(badge).toHaveClass('h-auto', 'max-w-full', 'whitespace-normal');
+        }
 
         await user.click(card);
         expect(await screen.findByTestId('department-route')).toBeInTheDocument();

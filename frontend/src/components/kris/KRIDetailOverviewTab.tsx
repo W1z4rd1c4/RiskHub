@@ -45,7 +45,7 @@ export function KRIDetailOverviewTab({
         <div className="grid gap-6 lg:grid-cols-3">
             {/* Current Value Card */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
                 className="glass-card lg:col-span-2"
@@ -78,7 +78,7 @@ export function KRIDetailOverviewTab({
 
             {/* Reporting Info Card */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 className="glass-card"
@@ -112,7 +112,7 @@ export function KRIDetailOverviewTab({
 
             {/* Linked Risk Card */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 className="glass-card lg:col-span-3 group/risk"
@@ -142,7 +142,7 @@ export function KRIDetailOverviewTab({
                     ) : null}
                     <Link
                         to={`/risks/${linkedRisk.id}`}
-                        className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-border bg-tint/[0.03] p-8 text-left hover:bg-tint/5 hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-500 group"
+                        className="relative block w-full overflow-hidden cursor-pointer rounded-2xl border border-border bg-tint/[0.03] p-8 text-left hover:bg-tint/5 hover:border-accent/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-500 group"
                     >
                         {/* Decorative elements */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none group-hover:bg-accent/10 transition-colors duration-500" />
@@ -192,7 +192,7 @@ export function KRIDetailOverviewTab({
                                 </div>
 
                                 <div className="pt-8 border-t border-border">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-accent-text uppercase tracking-wide opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 -translate-x-2 group-hover:translate-x-0 group-focus-visible:translate-x-0 transition-[opacity,transform] duration-500">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-accent-text uppercase tracking-wide opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 -translate-x-2 group-hover:translate-x-0 group-focus-visible:translate-x-0 transition-[opacity,transform,translate] duration-500">
                                         {t('overview.view_complete_risk_analysis', { ns: 'kris' })}
                                         <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
                                     </div>
@@ -210,7 +210,7 @@ export function KRIDetailOverviewTab({
 
             {/* Metadata */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="glass-card lg:col-span-3"

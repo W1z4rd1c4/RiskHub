@@ -133,6 +133,21 @@ describe('GovernancePage overview aggregation', () => {
         expect(screen.getByText('Orphaned Risk')).toBeInTheDocument();
     });
 
+    it('renders the orphan section at full opacity on its first committed frame', async () => {
+        render(
+            <MemoryRouter><GovernancePage /></MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(getOverviewMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByText('governance.loading')).not.toBeInTheDocument());
+        const heading = screen.getByRole('heading', { name: 'governance.orphaned_risks_section' });
+        const section = heading.parentElement?.parentElement;
+        // Assert immediately, without waiting for an entry fade to finish.
+        expect(section).toHaveStyle({ opacity: '1' });
+        expect(section).toContainElement(screen.getByText('Orphaned Risk'));
+    });
+
     it('renders a visible fail-closed state when the authoritative orphan list cannot load', async () => {
         getOverviewMock.mockRejectedValue(new Error('overview unavailable'));
 

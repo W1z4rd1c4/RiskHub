@@ -65,7 +65,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                     </>
                                 ) : null;
                                 const cellClassName = cn(
-                                    'flex h-16 w-16 flex-col items-center justify-center gap-1 whitespace-normal rounded-xl border border-border backdrop-blur-xl transition-[transform,opacity] duration-300',
+                                    'flex h-16 w-16 flex-col items-center justify-center gap-1 whitespace-normal rounded-xl border border-border backdrop-blur-xl transition-[transform,scale,opacity] duration-300',
                                     getCellClasses(p, i),
                                     count > 0 ? 'scale-100 shadow-md' : 'scale-95',
                                     isClickable && 'cursor-pointer focus-ring hover:opacity-80',
@@ -78,7 +78,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                 return (
                                     <motion.div
                                         key={`${p}-${i}`}
-                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        initial={{ opacity: 1, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
                                         whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}

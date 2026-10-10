@@ -24,8 +24,10 @@ export function PageBackButton({ back, className }: { back: PageBackTarget; clas
     const shared = {
         label: back.label,
         variant: 'ghost',
-        size: 'compact',
-        className: cn('-ml-3 text-muted-foreground', className),
+        size: 'default',
+        // Keep the full hit target inside the header. A negative alignment
+        // margin pushes the back control outside the header's layout bounds.
+        className: cn('text-muted-foreground', className),
         'data-testid': back.testId,
     } as const;
     return 'to' in back
@@ -99,7 +101,7 @@ export function PageHeader({
                             id={titleId}
                             tabIndex={-1}
                             data-page-title=""
-                            className={cn(PAGE_TITLE_CLASS, 'break-words [overflow-wrap:anywhere]')}
+                            className={cn(PAGE_TITLE_CLASS, '[overflow-wrap:anywhere]')}
                         >
                             {title}
                         </h1>

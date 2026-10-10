@@ -30,6 +30,8 @@
         "link_remove": "Remove link"
     },
     "entity_types": {
+        "asset": "Asset",
+        "vendor": "Vendor",
         "risk": "Risk",
         "control": "Control",
         "kri": "KRI",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import re
 from pathlib import Path
 
 import pytest
@@ -1555,7 +1556,7 @@ def test_frontend_workflow_helpers_are_used_by_production_code() -> None:
     for export_name in (
         "nextEntityFormStep",
         "previousEntityFormStep",
-        "resolveSubmitOutcome",
+        "useApprovalQueued",
         "resetLinkPaginationOnSearch",
         "resolveLinkActionOutcome",
         "buildQuestionnaireComparisonModel",
@@ -1563,6 +1564,24 @@ def test_frontend_workflow_helpers_are_used_by_production_code() -> None:
         "resolveOrphanStaleTarget",
     ):
         assert _production_frontend_import_count(export_name) >= 2
+
+    # D12 / PM-2 replaced resolveSubmitOutcome with the shared queued-approval
+    # notice flow. Require real consumers, not just the hook's own definition.
+    for relative_path in (
+        "frontend/src/pages/detail/useRiskDetailState.ts",
+        "frontend/src/pages/detail/useKriDetailState.ts",
+        "frontend/src/pages/controls/useControlDetailWorkflow.ts",
+        "frontend/src/pages/ProcessDetailPage.tsx",
+        "frontend/src/pages/VendorDetailPage.tsx",
+        "frontend/src/pages/AssetDetailPage.tsx",
+    ):
+        source = _source(relative_path)
+        assert re.search(
+            r"import\s*\{[^}]*\buseApprovalQueued\b[^}]*\}\s*from\s*"
+            r"['\"]@/hooks/useApprovalQueued['\"]",
+            source,
+        ), relative_path
+        assert re.search(r"\buseApprovalQueued\s*\(", source), relative_path
 
 
 def test_notification_routes_use_inbox_module() -> None:

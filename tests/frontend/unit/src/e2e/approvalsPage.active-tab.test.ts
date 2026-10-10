@@ -6,11 +6,11 @@ import { ApprovalsPage } from '../../../e2e/pages/ApprovalsPage';
 describe('ApprovalsPage pending queue selection', () => {
     it('uses the loaded pending queue without waiting for a second response', async () => {
         const pendingQueueTab = {
-            evaluate: vi.fn().mockResolvedValue(true),
+            getAttribute: vi.fn().mockResolvedValue('true'),
             click: vi.fn(),
         } as unknown as Locator;
         const page = {
-            locator: vi.fn().mockReturnValue(pendingQueueTab),
+            getByRole: vi.fn().mockReturnValue(pendingQueueTab),
             waitForResponse: vi.fn().mockRejectedValue(new Error('unexpected second approvals request')),
         } as unknown as Page;
         const approvals = new ApprovalsPage(page);
@@ -18,6 +18,8 @@ describe('ApprovalsPage pending queue selection', () => {
 
         await approvals.selectPendingQueue();
 
+        expect(page.getByRole).toHaveBeenCalledWith('tab', { name: expect.any(RegExp) });
+        expect(pendingQueueTab.getAttribute).toHaveBeenCalledWith('aria-selected');
         expect(page.waitForResponse).not.toHaveBeenCalled();
         expect(pendingQueueTab.click).not.toHaveBeenCalled();
         expect(approvals.waitForApprovalsReady).toHaveBeenCalledOnce();
@@ -27,11 +29,11 @@ describe('ApprovalsPage pending queue selection', () => {
 describe('ApprovalsPage my requests selection', () => {
     it('preserves the loaded My Requests view without waiting for a second response', async () => {
         const myRequestsTab = {
-            evaluate: vi.fn().mockResolvedValue(true),
+            getAttribute: vi.fn().mockResolvedValue('true'),
             click: vi.fn(),
         } as unknown as Locator;
         const page = {
-            locator: vi.fn().mockReturnValue(myRequestsTab),
+            getByRole: vi.fn().mockReturnValue(myRequestsTab),
             waitForResponse: vi.fn().mockRejectedValue(new Error('unexpected second approvals request')),
         } as unknown as Page;
         const approvals = new ApprovalsPage(page);
@@ -39,8 +41,33 @@ describe('ApprovalsPage my requests selection', () => {
 
         await approvals.selectMyRequests();
 
+        expect(page.getByRole).toHaveBeenCalledWith('tab', { name: expect.any(RegExp) });
+        expect(myRequestsTab.getAttribute).toHaveBeenCalledWith('aria-selected');
         expect(page.waitForResponse).not.toHaveBeenCalled();
         expect(myRequestsTab.click).not.toHaveBeenCalled();
+        expect(approvals.waitForApprovalsReady).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ApprovalsPage history selection', () => {
+    it('preserves the loaded History view without waiting for a second response', async () => {
+        const historyTab = {
+            getAttribute: vi.fn().mockResolvedValue('true'),
+            click: vi.fn(),
+        } as unknown as Locator;
+        const page = {
+            getByRole: vi.fn().mockReturnValue(historyTab),
+            waitForResponse: vi.fn().mockRejectedValue(new Error('unexpected second approvals request')),
+        } as unknown as Page;
+        const approvals = new ApprovalsPage(page);
+        vi.spyOn(approvals, 'waitForApprovalsReady').mockResolvedValue();
+
+        await approvals.selectHistory();
+
+        expect(page.getByRole).toHaveBeenCalledWith('tab', { name: expect.any(RegExp) });
+        expect(historyTab.getAttribute).toHaveBeenCalledWith('aria-selected');
+        expect(page.waitForResponse).not.toHaveBeenCalled();
+        expect(historyTab.click).not.toHaveBeenCalled();
         expect(approvals.waitForApprovalsReady).toHaveBeenCalledOnce();
     });
 });

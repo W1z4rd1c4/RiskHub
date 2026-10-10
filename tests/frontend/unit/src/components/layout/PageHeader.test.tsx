@@ -57,6 +57,8 @@ describe('PageHeader', () => {
         expect(headings).toHaveLength(1);
         expect(headings[0]).toHaveTextContent('Platform Settings');
         expect(headings[0]).toHaveClass(...PAGE_TITLE_CLASS.split(' '));
+        expect(headings[0]).toHaveClass('[overflow-wrap:anywhere]');
+        expect(headings[0]).not.toHaveClass('break-words');
         expect(headings[0]).toHaveAttribute('tabindex', '-1');
         expect(headings[0]).toHaveAttribute('data-page-title');
         expect(screen.getByText('Administration')).toHaveClass('text-eyebrow');
@@ -90,6 +92,10 @@ describe('PageHeader', () => {
         renderInRouter(<PageHeader title="New risk" back={{ label: 'Back to Risks', to: '/risks' }} />, '/risks/new');
         const back = screen.getByRole('link', { name: 'Back to Risks' });
         expect(back).toHaveAttribute('href', '/risks');
+        expect(back).toHaveClass('h-10', 'rounded-lg');
+        expect(back).not.toHaveClass('h-8', 'rounded-md');
+        // The entire hit target must stay inside its header, including the back affordance.
+        expect(back.className).not.toMatch(/(?:^|\s)-m(?:[trblxyse])?-/);
         await user.click(back);
         expect(await screen.findByText('Risk register')).toBeInTheDocument();
     });
@@ -100,6 +106,9 @@ describe('PageHeader', () => {
         renderInRouter(<PageHeader title="Edit risk" back={{ label: 'Back to Risk A', onClick }} />);
         const back = screen.getByRole('button', { name: 'Back to Risk A' });
         expect(back).toHaveAttribute('type', 'button');
+        expect(back).toHaveClass('h-10', 'rounded-lg');
+        expect(back).not.toHaveClass('h-8', 'rounded-md');
+        expect(back.className).not.toMatch(/(?:^|\s)-m(?:[trblxyse])?-/);
         await user.click(back);
         expect(onClick).toHaveBeenCalledTimes(1);
     });

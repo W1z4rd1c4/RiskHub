@@ -74,35 +74,35 @@ export function EntityDetailHeader({
                     <h1
                         tabIndex={-1}
                         data-page-title=""
-                        className={cn(PAGE_TITLE_CLASS, 'min-w-0 max-w-full break-words [overflow-wrap:anywhere]')}
+                        className={cn(PAGE_TITLE_CLASS, 'min-w-0 max-w-full [overflow-wrap:anywhere]')}
                     >
                         {title}
                     </h1>
                     {titleAdornment}
                     {statuses ? (
-                        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 [&>*]:max-w-full [&>*]:break-words [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
+                        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 [&>*]:max-w-full [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
                             {statuses}
                         </div>
                     ) : null}
                 </div>
                 {metadata ? (
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 break-words text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-muted-foreground [overflow-wrap:anywhere]">
                         {metadata}
                     </div>
                 ) : null}
                 {description ? (
-                    <div className="max-w-3xl whitespace-pre-wrap break-words font-medium text-muted-foreground [overflow-wrap:anywhere]">
+                    <div className="max-w-3xl whitespace-pre-wrap font-medium text-muted-foreground [overflow-wrap:anywhere]">
                         {description}
                     </div>
                 ) : null}
                 {supplementary ? (
-                    <div className="flex min-w-0 max-w-full flex-wrap gap-2 pt-1 [&>*]:max-w-full [&>*]:break-words [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
+                    <div className="flex min-w-0 max-w-full flex-wrap gap-2 pt-1 [&>*]:max-w-full [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
                         {supplementary}
                     </div>
                 ) : null}
             </div>
             {actions ? (
-                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 [&>*]:max-w-full [&>*]:break-words [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere]">
+                <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 [&>*]:max-w-full [&>*]:whitespace-normal [&>*]:[overflow-wrap:anywhere] [&>button]:h-auto [&>button]:min-h-10">
                     {actions}
                 </div>
             ) : null}

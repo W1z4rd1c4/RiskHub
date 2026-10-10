@@ -59,7 +59,7 @@ interface VendorOverviewTabProps {
 }
 
 const container = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 1 },
     show: {
         opacity: 1,
         transition: { staggerChildren: 0.08 },
@@ -67,7 +67,7 @@ const container = {
 };
 
 const item = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 1, y: 20 },
     show: { opacity: 1, y: 0 },
 };
 
@@ -173,7 +173,7 @@ export function VendorOverviewTab({
 
     return (
         <div className="space-y-8">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.div initial={{ opacity: 1, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <DetailSection title={t('detail.overview')} icon={ShieldCheck} testId="vendor-overview">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <SummaryTile
@@ -222,7 +222,8 @@ export function VendorOverviewTab({
 
             <motion.div
                 variants={container}
-                initial="hidden"
+                // Field labels must retain full contrast while the overview mounts.
+                initial={false}
                 animate="show"
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >

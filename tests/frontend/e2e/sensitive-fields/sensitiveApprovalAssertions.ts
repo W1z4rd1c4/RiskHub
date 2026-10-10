@@ -26,7 +26,9 @@ export async function expectSensitiveApproval(page: Page, fixture: SensitiveAppr
     expect(await approvalsPage.getActionType(index)).toContain(fixture.action);
 
     await approvalsPage.expandChanges(index);
-    await expect(card).toContainText(fixture.fieldLabel);
-    await expect(card).toContainText(fixture.oldDisplayValue);
-    await expect(card).toContainText(fixture.newDisplayValue);
+    const changes = card.getByTestId(/^approval-legacy-changes-/);
+    const field = changes.getByText(fixture.fieldLabel, { exact: true }).locator('..');
+    await expect(field).toBeVisible();
+    await expect(field.getByRole('deletion')).toHaveText(`Old Value: ${fixture.oldDisplayValue}`);
+    await expect(field.getByRole('insertion')).toHaveText(`New Value: ${fixture.newDisplayValue}`);
 }

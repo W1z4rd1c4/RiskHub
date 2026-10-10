@@ -74,8 +74,19 @@ async function submitProtectedCreation(page: Page, processName: string, reason: 
         && new URL(response.url()).pathname === '/api/v1/processes'
     ));
     await page.getByTestId('process-form-submit').click();
-    expect((await submitted).status()).toBe(202);
+    const response = await submitted;
+    expect(response.status()).toBe(202);
+    const queued = await response.json() as { approval_id: number };
+    expect(queued.approval_id).toBeGreaterThan(0);
+    const href = `/approvals?tab=mine&approvalId=${queued.approval_id}`;
+    // D12 / PM-2 leaves the requester on the register until they follow this link.
+    await expect(page.getByTestId('approval-queued-notice')).toBeVisible();
+    const link = page.getByTestId('approval-queued-notice-link');
+    await expect(link).toHaveAttribute('href', href);
+    await link.click();
+    await expect(page).toHaveURL(href);
 }
+
 
 async function approveByReason(page: Page, reason: string): Promise<void> {
     const approvals = new ApprovalsPage(page);

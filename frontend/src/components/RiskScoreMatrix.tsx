@@ -83,7 +83,7 @@ export function RiskScoreMatrix({
                                 const cellClasses = `
                                     ${cellClass} ${riskScoreVariantClass('matrix-cell', cellScore, thresholds)}
                                     rounded-sm flex items-center justify-center font-bold
-                                    transition-[background-color,border-color,box-shadow,transform] duration-200
+                                    transition-[background-color,border-color,box-shadow,transform,scale] duration-200
                                     ${selected
                                         ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background scale-110 z-10'
                                         : 'opacity-60'
@@ -95,7 +95,7 @@ export function RiskScoreMatrix({
                                 const visualCell = (
                                     <motion.span
                                         key={`${p}-${i}`}
-                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        initial={{ opacity: 1, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
                                         className={`${cellClasses} ${onSelect

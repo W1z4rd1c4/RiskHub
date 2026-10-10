@@ -30,6 +30,8 @@
         "link_remove": "Odebrání vazby"
     },
     "entity_types": {
+        "asset": "Aktivum",
+        "vendor": "Dodavatel",
         "risk": "Riziko",
         "control": "Kontrola",
         "kri": "KRI",
