@@ -1021,7 +1021,8 @@ def test_prod_readiness_detached_tree_gitleaks_scan_uses_no_git_mode_and_fails_c
         if command.command_id == "p4_gitleaks_scan"
     )
 
-    assert "--source /repo --no-git" in scan.command
+    assert "-w /repo" in scan.command
+    assert "--source . --no-git" in scan.command
     assert "--exit-code 1" in scan.command
     assert scan.required is True
 

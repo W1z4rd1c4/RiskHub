@@ -7,14 +7,12 @@ from sqlalchemy.sql import Select
 
 from app.models.control import Control
 from app.models.control_execution import ControlExecution, ExecutionResult
-from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency, kri_breach_condition
+from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.services._kri_history.periods import (
     due_date,
     latest_closed_period_for_date,
-    never_reported_is_overdue,
-    overdue_required_period_end,
-    period_bounds_for_date,
 )
+from app.services.kri_populations import due_soon_condition, kri_breach_condition, overdue_condition
 
 from .types import ControlMonitoringStatus, KRIMonitoringStatus, KRITimelinessStatus
 
@@ -87,6 +85,9 @@ def _kri_frequency_status_clauses(
     monitoring_status: KRIMonitoringStatus,
     warning_upper_margin_ratio: float,
 ) -> list:
+    if monitoring_status == KRIMonitoringStatus.not_submitted:
+        return [overdue_condition(today=today)]
+
     no_history = KeyRiskIndicator.last_period_end.is_(None)
     in_range = and_(
         KeyRiskIndicator.current_value >= KeyRiskIndicator.lower_limit,
@@ -108,33 +109,9 @@ def _kri_frequency_status_clauses(
             KeyRiskIndicator.last_period_end.is_not(None),
             KeyRiskIndicator.last_period_end >= required_period_end,
         )
-        # not_submitted, HAS-REPORTED rows: use the backtracking overdue anchor (the
-        # latest STRICTLY past-due period end, ADR-012 SSOT) so a KRI that missed an
-        # EARLIER period is flagged even while the most recent period is still inside
-        # its grace window. new/breach/warning/optimal keep the latest-closed-at-today
-        # period above -- their behavior is unchanged.
-        overdue_period_end = overdue_required_period_end(today, frequency.value)
-        reported_but_overdue = and_(
-            KeyRiskIndicator.last_period_end.is_not(None),
-            KeyRiskIndicator.last_period_end < overdue_period_end,
-        )
-        # not_submitted, NEVER-REPORTED rows (last_period_end IS NULL): match the DETAIL
-        # classifier's today-anchored window via the shared never_reported_is_overdue SSOT
-        # -- a never-reported KRI is not_submitted ONLY once its first required period is
-        # past due, and stays `new` inside its initial grace window. Gating the no_history
-        # clause on this per-frequency boolean is what stops the filter from disagreeing
-        # with the detail classifier (and double-counting a row as both new and
-        # not_submitted).
-        never_reported_overdue = never_reported_is_overdue(today, frequency.value)
-
         if monitoring_status == KRIMonitoringStatus.new:
             if today <= required_due_date:
                 clauses.append(and_(is_frequency, no_history))
-        elif monitoring_status == KRIMonitoringStatus.not_submitted:
-            missing_overdue_clauses = [reported_but_overdue]
-            if never_reported_overdue:
-                missing_overdue_clauses.append(no_history)
-            clauses.append(and_(is_frequency, or_(*missing_overdue_clauses)))
         elif monitoring_status == KRIMonitoringStatus.breach:
             clauses.append(and_(is_frequency, submitted_for_required_period, breach_condition))
         elif monitoring_status == KRIMonitoringStatus.warning:
@@ -194,22 +171,4 @@ def apply_kri_timeliness_status_filter(
     if timeliness_status != KRITimelinessStatus.due_soon:
         return query.where(false())
 
-    clauses = []
-    for frequency in KRIFrequency:
-        _, current_period_end = period_bounds_for_date(today, frequency.value)
-        advance_date = current_period_end - timedelta(days=7)
-        if not (advance_date <= today < current_period_end):
-            continue
-        clauses.append(
-            and_(
-                KeyRiskIndicator.frequency == frequency.value,
-                or_(
-                    KeyRiskIndicator.last_period_end.is_(None),
-                    KeyRiskIndicator.last_period_end < current_period_end,
-                ),
-            )
-        )
-
-    if not clauses:
-        return query.where(false())
-    return query.where(or_(*clauses))
+    return query.where(due_soon_condition(today=today))

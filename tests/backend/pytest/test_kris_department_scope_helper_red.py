@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,47 +9,42 @@ from app.models import Department, User
 from app.models.key_risk_indicator import KRIFrequency
 from app.services._kri_history import clock
 from app.services._kri_history.periods import latest_closed_period_for_date
-from app.services._kri_history.service import KRIHistoryService
 from tests.backend.pytest.factories import create_test_kri, create_test_risk
+from tests.backend.pytest.test_kri_due_population_http import freeze
 
 pytestmark = pytest.mark.contract
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("endpoint", "service_method"),
-    (
-        ("/api/v1/kris/due-soon", "get_due_soon_kris"),
-        ("/api/v1/kris/overdue", "get_overdue_kris"),
-    ),
-)
-async def test_kri_due_window_department_scope_matches_inline_baseline(
+@pytest.mark.parametrize("endpoint", ("/api/v1/kris/due-soon", "/api/v1/kris/overdue"))
+async def test_kri_due_window_department_scope_matches_register_authority(
     client_factory,
+    db_session: AsyncSession,
     test_department: Department,
     test_user_employee: User,
     test_user_cro: User,
     monkeypatch: pytest.MonkeyPatch,
     endpoint: str,
-    service_method: str,
 ) -> None:
-    other_department_id = test_department.id + 10_000
-    service_payload = [
-        {
-            "kri_id": 101,
-            "department_id": test_department.id,
-            "metric_name": "Visible KRI",
-        },
-        {
-            "kri_id": 202,
-            "department_id": other_department_id,
-            "metric_name": "Hidden KRI",
-        },
-    ]
-
-    async def fake_due_window(db):
-        return list(service_payload)
-
-    monkeypatch.setattr(KRIHistoryService, service_method, staticmethod(fake_due_window))
+    # #245 moves scoping into the shared query. Exercise HTTP with real rows,
+    # rather than stubbing a pre-scoped payload that bypasses query authority.
+    freeze(monkeypatch, date(2026, 10, 24))
+    other = Department(name="Due Scope Other", code="DUE-SCOPE-OTHER")
+    db_session.add(other)
+    await db_session.flush()
+    other_department_id = other.id
+    own_risk = await create_test_risk(
+        db_session, department_id=test_department.id, owner_id=test_user_employee.id, risk_id_code="DUE-OWN"
+    )
+    other_risk = await create_test_risk(
+        db_session, department_id=other.id, owner_id=test_user_cro.id, risk_id_code="DUE-OTHER"
+    )
+    own_kri = await create_test_kri(
+        db_session, risk_id=own_risk.id, overrides={"frequency": "monthly", "last_period_end": None}
+    )
+    other_kri = await create_test_kri(
+        db_session, risk_id=other_risk.id, overrides={"frequency": "monthly", "last_period_end": None}
+    )
 
     async with client_factory(current_user=test_user_employee) as employee_client:
         unauthorized = await employee_client.get(endpoint, params={"department_id": other_department_id})
@@ -57,18 +54,18 @@ async def test_kri_due_window_department_scope_matches_inline_baseline(
     assert unauthorized.status_code == 200
     assert unauthorized.json() == []
     assert own_department.status_code == 200
-    assert [item["kri_id"] for item in own_department.json()] == [101]
+    assert [item["kri_id"] for item in own_department.json()] == [own_kri.id]
     assert implicit_scope.status_code == 200
-    assert [item["kri_id"] for item in implicit_scope.json()] == [101]
+    assert [item["kri_id"] for item in implicit_scope.json()] == [own_kri.id]
 
     async with client_factory(current_user=test_user_cro) as privileged_client:
         all_departments = await privileged_client.get(endpoint)
         filtered_other_department = await privileged_client.get(endpoint, params={"department_id": other_department_id})
 
     assert all_departments.status_code == 200
-    assert [item["kri_id"] for item in all_departments.json()] == [101, 202]
+    assert [item["kri_id"] for item in all_departments.json()] == [own_kri.id, other_kri.id]
     assert filtered_other_department.status_code == 200
-    assert [item["kri_id"] for item in filtered_other_department.json()] == [202]
+    assert [item["kri_id"] for item in filtered_other_department.json()] == [other_kri.id]
 
 
 @pytest.mark.asyncio

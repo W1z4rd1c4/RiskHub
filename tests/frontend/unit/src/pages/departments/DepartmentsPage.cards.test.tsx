@@ -71,6 +71,15 @@ describe('DepartmentsPage cards', () => {
         expect(await screen.findByTestId('department-route')).toBeInTheDocument();
     });
 
+    it('renders unavailable KRI counts without inventing zero or a breach badge', async () => {
+        getDepartments.mockResolvedValue([{ ...department, kri_count: null, breaching_kri_count: null }]);
+        renderWithoutProviders(<MemoryRouter><DepartmentsPage /></MemoryRouter>);
+        const card = (await screen.findByRole('heading', { level: 3, name: 'Operations' })).closest('button') as HTMLElement;
+        expect(within(card).getByText('N/A')).toBeInTheDocument();
+        expect(card.querySelector('[data-tone="warning"]')).toBeNull();
+        expect(within(card).queryByText('0')).not.toBeInTheDocument();
+    });
+
     it('draws the Risks / Controls / KRIs metrics with the shared entity icons', async () => {
         const iconClass = (Icon: LucideIcon): string => {
             const { container, unmount } = render(<Icon />);

@@ -9,9 +9,11 @@ from sqlalchemy.orm import selectinload
 from app.core.user_query_options import user_selectinload_options
 from app.models.global_config import ConfigDefaults, get_config_float, get_config_int
 from app.models.key_risk_indicator import KeyRiskIndicator
+from app.models.risk import Risk
 from app.models.role import Role, RoleType
 from app.models.user import User
 from app.services._kri_history.constants import REPORTING_GRACE_DAYS as DEFAULT_REPORTING_GRACE_DAYS
+from app.services.kri_populations import live_clause
 
 
 def initialize_results() -> dict[str, int]:
@@ -47,7 +49,8 @@ async def load_kri_deadline_config(db: AsyncSession) -> dict[str, float | int]:
 async def list_active_kris(db: AsyncSession) -> list[KeyRiskIndicator]:
     stmt = (
         select(KeyRiskIndicator)
-        .where(KeyRiskIndicator.is_archived.is_(False))
+        .join(Risk)
+        .where(live_clause())
         .options(
             selectinload(KeyRiskIndicator.risk),
             selectinload(KeyRiskIndicator.reporting_owner),

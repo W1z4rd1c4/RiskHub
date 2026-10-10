@@ -5,8 +5,6 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 
-from ..access import apply_kri_department_scope
-
 router = APIRouter()
 
 
@@ -23,5 +21,4 @@ async def list_overdue_kris(
     """
     from app.services._kri_history.service import KRIHistoryService
 
-    overdue = await KRIHistoryService.get_overdue_kris(db)
-    return await apply_kri_department_scope(overdue, current_user=current_user, department_id=department_id)
+    return await KRIHistoryService.get_overdue_kris(db, current_user=current_user, department_id=department_id)

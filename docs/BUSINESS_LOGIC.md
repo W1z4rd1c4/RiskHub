@@ -1335,3 +1335,44 @@ explicit operator review. Recovery alone cannot clear restore quarantine. Entra 
 requires current upstream eligibility. No available platform administrator means
 ordinary access stays quarantined pending existing-admin recovery. See
 [the restore contract](security/identity-restore.md).
+
+### ARCH-12 canonical current KRI populations
+
+Live KRI counts require both the child and its parent Risk to be live (ADR-005).
+The breach population tests the measurement against its limits independently of
+monitoring presentation precedence. Overdue and due-soon populations share the
+ADR-012 period algebra, including the monthly never-reported grace-window rule.
+The due-soon window uses the notification default (seven days), inclusive at its
+start and exclusive at period end; a submitted current period is excluded.
+Deadline jobs exclude archived parents while retaining configured notification
+cadence and grace overrides. Live quarterly overdue uses definition
+`riskhub.snapshot.overdue_kris.v2`, including never-reported obligations. Stored
+snapshots and historical v1 reconstruction retain their original metrics and
+version; incomparable definitions suppress deltas rather than rewrite history.
+
+Default live-surface breach parity does not remove the breach widget endpoint's
+explicit `include_archived=true` inspection mode: that opt-in can return archived
+children and children of archived Risks. The register's `breach_only` filter keeps
+its existing live-only definition even with `lifecycle=all`. The dedicated HTTP
+archive-inspection test preserves this deliberate distinction; overdue and due-soon
+widgets have no archive opt-in and match their live register populations.
+
+### Department list aggregate authority
+
+Department cards apply the same domain authority as the workspace: Risk count,
+high-risk count, and total net score require `risks:read`; Control count requires
+`controls:read`. Denied metrics are unavailable (`null`), and their aggregate
+queries are skipped. User counts use the canonical access-roster eligibility,
+target resolution, and query: Department Heads retain own-only access without
+`users:read`; eligible privileged callers can explicitly target a Department even
+when unassigned; only true platform Admins see Admin users. Inactive users stay
+excluded. Authorized empty counts remain zero. Cards render unavailable metrics
+as N/A and omit unavailable warning badges without changing navigation or layout.
+
+### Identity response and audit contract corrections (#196, #199)
+
+Healthy upstream directory checks preserve local `suspended` and `inactive` states
+in single responses and distinct check-all counters. They do not reactivate local
+accounts or relabel them deprovisioned. Native completed logins use `login` audit
+actions, authentication failures use `failed_login`, and credential/factor
+mutations retain `update`; existing operational filters and warning severity apply.

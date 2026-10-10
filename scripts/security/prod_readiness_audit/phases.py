@@ -9,7 +9,7 @@ from prod_readiness_audit.run_state import ProdReadinessRunState
 TRIVY_IMAGE = "aquasec/trivy:0.57.1@sha256:5c59e08f980b5d4d503329773480fcea2c9bdad7e381d846fbf9f2ecb8050f6b"
 SYFT_IMAGE = "anchore/syft:v1.42.3@sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36"
 GRYPE_IMAGE = "anchore/grype:v0.110.0@sha256:af65fbc0c664691067788fe95ff88760b435543e45595eb2ca6f102fc476fbe1"
-GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.18.2@sha256:eadfe256fa18d6a78a717abc9ed454c8e03865d1c46d627bca83977f4424901a"
+GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055"
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,28 @@ def _graceful_container_cleanup(container: str) -> str:
     return (
         f"docker stop --time 30 {container} >/dev/null 2>&1 || true; "
         f"docker rm {container}"
+    )
+
+
+def _postgres_fixture_command(state: ProdReadinessRunState) -> str:
+    # CI can bind only the disposable Docker bridge while preserving the
+    # host.docker.internal external-database seam used by installer containers.
+    # Existing local Docker Desktop invocations retain their default mapping.
+    validate_override = (
+        "import ipaddress,os,sys;"
+        "ip=ipaddress.ip_address(os.environ['RISKHUB_AUDIT_POSTGRES_BIND_HOST']);"
+        "valid=ip.version == 4 and ip.is_private and not "
+        "(ip.is_unspecified or ip.is_loopback or ip.is_multicast or ip.is_link_local);"
+        "sys.exit(0 if valid else 'audit PostgreSQL binding must be a private Docker bridge IPv4 address')"
+    )
+    return (
+        "set -euo pipefail; "
+        "if [[ -v RISKHUB_AUDIT_POSTGRES_BIND_HOST ]]; then "
+        f'"$RISKHUB_AUDIT_PYTHON" -c {shlex.quote(validate_override)}; fi; '
+        'bind_host="${RISKHUB_AUDIT_POSTGRES_BIND_HOST:-0.0.0.0}"; '
+        f"docker run -d --name {shlex.quote(state.postgres_container)} "
+        "-e POSTGRES_USER=riskhub -e POSTGRES_PASSWORD=riskhub_audit "
+        f'-e POSTGRES_DB=riskhub -p "${{bind_host}}:{state.postgres_port}:5432" postgres:16'
     )
 
 
@@ -192,13 +214,17 @@ def build_prod_readiness_phases(
         f"-v {secret_dir}:/audit-secrets "
         f"-v {runtime_dir}:/audit-runtime "
         "riskhub-backend-db:verify-prod-install-scripts -euc "
-        + shlex.quote("chgrp -R 10001 /audit-secrets /audit-runtime")
+        + shlex.quote(
+            "chgrp -R 10001 /audit-secrets /audit-runtime; chmod 2750 /audit-runtime"
+        )
         + "; fi && docker run --rm --entrypoint /bin/sh --user 0:0 "
         f"-v {secret_dir}:/audit-secrets:ro "
         f"-v {runtime_dir}:/audit-runtime:ro "
         "riskhub-backend-db:verify-prod-install-scripts -euc "
         + shlex.quote(
-            'test -z "$(find /audit-secrets /audit-runtime -type d ! -perm 0750 -print -quit)"; '
+            'test -z "$(find /audit-secrets -type d ! -perm 0750 -print -quit)"; '
+            'test -z "$(find /audit-runtime -mindepth 1 -type d ! -perm 0750 -print -quit)"; '
+            "case $(stat -c %a /audit-runtime) in 750|2750) ;; *) exit 1;; esac; "
             'test -z "$(find /audit-secrets /audit-runtime -type f ! -perm 0440 -print -quit)"; '
             'test -z "$(find /audit-secrets /audit-runtime -perm -0007 -print -quit)"'
         )
@@ -428,11 +454,7 @@ def build_prod_readiness_phases(
                 ),
                 ProdReadinessCommand(
                     "p3_start_postgres",
-                    (
-                        f"docker run -d --name {postgres_container} "
-                        "-e POSTGRES_USER=riskhub -e POSTGRES_PASSWORD=riskhub_audit "
-                        f"-e POSTGRES_DB=riskhub -p {state.postgres_port}:5432 postgres:16"
-                    ),
+                    _postgres_fixture_command(state),
                     timeout_sec=300,
                 ),
                 ProdReadinessCommand(
@@ -450,7 +472,7 @@ def build_prod_readiness_phases(
                 ),
                 ProdReadinessCommand(
                     "p3_start_registry",
-                    f"docker run -d --name {registry_container} -p {state.registry_port}:5000 registry:2",
+                    f"docker run -d --name {registry_container} -p 127.0.0.1:{state.registry_port}:5000 registry:2",
                     timeout_sec=300,
                 ),
                 ProdReadinessCommand(
@@ -679,7 +701,7 @@ def build_prod_readiness_phases(
                         f"docker run --rm -v {root_dir}:/repo -v {reports_dir}:/out -w /repo --entrypoint /bin/sh "
                         f"{GITLEAKS_IMAGE} -lc "
                         + shlex.quote(
-                            "gitleaks detect --source /repo --no-git --config .gitleaks.toml "
+                            "gitleaks detect --source . --no-git --config .gitleaks.toml "
                             "--report-format json --report-path /out/gitleaks-report.json --exit-code 1"
                         )
                     ),

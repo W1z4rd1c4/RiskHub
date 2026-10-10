@@ -21,6 +21,7 @@ from app.core.production_contract import LOCAL_CHALLENGE_TTL_SECONDS
 from app.core.security import get_password_hash, password_hash_needs_update, verify_password_or_dummy
 from app.core.user_query_options import user_selectinload_options
 from app.models import LocalAuthFactor, LocalAuthGrant, LocalAuthRecoveryCode, User
+from app.models.activity_log import ActivityAction
 from app.schemas.local_auth import (
     ActionProofResponse,
     FactorEnrollmentResponse,
@@ -68,7 +69,7 @@ async def begin_password_login(
         valid, upgraded = await run_password_work(verify_and_upgrade)
         if not valid or user is None or not (local_user_ready(user) or local_user_ready(user, enrollment=True)):
             await ctx.limiter.password_failed(account)
-            await audit_local(db, None, "local_login_failed")
+            await audit_local(db, None, "local_login_failed", action=ActivityAction.FAILED_LOGIN)
             await commit_local(db, "login_failed")
             raise invalid_proof()
         await ctx.limiter.password_succeeded(account)
@@ -90,7 +91,7 @@ async def begin_password_login(
             if local_user_ready(user, enrollment=True):
                 user.local_enrollment_state, user.is_active = "enrolled", True
                 await complete_bootstrap_target(db, user)
-            await audit_local(db, user, "local_password_login_completed", actor=user)
+            await audit_local(db, user, "local_password_login_completed", actor=user, action=ActivityAction.LOGIN)
             # The caller commits the authority recheck and shared session issuance together.
             return CompletedLocalAuthentication(
                 user, LocalSessionContext.completed(factor_generation=None, installation_id=ctx.installation_id)
@@ -259,7 +260,7 @@ async def verify_factor(
     if not await consume_factor(db, ctx, user, factor, code=code, method=method):
         await failed_factor(db, grant, user)
     await consume_grant(db, grant)
-    await audit_local(db, user, "local_login_completed", actor=user)
+    await audit_local(db, user, "local_login_completed", actor=user, action=ActivityAction.LOGIN)
     return CompletedLocalAuthentication(
         user, LocalSessionContext.completed(factor_generation=factor.generation, installation_id=ctx.installation_id)
     )
@@ -315,7 +316,7 @@ async def recent_authentication(
         version, encoded = snapshot_user.token_version, snapshot_user.hashed_password
         if not await run_password_work(lambda: verify_password_or_dummy(data.password.get_secret_value(), encoded)):
             await ctx.limiter.password_failed(account)
-            await audit_local(db, None, "local_recent_auth_failed")
+            await audit_local(db, None, "local_recent_auth_failed", action=ActivityAction.FAILED_LOGIN)
             await commit_local(db, "recent_auth_failed")
             raise invalid_proof()
         if assisted:
@@ -343,7 +344,7 @@ async def recent_authentication(
             if factor is None or not confirmed or data.factor is None:
                 raise invalid_proof()
             if not await consume_factor(db, ctx, user, factor, code=data.factor.get_secret_value(), method=data.method):
-                await audit_local(db, user, "local_recent_factor_failed")
+                await audit_local(db, user, "local_recent_factor_failed", action=ActivityAction.FAILED_LOGIN)
                 await commit_local(db, "recent_factor_failed")
                 raise invalid_proof()
         key_id, commitment = ctx.keys.commitment(

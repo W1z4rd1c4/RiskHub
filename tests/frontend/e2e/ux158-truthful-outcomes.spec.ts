@@ -322,7 +322,10 @@ test.describe('Issue #158 truthful outcomes and dirty-task browser acceptance', 
         });
 
         await riskManagerPage.goto(detailUrl);
-        await riskManagerPage.getByRole('button', { name: /Edit Control|Upravit kontrolu/i, exact: true }).click();
+        const editControlNavigation = riskManagerPage.locator('button[type="button"]').filter({
+            hasText: /^(Edit Control|Upravit kontrolu)$/i,
+        });
+        await editControlNavigation.click();
         await expect.poll(() => currentPath(riskManagerPage)).toBe(editUrl);
         await expect(riskManagerPage.getByTestId('control-form-lookups-ready')).toBeAttached();
         const identityStep = riskManagerPage.getByRole('button', { name: /Identity|Identita/i, exact: true });
@@ -353,10 +356,12 @@ test.describe('Issue #158 truthful outcomes and dirty-task browser acceptance', 
         await direct;
         await expect.poll(() => currentPath(riskManagerPage)).toBe(detailUrl);
         await expect(riskManagerPage.getByRole('alertdialog')).toHaveCount(0);
+        await expect(riskManagerPage.getByTestId('control-form-lookups-ready')).not.toBeAttached();
 
-        await riskManagerPage.getByRole('button', { name: /Edit Control|Upravit kontrolu/i, exact: true }).click();
+        await editControlNavigation.click();
         await expect.poll(() => currentPath(riskManagerPage)).toBe(editUrl);
         await expect(riskManagerPage.getByTestId('control-form-lookups-ready')).toBeAttached();
+        expect(patchAttempts).toBe(1);
         await riskManagerPage.locator('form input[required]').first().fill('UX158 queued-save acceptance');
         await riskManagerPage.getByRole('button', { name: /Link Risk|Propojit riziko/i, exact: true }).click();
         const queued = riskManagerPage.waitForResponse((response) => (

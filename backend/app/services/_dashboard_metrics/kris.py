@@ -11,6 +11,7 @@ from app.models import KeyRiskIndicator, Risk, User
 from app.models.kri_history import KRIValueHistory
 from app.schemas.dashboard import KRIBreachTrendPoint
 from app.services._dashboard_metrics.periods import month_period_expr
+from app.services.kri_populations import live_clause
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,7 @@ async def load_kri_breach_trends(
     try:
         conditions = [
             KRIValueHistory.period_end.isnot(None),
-            Risk.live(),
-            KeyRiskIndicator.is_archived.is_(False),
+            live_clause(),
         ]
         visibility_clause = await kri_visibility_clause(db, current_user, department_id=department_id)
         if visibility_clause is not None:

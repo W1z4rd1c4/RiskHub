@@ -602,7 +602,12 @@ async def write_snapshots(db: AsyncSession, data: dict, owner_id: int, dept_ids:
         for dept in scopes:
             metrics = {
                 **compute_metrics(data, end, end_date, dept),
-                SNAPSHOT_METRIC_DEFINITIONS_KEY: dict(SNAPSHOT_METRIC_DEFINITION_IDS),
+                SNAPSHOT_METRIC_DEFINITIONS_KEY: {
+                    **SNAPSHOT_METRIC_DEFINITION_IDS,
+                    # Historical reconstruction excludes KRIs without history.
+                    # Do not label that legacy population with the live v2 rule.
+                    "overdue_kris": "riskhub.snapshot.overdue_kris.v1",
+                },
             }
             await save_quarter_snapshot(
                 db,

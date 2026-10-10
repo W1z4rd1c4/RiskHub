@@ -40,7 +40,7 @@ SNAPSHOT_METRIC_DEFINITION_IDS = {
     "control_coverage": "riskhub.snapshot.control_coverage.v1",
     "orphaned_items": "riskhub.snapshot.orphaned_items.v1",
     "kri_health": "riskhub.snapshot.kri_health.v1",
-    "overdue_kris": "riskhub.snapshot.overdue_kris.v1",
+    "overdue_kris": "riskhub.snapshot.overdue_kris.v2",
     "risks_without_kri": "riskhub.snapshot.risks_without_kri.v1",
     "active_risks": "riskhub.snapshot.active_risks.v1",
     "active_vendors": "riskhub.snapshot.active_vendors.v1",

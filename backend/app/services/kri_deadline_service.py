@@ -35,6 +35,7 @@ from app.services.kri_deadline_support import (
     list_risk_managers,
     load_kri_deadline_config,
 )
+from app.services.kri_populations import reminder_period_end
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +81,7 @@ class KRIDeadlineService:
 
     @staticmethod
     def _resolve_period_end(kri: KeyRiskIndicator, today: date) -> date:
-        _, current_period_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
-        _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
-        if kri.last_period_end and kri.last_period_end >= latest_closed_end:
-            return current_period_end
-        return latest_closed_end
+        return reminder_period_end(kri, today=today)
 
     @staticmethod
     async def _can_read(db: AsyncSession, *, user_id: int, kri_id: int) -> bool:

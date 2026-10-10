@@ -261,7 +261,8 @@
   "backend/app/core/identity_policy.py",
   "frontend/src/services/nativeAdminApi.ts",
   "frontend/src/pages/users/NativeInviteForm.tsx",
-  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx"
+  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx",
+  "backend/app/services/kri_populations.py"
  ],
  "actions": [
   {
@@ -347,7 +348,7 @@
    "action": "Search directory users, read directory profile details, import directory users, and administer directory deprovision/break-glass lifecycle",
    "actor_scope": "Admin-only for directory search/import and admin directory lifecycle; CRO/Risk Manager users with users:read cannot import directory users",
    "backend_authority": "backend/app/api/v1/endpoints/directory.py with _require_directory_admin and backend/app/api/v1/endpoints/admin/",
-   "service_policy": "backend/app/services/_directory_identity/, backend/app/services/ad_deprovision_service.py, backend/app/services/directory_provider_service.py, and backend/app/services/_graph_directory/; backend/app/services/_identity_access_lifecycle/ owns directory import, SSO field-lock, break-glass, access profile mutation, and last-privileged-user decisions behind the public facades",
+   "service_policy": "backend/app/services/_directory_identity/, backend/app/services/ad_deprovision_service.py, backend/app/services/directory_provider_service.py, and backend/app/services/_graph_directory/; backend/app/services/_identity_access_lifecycle/ owns directory import, SSO field-lock, break-glass, access profile mutation, and last-privileged-user decisions behind the public facades; Directory checks preserve suspended and inactive local projections even when the upstream account is enabled; single-result client schemas accept both states, and check-all reports distinct suspended/inactive counts without relabeling them active or deprovisioned",
    "response_capability": "backend/app/schemas/access.py AccessUserCapabilities.can_break_glass_enable for access review surfaces; directory import responses expose lifecycle result fields, not action capability objects",
    "frontend_gate": "frontend/src/pages/UserNewPage.tsx, frontend/src/pages/users/UserNewDirectoryImportSection.tsx, frontend/src/components/access/AccessEditModal.tsx, and frontend/src/components/access/",
    "tests": [
@@ -357,7 +358,8 @@
     "tests/backend/pytest/test_ad_deprovision_service.py",
     "tests/backend/pytest/test_access_management.py",
     "tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx",
-    "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx"
+    "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx",
+    "tests/backend/pytest/test_identity_status_audit_contracts.py"
    ],
    "status": "authoritative",
    "findings": []
@@ -491,7 +493,7 @@
    "action": "Read KRI lists, detail, breaches, due-soon/overdue, and linked vendors",
    "actor_scope": "Requires risks:read plus canonical KRI visibility by department, direct risk ownership, KRI reporting ownership, or linked-control ownership",
    "backend_authority": "backend/app/api/v1/endpoints/kris/crud/ and backend/app/api/v1/endpoints/kris/access.py",
-   "service_policy": "backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/ownership.py, backend/app/core/_permissions/visible_ids.py, backend/app/api/v1/endpoints/kris/access.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; KRI linked-vendor serialization and vendor grouped summaries/drilldowns apply vendor visibility before labels/counts and fail-closed invalid drilldown filters",
+   "service_policy": "backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/ownership.py, backend/app/core/_permissions/visible_ids.py, backend/app/api/v1/endpoints/kris/access.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; KRI linked-vendor serialization and vendor grouped summaries/drilldowns apply vendor visibility before labels/counts and fail-closed invalid drilldown filters; ARCH-12 #244/#245 backend/app/services/kri_populations.py owns live, breaching, overdue and due-soon membership; widgets share register visibility followed by explicit department intersection, retaining cross-department ownership authority while excluding archived parents",
    "response_capability": "backend/app/schemas/kri.py KRICapabilities on KRIResponse and KRIListResponse collection capabilities including can_create",
    "frontend_gate": "frontend/src/routing/business.tsx uses a risks:read navigation projection for KRIs; frontend/src/pages/KRIsPage.tsx, frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/kris/kriColumns.tsx, frontend/src/pages/shared/collectionPageState.ts, and frontend/src/pages/detail/useKriDetailState.ts use backend capabilities and render denied/clear stale rows and capabilities on backend 403",
    "tests": [
@@ -500,7 +502,9 @@
     "tests/backend/pytest/test_visibility_helpers.py",
     "tests/frontend/unit/src/pages/shared/collectionPageState.test.ts",
     "tests/frontend/unit/src/pages/__tests__/KRIsPage.monitoring-status.test.tsx",
-    "tests/frontend/unit/src/pages/__tests__/KRIDetailPage.issue-entry.test.tsx"
+    "tests/frontend/unit/src/pages/__tests__/KRIDetailPage.issue-entry.test.tsx",
+    "tests/backend/pytest/test_kri_due_population_http.py",
+    "tests/backend/pytest/test_kri_populations.py"
    ],
    "status": "authoritative",
    "findings": []
@@ -1015,7 +1019,7 @@
    "action": "Read Department list/detail and the exact Overview, Risks, Controls, KRIs, Issues, Processes, Assets, Vendors, Users, and Activity workspace; Threat is excluded",
    "actor_scope": "Requires departments:read for the shell. Each related register retains its canonical read permission and row scope: risks:read for Risks/KRIs, controls:read, issues:read, processes:read, assets:read, vendors:read, and activity_log:read. For Users, a Department Head may view only their own Department without users:read; a privileged caller requires users:read and may explicitly target a Department even when unassigned. Missing domain authority is unavailable, never represented as factual zero. Department Users and its Overview count use AUTHZ-ACCESS-LIST target and roster semantics",
    "backend_authority": "backend/app/api/v1/endpoints/departments/ plus the canonical collection endpoints reused by each tab",
-   "service_policy": "backend/app/core/_permissions/scoping.py and each register's canonical visibility policy; Department Overview totals/health, facets, groups, exports, linked summaries, Process pending creations, and Activity actor options are computed from the same permission-scoped and Department-scoped universe as their top-level registers. Department user_count reuses backend/app/services/_access_workflow/policy.py so it matches the Department Users roster, including explicit targets for unassigned privileged callers and Department Head own-only scope; non-platform callers conceal RoleType.ADMIN users, while true platform Admin callers include them. Replacement parity evidence is in test_unassigned_global_cro_explicit_department_roster_matches_overview_count and test_department_overview_user_count_matches_department_head_access_roster. Owning Department fields define membership; an accountable User's home Department does not. URL state, Clear All, paging, and export cannot remove the locked scope",
+   "service_policy": "backend/app/core/_permissions/scoping.py and each register's canonical visibility policy; Department Overview totals/health, facets, groups, exports, linked summaries, Process pending creations, and Activity actor options are computed from the same permission-scoped and Department-scoped universe as their top-level registers. Department user_count reuses backend/app/services/_access_workflow/policy.py so it matches the Department Users roster, including explicit targets for unassigned privileged callers and Department Head own-only scope; non-platform callers conceal RoleType.ADMIN users, while true platform Admin callers include them. Replacement parity evidence is in test_unassigned_global_cro_explicit_department_roster_matches_overview_count and test_department_overview_user_count_matches_department_head_access_roster. Owning Department fields define membership; an accountable User's home Department does not. URL state, Clear All, paging, and export cannot remove the locked scope; ARCH-12 #244 DepartmentSummary KRI counts are null without risks:read, with unavailable rendering instead of zero; live/breaching counts share backend/app/services/kri_populations.py; DepartmentSummary list aggregates also enforce domain authority before computation: risk_count/high_risk_count/total_net_score require risks:read, control_count requires controls:read, and user_count reuses canonical roster eligibility, target resolution, and Admin concealment. Unavailable counts are null; authorized empty populations remain zero",
    "response_capability": "backend/app/schemas/department.py uses nullable unavailable domain metrics; canonical collection schemas retain their existing row and collection capabilities",
    "frontend_gate": "frontend/src/routing/business.tsx gates the departments shell; frontend/src/pages/DepartmentDetailPage.tsx and frontend/src/pages/departments/ always expose exactly ten tabs with no Threat tab, reuse the canonical top-level register pages under immutable Department scope, and render backend denial/unavailable state without manufacturing zero. Obsolete bespoke mini-table tests are replaced by canonical register/shared-shell, operational-tab, scope, pagination, snapshot-export, Activity, and E2E coverage",
    "tests": [
@@ -1030,7 +1034,11 @@
     "tests/frontend/unit/src/pages/processes/__tests__/useProcessesPageState.sharedState.test.tsx",
     "tests/frontend/unit/src/pages/departments/departmentSnapshotExportScope.contract.test.ts",
     "tests/frontend/unit/src/hooks/__tests__/useActivityLogPageState.test.tsx",
-    "tests/frontend/e2e/department-register-drilldown.spec.ts"
+    "tests/frontend/e2e/department-register-drilldown.spec.ts",
+    "tests/backend/pytest/test_department_kri_permission_parity.py",
+    "tests/backend/pytest/test_kri_population_http.py",
+    "tests/backend/pytest/test_department_aggregate_authority_followup.py",
+    "tests/frontend/unit/src/pages/departments/DepartmentsPage.authority.test.tsx"
    ],
    "status": "authoritative",
    "findings": []
@@ -1124,7 +1132,7 @@
    "action": "Authenticate, issue access tokens, refresh sessions, bootstrap session, read auth config, read platform admin capabilities/logs, and revoke sessions",
    "actor_scope": "Session authority is backend JWT/refresh/session version; cookie-issuing password login requires an allowed Origin/Referer; refresh replay of a rotated token is confirmed under the affected User lock only when the transaction newly revokes an active descendant, then atomically revokes every other active refresh session, advances token_version once, and records one complete containment audit. Repeated or concurrent stale-token presentations are idempotent. Admin session revocation requires `admin:session.revoke` and admin role only; CRO wildcard does NOT apply. Structured log reads are platform-admin-only. Access-token issuance uses the canonical platform-administrator predicate: managed production gives platform administrators 15 minutes, while CRO and every other role receive the ordinary 30-minute lifetime; a shorter remaining absolute SSO session lifetime caps either value. Replay containment and the lifetime split do not change permissions, scope, capabilities, business-action authority, token format, wire responses, or frontend gates",
    "backend_authority": "backend/app/api/v1/endpoints/auth/ and backend/app/api/v1/endpoints/admin/",
-   "service_policy": "backend/app/core/security.py remains role-agnostic; backend/app/api/v1/endpoints/auth/_shared.py selects the configured role-aware lifetime and caps it at remaining absolute SSO session expiry; backend/app/api/v1/endpoints/auth/_request_protection.py, backend/app/api/v1/endpoints/auth/sso.py as the SSO HTTP Adapter, backend/app/services/_auth_session/ owns transport-neutral SSO/refresh outcomes including User-before-RefreshToken locking, fresh rotated-chain reread, conditional active-descendant confirmation, all-active refresh revocation, one token_version increment, and one complete containment audit; the named auth-session workflow commit boundary owns atomic transaction completion; and backend/app/services/sso_token_service.py verifies the external identity token; shared JWKS refresh is limited to one attempt per 60-second interval across callers (including failed attempts), valid cached keys avoid the refresh lock, and only unknown-key or signature failures request a bounded rotation retry without changing issuer, audience, algorithm or claim validation",
+   "service_policy": "backend/app/core/security.py remains role-agnostic; backend/app/api/v1/endpoints/auth/_shared.py selects the configured role-aware lifetime and caps it at remaining absolute SSO session expiry; backend/app/api/v1/endpoints/auth/_request_protection.py, backend/app/api/v1/endpoints/auth/sso.py as the SSO HTTP Adapter, backend/app/services/_auth_session/ owns transport-neutral SSO/refresh outcomes including User-before-RefreshToken locking, fresh rotated-chain reread, conditional active-descendant confirmation, all-active refresh revocation, one token_version increment, and one complete containment audit; the named auth-session workflow commit boundary owns atomic transaction completion; and backend/app/services/sso_token_service.py verifies the external identity token; shared JWKS refresh is limited to one attempt per 60-second interval across callers (including failed attempts), valid cached keys avoid the refresh lock, and only unknown-key or signature failures request a bounded rotation retry without changing issuer, audience, algorithm or claim validation; Native completed password-only and factor logins explicitly emit LOGIN; denied password, factor, recent-auth and exhausted-grant authentication emit FAILED_LOGIN, including known-user denials. Credential and factor enrollment mutations retain UPDATE. These audit classifications do not change session eligibility, authority or optional-MFA policy",
    "response_capability": "GET /api/v1/admin/capabilities exposes admin-console action metadata; session/user permissions are returned through auth/bootstrap responses, not per-business-action capabilities",
    "frontend_gate": "frontend/src/contexts/AuthContext.tsx, frontend/src/contexts/SessionContext.tsx, frontend/src/contexts/PreferencesContext.tsx, frontend/src/contexts/AuthActionsContext.tsx, frontend/src/contexts/PrincipalQueryBoundary.tsx, frontend/src/services/api/ApiClientCore.ts, and frontend/src/services/session/ fence bootstrap, refresh, response consumption, and protected query state to the initiating principal; auth configuration and session bootstrap run concurrently but frontend/src/contexts/auth/useAuthBootstrap.ts withholds authenticated protected mount until configuration succeeds and fails closed when it is unavailable. frontend/src/authz/useAuthz.ts, frontend/src/authz/policy.ts, frontend/src/lib/capabilities.ts, frontend/src/routing/, frontend/src/components/layout/Sidebar.tsx, frontend/src/pages/AdminConsolePage.tsx, and frontend/src/pages/admin-console/sections/ use route/session projection plus backend admin capabilities for admin action buttons; business route navigation read projections mirror backend read guards and are route-context validated by scripts/security/validate_authz_capability_contract.py",
    "tests": [
@@ -1148,7 +1156,8 @@
     "tests/frontend/unit/src/services/session/__tests__/coordinator.singleFlight.test.ts",
     "tests/frontend/unit/src/pages/admin-console/__tests__/AdminConsoleAuditPanels.test.tsx",
     "tests/frontend/unit/src/pages/admin-console/__tests__/AdminConsoleOpsPanels.sessions.test.tsx",
-    "tests/frontend/unit/src/services/__tests__/sessionManager.test.ts"
+    "tests/frontend/unit/src/services/__tests__/sessionManager.test.ts",
+    "tests/backend/pytest/test_identity_status_audit_contracts.py"
    ],
    "status": "authoritative",
    "findings": []
