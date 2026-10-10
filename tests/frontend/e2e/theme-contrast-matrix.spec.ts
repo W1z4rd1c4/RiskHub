@@ -413,6 +413,10 @@ test('hover sampling retains the interaction when async content moves its target
     <script>
       const button = document.querySelector('button');
       button.dataset.enters = '0';
+      button.dataset.leaves = '0';
+      button.addEventListener('mouseleave', () => {
+        button.dataset.leaves = String(Number(button.dataset.leaves) + 1);
+      });
       button.addEventListener('mouseenter', () => {
         button.dataset.enters = String(Number(button.dataset.enters) + 1);
         if (button.dataset.enters === '1') setTimeout(() => { button.style.top = '200px'; }, 50);
@@ -424,6 +428,12 @@ test('hover sampling retains the interaction when async content moves its target
   expect(await page.evaluate(() => document.compatMode)).toBe('CSS1Compat');
   const button = page.getByRole('button', { name: 'Moving footer' });
   await button.hover();
+  await expect.poll(() => button.evaluate(element => element.getBoundingClientRect().top)).toBe(200);
+  // Layout alone can retain Chromium's cached :hover. Force a hit-test at the
+  // original position, then prove the helper starts from genuinely lost hover.
+  await page.mouse.move(21, 21);
+  await expect.poll(() => button.evaluate(element => element.matches(':hover'))).toBe(false);
+  expect(Number(await button.getAttribute('data-leaves'))).toBeGreaterThanOrEqual(1);
   const colors = await settledComputedColors(button, 'moving footer', true);
   expect(colors).toEqual({ background: 'rgb(0, 0, 0)', foreground: 'rgb(255, 255, 255)' });
   expect(await button.evaluate(element => element.matches(':hover'))).toBe(true);
