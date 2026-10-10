@@ -701,7 +701,7 @@ def build_prod_readiness_phases(
                         f"docker run --rm -v {root_dir}:/repo -v {reports_dir}:/out -w /repo --entrypoint /bin/sh "
                         f"{GITLEAKS_IMAGE} -lc "
                         + shlex.quote(
-                            "gitleaks detect --source /repo --no-git --config .gitleaks.toml "
+                            "gitleaks detect --source . --no-git --config .gitleaks.toml "
                             "--report-format json --report-path /out/gitleaks-report.json --exit-code 1"
                         )
                     ),

@@ -226,11 +226,17 @@ stops the lane rather than falling back to all interfaces. Install, upgrade, rol
 and runtime probes use disposable containers and synthetic configuration on
 that runner. They do not target an existing installation or use production
 credentials. On Linux, the disposable runtime fixture directory uses group
-10001 with setgid mode `2750`, so replacing its read-only runtime file retains
-the container-readable group; secret directories remain `0750` and fixture
-files remain `0440`. The lane installs the matching Playwright Chromium before
+10001 with setgid mode `2750`; secret directories remain `0750` and fixture
+files remain `0440`. A separate disposable, non-networked container diagnostic
+compares replacement inheritance when the directory owner is and is not a member
+of that group. Initial normalization alone does not prove post-replacement
+readability: the complete installation and runtime checks must still pass. The lane installs the matching Playwright Chromium before
 rendered checks. Its full-tree Gitleaks audit uses pinned version 8.24.3, matching
 the Security workflow scanner, with unchanged rules and no new suppressions.
+The full-tree scan uses the repository working directory and relative source
+path so existing exact fingerprints keep their canonical path convention.
+Screenshots use browser-native animation handling under the actual CSP; failed
+login readiness retains diagnostic DOM state and an explicitly failed screenshot.
 The harness retains its cleanup and failure-evidence behavior.
 Artifact upload excludes temporary workspaces, secret fixture directories and
 environment files while retaining reports, command results, scans and SBOMs.

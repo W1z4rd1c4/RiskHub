@@ -5121,7 +5121,7 @@ def test_audit_only_readiness_workflow_preserves_full_release_gate() -> None:
     )
     assert workflow["permissions"] == {"contents": "read"}
     assert set(workflow["on"]) == {"pull_request", "push", "workflow_dispatch"}
-    assert set(workflow["jobs"]) == {"readiness-audit"}
+    assert set(workflow["jobs"]) == {"readiness-audit", "fixture-group-diagnostic"}
     job = workflow["jobs"]["readiness-audit"]
     assert job["runs-on"] == "ubuntu-latest"
     assert "continue-on-error" not in job
@@ -5378,6 +5378,90 @@ def test_readiness_gitleaks_keeps_full_tree_scope_with_current_scanner(tmp_path:
     _, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
     scan = next(command for command in commands if command.command_id == "p4_gitleaks_scan")
     assert "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055" in scan.command
-    assert "--source /repo --no-git --config .gitleaks.toml" in scan.command
+    assert "-w /repo" in scan.command
+    assert "--source . --no-git --config .gitleaks.toml" in scan.command
     assert "--exit-code 1" in scan.command
     assert scan.required is True
+
+
+@pytest.mark.parametrize("fail_heading", [False, True])
+def test_screenshot_harness_preserves_csp_and_retains_failure_evidence(
+    tmp_path: Path, fail_heading: bool
+) -> None:
+    screenshots = importlib.import_module("release_parity_audit.screenshots")
+    output = tmp_path / "login.png"
+    state = tmp_path / "login.state.json"
+    command = screenshots.build_login_screenshot_command(
+        url="http://localhost:5174/login", output_path=output, ui_state_path=state
+    )
+    assert "addStyleTag" not in command
+    assert "bypassCSP" not in command
+    script = command.split("<<'NODE'\n", 1)[1].rsplit("\nNODE", 1)[0]
+    preload = tmp_path / "fake-playwright.cjs"
+    events = tmp_path / "events.json"
+    preload.write_text(
+        "const Module = require('module'); const fs = require('fs');\n"
+        "const original = Module._load; const events = [];\n"
+        "global.location = { pathname: '/login' }; global.window = { location };\n"
+        "global.document = { fonts: { ready: Promise.resolve() }, "
+        "querySelector: () => ({ textContent: 'RiskHub Demo' }), "
+        "querySelectorAll: () => [], body: { innerText: 'RiskHub Demo' } };\n"
+        "const page = { on() {}, async emulateMedia() {}, async goto() {}, "
+        "async waitForLoadState() {}, async waitForTimeout() {}, "
+        "async waitForSelector(selector, options) { events.push({selector, options}); "
+        "if (process.env.FAIL_HEADING === '1') throw new Error('heading unavailable'); }, "
+        "async evaluate(fn) { return fn(); }, "
+        "async screenshot(options) { events.push({screenshot: options}); "
+        "fs.writeFileSync(options.path, 'synthetic screenshot'); } };\n"
+        "Module._load = function(name, ...args) { if (name !== 'playwright') "
+        "return original.call(this, name, ...args); return { chromium: { "
+        "async launch() { return { async newContext(options) { events.push({context: options}); "
+        "return { async newPage() { return page; }, async close() {} }; }, "
+        "async close() { fs.writeFileSync(process.env.EVENTS, JSON.stringify(events)); } }; } } }; };\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["node", "--require", str(preload), "-", "http://localhost:5174/login", str(output), str(state)],
+        input=script,
+        env={**os.environ, "FAIL_HEADING": "1" if fail_heading else "0", "EVENTS": str(events)},
+        capture_output=True, text=True, check=False,
+    )
+    recorded = json.loads(events.read_text())
+    heading = next(event for event in recorded if "selector" in event)
+    assert heading == {"selector": 'h1:has-text("RiskHub")', "options": {"timeout": 30000}}
+    shot = next(event["screenshot"] for event in recorded if "screenshot" in event)
+    assert shot["animations"] == "disabled"
+    if fail_heading:
+        assert result.returncode != 0
+        assert not output.exists()
+        assert not state.exists()
+        failure = json.loads(Path(str(output) + ".failure.json").read_text())
+        assert "heading unavailable" in failure["error"]
+        assert failure["path"] == "/login"
+        assert Path(str(output) + ".failure.png").exists()
+    else:
+        assert result.returncode == 0, result.stderr
+        assert output.exists()
+        assert json.loads(state.read_text())["heading"] == "RiskHub Demo"
+
+
+def test_fixture_group_diagnostic_is_disposable_and_non_networked() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    job = workflow["jobs"]["fixture-group-diagnostic"]
+    assert job["runs-on"] == "ubuntu-latest"
+    assert len(job["steps"]) == 1
+    command = job["steps"][0]["run"]
+    assert "--network none --read-only --tmpfs /tmp:rw,nosuid,nodev" in command
+    assert "--security-opt no-new-privileges" in command
+    assert "--privileged" not in command
+    assert " -v " not in command
+    assert "--mount" not in command
+    assert "os.setgroups([])" in command
+    assert "os.setuid(1001)" in command
+    assert '("foreign_group", 1001, 0o750, 1001)' in command
+    assert '("member_group", 10001, 0o2750, 10001)' in command

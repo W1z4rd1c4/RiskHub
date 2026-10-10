@@ -23,6 +23,57 @@ permissions:
   contents: read
 
 jobs:
+  fixture-group-diagnostic:
+    name: Disposable fixture group semantics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare foreign and member group inheritance
+        run: |
+          set -euo pipefail
+          docker run --rm -i --network none --read-only --tmpfs /tmp:rw,nosuid,nodev \
+            --security-opt no-new-privileges \
+            python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a \
+            python - <<'PYTHON'
+          import json
+          import os
+          import stat
+          import tempfile
+          from pathlib import Path
+
+          root = Path(tempfile.mkdtemp())
+          root.chmod(0o755)
+          results = []
+          for name, process_gid, expected_mode, expected_file_gid in (
+              ("foreign_group", 1001, 0o750, 1001),
+              ("member_group", 10001, 0o2750, 10001),
+          ):
+              directory = root / name
+              directory.mkdir()
+              os.chown(directory, 1001, 10001)
+              directory.chmod(0o2750)
+              pid = os.fork()
+              if pid == 0:
+                  try:
+                      os.setgroups([])
+                      os.setgid(process_gid)
+                      os.setuid(1001)
+                      os.chmod(directory, 0o2750)
+                      probe = directory / "synthetic-probe"
+                      probe.write_text("disposable fixture")
+                      probe.chmod(0o440)
+                  except BaseException:
+                      os._exit(1)
+                  os._exit(0)
+              _, status = os.waitpid(pid, 0)
+              assert os.waitstatus_to_exitcode(status) == 0
+              mode = stat.S_IMODE(directory.stat().st_mode)
+              file_gid = (directory / "synthetic-probe").stat().st_gid
+              assert mode == expected_mode, (name, oct(mode))
+              assert file_gid == expected_file_gid, (name, file_gid)
+              results.append({"case": name, "directory_mode": oct(mode), "file_gid": file_gid})
+          print(json.dumps(results, indent=2))
+          PYTHON
+
   readiness-audit:
     name: Full Production Readiness Audit
     runs-on: ubuntu-latest
