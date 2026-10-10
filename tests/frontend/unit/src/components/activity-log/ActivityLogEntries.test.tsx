@@ -48,6 +48,28 @@ function renderEntries(entries: ActivityLogEntry[]) {
 }
 
 describe('ActivityLogEntries', () => {
+    it('renders every activity entry fully opaque on its first committed frame', () => {
+        renderEntries([1, 2].map((id) => ({
+            id,
+            entity_type: 'risk',
+            entity_id: id,
+            entity_name: `Risk ${id}`,
+            action: 'update',
+            actor_id: 7,
+            actor_name: 'Risk owner',
+            department_id: 3,
+            changes: { name: { old: 'Old value', new: 'New value' } },
+            description: 'Updated risk',
+            created_at: '2026-04-06T10:00:00Z',
+        })));
+
+        const entries = screen.getAllByTestId('activity-entry');
+        expect(entries).toHaveLength(2);
+        for (const entry of entries) {
+            expect(entry).toHaveStyle({ opacity: '1' });
+        }
+    });
+
     it('does not quote generic entity labels', () => {
         renderEntries([
             {
