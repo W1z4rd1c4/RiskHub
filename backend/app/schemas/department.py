@@ -33,8 +33,8 @@ class DepartmentSummary(BaseModel):
     risk_count: int
     control_count: int
     high_risk_count: int
-    breaching_kri_count: int = 0
-    kri_count: int = 0
+    breaching_kri_count: int | None = None
+    kri_count: int | None = None
     total_net_score: int = 0
 
     model_config = {"from_attributes": True}

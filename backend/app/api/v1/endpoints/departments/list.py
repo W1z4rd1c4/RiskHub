@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy import and_, or_, select
 
-from app.core.security import require_permission
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Department, User
 from app.schemas.department import DepartmentSummary
@@ -56,8 +56,9 @@ async def list_departments(
     risk_counts = await _count_risks_by_dept(db)
     high_risk_counts = await _count_high_risks_by_dept(db)
     control_counts = await _count_controls_by_dept(db)
-    kri_counts = await _count_kris_by_dept(db)
-    breaching_kri_counts = await _count_breaching_kris_by_dept(db)
+    can_read_kris = check_permission(current_user, "risks", "read")
+    kri_counts = await _count_kris_by_dept(db) if can_read_kris else {}
+    breaching_kri_counts = await _count_breaching_kris_by_dept(db) if can_read_kris else {}
     net_score_totals = await _sum_net_scores_by_dept(db)
 
     # 3. Build response objects
@@ -70,8 +71,8 @@ async def list_departments(
             risk_count=risk_counts.get(dept.id, 0),
             control_count=control_counts.get(dept.id, 0),
             high_risk_count=high_risk_counts.get(dept.id, 0),
-            breaching_kri_count=breaching_kri_counts.get(dept.id, 0),
-            kri_count=kri_counts.get(dept.id, 0),
+            breaching_kri_count=breaching_kri_counts.get(dept.id, 0) if can_read_kris else None,
+            kri_count=kri_counts.get(dept.id, 0) if can_read_kris else None,
             total_net_score=int(net_score_totals.get(dept.id, 0)),
         )
         for dept in departments

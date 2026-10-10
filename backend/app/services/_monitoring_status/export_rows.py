@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time
 
-from app.services._kri_history.periods import period_bounds_for_date
+from app.services.kri_populations import due_soon_period_end
 
 from .controls import derive_control_monitoring_snapshot
 from .kris import derive_kri_monitoring_snapshot
@@ -98,12 +98,10 @@ def apply_kri_monitoring_rows(
         row["required_due_date"] = snapshot.required_due_date
         row["days_overdue"] = snapshot.days_overdue
         row["warning_upper_margin_ratio"] = snapshot.warning_upper_margin_ratio
-        _, current_period_end = period_bounds_for_date(as_of_date, str(row.get("frequency") or "quarterly"))
-        last_period_end = _date_or_none(row.get("last_period_end"))
         row["timeliness_status"] = (
             KRITimelinessStatus.due_soon.value
-            if current_period_end - timedelta(days=7) <= as_of_date < current_period_end
-            and (last_period_end is None or last_period_end < current_period_end)
+            if due_soon_period_end(frequency=str(row.get("frequency") or "quarterly"),
+                last_period_end=_date_or_none(row.get("last_period_end")), today=as_of_date) is not None
             else None
         )
     return rows

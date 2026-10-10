@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pagination import MAX_PAGE_SIZE
 from app.core.permissions import check_department_access, get_user_department_ids
 from app.models import Control, Department, KeyRiskIndicator, Risk, User
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges, get_config_int
+from app.services.kri_populations import breaching_clause, live_clause
 
 # Risk level score ranges (uses ConfigDefaults for consistency)
 RISK_LEVEL_RANGES = build_risk_level_ranges(
@@ -107,7 +108,7 @@ async def _count_kris_by_dept(db: AsyncSession) -> dict[int, int]:
     result = await db.execute(
         select(Risk.department_id, func.count(KeyRiskIndicator.id))
         .join(Risk)
-        .where(Risk.live())
+        .where(live_clause())
         .group_by(Risk.department_id)
     )
     return _counts_by_department(result.all())
@@ -118,15 +119,7 @@ async def _count_breaching_kris_by_dept(db: AsyncSession) -> dict[int, int]:
     result = await db.execute(
         select(Risk.department_id, func.count(KeyRiskIndicator.id))
         .join(Risk)
-        .where(
-            and_(
-                Risk.live(),
-                or_(
-                    KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-                ),
-            )
-        )
+        .where(breaching_clause())
         .group_by(Risk.department_id)
     )
     return _counts_by_department(result.all())

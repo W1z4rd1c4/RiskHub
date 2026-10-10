@@ -19,8 +19,8 @@ export interface DepartmentSummary {
     risk_count: number;
     high_risk_count: number;
     control_count: number;
-    kri_count: number;
-    breaching_kri_count: number;
+    kri_count: number | null;
+    breaching_kri_count: number | null;
     total_net_score: number;
 }
 

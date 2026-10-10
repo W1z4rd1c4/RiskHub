@@ -124,7 +124,7 @@ export function DepartmentsPage() {
                                 </div>
                                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                                     {/* Each badge sits in its own wrapper so the card keeps one status element per slot. */}
-                                    {dept.breaching_kri_count > 0 && (
+                                    {dept.breaching_kri_count != null && dept.breaching_kri_count > 0 && (
                                         <div className="max-w-full">
                                             <Badge tone="warning" className={DEPARTMENT_BADGE_CLASS}>
                                                 {dept.breaching_kri_count} {t('kris:status.breached')}
@@ -162,7 +162,7 @@ export function DepartmentsPage() {
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <ENTITY_ICONS.kri aria-hidden="true" className="h-4 w-4 text-success-text" />
-                                    <span className="text-lg font-bold text-foreground">{dept.kri_count}</span>
+                                    <span className="text-lg font-bold text-foreground">{dept.kri_count ?? t('common:fallbacks.not_available')}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('kris:title')}</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">

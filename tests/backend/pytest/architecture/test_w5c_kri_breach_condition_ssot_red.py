@@ -1,44 +1,27 @@
-"""Ratchet lock: the KRI breach predicate has ONE canonical SQLAlchemy home.
+"""ARCH-12: only the population module composes raw KRI breach SQL.
 
-The breach predicate
-
-    or_(
-        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-    )
-
-was duplicated verbatim across five read paths (snapshot metrics, dashboard
-department metrics, register-listing KRIs and risks, and monitoring status).
-Phase #1 consolidates it into ``kri_breach_condition`` on the KRI model module,
-which both ``app.core`` and ``app.services`` may import safely.
-
-This lock asserts the raw ``or_(current_value < lower_limit, ... > upper_limit)``
-clause no longer appears as inline source in the five consumers, and that each
-consumer instead references the canonical helper. Behavior preservation is pinned
-separately by ``tests/backend/pytest/test_char_kri_breach.py``.
+Scan every application module, rather than a hand-listed consumer allowlist.
+The injected-source test proves a newly introduced caller cannot escape the lock.
 """
 
 from __future__ import annotations
 
 import ast
+import inspect
 from pathlib import Path
 
 import pytest
+
+from app.services.kri_populations import kri_breach_condition
 
 pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
 HELPER_NAME = "kri_breach_condition"
-HELPER_MODULE = REPO_ROOT / "backend/app/models/key_risk_indicator.py"
-
-CONSUMERS = [
-    REPO_ROOT / "backend/app/core/_snapshot_metrics/kri.py",
-    REPO_ROOT / "backend/app/services/_dashboard_metrics/departments.py",
-    REPO_ROOT / "backend/app/services/_register_listings/kris.py",
-    REPO_ROOT / "backend/app/services/_register_listings/risks.py",
-    REPO_ROOT / "backend/app/services/_monitoring_status/queries.py",
-]
+# Follow the public population function to its implementation, allowing an
+# internal move/re-export without changing the single-owner decision.
+HELPER_MODULE = Path(inspect.getfile(kri_breach_condition)).resolve()
 
 
 def _is_limit_comparison(node: ast.expr, op: type[ast.cmpop], limit_attr: str) -> bool:
@@ -78,20 +61,40 @@ def _has_raw_breach_or(tree: ast.Module) -> bool:
 
 
 def test_breach_condition_helper_is_defined_once() -> None:
-    tree = ast.parse(HELPER_MODULE.read_text())
-    defined = {
-        node.name
-        for node in ast.walk(tree)
+    definitions = [
+        path.resolve()
+        for path in (REPO_ROOT / "backend/app").rglob("*.py")
+        for node in ast.walk(ast.parse(path.read_text()))
         if isinstance(node, ast.FunctionDef) and node.name == HELPER_NAME
+    ]
+    assert definitions == [HELPER_MODULE], f"Expected one canonical breach function, found {definitions}"
+
+
+def _offenders(sources: dict[str, str]) -> list[str]:
+    return [name for name, source in sources.items() if _has_raw_breach_or(ast.parse(source))]
+
+
+def test_only_population_module_composes_breach_predicate() -> None:
+    sources = {
+        str(path): path.read_text() for path in (REPO_ROOT / "backend/app").rglob("*.py") if path != HELPER_MODULE
     }
-    assert HELPER_NAME in defined, f"{HELPER_NAME} must be defined in {HELPER_MODULE}"
+    assert _offenders(sources) == []
 
 
-def test_consumers_do_not_inline_the_breach_or_clause() -> None:
-    offenders = [str(path) for path in CONSUMERS if _has_raw_breach_or(ast.parse(path.read_text()))]
-    assert offenders == [], f"raw or_(...) breach clause still inlined in: {offenders}"
+def test_lock_catches_seeded_new_consumer_violation() -> None:
+    seeded = {
+        "new_unlisted_consumer.py": (
+            "predicate = or_(KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit, "
+            "KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit)"
+        )
+    }
+    assert _offenders(seeded) == ["new_unlisted_consumer.py"]
 
 
-def test_consumers_reference_the_canonical_helper() -> None:
-    missing = [str(path) for path in CONSUMERS if HELPER_NAME not in path.read_text()]
-    assert missing == [], f"consumers must call {HELPER_NAME}: {missing}"
+def test_lock_allows_canonical_internal_move_but_still_catches_new_consumer() -> None:
+    original = {"population_impl.py": HELPER_MODULE.read_text(), "caller.py": "condition = kri_breach_condition()"}
+    moved = {"internal/population_rules.py": original["population_impl.py"], "caller.py": original["caller.py"]}
+    for sources, owner in [(original, "population_impl.py"), (moved, "internal/population_rules.py")]:
+        assert _offenders({name: source for name, source in sources.items() if name != owner}) == []
+        sources["new_consumer.py"] = sources[owner]
+        assert _offenders({name: source for name, source in sources.items() if name != owner}) == ["new_consumer.py"]

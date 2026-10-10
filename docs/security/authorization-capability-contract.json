@@ -260,7 +260,8 @@
   "backend/app/core/identity_policy.py",
   "frontend/src/services/nativeAdminApi.ts",
   "frontend/src/pages/users/NativeInviteForm.tsx",
-  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx"
+  "frontend/src/pages/users/NativeUserLifecyclePanel.tsx",
+  "backend/app/services/kri_populations.py"
  ],
  "actions": [
   {
@@ -489,7 +490,7 @@
    "action": "Read KRI lists, detail, breaches, due-soon/overdue, and linked vendors",
    "actor_scope": "Requires risks:read plus canonical KRI visibility by department, direct risk ownership, KRI reporting ownership, or linked-control ownership",
    "backend_authority": "backend/app/api/v1/endpoints/kris/crud/ and backend/app/api/v1/endpoints/kris/access.py",
-   "service_policy": "backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/ownership.py, backend/app/core/_permissions/visible_ids.py, backend/app/api/v1/endpoints/kris/access.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; KRI linked-vendor serialization and vendor grouped summaries/drilldowns apply vendor visibility before labels/counts and fail-closed invalid drilldown filters",
+   "service_policy": "backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/ownership.py, backend/app/core/_permissions/visible_ids.py, backend/app/api/v1/endpoints/kris/access.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; KRI linked-vendor serialization and vendor grouped summaries/drilldowns apply vendor visibility before labels/counts and fail-closed invalid drilldown filters; ARCH-12 #244/#245 backend/app/services/kri_populations.py owns live, breaching, overdue and due-soon membership; widgets share register visibility followed by explicit department intersection, retaining cross-department ownership authority while excluding archived parents",
    "response_capability": "backend/app/schemas/kri.py KRICapabilities on KRIResponse and KRIListResponse collection capabilities including can_create",
    "frontend_gate": "frontend/src/routing/business.tsx uses a risks:read navigation projection for KRIs; frontend/src/pages/KRIsPage.tsx, frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/kris/kriColumns.tsx, frontend/src/pages/shared/collectionPageState.ts, and frontend/src/pages/detail/useKriDetailState.ts use backend capabilities and render denied/clear stale rows and capabilities on backend 403",
    "tests": [
@@ -498,7 +499,9 @@
     "tests/backend/pytest/test_visibility_helpers.py",
     "tests/frontend/unit/src/pages/shared/collectionPageState.test.ts",
     "tests/frontend/unit/src/pages/__tests__/KRIsPage.monitoring-status.test.tsx",
-    "tests/frontend/unit/src/pages/__tests__/KRIDetailPage.issue-entry.test.tsx"
+    "tests/frontend/unit/src/pages/__tests__/KRIDetailPage.issue-entry.test.tsx",
+    "tests/backend/pytest/test_kri_due_population_http.py",
+    "tests/backend/pytest/test_kri_populations.py"
    ],
    "status": "authoritative",
    "findings": []
@@ -1012,7 +1015,7 @@
    "action": "Read Department list/detail and the exact Overview, Risks, Controls, KRIs, Issues, Processes, Assets, Vendors, Users, and Activity workspace; Threat is excluded",
    "actor_scope": "Requires departments:read for the shell. Each related register retains its canonical read permission and row scope: risks:read for Risks/KRIs, controls:read, issues:read, processes:read, assets:read, vendors:read, and activity_log:read. For Users, a Department Head may view only their own Department without users:read; a privileged caller requires users:read and may explicitly target a Department even when unassigned. Missing domain authority is unavailable, never represented as factual zero. Department Users and its Overview count use AUTHZ-ACCESS-LIST target and roster semantics",
    "backend_authority": "backend/app/api/v1/endpoints/departments/ plus the canonical collection endpoints reused by each tab",
-   "service_policy": "backend/app/core/_permissions/scoping.py and each register's canonical visibility policy; Department Overview totals/health, facets, groups, exports, linked summaries, Process pending creations, and Activity actor options are computed from the same permission-scoped and Department-scoped universe as their top-level registers. Department user_count reuses backend/app/services/_access_workflow/policy.py so it matches the Department Users roster, including explicit targets for unassigned privileged callers and Department Head own-only scope; non-platform callers conceal RoleType.ADMIN users, while true platform Admin callers include them. Replacement parity evidence is in test_unassigned_global_cro_explicit_department_roster_matches_overview_count and test_department_overview_user_count_matches_department_head_access_roster. Owning Department fields define membership; an accountable User's home Department does not. URL state, Clear All, paging, and export cannot remove the locked scope",
+   "service_policy": "backend/app/core/_permissions/scoping.py and each register's canonical visibility policy; Department Overview totals/health, facets, groups, exports, linked summaries, Process pending creations, and Activity actor options are computed from the same permission-scoped and Department-scoped universe as their top-level registers. Department user_count reuses backend/app/services/_access_workflow/policy.py so it matches the Department Users roster, including explicit targets for unassigned privileged callers and Department Head own-only scope; non-platform callers conceal RoleType.ADMIN users, while true platform Admin callers include them. Replacement parity evidence is in test_unassigned_global_cro_explicit_department_roster_matches_overview_count and test_department_overview_user_count_matches_department_head_access_roster. Owning Department fields define membership; an accountable User's home Department does not. URL state, Clear All, paging, and export cannot remove the locked scope; ARCH-12 #244 DepartmentSummary KRI counts are null without risks:read, with unavailable rendering instead of zero; live/breaching counts share backend/app/services/kri_populations.py",
    "response_capability": "backend/app/schemas/department.py uses nullable unavailable domain metrics; canonical collection schemas retain their existing row and collection capabilities",
    "frontend_gate": "frontend/src/routing/business.tsx gates the departments shell; frontend/src/pages/DepartmentDetailPage.tsx and frontend/src/pages/departments/ always expose exactly ten tabs with no Threat tab, reuse the canonical top-level register pages under immutable Department scope, and render backend denial/unavailable state without manufacturing zero. Obsolete bespoke mini-table tests are replaced by canonical register/shared-shell, operational-tab, scope, pagination, snapshot-export, Activity, and E2E coverage",
    "tests": [
@@ -1027,7 +1030,9 @@
     "tests/frontend/unit/src/pages/processes/__tests__/useProcessesPageState.sharedState.test.tsx",
     "tests/frontend/unit/src/pages/departments/departmentSnapshotExportScope.contract.test.ts",
     "tests/frontend/unit/src/hooks/__tests__/useActivityLogPageState.test.tsx",
-    "tests/frontend/e2e/department-register-drilldown.spec.ts"
+    "tests/frontend/e2e/department-register-drilldown.spec.ts",
+    "tests/backend/pytest/test_department_kri_permission_parity.py",
+    "tests/backend/pytest/test_kri_population_http.py"
    ],
    "status": "authoritative",
    "findings": []
