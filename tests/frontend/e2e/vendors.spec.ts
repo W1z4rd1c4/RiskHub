@@ -597,9 +597,11 @@ test.describe('Vendor Management (Deterministic)', () => {
         await riskManagerPage.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }).click();
 
         await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
-        await expect(
-            riskManagerPage.getByText(/KRI created and linked to the vendor|KRI bylo vytvořeno a navázáno na dodavatele/i),
-        ).toBeVisible({ timeout: 15000 });
+        const successToast = riskManagerPage.getByRole('listitem').filter({
+            hasText: /KRI created and linked to the vendor|KRI bylo vytvořeno a navázáno na dodavatele/i,
+        });
+        await expect(successToast).toBeVisible({ timeout: 15000 });
+        await expect(successToast).toHaveAttribute('data-tone', 'success');
         await expect(
             riskManagerPage.getByTestId('vendor-linked-kris-section').getByText(metricName).first(),
         ).toBeVisible({ timeout: 15000 });
