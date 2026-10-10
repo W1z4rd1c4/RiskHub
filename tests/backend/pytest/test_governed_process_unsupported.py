@@ -5,10 +5,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ValidationError
+from app.core.exceptions import AuthorizationError, ValidationError
 from app.models import (
+    ActivityLog,
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
@@ -17,9 +19,11 @@ from app.models import (
     GovernedMutationImpactLock,
     Notification,
     NotificationType,
+    OutboxEvent,
     Process,
     User,
 )
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._governed_mutations.process_identity import (
     new_governed_process_proposal,
 )
@@ -218,51 +222,83 @@ async def test_unsupported_proposal_is_rejected_before_legacy_execution(
     )
     approval_id = approval.id
 
-    if operation == "approve" and unsupported_axis not in {
-        "kind",
-        "relationship_kind",
-        "type",
-    }:
-        result = await approve_request_workflow(
-            db_session,
-            approval_id,
-            test_user_cro,
-            "Expire malformed immutable envelope",
-        )
-        assert result.status == ApprovalStatus.EXPIRED
-        return
-
-    with pytest.raises(ValidationError) as exc_info:
-        if operation == "approve":
-            await approve_request_workflow(
-                db_session,
-                approval_id,
-                test_user_cro,
-                "Must not execute as legacy",
-            )
-        elif operation == "reject":
-            await reject_request_workflow(
-                db_session,
-                approval_id,
-                test_user_employee,
-                "Must not execute as legacy",
-            )
-        else:
-            await cancel_request_workflow(
-                db_session,
-                approval_id,
-                test_user_employee,
-            )
-
-    expected_code = (
-        "governed_mutation_unsupported"
-        if unsupported_axis in {"kind", "relationship_kind", "type"}
-        else "governed_mutation_identity_invalid"
+    process_before = list(
+        (await db_session.execute(select(Process.__table__))).mappings()
     )
-    assert exc_info.value.code == expected_code
+    recognized_kind = unsupported_axis not in {"kind", "relationship_kind", "type"}
+
+    async def resolve():
+        if operation == "approve":
+            return await approve_request_workflow(
+                db_session, approval_id, test_user_cro, "Must not execute as legacy"
+            )
+        if operation == "reject":
+            return await reject_request_workflow(
+                db_session,
+                approval_id,
+                test_user_employee,
+                "Must not execute as legacy",
+            )
+        return await cancel_request_workflow(
+            db_session, approval_id, test_user_employee
+        )
+
+    actor_id = test_user_cro.id if operation == "approve" else test_user_employee.id
+    expires = recognized_kind and operation in {"approve", "cancel"}
+    if expires:
+        result = await resolve()
+        assert result.status == ApprovalStatus.EXPIRED
+    elif recognized_kind:
+        # A malformed recognized proposal permits bounded cleanup, never self-review.
+        with pytest.raises(AuthorizationError):
+            await resolve()
+    else:
+        with pytest.raises(ValidationError) as exc_info:
+            await resolve()
+        assert exc_info.value.code == "governed_mutation_unsupported"
+
     db_session.expire_all()
     persisted = await db_session.get(ApprovalRequest, approval_id)
-    assert persisted is not None and persisted.status == ApprovalStatus.PENDING
+    assert persisted is not None
+    assert persisted.status == (
+        ApprovalStatus.EXPIRED if expires else ApprovalStatus.PENDING
+    )
+    locks = list((await db_session.scalars(select(GovernedMutationImpactLock))).all())
+    assert (persisted.resolved_at is not None) is expires
+    assert persisted.resolved_by_id == (actor_id if expires else None)
+    assert len(locks) == 1
+    assert (locks[0].released_at is not None) is expires
+    assert locks[0].release_reason == ("expired" if expires else None)
+    assert (
+        list((await db_session.execute(select(Process.__table__))).mappings())
+        == process_before
+    )
+    audits = list(
+        (
+            await db_session.scalars(
+                select(ActivityLog).where(
+                    ActivityLog.entity_type == ActivityEntityType.APPROVAL,
+                    ActivityLog.entity_id == approval_id,
+                )
+            )
+        ).all()
+    )
+    events = list(
+        (
+            await db_session.scalars(
+                select(OutboxEvent).where(
+                    OutboxEvent.aggregate_type == "approval_request",
+                    OutboxEvent.aggregate_id == approval_id,
+                )
+            )
+        ).all()
+    )
+    assert [audit.action for audit in audits] == (
+        [ActivityAction.STATUS_CHANGE] if expires else []
+    )
+    assert [event.event_type for event in events] == (
+        ["approval.request_expired"] if expires else []
+    )
 
 
 @pytest.mark.asyncio
