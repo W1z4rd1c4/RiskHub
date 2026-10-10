@@ -41,6 +41,7 @@ from .asset_identity import (
     ASSET_CREATE_KIND,
     ASSET_EDIT_KIND,
     ASSET_RELATIONSHIP_PREFIX,
+    valid_asset_governed_envelope,
 )
 from .asset_impact import existing_asset_impacts as _existing_asset_impacts
 from .asset_mutations import (
@@ -69,6 +70,7 @@ from .asset_resolution_replay import (
 from .asset_resolution_replay import (
     relationship_replay_stale_reason as _relationship_replay_stale_reason,
 )
+from .resolution_guards import require_pending_resolution, require_rejection_reason, resolution_envelope_is_valid
 from .terminal_transitions import finalize_governed_terminal_transition
 
 
@@ -76,8 +78,7 @@ async def approve_asset_mutation(
     db: AsyncSession, *, approval_id: int, current_user: User, resolution_notes: str
 ) -> ApprovalRequest:
     approval, proposal, locks = await _load_asset_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(f"Cannot resolve request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     if proposal.mutation_kind == ASSET_CREATE_KIND:
         try:
             creation_payload = AssetCreate.model_validate(proposal.proposed_changes["after"])
@@ -821,8 +822,7 @@ async def approve_asset_mutation(
 
 async def cancel_asset_mutation(db: AsyncSession, *, approval_id: int, current_user: User) -> ApprovalRequest:
     approval, proposal, locks = await _load_asset_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(f"Cannot cancel request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     if approval.requested_by_id != current_user.id or proposal.requested_by_id != current_user.id:
         raise AuthorizationError("Only the requester may cancel a governed Asset mutation request")
     asset = (
@@ -832,6 +832,16 @@ async def cancel_asset_mutation(db: AsyncSession, *, approval_id: int, current_u
         if proposal.primary_resource_id is not None
         else None
     )
+    if not resolution_envelope_is_valid(approval, family_valid=valid_asset_governed_envelope(proposal)):
+        return await _expire_asset_approval(
+            db,
+            approval=approval,
+            proposal=proposal,
+            locks=locks,
+            actor=current_user,
+            reason="Governed Asset approval envelope is malformed",
+            department_id=asset.owning_department_id if asset else current_user.department_id,
+        )
     await finalize_governed_terminal_transition(
         db,
         approval=approval,
@@ -853,9 +863,9 @@ async def reject_asset_mutation(
     current_user: User,
     resolution_notes: str,
 ) -> ApprovalRequest:
+    resolution_reason = require_rejection_reason(resolution_notes)
     approval, proposal, locks = await _load_asset_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(f"Cannot reject request with status: {approval.status.value}")
+    require_pending_resolution(approval)
     resolver, requester, policy_stale_reason = await _load_live_asset_resolution_policy(
         db,
         proposal=proposal,
@@ -887,7 +897,7 @@ async def reject_asset_mutation(
         actor=current_user,
         department_id=asset.owning_department_id if asset else current_user.department_id,
         status=ApprovalStatus.REJECTED,
-        resolution_notes=resolution_notes,
+        resolution_notes=resolution_reason,
     )
     await _commit_asset_boundary(db, boundary="governed_mutation.asset.reject")
     return await _reload_asset_approval(db, approval.id)
