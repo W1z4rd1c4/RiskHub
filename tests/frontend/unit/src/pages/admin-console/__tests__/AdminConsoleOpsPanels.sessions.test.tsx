@@ -70,6 +70,8 @@ describe('SessionsPanel', () => {
             checked: 3,
             deprovisioned: 1,
             active: 2,
+            suspended: 0,
+            inactive: 0,
             errors: 0,
             skipped: 0,
             results: [],

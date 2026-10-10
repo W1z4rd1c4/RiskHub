@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.user_query_options import user_selectinload_options
 from app.models import LocalAuthGrant, User
+from app.models.activity_log import ActivityAction
 from app.services._auth_session_workflow.authority import lock_session_user
 
 from .common import NativeContext, audit_local, commit_local, invalid_proof
@@ -109,7 +110,7 @@ async def read_grant(
             ).scalar_one()
             if failed_user is not None and failed_row.consumed_at is None and failed_row.revoked_at is None:
                 failed_row.revoked_at = utc_now()
-                await audit_local(db, failed_user, "local_grant_attempts_exhausted")
+                await audit_local(db, failed_user, "local_grant_attempts_exhausted", action=ActivityAction.FAILED_LOGIN)
                 await commit_local(db, "grant_exhausted")
         raise invalid_proof()
     if expected_user_id is not None and row.user_id != expected_user_id:
@@ -178,6 +179,6 @@ async def failed_factor(db: AsyncSession, row: LocalAuthGrant, user: User) -> No
     if row.failures >= 5:
         row.revoked_at = utc_now()
     db.add(row)
-    await audit_local(db, user, "local_factor_failed")
+    await audit_local(db, user, "local_factor_failed", action=ActivityAction.FAILED_LOGIN)
     await commit_local(db, "factor_failed")
     raise invalid_proof()

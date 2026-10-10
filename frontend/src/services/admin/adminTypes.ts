@@ -148,7 +148,7 @@ export interface ActiveSession {
 export interface DirectoryCheckResult {
     user_id: number;
     email: string;
-    status: 'active' | 'deprovisioned' | 'error' | 'skipped';
+    status: 'active' | 'deprovisioned' | 'suspended' | 'inactive' | 'error' | 'skipped';
     reason: string | null;
     revoked_sessions: number;
     orphaned_items_flagged: number;
@@ -158,6 +158,8 @@ export interface DirectoryCheckAllResponse {
     checked: number;
     deprovisioned: number;
     active: number;
+    suspended: number;
+    inactive: number;
     errors: number;
     skipped: number;
     results: DirectoryCheckResult[];

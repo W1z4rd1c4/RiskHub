@@ -1332,3 +1332,11 @@ explicit operator review. Recovery alone cannot clear restore quarantine. Entra 
 requires current upstream eligibility. No available platform administrator means
 ordinary access stays quarantined pending existing-admin recovery. See
 [the restore contract](security/identity-restore.md).
+
+### Identity response and audit contract corrections (#196, #199)
+
+Healthy upstream directory checks preserve local `suspended` and `inactive` states
+in single responses and distinct check-all counters. They do not reactivate local
+accounts or relabel them deprovisioned. Native completed logins use `login` audit
+actions, authentication failures use `failed_login`, and credential/factor
+mutations retain `update`; existing operational filters and warning severity apply.

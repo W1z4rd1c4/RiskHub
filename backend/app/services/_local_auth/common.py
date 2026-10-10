@@ -110,13 +110,14 @@ async def audit_local(
     event: str,
     *,
     actor: User | None = None,
+    action: ActivityAction = ActivityAction.UPDATE,
     reason: str | None = None,
     evidence: dict | None = None,
 ) -> None:
     await log_activity(
         db=db,
         actor=actor,
-        action=ActivityAction.UPDATE if user is not None else ActivityAction.FAILED_LOGIN,
+        action=action,
         entity_type=ActivityEntityType.USER,
         entity_id=user.id if user else 0,
         entity_name=user.name if user else "local authentication",

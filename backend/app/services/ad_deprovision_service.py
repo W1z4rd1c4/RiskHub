@@ -102,6 +102,8 @@ class ADDeprovisionService:
             "checked": len(results),
             "deprovisioned": sum(1 for item in results if item["status"] == "deprovisioned"),
             "active": sum(1 for item in results if item["status"] == "active"),
+            "suspended": sum(1 for item in results if item["status"] == "suspended"),
+            "inactive": sum(1 for item in results if item["status"] == "inactive"),
             "errors": sum(1 for item in results if item["status"] == "error"),
             "skipped": sum(1 for item in results if item["status"] == "skipped"),
             "results": results,
