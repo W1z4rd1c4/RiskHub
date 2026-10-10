@@ -139,7 +139,8 @@ jobs:
       - name: Prepare process-only fixture group shell
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/riskhub-audit-shell" <<'SHELL'
+          mkdir -p "$RUNNER_TEMP/riskhub-audit-shell-bin"
+          cat > "$RUNNER_TEMP/riskhub-audit-shell-bin/riskhub-audit-shell" <<'SHELL'
           #!/usr/bin/env bash
           set -euo pipefail
           test "$#" -eq 1
@@ -158,10 +159,11 @@ jobs:
             --groups="$runner_groups,10001" \
             -- /bin/bash --noprofile --norc -euo pipefail "$1"
           SHELL
-          chmod 0700 "$RUNNER_TEMP/riskhub-audit-shell"
+          chmod 0700 "$RUNNER_TEMP/riskhub-audit-shell-bin/riskhub-audit-shell"
+          printf '%s\n' "$RUNNER_TEMP/riskhub-audit-shell-bin" >> "$GITHUB_PATH"
 
       - name: Run full release parity audit
-        shell: ${{ runner.temp }}/riskhub-audit-shell {0}
+        shell: riskhub-audit-shell {0}
         env:
           RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |

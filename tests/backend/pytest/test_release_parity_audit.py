@@ -5511,7 +5511,8 @@ def test_audit_fixture_shell_drops_privilege_without_persistent_membership() -> 
     audit = next(
         step for step in steps if step.get("name") == "Run full release parity audit"
     )
-    assert audit["shell"] == "${{ runner.temp }}/riskhub-audit-shell {0}"
+    assert audit["shell"] == "riskhub-audit-shell {0}"
+    assert "${{" not in audit["shell"]
     command = setup["run"]
     assert '--reuid="$runner_uid" --regid="$runner_gid"' in command
     assert '--groups="$runner_groups,10001"' in command
@@ -5569,6 +5570,7 @@ def test_audit_fixture_shell_executes_only_with_original_nonroot_identity(
         "HOME": str(tmp_path / "home"),
         "RUNNER_TEMP": str(tmp_path),
         "GITHUB_WORKSPACE": str(tmp_path / "checkout"),
+        "GITHUB_PATH": str(tmp_path / "github-path"),
         "RUN_ID": "fixture-test-1",
         "RISKHUB_AUDIT_POSTGRES_BIND_HOST": "172.17.0.1",
         "UNRELATED_PRIVATE_VALUE": "must-not-cross-launch-boundary",
@@ -5576,10 +5578,12 @@ def test_audit_fixture_shell_executes_only_with_original_nonroot_identity(
     setup_script = tmp_path / "setup.sh"
     setup_script.write_text(setup["run"])
     subprocess.run(["bash", str(setup_script)], env=environment, check=True)
+    installed_path = (tmp_path / "github-path").read_text().strip()
+    assert installed_path == str(tmp_path / "riskhub-audit-shell-bin")
     audit_script = tmp_path / "audit script.sh"
     audit_script.write_text("exit 0\n")
     result = subprocess.run(
-        [str(tmp_path / "riskhub-audit-shell"), str(audit_script)],
+        [str(Path(installed_path) / "riskhub-audit-shell"), str(audit_script)],
         env=environment,
         capture_output=True,
         text=True,
