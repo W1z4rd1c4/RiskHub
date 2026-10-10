@@ -225,7 +225,13 @@ validated private Docker bridge address so installer containers retain their
 stops the lane rather than falling back to all interfaces. Install, upgrade, rollback, database
 and runtime probes use disposable containers and synthetic configuration on
 that runner. They do not target an existing installation or use production
-credentials. The harness retains its cleanup and failure-evidence behavior.
+credentials. On Linux, the disposable runtime fixture directory uses group
+10001 with setgid mode `2750`, so replacing its read-only runtime file retains
+the container-readable group; secret directories remain `0750` and fixture
+files remain `0440`. The lane installs the matching Playwright Chromium before
+rendered checks. Its full-tree Gitleaks audit uses pinned version 8.24.3, matching
+the Security workflow scanner, with unchanged rules and no new suppressions.
+The harness retains its cleanup and failure-evidence behavior.
 Artifact upload excludes temporary workspaces, secret fixture directories and
 environment files while retaining reports, command results, scans and SBOMs.
 

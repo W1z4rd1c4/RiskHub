@@ -9,7 +9,7 @@ from prod_readiness_audit.run_state import ProdReadinessRunState
 TRIVY_IMAGE = "aquasec/trivy:0.57.1@sha256:5c59e08f980b5d4d503329773480fcea2c9bdad7e381d846fbf9f2ecb8050f6b"
 SYFT_IMAGE = "anchore/syft:v1.42.3@sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36"
 GRYPE_IMAGE = "anchore/grype:v0.110.0@sha256:af65fbc0c664691067788fe95ff88760b435543e45595eb2ca6f102fc476fbe1"
-GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.18.2@sha256:eadfe256fa18d6a78a717abc9ed454c8e03865d1c46d627bca83977f4424901a"
+GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055"
 
 
 @dataclass(frozen=True)
@@ -214,13 +214,17 @@ def build_prod_readiness_phases(
         f"-v {secret_dir}:/audit-secrets "
         f"-v {runtime_dir}:/audit-runtime "
         "riskhub-backend-db:verify-prod-install-scripts -euc "
-        + shlex.quote("chgrp -R 10001 /audit-secrets /audit-runtime")
+        + shlex.quote(
+            "chgrp -R 10001 /audit-secrets /audit-runtime; chmod 2750 /audit-runtime"
+        )
         + "; fi && docker run --rm --entrypoint /bin/sh --user 0:0 "
         f"-v {secret_dir}:/audit-secrets:ro "
         f"-v {runtime_dir}:/audit-runtime:ro "
         "riskhub-backend-db:verify-prod-install-scripts -euc "
         + shlex.quote(
-            'test -z "$(find /audit-secrets /audit-runtime -type d ! -perm 0750 -print -quit)"; '
+            'test -z "$(find /audit-secrets -type d ! -perm 0750 -print -quit)"; '
+            'test -z "$(find /audit-runtime -mindepth 1 -type d ! -perm 0750 -print -quit)"; '
+            "case $(stat -c %a /audit-runtime) in 750|2750) ;; *) exit 1;; esac; "
             'test -z "$(find /audit-secrets /audit-runtime -type f ! -perm 0440 -print -quit)"; '
             'test -z "$(find /audit-secrets /audit-runtime -perm -0007 -print -quit)"'
         )

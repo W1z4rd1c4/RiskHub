@@ -5136,6 +5136,16 @@ def test_audit_only_readiness_workflow_preserves_full_release_gate() -> None:
     )
     assert checkout["with"]["persist-credentials"] == "false"
     assert checkout["with"]["fetch-depth"] == "0"
+    browser_step = next(
+        step
+        for step in steps
+        if step.get("name") == "Install matching Playwright Chromium"
+    )
+    assert browser_step["working-directory"] == "frontend"
+    assert (
+        browser_step["run"]
+        == "npx --no-install playwright install --with-deps chromium"
+    )
     source_steps = release["jobs"]["release-parity-gate"]["steps"]
     for name in ("Run full release parity audit", "Enforce GO decision"):
         actual = next(step for step in steps if step.get("name") == name)
@@ -5307,3 +5317,67 @@ def test_readiness_workflow_bridge_discovery_fails_closed(
         assert (
             not env_file.exists()
         ), "Failed discovery must not publish a fallback binding"
+
+
+def test_audit_runtime_group_survives_readonly_file_replacement(tmp_path: Path) -> None:
+    import shlex
+    import stat
+
+    _, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
+    permission_command = next(
+        command
+        for command in commands
+        if "chgrp -R 10001 /audit-secrets" in command.command
+    )
+    tokens = shlex.split(permission_command.command)
+    normalize = tokens[tokens.index("-euc") + 1]
+    assert "chmod 2750 /audit-runtime" in normalize
+    runtime = tmp_path / "runtime"
+    secrets = tmp_path / "secrets"
+    runtime.mkdir(mode=0o750)
+    secrets.mkdir(mode=0o750)
+    destination = runtime / "redis_url"
+    destination.write_text("old synthetic fixture\n")
+    destination.chmod(0o440)
+    source = tmp_path / "replacement"
+    source.write_text("new synthetic fixture\n")
+    # Exercise the real shell commands with our own local group. The hosted
+    # container gate separately proves readability by the image's group 10001.
+    normalize = normalize.replace("chgrp -R 10001", f"chgrp -R {os.getgid()}")
+    normalize = normalize.replace("/audit-secrets", shlex.quote(str(secrets)))
+    normalize = normalize.replace("/audit-runtime", shlex.quote(str(runtime)))
+    harness = tmp_path / "replace-runtime.sh"
+    harness.write_text(
+        "set -euo pipefail\numask 077\n"
+        + normalize
+        + "\nsource "
+        + shlex.quote(str(REPO_ROOT / "scripts/deploy/lib/common.sh"))
+        + "\ncopy_runtime_file "
+        + shlex.quote(str(source))
+        + " "
+        + shlex.quote(str(destination))
+        + " 440\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["bash", str(harness)],
+        env={**os.environ, "RISKHUB_RUNTIME_DIR": str(runtime)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert stat.S_IMODE(runtime.stat().st_mode) == 0o2750
+    assert stat.S_IMODE(secrets.stat().st_mode) == 0o750
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o440
+    assert destination.stat().st_gid == runtime.stat().st_gid
+    assert destination.read_text() == "new synthetic fixture\n"
+
+
+def test_readiness_gitleaks_keeps_full_tree_scope_with_current_scanner(tmp_path: Path) -> None:
+    _, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
+    scan = next(command for command in commands if command.command_id == "p4_gitleaks_scan")
+    assert "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055" in scan.command
+    assert "--source /repo --no-git --config .gitleaks.toml" in scan.command
+    assert "--exit-code 1" in scan.command
+    assert scan.required is True

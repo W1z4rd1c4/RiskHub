@@ -61,6 +61,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Install matching Playwright Chromium
+        working-directory: frontend
+        run: npx --no-install playwright install --with-deps chromium
+
       - name: Bind audit database to the disposable Docker bridge
         run: |
           set -euo pipefail
