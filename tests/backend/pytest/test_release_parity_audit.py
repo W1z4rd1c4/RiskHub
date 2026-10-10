@@ -5377,7 +5377,10 @@ def test_audit_runtime_group_survives_readonly_file_replacement(tmp_path: Path) 
 def test_readiness_gitleaks_keeps_full_tree_scope_with_current_scanner(tmp_path: Path) -> None:
     _, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
     scan = next(command for command in commands if command.command_id == "p4_gitleaks_scan")
-    assert "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055" in scan.command
+    assert (
+        "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055"
+        in scan.command
+    )
     assert "-w /repo" in scan.command
     assert "--source . --no-git --config .gitleaks.toml" in scan.command
     assert "--exit-code 1" in scan.command
