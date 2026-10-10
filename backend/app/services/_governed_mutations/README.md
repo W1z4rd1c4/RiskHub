@@ -34,7 +34,7 @@ mutations defined by [ADR-016](../../../../docs/adr/ADR-016-governed-mutation-pr
   unsupported or malformed proposal is excluded from both. Unsupported
   proposal kinds/types remain absent from queues, counts, inbox operations,
   notifications, execution, and outbox delivery and cannot be resolved as a
-  different workflow. A malformed proposal of a recognized extended Process
+  different workflow. A malformed proposal of a recognized Process
   kind also cannot execute or be reclassified as legacy; an authorized direct
   resolution attempt may only move its approval to terminal `EXPIRED`, apply
   no business mutation, release every active impact lock associated with the
@@ -44,6 +44,12 @@ mutations defined by [ADR-016](../../../../docs/adr/ADR-016-governed-mutation-pr
   set becomes the SQL classifier reused by counts and pages. This bounded
   parse pass avoids per-row queries, keeps SQLite and PostgreSQL behavior
   identical, and prevents corrupt rows from consuming pagination offsets.
+
+- `resolution_guards.py` owns pending-state admission, non-blank rejection
+  reasons, and common envelope integrity. `resolution_envelope.py` owns refreshed
+  approval/proposal/impact-lock loading and terminal response reloads. A corrupt
+  unresolved proposal may only expire through its family's authorized bounded
+  cleanup; terminal replay cannot create a second audit/outbox suffix.
 
 ## Boundaries
 

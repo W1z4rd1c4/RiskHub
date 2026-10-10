@@ -38,6 +38,14 @@ def strict_threat_mutation_kind(
 ) -> str | None:
     if proposal is None or proposal.mutation_kind != THREAT_EDIT_KIND:
         return None
+    if not (
+        all(isinstance(value, dict) for value in (
+            proposal.proposed_changes, proposal.before_snapshot, proposal.after_snapshot,
+            proposal.base_versions, proposal.derived_impact_snapshot, proposal.scenario_snapshot,
+        ))
+        and isinstance(proposal.impacted_resources_snapshot, list)
+    ):
+        return None
     approval = proposal.approval_request
     scenario = proposal.scenario_snapshot
     raw_before = proposal.proposed_changes.get("before")

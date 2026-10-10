@@ -11,7 +11,6 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.audit import vendor as audit_vendor
@@ -21,7 +20,6 @@ from app.core.datetime_utils import utc_now
 from app.core.exceptions import (
     AuthorizationError,
     ConflictError,
-    NotFoundError,
     ValidationError,
 )
 from app.core.permissions import can_read_vendor, has_permission
@@ -71,6 +69,8 @@ from .fixed_vendor_policy import (
     is_fixed_vendor_resolution_authority,
     validated_fixed_vendor_roles,
 )
+from .resolution_envelope import load_resolution_envelope, reload_resolution_approval
+from .resolution_guards import require_pending_resolution, require_rejection_reason, resolution_envelope_is_valid
 from .terminal_transitions import finalize_governed_terminal_transition
 from .vendor_identity import (
     VENDOR_ARCHIVE_KIND,
@@ -94,52 +94,11 @@ async def _load_envelope(
     db: AsyncSession,
     approval_id: int,
 ) -> tuple[ApprovalRequest, GovernedMutationProposal, list[GovernedMutationImpactLock]]:
-    approval = (
-        await db.execute(
-            select(ApprovalRequest)
-            .where(ApprovalRequest.id == approval_id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if approval is None:
-        raise NotFoundError("Approval request not found")
-    proposal = (
-        await db.execute(
-            select(GovernedMutationProposal)
-            .where(GovernedMutationProposal.approval_request_id == approval.id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if proposal is None or proposal.primary_resource_type != "vendor":
-        raise ValidationError("Approval is not a governed Vendor mutation")
-    locks = list(
-        (
-            await db.execute(
-                select(GovernedMutationImpactLock)
-                .where(GovernedMutationImpactLock.proposal_id == proposal.id)
-                .order_by(
-                    GovernedMutationImpactLock.resource_type,
-                    GovernedMutationImpactLock.resource_id,
-                )
-                .with_for_update()
-            )
-        ).scalars()
-    )
-    return approval, proposal, locks
+    return await load_resolution_envelope(db, approval_id, resource_type="vendor")
 
 
 async def _reload(db: AsyncSession, approval_id: int) -> ApprovalRequest:
-    return (
-        await db.execute(
-            select(ApprovalRequest)
-            .options(
-                selectinload(ApprovalRequest.requested_by),
-                selectinload(ApprovalRequest.resolved_by),
-                selectinload(ApprovalRequest.governed_mutation_proposal),
-            )
-            .where(ApprovalRequest.id == approval_id)
-        )
-    ).scalar_one()
+    return await reload_resolution_approval(db, approval_id)
 
 
 async def _live_policy(
@@ -635,10 +594,7 @@ async def approve_vendor_mutation(
     resolution_notes: str,
 ) -> ApprovalRequest:
     approval, proposal, locks = await _load_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(
-            f"Cannot resolve request with status: {approval.status.value}"
-        )
+    require_pending_resolution(approval)
     if proposal.mutation_kind == VENDOR_CREATE_KIND:
         await acquire_vendor_creation_name_lock(
             db,
@@ -647,7 +603,9 @@ async def approve_vendor_mutation(
     resolver, requester, locked_vendor, stale_reason = await _live_policy(
         db,
         proposal=proposal,
-        envelope_valid=valid_vendor_governed_envelope(proposal, locks),
+        envelope_valid=resolution_envelope_is_valid(
+            approval, family_valid=valid_vendor_governed_envelope(proposal, locks)
+        ),
         current_user=current_user,
     )
     if stale_reason:
@@ -1229,10 +1187,7 @@ async def cancel_vendor_mutation(
     current_user: User,
 ) -> ApprovalRequest:
     approval, proposal, locks = await _load_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(
-            f"Cannot cancel request with status: {approval.status.value}"
-        )
+    require_pending_resolution(approval)
     if proposal.requested_by_id != current_user.id:
         raise AuthorizationError(
             "Only the requester may cancel a governed Vendor mutation request"
@@ -1242,7 +1197,7 @@ async def cancel_vendor_mutation(
         if proposal.primary_resource_id is not None
         else None
     )
-    if not valid_vendor_governed_envelope(proposal, locks):
+    if not resolution_envelope_is_valid(approval, family_valid=valid_vendor_governed_envelope(proposal, locks)):
         return await _expire(
             db,
             approval=approval,
@@ -1275,21 +1230,15 @@ async def reject_vendor_mutation(
     current_user: User,
     resolution_notes: str,
 ) -> ApprovalRequest:
-    if not resolution_notes.strip():
-        raise ValidationError(
-            "A rejection reason is mandatory",
-            code="governed_mutation_rejection_reason_required",
-            status_code=422,
-        )
+    resolution_reason = require_rejection_reason(resolution_notes)
     approval, proposal, locks = await _load_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(
-            f"Cannot reject request with status: {approval.status.value}"
-        )
+    require_pending_resolution(approval)
     resolver, requester, vendor, stale_reason = await _live_policy(
         db,
         proposal=proposal,
-        envelope_valid=valid_vendor_governed_envelope(proposal, locks),
+        envelope_valid=resolution_envelope_is_valid(
+            approval, family_valid=valid_vendor_governed_envelope(proposal, locks)
+        ),
         current_user=current_user,
     )
     if stale_reason:
@@ -1310,7 +1259,7 @@ async def reject_vendor_mutation(
         actor=resolver,
         department_id=vendor.department_id if vendor else requester.department_id,
         status=ApprovalStatus.REJECTED,
-        resolution_notes=resolution_notes,
+        resolution_notes=resolution_reason,
     )
     await commit_service_boundary(db, boundary="governed_mutation.vendor.reject")
     return await _reload(db, approval.id)
