@@ -45,7 +45,7 @@ export function KRIDetailOverviewTab({
         <div className="grid gap-6 lg:grid-cols-3">
             {/* Current Value Card */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
                 className="glass-card lg:col-span-2"
@@ -78,7 +78,7 @@ export function KRIDetailOverviewTab({
 
             {/* Reporting Info Card */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 className="glass-card"
@@ -112,7 +112,7 @@ export function KRIDetailOverviewTab({
 
             {/* Linked Risk Card */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 className="glass-card lg:col-span-3 group/risk"
@@ -210,7 +210,7 @@ export function KRIDetailOverviewTab({
 
             {/* Metadata */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="glass-card lg:col-span-3"

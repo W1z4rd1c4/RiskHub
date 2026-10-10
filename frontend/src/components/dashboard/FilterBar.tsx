@@ -160,7 +160,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                             {activeFilterChips.map(chip => (
                                 <motion.div
                                     key={chip.key}
-                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    initial={{ opacity: 1, scale: 0.8 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
                                     className="inline-flex items-center gap-1 rounded-full border border-accent/25 bg-accent/10 py-0.5 pl-3 pr-0.5 text-xs font-bold text-accent-text whitespace-nowrap"
@@ -199,7 +199,7 @@ export function FilterBar({ canUseDepartmentFilter, filterScope }: FilterBarProp
                     {isExpanded && (
                         <motion.div
                             id={panelId}
-                            initial={{ height: 0, opacity: 0 }}
+                            initial={{ height: 0, opacity: 1 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"

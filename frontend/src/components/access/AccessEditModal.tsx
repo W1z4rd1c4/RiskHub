@@ -136,7 +136,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved, nativeLifecycl
                     <AccessEditLoading label={t('loading.generic')} />
                 ) : (
                     <motion.div
-                        initial={{ opacity: 0 }}
+                        initial={{ opacity: 1 }}
                         animate={{ opacity: 1 }}
                         data-testid="access-edit-ready"
                         className="space-y-6"

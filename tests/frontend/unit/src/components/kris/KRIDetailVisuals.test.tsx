@@ -86,6 +86,12 @@ describe('KRI detail visuals', () => {
             />
         );
 
+        const historyCards = document.querySelectorAll('.glass-card');
+        expect(historyCards).toHaveLength(3);
+        for (const card of historyCards) {
+            expect(card).toHaveStyle({ opacity: '1' });
+            expect((card as HTMLElement).style.transform).toContain('translateY(20px)');
+        }
         expect(screen.getByText('trend chart')).toBeInTheDocument();
         expect(trendChartMock).toHaveBeenCalledWith(expect.objectContaining({
             data: [expect.objectContaining({ status: 'below' })],
@@ -159,6 +165,12 @@ describe('KRI detail visuals', () => {
             />
         );
 
+        const overviewCards = document.querySelectorAll('.glass-card');
+        expect(overviewCards).toHaveLength(4);
+        for (const card of overviewCards) {
+            expect(card).toHaveStyle({ opacity: '1' });
+            expect((card as HTMLElement).style.transform).toContain('translateY(20px)');
+        }
         expect(screen.getByText('gauge')).toBeInTheDocument();
         expect(gaugeMock).toHaveBeenCalledWith(expect.objectContaining({
             valuePct: 50,
