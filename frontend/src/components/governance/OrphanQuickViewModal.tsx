@@ -160,7 +160,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                 ) : (
                     <motion.div
                         data-testid="orphan-quick-view-ready"
-                        initial={{ opacity: 0 }}
+                        initial={{ opacity: 1 }}
                         animate={{ opacity: 1 }}
                         className="space-y-6"
                     >

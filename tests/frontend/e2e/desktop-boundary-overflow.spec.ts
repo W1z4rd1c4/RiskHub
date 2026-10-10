@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
 import { E2E_ASSETS, E2E_CONTROLS, E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
@@ -34,6 +34,43 @@ const TEXT_SPACING_CSS = `
 `;
 
 type Locale = 'en' | 'cs';
+
+async function attachVisibleSurfaceSlices(page: Page, surface: Locator, testInfo: TestInfo, name: string) {
+    const main = page.getByRole('main');
+    const bounds = await surface.evaluate((element) => {
+        const scroller = element.closest('main');
+        if (!scroller) throw new Error('Expected the audited surface inside main');
+        const mainBox = scroller.getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        return {
+            original: scroller.scrollTop,
+            start: scroller.scrollTop + box.top - mainBox.top,
+            end: scroller.scrollTop + box.bottom - mainBox.top,
+            height: scroller.clientHeight,
+            max: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+        };
+    });
+    const start = Math.max(0, Math.min(bounds.max, Math.floor(bounds.start)));
+    const end = Math.max(start, Math.min(bounds.max, Math.ceil(bounds.end - bounds.height)));
+    const step = Math.max(1, bounds.height - 64);
+    let offset = start;
+    let slice = 1;
+    try {
+        while (true) {
+            await main.evaluate((element, top) => element.scrollTo({ top, behavior: 'instant' }), offset);
+            await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(offset);
+            await testInfo.attach(`${name}-visible-slice-${slice}`, {
+                body: await page.screenshot({ animations: 'disabled' }),
+                contentType: 'image/png',
+            });
+            if (offset === end) break;
+            offset = Math.min(offset + step, end);
+            slice += 1;
+        }
+    } finally {
+        await main.evaluate((element, top) => element.scrollTo({ top, behavior: 'instant' }), bounds.original);
+    }
+}
 
 async function setLocale(page: Page, locale: Locale): Promise<void> {
     await page.unroute('**/api/v1/preferences');
@@ -410,6 +447,8 @@ test.describe('Supported desktop resilience (#156)', () => {
                 contentType: 'image/png',
             });
 
+            await attachVisibleSurfaceSlices(riskManagerPage, listCard, testInfo, `department-long-card-${locale}-1024x900`);
+
             for (const viewport of SUPPORTED_VIEWPORTS) {
                 await riskManagerPage.setViewportSize(viewport);
                 await visit(riskManagerPage, '/departments');
@@ -439,6 +478,8 @@ test.describe('Supported desktop resilience (#156)', () => {
                     body: await grid.screenshot({ animations: 'disabled' }),
                     contentType: 'image/png',
                 });
+                await attachVisibleSurfaceSlices(riskManagerPage, grid, testInfo,
+                    `department-metrics-${locale}-${viewport.width}x${viewport.height}`);
             }
         }
     });

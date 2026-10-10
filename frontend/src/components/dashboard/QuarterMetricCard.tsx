@@ -92,7 +92,7 @@ export function QuarterMetricCard({
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 1, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             aria-label={label || keyName}
             className={`bg-tint/5 rounded-xl p-4 border ${showUncertainty ? 'border-warning/20' : 'border-border'}`}

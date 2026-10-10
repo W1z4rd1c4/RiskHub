@@ -9,7 +9,7 @@ import { useTranslation } from '@/i18n/hooks';
 import type { Risk } from '@/types/risk';
 
 const container = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: 1 },
     show: {
         opacity: 1,
         transition: { staggerChildren: 0.1 },
@@ -17,7 +17,7 @@ const container = {
 };
 
 const item = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 1, y: 20 },
     show: { opacity: 1, y: 0 },
 };
 

@@ -112,10 +112,11 @@ async function auditRoutes(
   page: Page,
   routes: AuditRoute[],
   theme: AuditTheme,
-  testInfo: TestInfo
+  testInfo: TestInfo,
+  reducedMotion: 'reduce' | 'no-preference' = 'reduce'
 ): Promise<void> {
   const project = testInfo.project.name;
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion });
 
   const attach: Array<{
     logicalRoute: string;
@@ -180,6 +181,22 @@ test.describe('Accessibility smoke (WCAG 2.2 AA tags, strict-zero)', () => {
       await seedTheme(page, theme);
       await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
       await auditRoutes(page, await resolveBusinessRoutes(page), theme, testInfo);
+    });
+
+    test(`readable entry surfaces have zero axe violations with normal motion in ${theme}`, async ({ page }, testInfo) => {
+      test.setTimeout(300_000);
+      await page.setViewportSize(RESTING_VIEWPORT);
+      await seedTheme(page, theme);
+      await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
+      const entrySurfaces = new Set([
+        '/', '/controls/:id', '/risks/:id', '/kris/:id', '/vendors/:id',
+        '/approvals', '/activity-log', '/governance',
+      ]);
+      const routes = (await resolveBusinessRoutes(page)).filter(route => entrySurfaces.has(route.logicalRoute));
+      expect(routes).toHaveLength(entrySurfaces.size);
+      // No animation-settling delay: normal-motion contrast must be safe as
+      // content becomes available, as well as in the existing reduced lane.
+      await auditRoutes(page, routes, theme, testInfo, 'no-preference');
     });
 
     test(`admin routes have zero axe violations in ${theme}`, async ({ page }, testInfo) => {

@@ -222,7 +222,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 1, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: motionDelay }}
         >

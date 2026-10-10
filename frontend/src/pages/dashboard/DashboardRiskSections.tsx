@@ -70,7 +70,7 @@ export function DashboardRiskSections({
         <>
             <div className="grid gap-8 lg:grid-cols-3">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
                     className="lg:col-span-2"
@@ -84,7 +84,7 @@ export function DashboardRiskSections({
                 </motion.div>
 
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 1, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.65 }}
                     className="h-full"
@@ -92,7 +92,7 @@ export function DashboardRiskSections({
                     <KRIBreachWidget />
                 </motion.div>
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 1, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.7 }}
                     className="h-full"
@@ -103,7 +103,7 @@ export function DashboardRiskSections({
 
             <div className="grid gap-8 lg:grid-cols-2">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
                 >
@@ -118,7 +118,7 @@ export function DashboardRiskSections({
                     </Card>
                 </motion.div>
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.75 }}
                 >
@@ -145,7 +145,7 @@ export function DashboardRiskSections({
 
                 <div className="grid gap-8 lg:grid-cols-2">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 1, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.75 }}
                     >
@@ -156,7 +156,7 @@ export function DashboardRiskSections({
                     </motion.div>
 
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 1, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8 }}
                     >
@@ -169,7 +169,7 @@ export function DashboardRiskSections({
             </section>
 
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.85 }}
             >

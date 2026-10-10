@@ -15,7 +15,7 @@ export function RiskAssessmentSection({ risk }: RiskAssessmentSectionProps) {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
         >

@@ -75,18 +75,18 @@ export function DashboardSummarySections({
 
             {canReadIssues && issueSummary && issueAging && issueSeverity ? (
                 <div className="grid gap-6 lg:grid-cols-3">
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
+                    <motion.div initial={{ opacity: 1, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
                         <IssuesSummaryCard issueSummary={issueSummary} />
                     </motion.div>
 
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
+                    <motion.div initial={{ opacity: 1, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
                         <Card as="section" className="h-full">
                             <CardHeader title={issueAgingTitle} />
                             <IssueAgingChart buckets={issueAging.buckets} />
                         </Card>
                     </motion.div>
 
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
+                    <motion.div initial={{ opacity: 1, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
                         <Card as="section" className="h-full">
                             <CardHeader title={issueSeverityTitle} />
                             <OpenIssuesBySeverityChart items={issueSeverity.items} />
@@ -97,7 +97,7 @@ export function DashboardSummarySections({
 
             {summary && summary.controls_by_status && Object.keys(summary.controls_by_status).length > 0 ? (
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
                 >

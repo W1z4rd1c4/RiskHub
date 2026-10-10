@@ -78,7 +78,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                 return (
                                     <motion.div
                                         key={`${p}-${i}`}
-                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        initial={{ opacity: 1, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
                                         whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}

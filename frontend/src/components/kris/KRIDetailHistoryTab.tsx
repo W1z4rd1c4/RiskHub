@@ -159,7 +159,7 @@ export function KRIDetailHistoryTab({
             {hasLoadedPage && <>
                 {/* Trend Chart */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass-card"
                 >
@@ -179,7 +179,7 @@ export function KRIDetailHistoryTab({
 
                 {/* Timeline */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                     className="glass-card"
@@ -205,7 +205,7 @@ export function KRIDetailHistoryTab({
 
                 {/* Compare Periods */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 1, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                     className="glass-card"

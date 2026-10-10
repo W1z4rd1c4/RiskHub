@@ -97,6 +97,33 @@ describe('Tailwind 4 security migration compatibility', () => {
     expect(css).toContain('hsl(var(--ring))');
   });
 
+  it('keeps interactive hover in the glass utility layer so its specificity can win', () => {
+    type CompiledNode = {
+      type?: string; name?: string; params?: string; selector?: string;
+      parent?: CompiledNode; nodes?: Array<{ prop?: string; value?: string; important?: boolean }>;
+    };
+    const layers: Record<string, string | undefined> = {};
+    let hoverBackground: string | undefined;
+    postcss.parse(css).walkRules((rule: CompiledNode) => {
+      const isGlass = rule.selector === '.glass';
+      const isHover = rule.selector === '.interactive-card:hover'
+        || (rule.selector === '&:hover' && rule.parent?.selector === '.interactive-card');
+      if (!isGlass && !isHover) return;
+      let ancestor = rule.parent;
+      while (ancestor && !(ancestor.type === 'atrule' && ancestor.name === 'layer')) ancestor = ancestor.parent;
+      layers[isGlass ? 'glass' : 'hover'] = ancestor?.params;
+      if (isHover) {
+        const declaration = rule.nodes?.find((node) => node.prop === 'background-color');
+        hoverBackground = declaration?.value;
+        expect(declaration?.important).not.toBe(true);
+      }
+    });
+    expect(layers).toEqual({ glass: 'utilities', hover: 'utilities' });
+    expect(hoverBackground).toBe('hsl(var(--glass-hover))');
+    expect(declarations('.interactive-card')['transition-property']).not.toContain('all');
+    expect(declarations('.glass-card')['transition-property']).toBe('none');
+  });
+
   it('removes the unpatched braces dependency and keeps the selector parser fixed', () => {
     const lock = JSON.parse(readFileSync(resolve(frontendRoot, 'package-lock.json'), 'utf8'));
     const entries = Object.entries(lock.packages) as [string, { version?: string }][];
