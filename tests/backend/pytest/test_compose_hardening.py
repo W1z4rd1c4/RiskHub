@@ -1,5 +1,11 @@
+import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PORT_MAPPING_RE = re.compile(
@@ -73,6 +79,36 @@ def test_base_compose_backend_publish_is_loopback_bound():
 
     assert "127.0.0.1:8000:8000" in backend_ports
     assert not any(_is_public_publish_for_backend_8000(port) for port in backend_ports)
+
+
+def test_base_compose_passwordless_frontend_publish_defaults_to_loopback():
+    frontend_ports = _extract_ports_for_service(REPO_ROOT / "docker-compose.yml", "frontend")
+
+    assert frontend_ports == ["${RISKHUB_DEMO_BIND_HOST:-127.0.0.1}:80:80"]
+
+
+@pytest.mark.parametrize("bind_host", [None, "0.0.0.0"])
+def test_rendered_demo_compose_bind_requires_explicit_opt_in(bind_host):
+    """Render with the real Compose parser; no Docker daemon/containers needed."""
+    docker = shutil.which("docker")
+    if not docker:
+        pytest.skip("Docker Compose CLI is not installed")
+    version = subprocess.run([docker, "compose", "version"], capture_output=True, timeout=10, check=False)
+    if version.returncode:
+        pytest.skip("Docker Compose plugin is not installed")
+    env = {**os.environ, "RISKHUB_DEMO_BIND_HOST": bind_host or "", "LAN_HOST": bind_host or "localhost"}
+    result = subprocess.run(
+        [
+            docker, "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
+            "--profile", "full", "config", "--format", "json",
+        ],
+        cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=30, check=True,
+    )
+    services = json.loads(result.stdout)["services"]
+    assert services["frontend"]["ports"][0]["host_ip"] == (bind_host or "127.0.0.1")
+    for service in ("db", "redis", "backend"):
+        assert all(port["host_ip"] == "127.0.0.1" for port in services[service]["ports"])
+    assert not services["scheduler"].get("ports")
 
 
 def test_base_compose_pins_network_subnet_and_backend_trusted_proxies():

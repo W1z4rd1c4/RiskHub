@@ -389,6 +389,7 @@ async def test_entra_identity_is_readonly_but_department_is_local(
     db_session,
     client_factory,
     test_user,
+    test_user_cro,
     test_user_employee,
     test_department,
 ):
@@ -398,7 +399,9 @@ async def test_entra_identity_is_readonly_but_department_is_local(
         user=test_user, settings=identity_settings(mock_auth_enabled=True)
     ) as client:
         result = await client.patch(
-            f"/api/v1/users/{test_user_employee.id}", json={"department_id": None}
+            f"/api/v1/access/users/{test_user_employee.id}",
+            json={"department_id": None},
+            headers={"X-Mock-User-Id": str(test_user_cro.id)},
         )
         assert result.status_code == 200, result.text
         forbidden = await client.patch(
@@ -641,7 +644,7 @@ async def test_fresh_explicit_oid_bootstrap_commits_the_new_identity(
 
 
 @pytest.mark.asyncio
-async def test_last_platform_admin_demotion_uses_conflict_even_without_cro(
+async def test_last_platform_admin_business_role_assignment_is_unauthorized(
     db_session, client_factory, test_user, test_user_employee,
 ):
     actor = User(
@@ -661,7 +664,8 @@ async def test_last_platform_admin_demotion_uses_conflict_even_without_cro(
             f"/api/v1/users/{test_user.id}",
             json={"role_id": test_user_employee.role_id},
         )
-    assert response.status_code == 409, response.text
+    assert response.status_code == 403, response.text
+    assert response.json()["detail"] == "Only CRO can assign business roles"
     await db_session.refresh(test_user)
     assert test_user.role_id == original_role
 

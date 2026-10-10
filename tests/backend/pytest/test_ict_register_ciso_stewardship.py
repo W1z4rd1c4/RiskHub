@@ -443,6 +443,8 @@ async def test_ciso_has_threat_lifecycle_but_no_approval_or_platform_authority(
 @pytest.mark.asyncio
 async def test_ciso_deactivation_and_role_loss_flag_stewarded_threats(
     auth_client,
+    client_factory,
+    test_user_cro,
     db_session: AsyncSession,
     test_role_employee: Role,
     ciso_user: User,
@@ -458,10 +460,11 @@ async def test_ciso_deactivation_and_role_loss_flag_stewarded_threats(
     assert deactivated.status_code == 200, deactivated.text
     ciso_user.is_active = True
     await db_session.commit()
-    role_changed = await auth_client.patch(
-        f"/api/v1/users/{ciso_user.id}",
-        json={"role_id": test_role_employee.id},
-    )
+    async with client_factory(current_user=test_user_cro) as cro_client:
+        role_changed = await cro_client.patch(
+            f"/api/v1/access/users/{ciso_user.id}",
+            json={"role_id": test_role_employee.id},
+        )
     assert role_changed.status_code == 200, role_changed.text
 
     orphans = (
@@ -1183,6 +1186,7 @@ async def test_postgres_reassignment_and_role_loss_cannot_leave_stale_orphan(
     db_session: AsyncSession,
     client_factory,
     test_user: User,
+    test_user_cro: User,
     test_user_risk_manager: User,
     test_role_employee: Role,
     ciso_user: User,
@@ -1245,8 +1249,9 @@ async def test_postgres_reassignment_and_role_loss_cannot_leave_stale_orphan(
                 },
             ),
             client.patch(
-                f"/api/v1/users/{ciso_user.id}",
+                f"/api/v1/access/users/{ciso_user.id}",
                 json={"role_id": test_role_employee.id},
+                headers={"X-Mock-User-Id": str(test_user_cro.id)},
             ),
         )
 
