@@ -15,13 +15,13 @@ export interface DepartmentSummary {
     id: number;
     name: string;
     code: string;
-    user_count: number;
-    risk_count: number;
-    high_risk_count: number;
-    control_count: number;
+    user_count: number | null;
+    risk_count: number | null;
+    high_risk_count: number | null;
+    control_count: number | null;
     kri_count: number | null;
     breaching_kri_count: number | null;
-    total_net_score: number;
+    total_net_score: number | null;
 }
 
 export interface RiskDistribution {

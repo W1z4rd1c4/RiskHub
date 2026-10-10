@@ -52,14 +52,18 @@ async def list_departments(
     departments = result.scalars().all()
 
     # 2. Compute count maps (each helper returns dict[department_id, count])
-    user_counts = await _count_active_users_by_dept(db)
-    risk_counts = await _count_risks_by_dept(db)
-    high_risk_counts = await _count_high_risks_by_dept(db)
-    control_counts = await _count_controls_by_dept(db)
+    user_counts = await _count_active_users_by_dept(
+        db, current_user=current_user, department_ids=[dept.id for dept in departments]
+    )
+    can_read_risks = check_permission(current_user, "risks", "read")
+    can_read_controls = check_permission(current_user, "controls", "read")
+    risk_counts = await _count_risks_by_dept(db) if can_read_risks else {}
+    high_risk_counts = await _count_high_risks_by_dept(db) if can_read_risks else {}
+    control_counts = await _count_controls_by_dept(db) if can_read_controls else {}
     can_read_kris = check_permission(current_user, "risks", "read")
     kri_counts = await _count_kris_by_dept(db) if can_read_kris else {}
     breaching_kri_counts = await _count_breaching_kris_by_dept(db) if can_read_kris else {}
-    net_score_totals = await _sum_net_scores_by_dept(db)
+    net_score_totals = await _sum_net_scores_by_dept(db) if can_read_risks else {}
 
     # 3. Build response objects
     return [
@@ -67,13 +71,13 @@ async def list_departments(
             id=dept.id,
             name=dept.name,
             code=dept.code,
-            user_count=user_counts.get(dept.id, 0),
-            risk_count=risk_counts.get(dept.id, 0),
-            control_count=control_counts.get(dept.id, 0),
-            high_risk_count=high_risk_counts.get(dept.id, 0),
+            user_count=user_counts.get(dept.id),
+            risk_count=risk_counts.get(dept.id, 0) if can_read_risks else None,
+            control_count=control_counts.get(dept.id, 0) if can_read_controls else None,
+            high_risk_count=high_risk_counts.get(dept.id, 0) if can_read_risks else None,
             breaching_kri_count=breaching_kri_counts.get(dept.id, 0) if can_read_kris else None,
             kri_count=kri_counts.get(dept.id, 0) if can_read_kris else None,
-            total_net_score=int(net_score_totals.get(dept.id, 0)),
+            total_net_score=int(net_score_totals.get(dept.id, 0)) if can_read_risks else None,
         )
         for dept in departments
     ]

@@ -3,13 +3,19 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import AuthorizationError, ValidationError
 from app.core.pagination import MAX_PAGE_SIZE
 from app.core.permissions import check_department_access, get_user_department_ids
 from app.models import Control, Department, KeyRiskIndicator, Risk, User
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges, get_config_int
+from app.services._access_workflow.policy import (
+    build_department_access_roster_query,
+    can_view_department_access_roster,
+    resolve_department_access_roster_target,
+)
 from app.services.kri_populations import breaching_clause, live_clause
 
 # Risk level score ranges (uses ConfigDefaults for consistency)
@@ -56,12 +62,27 @@ def _counts_by_department(rows) -> dict[int, int]:
     return {dept_id: int(count) for dept_id, count in rows if dept_id is not None}
 
 
-async def _count_active_users_by_dept(db: AsyncSession) -> dict[int, int]:
-    """Active user count per department."""
-    result = await db.execute(
-        select(User.department_id, func.count(User.id)).where(User.is_active.is_(True)).group_by(User.department_id)
-    )
-    return _counts_by_department(result.all())
+async def _count_active_users_by_dept(
+    db: AsyncSession, *, current_user: User, department_ids: list[int]
+) -> dict[int, int]:
+    """Count only the canonical roster the actor can open for each visible department."""
+    if not can_view_department_access_roster(current_user):
+        return {}
+    queries = []
+    for department_id in department_ids:
+        try:
+            target = resolve_department_access_roster_target(current_user, department_id)
+        except (AuthorizationError, ValidationError):
+            # A Department Head may see a shell without being allowed another roster.
+            continue
+        roster = build_department_access_roster_query(current_user, department_id=target)
+        queries.append(select(literal(department_id), func.count()).select_from(roster.subquery()))
+    counts: dict[int, int] = {}
+    # Bound compound SELECT size while avoiding a query for each department.
+    for start in range(0, len(queries), 100):
+        result = await db.execute(union_all(*queries[start:start + 100]))
+        counts.update(_counts_by_department(result.all()))
+    return counts
 
 
 async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:

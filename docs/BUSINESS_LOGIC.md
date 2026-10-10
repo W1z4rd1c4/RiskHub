@@ -1352,3 +1352,15 @@ children and children of archived Risks. The register's `breach_only` filter kee
 its existing live-only definition even with `lifecycle=all`. The dedicated HTTP
 archive-inspection test preserves this deliberate distinction; overdue and due-soon
 widgets have no archive opt-in and match their live register populations.
+
+### Department list aggregate authority
+
+Department cards apply the same domain authority as the workspace: Risk count,
+high-risk count, and total net score require `risks:read`; Control count requires
+`controls:read`. Denied metrics are unavailable (`null`), and their aggregate
+queries are skipped. User counts use the canonical access-roster eligibility,
+target resolution, and query: Department Heads retain own-only access without
+`users:read`; eligible privileged callers can explicitly target a Department even
+when unassigned; only true platform Admins see Admin users. Inactive users stay
+excluded. Authorized empty counts remain zero. Cards render unavailable metrics
+as N/A and omit unavailable warning badges without changing navigation or layout.
