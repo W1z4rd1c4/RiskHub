@@ -2,8 +2,8 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import {
     getExistingLinkDisplayName,
+    getExistingLinkEffectivenessMeta,
     getExistingLinkTargetId,
-    getMetadataBadgeClassName,
 } from './existingLinksPresentation';
 import { getResultMeta, getResultTitle } from './linkSearchPresentation';
 import type { ExistingLinkItem, LinkMode, SearchResultItem } from './linkTypes';
@@ -21,7 +21,8 @@ export interface LinkSearchResultPresentation {
 
 export interface ExistingLinkPresentation {
     displayName: string;
-    metadataBadgeClassName: string;
+    /** Tone + translated label of the effectiveness rating; `null` when the link has none. */
+    effectiveness: ReturnType<typeof getExistingLinkEffectivenessMeta>;
     targetId: number;
 }
 
@@ -50,7 +51,7 @@ export function buildExistingLinkPresentation(
 ): ExistingLinkPresentation {
     return {
         displayName: getExistingLinkDisplayName(link, mode, t),
-        metadataBadgeClassName: getMetadataBadgeClassName(link.effectiveness),
+        effectiveness: getExistingLinkEffectivenessMeta(link.effectiveness, t),
         targetId: getExistingLinkTargetId(link, mode),
     };
 }

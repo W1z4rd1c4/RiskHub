@@ -50,7 +50,7 @@ const REGISTERS: readonly RegisterContract[] = [
         sortField: 'name',
     },
     {
-        backActionName: /Back to Register|Zpět do registru/i,
+        backActionName: /Back to Vendors|Zpět na dodavatele/i,
         collectionPath: '/api/v1/vendors',
         groupedView: 'department',
         groupBy: 'department',
@@ -59,7 +59,7 @@ const REGISTERS: readonly RegisterContract[] = [
         sortField: 'name',
     },
     {
-        backActionName: /Back to Register|Zpět do registru/i,
+        backActionName: /Back to Risks|Zpět na rizika/i,
         collectionPath: '/api/v1/risks',
         groupedView: 'department',
         groupBy: 'department',
@@ -77,7 +77,7 @@ const REGISTERS: readonly RegisterContract[] = [
         sortField: 'name',
     },
     {
-        backActionName: /^(KRIs|KRI|Zpět na KRI)$/i,
+        backActionName: /Back to KRIs|Zpět na KRI/i,
         collectionPath: '/api/v1/kris',
         groupedView: 'department',
         groupBy: 'department',

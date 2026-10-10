@@ -12,10 +12,12 @@ import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PrincipalQueryBoundary } from '@/contexts/PrincipalQueryBoundary';
 import { resolvePublicRoute, publicRoutes } from '@/routing/public';
 import type { AppRouteDef } from '@/routing/types';
+import { LoadingState } from '@/components/ui/state';
 
 const ProtectedApplication = lazy(() => import('@/ProtectedApplication'));
 
@@ -26,7 +28,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
+    return <LoadingState layout="page" label={t('loading.generic')} className="min-h-screen" />;
   }
   if (!isAuthenticated && bootstrapStatus === 'error') {
     const qs = new URLSearchParams({ returnTo, authError: 'service_unavailable' }).toString();
@@ -42,7 +44,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function RouteLoadingFallback() {
   const { t } = useTranslation('common');
-  return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
+  return <LoadingState layout="page" label={t('loading.generic')} className="min-h-screen" />;
 }
 
 function renderRoute(route: AppRouteDef) {
@@ -93,14 +95,17 @@ function App() {
 
 /** Public authentication screens survive their own principal transition so login
  * redirects and display-once results complete. Protected data stays inside the
- * principal boundary and is disposed when leaving that scope. */
+ * principal boundary and is disposed when leaving that scope. `FeedbackProvider`
+ * (toasts, D9) wraps every route so a toast outlives the navigation it precedes. */
 export function RouteScope({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
   const presentation = (
     <LanguageProvider>
       <ThemeProvider>
-        <MotionConfig reducedMotion="user">{children}</MotionConfig>
+        <MotionConfig reducedMotion="user">
+          <FeedbackProvider>{children}</FeedbackProvider>
+        </MotionConfig>
       </ThemeProvider>
     </LanguageProvider>
   );

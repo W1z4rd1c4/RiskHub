@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { ApiClientError } from '@/services/apiClient';
-import { renderWithQueryClient as render } from '@test/render';
+import { renderInRouter as render } from '@test/render';
 import { createTestQueryClient } from '@test/queryClient';
 
 const mockNavigate = vi.fn();
@@ -21,6 +21,8 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '7' }),
         useNavigate: () => mockNavigate,
+        // D12: the approval-queued notice reads router state.
+        useLocation: () => ({ pathname: '/risks/7', search: '', hash: '', state: null, key: 'test' }),
         useSearchParams: () => [mockSearchParams],
     };
 });
@@ -128,7 +130,7 @@ describe('RiskDetailPage issue entry', () => {
     it('shows create-issue entry and opens contextual modal with business label', async () => {
         render(<RiskDetailPage />);
 
-        await screen.findByText('Liquidity Risk');
+        await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
 
         const action = screen.getByRole('button', { name: 'New Issue' });
         expect(action).toBeInTheDocument();
@@ -142,7 +144,7 @@ describe('RiskDetailPage issue entry', () => {
         canIssueWrite = false;
         render(<RiskDetailPage />);
 
-        await screen.findByText('Liquidity Risk');
+        await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
@@ -164,8 +166,10 @@ describe('RiskDetailPage issue entry', () => {
 
         render(<RiskDetailPage />);
 
-        await screen.findByText('Archived Liquidity Risk');
-        expect(screen.getByText('archived')).toBeInTheDocument();
+        await screen.findByRole('heading', { level: 1, name: 'Archived Liquidity Risk' });
+        // PG-03: the translated status badge, never the raw enum.
+        expect(screen.getByText('Archived')).toHaveAttribute('data-status', 'archived');
+        expect(screen.queryByText('archived')).not.toBeInTheDocument();
     });
 
     it('renders the non-leaky unavailable state when risk detail is forbidden', async () => {
@@ -193,7 +197,7 @@ describe('RiskDetailPage issue entry', () => {
             queryClient: createTestQueryClient({ defaultOptions: { queries: { retryDelay: 0 } } }),
         });
 
-        const back = await screen.findByRole('button', { name: 'Risk Register' });
+        const back = await screen.findByRole('button', { name: 'Back to Risks' });
         expect(back).toHaveAttribute('type', 'button');
         fireEvent.click(back);
         expect(mockNavigate).toHaveBeenCalledWith('/risks');
@@ -203,9 +207,9 @@ describe('RiskDetailPage issue entry', () => {
         const returnTo = '/risks?q=claims&view=department&page=3#group-heading';
         mockSearchParams = new URLSearchParams({ return_to: returnTo });
         render(<RiskDetailPage />);
-        await screen.findByText('Liquidity Risk');
+        await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
 
-        fireEvent.click(screen.getByRole('button', { name: /back to register/i }));
+        fireEvent.click(screen.getByRole('button', { name: /back to risks/i }));
         expect(mockNavigate).toHaveBeenCalledWith(returnTo);
 
         mockNavigate.mockClear();
@@ -218,7 +222,7 @@ describe('RiskDetailPage issue entry', () => {
     it('exposes an adequate named action for dismissing a link error', async () => {
         mockLinkControl.mockRejectedValueOnce(new Error('link failed'));
         render(<RiskDetailPage />);
-        await screen.findByText('Liquidity Risk');
+        await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Trigger link failure' }));
         const close = await screen.findByRole('button', { name: 'Close' });
@@ -231,7 +235,7 @@ describe('RiskDetailPage issue entry', () => {
         const returnTo = '/risks?q=liquidity&page=4#group-heading';
         mockSearchParams = new URLSearchParams({ return_to: returnTo });
         render(<RiskDetailPage />);
-        await screen.findByText('Liquidity Risk');
+        await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
 
         fireEvent.click(screen.getByRole('button', { name: /archive/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'confirm-risk-archive' }));
@@ -243,7 +247,7 @@ describe('RiskDetailPage issue entry', () => {
     it('keeps the Risk archive dialog open with an in-dialog error after rejection', async () => {
         mockDeleteRisk.mockRejectedValueOnce(new Error('rejected'));
         render(<RiskDetailPage />);
-        await screen.findByText('Liquidity Risk');
+        await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
 
         fireEvent.click(screen.getByRole('button', { name: /archive/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'confirm-risk-archive' }));

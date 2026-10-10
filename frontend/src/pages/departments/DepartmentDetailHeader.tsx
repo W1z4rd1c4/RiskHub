@@ -1,52 +1,31 @@
-import { ArrowLeft, Building2, RefreshCw } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 import { useTranslation } from '@/i18n/hooks';
+import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import type { DepartmentDetail } from '@/services/departmentApi';
 
 interface DepartmentDetailHeaderProps {
     department: DepartmentDetail;
-    onBack: () => void;
+    /** Department register destination (honours `return_to`, NAV-02). */
+    returnTo: string;
     onRefresh: () => void;
 }
 
-export function DepartmentDetailHeader({ department, onBack, onRefresh }: DepartmentDetailHeaderProps) {
+/** Department detail header on the canonical `EntityDetailHeader` (D7, D14, DS-15, AX-06). */
+export function DepartmentDetailHeader({ department, returnTo, onRefresh }: DepartmentDetailHeaderProps) {
     const { t } = useTranslation('common');
+    const registerLabel = t('sidebar.departments', { ns: 'navigation' });
 
     return (
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={onBack}
-                    aria-label={t('actions.back')}
-                    title={t('actions.back')}
-                >
-                    <ArrowLeft aria-hidden="true" />
-                </Button>
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <Building2 className="h-8 w-8 text-accent" />
-                        <h2 className="text-3xl font-black text-foreground">{department.name}</h2>
-                        <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-mono">
-                            {department.code}
-                        </span>
-                    </div>
-                    {department.description && <p className="text-muted-foreground font-medium">{department.description}</p>}
-                </div>
-            </div>
-            <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={onRefresh}
-                aria-label={t('actions.refresh')}
-                title={t('actions.refresh')}
-            >
-                <RefreshCw aria-hidden="true" />
-            </Button>
-        </div>
+        <EntityDetailHeader
+            back={{ label: t('department_detail.back_to_departments'), to: returnTo }}
+            breadcrumbs={[
+                { label: registerLabel, to: returnTo },
+                { label: department.name },
+            ]}
+            identifier={department.code}
+            title={department.name}
+            description={department.description}
+            actions={<RefreshButton iconOnly variant="outline" onRefresh={onRefresh} />}
+        />
     );
 }

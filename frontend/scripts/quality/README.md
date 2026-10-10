@@ -8,15 +8,28 @@ Folder for `frontend/scripts/quality` implementation assets.
 
 - `debt-allowlist.json`
 - `debt-budget.mjs`
+- `ui-consistency-baseline.json`
+- `ui-consistency-ratchet.mjs`
 - `validate-debt-budget-report.mjs`
 - `validate-dora-e2e-coverage.mjs`
+- `validate-font-assets.mjs`
+- `validate-login-dependency-graph.mjs`
 - `validate-no-inline-styles.mjs`
 
 ## Notes
 
+- `validate-font-assets.mjs` runs after production builds and requires every vendored WOFF2
+  file to be emitted byte-for-byte, present in the Vite manifest, and referenced by built CSS.
+  It rejects missing assets and unresolved font URLs instead of accepting a fallback font.
+
 - `debt-budget.mjs` resolves its frontend root from `--root`, then `cwd`, then the script-local frontend tree.
 - Fixture and temp-worktree runs should prefer `--root=/abs/path/to/frontend-root` when executing outside that frontend directory.
 - `validate-dora-e2e-coverage.mjs` checks the versioned DORA requirements against the dynamically collected Playwright `ci` project.
+- `ui-consistency-ratchet.mjs` (`npm run quality:ui-ratchet`, G-RATCHET) counts design-system debt patterns per file
+  in `src/**` (tests excluded). Every pattern is a hard zero except the allowlisted ones (each allowlisted file names
+  its reason in the script), whose counts live in `ui-consistency-baseline.json` and may only go down.
+  `--update-baseline` locks in decreases and refuses increases unless `--force` (pure file moves only). Runs in
+  `lint.yml` and `maintenance-governance.yml`.
 Keep this README updated when responsibilities or structure in this folder change.
 `validate-login-dependency-graph.mjs` is the production-build structural gate for
 the public login path. It rejects static protected-application, Entra/MSAL, or

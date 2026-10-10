@@ -1,5 +1,6 @@
 import { Building2 } from 'lucide-react';
 
+import { InlineMessage } from '@/components/ui/inline-message';
 import { DirectoryUserImportPanel } from '@/components/users/DirectoryUserImportPanel';
 import { useTranslation } from '@/i18n/hooks';
 import type { AuthConfigResponse } from '@/services/authApi';
@@ -23,25 +24,20 @@ export function UserNewDirectoryImportSection({
 
     return (
         <div className="glass-card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-accent" />
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Building2 aria-hidden="true" className="h-5 w-5 text-accent-text" />
                 {t('users.add_from_ad')}
             </h2>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
                 {t('user_new.sso_import_help')}
             </p>
             {showDirectorySetupHint && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                    <p className="font-medium">
-                        {t('user_new.directory_setup_hint_title')}
-                    </p>
-                    <p className="mt-1 text-amber-100/90">
-                        {t('user_new.directory_setup_hint_body')}
-                    </p>
+                <InlineMessage tone="warning" title={t('user_new.directory_setup_hint_title')}>
+                    <p>{t('user_new.directory_setup_hint_body')}</p>
                     {authConfig?.sso_error && (
-                        <p className="mt-2 text-xs text-amber-100/80">{authConfig.sso_error}</p>
+                        <p className="mt-2 text-xs">{authConfig.sso_error}</p>
                     )}
-                </div>
+                </InlineMessage>
             )}
             <DirectoryUserImportPanel
                 onImported={onImported}

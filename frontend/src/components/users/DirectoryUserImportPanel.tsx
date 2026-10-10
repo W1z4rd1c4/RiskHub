@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { LoadingState } from '@/components/ui/state';
 import { apiClient, ApiClientError } from '@/services/apiClient';
 import { directoryApi } from '@/services/directoryApi';
 import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
@@ -106,62 +110,55 @@ export function DirectoryUserImportPanel({
 
     return (
         <div className={`space-y-4 ${className}`.trim()}>
-            <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    aria-label={t('users.directory_search_placeholder')}
-                    className="w-full rounded-xl border border-white/10 bg-slate-950 py-2 pl-10 pr-3 text-sm text-white outline-none transition focus:border-accent/70"
-                    placeholder={t('users.directory_search_placeholder')}
-                />
-            </div>
+            <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label={t('users.directory_search_placeholder')}
+                placeholder={t('users.directory_search_placeholder')}
+                leadingIcon={Search}
+            />
 
             {errorMessage && (
-                <div
-                    role="alert"
-                    className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200"
-                >
+                <InlineMessage tone="danger">
                     {errorMessage}
-                </div>
+                </InlineMessage>
             )}
 
-            <div className="max-h-96 overflow-y-auto rounded-xl border border-white/10">
+            <div className="max-h-96 overflow-y-auto rounded-xl border border-border">
                 {isSearching ? (
-                    <div className="px-4 py-8 text-center text-sm text-slate-400">
-                        {t('users.directory_searching')}
-                    </div>
+                    <LoadingState layout="section" label={t('users.directory_searching')} />
                 ) : hasResults ? (
-                    <ul className="divide-y divide-white/10">
+                    <ul className="divide-y divide-border">
                         {visibleResults.map((entry) => (
                             <li key={entry.external_id} className="flex items-center justify-between gap-4 px-4 py-3">
                                 <div className="min-w-0">
-                                    <p className="truncate text-sm font-semibold text-white">{entry.display_name}</p>
-                                    <p className="truncate text-xs text-slate-400">
+                                    <p className="truncate text-sm font-semibold text-foreground">{entry.display_name}</p>
+                                    <p className="truncate text-xs text-muted-foreground">
                                         {entry.email || entry.user_principal_name || t('common:fallbacks.not_available')}
                                     </p>
-                                    <p className="truncate text-xs text-slate-400">
+                                    <p className="truncate text-xs text-muted-foreground">
                                         {entry.department || t('access.table.no_department')}
                                         {entry.job_title ? ` • ${entry.job_title}` : ''}
                                     </p>
                                 </div>
-                                <button
+                                <Button
                                     type="button"
+                                    variant="accent"
+                                    size="compact"
                                     onClick={() => void handleImport(entry)}
                                     aria-busy={isImportingOid === entry.external_id}
                                     aria-disabled={isImportingOid !== null}
-                                    className={`inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-hover ${isImportingOid !== null ? 'cursor-not-allowed opacity-60' : ''}`}
                                 >
-                                    <UserPlus className="h-3.5 w-3.5" />
+                                    <UserPlus aria-hidden="true" />
                                     {isImportingOid === entry.external_id
                                         ? t('users.importing')
                                         : t('users.import')}
-                                </button>
+                                </Button>
                             </li>
                         ))}
                     </ul>
                 ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-300">
+                    <div className="px-4 py-8 text-center text-sm text-foreground">
                         {normalizedQuery
                             ? t('users.directory_no_results')
                             : t('users.directory_search_hint')}

@@ -34,55 +34,10 @@ export interface ActivityLogListResponse {
 
 export type ActivityViewMode = 'all' | 'by_person' | 'by_department' | 'by_entity_type';
 
-export const ENTITY_TYPE_LABELS: Record<string, string> = {
-    risk: 'Risk',
-    control: 'Control',
-    kri: 'KRI',
-    risk_questionnaire: 'Risk Questionnaire',
-    vendor: 'Vendor',
-    vendor_assessment: 'Vendor Assessment',
-    vendor_incident: 'Vendor Incident',
-    vendor_sla: 'Vendor SLA',
-    vendor_remediation: 'Vendor Remediation',
-    issue: 'Issue',
-    issue_remediation: 'Issue Remediation',
-    issue_exception: 'Issue Exception',
-    user: 'User',
-    department: 'Department',
-    approval: 'Approval',
-    control_execution: 'Control Execution',
-    kri_value: 'KRI Value',
-    control_risk_link: 'Control-Risk Link',
-    role: 'Role',
-    config: 'Configuration',
-};
-
-export const ACTION_LABELS: Record<string, string> = {
-    create: 'Created',
-    update: 'Updated',
-    delete: 'Deleted',
-    archive: 'Archived',
-    approve: 'Approved',
-    reject: 'Rejected',
-    cancel: 'Cancelled',
-    status_change: 'Status Changed',
-    link: 'Linked',
-    unlink: 'Unlinked',
-    login: 'Logged In',
-    failed_login: 'Login Failed',
-};
-
-function titleCaseActivityEntityType(entityType: string): string {
-    return entityType
-        .split('_')
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-}
-
-export function getActivityEntityLabel(entityType: string): string {
-    return ENTITY_TYPE_LABELS[entityType] ?? titleCaseActivityEntityType(entityType);
-}
+// Display labels for entity types, actions and changed fields are translated
+// (`common:activity_log.entity_types.*`, `admin:audit.events.*`,
+// `common:activity_log.fields.*`) with `translateCode`, which falls back to a
+// humanised code, never raw snake_case (GAP-D-02).
 
 export const ACTION_COLORS: Record<string, string> = {
     create: 'text-success-text bg-success/10',

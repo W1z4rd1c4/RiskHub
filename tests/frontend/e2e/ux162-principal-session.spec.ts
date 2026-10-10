@@ -600,7 +600,8 @@ async function installRouteIntercepts(page: Page, config: JourneyConfig, state: 
 }
 
 function dashboardSentinel(page: Page, label: string, value: number) {
-    return page.getByRole('button').filter({ hasText: label }).filter({ hasText: String(value) });
+    // The KPI cards are drill-down links (W9 3g); the sentinel is the card with its value.
+    return page.getByRole('link').filter({ hasText: label }).filter({ hasText: String(value) });
 }
 
 async function navigateSpa(page: Page, target: string) {

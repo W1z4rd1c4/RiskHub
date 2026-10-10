@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import {
     Shield,
     ChevronRight,
-    Loader2,
     LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,9 +14,11 @@ import { dashboardKeys } from '@/lib/queryKeys';
 import { getGroupedSidebarNav, resolveActiveSidebarHref } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { BrandWordmark } from '@/components/layout/BrandWordmark';
+import { UserAvatar } from '@/components/access/UserAvatar';
+import { Button } from '@/components/ui/button';
 import { DestinationLauncher } from '@/components/layout/DestinationLauncher';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
-import './sidebar.css';
 
 export function Sidebar() {
     const location = useLocation();
@@ -26,7 +27,6 @@ export function Sidebar() {
     const authz = useAuthz();
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
-    const { t: tCommon } = useTranslation('common');
     const { t: tErrors } = useTranslation('errorKeys');
 
     // Badge polling gates:
@@ -98,10 +98,13 @@ export function Sidebar() {
         label: t(`groups.${section.group}`),
         items: section.items.map((route) => {
             let badge: number | undefined;
+            let badgeLabel: string | undefined;
             if (route.nav.badgeKey === 'workflow') {
                 badge = workflowCount > 0 ? workflowCount : undefined;
+                badgeLabel = t('sidebar_badges.workflow', { count: workflowCount });
             } else if (route.nav.badgeKey === 'orphanCount') {
                 badge = orphanCount > 0 ? orphanCount : undefined;
+                badgeLabel = t('sidebar_badges.orphan_count', { count: orphanCount });
             }
 
             return {
@@ -110,6 +113,7 @@ export function Sidebar() {
                 icon: route.nav.icon,
                 label: t(`sidebar.${route.nav.labelKey}`),
                 badge,
+                badgeLabel,
             };
         }),
     }));
@@ -153,11 +157,6 @@ export function Sidebar() {
         measureNavigationOverflow();
     };
 
-    const brandName = tCommon('brand.name');
-    const brandAccentSuffix = 'Hub';
-    const hasAccentSuffix = brandName.endsWith(brandAccentSuffix);
-    const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
-
     return (
         <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 min-h-0 flex-col p-6">
             <div className="glass-card h-full min-h-0 flex flex-col p-4">
@@ -166,18 +165,10 @@ export function Sidebar() {
                         <div className="bg-accent p-2 rounded-xl">
                             <Shield className="h-6 w-6 text-accent-foreground" />
                         </div>
-                        <span className="text-xl font-bold tracking-tight text-foreground font-heading">
-                            {hasAccentSuffix ? (
-                                <>
-                                    {brandPrefix}
-                                    <span className="text-accent-text">{brandAccentSuffix}</span>
-                                </>
-                            ) : (
-                                brandName
-                            )}
-                        </span>
+                        <BrandWordmark className="text-xl font-bold tracking-tight text-foreground font-heading" />
                     </div>
                     <NotificationBell
+                        isCurrentPage={location.pathname === '/notifications'}
                         unreadCount={displayedUnreadNotificationCount}
                         onUnreadCountChange={handleUnreadCountChange}
                     />
@@ -215,20 +206,23 @@ export function Sidebar() {
                                             className={cn(
                                                 'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200',
                                                 isActive
-                                                    ? 'sidebar-nav-link--active'
-                                                    : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                                                    ? 'bg-nav-active text-nav-active-foreground shadow-lg'
+                                                    : 'text-muted-foreground hover:bg-tint/5 hover:text-foreground'
                                             )}
                                         >
-                                            <div className="sidebar-nav-content flex items-center gap-3">
-                                                <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-icon-muted group-hover:text-foreground')} />
+                                            <div className="flex items-center gap-3">
+                                                <item.icon className={cn('h-5 w-5', !isActive && 'text-icon-muted group-hover:text-foreground')} />
                                                 {item.label}
                                             </div>
                                             {item.badge !== undefined && (
-                                                <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                    {item.badge}
+                                                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-nav-badge px-1.5 text-2xs font-bold text-nav-badge-foreground">
+                                                    {/* AX-14: the bare number reads as "Approvals 3"; the
+                                                        sr-only text names what is counted. */}
+                                                    <span aria-hidden="true">{item.badge}</span>
+                                                    <span className="sr-only">{item.badgeLabel}</span>
                                                 </span>
                                             )}
-                                            {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
+                                            {isActive && item.badge === undefined && <ChevronRight className="h-4 w-4" />}
                                         </Link>
                                     );
                                 })}
@@ -245,29 +239,28 @@ export function Sidebar() {
                     ) : null}
                 </div>
 
-                <div className="mt-4 shrink-0 space-y-4 border-t border-white/10 pt-4">
+                <div className="mt-4 shrink-0 space-y-4 border-t border-border pt-4">
                     {user && (
                         <div className="flex items-center gap-3 px-2">
-                            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                                <span className="text-xs font-bold text-accent-text">{user.name.charAt(0)}</span>
-                            </div>
+                            <UserAvatar name={user.name} className="h-8 w-8 text-xs" />
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
                                 <p className="text-xs text-muted-foreground truncate">{user.role_display_name}</p>
                             </div>
                         </div>
                     )}
-                    <button
+                    <Button
+                        variant="ghost"
                         onClick={handleLogout}
                         data-testid="logout-button"
-                        disabled={logoutPending}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-xl transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        isLoading={logoutPending}
+                        className="h-auto w-full justify-start gap-3 rounded-xl px-3 py-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                        {logoutPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                        {logoutPending ? null : <LogOut aria-hidden="true" />}
                         {t('user_menu.logout')}
-                    </button>
+                    </Button>
                     {logoutErrorKey && (
-                        <p className="px-3 text-xs text-rose-300">{tErrors(logoutErrorKey)}</p>
+                        <p className="px-3 text-xs text-destructive">{tErrors(logoutErrorKey)}</p>
                     )}
                 </div>
             </div>

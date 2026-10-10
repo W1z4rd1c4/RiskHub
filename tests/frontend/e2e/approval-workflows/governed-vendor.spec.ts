@@ -49,6 +49,9 @@ test.describe('Governed protected Vendor workflow (#87)', () => {
             name: /Submit for approval|Odeslat ke schválení/,
         }).click();
         expect((await queued).status()).toBe(202);
+        // D12 / PM-2: the requester stays on the entity page with the pending
+        // notice; its link opens the queued request.
+        await riskManagerPage.getByTestId('approval-queued-notice-link').click();
         await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
 
         const requesterApprovals = new ApprovalsPage(riskManagerPage);

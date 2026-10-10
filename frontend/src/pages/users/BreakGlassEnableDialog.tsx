@@ -1,8 +1,14 @@
 import { useId } from 'react';
+import { ShieldAlert } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
 import type { AccessUserRead } from '@/types/access';
-import { DialogShell } from '@/components/DialogShell';
+import { Button } from '@/components/ui/button';
+import { DialogBody, DialogFooter, DialogHeader, DialogShell } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface BreakGlassEnableDialogProps {
     breakGlassHours: number | '';
@@ -41,84 +47,76 @@ export function BreakGlassEnableDialog({
             onClose={onClose}
             titleId={titleId}
             descriptionIds={[descriptionId]}
-            closeDisabled={isBreakGlassSubmitting}
-            backdropClassName="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-            contentClassName="relative w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 shadow-2xl"
+            isBusy={isBreakGlassSubmitting}
+            size="md"
         >
-                <h3 id={titleId} className="text-lg font-bold text-white">
-                    {t('users.break_glass_enable', { ns: 'admin' })}
-                </h3>
-                <p id={descriptionId} className="mt-2 text-sm text-slate-300">
-                    {t('users.break_glass_message', {
-                        ns: 'admin',
-                        name: breakGlassUser.name,
-                    })}
-                </p>
-                <span
-                    id="break-glass-reason-label"
-                    className="mt-5 block text-xs font-bold uppercase tracking-widest text-slate-400"
-                >
-                    {t('users.break_glass_reason', { ns: 'admin' })}
-                </span>
-                <textarea
-                    id="break-glass-reason"
-                    aria-labelledby="break-glass-reason-label"
-                    value={breakGlassReason}
-                    onChange={(event) => onReasonChange(event.target.value)}
-                    className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
-                    maxLength={255}
-                />
-                <span
-                    id="break-glass-expires-in-hours-label"
-                    className="mt-4 block text-xs font-bold uppercase tracking-widest text-slate-400"
-                >
-                    {t('users.break_glass_expires_in_hours', { ns: 'admin' })}
-                </span>
-                <input
-                    id="break-glass-expires-in-hours"
-                    aria-labelledby="break-glass-expires-in-hours-label"
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={breakGlassHours}
-                    onChange={(event) => {
-                        if (event.target.value === '') {
-                            onHoursChange('');
-                            return;
-                        }
-                        const value = Number(event.target.value);
-                        onHoursChange(Math.min(24, Math.max(1, Number.isFinite(value) ? value : 1)));
-                    }}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
-                />
+            <DialogHeader
+                title={t('users.break_glass_enable', { ns: 'admin' })}
+                description={t('users.break_glass_message', {
+                    ns: 'admin',
+                    name: breakGlassUser.name,
+                })}
+                descriptionId={descriptionId}
+                icon={ShieldAlert}
+                tone="warning"
+            />
+            <DialogBody>
+                <Field id="break-glass-reason" label={t('users.break_glass_reason', { ns: 'admin' })} required>
+                    {(field) => (
+                        <Textarea
+                            {...field}
+                            value={breakGlassReason}
+                            onChange={(event) => onReasonChange(event.target.value)}
+                            className="min-h-24"
+                            maxLength={255}
+                        />
+                    )}
+                </Field>
+                <Field id="break-glass-expires-in-hours" label={t('users.break_glass_expires_in_hours', { ns: 'admin' })}>
+                    {(field) => (
+                        <Input
+                            {...field}
+                            type="number"
+                            min={1}
+                            max={24}
+                            value={breakGlassHours}
+                            onChange={(event) => {
+                                if (event.target.value === '') {
+                                    onHoursChange('');
+                                    return;
+                                }
+                                const value = Number(event.target.value);
+                                onHoursChange(Math.min(24, Math.max(1, Number.isFinite(value) ? value : 1)));
+                            }}
+                        />
+                    )}
+                </Field>
                 {errorMessage && (
-                    <p id="break-glass-submit-error" role="alert" className="mt-4 text-sm text-rose-300">
+                    <InlineMessage id="break-glass-submit-error" tone="danger">
                         {errorMessage}
-                    </p>
+                    </InlineMessage>
                 )}
-                <div className="mt-6 flex justify-end gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isBreakGlassSubmitting}
-                        className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {t('actions.cancel', { ns: 'common' })}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onSubmit}
-                        disabled={!breakGlassReason.trim() || breakGlassHours === ''}
-                        aria-busy={isBreakGlassSubmitting}
-                        aria-disabled={isBreakGlassSubmitting || !breakGlassReason.trim() || breakGlassHours === ''}
-                        aria-describedby={errorMessage ? 'break-glass-submit-error' : undefined}
-                        className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
-                    >
-                        {isBreakGlassSubmitting
-                            ? t('users.break_glass_enabling', { ns: 'admin' })
-                            : t('users.break_glass_enable', { ns: 'admin' })}
-                    </button>
-                </div>
+            </DialogBody>
+            <DialogFooter>
+                <Button type="button" variant="secondary" onClick={onClose} disabled={isBreakGlassSubmitting}>
+                    {t('actions.cancel', { ns: 'common' })}
+                </Button>
+                {/* Stays focusable while submitting (aria-disabled, not disabled) so focus
+                    never drops out of the dialog (UX-157). */}
+                <Button
+                    type="button"
+                    variant="warning"
+                    onClick={onSubmit}
+                    disabled={!breakGlassReason.trim() || breakGlassHours === ''}
+                    aria-busy={isBreakGlassSubmitting}
+                    aria-disabled={isBreakGlassSubmitting || !breakGlassReason.trim() || breakGlassHours === ''}
+                    aria-describedby={errorMessage ? 'break-glass-submit-error' : undefined}
+                >
+                    {isBreakGlassSubmitting
+                        ? t('users.break_glass_enabling', { ns: 'admin' })
+                        : t('users.break_glass_enable', { ns: 'admin' })}
+                </Button>
+            </DialogFooter>
         </DialogShell>
     );
 }

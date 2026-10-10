@@ -55,7 +55,6 @@ function renderModal(options: {
         path: '/',
         element: (
             <KRIModal
-                risk_id={101}
                 kri={existingKri()}
                 isOpen
                 onClose={onClose}
@@ -84,7 +83,6 @@ function KriLifecycleHarness() {
             </button>
             <output>Server version: {kri.metric_name}</output>
             <KRIModal
-                risk_id={101}
                 kri={kri}
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}

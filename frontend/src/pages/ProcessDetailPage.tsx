@@ -1,23 +1,37 @@
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArchiveRestore, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
+import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CardTitle } from '@/components/ui/card';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useAuthz } from '@/authz/useAuthz';
-import { useTranslation } from '@/i18n/hooks';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
+import { useTranslation, useFormat } from '@/i18n/hooks';
 import { approvalsApi } from '@/services/approvalsApi';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
 
+import { DetailField, DetailFieldList } from './detail/DetailField';
 import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { DetailSection } from './detail/DetailSection';
+import { EditBlockedState } from './detail/EditBlockedState';
+import { EntityDetailHeader } from './detail/EntityDetailHeader';
+import { OwnershipGovernanceAlert } from './detail/OwnershipGovernanceAlert';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
-import { ProcessPendingChangePanel } from './processes/ProcessPendingChangePanel';
 import { ProcessVendorLinksSection } from './processes/ProcessVendorLinksSection';
 import { processMutationRequiresApprovalReason } from './processes/processProtectedEdit';
 import {
@@ -30,31 +44,13 @@ import {
     processOwnerContextDisplayLabel,
     processOwnerDisplayLabel,
 } from './processes/processesPagePresentation';
-import { getProcessStatusColor } from './processes/processColumns';
+import { getProcessStatusTone } from './processes/processColumns';
 import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
+import { LoadingState } from '@/components/ui/state';
 
 interface ProcessDetailPageProps {
     mode?: ProcessDetailMode;
-}
-
-function DetailField({
-    label,
-    value,
-    testId,
-}: {
-    label: string;
-    value: string | number | null | undefined;
-    testId?: string;
-}) {
-    return (
-        <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-            <p className="text-sm text-foreground" data-testid={testId}>
-                {value === null || value === undefined || value === '' ? '—' : value}
-            </p>
-        </div>
-    );
 }
 
 function DerivedCheckField({
@@ -68,54 +64,17 @@ function DerivedCheckField({
 }) {
     // Blank check (workbook: OR(rto="",mtpd="") guard) renders a neutral dash.
     if (value === null || value === undefined) {
-        return (
-            <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-                <p className="text-sm text-muted-foreground">—</p>
-            </div>
-        );
+        return <DetailField label={label} value={null} />;
     }
-    const isOk = code === 'ok';
     return (
-        <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-            <p className={`text-sm font-semibold ${isOk ? 'text-success-text' : 'text-destructive'}`}>{value}</p>
-        </div>
-    );
-}
-
-function ProcessOwnershipAlert({
-    actionLabel,
-    message,
-    onResolve,
-    testId,
-}: {
-    actionLabel?: string;
-    message: string;
-    onResolve?: () => void;
-    testId?: string;
-}) {
-    return (
-        <div
-            role="alert"
-            data-testid={testId}
-            className="glass-card flex flex-col items-start gap-4 border border-amber-400/30 text-amber-200 sm:flex-row sm:justify-between"
-        >
-            <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                <p className="text-sm font-medium">{message}</p>
-            </div>
-            {onResolve ? (
-                <button
-                    type="button"
-                    onClick={onResolve}
-                    data-testid="process-orphan-governance"
-                    className="shrink-0 rounded-xl border border-amber-300/30 px-4 py-2 text-sm font-bold text-amber-100 transition-colors hover:bg-amber-300/10"
-                >
-                    {actionLabel}
-                </button>
-            ) : null}
-        </div>
+        <DetailField
+            label={label}
+            value={(
+                <span className={`font-semibold ${code === 'ok' ? 'text-success-text' : 'text-destructive'}`}>
+                    {value}
+                </span>
+            )}
+        />
     );
 }
 
@@ -125,8 +84,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/processes');
     const processDetailPath = (processId: number) => appendRegisterReturnTo(`/processes/${processId}`, returnTo);
     const authz = useAuthz();
-    const { t, i18n } = useTranslation('processes');
+    const { t } = useTranslation('processes');
     const { t: tCommon } = useTranslation('common');
+    const format = useFormat();
+    // D14 / AX-06: every back control names its destination.
+    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
@@ -156,6 +118,9 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         logMessage: 'Failed to load process create capabilities.',
     });
 
+    const feedback = useFeedback();
+    const announceApprovalQueued = useApprovalQueued();
+
     const archiveProcess = async (requestReason?: string) => {
         if (!process) {
             return;
@@ -166,9 +131,12 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
             const result = await processApi.archiveProcess(process.id, requestReason?.trim() ?? '');
             setIsArchiveDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
-                void navigate(`/approvals?tab=mine&approvalId=${result.approval_id}`);
+                // D12 / PM-2: stay on the process with the pending notice + toast.
+                announceApprovalQueued({ approvalId: result.approval_id });
+                void fetchProcess();
                 return;
             }
+            feedback.success({ title: tCommon('outcome.archived', { name: process.l1_process }) });
             void navigate(returnTo);
         } catch (archiveError) {
             logError('Failed to archive process:', archiveError);
@@ -204,39 +172,42 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     };
 
     if (mode === 'new') {
+        // D7 / D14: the page title, back control and breadcrumbs stay in place
+        // while the create capability loads or is denied.
+        const newHeader = (
+            <PageHeader
+                title={t('actions.new')}
+                description={t('subtitle')}
+                back={backToRegister}
+                breadcrumbs={[{ label: t('title'), to: returnTo }, { label: t('actions.new') }]}
+            />
+        );
         if (createGateState.state !== 'allowed') {
-            return <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />;
+            return (
+                <PageContainer size="form">
+                    {newHeader}
+                    <FormCapabilityGateState state={createGateState.state} onRetry={createGateState.retry} />
+                </PageContainer>
+            );
         }
         return (
-            <div className="space-y-8">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-white">{t('actions.new')}</h1>
-                        <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
-                    </div>
-                </div>
+            <PageContainer size="form">
+                {newHeader}
                 <ProcessForm
-                    onSaved={(saved: Process) => navigate(processDetailPath(saved.id))}
-                    onApprovalQueued={(queued) => {
-                        void navigate(`/approvals?tab=mine&approvalId=${queued.approval_id}`);
+                    onSaved={(saved: Process) => {
+                        feedback.success({ title: tCommon('success.created'), description: saved.l1_process });
+                        void navigate(processDetailPath(saved.id));
                     }}
+                    onApprovalQueued={(queued) => announceApprovalQueued({ approvalId: queued.approval_id, to: returnTo })}
                     onCancel={() => navigate(returnTo)}
                 />
-            </div>
+            </PageContainer>
         );
     }
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="glass-card text-sm text-muted-foreground">{tCommon('loading.generic')}</div>
+            <LoadingState layout="page" label={tCommon('loading.generic')} />
         );
     }
 
@@ -268,105 +239,102 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         />
     );
 
+    const editBack = {
+        label: tCommon('actions.back_to_detail', { name: process.l1_process }),
+        onClick: () => void navigate(processDetailPath(process.id)),
+    };
+    const editBreadcrumbs = [
+        { label: t('title'), to: returnTo },
+        { label: process.l1_process, to: processDetailPath(process.id) },
+        { label: t('actions.edit') },
+    ];
+    const pendingChangePanel = process.pending_change ? (
+        <PendingChangePanel
+            pendingChange={process.pending_change}
+            namespace="processes"
+            testIdPrefix="process"
+            cancelling={isCancellingPendingChange}
+            onCancel={openPendingChangeCancellation}
+        />
+    ) : null;
+    // SM-05: one ownership banner for pending-governance / legacy / invalid
+    // ownership; only the governance case offers the queue action.
+    const ownershipAlert = (testId?: string) => {
+        if (process.ownership_status === 'pending_governance') {
+            return (
+                <OwnershipGovernanceAlert
+                    message={t(authz.canViewGovernance
+                        ? 'messages.owner_orphaned_governance'
+                        : 'messages.owner_orphaned_request')}
+                    actionLabel={t('actions.resolve_in_governance')}
+                    onAction={authz.canViewGovernance ? () => navigate('/governance?type=process') : undefined}
+                    testId={testId}
+                    actionTestId="process-orphan-governance"
+                />
+            );
+        }
+        if (process.ownership_status === 'legacy_unassigned') {
+            return <OwnershipGovernanceAlert message={t('messages.ownership_legacy_unassigned')} />;
+        }
+        if (process.ownership_status === 'invalid_assignment') {
+            return <OwnershipGovernanceAlert message={t('messages.ownership_invalid_assignment')} />;
+        }
+        return null;
+    };
+
+    const editHeader = (
+        <PageHeader
+            title={t('actions.edit')}
+            description={process.l1_process}
+            documentTitle={tCommon('page_title.edit', { name: process.l1_process })}
+            back={editBack}
+            breadcrumbs={editBreadcrumbs}
+        />
+    );
+
     if (mode === 'edit') {
         if (process.capabilities?.business_edit_blocked || process.pending_change) {
             return (
-                <div className="space-y-8">
-                    {staleWarning}
-                    <div className="flex items-start gap-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(processDetailPath(process.id))}
-                            aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
-                        >
-                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-white">{t('pending_change.edit_blocked_title')}</h1>
-                            <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
-                        </div>
-                    </div>
-                    {actionError ? (
-                        <div role="alert" className="glass-card border border-rose-400/30 text-sm text-rose-300">
-                            {actionError}
-                        </div>
-                    ) : null}
-                    {process.pending_change ? (
-                        <ProcessPendingChangePanel
-                            pendingChange={process.pending_change}
-                            locale={i18n.language}
-                            cancelling={isCancellingPendingChange}
-                            onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
-                                ? openPendingChangeCancellation
-                                : undefined}
-                        />
-                    ) : (
-                        <div role="status" className="glass-card border border-amber-400/30 text-sm text-amber-200">
-                            {t('pending_change.business_edits_blocked')}
-                        </div>
-                    )}
+                <>
+                    <EditBlockedState
+                        notice={staleWarning}
+                        title={t('pending_change.edit_blocked_title')}
+                        entityName={process.l1_process}
+                        documentTitle={tCommon('page_title.edit', { name: process.l1_process })}
+                        back={editBack}
+                        breadcrumbs={editBreadcrumbs}
+                        reason={process.pending_change ? undefined : t('pending_change.business_edits_blocked')}
+                        testId="process-edit-blocked"
+                    >
+                        {actionError ? <InlineMessage tone="danger">{actionError}</InlineMessage> : null}
+                        {pendingChangePanel}
+                    </EditBlockedState>
                     {pendingCancellationDialog}
-                </div>
+                </>
             );
         }
         if (process.ownership_status === 'pending_governance') {
             return (
-                <div className="space-y-8">
+                <PageContainer>
                     {staleWarning}
-                    <div className="flex items-start gap-3">
-                        <button
-                            type="button"
-                            onClick={() => navigate(processDetailPath(process.id))}
-                            aria-label={t('actions.back_to_register')}
-                            className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
-                        >
-                            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
-                            <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
-                        </div>
-                    </div>
-                    <ProcessOwnershipAlert
-                        actionLabel={t('actions.resolve_in_governance')}
-                        message={t(authz.canViewGovernance
-                            ? 'messages.owner_orphaned_governance'
-                            : 'messages.owner_orphaned_request')}
-                        onResolve={authz.canViewGovernance
-                            ? () => navigate('/governance?type=process')
-                            : undefined}
-                        testId="process-orphan-edit-blocked"
-                    />
-                </div>
+                    {editHeader}
+                    {ownershipAlert('process-orphan-edit-blocked')}
+                </PageContainer>
             );
         }
         if (canEdit !== true) {
-            return <FormCapabilityGateState state="denied" />;
+            return (
+                <PageContainer size="form">
+                    {editHeader}
+                    <FormCapabilityGateState state="denied" />
+                </PageContainer>
+            );
         }
         return (
-            <div className="space-y-8">
+            <PageContainer size="form">
                 {staleWarning}
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(processDetailPath(process.id))}
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-white">{t('actions.edit')}</h1>
-                        <p className="text-slate-500 font-medium mt-1">{process.l1_process}</p>
-                    </div>
-                </div>
-                {process.ownership_status === 'legacy_unassigned' ? (
-                    <ProcessOwnershipAlert message={t('messages.ownership_legacy_unassigned')} />
-                ) : null}
-                {process.ownership_status === 'invalid_assignment' ? (
-                    <ProcessOwnershipAlert message={t('messages.ownership_invalid_assignment')} />
-                ) : null}
+                {editHeader}
+                {ownershipAlert()}
                 <ProcessForm
                     initialData={process.ownership_status === 'invalid_assignment'
                         ? {
@@ -376,133 +344,84 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         }
                         : process}
                     isEdit
-                    onApprovalQueued={() => {
-                        void navigate(processDetailPath(process.id));
-                    }}
+                    onApprovalQueued={(queued) => announceApprovalQueued({
+                        approvalId: queued.approval_id,
+                        to: processDetailPath(process.id),
+                    })}
                     onSaved={(saved: Process) => {
                         setProcess(saved);
+                        feedback.success({ title: tCommon('success.updated'), description: saved.l1_process });
                         void navigate(processDetailPath(saved.id));
                     }}
                     onCancel={() => navigate(processDetailPath(process.id))}
                 />
-            </div>
+            </PageContainer>
         );
     }
 
     const status = getProcessDisplayStatus(process);
 
     return (
-        <div className="space-y-8">
+        <PageContainer>
             {staleWarning}
-            {actionError ? (
-                <div className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{actionError}</p>
-                </div>
-            ) : null}
-            {process.pending_change ? (
-                <ProcessPendingChangePanel
-                    pendingChange={process.pending_change}
-                    locale={i18n.language}
-                    cancelling={isCancellingPendingChange}
-                    onCancel={resolveCapabilityFlag(process.pending_change.capabilities, 'can_cancel')
-                        ? openPendingChangeCancellation
-                        : undefined}
-                />
-            ) : null}
-            {process.ownership_status === 'pending_governance' ? (
-                <ProcessOwnershipAlert
-                    actionLabel={t('actions.resolve_in_governance')}
-                    message={t(authz.canViewGovernance
-                        ? 'messages.owner_orphaned_governance'
-                        : 'messages.owner_orphaned_request')}
-                    onResolve={authz.canViewGovernance
-                        ? () => navigate('/governance?type=process')
-                        : undefined}
-                />
-            ) : null}
-            {process.ownership_status === 'legacy_unassigned' ? (
-                <ProcessOwnershipAlert message={t('messages.ownership_legacy_unassigned')} />
-            ) : null}
-            {process.ownership_status === 'invalid_assignment' ? (
-                <ProcessOwnershipAlert message={t('messages.ownership_invalid_assignment')} />
-            ) : null}
+            <ApprovalQueuedNotice />
+            {pendingChangePanel}
+            {ownershipAlert()}
 
-            <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
-                <div className="flex items-start gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(returnTo)}
-                        data-testid="process-detail-back"
-                        aria-label={t('actions.back_to_register')}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors shrink-0"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono font-bold text-accent-text">{process.f_code}</span>
-                            <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getProcessStatusColor(status)}`}
+            <EntityDetailHeader
+                back={{ ...backToRegister, testId: 'process-detail-back' }}
+                breadcrumbs={[{ label: t('title'), to: returnTo }, { label: process.l1_process }]}
+                identifier={<span className="font-mono text-accent-text">{process.f_code}</span>}
+                title={process.l1_process}
+                documentTitle={process.l1_process}
+                statuses={(
+                    <Badge tone={getProcessStatusTone(status)}>{t(`status.${status}`)}</Badge>
+                )}
+                description={`${process.l0_area}${process.l2_subprocess ? ` · ${process.l2_subprocess}` : ''}`}
+                actions={(
+                    <>
+                        {canRestore && (
+                            <Button
+                                variant="outline"
+                                onClick={() => void restoreProcess()}
+                                data-testid="process-detail-restore"
                             >
-                                {t(`status.${status}`)}
-                            </span>
-                        </div>
-                        <h1 className="text-3xl font-bold text-foreground mt-1">{process.l1_process}</h1>
-                        <p className="text-muted-foreground font-medium mt-1">
-                            {process.l0_area}
-                            {process.l2_subprocess ? ` · ${process.l2_subprocess}` : ''}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    {canRestore && (
-                        <button
-                            type="button"
-                            onClick={() => void restoreProcess()}
-                            data-testid="process-detail-restore"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <ArchiveRestore className="h-4 w-4" />
-                            {t('actions.restore')}
-                        </button>
-                    )}
-                    {canEdit
-                        && !process.capabilities?.business_edit_blocked
-                        && !process.pending_change
-                        && process.ownership_status !== 'pending_governance' && (
-                        <button
-                            type="button"
-                            onClick={() => navigate(appendRegisterReturnTo(`/processes/${process.id}/edit`, returnTo))}
-                            data-testid="process-detail-edit"
-                            className="px-4 py-2.5 glass rounded-xl text-foreground hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Pencil className="h-4 w-4" />
-                            {t('actions.edit')}
-                        </button>
-                    )}
-                    {canArchive && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setActionError(null);
-                                setIsArchiveDialogOpen(true);
-                            }}
-                            data-testid="process-detail-archive"
-                            className="px-4 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-2 text-sm font-semibold"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            {tCommon('actions.archive')}
-                        </button>
-                    )}
-                </div>
-            </div>
+                                <ArchiveRestore aria-hidden="true" />
+                                {t('actions.restore')}
+                            </Button>
+                        )}
+                        {canEdit
+                            && !process.capabilities?.business_edit_blocked
+                            && !process.pending_change
+                            && process.ownership_status !== 'pending_governance' && (
+                            <Button
+                                variant="outline"
+                                onClick={() => navigate(appendRegisterReturnTo(`/processes/${process.id}/edit`, returnTo))}
+                                data-testid="process-detail-edit"
+                            >
+                                <Pencil aria-hidden="true" />
+                                {t('actions.edit')}
+                            </Button>
+                        )}
+                        {canArchive && (
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    setActionError(null);
+                                    setIsArchiveDialogOpen(true);
+                                }}
+                                data-testid="process-detail-archive"
+                            >
+                                <Archive aria-hidden="true" />
+                                {tCommon('actions.archive')}
+                            </Button>
+                        )}
+                    </>
+                )}
+            />
 
-            <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('form.sections.ownership')}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <DetailSection title={t('form.sections.ownership')}>
+                <DetailFieldList className="md:grid-cols-3">
                     <DetailField
                         label={t('form.owner')}
                         value={processOwnerDisplayLabel(t, process)}
@@ -519,28 +438,22 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         label={t('form.licensed_activity')}
                         value={processControlledValueLabel(t, 'licensed_activity', process.licensed_activity)}
                     />
-                </div>
-            </div>
+                </DetailFieldList>
+            </DetailSection>
 
-            <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('form.sections.impacts')}
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+            <DetailSection title={t('form.sections.impacts')}>
+                <DetailFieldList className="grid-cols-2 md:grid-cols-3">
                     <DetailField label={t('form.impact_client')} value={process.impact_client} />
                     <DetailField label={t('form.impact_market_operations')} value={process.impact_market_operations} />
                     <DetailField label={t('form.impact_regulatory')} value={process.impact_regulatory} />
                     <DetailField label={t('form.impact_financial')} value={process.impact_financial} />
                     <DetailField label={t('form.impact_reputational')} value={process.impact_reputational} />
                     <DetailField label={t('form.mtpd_hours')} value={process.mtpd_hours} />
-                </div>
-            </div>
+                </DetailFieldList>
+            </DetailSection>
 
-            <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                    {t('form.sections.criticality')}
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+            <DetailSection title={t('form.sections.criticality')}>
+                <DetailFieldList className="grid-cols-2 md:grid-cols-3">
                     <DetailField
                         label={t('form.preliminary_criticality')}
                         value={processControlledValueLabel(t, 'preliminary_criticality', process.preliminary_criticality)}
@@ -549,213 +462,193 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         label={t('form.cif_override')}
                         value={processControlledValueLabel(t, 'cif_override', process.cif_override)}
                     />
-                </div>
-            </div>
+                </DetailFieldList>
+            </DetailSection>
 
             {process.derived ? (
-                <div className="glass-card space-y-5" data-testid="process-derived-section">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                        {t('derived.title')}
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                        <DetailField
-                            label={t('derived.criticality_score')}
-                            value={process.derived.criticality_score}
-                            testId="process-derived-score"
-                        />
-                        <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                                {t('derived.criticality_class')}
-                            </p>
-                            <CriticalityClassPill
-                                criticalityClass={process.derived.criticality_class}
-                                displayValue={processDerivedCriticalityLabel(t, process.derived.criticality_class)}
+                <DetailSection title={t('derived.title')} testId="process-derived-section">
+                    <div className="space-y-5">
+                        <DetailFieldList className="grid-cols-2 md:grid-cols-4">
+                            <DetailField
+                                label={t('derived.criticality_score')}
+                                value={process.derived.criticality_score}
+                                testId="process-derived-score"
                             />
-                        </div>
-                        <DetailField
-                            label={t('derived.cif')}
-                            value={processDerivedCifLabel(t, process.derived.cif)}
-                            testId="process-derived-cif"
-                        />
-                        <DetailField
-                            label={t('derived.completeness')}
-                            value={
-                                process.derived.is_complete
-                                    ? `✓ ${t('derived.complete')}`
-                                    : `⚠ ${t('derived.incomplete')}`
-                            }
-                        />
-                        <DerivedCheckField
-                            code={process.derived.rto_mtpd_check}
-                            label={t('derived.rto_mtpd_check')}
-                            value={processDerivedCheckLabel(t, process.derived.rto_mtpd_check)}
-                        />
-                        <DerivedCheckField
-                            code={process.derived.bcm_check}
-                            label={t('derived.bcm_check')}
-                            value={processDerivedCheckLabel(t, process.derived.bcm_check)}
-                        />
-                        <DetailField label={t('derived.next_review_date')} value={process.derived.next_review_date} />
-                        <DetailField label={t('derived.linked_asset_count')} value={process.derived.linked_asset_count} />
-                        <DetailField
-                            label={t('derived.linked_vendor_count')}
-                            value={process.derived.linked_vendor_count}
-                            testId="process-derived-vendor-count"
-                        />
-                    </div>
+                            <DetailField
+                                label={t('derived.criticality_class')}
+                                value={(
+                                    <CriticalityClassPill
+                                        criticalityClass={process.derived.criticality_class}
+                                        displayValue={processDerivedCriticalityLabel(t, process.derived.criticality_class)}
+                                    />
+                                )}
+                            />
+                            <DetailField
+                                label={t('derived.cif')}
+                                value={processDerivedCifLabel(t, process.derived.cif)}
+                                testId="process-derived-cif"
+                            />
+                            <DetailField
+                                label={t('derived.completeness')}
+                                value={
+                                    process.derived.is_complete
+                                        ? `✓ ${t('derived.complete')}`
+                                        : `⚠ ${t('derived.incomplete')}`
+                                }
+                            />
+                            <DerivedCheckField
+                                code={process.derived.rto_mtpd_check}
+                                label={t('derived.rto_mtpd_check')}
+                                value={processDerivedCheckLabel(t, process.derived.rto_mtpd_check)}
+                            />
+                            <DerivedCheckField
+                                code={process.derived.bcm_check}
+                                label={t('derived.bcm_check')}
+                                value={processDerivedCheckLabel(t, process.derived.bcm_check)}
+                            />
+                            <DetailField label={t('derived.next_review_date')} value={format.date(process.derived.next_review_date)} />
+                            <DetailField label={t('derived.linked_asset_count')} value={process.derived.linked_asset_count} />
+                            <DetailField
+                                label={t('derived.linked_vendor_count')}
+                                value={process.derived.linked_vendor_count}
+                                testId="process-derived-vendor-count"
+                            />
+                        </DetailFieldList>
 
-                    <div
-                        className="space-y-3 border-t border-white/5 pt-4"
-                        data-testid="process-derived-transitive"
-                    >
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                            {t('derived.transitive.title')}
-                        </h3>
-                        {process.derived.transitive_vendor_links.length === 0 ? (
-                            <p className="text-sm text-slate-500">{t('derived.transitive.empty')}</p>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                            <th className="py-2 pr-4">{t('derived.transitive.vendor')}</th>
-                                            <th className="py-2">{t('derived.transitive.via_asset')}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                        <div
+                            className="space-y-3 border-t border-border pt-4"
+                            data-testid="process-derived-transitive"
+                        >
+                            <CardTitle as="h3">{t('derived.transitive.title')}</CardTitle>
+                            {process.derived.transitive_vendor_links.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">{t('derived.transitive.empty')}</p>
+                            ) : (
+                                <Table density="compact">
+                                    <THead>
+                                        <TR>
+                                            <TH>{t('derived.transitive.vendor')}</TH>
+                                            <TH>{t('derived.transitive.via_asset')}</TH>
+                                        </TR>
+                                    </THead>
+                                    <TBody>
                                         {process.derived.transitive_vendor_links.map((link, index) => (
-                                            <tr
+                                            <TR
                                                 key={`${link.vendor_id}-${link.via_asset_id}-${index}`}
-                                                className="border-t border-white/5 text-sm"
                                                 data-testid={`process-derived-transitive-row-${index}`}
                                             >
-                                                <td className="py-2 pr-4 font-medium text-white">
-                                                    {link.vendor_name}
-                                                </td>
-                                                <td className="py-2 text-slate-300">{link.via_asset_name}</td>
-                                            </tr>
+                                                <TD className="font-medium text-foreground">{link.vendor_name}</TD>
+                                                <TD>{link.via_asset_name}</TD>
+                                            </TR>
                                         ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
+                                    </TBody>
+                                </Table>
+                            )}
+                        </div>
 
-                    <div className="space-y-4 border-t border-white/5 pt-4">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                            {t('derived.inputs.title')}
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                            <DetailField
-                                label={t('derived.inputs.impacts')}
-                                value={[
-                                    process.derived.inputs.impact_client,
-                                    process.derived.inputs.impact_market_operations,
-                                    process.derived.inputs.impact_regulatory,
-                                    process.derived.inputs.impact_financial,
-                                ]
-                                    .map((axis) => axis ?? '—')
-                                    .join(' / ')}
-                            />
-                            <DetailField
-                                label={t('derived.inputs.mtpd_bonus')}
-                                value={
-                                    process.derived.inputs.mtpd_bonus != null
-                                        ? `+${process.derived.inputs.mtpd_bonus}`
-                                        : null
-                                }
-                            />
-                            <DetailField
-                                label={t('derived.inputs.thresholds')}
-                                value={`≥${process.derived.inputs.threshold_critical_score} / ≥${process.derived.inputs.threshold_high_score} / ≥${process.derived.inputs.threshold_medium_score}`}
-                            />
-                            <DetailField
-                                label={t('derived.inputs.class_source')}
-                                value={t(
-                                    process.derived.inputs.criticality_class_source === 'score'
-                                        ? 'derived.inputs.class_source_score'
-                                        : 'derived.inputs.class_source_preliminary'
-                                )}
-                            />
-                            <DetailField
-                                label={t('derived.inputs.cif_override')}
-                                value={processControlledValueLabel(
-                                    t,
-                                    'cif_override',
-                                    process.derived.inputs.cif_override,
-                                )}
-                            />
-                            <DetailField
-                                label={t('derived.inputs.missing')}
-                                value={
-                                    process.derived.inputs.missing_for_completeness.length
-                                        ? process.derived.inputs.missing_for_completeness
-                                              .map((field) => t(`form.${field}`))
-                                              .join(', ')
-                                        : t('derived.inputs.none')
-                                }
-                            />
+                        <div className="space-y-4 border-t border-border pt-4">
+                            <CardTitle as="h3">{t('derived.inputs.title')}</CardTitle>
+                            <DetailFieldList className="grid-cols-2 md:grid-cols-3">
+                                <DetailField
+                                    label={t('derived.inputs.impacts')}
+                                    value={[
+                                        process.derived.inputs.impact_client,
+                                        process.derived.inputs.impact_market_operations,
+                                        process.derived.inputs.impact_regulatory,
+                                        process.derived.inputs.impact_financial,
+                                    ]
+                                        .map((axis) => axis ?? '—')
+                                        .join(' / ')}
+                                />
+                                <DetailField
+                                    label={t('derived.inputs.mtpd_bonus')}
+                                    value={
+                                        process.derived.inputs.mtpd_bonus != null
+                                            ? `+${process.derived.inputs.mtpd_bonus}`
+                                            : null
+                                    }
+                                />
+                                <DetailField
+                                    label={t('derived.inputs.thresholds')}
+                                    value={`≥${process.derived.inputs.threshold_critical_score} / ≥${process.derived.inputs.threshold_high_score} / ≥${process.derived.inputs.threshold_medium_score}`}
+                                />
+                                <DetailField
+                                    label={t('derived.inputs.class_source')}
+                                    value={t(
+                                        process.derived.inputs.criticality_class_source === 'score'
+                                            ? 'derived.inputs.class_source_score'
+                                            : 'derived.inputs.class_source_preliminary'
+                                    )}
+                                />
+                                <DetailField
+                                    label={t('derived.inputs.cif_override')}
+                                    value={processControlledValueLabel(
+                                        t,
+                                        'cif_override',
+                                        process.derived.inputs.cif_override,
+                                    )}
+                                />
+                                <DetailField
+                                    label={t('derived.inputs.missing')}
+                                    value={
+                                        process.derived.inputs.missing_for_completeness.length
+                                            ? process.derived.inputs.missing_for_completeness
+                                                  .map((field) => t(`form.${field}`))
+                                                  .join(', ')
+                                            : t('derived.inputs.none')
+                                    }
+                                />
+                            </DetailFieldList>
+                            <div className="flex flex-wrap gap-2">
+                                {(
+                                    [
+                                        ['cif_class_critical', process.derived.inputs.cif_class_critical],
+                                        ['cif_mtpd_within_critical', process.derived.inputs.cif_mtpd_within_critical],
+                                        ['cif_any_impact_maximal', process.derived.inputs.cif_any_impact_maximal],
+                                    ] as const
+                                )
+                                    .filter(([, active]) => active)
+                                    .map(([key]) => (
+                                        <Badge key={key} tone="danger">
+                                            {t(`derived.inputs.${key}`)}
+                                        </Badge>
+                                    ))}
+                            </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            {(
-                                [
-                                    ['cif_class_critical', process.derived.inputs.cif_class_critical],
-                                    ['cif_mtpd_within_critical', process.derived.inputs.cif_mtpd_within_critical],
-                                    ['cif_any_impact_maximal', process.derived.inputs.cif_any_impact_maximal],
-                                ] as const
-                            )
-                                .filter(([, active]) => active)
-                                .map(([key]) => (
-                                    <span
-                                        key={key}
-                                        className="inline-flex items-center rounded-full border border-rose-400/20 bg-rose-400/10 px-2.5 py-0.5 text-xs font-bold text-rose-300"
-                                    >
-                                        {t(`derived.inputs.${key}`)}
-                                    </span>
-                                ))}
-                        </div>
+                        <p className="text-xs text-muted-foreground">{t('detail.derived_fields_note')}</p>
                     </div>
-                    <p className="text-xs text-slate-500">{t('detail.derived_fields_note')}</p>
-                </div>
+                </DetailSection>
             ) : null}
 
-            <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.continuity')}
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+            <DetailSection title={t('form.sections.continuity')}>
+                <DetailFieldList className="grid-cols-2 md:grid-cols-3">
                     <DetailField label={t('form.rto_hours')} value={process.rto_hours} />
                     <DetailField label={t('form.rpo_hours')} value={process.rpo_hours} />
                     <DetailField
                         label={t('form.bcm_link')}
                         value={processControlledValueLabel(t, 'bcm_link', process.bcm_link)}
                     />
-                    <DetailField label={t('form.last_dr_test_date')} value={process.last_dr_test_date} />
+                    <DetailField label={t('form.last_dr_test_date')} value={format.date(process.last_dr_test_date)} />
                     <DetailField
                         label={t('form.dr_test_result')}
                         value={processControlledValueLabel(t, 'dr_test_result', process.dr_test_result)}
                     />
-                </div>
-            </div>
+                </DetailFieldList>
+            </DetailSection>
 
-            <div className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.assessment')}
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+            <DetailSection title={t('form.sections.assessment')}>
+                <DetailFieldList className="grid-cols-2 md:grid-cols-3">
                     <DetailField
                         label={t('form.interruption_impact')}
                         value={processControlledValueLabel(t, 'interruption_impact', process.interruption_impact)}
                     />
-                    <DetailField label={t('form.assessment_date')} value={process.assessment_date} />
-                </div>
+                    <DetailField label={t('form.assessment_date')} value={format.date(process.assessment_date)} />
+                </DetailFieldList>
                 {process.notes ? (
-                    <div className="space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.notes')}</p>
-                        <p className="text-sm text-slate-300 whitespace-pre-wrap">{process.notes}</p>
-                    </div>
+                    <DetailFieldList className="mt-5 md:grid-cols-1">
+                        <DetailField label={t('form.notes')} value={process.notes} />
+                    </DetailFieldList>
                 ) : null}
-            </div>
+            </DetailSection>
 
             <ProcessVendorLinksSection
                 process={process}
@@ -763,23 +656,26 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 onLinksChanged={() => fetchProcess()}
             />
 
+            {/* D10 / PM-1: the process API takes a reason; it is required
+                only when the archive is routed through approval. */}
             <ConfirmDialog
                 isOpen={isArchiveDialogOpen}
-                onClose={() => setIsArchiveDialogOpen(false)}
+                onClose={() => {
+                    setIsArchiveDialogOpen(false);
+                    setActionError(null);
+                }}
                 onConfirm={archiveProcess}
-                title={tCommon('actions.archive')}
+                intent="archive"
+                entityLabel={tCommon('labels.process')}
                 message={t('messages.archive_confirm', { processName: process.l1_process })}
-                confirmLabel={tCommon('actions.archive')}
-                variant="danger"
                 isLoading={isArchiving}
-                showInput={processMutationRequiresApprovalReason(process)}
-                inputRequired={processMutationRequiresApprovalReason(process)}
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason={processMutationRequiresApprovalReason(process) ? 'required' : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
                 errorText={actionError}
             />
             {pendingCancellationDialog}
-        </div>
+        </PageContainer>
     );
 }
 

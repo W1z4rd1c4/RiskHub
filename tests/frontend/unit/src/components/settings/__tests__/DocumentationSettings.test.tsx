@@ -184,7 +184,11 @@ describe('DocumentationSettings', () => {
         await renderDocumentationSettings();
 
         await screen.findByTestId('settings-doc-card-admin_incident-quick-reference');
-        await screen.findByTestId('settings-doc-card-admin_getting-started');
+        const card = await screen.findByTestId('settings-doc-card-admin_getting-started');
+        // The card is one named control (a stretched title button), not a button wrapping headings and tags.
+        expect(card.tagName).toBe('BUTTON');
+        expect(card).toHaveAccessibleName(/\S/);
+        expect(card.querySelector('[data-testid^="settings-doc-tag-"]')).toBeNull();
         expect(screen.getByTestId('settings-docs-audience')).toHaveTextContent('Admin documentation');
         expect(screen.getByTestId('settings-doc-tag-admin_incident-quick-reference-troubleshooting')).toBeInTheDocument();
         expect(screen.getByTestId('settings-doc-tag-admin_getting-started-onboarding')).toBeInTheDocument();
@@ -201,8 +205,13 @@ describe('DocumentationSettings', () => {
 
         await screen.findByTestId('settings-doc-card-admin_getting-started');
         const uiUser = userEvent.setup();
+        // The tag filter is a pressed-state toggle group; "All" starts pressed.
+        expect(screen.getByTestId('settings-docs-filter-all')).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByTestId('settings-docs-filter-exports')).toHaveAttribute('aria-pressed', 'false');
         await uiUser.click(screen.getByTestId('settings-docs-filter-exports'));
 
+        expect(screen.getByTestId('settings-docs-filter-exports')).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByTestId('settings-docs-filter-all')).toHaveAttribute('aria-pressed', 'false');
         expect(screen.getByTestId('settings-doc-card-admin_reports')).toBeInTheDocument();
         expect(screen.queryByTestId('settings-doc-card-admin_getting-started')).not.toBeInTheDocument();
         expect(screen.queryByTestId('settings-doc-card-admin_user-management')).not.toBeInTheDocument();

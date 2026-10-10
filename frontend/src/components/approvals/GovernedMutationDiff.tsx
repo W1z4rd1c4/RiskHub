@@ -1,7 +1,4 @@
-import { ArrowRight } from 'lucide-react';
-
-import { formatDateValue } from '@/i18n/formatters';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormat, useTranslation, type FormatApi } from '@/i18n/hooks';
 import {
     processControlledValueLabel,
     processDerivedCifLabel,
@@ -24,6 +21,8 @@ import type {
     GovernedVendorDerivedState,
 } from '@/types/approval';
 
+import { ApprovalValueChange } from './ApprovalValueChange';
+
 interface GovernedMutationDiffProps {
     before: Record<string, unknown>;
     after: Record<string, unknown>;
@@ -34,12 +33,9 @@ interface GovernedMutationDiffProps {
     testId?: string;
 }
 
-// Diff status colours come from the semantic status tokens (ADR-015): removed
-// (old) values read destructive, added (new) values read --success-text — both
-// standalone-text tokens are contrast-contract-tested against the background
-// (statusTokenContrast.test.ts).
-const REMOVED_VALUE_CLASS = 'text-destructive';
-const ADDED_VALUE_CLASS = 'text-success-text';
+// Before → after pairs render through `ApprovalValueChange` (GAP-D-25): `<del>` / `<ins>`
+// with visually hidden "Old value" / "New value" prefixes on the standalone-text status
+// tokens (contrast-contract-tested in statusTokenContrast.test.ts).
 
 function valuesEqual(before: unknown, after: unknown): boolean {
     return JSON.stringify(before) === JSON.stringify(after);
@@ -391,7 +387,7 @@ function displayGovernedValue(
     value: unknown,
     spec: GovernedFieldSpec,
     t: (key: string, options?: Record<string, unknown>) => string,
-    locale: string,
+    format: FormatApi,
 ): string {
     if (value === null || value === undefined || value === '') {
         return t('approvals:governed.not_set');
@@ -409,14 +405,14 @@ function displayGovernedValue(
     }
     if (spec.kind === 'number') {
         return typeof value === 'number' && Number.isFinite(value)
-            ? new Intl.NumberFormat(locale).format(value)
+            ? format.number(value)
             : t('approvals:governed.redacted_value');
     }
     if (spec.kind === 'date') {
         if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
             return t('approvals:governed.redacted_value');
         }
-        return formatDateValue(value, locale) || t('approvals:governed.redacted_value');
+        return format.date(value) || t('approvals:governed.redacted_value');
     }
     if (spec.kind === 'asset_controlled') {
         const field = spec.assetControlledField;
@@ -449,8 +445,8 @@ export function GovernedMutationDiff({
     mutationKind,
     testId,
 }: GovernedMutationDiffProps) {
-    const { t, i18n } = useTranslation(['approvals', 'processes', 'assets', 'vendors', 'threats']);
-    const locale = i18n?.language ?? 'en';
+    const { t } = useTranslation(['approvals', 'processes', 'assets', 'vendors', 'threats']);
+    const format = useFormat();
     const vendorContractMutation = mutationKind?.startsWith('vendor.contract.') === true;
     const vendorSubOutsourcingMutation = mutationKind?.startsWith('vendor.sub_outsourcing.') === true;
     const childMutation = vendorContractMutation || vendorSubOutsourcingMutation;
@@ -524,7 +520,7 @@ export function GovernedMutationDiff({
     return (
         <div className="space-y-5" data-testid={testId}>
             {mutationKind ? (
-                <p className="text-xs font-bold uppercase tracking-widest text-accent">
+                <p className="text-xs font-bold uppercase tracking-widest text-accent-text">
                     {t(`approvals:governed.mutation_kind.${mutationKind.replaceAll('.', '_')}`, {
                         defaultValue: t('approvals:request_types.update'),
                     })}
@@ -534,36 +530,36 @@ export function GovernedMutationDiff({
                 <section aria-labelledby={`${testId ?? 'governed-mutation'}-relationship-context`}>
                     <h5
                         id={`${testId ?? 'governed-mutation'}-relationship-context`}
-                        className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                        className="mb-3 text-eyebrow"
                     >
                         {t('approvals:governed.relationship.title')}
                     </h5>
                     <dl className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
-                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                        <div className="rounded-lg border border-border bg-nested p-3">
+                            <dt className="mb-2 text-eyebrow text-accent-text">
                                 {t('approvals:governed.relationship.target')}
                             </dt>
-                            <dd className="break-words text-xs font-bold text-slate-300">
+                            <dd className="break-words text-xs font-bold text-foreground">
                                 {isSafeBusinessLabel(relationshipChange.target_resource_name)
                                     ? relationshipChange.target_resource_name.trim()
                                     : t('approvals:governed.redacted_value')}
                             </dd>
                         </div>
-                        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
-                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                        <div className="rounded-lg border border-border bg-nested p-3">
+                            <dt className="mb-2 text-eyebrow text-accent-text">
                                 {t('approvals:governed.relationship.type')}
                             </dt>
-                            <dd className="text-xs font-bold text-slate-300">
+                            <dd className="text-xs font-bold text-foreground">
                                 {t(`approvals:governed.relationship.resource_type.${relationshipChange.target_resource_type}`, {
                                     defaultValue: t('approvals:governed.redacted_value'),
                                 })}
                             </dd>
                         </div>
-                        <div className="rounded-lg border border-white/5 bg-black/20 p-3">
-                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                        <div className="rounded-lg border border-border bg-nested p-3">
+                            <dt className="mb-2 text-eyebrow text-accent-text">
                                 {t('approvals:governed.relationship.action_label')}
                             </dt>
-                            <dd className="text-xs font-bold text-slate-300">
+                            <dd className="text-xs font-bold text-foreground">
                                 {t(`approvals:governed.relationship.action.${relationshipChange.action}`)}
                             </dd>
                         </div>
@@ -573,46 +569,44 @@ export function GovernedMutationDiff({
             <section aria-labelledby={`${testId ?? 'governed-mutation'}-business-fields`}>
                 <h5
                     id={`${testId ?? 'governed-mutation'}-business-fields`}
-                    className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    className="mb-3 text-eyebrow"
                 >
                     {t('approvals:governed.business_changes')}
                 </h5>
                 {visibleFields.length === 0 && changedFields.length === 0 ? (
-                    <p className="text-sm text-slate-500">{t('approvals:changes.no_changes')}</p>
+                    <p className="text-sm text-muted-foreground">{t('approvals:changes.no_changes')}</p>
                 ) : (
                     <dl className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                         {visibleFields.map((field) => {
                             const spec = governedFields[field];
                             const unchangedContext = valuesEqual(displayedBefore[field], displayedAfter[field]);
                             return (
-                                <div key={field} className="rounded-lg border border-white/5 bg-black/20 p-3">
-                                    <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                <div key={field} className="rounded-lg border border-border bg-nested p-3">
+                                    <dt className="mb-2 text-eyebrow text-accent-text">
                                         {t(spec.labelKey)}
                                     </dt>
                                     {unchangedContext ? (
-                                        <dd className="break-words text-xs font-bold text-slate-300">
-                                            {displayGovernedValue(displayedAfter[field], spec, t, locale)}
+                                        <dd className="break-words text-xs font-bold text-foreground">
+                                            {displayGovernedValue(displayedAfter[field], spec, t, format)}
                                         </dd>
                                     ) : (
                                         <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                            <span className={`break-words ${REMOVED_VALUE_CLASS}`}>
-                                                {displayGovernedValue(displayedBefore[field], spec, t, locale)}
-                                            </span>
-                                            <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                            <span className={`break-words font-bold ${ADDED_VALUE_CLASS}`}>
-                                                {displayGovernedValue(displayedAfter[field], spec, t, locale)}
-                                            </span>
+                                            <ApprovalValueChange
+                                                valueClassName="break-words"
+                                                before={displayGovernedValue(displayedBefore[field], spec, t, format)}
+                                                after={displayGovernedValue(displayedAfter[field], spec, t, format)}
+                                            />
                                         </dd>
                                     )}
                                 </div>
                             );
                         })}
                         {hasRestrictedChanges ? (
-                            <div className="rounded-lg border border-white/5 bg-black/20 p-3">
-                                <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                            <div className="rounded-lg border border-border bg-nested p-3">
+                                <dt className="mb-2 text-eyebrow text-accent-text">
                                     {t('approvals:governed.redacted_change')}
                                 </dt>
-                                <dd className="text-xs text-slate-400">
+                                <dd className="text-xs text-muted-foreground">
                                     {t('approvals:governed.redacted_value')}
                                 </dd>
                             </div>
@@ -624,7 +618,7 @@ export function GovernedMutationDiff({
             <section aria-labelledby={`${testId ?? 'governed-mutation'}-derived-impact`}>
                 <h5
                     id={`${testId ?? 'governed-mutation'}-derived-impact`}
-                    className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    className="mb-3 text-eyebrow"
                 >
                     {t('approvals:governed.derived_impact')}
                 </h5>
@@ -633,9 +627,9 @@ export function GovernedMutationDiff({
                         {(derivedImpact.processes ?? []).map((processImpact, index) => (
                             <div
                                 key={`${processImpact.resource_name}-${index}`}
-                                className="rounded-lg border border-white/5 bg-black/20 p-3"
+                                className="rounded-lg border border-border bg-nested p-3"
                             >
-                                <h6 className="mb-3 text-xs font-bold text-slate-200">
+                                <h6 className="mb-3 text-xs font-bold text-foreground">
                                     {isSafeBusinessLabel(processImpact.resource_name)
                                         ? processImpact.resource_name.trim()
                                         : t('approvals:governed.redacted_value')}
@@ -643,19 +637,14 @@ export function GovernedMutationDiff({
                                 <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     {(['cif', 'criticality_class'] as const).map((field) => (
                                         <div key={field}>
-                                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                            <dt className="mb-2 text-eyebrow text-accent-text">
                                                 {t(`approvals:governed.derived.${field}`)}
                                             </dt>
                                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                                <span className={REMOVED_VALUE_CLASS}>
-                                                    {derivedStateLabel(t, processImpact.before, field)
-                                                        ?? t('approvals:governed.not_set')}
-                                                </span>
-                                                <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                                <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
-                                                    {derivedStateLabel(t, processImpact.after, field)
-                                                        ?? t('approvals:governed.not_set')}
-                                                </span>
+                                                <ApprovalValueChange
+                                                    before={derivedStateLabel(t, processImpact.before, field) ?? t('approvals:governed.not_set')}
+                                                    after={derivedStateLabel(t, processImpact.after, field) ?? t('approvals:governed.not_set')}
+                                                />
                                             </dd>
                                         </div>
                                     ))}
@@ -665,9 +654,9 @@ export function GovernedMutationDiff({
                         {(derivedImpact.assets ?? []).map((assetImpact, index) => (
                             <div
                                 key={`${assetImpact.resource_name}-${index}`}
-                                className="rounded-lg border border-white/5 bg-black/20 p-3"
+                                className="rounded-lg border border-border bg-nested p-3"
                             >
-                                <h6 className="mb-3 text-xs font-bold text-slate-200">
+                                <h6 className="mb-3 text-xs font-bold text-foreground">
                                     {isSafeBusinessLabel(assetImpact.resource_name)
                                         ? assetImpact.resource_name.trim()
                                         : t('approvals:governed.redacted_value')}
@@ -675,17 +664,14 @@ export function GovernedMutationDiff({
                                 <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     {(['cif', 'resulting_criticality'] as const).map((field) => (
                                         <div key={field}>
-                                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                            <dt className="mb-2 text-eyebrow text-accent-text">
                                                 {t(`approvals:governed.derived.${field}`)}
                                             </dt>
                                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                                <span className={REMOVED_VALUE_CLASS}>
-                                                    {assetDerivedStateLabel(t, assetImpact.before, field)}
-                                                </span>
-                                                <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                                <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
-                                                    {assetDerivedStateLabel(t, assetImpact.after, field)}
-                                                </span>
+                                                <ApprovalValueChange
+                                                    before={assetDerivedStateLabel(t, assetImpact.before, field)}
+                                                    after={assetDerivedStateLabel(t, assetImpact.after, field)}
+                                                />
                                             </dd>
                                         </div>
                                     ))}
@@ -695,28 +681,23 @@ export function GovernedMutationDiff({
                         {(derivedImpact.vendors ?? []).map((vendorImpact, index) => (
                             <div
                                 key={`${vendorImpact.resource_name}-${index}`}
-                                className="rounded-lg border border-white/5 bg-black/20 p-3"
+                                className="rounded-lg border border-border bg-nested p-3"
                             >
-                                <h6 className="mb-3 text-xs font-bold text-slate-200">
+                                <h6 className="mb-3 text-xs font-bold text-foreground">
                                     {isSafeBusinessLabel(vendorImpact.resource_name)
                                         ? vendorImpact.resource_name.trim()
                                         : t('approvals:governed.redacted_value')}
                                 </h6>
                                 <dl>
                                     <div>
-                                        <dt className="mb-2 text-[10px] font-bold uppercase text-accent">
+                                        <dt className="mb-2 text-eyebrow text-accent-text">
                                             {t('approvals:governed.derived.vendor_tier')}
                                         </dt>
                                         <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                            <span className={REMOVED_VALUE_CLASS}>
-                                                {vendorDerivedStateLabel(t, vendorImpact.before)
-                                                    ?? t('approvals:governed.not_set')}
-                                            </span>
-                                            <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                            <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
-                                                {vendorDerivedStateLabel(t, vendorImpact.after)
-                                                    ?? t('approvals:governed.not_set')}
-                                            </span>
+                                            <ApprovalValueChange
+                                                before={vendorDerivedStateLabel(t, vendorImpact.before) ?? t('approvals:governed.not_set')}
+                                                after={vendorDerivedStateLabel(t, vendorImpact.after) ?? t('approvals:governed.not_set')}
+                                            />
                                         </dd>
                                     </div>
                                 </dl>
@@ -726,16 +707,13 @@ export function GovernedMutationDiff({
                 ) : (
                 <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {pointDerivedRows.map(([labelKey, oldValue, newValue]) => (
-                        <div key={labelKey} className="rounded-lg border border-white/5 bg-black/20 p-3">
-                            <dt className="mb-2 text-[10px] font-bold uppercase text-accent">{t(labelKey)}</dt>
+                        <div key={labelKey} className="rounded-lg border border-border bg-nested p-3">
+                            <dt className="mb-2 text-eyebrow text-accent-text">{t(labelKey)}</dt>
                             <dd className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
-                                <span className={REMOVED_VALUE_CLASS}>
-                                    {oldValue ?? t('approvals:governed.not_set')}
-                                </span>
-                                <ArrowRight className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-                                <span className={`font-bold ${ADDED_VALUE_CLASS}`}>
-                                    {newValue ?? t('approvals:governed.not_set')}
-                                </span>
+                                <ApprovalValueChange
+                                    before={oldValue ?? t('approvals:governed.not_set')}
+                                    after={newValue ?? t('approvals:governed.not_set')}
+                                />
                             </dd>
                         </div>
                     ))}
@@ -747,7 +725,7 @@ export function GovernedMutationDiff({
                 <section aria-labelledby={`${testId ?? 'governed-mutation'}-impacted-resources`}>
                     <h5
                         id={`${testId ?? 'governed-mutation'}-impacted-resources`}
-                        className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500"
+                        className="mb-2 text-eyebrow"
                     >
                         {t('approvals:governed.impacted_resources')}
                     </h5>
@@ -755,7 +733,7 @@ export function GovernedMutationDiff({
                         {readableImpactedResources.map((resource, index) => (
                             <li
                                 key={`${resource.resource_type}-${resource.resource_name}-${index}`}
-                                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300"
+                                className="rounded-full border border-border bg-tint/5 px-3 py-1 text-xs text-foreground"
                             >
                                 {resource.resource_name}
                             </li>

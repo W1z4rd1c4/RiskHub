@@ -7,19 +7,7 @@ import { RiskDistributionMatrix } from '@/components/dashboard/RiskDistributionM
 import { StepIndicator } from '@/components/ui/StepIndicator';
 
 vi.mock('@/hooks/useRiskHubConfig', () => ({
-  useRiskThresholds: () => ({ thresholds: { criticalMin: 16, highMin: 10, mediumMin: 5 } }),
-}));
-
-vi.mock('@/hooks/useStatusTheme', () => ({
-  useStatusTheme: () => ({
-    matrix: {
-      emptyCell: 'bg-empty',
-      low: 'bg-low',
-      medium: 'bg-medium',
-      high: 'bg-high',
-      critical: 'bg-critical',
-    },
-  }),
+  useRiskThresholds: () => ({ thresholds: { critical: 16, high: 10, medium: 5 } }),
 }));
 
 const TestIcon = ({ className }: { className?: string }) => <span aria-hidden="true" className={className}>*</span>;
@@ -77,7 +65,8 @@ describe('shared native interaction semantics', () => {
     expect(screen.getByText('Level')).toBeVisible();
     expect(screen.getByText('3/5')).toBeVisible();
     expect(screen.getByText('Freq')).toBeVisible();
-    expect(screen.getByText('quarterly')).toBeVisible();
+    // PG-19: the frequency renders as its translated label, never the raw enum.
+    expect(screen.getByText('Quarterly')).toBeVisible();
 
     await user.click(buttons[1]!);
     expect(onUnarchive).toHaveBeenCalledWith(7);

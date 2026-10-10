@@ -34,7 +34,7 @@ const OVERVIEW_CARDS = [
 ] as const;
 
 const REPRESENTATIVE_HEALTH_ACTIONS = [
-    { card: 'risks', action: 'high', tab: 'risks', pathname: '/api/v1/risks', filters: { net_band: 'Vysoké' } },
+    { card: 'risks', action: 'high', tab: 'risks', pathname: '/api/v1/risks', filters: { net_band: 'high' }, apiFilters: { net_band: 'Vysoké' } },
     { card: 'controls', action: 'attention', tab: 'controls', pathname: '/api/v1/controls', filters: { monitoring_status: 'needs_review' } },
     { card: 'kris', action: 'breach', tab: 'kris', pathname: '/api/v1/kris', filters: { monitoring_status: 'breach' } },
     { card: 'issues', action: 'open', tab: 'issues', pathname: '/api/v1/issues', filters: { status: 'open' } },
@@ -116,7 +116,7 @@ test.describe('Department metric drill-down (#90)', () => {
         const tabs = page.getByRole('tab');
         await expect(tabs).toHaveCount(10);
         for (const [index, tab] of ENTITY_TABS.entries()) {
-            await expect(tabs.nth(index)).toHaveAttribute('data-department-tab', tab);
+            await expect(tabs.nth(index)).toHaveAttribute('id', `department-tab-${tab}`);
         }
         await expect(page.getByRole('tab', { name: /threat/i })).toHaveCount(0);
 
@@ -211,7 +211,10 @@ test.describe('Department metric drill-down (#90)', () => {
             expect(isDepartmentScopedCollectionRequest(request, health.pathname, departmentId)).toBe(true);
             const requestUrl = new URL(request.url());
             const requestFilters = collectionFilters(request);
-            for (const [key, value] of Object.entries(health.filters)) {
+            // Risk register URLs use language-neutral band codes; only the API
+            // boundary translates them to the backend's stored band values.
+            const apiFilters = 'apiFilters' in health ? health.apiFilters : health.filters;
+            for (const [key, value] of Object.entries(apiFilters)) {
                 expect(requestFilters[key] ?? requestUrl.searchParams.get(key)).toEqual(value);
             }
             await expect(page).toHaveURL((url) => {

@@ -7,20 +7,9 @@ import { ApiClientError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import { lookupApi } from '@/services/lookupApi';
 import { vendorApi } from '@/services/vendorApi';
-import type { KRICreate, KRIUpdate } from '@/types/kri';
+import type { KeyRiskIndicator } from '@/types/kri';
 
 import type { KriModalFormData, KriOwnerOption, KRIModalProps } from './kriModalTypes';
-
-const DEFAULT_FORM_DATA: KriModalFormData = {
-    metric_name: '',
-    description: '',
-    current_value: 0,
-    lower_limit: 0,
-    upper_limit: 100,
-    unit: '%',
-    frequency: 'quarterly',
-    reporting_owner_id: undefined,
-};
 
 function mergeVendorOptions(
     current: KRIVendorOption[],
@@ -36,7 +25,7 @@ function mergeVendorOptions(
     return [...merged.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function formDataFromKri(kri: NonNullable<KRIModalProps['kri']>): KriModalFormData {
+function formDataFromKri(kri: KeyRiskIndicator): KriModalFormData {
     return {
         metric_name: kri.metric_name,
         description: kri.description,
@@ -49,10 +38,8 @@ function formDataFromKri(kri: NonNullable<KRIModalProps['kri']>): KriModalFormDa
     };
 }
 
-function vendorOptionsFromKri(
-    kri: KRIModalProps['kri'],
-): KRIVendorOption[] {
-    return (kri?.linked_vendors ?? []).map((vendor) => ({
+function vendorOptionsFromKri(kri: KeyRiskIndicator): KRIVendorOption[] {
+    return (kri.linked_vendors ?? []).map((vendor) => ({
         id: vendor.id,
         name: vendor.name,
         is_archived: vendor.is_archived,
@@ -62,12 +49,10 @@ function vendorOptionsFromKri(
 export function createKriModalSnapshot(
     formData: KriModalFormData,
     selectedVendorIds: number[],
-    isCreate: boolean,
 ): string {
     return JSON.stringify([
         formData.metric_name ?? '',
         formData.description ?? '',
-        isCreate ? formData.current_value ?? null : null,
         formData.lower_limit ?? null,
         formData.upper_limit ?? null,
         formData.unit ?? '',
@@ -91,15 +76,10 @@ export function useKriModalState({
     isOpen,
     kri,
     onClose,
-    onDelete,
     onSave,
-    risk_id,
 }: KRIModalProps) {
-    const isCreate = !kri;
     const initialVendorOptions = vendorOptionsFromKri(kri);
     const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [vendorSearch, setVendorSearch] = useState('');
     const debouncedVendorSearch = useDebouncedValue(vendorSearch, 300);
@@ -112,21 +92,15 @@ export function useKriModalState({
         () => initialVendorOptions,
     );
     const [formData, setFormData] = useState<KriModalFormData>(
-        () => kri ? formDataFromKri(kri) : DEFAULT_FORM_DATA,
+        () => formDataFromKri(kri),
     );
     const [users, setUsers] = useState<KriOwnerOption[]>([]);
 
     useEffect(() => {
-        if (kri) {
-            setFormData(formDataFromKri(kri));
-            const linkedVendorOptions = vendorOptionsFromKri(kri);
-            setSelectedVendorIds(linkedVendorOptions.map((vendor) => vendor.id));
-            setSelectedVendorOptions(linkedVendorOptions);
-        } else {
-            setFormData(DEFAULT_FORM_DATA);
-            setSelectedVendorIds([]);
-            setSelectedVendorOptions([]);
-        }
+        setFormData(formDataFromKri(kri));
+        const linkedVendorOptions = vendorOptionsFromKri(kri);
+        setSelectedVendorIds(linkedVendorOptions.map((vendor) => vendor.id));
+        setSelectedVendorOptions(linkedVendorOptions);
         setVendorSearch('');
         setError(null);
     }, [kri, isOpen]);
@@ -205,7 +179,7 @@ export function useKriModalState({
     }
 
     async function handleSave(acceptCurrentSnapshot?: () => void) {
-        if (isSaving || isDeleting) {
+        if (isSaving) {
             return;
         }
         const validationError = getKriDraftValidationErrorKey(formData);
@@ -217,8 +191,8 @@ export function useKriModalState({
         try {
             setIsSaving(true);
             setError(null);
-            const { current_value: _currentValue, ...rest } = formData;
-            const data = isCreate ? { ...formData, risk_id } as KRICreate : rest as KRIUpdate;
+            // current_value is read-only here; values are recorded via KRIValueModal.
+            const { current_value: _currentValue, ...data } = formData;
             await onSave(data, selectedVendorIds);
             acceptCurrentSnapshot?.();
             onClose();
@@ -230,39 +204,17 @@ export function useKriModalState({
         }
     }
 
-    async function handleDelete(acceptCurrentSnapshot?: () => void) {
-        if (!kri || !onDelete || isSaving || isDeleting) {
-            return;
-        }
-        try {
-            setIsDeleting(true);
-            await onDelete(kri.id);
-            acceptCurrentSnapshot?.();
-            onClose();
-        } catch (err) {
-            logError('Delete failed:', err);
-        } finally {
-            setIsDeleting(false);
-            setIsDeleteDialogOpen(false);
-        }
-    }
-
     return {
         clearError,
         debouncedVendorSearch,
         error,
         formData,
-        handleDelete,
         handleSave,
         handleSelectedVendorIdsChange,
-        isCreate,
-        isDeleteDialogOpen,
-        isDeleting,
         isLoadingVendors,
         isSaving,
         selectedVendorIds,
         selectedVendorOptions,
-        setIsDeleteDialogOpen,
         setVendorSearch,
         updateFormData,
         users,

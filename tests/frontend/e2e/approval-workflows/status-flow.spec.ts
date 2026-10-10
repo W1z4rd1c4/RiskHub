@@ -17,6 +17,35 @@ test.describe('Approval Status Flow (Deterministic)', () => {
         expect(await approvalsPage.getActionType(0)).toBe('create');
     });
 
+    test('status comes from the shared badge without typography classes or reason prose', async ({ page }) => {
+        const statuses = [
+            ['Pending', 'pending'],
+            ['Pending Privileged Review', 'pending_privileged'],
+            ['Approved', 'approved'],
+            ['Rejected', 'rejected'],
+            ['Cancelled', 'cancelled'],
+            ['Expired', 'expired'],
+            ['Čeká', 'pending'],
+            ['Čeká na privilegované schválení', 'pending_privileged'],
+            ['Schváleno', 'approved'],
+            ['Zamítnuto', 'rejected'],
+            ['Zrušeno', 'cancelled'],
+            ['Vypršelo', 'expired'],
+        ];
+        await page.setContent(`<div class="space-y-4">${statuses.map(([label]) => `
+            <article class="glass-card">
+                <span data-tone="info">Update</span>
+                <p>Re: Approved after pending privileged review.</p>
+                <span data-tone="neutral">${label}</span>
+            </article>
+        `).join('')}</div>`);
+
+        const approvalsPage = new ApprovalsPage(page);
+        for (const [index, [, status]] of statuses.entries()) {
+            expect(await approvalsPage.getStatus(index)).toBe(status);
+        }
+    });
+
     test('Risk Manager sees seeded pending approval requests', async ({ riskManagerPage }) => {
         const approvalsPage = new ApprovalsPage(riskManagerPage);
         await approvalsPage.navigate();

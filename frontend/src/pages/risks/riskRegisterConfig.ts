@@ -24,6 +24,33 @@ export function resolveRiskTypeDisplayName(
         : fallback;
 }
 
+/**
+ * PG-40: the register keeps a language-neutral band code in its state and URL
+ * (`?net_band=critical`) and maps it to the backend's stored band value only
+ * when it builds the list request. Older links that carry the backend value
+ * (`?net_band=Kritick%C3%A9`, dashboard and department drill-downs) still parse.
+ */
+export const RISK_NET_BAND_CODES = ['low', 'medium', 'high', 'critical'] as const;
+export type RiskNetBand = (typeof RISK_NET_BAND_CODES)[number];
+
+const RISK_NET_BAND_BACKEND_VALUES: Readonly<Record<RiskNetBand, string>> = {
+    low: 'Nízké',
+    medium: 'Střední',
+    high: 'Vysoké',
+    critical: 'Kritické',
+};
+
+export function parseRiskNetBand(value: unknown): RiskNetBand | '' {
+    if (typeof value !== 'string' || !value) return '';
+    if ((RISK_NET_BAND_CODES as readonly string[]).includes(value)) return value as RiskNetBand;
+    const code = RISK_NET_BAND_CODES.find((candidate) => RISK_NET_BAND_BACKEND_VALUES[candidate] === value);
+    return code ?? '';
+}
+
+export function toBackendRiskNetBand(band: RiskNetBand | ''): string | undefined {
+    return band ? RISK_NET_BAND_BACKEND_VALUES[band] : undefined;
+}
+
 export interface RiskRegisterFilters {
     lifecycle: RiskLifecycleFilter;
     status: RiskStatus | '';
@@ -31,7 +58,7 @@ export interface RiskRegisterFilters {
     is_priority: boolean | null;
     has_breach: boolean | null;
     critical: boolean;
-    net_band: string;
+    net_band: RiskNetBand | '';
 }
 
 export const RISK_REGISTER_CONFIG = {
@@ -67,7 +94,7 @@ export function parseRiskRegisterFilters(filters: RegisterFilters): RiskRegister
         is_priority: booleanOrNull(filters.is_priority),
         has_breach: booleanOrNull(filters.has_breach),
         critical: filters.critical === true,
-        net_band: typeof filters.net_band === 'string' ? filters.net_band : '',
+        net_band: parseRiskNetBand(filters.net_band),
     };
 }
 
@@ -116,7 +143,7 @@ export function buildRiskRegisterListParams({
         is_priority: filters.is_priority ?? undefined,
         has_breach: filters.has_breach ?? undefined,
         min_net_score: filters.critical ? criticalMinNetScore : undefined,
-        net_band: filters.net_band || undefined,
+        net_band: toBackendRiskNetBand(filters.net_band),
         sort: sort ?? undefined,
         sort_by: sort?.field,
         sort_order: sort?.direction,

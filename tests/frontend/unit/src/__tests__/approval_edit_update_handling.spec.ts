@@ -5,8 +5,8 @@
  * These tests verify the UI behavior when an edit requires approval.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { parseUpdateResult, getApprovalBannerMessage } from '@/lib/approvalUi';
+import { describe, it, expect } from 'vitest';
+import { parseUpdateResult } from '@/lib/approvalUi';
 import { isApprovalCreatedResponse } from '@/types/approval';
 
 describe('approvalUi helpers', () => {
@@ -48,22 +48,6 @@ describe('approvalUi helpers', () => {
             };
             const result = parseUpdateResult(response);
             expect(result.kind).toBe('applied');
-        });
-    });
-
-    describe('getApprovalBannerMessage', () => {
-        it('should format message with approval ID', () => {
-            const message = getApprovalBannerMessage(123);
-            expect(message).toContain('123');
-            expect(message).toContain('Submitted for approval');
-        });
-
-        it('should use translation function if provided', () => {
-            const mockT = vi.fn().mockReturnValue('Odesláno ke schválení');
-            const message = getApprovalBannerMessage(456, mockT);
-            expect(mockT).toHaveBeenCalledWith('approval.submitted_for_approval');
-            expect(message).toContain('456');
-            expect(message).toContain('Odesláno ke schválení');
         });
     });
 });

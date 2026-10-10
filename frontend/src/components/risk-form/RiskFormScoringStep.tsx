@@ -3,6 +3,7 @@ import { useId } from 'react';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { IMPACT_DESCRIPTIONS, PROBABILITY_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import type { Risk } from '@/types/risk';
 
@@ -35,7 +36,7 @@ export function RiskFormScoringStep({
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="grid md:grid-cols-2 gap-12">
         <section className="space-y-6">
-          <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>{t('risks:fields.gross_score')} ({t('risks:scoring.inherent_risk')})</h4>
+          <h2 className={`text-eyebrow ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>{t('risks:fields.gross_score')} ({t('risks:scoring.inherent_risk')})</h2>
           <div className="space-y-4">
             <Field
               label={(
@@ -44,7 +45,7 @@ export function RiskFormScoringStep({
                   <span aria-hidden="true" className="text-foreground">{formData.gross_probability} / 5</span>
                 </>
               )}
-              labelClassName="flex w-full justify-between text-xs font-bold text-muted-foreground uppercase"
+              labelClassName="flex w-full justify-between"
               help={formData.gross_probability && PROBABILITY_DESCRIPTIONS[formData.gross_probability] ? (
                 <>
                   <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
@@ -72,7 +73,7 @@ export function RiskFormScoringStep({
                   <span aria-hidden="true" className="text-foreground">{formData.gross_impact} / 5</span>
                 </>
               )}
-              labelClassName="flex w-full justify-between text-xs font-bold text-muted-foreground uppercase"
+              labelClassName="flex w-full justify-between"
               help={formData.gross_impact && IMPACT_DESCRIPTIONS[formData.gross_impact] ? (
                 <>
                   <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
@@ -114,7 +115,7 @@ export function RiskFormScoringStep({
         </section>
 
         <section className="space-y-6">
-          <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>{t('risks:fields.net_score')} ({t('risks:scoring.residual_risk')})</h4>
+          <h2 className={`text-eyebrow ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>{t('risks:fields.net_score')} ({t('risks:scoring.residual_risk')})</h2>
           <div className="space-y-4">
             <Field
               label={(
@@ -123,7 +124,7 @@ export function RiskFormScoringStep({
                   <span aria-hidden="true" className="text-foreground">{formData.net_probability} / 5</span>
                 </>
               )}
-              labelClassName="flex w-full justify-between text-xs font-bold text-muted-foreground uppercase"
+              labelClassName="flex w-full justify-between"
               help={formData.net_probability && PROBABILITY_DESCRIPTIONS[formData.net_probability] ? (
                 <>
                   <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
@@ -151,7 +152,7 @@ export function RiskFormScoringStep({
                   <span aria-hidden="true" className="text-foreground">{formData.net_impact} / 5</span>
                 </>
               )}
-              labelClassName="flex w-full justify-between text-xs font-bold text-muted-foreground uppercase"
+              labelClassName="flex w-full justify-between"
               help={formData.net_impact && IMPACT_DESCRIPTIONS[formData.net_impact] ? (
                 <>
                   <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
@@ -196,12 +197,12 @@ export function RiskFormScoringStep({
       {/* ICT Register acceptance governance (issue #47) — entered fields; the
           required-together rule above tolerance is a DQ finding, never a
           client-side block. */}
-      <section className="space-y-4 border-t border-white/10 pt-6" data-testid="risk-acceptance-section">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+      <section className="space-y-4 border-t border-border pt-6" data-testid="risk-acceptance-section">
+        <h2 className="text-eyebrow">
           {t('risks:acceptance.title')}
-        </h4>
+        </h2>
         <div className="grid md:grid-cols-3 gap-6">
-          <Field label={t('risks:acceptance.approver')} labelClassName="text-xs font-bold text-muted-foreground uppercase">
+          <Field label={t('risks:acceptance.approver')}>
             {(field) => (
               <Input
                 {...field}
@@ -213,7 +214,7 @@ export function RiskFormScoringStep({
               />
             )}
           </Field>
-          <Field label={t('risks:acceptance.date')} labelClassName="text-xs font-bold text-muted-foreground uppercase">
+          <Field label={t('risks:acceptance.date')}>
             {(field) => (
               <Input
                 {...field}
@@ -228,17 +229,16 @@ export function RiskFormScoringStep({
           <Field
             label={t('risks:acceptance.justification')}
             className="md:col-span-3"
-            labelClassName="text-xs font-bold text-muted-foreground uppercase"
+           
           >
             {(field) => (
-              <textarea
+              <Textarea
                 {...field}
                 aria-describedby={acceptanceHintId}
                 rows={2}
                 data-testid="risk-acceptance-justification"
                 value={formData.acceptance_justification ?? ''}
                 onChange={(e) => handleInputChange('acceptance_justification', e.target.value || null)}
-                className="w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-accent/50 resize-y"
               />
             )}
           </Field>

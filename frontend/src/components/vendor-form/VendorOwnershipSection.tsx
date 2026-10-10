@@ -1,13 +1,10 @@
 import { useTranslation } from '@/i18n/hooks';
+import { Card, CardHeader } from '@/components/ui/card';
+import { CreatableCombobox } from '@/components/ui/CreatableCombobox';
 import { Field } from '@/components/ui/field';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import {
-    VendorSectionHeader,
-    VendorSurface,
-} from '@/components/vendors/vendorRouteUi';
 
-import { VendorSuggestions } from './VendorSuggestions';
 import type { VendorFormField, VendorOption } from './vendorForm.types';
 
 interface VendorOwnershipSectionProps {
@@ -25,6 +22,8 @@ interface VendorOwnershipSectionProps {
     processSuggestions: string[];
     subprocessSuggestions: string[];
     onOwnerSearchChange: (value: string) => void;
+    /** Field-level validation messages for the required fields (announced through `Field`). */
+    errors?: Partial<Record<'department_id' | 'outsourcing_owner_user_id' | 'process', string | null>>;
 }
 
 export function VendorOwnershipSection({
@@ -37,15 +36,16 @@ export function VendorOwnershipSection({
     processSuggestions,
     subprocessSuggestions,
     onOwnerSearchChange,
+    errors = {},
 }: VendorOwnershipSectionProps) {
     const { t } = useTranslation('vendors');
 
     return (
-        <VendorSurface className="space-y-5">
-            <VendorSectionHeader title={t('form.sections.ownership')} />
+        <Card as="section">
+            <CardHeader title={t('form.sections.ownership')} />
 
-            <div className="vendor-form-grid">
-                <Field label={t('form.department')} required labelClassName="vendor-label" className="vendor-field space-y-0">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label={t('form.department')} required error={errors.department_id}>
                     {(control) => (
                         <ThemedSelect
                             {...control}
@@ -65,8 +65,7 @@ export function VendorOwnershipSection({
                     label={t('form.owner')}
                     required
                     help={t('form.owner_help')}
-                    labelClassName="vendor-label"
-                    className="vendor-field space-y-0"
+                    error={errors.outsourcing_owner_user_id}
                 >
                     {(control) => (
                         <SearchableEntitySelect
@@ -84,36 +83,32 @@ export function VendorOwnershipSection({
                     )}
                 </Field>
 
-                <div className="vendor-field relative">
-                    <label className="vendor-label">{t('form.process')}</label>
-                    <input
-                        data-testid="vendor-form-process"
-                        value={formData.process || ''}
-                        onChange={(event) => onChange('process', event.target.value)}
-                        className="vendor-input"
-                        placeholder={t('form.process_placeholder')}
-                    />
-                    {(formData.process || '').length > 0 ? (
-                        <VendorSuggestions items={processSuggestions} onSelect={(value) => onChange('process', value)} />
-                    ) : null}
-                </div>
-
-                <div className="vendor-field relative">
-                    <label className="vendor-label">{t('form.subprocess')}</label>
-                    <input
-                        value={formData.subprocess || ''}
-                        onChange={(event) => onChange('subprocess', event.target.value)}
-                        className="vendor-input"
-                        placeholder={t('form.subprocess_placeholder')}
-                    />
-                    {(formData.subprocess || '').length > 0 ? (
-                        <VendorSuggestions
-                            items={subprocessSuggestions}
-                            onSelect={(value) => onChange('subprocess', value)}
+                {/* Free text with suggestions from existing vendors (a new process is allowed). */}
+                <Field label={t('form.process')} required error={errors.process}>
+                    {(control) => (
+                        <CreatableCombobox
+                            {...control}
+                            data-testid="vendor-form-process"
+                            value={formData.process || ''}
+                            suggestions={processSuggestions}
+                            onValueChange={(value) => onChange('process', value)}
+                            placeholder={t('form.process_placeholder')}
                         />
-                    ) : null}
-                </div>
+                    )}
+                </Field>
+
+                <Field label={t('form.subprocess')}>
+                    {(control) => (
+                        <CreatableCombobox
+                            {...control}
+                            value={formData.subprocess || ''}
+                            suggestions={subprocessSuggestions}
+                            onValueChange={(value) => onChange('subprocess', value)}
+                            placeholder={t('form.subprocess_placeholder')}
+                        />
+                    )}
+                </Field>
             </div>
-        </VendorSurface>
+        </Card>
     );
 }

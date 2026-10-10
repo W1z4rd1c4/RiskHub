@@ -186,12 +186,16 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         const link = (await listThreatRiskLinks(createdId)).find((row) => row.risk_id === risk.id);
         expect(link).toBeDefined();
         await cisoPage.getByTestId(`threat-risk-link-remove-${link!.id}`).click();
+        const removeDialog = cisoPage.getByRole('alertdialog');
+        await expect(removeDialog).toContainText(riskOptionLabel);
+        expect((await listThreatRiskLinks(createdId)).some((row) => row.id === link!.id)).toBe(true);
+        await removeDialog.getByRole('button', { name: /^(Remove link|Odebrat propojení)$/ }).click();
         await expect(cisoPage.getByTestId(`threat-risk-link-remove-${link!.id}`)).toHaveCount(0);
 
         // Archive/restore proves the delete permission is scoped to Threats.
         await cisoPage.getByTestId('threat-detail-archive').click();
         await cisoPage
-            .locator('.confirm-dialog-actions')
+            .getByRole('alertdialog')
             .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
             .click();
         await cisoPage.waitForURL(/.*threats$/);
@@ -353,7 +357,7 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         // Archive: confirm dialog, then the detail navigates back to /threats.
         await riskManagerPage.getByTestId('threat-detail-archive').click();
         await riskManagerPage
-            .locator('.confirm-dialog-actions')
+            .getByRole('alertdialog')
             .getByRole('button', { name: ARCHIVE_CONFIRM_BUTTON })
             .click();
         await riskManagerPage.waitForURL(/.*threats$/);
@@ -408,6 +412,10 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         const link = (await listThreatRiskLinks(created.id)).find((row) => row.risk_id === risk.id);
         expect(link).toBeDefined();
         await riskManagerPage.getByTestId(`threat-risk-link-remove-${link!.id}`).click();
+        const removeDialog = riskManagerPage.getByRole('alertdialog');
+        await expect(removeDialog).toContainText(riskOptionLabel);
+        expect((await listThreatRiskLinks(created.id)).some((row) => row.id === link!.id)).toBe(true);
+        await removeDialog.getByRole('button', { name: /^(Remove link|Odebrat propojení)$/ }).click();
         await expect(riskManagerPage.getByTestId(`threat-risk-link-remove-${link!.id}`)).toHaveCount(0);
         const remaining = await listThreatRiskLinks(created.id);
         expect(remaining.some((row) => row.risk_id === risk.id)).toBe(false);

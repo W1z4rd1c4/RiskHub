@@ -1,7 +1,10 @@
 {
   "title": "Oznámení",
   "subtitle": {
-    "unread_count": "{{count}} nepřečtených",
+    "unread_count_one": "{{count}} nepřečtené",
+    "unread_count_few": "{{count}} nepřečtená",
+    "unread_count_many": "{{count}} nepřečteného",
+    "unread_count_other": "{{count}} nepřečtených",
     "stale": "Počty oznámení nemusí být aktuální.",
     "unavailable": "Počty oznámení nejsou dostupné."
   },
@@ -23,10 +26,11 @@
   "status": {
     "retrying": "Oznámení se načítají znovu."
   },
-  "pagination": {
-    "page_of": "Strana {{page}} z {{total}}"
-  },
   "aria": {
-    "bell": "Oznámení"
+    "bell": "Oznámení",
+    "bell_unread": "Oznámení, {{count}} nepřečtených",
+    "bell_unread_one": "Oznámení, {{count}} nepřečtené",
+    "bell_unread_few": "Oznámení, {{count}} nepřečtená",
+    "bell_unread_other": "Oznámení, {{count}} nepřečtených"
   }
 }

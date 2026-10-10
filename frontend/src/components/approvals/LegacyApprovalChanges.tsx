@@ -1,12 +1,13 @@
-import { ArrowRight } from 'lucide-react';
-
 import { formatDateTimeValue, formatDateValue, formatNumberValue } from '@/i18n/formatters';
 import { useTranslation } from '@/i18n/hooks';
+import { formatKriUnitName } from '@/lib/kriUnits';
 import type {
     ApprovalPendingChange,
     ApprovalResourceType,
     PendingChange,
 } from '@/types/approval';
+
+import { ApprovalValueChange } from './ApprovalValueChange';
 
 type LegacyFieldKind =
     | 'actor_label'
@@ -124,14 +125,6 @@ const LEGACY_FIELDS_BY_RESOURCE: Partial<
     kri: KRI_FIELDS,
 };
 
-const UNIT_VALUE_KEYS: Record<string, string> = {
-    '%': 'percentage',
-    count: 'count',
-    days: 'days',
-    hours: 'hours',
-    ratio: 'ratio',
-};
-
 const KRI_HISTORY_FIELDS = new Set([
     'old_value',
     'new_value',
@@ -195,7 +188,7 @@ export function LegacyApprovalChanges({
     locale = 'en',
     testId,
 }: LegacyApprovalChangesProps) {
-    const { t } = useTranslation('approvals');
+    const { t } = useTranslation(['approvals', 'kris']);
 
     const formatValue = (value: unknown, spec: LegacyFieldSpec): FormattedValue => {
         if (isEmptyValue(value)) {
@@ -254,12 +247,8 @@ export function LegacyApprovalChanges({
         }
         if (spec.kind === 'unit') {
             if (typeof value !== 'string') return { restricted: true };
-            const unit = value.trim();
-            const valueKey = UNIT_VALUE_KEYS[unit];
-            return {
-                restricted: false,
-                text: valueKey ? t(`legacy.values.unit.${valueKey}`) : unit,
-            };
+            // The KRI unit vocabulary is shared with the KRI register and forms (lib/kriUnits).
+            return { restricted: false, text: formatKriUnitName(value.trim(), t) };
         }
         if (spec.kind === 'risk_type') {
             if (typeof value !== 'string') return { restricted: true };
@@ -314,24 +303,21 @@ export function LegacyApprovalChanges({
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
         >
             {isKriHistory && (
-                <div className="bg-black/20 rounded-lg p-3 border border-white/5 md:col-span-2">
+                <div className="bg-nested rounded-lg p-3 border border-border md:col-span-2">
                     {validKriHistory ? (
                         <>
-                            <h5 className="text-xs text-accent-text font-bold uppercase mb-2">
+                            <p className="mb-2 text-eyebrow text-accent-text">
                                 {t('legacy.kri_history.title')}
-                            </h5>
+                            </p>
                             <div className="mb-3">
                                 <span className="block text-xs font-bold text-muted-foreground mb-1">
                                     {t('legacy.kri_history.value')}
                                 </span>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <span className="text-destructive line-through">
-                                        {formatNumberValue(historyOldValue, locale, { maximumFractionDigits: 2 })}
-                                    </span>
-                                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                                    <span className="text-success-text font-bold">
-                                        {formatNumberValue(historyNewValue, locale, { maximumFractionDigits: 2 })}
-                                    </span>
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                    <ApprovalValueChange
+                                        before={formatNumberValue(historyOldValue, locale, { maximumFractionDigits: 2 })}
+                                        after={formatNumberValue(historyNewValue, locale, { maximumFractionDigits: 2 })}
+                                    />
                                 </div>
                             </div>
                             <dl className="space-y-2 text-xs">
@@ -369,7 +355,7 @@ export function LegacyApprovalChanges({
                 const spec = LEGACY_FIELDS_BY_RESOURCE[resourceType]?.[field];
                 if (!spec || !isPendingChange(change)) {
                     return (
-                        <div key={field} className="bg-black/20 rounded-lg p-3 border border-white/5">
+                        <div key={field} className="bg-nested rounded-lg p-3 border border-border">
                             <span className="text-xs font-bold text-muted-foreground">
                                 {t('legacy.restricted_change')}
                             </span>
@@ -380,8 +366,8 @@ export function LegacyApprovalChanges({
                 const before = formatValue(change.old, spec);
                 const after = formatValue(change.new, spec);
                 return (
-                    <div key={field} className="bg-black/20 rounded-lg p-3 border border-white/5">
-                        <span className="block text-xs text-accent-text font-bold uppercase mb-1">
+                    <div key={field} className="bg-nested rounded-lg p-3 border border-border">
+                        <span className="mb-1 block text-eyebrow text-accent-text">
                             {t(spec.labelKey)}
                         </span>
                         {before.restricted || after.restricted ? (
@@ -389,10 +375,8 @@ export function LegacyApprovalChanges({
                                 {t('legacy.restricted_change')}
                             </span>
                         ) : (
-                            <div className="flex items-center gap-2 text-xs">
-                                <span className="text-destructive line-through">{before.text}</span>
-                                <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                                <span className="text-success-text font-bold">{after.text}</span>
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <ApprovalValueChange before={before.text} after={after.text} valueClassName="break-words" />
                             </div>
                         )}
                     </div>

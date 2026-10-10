@@ -189,6 +189,25 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         expect(within(screen.getByRole('alertdialog')).queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    it('names the icon-only Asset-link remove button after the linked asset (AX-01)', async () => {
+        (assetApi.getAssetLinks as ReturnType<typeof vi.fn>).mockResolvedValue([{
+            id: 20,
+            dependent_asset_id: 1,
+            dependent_asset_name: 'Current asset',
+            supporting_asset_id: 2,
+            supporting_asset_name: 'Payments platform',
+            dependency_type: null,
+            spof: null,
+        }]);
+        renderSection();
+
+        const remove = await screen.findByTestId('asset-asset-link-remove-20');
+        expect(remove).toHaveAccessibleName(
+            i18n.t('common:links.remove_named', { name: 'Payments platform' }),
+        );
+        expect(remove.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    });
+
     it('announces a rejected Asset-link removal only inside its retained dialog', async () => {
         mockRemoveAssetLink.mockRejectedValueOnce(Object.assign(new Error('reason rejected'), { status: 422 }));
         (assetApi.getAssetLinks as ReturnType<typeof vi.fn>).mockResolvedValue([{
@@ -276,7 +295,9 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
         const dialog = screen.getByRole('alertdialog');
         expect(within(dialog).queryByRole('textbox', { name: /request reason/i })).not.toBeInTheDocument();
-        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('processes:link_approval.continue') }));
+        // D10: without an approval requirement the governed removal reads as a plain unlink.
+        expect(dialog.querySelector('svg.lucide-unlink')).not.toBeNull();
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.remove_link') }));
 
         await waitFor(() => expect(mockRemoveProcessLink).toHaveBeenCalledWith(1, 100, ''));
     });
@@ -310,7 +331,13 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         }]);
         renderSection();
 
-        expect(await screen.findByTestId('asset-process-link-remove-100')).toBeDisabled();
+        // The icon-only remove action stays focusable (RowActionButton `disabledReason`):
+        // it is inert through `aria-disabled` and explains why in its tooltip.
+        const remove = await screen.findByTestId('asset-process-link-remove-100');
+        expect(remove).toHaveAttribute('aria-disabled', 'true');
+        expect(remove).toHaveAttribute('title', expect.stringMatching(/pending governed change/i));
+        fireEvent.click(remove);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(screen.getByTestId('asset-process-link-set-primary-100')).toBeDisabled();
         expect(screen.getByText(/pending governed change/i)).toBeInTheDocument();
         expect(mockRemoveProcessLink).not.toHaveBeenCalled();

@@ -13,6 +13,13 @@ export type EntityDetailMutationOutcome =
 interface UseEntityDetailMutationWorkflowOptions {
     setMessage: (message: DetailActionMessage) => void;
     toErrorKey: (error: unknown) => string;
+    /**
+     * D12 / PM-2: called instead of `setMessage` when the mutation was routed
+     * through approval (the caller raises the toast and the pending notice).
+     */
+    onApprovalQueued?: (response: unknown) => void;
+    /** D9: called instead of `setMessage` for a direct success message (toast). */
+    onSuccessMessage?: (message: DetailActionMessage) => void;
 }
 
 interface RunEntityMutationOptions {
@@ -25,6 +32,8 @@ interface RunEntityMutationOptions {
 }
 
 export function useEntityDetailMutationWorkflow({
+    onApprovalQueued,
+    onSuccessMessage,
     setMessage,
     toErrorKey,
 }: UseEntityDetailMutationWorkflowOptions) {
@@ -47,7 +56,8 @@ export function useEntityDetailMutationWorkflow({
 
             if (approvalKey && isApprovalCreatedResponse(response)) {
                 const message = { key: approvalKey, isError: false };
-                setMessage(message);
+                if (onApprovalQueued) onApprovalQueued(response);
+                else setMessage(message);
                 closeDialog?.();
                 return { kind: 'approval_queued', message, response };
             }
@@ -59,7 +69,8 @@ export function useEntityDetailMutationWorkflow({
 
             const message = successKey ? { key: successKey, isError: false } : null;
             if (message) {
-                setMessage(message);
+                if (onSuccessMessage) onSuccessMessage(message);
+                else setMessage(message);
             }
             return { kind: 'direct_success', message, response };
         } catch (error) {
@@ -74,7 +85,7 @@ export function useEntityDetailMutationWorkflow({
                 setIsMutating(false);
             }
         }
-    }, [setMessage, toErrorKey]);
+    }, [onApprovalQueued, onSuccessMessage, setMessage, toErrorKey]);
 
     return {
         isMutating,

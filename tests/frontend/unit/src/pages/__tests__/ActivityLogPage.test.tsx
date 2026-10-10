@@ -4,7 +4,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-    calculatePageWindow,
     formatDiffValue,
     getDiffPair,
 } from '@/components/activity-log/activityLogPresentation';
@@ -27,12 +26,30 @@ vi.mock('@/hooks/useDebouncedValue', () => ({
     useDebouncedValue: <T,>(value: T) => mockUseDebouncedValue(value) as T,
 }));
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
@@ -160,43 +177,6 @@ describe('Activity Log Helpers', () => {
             const result = getDiffPair({ old: 0, new: 10 });
             expect(result.old).toBe('0');
             expect(result.new).toBe('10');
-        });
-    });
-
-    describe('calculatePageWindow', () => {
-        it('returns all pages for small total (5 pages)', () => {
-            const result = calculatePageWindow(2, 5);
-            expect(result).toEqual([0, 1, 2, 3, 4]);
-        });
-
-        it('returns bounded window for large total (200 pages) at start', () => {
-            const result = calculatePageWindow(0, 200);
-            expect(result).toEqual([0, 1, 'ellipsis', 199]);
-        });
-
-        it('returns bounded window for large total (200 pages) at middle', () => {
-            const result = calculatePageWindow(100, 200);
-            expect(result).toEqual([0, 'ellipsis', 99, 100, 101, 'ellipsis', 199]);
-        });
-
-        it('returns bounded window for large total (200 pages) at end', () => {
-            const result = calculatePageWindow(199, 200);
-            expect(result).toEqual([0, 'ellipsis', 198, 199]);
-        });
-
-        it('does not allocate more than needed for 10000 pages', () => {
-            const result = calculatePageWindow(5000, 10000);
-            expect(result.length).toBeLessThanOrEqual(10);
-        });
-
-        it('handles single page', () => {
-            const result = calculatePageWindow(0, 1);
-            expect(result).toEqual([0]);
-        });
-
-        it('handles two pages', () => {
-            const result = calculatePageWindow(0, 2);
-            expect(result).toEqual([0, 1]);
         });
     });
 
@@ -374,7 +354,8 @@ describe('ActivityLogPage capability denial state', () => {
         });
 
         const refresh = screen.getByRole('button', { name: 'tooltips.refresh_log' });
-        expect(refresh).toBeDisabled();
+        expect(refresh).toHaveAttribute('aria-disabled', 'true');
+        expect(refresh).toHaveAttribute('aria-busy', 'true');
         fireEvent.click(refresh);
         expect(mockList).toHaveBeenCalledTimes(requestsBeforeSearch);
 
@@ -387,7 +368,7 @@ describe('ActivityLogPage capability denial state', () => {
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(requestsBeforeSearch + 1));
         expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'policy' }));
-        expect(screen.getByRole('button', { name: 'tooltips.refresh_log' })).toBeEnabled();
+        await waitFor(() => expect(screen.getByRole('button', { name: 'tooltips.refresh_log' })).not.toHaveAttribute('aria-disabled'));
 
         fireEvent.click(screen.getByRole('button', { name: 'tooltips.refresh_log' }));
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(requestsBeforeSearch + 2));

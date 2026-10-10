@@ -9,32 +9,19 @@
  * so the react-refresh rule stays satisfied.
  */
 
-// Semantic status tokens (ADR-015): each pill pairs a token background with its
-// contract-tested foreground (statusTokenContrast.test.ts), matching the
-// committee pill migration (FR-P5-1). The four bands collapse onto the
-// three-token RAG scale — the amber Střední and orange Vysoká middles both read
-// amber (--warning) — with the label text still carrying the exact band.
-const FILL_SUCCESS = 'bg-success text-success-foreground border-transparent';
-const FILL_WARNING = 'bg-warning text-warning-foreground border-transparent';
-const FILL_DESTRUCTIVE = 'bg-destructive text-destructive-foreground border-transparent';
+import { criticalityClass, vendorTierClass } from '@/lib/severity';
+import { cn } from '@/lib/utils';
 
-const CRITICALITY_PILLS: Record<string, string> = {
-    ['Nízká']: FILL_SUCCESS,
-    low: FILL_SUCCESS,
-    ['Střední']: FILL_WARNING,
-    medium: FILL_WARNING,
-    ['Vysoká']: FILL_WARNING,
-    high: FILL_WARNING,
-    ['Kritická']: FILL_DESTRUCTIVE,
-    critical: FILL_DESTRUCTIVE,
+// Colours come only from the severity SSOT (lib/severity.ts, ADR-015 Addendum 1
+// §2). TridyKrit criticality keeps its 3-step collapse on solid D1 fills (Nízká
+// → success, Střední and Vysoká → warning, Kritická → destructive), with the
+// label text carrying the exact band; TierDod tiers use soft badges (critical →
+// danger, significant → the medium band, standard → neutral, PM-3).
+const criticalityPillClass = (value: string): string | null => {
+    const fill = criticalityClass('fill', value);
+    return fill ? cn(fill, 'border-transparent') : null;
 };
-
-// TierDod, verbatim workbook labels (never translated).
-const VENDOR_TIER_PILLS: Record<string, string> = {
-    critical: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    significant: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    standard: 'text-slate-300 bg-slate-400/10 border-slate-400/20',
-};
+const vendorTierPillClass = (value: string): string | null => vendorTierClass('badge', value);
 
 function Pill({
     displayValue,
@@ -44,18 +31,20 @@ function Pill({
 }: {
     displayValue?: string | null;
     value: string | null | undefined;
-    palette: Record<string, string>;
+    palette: (value: string) => string | null;
     testId?: string;
 }) {
     if (!value) {
-        return <span className="text-sm text-slate-500">—</span>;
+        return <span className="text-sm text-muted-foreground">—</span>;
     }
     return (
         <span
             data-testid={testId}
-            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${
-                palette[value] ?? 'text-slate-300 bg-slate-400/10 border-slate-400/20'
-            }`}
+            className={cn(
+                // The `Badge` md geometry; colours come from lib/severity.ts (D1).
+                'inline-flex h-6 items-center whitespace-nowrap rounded-full border px-2.5 text-xs font-bold',
+                palette(value) ?? 'bg-muted text-muted-foreground border-border',
+            )}
         >
             {displayValue ?? value}
         </span>
@@ -69,10 +58,10 @@ export function CriticalityClassPill({
     criticalityClass: string | null | undefined;
     displayValue?: string | null;
 }) {
-    return <Pill value={criticalityClass} displayValue={displayValue} palette={CRITICALITY_PILLS} />;
+    return <Pill value={criticalityClass} displayValue={displayValue} palette={criticalityPillClass} />;
 }
 
 /** Canonical derived Vendor tier, rendered with a separately localized label. */
 export function VendorTierPill({ tier, displayValue, testId }: { tier: string | null | undefined; displayValue?: string | null; testId?: string }) {
-    return <Pill value={tier} displayValue={displayValue} palette={VENDOR_TIER_PILLS} testId={testId} />;
+    return <Pill value={tier} displayValue={displayValue} palette={vendorTierPillClass} testId={testId} />;
 }

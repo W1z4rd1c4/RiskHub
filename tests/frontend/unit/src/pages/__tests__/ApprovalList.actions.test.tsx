@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ApprovalList } from '@/pages/approvals/ApprovalList';
@@ -211,5 +211,46 @@ describe('ApprovalList action gating', () => {
         expect(screen.queryByText('owner_id')).not.toBeInTheDocument();
         expect(screen.queryByText('Alice')).not.toBeInTheDocument();
         expect(screen.queryByText('Bob')).not.toBeInTheDocument();
+    });
+
+    it('renders the row on the shared primitives: toned badges, named buttons and a disclosure state', () => {
+        const toggle = vi.fn();
+        const { rerender } = render(
+            <ApprovalList
+                approvals={[makeApproval({ pending_changes: { name: { old: 'Old', new: 'New' } } })]}
+                loading={false}
+                expandedRows={new Set()}
+                onToggleRow={toggle}
+                onApprove={onApprove}
+                onReject={onReject}
+                onCancel={onCancel}
+                t={t as never}
+            />,
+        );
+
+        // D1/§4.9: tones come from lib/tones through Badge, never inline recipes.
+        expect(screen.getByText('status.pending').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning');
+        expect(screen.getByText('request_types.update').closest('[data-tone]')).toHaveAttribute('data-tone', 'info');
+        expect(screen.getByText('entity_types.risk')).toHaveClass('text-eyebrow');
+
+        const disclosure = screen.getByRole('button', { name: 'common:tooltips.view_changes' });
+        expect(disclosure).toHaveAttribute('type', 'button');
+        expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(disclosure);
+        expect(toggle).toHaveBeenCalledWith(1);
+
+        rerender(
+            <ApprovalList
+                approvals={[makeApproval({ pending_changes: { name: { old: 'Old', new: 'New' } } })]}
+                loading={false}
+                expandedRows={new Set([1])}
+                onToggleRow={toggle}
+                onApprove={onApprove}
+                onReject={onReject}
+                onCancel={onCancel}
+                t={t as never}
+            />,
+        );
+        expect(screen.getByRole('button', { name: 'common:tooltips.view_changes' })).toHaveAttribute('aria-expanded', 'true');
     });
 });

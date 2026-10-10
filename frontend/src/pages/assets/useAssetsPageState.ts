@@ -20,6 +20,7 @@ import {
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     ASSET_REGISTER_CONFIG,
     buildAssetRegisterListParams,
@@ -62,10 +63,10 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         forQuery,
         isLoading: collectionIsLoading,
         isQueryCurrent,
-        setErrorKey,
         setIsLoading,
     } = useCollectionDataState<Asset, AssetListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const runRowRestore = useRestoreWithFeedback();
 
     const effectiveFilters = useMemo<AssetRegisterFilters>(() => ({
         ...filters,
@@ -141,15 +142,18 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
 
     const updateFilter = useCallback(<K extends keyof AssetRegisterFilters>(key: K, value: AssetRegisterFilters[K]) =>
         writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
+    // D9 / FB-01: a row restore reports through a toast and never flips the
+    // register into its error state.
     const restoreAsset = useCallback(async (assetId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await assetApi.restoreAsset(assetId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchAssets();
-        } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchAssets, isQueryCurrent, queryIdentity, setErrorKey]);
+        await runRowRestore({
+            restore: () => assetApi.restoreAsset(assetId),
+            name: items.find((item) => item.id === assetId)?.name,
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchAssets();
+            },
+        });
+    }, [fetchAssets, isQueryCurrent, items, queryIdentity, runRowRestore]);
     const exportAssets = useCallback(async () => {
         setIsExporting(true);
         try { await assetApi.downloadExport({ ...listParams, offset: 0, limit: DEFAULT_LIST_PAGE_SIZE, search: urlState.search.trim() || undefined }, language); }

@@ -68,6 +68,9 @@ test.describe('Governed protected Vendor sub-outsourcing workflow (#101)', () =>
             // (2) The 202 is treated as QUEUED, never as success: the requester
             // lands on the surfaced approval instead of a refreshed chain table.
             expect((await queued).status()).toBe(202);
+            // D12 / PM-2: the requester stays on the entity page with the pending
+            // notice; its link opens the queued request.
+            await riskManagerPage.getByTestId('approval-queued-notice-link').click();
             await expect(riskManagerPage).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
 
             // (3) Pre-approval chain truth is UNCHANGED in API and UI.

@@ -128,7 +128,10 @@ export class ActivityLogPage {
     }
 
     async selectTab(tab: 'kri' | 'risk' | 'control' | 'user'): Promise<void> {
-        await this.page.locator(`[data-testid="activity-log-tab-${tab}"]`).click();
+        const tabButton = this.page.getByTestId(`activity-log-tab-${tab}`);
+        await tabButton.click();
+        await expect(tabButton).toHaveAttribute('aria-selected', 'true');
+        await expect(this.page).toHaveURL((url) => (url.searchParams.get('tab') ?? 'kri') === tab);
         await waitForDataLoad(this.page);
     }
 
@@ -174,19 +177,25 @@ export class ActivityLogPage {
     }
 
     async searchEntries(query: string): Promise<void> {
-        const responsePromise = this.page.waitForResponse((response) => {
-            if (response.request().method() !== 'GET') return false;
-            if (!response.url().includes('/api/v1/activity-log')) return false;
-            try {
-                const url = new URL(response.url());
-                return url.searchParams.get('search') === query;
-            } catch {
-                return false;
-            }
-        }, { timeout: 15000 }).catch(() => null);
-
-        await this.searchInput.fill(query);
-        await responsePromise;
+        // Switching entity tabs preserves the query; filling the same value
+        // correctly creates no new request, so assert the existing URL state.
+        if (await this.searchInput.inputValue() === query) {
+            await expect(this.page).toHaveURL((url) => url.searchParams.get('q') === query);
+            await waitForDataLoad(this.page);
+            return;
+        }
+        const [response] = await Promise.all([
+            this.page.waitForResponse((candidate) => {
+                if (candidate.request().method() !== 'GET') return false;
+                const url = new URL(candidate.url());
+                return url.pathname === '/api/v1/activity-log'
+                    && url.searchParams.get('search') === query;
+            }, { timeout: 15000 }),
+            this.searchInput.fill(query),
+        ]);
+        expect(response.status()).toBe(200);
+        await expect(this.searchInput).toHaveValue(query);
+        await expect(this.page).toHaveURL((url) => url.searchParams.get('q') === query);
         await waitForDataLoad(this.page);
     }
 

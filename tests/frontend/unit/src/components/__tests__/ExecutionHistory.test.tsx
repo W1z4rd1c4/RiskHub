@@ -7,12 +7,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getExecutionsMock = vi.fn();
 
-vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en' },
-    }),
-}));
+vi.mock('@/i18n/hooks', async () => {
+    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    type FormatDate = Date | string | null | undefined;
+    type FormatNumber = number | null | undefined;
+    const format = {
+        locale: 'en' as const,
+        date: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateValue(value, 'en', options),
+        dateTime: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatDateTimeValue(value, 'en', options),
+        time: (value: FormatDate, options?: Intl.DateTimeFormatOptions) => formatters.formatTimeValue(value, 'en', options),
+        relative: (value: FormatDate) => formatters.formatRelativeDateValue(value, 'en'),
+        number: (value: FormatNumber, options?: Intl.NumberFormatOptions) => formatters.formatNumberValue(value, 'en', options),
+        metric: (value: FormatNumber, unit?: string) => formatters.formatMetricNumberValue(value, 'en', unit),
+        percent: (value: FormatNumber, fractionDigits?: number) => formatters.formatPercentValue(value, 'en', fractionDigits),
+        currency: (value: FormatNumber, currency?: string) => formatters.formatCurrencyValue(value, 'en', currency),
+        count: (count: number, key: string) => `${key}:${count}`,
+    };
+    return {
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en' },
+        }),
+        useFormat: () => format,
+    };
+});
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
@@ -374,10 +392,10 @@ describe('ExecutionHistory', () => {
             expect(screen.queryByText('common:loading.history')).not.toBeInTheDocument();
         });
 
-        expect(screen.getByText('controls:results.failed')).toHaveClass('text-rose-400');
-        expect(screen.getByText('controls:executions.issues_found')).toHaveClass('text-amber-400');
-        expect(screen.getByText('controls:results.passed')).toHaveClass('text-emerald-400');
-        expect(screen.getByText('controls:results.not_applicable')).toHaveClass('text-slate-400');
+        expect(screen.getByText('controls:results.failed')).toHaveClass('text-destructive');
+        expect(screen.getByText('controls:executions.issues_found')).toHaveClass('text-warning-text');
+        expect(screen.getByText('controls:results.passed')).toHaveClass('text-success-text');
+        expect(screen.getByText('controls:results.not_applicable')).toHaveClass('text-muted-foreground');
 
         const failedCard = screen.getByText('controls:results.failed').closest('.glass-card');
         expect(failedCard).not.toBeNull();
@@ -400,7 +418,7 @@ describe('ExecutionHistory', () => {
 
         await screen.findByText('common:labels.not_available');
         expect(screen.queryByText('controls:results.passed')).not.toBeInTheDocument();
-        expect(screen.getByText('common:labels.not_available')).toHaveClass('text-slate-300');
+        expect(screen.getByText('common:labels.not_available')).toHaveClass('text-foreground');
     });
 
     it('shows execution-specific issue actions only for failed or warning rows when allowed', async () => {
@@ -473,8 +491,9 @@ describe('ExecutionHistory', () => {
         expect(disclosure).toHaveAttribute('aria-expanded', 'false');
         expect(disclosure).toHaveAttribute('aria-controls', 'execution-details-31');
         expect(disclosure.contains(issueAction)).toBe(false);
-        expect(disclosure.className).toContain('focus-visible:ring-2');
-        expect(issueAction.className).toContain('focus-visible:ring-2');
+        // Both are `Button`s, which carry the shared keyboard focus ring (`focus-ring`).
+        expect(disclosure.className).toContain('focus-ring');
+        expect(issueAction.className).toContain('focus-ring');
 
         disclosure.focus();
         await user.keyboard('{Enter}');

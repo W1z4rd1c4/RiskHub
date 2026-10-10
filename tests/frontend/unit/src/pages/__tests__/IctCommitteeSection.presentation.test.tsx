@@ -269,7 +269,7 @@ describe('IctCommitteeSection', () => {
             getCommittee.mockResolvedValue(samplePayload());
             renderSection();
 
-            expect(await screen.findByRole('heading', { level: 1, name: canonicalHeading })).toBeInTheDocument();
+            expect(await screen.findByRole('heading', { level: 2, name: canonicalHeading })).toBeInTheDocument();
             expect(screen.queryByText('ICT Risk Committee')).not.toBeInTheDocument();
         } finally {
             await i18n.changeLanguage('en');
@@ -295,7 +295,7 @@ describe('IctCommitteeSection', () => {
                 expect(screen.getByTestId('committee-top-vendor-1')).toHaveTextContent(vendorTierLabel);
                 expect(screen.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
                     'href',
-                    '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+                    '/risks?committee_scope=true&ict_linked=true&gross_band=critical',
                 );
             } finally {
                 await i18n.changeLanguage('en');
@@ -358,8 +358,8 @@ describe('IctCommitteeSection', () => {
             'CIF functions: 79 of 148 processes; with BCM evidence: 76',
         );
         expect(screen.getByTestId('committee-narrative-a38')).toHaveTextContent('P_Tolerance = 39');
-        expect(screen.getByTestId('committee-narrative-a34')).toHaveClass('text-slate-300', 'text-sm');
-        expect(screen.getByTestId('committee-narrative-a38')).toHaveClass('text-slate-500', 'text-sm', 'italic');
+        expect(screen.getByTestId('committee-narrative-a34')).toHaveClass('text-foreground', 'text-sm');
+        expect(screen.getByTestId('committee-narrative-a38')).toHaveClass('text-muted-foreground', 'text-sm', 'italic');
 
         // The two aggregate charts are staged.
         expect(screen.getByTestId('committee-chart-assets')).toBeInTheDocument();
@@ -370,11 +370,11 @@ describe('IctCommitteeSection', () => {
         );
         expect(screen.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
             'href',
-            '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+            '/risks?committee_scope=true&ict_linked=true&gross_band=critical',
         );
         expect(screen.getByTestId('committee-risk-bar-net-Nízké')).toHaveAttribute(
             'href',
-            '/risks?committee_scope=true&ict_linked=true&net_band=N%C3%ADzk%C3%A9',
+            '/risks?committee_scope=true&ict_linked=true&net_band=low',
         );
 
         // The workbook's nav-link chrome maps to in-app navigation.
@@ -437,7 +437,7 @@ describe('IctCommitteeSection', () => {
         const shape = await screen.findByTestId('committee-risk-bar-shape-gross-Kritické');
         expect(shape).toHaveAttribute(
             'href',
-            '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+            '/risks?committee_scope=true&ict_linked=true&gross_band=critical',
         );
 
         fireEvent.click(shape, { metaKey: true });
@@ -453,7 +453,7 @@ describe('IctCommitteeSection', () => {
         fireEvent.keyDown(shape, { key: 'Enter' });
 
         expect(screen.getByTestId('committee-location')).toHaveTextContent(
-            '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+            '/risks?committee_scope=true&ict_linked=true&gross_band=critical',
         );
     });
 
@@ -465,7 +465,7 @@ describe('IctCommitteeSection', () => {
         fireEvent.keyDown(shape, { key: ' ' });
 
         expect(screen.getByTestId('committee-location')).toHaveTextContent(
-            '/risks?committee_scope=true&ict_linked=true&net_band=N%C3%ADzk%C3%A9',
+            '/risks?committee_scope=true&ict_linked=true&net_band=low',
         );
     });
 

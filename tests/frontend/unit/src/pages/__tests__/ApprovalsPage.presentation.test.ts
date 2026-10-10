@@ -1,36 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import {
+    getApprovalActionTone,
+    getApprovalStatusTone,
     getGovernedActionLabel,
-    getApprovalStatusBadge,
-    getQuestionnaireStatusBadge,
-    getQuestionnaireStatusLabel,
-    isQuestionnaireOverdue,
 } from '@/pages/approvals/approvalsPresentation';
-
-const translate = (key: string) => key;
-
-function createQuestionnaire(overrides: Partial<RiskQuestionnaireListItem> = {}): RiskQuestionnaireListItem {
-    return {
-        id: 1,
-        risk_id: 10,
-        assigned_to_user_id: 1,
-        sent_by_user_id: 2,
-        status: 'sent',
-        template_key: 'default',
-        template_version: '1',
-        sent_at: '2026-03-01T09:00:00Z',
-        due_at: '2026-03-10T09:00:00Z',
-        ...overrides,
-    };
-}
 
 describe('Approvals page presentation helpers', () => {
     it('presents expired approvals as a neutral terminal state', () => {
-        expect(getApprovalStatusBadge('expired')).toBe(
-            'text-slate-400 border-slate-400/20 bg-slate-400/5',
-        );
+        expect(getApprovalStatusTone('expired')).toBe('neutral');
+        expect(getApprovalStatusTone('cancelled')).toBe('neutral');
+    });
+
+    it('maps every approval status and request type to a semantic tone', () => {
+        expect(getApprovalStatusTone('pending')).toBe('warning');
+        expect(getApprovalStatusTone('pending_privileged')).toBe('accent');
+        expect(getApprovalStatusTone('approved')).toBe('success');
+        expect(getApprovalStatusTone('rejected')).toBe('danger');
+        expect(getApprovalActionTone('archive')).toBe('danger');
+        expect(getApprovalActionTone('delete')).toBe('danger');
+        expect(getApprovalActionTone('create')).toBe('success');
+        expect(getApprovalActionTone('edit')).toBe('info');
     });
 
     it('never classifies unknown mutation suffixes as legitimate relationship actions', () => {
@@ -50,33 +40,5 @@ describe('Approvals page presentation helpers', () => {
         expect(getGovernedActionLabel('edit', 'asset.link.risk.remove')).toBe('link_remove');
         // Unknown asset.link suffixes still fall back to the generic label.
         expect(getGovernedActionLabel('edit', 'asset.link.asset.update')).toBe('update');
-    });
-
-    describe('questionnaire helpers', () => {
-        it('treats past-due non-submitted questionnaires as overdue', () => {
-            const questionnaire = createQuestionnaire({ due_at: '2026-03-02T09:00:00Z' });
-            expect(isQuestionnaireOverdue(questionnaire, Date.parse('2026-03-05T09:00:00Z'))).toBe(true);
-            expect(getQuestionnaireStatusLabel(questionnaire, translate, Date.parse('2026-03-05T09:00:00Z'))).toBe(
-                'risks:questionnaire.status.overdue',
-            );
-        });
-
-        it('does not mark submitted questionnaires overdue after due date', () => {
-            const questionnaire = createQuestionnaire({
-                status: 'submitted',
-                due_at: '2026-03-02T09:00:00Z',
-            });
-
-            expect(isQuestionnaireOverdue(questionnaire, Date.parse('2026-03-05T09:00:00Z'))).toBe(false);
-            expect(getQuestionnaireStatusLabel(questionnaire, translate, Date.parse('2026-03-05T09:00:00Z'))).toBe(
-                'risks:questionnaire.status.submitted',
-            );
-        });
-
-        it('returns the in-progress accent badge', () => {
-            const now = Date.parse('2026-03-05T09:00:00Z');
-            const questionnaire = createQuestionnaire({ status: 'in_progress', due_at: '2026-03-20T09:00:00Z' });
-            expect(getQuestionnaireStatusBadge(questionnaire, now)).toContain('text-accent');
-        });
     });
 });

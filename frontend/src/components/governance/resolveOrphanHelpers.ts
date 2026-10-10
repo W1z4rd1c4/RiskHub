@@ -4,6 +4,18 @@ import type { OrphanedItem } from '@/types/orphanedItem';
 import type { RiskSummary } from '@/types/risk';
 import type { UserRead } from '@/types/user';
 
+/**
+ * Name of the seeded "Uncategorised" catch-all department (backend code `UNCAT`,
+ * `scan_uncategorised_items`). The orphan payload carries only `department_name`,
+ * so this is the single place the frontend compares against it (SM-11); callers
+ * render the translated `governance.uncategorised` label, never this literal.
+ */
+export const UNCATEGORISED_DEPARTMENT_NAME = 'Uncategorised';
+
+export function isUncategorisedDepartment(departmentName: string | null | undefined): boolean {
+    return departmentName === UNCATEGORISED_DEPARTMENT_NAME;
+}
+
 export interface OrphanUserOption {
     id: number;
     name: string;

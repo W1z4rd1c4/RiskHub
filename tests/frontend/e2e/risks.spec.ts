@@ -87,9 +87,12 @@ test.describe('Risk Management (Deterministic)', () => {
             riskManagerPage.getByRole('heading', { name: E2E_RISKS.PENDING_DELETE_APPROVAL.name })
         ).toBeVisible({ timeout: 15000 });
 
-        const kriCardHeading = riskManagerPage.locator('h4').filter({ hasText: /E2E-KRI-|KRI/i }).first();
-        await expect(kriCardHeading).toBeVisible({ timeout: 15000 });
-        await kriCardHeading.click();
+        // KRIGaugeCard is a single native action with the metric in its name.
+        const kriCard = riskManagerPage.getByRole('button', {
+            name: /^E2E-KRI-003 Property Accumulation Percentage /,
+        });
+        await expect(kriCard).toBeVisible({ timeout: 15000 });
+        await kriCard.click();
 
         await riskManagerPage.waitForURL(/\/kris\/\d+/, { timeout: 15000 });
     });

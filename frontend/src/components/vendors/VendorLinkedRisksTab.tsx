@@ -43,14 +43,15 @@ export function VendorLinkedRisksTab({ vendorId, canCreateRisk, canEdit, protect
             canCreate={canCreateRisk}
             canEdit={canEdit}
             protectedChangeRequiresApproval={protectedChangeRequiresApproval}
-            headerColorClass="text-foreground"
             i18nKeys={{ addAction: 'links.actions.add_risk', archived: 'links.archived_risks', dialogTitle: 'links.dialogs.link_risks_title', empty: 'links.risks.empty', subtitle: 'links.risks.subtitle', tabTitle: 'tabs.linked_risks' }}
-            icon={<LinkIcon className="h-5 w-5 text-accent-text" />}
+            icon={LinkIcon}
             linkDialogMode="control-to-risk"
             onAdd={onAddRisk}
             onCollectionStateChange={onCollectionStateChange}
             onNavigate={onNavigateToRisk}
-            renderCard={(risk, onClick) => <VendorLinkedRiskCard key={risk.id} risk={risk} onClick={onClick} />}
+            renderCard={(risk, onClick, { archived }) => (
+                <VendorLinkedRiskCard key={risk.id} risk={risk} archived={archived} onClick={onClick} />
+            )}
             vendorId={vendorId}
         />
     );

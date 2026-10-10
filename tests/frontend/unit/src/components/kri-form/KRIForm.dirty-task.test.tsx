@@ -4,6 +4,7 @@ import { HttpResponse, http } from 'msw';
 import { Link, RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 import type { KRIFormVendorContext } from '@/components/kri-form/kriForm.types';
 import type { KRICreate, KeyRiskIndicator } from '@/types/kri';
@@ -68,7 +69,7 @@ function renderKriCreate(options: {
 } = {}) {
     const router = createMemoryRouter([
         { path: '/new', element: <KriCreateHarness {...options} /> },
-        { path: '/done', element: <p>Destination reached</p> },
+        { path: '/done', element: <><ApprovalQueuedNotice /><p>Destination reached</p></> },
         { path: '/approvals', element: <p>Approval destination reached</p> },
     ], { initialEntries: ['/new'] });
     render(<RouterProvider router={router} />);
@@ -269,9 +270,11 @@ describe('KRI create dirty-task protection', () => {
         });
         fireEvent.click(within(reasonDialog).getByRole('button', { name: /Continue/i }));
 
-        expect(await screen.findByText('Approval destination reached')).toBeInTheDocument();
-        expect(router.state.location.pathname).toBe('/approvals');
-        expect(router.state.location.search).toBe('?tab=mine&approvalId=899');
+        // D12 / PM-2: back to the vendor (returnTo) with the pending notice.
+        expect(await screen.findByText('Destination reached')).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/done');
+        const notice = screen.getByTestId('approval-queued-notice');
+        expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=899');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
@@ -292,5 +295,17 @@ describe('KRI create dirty-task protection', () => {
         fireEvent.click(screen.getByRole('link', { name: 'Leave route' }));
 
         expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    it('shows a missing name on its field and focuses it (§4.8, AX-04)', async () => {
+        renderKriCreate({ data: { ...initialData, metric_name: '' } });
+        await screen.findByText('Authentication Drift');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Create KRI' }));
+        const name = await screen.findByRole('textbox', { name: /KRI Name/i });
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(name).toHaveAccessibleDescription('Please enter a KRI name.');
+        await waitFor(() => expect(name).toHaveFocus());
     });
 });

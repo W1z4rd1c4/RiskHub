@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import * as axe from 'axe-core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -36,9 +36,30 @@ describe('Asset register columns', () => {
 
         const { container } = render(statusColumn?.render?.(asset, 0) as ReactElement);
 
-        expect(screen.getByTestId('asset-pending-change-88')).toHaveTextContent(
-            'assets:pending_change.badge',
-        );
+        // Shared `PendingChangeBadge`: short visible text, full accessible name.
+        const badge = screen.getByTestId('asset-pending-change-88');
+        expect(badge).toHaveTextContent('Pending');
+        expect(badge).toHaveTextContent('Pending approval');
+        await expectNoAxeViolations(container);
+    });
+
+    it('tones the lifecycle status and restores an archived asset through a named icon button', async () => {
+        const onRestore = vi.fn();
+        const columns = buildAssetColumns({
+            canRestoreAsset: vi.fn(() => true),
+            onRestore,
+            t: (key: string) => key,
+        });
+        const statusColumn = columns.find((column) => column.key === 'status');
+        const archived = { id: 88, name: 'Payments platform', is_archived: true, capabilities: {} } as Asset;
+
+        const { container } = render(statusColumn?.render?.(archived, 0) as ReactElement);
+
+        expect(screen.getByText('assets:status.archived')).toHaveAttribute('data-tone', 'neutral');
+        const restore = screen.getByRole('button', { name: 'Restore Payments platform' });
+        expect(restore).toBe(screen.getByTestId('asset-restore-88'));
+        fireEvent.click(restore);
+        expect(onRestore).toHaveBeenCalledWith(88, expect.anything());
         await expectNoAxeViolations(container);
     });
 });

@@ -11,7 +11,9 @@ const linkApiMocks = vi.hoisted(() => ({
     getLinkedRisks: vi.fn(),
 }));
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         i18n: { language: 'en' },
         t: (key: string) => key,
@@ -104,6 +106,19 @@ describe('VendorOverviewTab linked-register capabilities', () => {
         linkApiMocks.getLinkedRisks.mockResolvedValue([]);
     });
 
+    it('renders summary field labels at full opacity without staggered entry fading', () => {
+        renderOverview(vendorWithLinkedVisibility({ controls: false, kris: false, risks: false }));
+
+        for (const name of ['detail.classification', 'detail.ownership', 'detail.connections']) {
+            const section = screen.getByRole('heading', { level: 2, name }).closest('section');
+            const item = section?.parentElement;
+            // Both the item and its grid used to fade, compounding text opacity.
+            expect(item).toHaveStyle({ opacity: '1' });
+            expect(item?.parentElement).toHaveStyle({ opacity: '1' });
+            expect(section?.querySelector('dt')).toHaveClass('text-eyebrow');
+        }
+    });
+
     it('makes zero linked-register requests and mounts no linked surfaces when all view capabilities are false', async () => {
         renderOverview(vendorWithLinkedVisibility({ controls: false, kris: false, risks: false }));
 
@@ -139,7 +154,8 @@ describe('VendorOverviewTab linked-register capabilities', () => {
         renderOverview(vendorWithLinkedVisibility({ controls: true, kris: true, risks: true }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('links.errors.load_failed');
-        const connections = screen.getByText('detail.connections').closest('.glass-card');
+        // D13: the Connections block is a shared DetailSection card (section + h2).
+        const connections = screen.getByRole('heading', { level: 2, name: 'detail.connections' }).closest('section');
         expect(connections).not.toBeNull();
         const riskSummary = within(connections as HTMLElement).getByText('tabs.linked_risks').parentElement;
         const controlSummary = within(connections as HTMLElement).getByText('tabs.linked_controls').parentElement;

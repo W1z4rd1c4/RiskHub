@@ -6,6 +6,7 @@ Folder for `tests/frontend/unit/src/components/documentation/__tests__` implemen
 
 ## Contents
 
+- `DocumentationLibrary.test.tsx`
 - `DocumentationMarkdown.test.tsx`
 
 ## Notes

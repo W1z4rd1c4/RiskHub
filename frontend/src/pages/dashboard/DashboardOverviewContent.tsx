@@ -28,7 +28,6 @@ interface DashboardOverviewContentProps {
     onGrossCellClick: (probability: number, impact: number) => void;
     onNetCellClick: (probability: number, impact: number) => void;
     onRiskModalClose: () => void;
-    onStatSelect: (path: string) => void;
     riskCreationTitle: string;
     riskModal: {
         impact: number;
@@ -58,7 +57,6 @@ export function DashboardOverviewContent(props: DashboardOverviewContentProps) {
                 issueSeverity={props.issueSeverity}
                 issueSeverityTitle={props.issueSeverityTitle}
                 issueSummary={props.issueSummary}
-                onStatSelect={props.onStatSelect}
                 stats={props.stats}
                 summary={props.summary}
             />

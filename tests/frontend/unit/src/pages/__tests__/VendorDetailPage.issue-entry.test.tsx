@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 import { ApiClientError } from '@/services/apiClient';
-import { renderWithQueryClient as render } from '@test/render';
+import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetVendor = vi.fn();
@@ -107,7 +107,7 @@ describe('VendorDetailPage issue entry', () => {
     it('shows create-issue action and opens contextual modal with vendor name', async () => {
         render(<VendorDetailPage />);
 
-        await screen.findByText('Atlas Cloud Services');
+        await screen.findByRole('heading', { level: 1, name: 'Atlas Cloud Services' });
         expect(screen.getByText('Overview tab')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'New Issue' }));
@@ -120,7 +120,7 @@ describe('VendorDetailPage issue entry', () => {
         canIssueWrite = false;
         render(<VendorDetailPage />);
 
-        await screen.findByText('Atlas Cloud Services');
+        await screen.findByRole('heading', { level: 1, name: 'Atlas Cloud Services' });
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
@@ -136,7 +136,7 @@ describe('VendorDetailPage issue entry', () => {
 
         await screen.findByRole('heading', { name: /record unavailable/i });
         expect(screen.queryByRole('heading', { name: /access denied/i })).not.toBeInTheDocument();
-        expect(screen.queryByText('Atlas Cloud Services')).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 1, name: 'Atlas Cloud Services' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
@@ -169,7 +169,7 @@ describe('VendorDetailPage issue entry', () => {
 
         render(<VendorDetailPage />);
 
-        await screen.findByText('Atlas Cloud Services');
+        await screen.findByRole('heading', { level: 1, name: 'Atlas Cloud Services' });
         expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument();
     });
@@ -219,7 +219,7 @@ describe('VendorDetailPage issue entry', () => {
         expect(mockGetVendor).toHaveBeenCalledTimes(2);
     });
 
-    it('submits an archive reason and routes a queued Vendor archive to My Requests', async () => {
+    it('submits an archive reason and keeps a queued Vendor archive on the vendor with the pending notice (D12)', async () => {
         mockArchiveVendor.mockResolvedValue({
             status: 'approval_required',
             approval_id: 87,
@@ -229,7 +229,7 @@ describe('VendorDetailPage issue entry', () => {
 
         render(<VendorDetailPage />);
 
-        await screen.findByText('Atlas Cloud Services');
+        await screen.findByRole('heading', { level: 1, name: 'Atlas Cloud Services' });
         fireEvent.click(screen.getAllByRole('button', { name: 'Archive' }).at(-1)!);
         fireEvent.change(screen.getByLabelText(/Request reason/), {
             target: { value: 'Contract termination' },
@@ -237,14 +237,17 @@ describe('VendorDetailPage issue entry', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Archive' }).at(-1)!);
 
         await waitFor(() => expect(mockArchiveVendor).toHaveBeenCalledWith(31, 'Contract termination'));
-        expect(mockNavigate).toHaveBeenCalledWith('/approvals?tab=mine&approvalId=87');
+        expect(mockNavigate).toHaveBeenCalledWith(
+            { pathname: '/vendors/31', search: '', hash: '' },
+            { replace: true, state: { approvalQueued: { approvalId: 87 } } },
+        );
     });
 
     it('keeps an exact rejected Vendor archive rationale in the open dialog', async () => {
         mockArchiveVendor.mockRejectedValueOnce(new Error('rejected'));
         render(<VendorDetailPage />);
 
-        await screen.findByText('Atlas Cloud Services');
+        await screen.findByRole('heading', { level: 1, name: 'Atlas Cloud Services' });
         fireEvent.click(screen.getAllByRole('button', { name: 'Archive' }).at(-1)!);
         const dialog = screen.getByRole('alertdialog');
         const reason = within(dialog).getByRole('textbox', { name: /Request reason/ });
@@ -258,32 +261,25 @@ describe('VendorDetailPage issue entry', () => {
         expect(mockArchiveVendor).toHaveBeenCalledWith(31, 'Exact Vendor rationale');
     });
 
-    it('preserves the list return context when linked-create flash state is cleared, dismissed, and Back is used', async () => {
+    it('shows the persistent pending-approval notice from router state and keeps the list return on Back', async () => {
         const returnTo = '/vendors?q=cloud&page=3#group-heading';
         mockLocation = {
             pathname: '/vendors/31',
             search: `?return_to=${encodeURIComponent(returnTo)}`,
             hash: '#linked-result',
-            state: {
-                vendorFlash: {
-                    tone: 'success',
-                    message: 'Risk created and linked.',
-                },
-            },
+            state: { approvalQueued: { approvalId: 87 } },
         };
 
+        // The notice links to the request, so this case renders inside a router.
         render(<VendorDetailPage />);
 
-        const flashMessage = await screen.findByText('Risk created and linked.');
-        const detailLocation = `${mockLocation.pathname}${mockLocation.search}${mockLocation.hash}`;
-        await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(detailLocation, { replace: true }));
+        const notice = await screen.findByTestId('approval-queued-notice');
+        expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=87');
+        const detailLocation = { pathname: mockLocation.pathname, search: mockLocation.search, hash: mockLocation.hash };
+        fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss message' }));
+        expect(mockNavigate).toHaveBeenLastCalledWith(detailLocation, { replace: true, state: null });
 
-        const dismissButton = flashMessage.closest('.vendor-inline-message')?.querySelector('button');
-        expect(dismissButton).not.toBeNull();
-        fireEvent.click(dismissButton!);
-        expect(mockNavigate).toHaveBeenLastCalledWith(detailLocation, { replace: true });
-
-        fireEvent.click(screen.getByRole('button', { name: /back to register/i }));
+        fireEvent.click(screen.getByRole('button', { name: /back to vendors/i }));
         expect(mockNavigate).toHaveBeenLastCalledWith(returnTo);
     });
 
@@ -305,7 +301,7 @@ describe('VendorDetailPage issue entry', () => {
 
         render(<VendorDetailPage />);
 
-        await screen.findByText('Atlas Cloud Services');
+        await screen.findByRole('heading', { level: 1, name: 'Atlas Cloud Services' });
         await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({
             pathname: '/vendors/31',
             search: `?${preservedSearch.toString()}`,

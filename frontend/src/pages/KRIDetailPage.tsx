@@ -1,22 +1,40 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
+import { Archive, Edit2, Target, Plus, Clock, History, RotateCcw } from 'lucide-react';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PendingChangeBadge } from '@/components/approvals/PendingChangeBadge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
+import { InlineMessage, type InlineMessageTone } from '@/components/ui/inline-message';
 import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
-import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { canArchive, resolveCapabilityFlag } from '@/lib/capabilities';
-import { useTranslation } from '@/i18n/hooks';
-import { formatMetricNumberValue } from '@/i18n/formatters';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { DetailLoadUnavailableState, DetailStaleWarning } from '@/pages/detail/DetailLoadState';
+import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
+import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 import { kriDetailTabs, useKriDetailState } from '@/pages/detail/useKriDetailState';
+import { hasPendingKriApproval } from '@/pages/kris/kriColumns';
 import { resolveRegisterReturnTo } from '@/pages/shared/registerReturnContext';
-import { useContentTabs } from '@/hooks/useContentTabs';
+import { LoadingState, Skeleton } from '@/components/ui/state';
+
+const KRI_TABS_ID_PREFIX = 'kri-detail';
+
+/** Restore outcome → InlineMessage tone (role follows the tone, AX-05). */
+const KRI_RESTORE_TONE: Readonly<Record<string, InlineMessageTone>> = {
+    pending: 'info',
+    success: 'success',
+    archived: 'warning',
+    rejected: 'danger',
+    unknown: 'danger',
+    denied: 'danger',
+};
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -27,12 +45,11 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/kris');
-    const { t, i18n } = useTranslation('common');
-    const { t: tErrors } = useTranslation('errorKeys');
+    const { t } = useTranslation('common');
+    const format = useFormat();
     const { t: tIssues } = useTranslation('issues');
     const {
         activeTab,
-        approvalBanner,
         canRecordValue,
         canRequestHistoryCorrection,
         deleteErrorKey,
@@ -65,7 +82,6 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
         retryLinkedRisk,
         selectedHistoryEntry,
         setActiveTab,
-        setApprovalBanner,
         setDeleteErrorKey,
         setIsDeleteDialogOpen,
         setIsEditModalOpen,
@@ -73,23 +89,26 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
         setIsValueModalOpen,
         setSelectedHistoryEntry,
     } = useKriDetailState({ rawId, returnTo });
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: kriDetailTabs,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'kri-detail',
-    });
+    const registerLabel = t('navigation:sidebar.kris');
+    // D14 / AX-06: the back control names its destination (the register the user came from).
+    const backToRegister = { label: t('kris:actions.back_to_register'), onClick: () => void navigate(returnTo) };
 
     // formatNumber is still needed for overview tab
     const formatNumber = (val: number): string => {
-        return formatMetricNumberValue(val, i18n.language);
+        return format.metric(val);
     };
 
     if (loadOutcome === 'loading') {
         return (
-            <div className="p-8 animate-pulse" aria-busy="true" data-loading="true">
-                <div className="h-8 w-64 bg-white/5 rounded-lg mb-8" />
-                <div className="h-64 bg-white/5 rounded-2xl" />
+            <div data-loading="true">
+                <LoadingState
+                    skeleton={(
+                        <>
+                            <Skeleton className="h-8 w-64 mb-8" />
+                            <Skeleton className="h-64 rounded-2xl" />
+                        </>
+                    )}
+                />
             </div>
         );
     }
@@ -97,7 +116,7 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
     if (loadOutcome === 'unavailable' || !kri) {
         return (
             <DetailLoadUnavailableState
-                backLabel={t('navigation:tabs.risk_appetite')}
+                backLabel={t('kris:actions.back_to_register')}
                 isRetrying={isRetrying}
                 onBack={() => navigate(returnTo)}
                 onRetry={kriId === null ? undefined : () => void refreshKri()}
@@ -112,170 +131,119 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
     const canCreateIssue = resolveCapabilityFlag(kri.capabilities, 'can_create_issue');
 
     return (
-        <div className="p-8">
+        <PageContainer>
             {loadOutcome === 'stale-with-error' ? (
-                <div className="mb-6">
-                    <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshKri()} />
-                </div>
+                <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void refreshKri()} />
             ) : null}
-            {/* Breadcrumb */}
-            <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
-            >
-                <button onClick={() => navigate(returnTo)} className="hover:text-white transition-colors flex items-center gap-1">
-                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risk_appetite')}
-                </button>
-                <span>/</span>
-                <span className="text-foreground font-medium truncate max-w-xs">{kri.metric_name}</span>
-            </motion.div>
-
-            {/* Header with Actions */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-8"
-            >
-                <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-accent/20 p-3 rounded-xl">
-                            <Target className="h-6 w-6 text-accent" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-black text-foreground leading-tight">{kri.metric_name}</h1>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase ${monitoring.badgeClassName}`}>
-                                    <MonitoringIcon className="h-3 w-3" />
-                                    {t(monitoring.labelKey)}
-                                </span>
-                                {isOverdue && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black uppercase bg-warning/10 text-warning-text border border-warning/20">
-                                        <Clock className="h-3 w-3" /> {t('kris:overdue.days_overdue', { days: kri.days_overdue ?? 0 })}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    {kri.description && (
-                        <p className="text-muted-foreground text-sm font-medium mt-3 max-w-2xl leading-relaxed">{kri.description}</p>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {canCreateIssue && (
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsIssueModalOpen(true)}
-                        >
-                            <FileText className="h-4 w-4 mr-1" /> {tIssues('actions.new_issue')}
-                        </Button>
-                    )}
-                    {canRecordValue && (
-                        <Button onClick={() => setIsValueModalOpen(true)} className="bg-success text-success-foreground hover:bg-success/90">
-                            <Plus className="h-4 w-4 mr-1" /> {t('kris:value_modal.title')}
-                        </Button>
-                    )}
-                    {canUpdateKri && (
-                        <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
-                            <Edit2 className="h-4 w-4 mr-1" /> {t('common:actions.edit')}
-                        </Button>
-                    )}
-                    {kri.is_archived ? (
-                        restoreState.canRestore && <Button
-                            variant="outline"
-                            onClick={() => void restoreState.restore()}
-                            disabled={!restoreState.canSubmit}
-                            isLoading={restoreState.outcome === 'pending'}
-                            aria-describedby={restoreState.outcome !== 'idle' ? 'kri-restore-feedback' : undefined}
-                            className="text-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground"
-                        >
-                            <RotateCcw aria-hidden="true" className="h-4 w-4 mr-1" />
-                            {restoreState.outcome === 'pending' ? t('kris:restore.pending')
-                                : ['rejected', 'archived'].includes(restoreState.outcome) ? t('kris:restore.retry')
-                                    : t('common:actions.unarchive')}
-                        </Button>
-                    ) : (
-                        canArchiveKri && <Button
-                            variant="destructive"
-                            onClick={() => {
-                                setDeleteErrorKey(null);
-                                setIsDeleteDialogOpen(true);
-                            }}
-                            disabled={isDeleting}
-                        >
-                            <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
-                        </Button>
-                    )}
-                </div>
-            </motion.div>
+            <EntityDetailHeader
+                back={backToRegister}
+                breadcrumbs={[{ label: registerLabel, to: returnTo }, { label: kri.metric_name }]}
+                title={kri.metric_name}
+                statuses={(
+                    <>
+                        <Badge icon={MonitoringIcon} className={monitoring.badgeClassName}>
+                            {t(monitoring.labelKey)}
+                        </Badge>
+                        {isOverdue && (
+                            <Badge tone="warning" icon={Clock}>
+                                {t('kris:overdue.days_overdue', { count: kri.days_overdue ?? 0 })}
+                            </Badge>
+                        )}
+                        {/* PG-29: the same pending-approval badge as the register row. */}
+                        {hasPendingKriApproval(kri) ? <PendingChangeBadge /> : null}
+                    </>
+                )}
+                description={kri.description || undefined}
+                actions={(
+                    <>
+                        {canRecordValue && (
+                            <Button variant="success" onClick={() => setIsValueModalOpen(true)}>
+                                <Plus aria-hidden="true" /> {t('kris:value_modal.title')}
+                            </Button>
+                        )}
+                        <ContextualIssueAction
+                            buttonLabel={tIssues('actions.new_issue')}
+                            canCreateIssue={canCreateIssue}
+                            contextEntityId={kri.id}
+                            contextEntityLabel={kri.metric_name}
+                            contextEntityType="kri"
+                            isOpen={isIssueModalOpen}
+                            onClose={() => setIsIssueModalOpen(false)}
+                            onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                            onOpen={() => setIsIssueModalOpen(true)}
+                        />
+                        {canUpdateKri && (
+                            <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
+                                <Edit2 aria-hidden="true" /> {t('common:actions.edit')}
+                            </Button>
+                        )}
+                        {kri.is_archived ? (
+                            restoreState.canRestore && <Button
+                                variant="outline"
+                                onClick={() => void restoreState.restore()}
+                                disabled={!restoreState.canSubmit}
+                                isLoading={restoreState.outcome === 'pending'}
+                                aria-describedby={restoreState.outcome !== 'idle' ? 'kri-restore-feedback' : undefined}
+                            >
+                                <RotateCcw aria-hidden="true" />
+                                {restoreState.outcome === 'pending' ? t('kris:restore.pending')
+                                    : ['rejected', 'archived'].includes(restoreState.outcome) ? t('kris:restore.retry')
+                                        : t('common:actions.unarchive')}
+                            </Button>
+                        ) : (
+                            canArchiveKri && <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    setDeleteErrorKey(null);
+                                    setIsDeleteDialogOpen(true);
+                                }}
+                                disabled={isDeleting}
+                            >
+                                <Archive aria-hidden="true" /> {isDeleting ? t('common:confirm.archive.busy') : t('common:actions.archive')}
+                            </Button>
+                        )}
+                    </>
+                )}
+            />
 
             {restoreState.outcome !== 'idle' ? (
-                <div id="kri-restore-feedback" className="mb-6 rounded-xl border border-border bg-card p-4 text-sm text-foreground">
-                    <p role={['rejected', 'unknown', 'denied'].includes(restoreState.outcome) ? 'alert' : 'status'}>
-                        {t(`kris:restore.${restoreState.outcome}`)}
-                    </p>
-                    {restoreState.reconciliationFailed ? <p role="alert" className="mt-2">{t('kris:restore.refresh_failed')}</p> : null}
-                    {['unknown', 'denied'].includes(restoreState.outcome) && restoreState.canReconcile ? (
-                        <Button variant="outline" className="mt-3 text-foreground disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground"
-                            onClick={() => void restoreState.reconcile()} isLoading={restoreState.isReconciling}>
+                // AX-05 / D9: the restore outcome is an InlineMessage whose role
+                // follows the tone (failures `alert`, the rest polite `status`);
+                // it stays because it carries the reconcile action.
+                <InlineMessage
+                    id="kri-restore-feedback"
+                    tone={KRI_RESTORE_TONE[restoreState.outcome]}
+                    action={['unknown', 'denied'].includes(restoreState.outcome) && restoreState.canReconcile ? (
+                        <Button variant="outline" onClick={() => void restoreState.reconcile()} isLoading={restoreState.isReconciling}>
                             {restoreState.isReconciling ? t('kris:restore.refreshing') : t('kris:restore.refresh')}
                         </Button>
                     ) : null}
-                </div>
+                >
+                    <p>{t(`kris:restore.${restoreState.outcome}`)}</p>
+                    {restoreState.reconciliationFailed ? <p role="alert" className="mt-2">{t('kris:restore.refresh_failed')}</p> : null}
+                </InlineMessage>
             ) : null}
 
-            {approvalBanner ? (
-                <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 flex items-start justify-between gap-4"
-                >
-                    <div>
-                        <p className="font-semibold">
-                            {tErrors('approval_submitted')}
-                        </p>
-                        <p className="mt-1 text-amber-200/80">
-                            {approvalBanner.message}
-                        </p>
-                        <p className="mt-1 text-xs text-amber-200/60">
-                            {t('kris:detail.approval_banner_help')}
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setApprovalBanner(null)}
-                        className="text-xs font-semibold text-amber-200 hover:text-white transition-colors"
-                    >
-                        {t('actions.close')}
-                    </button>
-                </motion.div>
-            ) : null}
+            <ApprovalQueuedNotice />
 
-            {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10 mb-6" role="tablist" aria-label={kri.metric_name}>
-                <button
-                    {...getTabProps('overview', 0)}
-                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'overview'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <Target className="h-4 w-4 inline mr-2" />{t('common:labels.overview')}
-                </button>
-                <button
-                    {...getTabProps('history', 1)}
-                    className={`px-6 py-3 font-bold transition-colors ${activeTab === 'history'
-                        ? 'text-accent-text border-b-2 border-accent'
-                        : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')}{['content', 'empty', 'stale-with-error'].includes(historyOutcome.kind) ? ` (${historyTotal})` : ''}
-                </button>
-            </div>
+            <TabList
+                tabs={[
+                    { id: kriDetailTabs[0], label: t('common:labels.overview'), icon: Target },
+                    {
+                        id: kriDetailTabs[1],
+                        label: t('common:labels.history'),
+                        icon: History,
+                        count: ['content', 'empty', 'stale-with-error'].includes(historyOutcome.kind) ? historyTotal : undefined,
+                    },
+                ]}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={KRI_TABS_ID_PREFIX}
+                ariaLabel={kri.metric_name}
+            />
 
             {/* Tab Content */}
-            <div {...getPanelProps('overview')}>
+            <TabPanel tab="overview" activeTab={activeTab} idPrefix={KRI_TABS_ID_PREFIX}>
                 {activeTab === 'overview' && <KRIDetailOverviewTab
                     kri={kri}
                     linkedRisk={linkedRisk}
@@ -284,9 +252,9 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     dueDate={dueDate}
                     formatNumber={formatNumber}
                 />}
-            </div>
+            </TabPanel>
 
-            <div {...getPanelProps('history')}>
+            <TabPanel tab="history" activeTab={activeTab} idPrefix={KRI_TABS_ID_PREFIX}>
                 {activeTab === 'history' && <KRIDetailHistoryTab
                     history={history}
                     historyTotal={historyTotal}
@@ -302,13 +270,12 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                     accessDenied={historyAccessDenied}
                     onRetry={() => kriId !== null && void refreshHistory(kriId)}
                 />}
-            </div>
+            </TabPanel>
 
             {/* Edit Modal */}
             {
                 kri && isEditModalOpen && (
                     <KRIModal
-                        risk_id={kri.risk_id}
                         kri={kri}
                         isOpen={isEditModalOpen}
                         onClose={() => setIsEditModalOpen(false)}
@@ -317,12 +284,13 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
                 )
             }
 
-            {/* Record Value Modal */}
+            {/* Record Value Modal: mounted only while open (PG-22) so its dirty-task
+                route blocker never coexists with another guarded dialog's. */}
             {
-                kri && (
+                kri && isValueModalOpen && (
                     <KRIValueModal
                         kri={kri}
-                        isOpen={isValueModalOpen}
+                        isOpen
                         onClose={() => setIsValueModalOpen(false)}
                         onSuccess={handleRecordSuccess}
                     />
@@ -345,36 +313,23 @@ function KRIDetailRoute({ rawId }: { rawId: string | undefined }) {
 
             {kri && (
                 <>
-                    <IssueQuickCreateModal
-                        isOpen={isIssueModalOpen}
-                        onClose={() => setIsIssueModalOpen(false)}
-                        contextEntityType="kri"
-                        contextEntityId={kri.id}
-                        contextEntityLabel={kri.metric_name}
-                        onCreated={(issue) => navigate(`/issues/${issue.id}`)}
-                    />
-
                     <ConfirmDialog
                         isOpen={isDeleteDialogOpen}
                         onClose={() => {
                             setDeleteErrorKey(null);
                             setIsDeleteDialogOpen(false);
                         }}
-                        onConfirm={(inputValue) => handleDelete(inputValue)}
-                        title={t('kris:delete_dialog.title')}
-                        message={t('kris:delete_dialog.message')}
-                        confirmLabel={t('kris:delete_dialog.confirm')}
-                        variant="danger"
+                        onConfirm={(reason) => handleDelete(reason)}
+                        intent="archive"
+                        entityLabel={t('kris:labels.entity')}
+                        entityName={kri.metric_name}
+                        reason="required"
                         isLoading={isDeleting}
-                        showInput
-                        inputLabel={t('kris:delete_dialog.reason_label')}
-                        inputPlaceholder={t('kris:delete_dialog.reason_placeholder')}
-                        inputRequired
-                        errorText={deleteErrorKey ? t(deleteErrorKey, { ns: 'errorKeys' }) : null}
+                        errorText={deleteErrorKey ? translateUiMessage(t, deleteErrorKey) : null}
                     />
                 </>
             )}
-        </div >
+        </PageContainer>
     );
 }
 

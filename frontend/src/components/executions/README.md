@@ -21,4 +21,7 @@ cross-control audit/list surfaces such as `AuditTrailPage.tsx`, and
 `frontend/src/services/executionApi.ts` should stay read-only for those audit
 flows.
 
+`ExecutionLogModal` picks the result with a `RadioGroup` (one choice of four); the disclosure and action
+controls in `ExecutionHistory` are `Button`s. `lib/executionResult.ts` also supplies the `Badge` tone.
+
 Keep this README updated when responsibilities or structure in this folder change.

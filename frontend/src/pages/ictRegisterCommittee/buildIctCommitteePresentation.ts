@@ -1,3 +1,5 @@
+import { heatCellClass, heatLevelForCount, severityClass, vendorTierClass, type SeverityBand } from '@/lib/severity';
+import { toneClass } from '@/lib/tones';
 import { canonicalAssetCriticality } from '@/pages/shared/ictRegisterSemanticFilters';
 import type {
     IctCommittee,
@@ -7,7 +9,6 @@ import type {
     IctRoiGapRow,
 } from '@/types/ictRegisterCommittee';
 
-type CellStyle = { backgroundColor: string; color: string };
 type PresentationTone = 'neutral' | 'success' | 'warning';
 type Translate = (key: string, values?: Record<string, unknown>) => string;
 
@@ -50,8 +51,11 @@ interface KpiPresentation {
 }
 
 interface MatrixCellPresentation {
+    /** Accessible name of the drill-down link (axis values + count, GAP-B-16). */
+    ariaLabel: string;
     count: number;
-    fill: string | null;
+    /** `--heat-N` cell recipe (sequential count scale, DS-23). */
+    heatClass: string;
     href: string;
 }
 
@@ -60,14 +64,14 @@ interface TopRiskPresentation {
     href: string;
     label: string;
     netBand: string | null;
-    netBandStyle: CellStyle | null;
+    netBandClass: string | null;
     netScore: number | null;
     rank: number;
     statusLabel: string | null;
     subjectLabel: string;
     threatLabel: string;
     tolerance: string | null;
-    toleranceStyle: CellStyle | null;
+    toleranceClass: string | null;
 }
 
 interface TopVendorPresentation {
@@ -76,7 +80,7 @@ interface TopVendorPresentation {
     name: string;
     rank: number;
     tier: string;
-    tierStyle: CellStyle | null;
+    tierClass: string | null;
 }
 
 interface RoiGapRowPresentation {
@@ -129,12 +133,15 @@ export interface IctCommitteePresentation {
     };
     executiveSummary: {
         assetChart: Array<{ band: string; count: number; href: string; label: string }>;
+        /** Text alternative of the asset chart (GAP-D-11): summary + data-table headers. */
+        assetChartSummary: string;
+        assetChartColumns: { band: string; count: string };
         assetChartTitle: string;
         heatmap: {
             axis: string;
             columns: readonly number[];
             legend: string;
-            legendStops: Array<{ fill: string | null; label: string; value: number }>;
+            legendStops: Array<{ heatClass: string; label: string; value: number }>;
             rows: Array<{
                 probability: number;
                 cells: Array<MatrixCellPresentation & { column: number }>;
@@ -147,7 +154,7 @@ export interface IctCommitteePresentation {
             columns: readonly string[];
             columnLabels: readonly string[];
             legend: string;
-            legendStops: Array<{ fill: string | null; label: string; value: number }>;
+            legendStops: Array<{ heatClass: string; label: string; value: number }>;
             rows: Array<{
                 grossBand: string;
                 grossBandLabel: string;
@@ -170,6 +177,9 @@ export interface IctCommitteePresentation {
             netHref: string;
         }>;
         riskBandChartLabels: { gross: string; net: string };
+        /** Text alternative of the risk-band chart (GAP-D-11): summary + band column header. */
+        riskBandChartSummary: string;
+        riskBandChartBandColumn: string;
         riskBandChartTitle: string;
         title: string;
         emptyRiskRanks: number[];
@@ -267,33 +277,26 @@ const BLOCKING_KPI_KEYS = new Set<CommitteeKpiKey>([
     'open_dq_finding_count',
 ]);
 
-const FILL_SUCCESS: CellStyle = {
-    backgroundColor: 'hsl(var(--success))',
-    color: 'hsl(var(--success-foreground))',
+// Verbatim workbook labels → colours from the severity SSOT (lib/severity.ts,
+// D1 / ADR-015 Addendum 1): the net risk band is a 4-step risk band; vendor
+// tiers follow TierDod (standard = neutral, PM-3); tolerance is a RAG outcome.
+const NET_BAND_SEVERITY: Record<string, SeverityBand> = {
+    Nízké: 'low',
+    Střední: 'medium',
+    Vysoké: 'high',
+    Kritické: 'critical',
 };
-const FILL_WARNING: CellStyle = {
-    backgroundColor: 'hsl(var(--warning))',
-    color: 'hsl(var(--warning-foreground))',
+const NET_BAND_CLASSES: Record<string, string> = Object.fromEntries(
+    Object.entries(NET_BAND_SEVERITY).map(([label, band]) => [label, severityClass('fill', band)]),
+);
+const TOLERANCE_CLASSES: Record<string, string> = {
+    'V toleranci': toneClass('success', 'fill'),
+    'NAD TOLERANCI': toneClass('danger', 'fill'),
 };
-const FILL_DESTRUCTIVE: CellStyle = {
-    backgroundColor: 'hsl(var(--destructive))',
-    color: 'hsl(var(--destructive-foreground))',
-};
-
-const NET_BAND_STYLES: Record<string, CellStyle> = {
-    Nízké: FILL_SUCCESS,
-    Střední: FILL_WARNING,
-    Vysoké: FILL_WARNING,
-    Kritické: FILL_DESTRUCTIVE,
-};
-const TOLERANCE_STYLES: Record<string, CellStyle> = {
-    'V toleranci': FILL_SUCCESS,
-    'NAD TOLERANCI': FILL_DESTRUCTIVE,
-};
-const TIER_STYLES: Record<string, CellStyle> = {
-    'Kritický dodavatel': FILL_DESTRUCTIVE,
-    'Významný dodavatel': FILL_WARNING,
-    'Standardní dodavatel': FILL_SUCCESS,
+const TIER_CLASSES: Record<string, string> = {
+    'Kritický dodavatel': vendorTierClass('fill', 'critical') ?? '',
+    'Významný dodavatel': vendorTierClass('fill', 'significant') ?? '',
+    'Standardní dodavatel': vendorTierClass('fill', 'standard') ?? '',
 };
 
 const CONTROLLED_LABEL_KEYS: Readonly<Record<string, string>> = {
@@ -321,31 +324,16 @@ const ASSET_CRITICALITY_LABEL_KEYS: Readonly<Record<string, string>> = {
 const COVERAGE_BADGE_CLASSES: Record<string, string> = {
     full: 'bg-success text-success-foreground',
     partial: 'bg-warning text-warning-foreground',
-    documentary: 'bg-white/5 text-slate-400',
+    documentary: 'bg-tint/5 text-muted-foreground',
 };
 
-const SCALE_LOW: [number, number, number] = [0xff, 0xff, 0xff];
-const SCALE_MID: [number, number, number] = [0xff, 0xeb, 0x84];
-const SCALE_HIGH: [number, number, number] = [0xf8, 0x69, 0x6b];
-const SCALE_MID_ANCHOR = 2;
 const CRO_IN_PAGE_HREF = '#cro';
 const DQ_PAGE = '/ict-register/data-quality';
 const DQ_FINDINGS_PATH = `${DQ_PAGE}?status=findings`;
 
-function mixChannel(from: number, to: number, t: number): number {
-    return Math.round(from + (to - from) * t);
-}
-
-function mix(from: [number, number, number], to: [number, number, number], t: number): string {
-    const channels = from.map((channel, index) => mixChannel(channel, to[index], t));
-    return `#${channels.map((channel) => channel.toString(16).toUpperCase().padStart(2, '0')).join('')}`;
-}
-
-function colorScaleFill(value: number, maxAnchor: number): string | null {
-    if (value <= 0) return null;
-    if (value <= SCALE_MID_ANCHOR) return mix(SCALE_LOW, SCALE_MID, value / SCALE_MID_ANCHOR);
-    if (value >= maxAnchor) return mix(SCALE_MID, SCALE_HIGH, 1);
-    return mix(SCALE_MID, SCALE_HIGH, (value - SCALE_MID_ANCHOR) / (maxAnchor - SCALE_MID_ANCHOR));
+/** Heat-scale recipe for a count; `maxAnchor` and above take the top step (DS-23). */
+function heatClassForCount(count: number, maxAnchor: number): string {
+    return heatCellClass(heatLevelForCount(count, maxAnchor));
 }
 
 function filteredRegisterPath(path: string, filters: Record<string, string | number | boolean>): string {
@@ -413,11 +401,11 @@ function blockingTone(value: number): PresentationTone {
 function countClass(tone: PresentationTone): string {
     if (tone === 'warning') return 'text-warning-text';
     if (tone === 'success') return 'text-success-text';
-    return 'text-white';
+    return 'text-foreground';
 }
 
-function styleFor(value: string | null, styles: Record<string, CellStyle>): CellStyle | null {
-    return value ? (styles[value] ?? null) : null;
+function classFor(value: string | null, classes: Record<string, string>): string | null {
+    return value ? (classes[value] ?? null) : null;
 }
 
 function controlledLabel(
@@ -430,8 +418,17 @@ function controlledLabel(
     return key ? translate(key) : value;
 }
 
+/**
+ * PG-40: the drill-down URL carries the language-neutral band code (`high`), which the
+ * risk register maps back to the stored workbook value before the request; an unknown
+ * band passes through unchanged.
+ */
+function riskBandCode(band: string): string {
+    return NET_BAND_SEVERITY[band] ?? band;
+}
+
 function riskBandPath(band: string, score: 'gross' | 'net'): string {
-    return committeeRiskPath({ [`${score}_band`]: band });
+    return committeeRiskPath({ [`${score}_band`]: riskBandCode(band) });
 }
 
 function roiGapPath(row: IctRoiGapRow): string | null {
@@ -449,7 +446,7 @@ function normalizeLookupLabel(label: string | null, fallback: string): string {
 }
 
 function readinessBarClass(value: number | null): string {
-    if (value === null) return 'bg-slate-500';
+    if (value === null) return 'bg-muted-foreground';
     if (value >= 80) return 'bg-success';
     if (value >= 50) return 'bg-warning';
     return 'bg-destructive';
@@ -476,7 +473,7 @@ function buildNarratives(
         a38: { tolerance: values.tolerance },
     };
     return (Object.keys(params) as Array<keyof typeof params>).map((key) => ({
-        className: key === 'a38' ? 'text-slate-500 text-sm italic' : 'text-slate-300 text-sm',
+        className: key === 'a38' ? 'text-muted-foreground text-sm italic' : 'text-foreground text-sm',
         key,
         text: translate(`narratives.${key}`, params[key]),
     }));
@@ -491,7 +488,7 @@ function buildRoiTemplates(
     const useCzech = language.toLowerCase().startsWith('cs');
     return snapshot.roi_readiness.templates.map((template) => ({
         code: template.code,
-        coverageClass: COVERAGE_BADGE_CLASSES[template.coverage] ?? 'bg-white/5 text-slate-400',
+        coverageClass: COVERAGE_BADGE_CLASSES[template.coverage] ?? 'bg-tint/5 text-muted-foreground',
         coverageHint: translate(`roi.coverage_hint.${template.coverage}`),
         coverageLabel: translate(`roi.coverage.${template.coverage}`),
         documentary: template.coverage === 'documentary',
@@ -518,7 +515,7 @@ function buildRoiTemplates(
         readinessLabel: template.readiness_pct === null ? '—' : `${template.readiness_pct} %`,
         readinessPct: template.readiness_pct,
         rowCount: template.row_count,
-        rowCountLabel: translate('roi.row_count', { n: template.row_count }),
+        rowCountLabel: translate('roi.row_count', { count: template.row_count }),
         showGapsLabel: translate('roi.show_gaps'),
         truncatedLabel:
             template.gap_rows.length < template.gap_row_count
@@ -608,22 +605,34 @@ export function buildIctCommitteePresentation(
                     criticality: canonicalAssetCriticality(entry.band) ?? entry.band,
                 }),
             })),
+            assetChartSummary: translate('cro.assets_chart_summary', {
+                total: snapshot.cro.assets_by_criticality.reduce((sum, entry) => sum + entry.count, 0),
+            }),
+            assetChartColumns: {
+                band: translate('cro.assets_chart_columns.criticality'),
+                count: translate('cro.assets_chart_columns.assets'),
+            },
             assetChartTitle: translate('cro.assets_chart_title'),
             heatmap: {
                 axis: translate('cro.heatmap_axis'),
                 columns: HEATMAP_SUBJECT_VALUES,
                 legend: translate('cro.heatmap_legend'),
                 legendStops: Array.from({ length: 5 }, (_, value) => ({
-                    fill: colorScaleFill(value, 4),
+                    heatClass: heatClassForCount(value, 4),
                     label: value === 4 ? '4+' : String(value),
                     value,
                 })),
                 rows: snapshot.cro.heatmap.rows.map((row) => ({
                     probability: row.probability,
                     cells: row.cells.map((count, index) => ({
+                        ariaLabel: translate('cro.heatmap_cell_aria', {
+                            count,
+                            probability: row.probability,
+                            impact: index + 1,
+                        }),
                         column: index + 1,
                         count,
-                        fill: colorScaleFill(count, 4),
+                        heatClass: heatClassForCount(count, 4),
                         href: committeeRiskPath({ gross_probability: row.probability, gross_impact: index + 1 }),
                     })),
                 })),
@@ -636,7 +645,7 @@ export function buildIctCommitteePresentation(
                 columnLabels: NET_BANDS.map((band) => controlledLabel(band, translate) ?? band),
                 legend: translate('cro.heatmap_legend'),
                 legendStops: Array.from({ length: 6 }, (_, value) => ({
-                    fill: colorScaleFill(value, 5),
+                    heatClass: heatClassForCount(value, 5),
                     label: value === 5 ? '5+' : String(value),
                     value,
                 })),
@@ -644,10 +653,15 @@ export function buildIctCommitteePresentation(
                     grossBand: row.gross_band,
                     grossBandLabel: controlledLabel(row.gross_band, translate) ?? row.gross_band,
                     cells: row.cells.map((count, index) => ({
+                        ariaLabel: translate('cro.migration_cell_aria', {
+                            count,
+                            gross: controlledLabel(row.gross_band, translate) ?? row.gross_band,
+                            net: controlledLabel(NET_BANDS[index], translate) ?? NET_BANDS[index],
+                        }),
                         band: NET_BANDS[index],
                         count,
-                        fill: colorScaleFill(count, 5),
-                        href: committeeRiskPath({ gross_band: row.gross_band, net_band: NET_BANDS[index] }),
+                        heatClass: heatClassForCount(count, 5),
+                        href: committeeRiskPath({ gross_band: riskBandCode(row.gross_band), net_band: riskBandCode(NET_BANDS[index]) }),
                     })),
                 })),
                 title: translate('cro.migration_title'),
@@ -663,6 +677,11 @@ export function buildIctCommitteePresentation(
                 netHref: riskBandPath(entry.band, 'net'),
             })),
             riskBandChartLabels: { gross: translate('cro.risk_bands_gross'), net: translate('cro.risk_bands_net') },
+            riskBandChartSummary: translate('cro.risk_bands_chart_summary', {
+                gross: snapshot.cro.risks_by_band.reduce((sum, entry) => sum + entry.gross_count, 0),
+                net: snapshot.cro.risks_by_band.reduce((sum, entry) => sum + entry.net_count, 0),
+            }),
+            riskBandChartBandColumn: translate('top_risks_columns.band'),
             riskBandChartTitle: translate('cro.risk_bands_chart_title'),
             title: translate('cro.title'),
             emptyRiskRanks: Array.from(
@@ -678,14 +697,14 @@ export function buildIctCommitteePresentation(
                 href: `/risks/${risk.risk_id}`,
                 label: risk.code ?? translate('common:fallbacks.unknown_risk'),
                 netBand: controlledLabel(risk.net_band, translate),
-                netBandStyle: styleFor(risk.net_band, NET_BAND_STYLES),
+                netBandClass: classFor(risk.net_band, NET_BAND_CLASSES),
                 netScore: risk.net_score,
                 rank: risk.rank,
                 statusLabel: controlledLabel(risk.status_label, translate),
                 subjectLabel: normalizeLookupLabel(risk.subject_label, translate('common:fallbacks.unknown')),
                 threatLabel: normalizeLookupLabel(risk.threat_label, translate('common:fallbacks.unknown_threat')),
                 tolerance: controlledLabel(risk.vs_tolerance, translate),
-                toleranceStyle: styleFor(risk.vs_tolerance, TOLERANCE_STYLES),
+                toleranceClass: classFor(risk.vs_tolerance, TOLERANCE_CLASSES),
             })),
             topRisksColumns: {
                 band: translate('top_risks_columns.band'),
@@ -705,7 +724,7 @@ export function buildIctCommitteePresentation(
                 name: vendor.name || translate('common:fallbacks.unknown_vendor'),
                 rank: vendor.rank,
                 tier: controlledLabel(vendor.tier, translate) ?? vendor.tier,
-                tierStyle: styleFor(vendor.tier, TIER_STYLES),
+                tierClass: classFor(vendor.tier, TIER_CLASSES),
             })),
             topVendorsColumns: {
                 cifProcesses: translate('top_vendors_columns.cif_processes'),

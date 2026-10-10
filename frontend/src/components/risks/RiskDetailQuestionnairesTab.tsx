@@ -1,20 +1,20 @@
-import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
+import { useId } from 'react';
+import { FileText, Send, UserX } from 'lucide-react';
 
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
-import { useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { cn } from '@/lib/utils';
 import type { Risk } from '@/types/risk';
 
 import { QuestionnaireAssessmentSummary } from './QuestionnaireAssessmentSummary';
 import { QuestionnaireHistoryTable } from './QuestionnaireHistoryTable';
+import { QuestionnaireStatusBadge } from './QuestionnaireStatusBadge';
 import { RiskQuestionnaireDetail } from './RiskQuestionnaireDetail';
-import {
-    formatQuestionnaireDate,
-    isQuestionnaireOverdue,
-    questionnaireStatusBadge,
-} from './questionnairesTabPresentation';
+import { formatQuestionnaireDate } from './questionnairesTabPresentation';
 import { useRiskQuestionnairesTabData } from './useRiskQuestionnairesTabData';
 
 interface RiskDetailQuestionnairesTabProps {
@@ -22,9 +22,11 @@ interface RiskDetailQuestionnairesTabProps {
 }
 
 export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTabProps) {
-    const { t, i18n } = useTranslation(['common', 'risks']);
+    const { t } = useTranslation(['common', 'risks']);
+    const format = useFormat();
     const { totalAssets } = useTotalAssetsValue();
     const canSend = resolveCapabilityFlag(risk.capabilities, 'can_send_questionnaire');
+    const ownerRequiredId = useId();
     const {
         errorKey,
         handleSend,
@@ -34,7 +36,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         latestSubmittedOutcome,
         loadOutcome,
         loading,
-        message,
+        openExistsNotice,
         openItem,
         reconcile,
         refresh,
@@ -50,24 +52,24 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
     if (loadOutcome === 'fatal-error' || loadOutcome === 'denied') {
         return (
-            <div className="glass-card !p-0 overflow-hidden">
+            <Card padding="none" className="overflow-hidden">
                 <TableErrorState
                     testId="risk-questionnaires-load-state"
                     message={t('common:errors.load_failed')}
                     onRetry={loadOutcome === 'fatal-error' ? () => void refresh() : undefined}
                     isRetrying={loading}
                 />
-            </div>
+            </Card>
         );
     }
 
+    const missingOwner = !risk.owner_id;
+
     return (
-        <div className="glass-card !p-0 overflow-hidden">
-            {message && (
-                <div className="p-4 border-b border-white/5 text-sm text-amber-400 bg-amber-500/5">
-                    {message}
-                </div>
-            )}
+        <Card padding="none" className="overflow-hidden">
+            {openExistsNotice ? (
+                <InlineMessage tone="warning" className="m-4">{openExistsNotice}</InlineMessage>
+            ) : null}
 
             {loadOutcome === 'stale-with-error' ? (
                 <TableErrorState
@@ -80,60 +82,45 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
             ) : null}
 
             {errorKey && loadOutcome === 'content' && (
-                <div className="p-4 border-b border-rose-500/20 text-sm text-rose-400 bg-rose-500/10 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
-                </div>
+                <InlineMessage tone="danger" className="m-4">{translateUiMessage(t, errorKey)}</InlineMessage>
             )}
 
-            <div className="p-6 border-b border-white/5 flex items-start justify-between gap-4">
-                <div>
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-accent" />
-                        {t('risks:questionnaires.title')}
-                    </h3>
-                    <p className="text-slate-400 text-sm">
-                        {t('risks:questionnaires.subtitle')}
-                    </p>
-
-                    {openItem && (
-                        <div className="mt-3 flex items-center gap-3">
-                            {questionnaireStatusBadge(openItem.status, isQuestionnaireOverdue(openItem), t)}
-                            <span className="text-xs text-slate-400">
-                                {t('risks:questionnaires.current_due')}: {formatQuestionnaireDate(openItem.due_at, i18n.language)}
-                            </span>
-                            <button
-                                onClick={() => setSelectedId(openItem.id)}
-                                className="text-xs text-accent hover:text-accent/80 font-bold"
+            <div className="p-6 border-b border-border">
+                <CardHeader
+                    className="mb-0"
+                    icon={FileText}
+                    title={t('risks:questionnaires.title')}
+                    description={t('risks:questionnaires.subtitle')}
+                    actions={canSend ? (
+                        <div className="flex flex-col items-end gap-2">
+                            <Button
+                                variant="accent"
+                                onClick={handleSend}
+                                disabled={sending || missingOwner}
+                                isLoading={sending}
+                                aria-describedby={missingOwner ? ownerRequiredId : undefined}
                             >
-                                {t('risks:questionnaires.open')}
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {canSend && (
-                    <div className="flex flex-col items-end gap-2">
-                        <button
-                            onClick={handleSend}
-                            disabled={sending || !risk.owner_id}
-                            className={cn(
-                                'inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all',
-                                'bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50',
-                                (sending || !risk.owner_id) && 'opacity-50 cursor-not-allowed',
+                                {sending ? null : missingOwner ? <UserX aria-hidden="true" /> : <Send aria-hidden="true" />}
+                                {t('risks:questionnaires.send')}
+                            </Button>
+                            {missingOwner && (
+                                <p id={ownerRequiredId} className="text-xs text-muted-foreground">
+                                    {t('risks:questionnaires.send_requires_owner')}
+                                </p>
                             )}
-                            title={!risk.owner_id ? t('risks:questionnaires.send_requires_owner') : undefined}
-                        >
-                            {!risk.owner_id ? <UserX className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                            {t('risks:questionnaires.send')}
-                        </button>
-                        {!risk.owner_id && (
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                {t('risks:questionnaires.owner_required')}
-                            </p>
-                        )}
+                        </div>
+                    ) : undefined}
+                />
+
+                {openItem && (
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <QuestionnaireStatusBadge questionnaire={openItem} />
+                        <span className="text-xs text-muted-foreground">
+                            {t('risks:questionnaires.current_due')}: {formatQuestionnaireDate(openItem.due_at, format.locale)}
+                        </span>
+                        <Button variant="outline" size="compact" onClick={() => setSelectedId(openItem.id)}>
+                            {t('risks:questionnaires.open')}
+                        </Button>
                     </div>
                 )}
             </div>
@@ -142,7 +129,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 latestSubmitted={latestSubmitted}
                 latestSubmittedLoading={latestSubmittedLoading}
                 loadOutcome={latestSubmittedOutcome}
-                locale={i18n.language}
+                locale={format.locale}
                 onRetry={() => void refreshLatestSubmitted()}
                 t={t}
                 totalAssets={totalAssets}
@@ -151,7 +138,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
             <QuestionnaireHistoryTable
                 items={items}
                 loading={loading}
-                locale={i18n.language}
+                locale={format.locale}
                 onSelect={setSelectedId}
                 t={t}
             />
@@ -163,6 +150,6 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 onClose={() => setSelectedId(null)}
                 onChanged={reconcile}
             />
-        </div>
+        </Card>
     );
 }

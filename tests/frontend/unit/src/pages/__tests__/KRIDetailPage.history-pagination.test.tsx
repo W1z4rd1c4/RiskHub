@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '@/services/apiClient';
@@ -99,7 +99,9 @@ describe('KRI bounded history pagination', () => {
         getHistory.mockRejectedValueOnce(new Error('offline'));
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         const unavailable = await screen.findByText('History page 2 is unavailable');
-        expect(unavailable).toHaveFocus();
+        // The summary takes focus in a passive effect after the failed page commits;
+        // under full-suite load that effect can run after findByText resolves.
+        await waitFor(() => expect(unavailable).toHaveFocus());
         expect(screen.queryByText('75 units', { selector: 'h4' })).not.toBeInTheDocument();
         expect(screen.queryByText('51–75 of 75')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
@@ -114,7 +116,10 @@ describe('KRI bounded history pagination', () => {
         getHistory.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         await screen.findByText('Loading history page 2…');
-        expect(screen.getByRole('button', { name: 'Older entries' })).toBeDisabled();
+        // Inert while the page loads, but still focusable (aria-disabled), so the pressed control keeps focus.
+        expect(screen.getByRole('button', { name: 'Older entries' })).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
+        expect(getHistory).toHaveBeenCalledTimes(2);
         fireEvent.click(screen.getByRole('button', { name: 'Back fixture' }));
         await screen.findByText('1–50 of 75');
         await act(async () => release({ items: fixture(75).slice(50), total: 75 }));

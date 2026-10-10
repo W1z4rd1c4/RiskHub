@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { ControlNewPage } from '@/pages/ControlNewPage';
 
 const mockNavigate = vi.fn();
@@ -46,22 +48,11 @@ vi.mock('@/components/control-form/ControlFormContainer', () => ({
         allowRiskLinking?: boolean;
         firstStepBackLabel?: string;
         onCancel?: () => void;
-        onSuccess?: (
-            controlId: number,
-            locationState?: { controlFlash: { tone: 'warn'; message: string } },
-        ) => void | Promise<void>;
+        onSuccess?: (controlId: number, acceptNavigation?: () => void) => void | Promise<void>;
     }) => (
         <div data-allow-risk-linking={String(allowRiskLinking)}>
             <div data-testid="control-back-label">{firstStepBackLabel}</div>
             <button type="button" onClick={() => void onSuccess?.(88)}>submit</button>
-            <button
-                type="button"
-                onClick={() => void onSuccess?.(88, {
-                    controlFlash: { tone: 'warn', message: 'Risk link failed.' },
-                })}
-            >
-                partial-submit
-            </button>
             <button type="button" onClick={() => onCancel?.()}>cancel</button>
         </div>
     ),
@@ -87,7 +78,7 @@ describe('ControlNewPage vendor context', () => {
     });
 
     it('auto-links a new control to the vendor and returns to vendor detail', async () => {
-        render(<ControlNewPage />);
+        render(<ControlNewPage />, { wrapper: FeedbackProvider });
 
         expect(await screen.findByTestId('control-back-label')).toHaveTextContent(/Back to vendor|Zpět na dodavatele/i);
         expect(screen.getByTestId('control-back-label').parentElement).toHaveAttribute(
@@ -100,14 +91,9 @@ describe('ControlNewPage vendor context', () => {
         await waitFor(() => {
             expect(mockLinkControl).toHaveBeenCalledWith(12, 88);
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-            state: {
-                vendorFlash: expect.objectContaining({
-                    tone: 'success',
-                    ctaHref: '/controls/88',
-                }),
-            },
-        });
+        expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+        // D9 / FB-01: the vendor-context outcome is a toast, not router state.
+        expect(document.querySelector('li[data-tone="success"]')).not.toBeNull();
     });
 
     it('returns to the vendor with a warning when the link queues for approval', async () => {
@@ -118,18 +104,13 @@ describe('ControlNewPage vendor context', () => {
             proposal_version: 1,
         });
 
-        render(<ControlNewPage />);
+        render(<ControlNewPage />, { wrapper: FeedbackProvider });
         fireEvent.click(await screen.findByRole('button', { name: 'submit' }));
 
         await waitFor(() => {
-            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
-                state: {
-                    vendorFlash: expect.objectContaining({
-                        tone: 'warn',
-                        ctaHref: '/controls/88',
-                    }),
-                },
-            });
+            expect(mockNavigate).toHaveBeenCalledWith('/vendors/12');
+            // D9 / FB-01: the vendor-context outcome is a toast, not router state.
+            expect(document.querySelector('li[data-tone="warning"]')).not.toBeNull();
         });
     });
 
@@ -140,26 +121,19 @@ describe('ControlNewPage vendor context', () => {
             capabilities: { can_create_linked_control: false },
         });
 
-        render(<ControlNewPage />);
+        render(<ControlNewPage />, { wrapper: FeedbackProvider });
 
         await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
         expect(screen.queryByTestId('control-back-label')).not.toBeInTheDocument();
     });
 
-    it('preserves partial-link state and the exact list context after normal create', async () => {
+    it('preserves the exact list context after normal create (partial-link warning is a form toast)', async () => {
         const returnTo = '/controls?q=payments&page=3#group-heading';
         mockSearchParams = new URLSearchParams({ return_to: returnTo });
 
-        render(<ControlNewPage />);
-        fireEvent.click(await screen.findByRole('button', { name: 'partial-submit' }));
+        render(<ControlNewPage />, { wrapper: FeedbackProvider });
+        fireEvent.click(await screen.findByRole('button', { name: 'submit' }));
 
-        expect(mockNavigate).toHaveBeenCalledWith(
-            `/controls/88?return_to=${encodeURIComponent(returnTo)}`,
-            {
-                state: {
-                    controlFlash: { tone: 'warn', message: 'Risk link failed.' },
-                },
-            },
-        );
+        expect(mockNavigate).toHaveBeenCalledWith(`/controls/88?return_to=${encodeURIComponent(returnTo)}`);
     });
 });

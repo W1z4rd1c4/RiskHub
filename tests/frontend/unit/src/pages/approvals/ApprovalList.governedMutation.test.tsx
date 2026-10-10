@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import i18n from '@/i18n';
 import { ApprovalList } from '@/pages/approvals/ApprovalList';
 import type { ApprovalRequest } from '@/types/approval';
 
@@ -70,6 +71,27 @@ const handlers = {
 const t = (key: string) => key;
 
 describe('ApprovalList governed Process mutation', () => {
+    it.each([
+        ['en', 'asset', 'Asset'],
+        ['cs', 'asset', 'Aktivum'],
+        ['en', 'vendor', 'Vendor'],
+        ['cs', 'vendor', 'Dodavatel'],
+    ] as const)('renders the %s %s resource label without raw translation keys', (locale, resourceType, label) => {
+        render(
+            <ApprovalList
+                approvals={[{ ...governedApproval(true), resource_type: resourceType }]}
+                loading={false}
+                expandedRows={new Set()}
+                locale={locale}
+                t={i18n.getFixedT(locale, 'approvals') as never}
+                {...handlers}
+            />,
+        );
+
+        expect(screen.getByText(label, { exact: true })).toBeInTheDocument();
+        expect(screen.queryByText(`entity_types.${resourceType}`)).not.toBeInTheDocument();
+    });
+
     it('renders the governed before/after and derived impact in Pending/My Requests rows', () => {
         render(
             <ApprovalList

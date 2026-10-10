@@ -31,28 +31,28 @@ export interface SnapshotAvailability {
 export const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'] as const;
 
 const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
-    new_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    archived_risks: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    active_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    priority_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    kri_breaches: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    pending_approvals: { positive: 'text-amber-400', negative: 'text-emerald-400' },
-    audit_activity: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    failed_audits: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    control_coverage: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    unaudited_controls: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    orphaned_items: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    kri_health: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    overdue_kris: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    activity_volume: { positive: 'text-slate-400', negative: 'text-slate-400' },
-    risks_without_kri: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    active_vendors: { positive: 'text-slate-400', negative: 'text-slate-400' },
+    new_risks: { positive: 'text-destructive', negative: 'text-success-text' },
+    archived_risks: { positive: 'text-success-text', negative: 'text-destructive' },
+    active_risks: { positive: 'text-destructive', negative: 'text-success-text' },
+    priority_risks: { positive: 'text-destructive', negative: 'text-success-text' },
+    kri_breaches: { positive: 'text-destructive', negative: 'text-success-text' },
+    pending_approvals: { positive: 'text-warning-text', negative: 'text-success-text' },
+    audit_activity: { positive: 'text-success-text', negative: 'text-destructive' },
+    failed_audits: { positive: 'text-destructive', negative: 'text-success-text' },
+    control_coverage: { positive: 'text-success-text', negative: 'text-destructive' },
+    unaudited_controls: { positive: 'text-destructive', negative: 'text-success-text' },
+    orphaned_items: { positive: 'text-destructive', negative: 'text-success-text' },
+    kri_health: { positive: 'text-success-text', negative: 'text-destructive' },
+    overdue_kris: { positive: 'text-destructive', negative: 'text-success-text' },
+    activity_volume: { positive: 'text-muted-foreground', negative: 'text-muted-foreground' },
+    risks_without_kri: { positive: 'text-destructive', negative: 'text-success-text' },
+    active_vendors: { positive: 'text-muted-foreground', negative: 'text-muted-foreground' },
 };
 
 export function getChangeColor(key: string, direction: string): string {
-    const colors = METRIC_COLORS[key] ?? { positive: 'text-slate-400', negative: 'text-slate-400' };
+    const colors = METRIC_COLORS[key] ?? { positive: 'text-muted-foreground', negative: 'text-muted-foreground' };
     if (direction === 'same' || direction === 'unknown') {
-        return 'text-slate-400';
+        return 'text-muted-foreground';
     }
     return direction === 'up' ? colors.positive : colors.negative;
 }

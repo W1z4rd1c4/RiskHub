@@ -253,7 +253,7 @@ describe('ResolveOrphanModal', () => {
             },
         }));
 
-        fireEvent.click(screen.getByRole('button', { name: /Ops Owner.*ops@example.com/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Ops Owner.*ops@example.com/i }));
         const reason = screen.getByTestId('resolve-orphan-request-reason');
         fireEvent.change(reason, { target: { value: 'Restore composite accountability' } });
         fireEvent.click(screen.getByRole('button', { name: /Submit for approval/i }));
@@ -285,7 +285,7 @@ describe('ResolveOrphanModal', () => {
             },
         }));
 
-        fireEvent.click(screen.getByRole('button', { name: /Ops Owner.*ops@example.com/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Ops Owner.*ops@example.com/i }));
         expect(screen.queryByTestId('resolve-orphan-request-reason')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
 
@@ -326,7 +326,7 @@ describe('ResolveOrphanModal', () => {
             },
         }));
 
-        fireEvent.click(screen.getByRole('button', { name: /Ops Owner.*ops@example.com/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Ops Owner.*ops@example.com/i }));
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
 
         const reason = await screen.findByTestId('resolve-orphan-request-reason');
@@ -368,7 +368,7 @@ describe('ResolveOrphanModal', () => {
             },
         }));
 
-        fireEvent.click(screen.getByRole('button', { name: /Ops Owner.*ops@example.com/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Ops Owner.*ops@example.com/i }));
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
 
         expect(await screen.findByText('Some fields are invalid. Please review and try again.'))
@@ -404,7 +404,7 @@ describe('ResolveOrphanModal', () => {
         const { rerender } = render(<ResolveOrphanModal isOpen {...props} />);
         await screen.findByTestId('resolve-orphan-ready');
 
-        fireEvent.click(screen.getByRole('button', { name: /Ops Owner.*ops@example.com/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Ops Owner.*ops@example.com/i }));
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
         expect(await screen.findByTestId('resolve-orphan-request-reason')).toBeInTheDocument();
 
@@ -533,14 +533,18 @@ describe('ResolveOrphanModal', () => {
         });
 
         expect(screen.getByText(/Owner Selection Required/i)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /FIN Finance/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radio', { name: /FIN Finance/i })).not.toBeInTheDocument();
         fireEvent.change(screen.getByTestId('process-department-search'), { target: { value: 'fin' } });
-        const finance = await screen.findByRole('button', { name: /FIN Finance/i });
-        expect(finance).toHaveAttribute('type', 'button');
+        const finance = await screen.findByRole('radio', { name: /FIN Finance/i });
+        // GAP-D-13: the pickers are native radios in a named radiogroup, so the choice is exposed.
+        expect(finance).toHaveAttribute('type', 'radio');
+        expect(finance).not.toBeChecked();
         fireEvent.click(finance);
-        const owner = screen.getByRole('button', { name: /Ops Owner.*ops@example.com.*Operations/i });
-        expect(owner).toHaveAttribute('type', 'button');
+        expect(finance).toBeChecked();
+        const owner = screen.getByRole('radio', { name: /Ops Owner.*ops@example.com.*Operations/i });
+        expect(owner).toHaveAttribute('type', 'radio');
         fireEvent.click(owner);
+        expect(owner).toBeChecked();
         fireEvent.click(screen.getByRole('button', { name: /Submit for approval/i }));
 
         const reason = screen.getByTestId('resolve-orphan-request-reason');
@@ -597,7 +601,7 @@ describe('ResolveOrphanModal', () => {
             },
         }), { onClose, onResolved });
 
-        fireEvent.click(await screen.findByRole('button', { name: /Ops Owner.*ops@example.com.*Operations/i }));
+        fireEvent.click(await screen.findByRole('radio', { name: /Ops Owner.*ops@example.com.*Operations/i }));
         expect(screen.queryByTestId('resolve-orphan-request-reason')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
 
@@ -676,7 +680,7 @@ describe('ResolveOrphanModal', () => {
         });
 
         fireEvent.click(screen.getByRole(
-            'button',
+            'radio',
             { name: /Asset Owner.*asset-owner@example.com.*Operations/i },
         ));
         fireEvent.click(screen.getByRole('button', { name: /Submit for approval/i }));
@@ -730,8 +734,8 @@ describe('ResolveOrphanModal', () => {
         }));
 
         fireEvent.change(screen.getByTestId('process-department-search'), { target: { value: 'fin' } });
-        fireEvent.click(await screen.findByRole('button', { name: /FIN Finance/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Asset Owner.*asset-owner@example.com.*Operations/i }));
+        fireEvent.click(await screen.findByRole('radio', { name: /FIN Finance/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Asset Owner.*asset-owner@example.com.*Operations/i }));
         expect(screen.queryByTestId('resolve-orphan-request-reason')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
 
@@ -784,7 +788,7 @@ describe('ResolveOrphanModal', () => {
         });
 
         fireEvent.click(screen.getByRole(
-            'button',
+            'radio',
             { name: /Cross Department Owner.*cross-owner@example.com.*Finance/i },
         ));
         fireEvent.click(screen.getByRole('button', { name: /Submit for approval/i }));
@@ -836,7 +840,7 @@ describe('ResolveOrphanModal', () => {
         expect(screen.getByText('Outsourcing Owner responsibility')).toBeInTheDocument();
         fireEvent.change(screen.getByTestId('orphan-owner-search'), { target: { value: 'cross' } });
         await waitFor(() => expect(mockGetVendorOwners).toHaveBeenCalledWith({ limit: 50, q: 'cross' }));
-        fireEvent.click(screen.getByRole('button', { name: /Cross Department Owner.*cross-owner@example.com.*Finance/i }));
+        fireEvent.click(screen.getByRole('radio', { name: /Cross Department Owner.*cross-owner@example.com.*Finance/i }));
         expect(screen.queryByTestId('resolve-orphan-request-reason')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Resolve Item/i }));
 
@@ -881,7 +885,7 @@ describe('ResolveOrphanModal', () => {
         });
 
         fireEvent.click(screen.getByRole(
-            'button',
+            'radio',
             { name: /Backup CISO.*backup-ciso@example.com/i },
         ));
         fireEvent.click(screen.getByRole('button', { name: /Submit for approval/i }));
@@ -937,7 +941,7 @@ describe('ResolveOrphanModal', () => {
         }));
 
         fireEvent.click(screen.getByRole(
-            'button',
+            'radio',
             { name: /Backup CISO.*backup-ciso@example.com/i },
         ));
         expect(screen.queryByTestId('resolve-orphan-request-reason')).not.toBeInTheDocument();

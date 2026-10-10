@@ -99,6 +99,10 @@ describe('LoginPage auth modes', () => {
 
         await screen.findByRole('button', { name: /microsoft/i });
         expect(screen.queryByRole('button', { name: /system admin/i })).not.toBeInTheDocument();
+        // GAP-B-01: preview-only copy belongs to the preview route, never the live SSO login.
+        const previewCopy = englishResources.auth.login_sso_prod;
+        expect(screen.queryByText(previewCopy.button_hint)).not.toBeInTheDocument();
+        expect(screen.queryByText(previewCopy.preview_note)).not.toBeInTheDocument();
     });
 
     it('keeps the confirmed production-login language after a chunk failure and lets the user retry', async () => {
@@ -145,7 +149,9 @@ describe('LoginPage auth modes', () => {
         const user = userEvent.setup();
 
         renderWithQuery(<LoginPage />, '/login', instance);
-        const english = await screen.findByRole('button', { name: 'EN' });
+        // The loading view sits on the same public frame; wait for the SSO view's own switch.
+        await screen.findByRole('button', { name: /continue with microsoft/i });
+        const english = screen.getByRole('button', { name: 'EN' });
         const czech = screen.getByRole('button', { name: 'CS' });
 
         await user.click(czech);
@@ -220,7 +226,9 @@ describe('LoginPage auth modes', () => {
                 );
             }) as typeof instance.loadLanguages);
             renderWithQuery(<LoginPage />, '/login', instance);
-            const english = await screen.findByRole('button', { name: 'EN' });
+            // The loading view sits on the same public frame; wait for the SSO view's own switch.
+            await screen.findByRole('button', { name: /continue with microsoft/i });
+            const english = screen.getByRole('button', { name: 'EN' });
             const czech = screen.getByRole('button', { name: 'CS' });
 
             fireEvent.click(czech);
@@ -251,6 +259,63 @@ describe('LoginPage auth modes', () => {
             expect(screen.queryByText(/unable to connect to server\. please try again/i)).not.toBeInTheDocument();
         },
     );
+
+    it('keeps the production copy in the language chosen on the loading view (one public-frame switch)', async () => {
+        const config = deferred<void>();
+        server.use(
+            http.get('*/api/v1/auth/config', async () => {
+                await config.promise;
+                return HttpResponse.json({
+                    auth_mode: 'microsoft_sso',
+                    demo_login_enabled: false,
+                    password_login_enabled: false,
+                    demo_personas: [],
+                    sso: {
+                        enabled: true,
+                        provider: 'entra',
+                        tenant_id: 'tenant',
+                        client_id: 'client',
+                        authority: 'https://login.microsoftonline.com/tenant',
+                        scopes: ['openid', 'profile', 'email'],
+                    },
+                    sso_error: null,
+                });
+            }),
+        );
+        localStorage.setItem('riskhub-language', 'en');
+        const instance = i18n.createInstance();
+        await instance.init({
+            lng: 'en',
+            fallbackLng: false,
+            supportedLngs: ['en', 'cs'],
+            nonExplicitSupportedLngs: true,
+            defaultNS: 'common',
+            ns: namespaces,
+            resources: { en: englishResources, cs: czechResources },
+            react: { useSuspense: false },
+        });
+        const changeLanguage = vi.spyOn(instance, 'changeLanguage');
+        const user = userEvent.setup();
+        renderWithQuery(<LoginPage />, '/login', instance);
+
+        // The loading state is already the public frame, with its language switch.
+        expect(await screen.findByRole('heading', { level: 1, name: 'Sign In' })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'CS' }));
+        await waitFor(() => expect(instance.language).toBe('cs'));
+
+        await act(async () => {
+            config.resolve();
+            await config.promise;
+        });
+        const czechCopy = czechResources.auth.login_sso_prod;
+        expect(await screen.findByRole('heading', { level: 1, name: czechCopy.title })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: czechCopy.button_label })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'CS' })).toHaveAttribute('aria-pressed', 'true');
+        // Following `languageChanged` only mirrors the active language into the production copy;
+        // it never switches the language again (no event loop).
+        expect(changeLanguage).toHaveBeenCalledTimes(1);
+        expect(changeLanguage).toHaveBeenCalledWith('cs', expect.any(Function));
+    });
 
     it('keeps demo account picker in hybrid_dev mode', async () => {
         server.use(

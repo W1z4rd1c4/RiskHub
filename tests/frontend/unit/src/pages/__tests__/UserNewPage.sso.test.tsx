@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderInRouter as render } from '@test/render';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { UserNewPage } from '@/pages/UserNewPage';
@@ -290,6 +291,23 @@ describe('UserNewPage SSO mode', () => {
             expect(document.querySelector('input[type="password"]')).toBeNull();
         });
         expect(screen.getByText('access.denied')).toBeInTheDocument();
+    });
+
+    it('renders an auth-config load failure as one error with retry, not as access denied (SM-07)', async () => {
+        mockGetAuthConfig
+            .mockRejectedValueOnce(new Error('network down'))
+            .mockResolvedValueOnce(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
+
+        render(<UserNewPage />);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(adminEn.user_new.auth_mode_load_failed);
+        expect(screen.queryByText('access.denied')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: adminEn.native_users.retry }));
+
+        await screen.findByText('Directory import panel');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(mockGetAuthConfig).toHaveBeenCalledTimes(2);
     });
 
     it('returns to /users with import context after successful directory import', async () => {

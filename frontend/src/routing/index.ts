@@ -1,3 +1,5 @@
+import { matchPath } from 'react-router-dom';
+
 import type { AppRouteDef, SidebarGroupKey, SidebarNavDef, SidebarRuntimeContext } from './types';
 import { adminRoutes } from './admin';
 import { businessRoutes } from './business';
@@ -64,7 +66,22 @@ export function getGroupedSidebarNav(context: SidebarRuntimeContext): SidebarNav
  * so nested siblings like `/admin` and `/admin/docs` never both highlight, and
  * the root href (`/`) only matches an exact `/` so it never swallows every route.
  */
-export function resolveActiveSidebarHref(pathname: string, hrefs: readonly string[]): string | null {
+export function resolveActiveSidebarHref(
+  pathname: string,
+  hrefs: readonly string[],
+  routes: readonly AppRouteDef[] = protectedAppRoutes,
+): string | null {
+  // Routes without a sidebar entry of their own name their parent section
+  // (`activeNavHref`, NAV-02) so the sidebar never loses the user's place.
+  const owner = routes.find((route) => (
+    route.activeNavHref !== undefined
+    && route.path !== undefined
+    && matchPath({ path: `/${route.path.replace(/^\//, '')}`, end: true }, pathname) !== null
+  ));
+  if (owner?.activeNavHref !== undefined && hrefs.includes(owner.activeNavHref)) {
+    return owner.activeNavHref;
+  }
+
   let best: string | null = null;
 
   for (const href of hrefs) {

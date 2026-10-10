@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
-import { useTranslation } from '@/i18n/hooks';
+import { useTranslation, useFormat, translateUiMessage } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorSortField } from '@/types/vendor';
@@ -23,10 +24,12 @@ export function VendorsPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/vendors');
-    const { i18n, t } = useTranslation('vendors');
+    const { t } = useTranslation('vendors');
+    // PG-35: one normalized UI language (the value LanguageProvider reports).
+    const { locale: language } = useFormat();
     const { semanticFilters, presentedSemanticFilters, removeSemanticFilter } =
         useIctRegisterSemanticPageState(parseVendorSemanticFilters);
-    const state = useVendorsPageState(semanticFilters, i18n.language.startsWith('cs') ? 'cs' : 'en');
+    const state = useVendorsPageState(semanticFilters, language);
     const columns = buildVendorColumns({
         t,
         onRestore: (vendorId, event) => {
@@ -77,7 +80,7 @@ export function VendorsPage() {
             )}
             isAccessDenied={state.isAccessDenied}
             isError={Boolean(state.errorKey)}
-            errorMessage={state.errorKey ? t(state.errorKey, { ns: 'errorKeys' }) : undefined}
+            errorMessage={state.errorKey ? translateUiMessage(t, state.errorKey) : undefined}
             isExporting={state.isExporting}
             isLoading={state.isLoading}
             items={state.items}
@@ -100,7 +103,7 @@ export function VendorsPage() {
             itemsPerPage={state.limit}
             onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchVendors()}
-            emptyMessage={state.hasLoadedOnce ? t('empty_state.no_vendors') : t('common:loading.data')}
+            emptyMessage={t('empty_state.no_vendors')}
             grouping={{
                 groups: state.groups,
                 onBack: state.clearSelectedGroup,
@@ -114,6 +117,7 @@ export function VendorsPage() {
             testIdPrefix="vendors"
             toolbar={(
                 <div className="space-y-4">
+                    <ApprovalQueuedNotice />
                     <SemanticFilterSummary
                         filters={presentedSemanticFilters}
                         onRemove={removeSemanticFilter}

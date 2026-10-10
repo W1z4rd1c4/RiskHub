@@ -293,12 +293,12 @@ def test_backend_dockerfile_keeps_builder_pip_out_of_runtime_images() -> None:
             stage_bodies[stage_name] += f"{line}\n"
 
     assert any(
-        line.startswith("FROM python:3.13-alpine@sha256:")
+        line.startswith("FROM python:3.13.16-alpine3.24@sha256:")
         and line.endswith(" AS runtime")
         for line in dockerfile_lines
     )
     assert any(
-        line.startswith("FROM python:3.13-alpine@sha256:")
+        line.startswith("FROM python:3.13.16-alpine3.24@sha256:")
         and line.endswith(" AS dbtasks")
         for line in dockerfile_lines
     )
@@ -1029,8 +1029,8 @@ def test_prod_readiness_detached_tree_gitleaks_scan_uses_no_git_mode_and_fails_c
 def test_grype_policy_runtime_exceptions_are_valid_and_unexpired() -> None:
     from prod_readiness_audit.grype_policy import validate_grype_policy
 
-    # Exact source-backport selectors and image proofs are checked in
-    # test_prod_readiness_grype_policy; enforce the live expiration here too.
+    # Runtime fix retirement is checked in test_prod_readiness_grype_policy;
+    # enforce the live expiration for any future exception here too.
     validate_grype_policy(GRYPE_IGNORE)
 
 

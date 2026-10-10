@@ -22,7 +22,5 @@ export interface ProdAuthCopy {
     card_body: string;
     security_note: string;
     button_label: string;
-    button_hint: string;
-    preview_note: string;
     not_configured: string;
 }

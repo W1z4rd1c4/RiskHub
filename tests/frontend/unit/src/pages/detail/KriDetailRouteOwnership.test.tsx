@@ -136,7 +136,7 @@ describe('KRI detail route ownership', () => {
         );
 
         expect(await screen.findByRole('heading', { name: 'KRI 1' })).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: /Delete/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^Archive$/i }));
         fireEvent.click(screen.getByRole('button', { name: 'confirm-delete' }));
         await waitFor(() => expect(deleteKriMock).toHaveBeenCalledWith(1, 'Owner reason'));
 

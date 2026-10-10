@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement, ReactNode } from 'react';
+import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
@@ -13,16 +15,29 @@ vi.mock('@/services/kriApi', () => ({
 }));
 
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
     }),
 }));
 
-vi.mock('@/i18n/formatters', () => ({
+vi.mock('@/i18n/formatters', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/i18n/formatters')>()),
     formatDateValue: (value: string) => value,
 }));
+
+/** The modal's dirty-task guard (PG-22) blocks route changes, so it needs a data router. */
+function DataRouterWrapper({ children }: { children: ReactNode }) {
+    const router = createMemoryRouter([{ path: '/', element: children }]);
+    return <RouterProvider router={router} />;
+}
+
+function renderModal(ui: ReactElement) {
+    return render(ui, { wrapper: DataRouterWrapper });
+}
 
 function makeKri(capabilities?: KRICapabilities | null): KeyRiskIndicator {
     return {
@@ -84,7 +99,7 @@ describe('KRIValueModal', () => {
     });
 
     it('shows the pending approval state for approval responses', async () => {
-        render(
+        renderModal(
             <KRIValueModal
                 kri={makeKri(makeCapabilities({ can_request_value_submission_approval: true }))}
                 isOpen
@@ -100,7 +115,7 @@ describe('KRIValueModal', () => {
     });
 
     it('shows the backdate input only when backend capabilities allow it', () => {
-        const { rerender } = render(
+        const { rerender } = renderModal(
             <KRIValueModal
                 kri={makeKri(makeCapabilities({ can_submit_backdated_value: true }))}
                 isOpen
@@ -124,7 +139,7 @@ describe('KRIValueModal', () => {
     });
 
     it('hides the backdate input when capabilities are missing', () => {
-        render(
+        renderModal(
             <KRIValueModal
                 kri={makeKri(null)}
                 isOpen
@@ -137,7 +152,7 @@ describe('KRIValueModal', () => {
     });
 
     it('shows the approval notice only when backend capabilities say approval submission is available', () => {
-        const { rerender } = render(
+        const { rerender } = renderModal(
             <KRIValueModal
                 kri={makeKri(makeCapabilities({ can_request_value_submission_approval: true }))}
                 isOpen
@@ -158,5 +173,67 @@ describe('KRIValueModal', () => {
         );
 
         expect(screen.queryByText('value_modal.approval_notice')).not.toBeInTheDocument();
+    });
+    it('asks before discarding a typed value and keeps it on Stay (PG-22)', async () => {
+        const onClose = vi.fn();
+        renderModal(
+            <KRIValueModal
+                kri={makeKri(makeCapabilities())}
+                isOpen
+                onClose={onClose}
+                onSuccess={vi.fn()}
+            />
+        );
+
+        fireEvent.change(screen.getByDisplayValue('12'), { target: { value: '15' } });
+        fireEvent.click(screen.getByRole('button', { name: 'common:actions.cancel' }));
+
+        expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /stay/i }));
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByDisplayValue('15')).toBeInTheDocument();
+
+        fireEvent.keyDown(document, { key: 'Escape' });
+        fireEvent.click(await screen.findByRole('button', { name: /leave/i }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes an untouched value form without asking', () => {
+        const onClose = vi.fn();
+        renderModal(
+            <KRIValueModal
+                kri={makeKri(makeCapabilities())}
+                isOpen
+                onClose={onClose}
+                onSuccess={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'common:actions.cancel' }));
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('treats a submitted value as saved: closing the pending state does not ask', async () => {
+        const onClose = vi.fn();
+        renderModal(
+            <KRIValueModal
+                kri={makeKri(makeCapabilities({ can_request_value_submission_approval: true }))}
+                isOpen
+                onClose={onClose}
+                onSuccess={vi.fn()}
+            />
+        );
+
+        fireEvent.change(screen.getByDisplayValue('12'), { target: { value: '15' } });
+        fireEvent.click(screen.getAllByRole('button', { name: 'value_modal.title' })[0]);
+        expect(await screen.findByText('value_modal.submitted_for_approval')).toBeInTheDocument();
+
+        // Footer "Close" (the header close button carries the same name).
+        const closeButtons = screen.getAllByRole('button', { name: 'common:actions.close' });
+        fireEvent.click(closeButtons[closeButtons.length - 1]);
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 });

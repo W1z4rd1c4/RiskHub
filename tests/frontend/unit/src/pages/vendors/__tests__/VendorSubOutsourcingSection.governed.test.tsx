@@ -11,6 +11,8 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 
@@ -113,6 +115,7 @@ function renderSection(protectedChangeRequiresApproval: boolean) {
     return render(
         <QueryClientProvider client={client}>
             <MemoryRouter>
+                <ApprovalQueuedNotice />
                 <VendorSubOutsourcingSection
                     vendorId={1}
                     canManageSubOutsourcing
@@ -245,10 +248,11 @@ describe('protected Vendor sub-outsourcing governed UX (#101)', () => {
             await submitWithReason(REASON);
 
             await waitFor(() => expectForwardedReason(REASON));
-            // 202 is QUEUED, never success: surface the pending approval.
-            await waitFor(() => {
-                expect(screen.getByTestId('location')).toHaveTextContent('/approvals?tab=mine&approvalId=186');
-            });
+            // 202 is QUEUED, never success (D12 / PM-2): the user stays on the
+            // vendor with the persistent pending notice linking to the request.
+            const notice = await screen.findByTestId('approval-queued-notice');
+            expect(within(notice).getByRole('link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=186');
+            expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
         },
     );
 
@@ -317,16 +321,23 @@ describe('protected Vendor sub-outsourcing governed UX (#101)', () => {
         expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
     });
 
-    it('archives directly without a reason dialog when the Vendor is not protected', async () => {
+    it('confirms an unprotected archive first with an optional reason (GAP-C-06, PM-1)', async () => {
         subOutsourcingApiMocks.archiveEntry.mockResolvedValue(undefined);
 
         renderSection(false);
         fireEvent.click(await screen.findByTestId(`vendor-sub-outsourcing-archive-${ACTIVE_ENTRY.id}`));
 
+        // D10: archive is always confirmed; without approval the reason is optional.
+        expect(subOutsourcingApiMocks.archiveEntry).not.toHaveBeenCalled();
+        const dialog = await screen.findByRole('alertdialog');
+        expect(dialog.querySelector('svg.lucide-archive')).not.toBeNull();
+        expect(within(dialog).getByRole('textbox')).not.toBeRequired();
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('vendors:sub_outsourcing.actions.archive') }));
+
         await waitFor(() => {
             expect(subOutsourcingApiMocks.archiveEntry).toHaveBeenCalledWith(1, ACTIVE_ENTRY.id, '');
         });
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     });
 
     it('restore stays DIRECT on a protected Vendor: no reason, no dialog, no queue', async () => {

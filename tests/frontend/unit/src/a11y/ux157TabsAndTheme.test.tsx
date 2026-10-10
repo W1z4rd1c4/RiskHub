@@ -251,4 +251,23 @@ describe('UX-157 Appearance theme choice', () => {
         expect(dark).toHaveFocus();
         expect(document.documentElement).toHaveClass('theme-dark');
     });
+
+    it('no longer labels Light as Beta once the D2 exit criterion is met (Phase 2.3)', () => {
+        render(
+            <AuthProvider>
+                <ThemeProvider>
+                    <AppearanceSettings />
+                </ThemeProvider>
+            </AuthProvider>,
+        );
+
+        // G-RENDER measures 0 light text elements below 3:1 on every harness surface, so the
+        // D2 stop-gap and its "Beta" fallback label are gone; each radio is described only by
+        // its own description.
+        const group = screen.getByRole('group', { name: 'Theme' });
+        expect(within(group).queryByText('Beta')).not.toBeInTheDocument();
+        expect(within(group).getByRole('radio', { name: 'Light' })).toHaveAccessibleDescription('Clean and bright for daytime use');
+        expect(within(group).getByRole('radio', { name: 'Dark' })).toHaveAccessibleDescription('True dark mode for OLED displays');
+        expect(within(group).getByRole('radio', { name: 'RiskHub Theme' })).toHaveAccessibleDescription('Premium signature theme');
+    });
 });

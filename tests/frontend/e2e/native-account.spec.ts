@@ -106,7 +106,7 @@ for (const viewport of [{ width: 1024, height: 768 }, { width: 1440, height: 900
     test(`Czech language and keyboard login at ${viewport.width}`, async ({ page }, testInfo) => {
         await page.setViewportSize(viewport);
         await page.goto('/login');
-        await page.getByLabel('Language', { exact: true }).selectOption('cs');
+        await page.getByRole('group', { name: 'Language' }).getByRole('button', { name: 'CS', exact: true }).click();
         await expect(page.getByRole('heading', { name: 'Přihlášení do RiskHub' })).toBeFocused();
         await page.keyboard.press('Tab');
         await expect(page.getByLabel(/^E-mail/)).toBeFocused();

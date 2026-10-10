@@ -2,11 +2,15 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { Profiler, Suspense, startTransition, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { VendorLinkedEntitiesAdapter } from '@/components/vendors/useVendorLinkedEntities';
 import { VendorLinkedEntitiesTab } from '@/components/vendors/VendorLinkedEntitiesTab';
 import { ApiClientError } from '@/services/apiClient';
+
+/** Stand-in for the decorative Lucide section icon (`CardHeader` renders it aria-hidden). */
+const TestIcon = ((props: { className?: string }) => <svg data-testid="section-icon" {...props} />) as unknown as LucideIcon;
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -55,7 +59,6 @@ function fakeTab(currentAdapter: VendorLinkedEntitiesAdapter<FakeItem>, vendorId
                 canEdit
                 protectedChangeRequiresApproval={false}
                 dataTestIdPrefix="fake"
-                headerColorClass="text-indigo-400"
                 i18nKeys={{
                     addAction: 'links.actions.add_fake',
                     archived: 'links.archived_fake',
@@ -64,7 +67,7 @@ function fakeTab(currentAdapter: VendorLinkedEntitiesAdapter<FakeItem>, vendorId
                     subtitle: 'links.fake.subtitle',
                     tabTitle: 'tabs.linked_fake',
                 }}
-                icon={<span aria-hidden="true" />}
+                icon={TestIcon}
                 linkDialogMode="control-to-risk"
                 onAdd={vi.fn()}
                 onNavigate={vi.fn()}
@@ -92,7 +95,6 @@ describe('VendorLinkedEntitiesTab', () => {
                     canCreate
                     canEdit
                     protectedChangeRequiresApproval={false}
-                    headerColorClass="text-indigo-400"
                     i18nKeys={{
                         addAction: 'links.actions.add_fake',
                         archived: 'links.archived_fake',
@@ -101,7 +103,7 @@ describe('VendorLinkedEntitiesTab', () => {
                         subtitle: 'links.fake.subtitle',
                         tabTitle: 'tabs.linked_fake',
                     }}
-                    icon={<span aria-hidden="true" />}
+                    icon={TestIcon}
                     linkDialogMode="control-to-risk"
                     onAdd={vi.fn()}
                     onNavigate={vi.fn()}
@@ -123,6 +125,60 @@ describe('VendorLinkedEntitiesTab', () => {
 
         await userEvent.click(screen.getByText('links.actions.link_existing'));
         expect(screen.getByRole('dialog')).toHaveTextContent('links.dialogs.link_fake_title');
+    });
+
+    it('renders the section as a titled card and marks archived cards without group opacity (D13, GAP-D-14)', async () => {
+        const seenOptions: Array<{ id: number; archived: boolean }> = [];
+        const mixedAdapter: VendorLinkedEntitiesAdapter<FakeItem> = {
+            ...adapter,
+            fetch: vi.fn(async () => [
+                { id: 1, name: 'Active item', is_archived: false },
+                { id: 2, name: 'Archived item', is_archived: true },
+            ]),
+        };
+        render(
+            <MemoryRouter>
+                <VendorLinkedEntitiesTab
+                    adapter={mixedAdapter}
+                    canCreate={false}
+                    canEdit={false}
+                    protectedChangeRequiresApproval={false}
+                    dataTestIdPrefix="fake"
+                    i18nKeys={{
+                        addAction: 'links.actions.add_fake',
+                        archived: 'links.archived_fake',
+                        dialogTitle: 'links.dialogs.link_fake_title',
+                        empty: 'links.fake.empty',
+                        subtitle: 'links.fake.subtitle',
+                        tabTitle: 'tabs.linked_fake',
+                    }}
+                    icon={TestIcon}
+                    linkDialogMode="control-to-risk"
+                    onAdd={vi.fn()}
+                    onNavigate={vi.fn()}
+                    renderCard={(item, onClick, options) => {
+                        seenOptions.push({ id: item.id, archived: options.archived });
+                        return (
+                            <button key={item.id} type="button" onClick={onClick}>
+                                {item.name}
+                            </button>
+                        );
+                    }}
+                    vendorId={7}
+                />
+            </MemoryRouter>,
+        );
+
+        const archivedCard = await screen.findByRole('button', { name: 'Archived item' });
+        const section = screen.getByTestId('fake-section');
+        expect(section.tagName).toBe('SECTION');
+        expect(within(section).getByRole('heading', { level: 2, name: 'tabs.linked_fake' })).toBeInTheDocument();
+        expect(within(section).getByRole('heading', { level: 3, name: 'links.archived_fake:1' })).toBeInTheDocument();
+        expect(seenOptions).toContainEqual({ id: 1, archived: false });
+        expect(seenOptions).toContainEqual({ id: 2, archived: true });
+        for (let node: HTMLElement | null = archivedCard; node && node !== section; node = node.parentElement) {
+            expect(node.className).not.toMatch(/(?:^|\s)opacity-/);
+        }
     });
 
     it('keeps the committed vendor request owned while a different vendor transition is suspended', async () => {
@@ -230,7 +286,6 @@ describe('VendorLinkedEntitiesTab', () => {
                     canCreate
                     canEdit
                     protectedChangeRequiresApproval
-                    headerColorClass="text-indigo-400"
                     i18nKeys={{
                         addAction: 'links.actions.add_fake',
                         archived: 'links.archived_fake',
@@ -239,7 +294,7 @@ describe('VendorLinkedEntitiesTab', () => {
                         subtitle: 'links.fake.subtitle',
                         tabTitle: 'tabs.linked_fake',
                     }}
-                    icon={<span aria-hidden="true" />}
+                    icon={TestIcon}
                     linkDialogMode="control-to-risk"
                     onAdd={vi.fn()}
                     onNavigate={vi.fn()}
@@ -344,7 +399,7 @@ describe('VendorLinkedEntitiesTab', () => {
         await userEvent.click(screen.getByText('links.actions.link_existing'));
         await userEvent.click(screen.getByText('mock-link-target'));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('links.errors.access_denied');
+        expect(await screen.findByText('links.errors.access_denied')).toBeInTheDocument();
         expect(screen.queryByText('Protected linked item')).not.toBeInTheDocument();
         expect(screen.queryByText('links.fake.empty')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'actions.retry' })).not.toBeInTheDocument();

@@ -1,6 +1,9 @@
-import { useId } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 
+import { Badge } from '@/components/ui/badge';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 
@@ -16,13 +19,27 @@ interface QuestionAnswerFieldProps {
     likelihoodQuestionKey: string;
     missingKeys: string[];
     question: RiskQuestionnaireQuestion;
-    renderAnswer: (key: string, value: unknown) => string;
+    /** Display text of an answer, or `null` when the question is not answered. */
+    renderAnswer: (key: string, value: unknown) => string | null;
     setAnswers: Dispatch<SetStateAction<Record<string, unknown>>>;
     t: TranslateFn;
     worstCaseImpactOptions: QuestionnaireOption[];
     worstCaseImpactQuestionKey: string;
 }
 
+/** An answer's text; an unanswered question reads a muted "Not answered" (GAP-B-24), never "Unknown". */
+function AnswerText({ text, t }: { text: string | null; t: TranslateFn }) {
+    return text === null
+        ? <span className="italic text-muted-foreground">{t('risks:questionnaire.not_answered')}</span>
+        : <>{text}</>;
+}
+
+/**
+ * One questionnaire question. Editable: a `Field` (label, required `*`, help and
+ * the announced "required" error wired to the control, D14) around the matching
+ * `ui` control. Read-only: a `dt` / `dd` pair inside the section's `dl`. In compare
+ * mode a changed answer shows the "Changed" badge with the previous answer.
+ */
 export function QuestionAnswerField({
     answers,
     getPreviousAnswer,
@@ -38,219 +55,143 @@ export function QuestionAnswerField({
     worstCaseImpactOptions,
     worstCaseImpactQuestionKey,
 }: QuestionAnswerFieldProps) {
-    const controlId = useId();
     const label = t(`risks:questionnaire.questions.${question.key}`, question.key);
     const value = answers[question.key];
     const missing = missingKeys.includes(question.key);
     const spanFullWidth = question.type === 'textarea';
     const changed = isChanged(question.key);
     const helperText = question.helperTextKey ? t(`risks:${question.helperTextKey}`, '') : '';
-    const labelId = `${controlId}-label`;
-    const helperId = helperText ? `${controlId}-help` : undefined;
-    const errorId = missing ? `${controlId}-error` : undefined;
-    const describedBy = [helperId, errorId].filter(Boolean).join(' ') || undefined;
-    const controlA11y = {
-        id: controlId,
-        'aria-labelledby': labelId,
-        'aria-describedby': describedBy,
-        'aria-invalid': missing ? true : undefined,
-        'aria-required': question.required ? true : undefined,
-    } as const;
+    const changeNote: ReactNode = changed ? (
+        <span className="flex flex-wrap items-center gap-2">
+            <Badge tone="info" size="sm">{t('risks:questionnaire.changed')}</Badge>{' '}
+            <span>
+                {t('risks:questionnaire.previous')}:{' '}
+                <AnswerText text={renderAnswer(question.key, getPreviousAnswer(question.key))} t={t} />
+            </span>
+        </span>
+    ) : null;
 
     if (!isEditable) {
         return (
             <div className={cn('space-y-1', spanFullWidth && 'md:col-span-2')}>
-                <QuestionLabel changed={changed} label={label} missing={missing} required={question.required} t={t} />
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white">
-                    {renderAnswer(question.key, value)}
-                </div>
-                {changed && (
-                    <div className="text-xs text-slate-500">
-                        {t('risks:questionnaire.previous')}: {renderAnswer(question.key, getPreviousAnswer(question.key))}
-                    </div>
-                )}
-                {helperText && (
-                    <div className="text-xs text-slate-500">{helperText}</div>
-                )}
+                <dt className="text-xs font-bold text-foreground">{label}</dt>
+                <dd className="rounded-lg border border-border bg-tint/5 p-3 text-sm text-foreground">
+                    <AnswerText text={renderAnswer(question.key, value)} t={t} />
+                </dd>
+                {changeNote ? <dd className="text-xs text-muted-foreground">{changeNote}</dd> : null}
+                {helperText ? <dd className="text-xs text-muted-foreground">{helperText}</dd> : null}
             </div>
         );
     }
 
+    const help = helperText || changeNote ? (
+        <>
+            {helperText ? <span className="block">{helperText}</span> : null}
+            {changeNote ? <span className={cn('block', helperText && 'mt-1')}>{changeNote}</span> : null}
+        </>
+    ) : undefined;
+
     return (
-        <div
-            className={cn('space-y-1', spanFullWidth && 'md:col-span-2')}
-            data-questionnaire-question={question.key}
-        >
-            <QuestionLabel
-                changed={changed}
-                controlId={controlId}
+        <div className={cn(spanFullWidth && 'md:col-span-2')} data-questionnaire-question={question.key}>
+            <Field
                 label={label}
-                labelId={labelId}
-                missing={missing}
                 required={question.required}
-                t={t}
-            />
-
-            {helperText && (
-                <div id={helperId} className="text-xs text-slate-500">{helperText}</div>
-            )}
-
-            {(question.key === likelihoodQuestionKey || question.key === worstCaseImpactQuestionKey) && (
-                <ThemedSelect
-                    {...controlA11y}
-                    value={typeof value === 'number' ? String(value) : ''}
-                    onValueChange={(nextValue) => {
-                        setAnswers((current) => ({
-                            ...current,
-                            [question.key]: nextValue === '' ? undefined : Number.parseInt(nextValue, 10),
-                        }));
-                    }}
-                    placeholder={t('common:actions.select')}
-                    allowEmpty
-                    emptyLabel={t('common:labels.none')}
-                    className={cn(
-                        missing && 'border-rose-500/40 focus:border-rose-500/60 focus:ring-rose-500/30',
-                    )}
-                    options={question.key === likelihoodQuestionKey ? likelihoodOptions : worstCaseImpactOptions}
-                />
-            )}
-
-            {question.type === 'boolean' && (
-                <ThemedSelect
-                    {...controlA11y}
-                    value={typeof value === 'boolean' ? String(value) : ''}
-                    onValueChange={(nextValue) => setAnswers((current) => ({
-                        ...current,
-                        [question.key]: nextValue === '' ? undefined : nextValue === 'true',
-                    }))}
-                    placeholder={t('common:actions.select')}
-                    allowEmpty
-                    emptyLabel={t('common:labels.none')}
-                    options={[
-                        { value: 'true', label: t('common:actions.yes') },
-                        { value: 'false', label: t('common:actions.no') },
-                    ]}
-                />
-            )}
-
-            {question.type === 'single_select' && (
-                <ThemedSelect
-                    {...controlA11y}
-                    value={typeof value === 'string' ? value : ''}
-                    onValueChange={(nextValue) => setAnswers((current) => ({ ...current, [question.key]: nextValue }))}
-                    placeholder={t('common:actions.select')}
-                    allowEmpty
-                    emptyLabel={t('common:labels.none')}
-                    options={(question.options ?? []).map((option) => ({
-                        value: option,
-                        label: t(`risks:questionnaire.questions.${option}`, option),
-                    }))}
-                />
-            )}
-
-            {question.type === 'text' && (
-                <input
-                    {...controlA11y}
-                    value={typeof value === 'string' ? value : ''}
-                    onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
-                    className={cn(
-                        'w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all',
-                        missing ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/10 focus:border-accent/50',
-                    )}
-                />
-            )}
-
-            {question.type === 'number' && question.key !== likelihoodQuestionKey && question.key !== worstCaseImpactQuestionKey && (
-                <input
-                    {...controlA11y}
-                    type="number"
-                    min={1}
-                    max={5}
-                    step={1}
-                    value={typeof value === 'number' ? String(value) : ''}
-                    onChange={(event) => {
-                        const raw = event.target.value;
-                        setAnswers((current) => ({
-                            ...current,
-                            [question.key]: raw === '' ? undefined : Number.parseInt(raw, 10),
-                        }));
-                    }}
-                    className={cn(
-                        'w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all',
-                        missing ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/10 focus:border-accent/50',
-                    )}
-                />
-            )}
-
-            {question.type === 'textarea' && (
-                <textarea
-                    {...controlA11y}
-                    value={typeof value === 'string' ? value : ''}
-                    onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
-                    rows={3}
-                    className={cn(
-                        'w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all resize-none',
-                        missing ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/10 focus:border-accent/50',
-                    )}
-                />
-            )}
-
-            {changed && (
-                <div className="text-xs text-slate-500">
-                    {t('risks:questionnaire.previous')}: {renderAnswer(question.key, getPreviousAnswer(question.key))}
-                </div>
-            )}
-            {missing ? (
-                <p id={errorId} className="text-xs font-medium text-rose-400">
-                    {t('risks:questionnaire.validation_required')}
-                </p>
-            ) : null}
-        </div>
-    );
-}
-
-function QuestionLabel({
-    changed,
-    controlId,
-    label,
-    labelId,
-    missing,
-    required,
-    t,
-}: {
-    changed: boolean;
-    controlId?: string;
-    label: string;
-    labelId?: string;
-    missing: boolean;
-    required: boolean;
-    t: TranslateFn;
-}) {
-    return (
-        <div className="flex items-center gap-2">
-            {controlId ? (
-                <label
-                    id={labelId}
-                    htmlFor={controlId}
-                    className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}
-                >
-                    {label}
-                </label>
-            ) : (
-                <p className={cn('text-xs font-bold', missing ? 'text-rose-400' : 'text-slate-300')}>
-                    {label}
-                </p>
-            )}
-            {changed && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
-                    {t('risks:questionnaire.changed')}
-                </span>
-            )}
-            {required && (
-                <span className={cn('text-[10px] font-black uppercase tracking-widest', missing ? 'text-rose-400' : 'text-slate-500')}>
-                    {t('risks:questionnaire.required')}
-                </span>
-            )}
+                help={help}
+                error={missing ? t('risks:questionnaire.validation_required') : undefined}
+                labelClassName="text-xs font-bold"
+            >
+                {(field) => {
+                    if (question.key === likelihoodQuestionKey || question.key === worstCaseImpactQuestionKey) {
+                        return (
+                            <ThemedSelect
+                                {...field}
+                                value={typeof value === 'number' ? String(value) : ''}
+                                onValueChange={(nextValue) => {
+                                    setAnswers((current) => ({
+                                        ...current,
+                                        [question.key]: nextValue === '' ? undefined : Number.parseInt(nextValue, 10),
+                                    }));
+                                }}
+                                placeholder={t('common:actions.select')}
+                                allowEmpty
+                                emptyLabel={t('common:labels.none')}
+                                options={question.key === likelihoodQuestionKey ? likelihoodOptions : worstCaseImpactOptions}
+                            />
+                        );
+                    }
+                    if (question.type === 'boolean') {
+                        return (
+                            <ThemedSelect
+                                {...field}
+                                value={typeof value === 'boolean' ? String(value) : ''}
+                                onValueChange={(nextValue) => setAnswers((current) => ({
+                                    ...current,
+                                    [question.key]: nextValue === '' ? undefined : nextValue === 'true',
+                                }))}
+                                placeholder={t('common:actions.select')}
+                                allowEmpty
+                                emptyLabel={t('common:labels.none')}
+                                options={[
+                                    { value: 'true', label: t('common:actions.yes') },
+                                    { value: 'false', label: t('common:actions.no') },
+                                ]}
+                            />
+                        );
+                    }
+                    if (question.type === 'single_select') {
+                        return (
+                            <ThemedSelect
+                                {...field}
+                                value={typeof value === 'string' ? value : ''}
+                                onValueChange={(nextValue) => setAnswers((current) => ({ ...current, [question.key]: nextValue }))}
+                                placeholder={t('common:actions.select')}
+                                allowEmpty
+                                emptyLabel={t('common:labels.none')}
+                                options={(question.options ?? []).map((option) => ({
+                                    value: option,
+                                    label: t(`risks:questionnaire.questions.${option}`, option),
+                                }))}
+                            />
+                        );
+                    }
+                    if (question.type === 'number') {
+                        return (
+                            <Input
+                                {...field}
+                                type="number"
+                                min={1}
+                                max={5}
+                                step={1}
+                                value={typeof value === 'number' ? String(value) : ''}
+                                onChange={(event) => {
+                                    const raw = event.target.value;
+                                    setAnswers((current) => ({
+                                        ...current,
+                                        [question.key]: raw === '' ? undefined : Number.parseInt(raw, 10),
+                                    }));
+                                }}
+                            />
+                        );
+                    }
+                    if (question.type === 'textarea') {
+                        return (
+                            <Textarea
+                                {...field}
+                                value={typeof value === 'string' ? value : ''}
+                                onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
+                                rows={3}
+                            />
+                        );
+                    }
+                    return (
+                        <Input
+                            {...field}
+                            value={typeof value === 'string' ? value : ''}
+                            onChange={(event) => setAnswers((current) => ({ ...current, [question.key]: event.target.value }))}
+                        />
+                    );
+                }}
+            </Field>
         </div>
     );
 }
