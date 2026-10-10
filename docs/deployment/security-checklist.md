@@ -228,16 +228,21 @@ that runner. They do not target an existing installation or use production
 credentials. On Linux, the disposable runtime fixture directory uses group
 10001 with setgid mode `2750`; secret directories remain `0750` and fixture
 files remain `0440`. A separate disposable, non-networked container diagnostic
-compares replacement inheritance when the directory owner is and is not a member
-of that group. Initial normalization alone does not prove post-replacement
-readability: the complete installation and runtime checks must still pass. The lane installs the matching Playwright Chromium before
+compares replacement inheritance when the directory owner is outside, directly
+in, or supplementally in that group. The hosted audit shell adds group 10001
+only to the audit process and its children, dropping to the original non-root
+runner UID/GID before running the unchanged release gate. It preserves an explicit
+environment allowlist and does not modify account or group membership. Initial
+normalization alone does not prove post-replacement readability: the complete installation and runtime checks must still pass. The lane installs the matching Playwright Chromium before
 rendered checks. Its full-tree Gitleaks audit uses pinned version 8.24.3, matching
 the Security workflow scanner, with unchanged rules and no new suppressions.
 The full-tree scan uses the repository working directory and relative source
 path so existing exact fingerprints keep their canonical path convention.
 Screenshots use browser-native animation handling under the actual CSP; failed
 login readiness retains diagnostic DOM state and an explicitly failed screenshot.
-The harness retains its cleanup and failure-evidence behavior.
+Component frontend probes explicitly target their paired live backend (8010 for
+dev and 8011 for test), including their authentication reference checks. The
+harness retains its cleanup and failure-evidence behavior.
 Artifact upload excludes temporary workspaces, secret fixture directories and
 environment files while retaining reports, command results, scans and SBOMs.
 

@@ -235,7 +235,7 @@ def _append_component_runtime_paths(audit: RuntimeAuditFacade) -> None:
 
     frontend_dev_fp = audit._start_background_service(
         "path_frontend_runtime_dev",
-        "frontend/scripts/runtime/dev.sh -- --port 5174 --strictPort",
+        "VITE_DEV_API_TARGET=http://localhost:8010 frontend/scripts/runtime/dev.sh -- --port 5174 --strictPort",
         readiness_url="http://localhost:5174",
         listener_port=5174,
         screenshot_url="http://localhost:5174/login",
@@ -244,13 +244,13 @@ def _append_component_runtime_paths(audit: RuntimeAuditFacade) -> None:
     frontend_dev_fp["startup_path_id"] = "frontend_runtime_dev"
     frontend_dev_fp["frontend_runtime_kind"] = "vite_dev_component"
     frontend_dev_fp["auth_mode_reference"] = audit._capture_backend_fingerprint(
-        "frontend_runtime_dev_reference", "http://localhost:8000"
+        "frontend_runtime_dev_reference", "http://localhost:8010"
     ).get("auth_mode")
     audit.runtime_fingerprints.append(frontend_dev_fp)
 
     frontend_test_fp = audit._start_background_service(
         "path_frontend_runtime_test",
-        "frontend/scripts/runtime/test.sh -- --port 5175 --strictPort",
+        "VITE_DEV_API_TARGET=http://localhost:8011 frontend/scripts/runtime/test.sh -- --port 5175 --strictPort",
         readiness_url="http://localhost:5175",
         listener_port=5175,
         screenshot_url="http://localhost:5175/login",
@@ -259,7 +259,7 @@ def _append_component_runtime_paths(audit: RuntimeAuditFacade) -> None:
     frontend_test_fp["startup_path_id"] = "frontend_runtime_test"
     frontend_test_fp["frontend_runtime_kind"] = "vite_test_component"
     frontend_test_fp["auth_mode_reference"] = audit._capture_backend_fingerprint(
-        "frontend_runtime_test_reference", "http://localhost:8000"
+        "frontend_runtime_test_reference", "http://localhost:8011"
     ).get("auth_mode")
     audit.runtime_fingerprints.append(frontend_test_fp)
 

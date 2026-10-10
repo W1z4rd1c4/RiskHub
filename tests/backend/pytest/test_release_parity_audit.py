@@ -5461,7 +5461,160 @@ def test_fixture_group_diagnostic_is_disposable_and_non_networked() -> None:
     assert "--privileged" not in command
     assert " -v " not in command
     assert "--mount" not in command
-    assert "os.setgroups([])" in command
+    assert "os.setgroups(extra_groups)" in command
     assert "os.setuid(1001)" in command
-    assert '("foreign_group", 1001, 0o750, 1001)' in command
-    assert '("member_group", 10001, 0o2750, 10001)' in command
+    assert '("foreign_group", 1001, [], 0o750, 1001)' in command
+    assert '("member_group", 10001, [], 0o2750, 10001)' in command
+
+
+def test_component_frontends_use_their_live_paired_backend(tmp_path: Path) -> None:
+    launches = {}
+    references = {}
+
+    class AuditStub:
+        ui_dir = tmp_path
+        runtime_fingerprints = []
+
+        def _start_background_service(self, command_id, command, **kwargs):
+            launches[command_id] = {"command": command, **kwargs}
+            return {"context_id": command_id, "started": True}
+
+        def _capture_backend_fingerprint(self, context_id, base_url):
+            references[context_id] = base_url
+            return {"auth_mode": "hybrid_dev"}
+
+    audit = AuditStub()
+    RUNTIME_MODULE._append_component_runtime_paths(audit)
+    for mode, port in (("dev", 8010), ("test", 8011)):
+        target = f"http://localhost:{port}"
+        backend = launches[f"path_backend_runtime_{mode}"]
+        frontend = launches[f"path_frontend_runtime_{mode}"]
+        assert backend["endpoint_base_url"] == target
+        assert frontend["command"].startswith(f"VITE_DEV_API_TARGET={target} ")
+        assert references[f"frontend_runtime_{mode}_reference"] == target
+    assert len(audit.runtime_fingerprints) == 4
+
+
+def test_audit_fixture_shell_drops_privilege_without_persistent_membership() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["readiness-audit"]["steps"]
+    setup = next(
+        step
+        for step in steps
+        if step.get("name") == "Prepare process-only fixture group shell"
+    )
+    audit = next(
+        step for step in steps if step.get("name") == "Run full release parity audit"
+    )
+    assert audit["shell"] == "${{ runner.temp }}/riskhub-audit-shell {0}"
+    command = setup["run"]
+    assert '--reuid="$runner_uid" --regid="$runner_gid"' in command
+    assert '--groups="$runner_groups,10001"' in command
+    assert '-- /bin/bash --noprofile --norc -euo pipefail "$1"' in command
+    assert 'test "$runner_uid" -ne 0' in command
+    assert "usermod" not in command
+    assert "groupadd" not in command
+    assert "/etc/group" not in command
+    assert "--preserve-env" not in command
+    assert "env -i" in command
+    for name in (
+        "PATH",
+        "HOME",
+        "RUN_ID",
+        "RISKHUB_AUDIT_POSTGRES_BIND_HOST",
+        "RUNNER_TEMP",
+        "GITHUB_WORKSPACE",
+    ):
+        assert f'{name}="${{{name}' in command or f'{name}="${name}"' in command
+
+
+@pytest.mark.parametrize("runner_uid", ["1001", "0"])
+def test_audit_fixture_shell_executes_only_with_original_nonroot_identity(
+    tmp_path: Path, runner_uid: str
+) -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    setup = next(
+        step
+        for step in workflow["jobs"]["readiness-audit"]["steps"]
+        if step.get("name") == "Prepare process-only fixture group shell"
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    capture = tmp_path / "launch.json"
+    fake_id = bin_dir / "id"
+    fake_id.write_text(
+        f"#!{sys.executable}\nimport sys\n"
+        f"print({{'-u': {runner_uid!r}, '-g': '1001', '-G': '1001 121'}}[sys.argv[1]])\n"
+    )
+    fake_id.chmod(0o755)
+    fake_sudo = bin_dir / "sudo"
+    fake_sudo.write_text(
+        f"#!{sys.executable}\nimport json,sys\nfrom pathlib import Path\n"
+        f"Path({str(capture)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+    )
+    fake_sudo.chmod(0o755)
+    environment = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "HOME": str(tmp_path / "home"),
+        "RUNNER_TEMP": str(tmp_path),
+        "GITHUB_WORKSPACE": str(tmp_path / "checkout"),
+        "RUN_ID": "fixture-test-1",
+        "RISKHUB_AUDIT_POSTGRES_BIND_HOST": "172.17.0.1",
+        "UNRELATED_PRIVATE_VALUE": "must-not-cross-launch-boundary",
+    }
+    setup_script = tmp_path / "setup.sh"
+    setup_script.write_text(setup["run"])
+    subprocess.run(["bash", str(setup_script)], env=environment, check=True)
+    audit_script = tmp_path / "audit script.sh"
+    audit_script.write_text("exit 0\n")
+    result = subprocess.run(
+        [str(tmp_path / "riskhub-audit-shell"), str(audit_script)],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if runner_uid == "0":
+        assert result.returncode != 0
+        assert not capture.exists()
+        return
+    assert result.returncode == 0, result.stderr
+    args = json.loads(capture.read_text())
+    assert args[:3] == ["-n", "env", "-i"]
+    boundary = args.index("/usr/bin/setpriv")
+    preserved = dict(value.split("=", 1) for value in args[3:boundary])
+    assert preserved == {
+        name: environment[name]
+        for name in (
+            "PATH",
+            "HOME",
+            "RUN_ID",
+            "RISKHUB_AUDIT_POSTGRES_BIND_HOST",
+            "RUNNER_TEMP",
+            "GITHUB_WORKSPACE",
+        )
+    } | {"CI": "true", "LANG": "C.UTF-8"}
+    assert args[boundary:] == [
+        "/usr/bin/setpriv",
+        "--reuid=1001",
+        "--regid=1001",
+        "--groups=1001,121,10001",
+        "--",
+        "/bin/bash",
+        "--noprofile",
+        "--norc",
+        "-euo",
+        "pipefail",
+        str(audit_script),
+    ]
