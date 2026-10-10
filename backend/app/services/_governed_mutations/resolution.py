@@ -55,13 +55,14 @@ from .process_identity import (
     InvalidGovernedProcessIdentity,
     strict_governed_process_identity,
 )
+from .resolution_envelope import load_resolution_envelope, reload_resolution_approval
+from .resolution_guards import require_pending_resolution, require_rejection_reason, resolution_envelope_is_valid
 from .resolution_lock_plan import lock_governed_process_resolution_suffix
 from .terminal_transitions import finalize_governed_terminal_transition
 
 if TYPE_CHECKING:
     from app.core.audit.governed_mutation import GovernedProposalAuditIdentity
 
-_PENDING = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 _ENVELOPE_STALE_REASON = "Governed mutation envelope integrity check failed"
 
 
@@ -105,7 +106,7 @@ def _governed_envelope_stale_reason(
 ) -> str | None:
     """Validate the complete immutable Process-v1 envelope before application."""
     identity_is_intact = (
-        approval.status == ApprovalStatus.PENDING
+        resolution_envelope_is_valid(approval)
         and approval.id == identity.approval_request_id
         and approval.resource_type == ApprovalResourceType.PROCESS
         and approval.resource_id == identity.primary_resource_id
@@ -167,43 +168,8 @@ def _governed_envelope_stale_reason(
 async def _load_governed_envelope(
     db: AsyncSession,
     approval_id: int,
-) -> tuple[
-    ApprovalRequest,
-    GovernedMutationProposal,
-    list[GovernedMutationImpactLock],
-]:
-    """Lock the envelope before any impacted operational/reference rows."""
-    approval = (
-        await db.execute(select(ApprovalRequest).where(ApprovalRequest.id == approval_id).with_for_update())
-    ).scalar_one_or_none()
-    if approval is None:
-        raise NotFoundError("Approval request not found")
-    proposal = (
-        await db.execute(
-            select(GovernedMutationProposal)
-            .where(GovernedMutationProposal.approval_request_id == approval.id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if proposal is None:
-        raise ValidationError("Approval is not a governed mutation proposal")
-    impact_locks = list(
-        (
-            await db.execute(
-                select(GovernedMutationImpactLock)
-                .where(GovernedMutationImpactLock.proposal_id == proposal.id)
-                .order_by(
-                    GovernedMutationImpactLock.resource_type,
-                    GovernedMutationImpactLock.resource_id,
-                    GovernedMutationImpactLock.id,
-                )
-                .with_for_update()
-            )
-        )
-        .scalars()
-        .all()
-    )
-    return approval, proposal, impact_locks
+) -> tuple[ApprovalRequest, GovernedMutationProposal, list[GovernedMutationImpactLock]]:
+    return await load_resolution_envelope(db, approval_id)
 
 
 async def _load_governed_resolution(
@@ -211,7 +177,8 @@ async def _load_governed_resolution(
     *,
     approval_id: int,
     current_user: User,
-) -> _GovernedResolutionContext:
+    requester_cancel: bool = False,
+) -> _GovernedResolutionContext | ApprovalRequest:
     """Lock actor/reference state before the Process row in deterministic order.
 
     Order: approval -> proposal -> impact locks -> owner advisory identities ->
@@ -222,11 +189,13 @@ async def _load_governed_resolution(
     approval, proposal, impact_locks = await _load_governed_envelope(db, approval_id)
     try:
         identity = strict_governed_process_identity(proposal)
-    except InvalidGovernedProcessIdentity as exc:
-        raise ValidationError(
-            "Malformed governed Process proposal",
-            code="governed_mutation_identity_invalid",
-        ) from exc
+    except InvalidGovernedProcessIdentity:
+        from .resolution_extensions import expire_malformed_process_proposal
+
+        return await expire_malformed_process_proposal(
+            db, approval=approval, proposal=proposal, locks=impact_locks,
+            current_user=current_user, requester_cancel=requester_cancel,
+        )
     if identity is None:
         raise ValidationError(
             "Approval is not an exact governed Process proposal",
@@ -417,11 +386,6 @@ async def _load_governed_resolution(
     )
 
 
-def _assert_pending(approval: ApprovalRequest) -> None:
-    if approval.status not in _PENDING:
-        raise ValidationError(f"Cannot resolve request with status: {approval.status.value}")
-
-
 def _assert_independent_resolver(
     *,
     identity: GovernedProcessIdentity,
@@ -543,12 +507,14 @@ async def approve_governed_mutation(
         approval_id=approval_id,
         current_user=current_user,
     )
+    if isinstance(context, ApprovalRequest):
+        return context
     approval = context.approval
     proposal = context.proposal
     impact_locks = context.impact_locks
     process = context.process
     current_user = context.resolver
-    _assert_pending(approval)
+    require_pending_resolution(approval)
     stale_reason = context.envelope_stale_reason
     if stale_reason is not None:
         _assert_envelope_expiry_resolver(
@@ -812,24 +778,20 @@ async def reject_governed_mutation(
     current_user: User,
     resolution_notes: str,
 ) -> ApprovalRequest:
-    resolution_reason = resolution_notes.strip()
-    if not resolution_reason:
-        raise ValidationError(
-            "A non-blank rejection reason is mandatory",
-            code="governed_mutation_rejection_reason_required",
-            status_code=422,
-        )
+    resolution_reason = require_rejection_reason(resolution_notes)
     context = await _load_governed_resolution(
         db,
         approval_id=approval_id,
         current_user=current_user,
     )
+    if isinstance(context, ApprovalRequest):
+        return context
     approval = context.approval
     proposal = context.proposal
     impact_locks = context.impact_locks
     process = context.process
     current_user = context.resolver
-    _assert_pending(approval)
+    require_pending_resolution(approval)
     stale_reason = context.envelope_stale_reason
     if stale_reason is not None:
         _assert_envelope_expiry_resolver(
@@ -897,13 +859,16 @@ async def cancel_governed_mutation(
         db,
         approval_id=approval_id,
         current_user=current_user,
+        requester_cancel=True,
     )
+    if isinstance(context, ApprovalRequest):
+        return context
     approval = context.approval
     proposal = context.proposal
     impact_locks = context.impact_locks
     process = context.process
     current_user = context.resolver
-    _assert_pending(approval)
+    require_pending_resolution(approval)
     if context.identity.requested_by_id != current_user.id:
         raise AuthorizationError(
             "Only the requester may cancel a governed mutation request",
@@ -935,19 +900,7 @@ async def cancel_governed_mutation(
 
 
 async def _reload(db: AsyncSession, approval_id: int) -> ApprovalRequest:
-    return (
-        await db.execute(
-            select(ApprovalRequest)
-            .options(
-                selectinload(ApprovalRequest.requested_by),
-                selectinload(ApprovalRequest.resolved_by),
-                selectinload(ApprovalRequest.governed_mutation_proposal).selectinload(
-                    GovernedMutationProposal.requested_by
-                ),
-            )
-            .where(ApprovalRequest.id == approval_id)
-        )
-    ).scalar_one()
+    return await reload_resolution_approval(db, approval_id)
 
 
 async def is_governed_approval(db: AsyncSession, approval_id: int) -> bool:
