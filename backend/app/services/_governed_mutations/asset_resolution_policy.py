@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.exceptions import (
     ApprovalScenarioConfigurationError,
     AuthorizationError,
-    NotFoundError,
     ValidationError,
 )
 from app.core.permissions import has_permission
@@ -52,6 +50,8 @@ from .fixed_vendor_policy import (
     load_fixed_vendor_scenario_for_update,
     validated_fixed_vendor_roles,
 )
+from .resolution_envelope import load_resolution_envelope, reload_resolution_approval
+from .resolution_guards import resolution_envelope_is_valid
 from .terminal_transitions import finalize_governed_terminal_transition
 
 
@@ -66,48 +66,11 @@ async def load_asset_envelope(
     db: AsyncSession,
     approval_id: int,
 ) -> tuple[ApprovalRequest, GovernedMutationProposal, list[GovernedMutationImpactLock]]:
-    approval = (
-        await db.execute(select(ApprovalRequest).where(ApprovalRequest.id == approval_id).with_for_update())
-    ).scalar_one_or_none()
-    if approval is None:
-        raise NotFoundError("Approval request not found")
-    proposal = (
-        await db.execute(
-            select(GovernedMutationProposal)
-            .where(GovernedMutationProposal.approval_request_id == approval.id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if proposal is None or proposal.primary_resource_type != "asset":
-        raise ValidationError("Approval is not a governed Asset mutation")
-    locks = list(
-        (
-            await db.execute(
-                select(GovernedMutationImpactLock)
-                .where(GovernedMutationImpactLock.proposal_id == proposal.id)
-                .order_by(
-                    GovernedMutationImpactLock.resource_type,
-                    GovernedMutationImpactLock.resource_id,
-                )
-                .with_for_update()
-            )
-        ).scalars()
-    )
-    return approval, proposal, locks
+    return await load_resolution_envelope(db, approval_id, resource_type="asset")
 
 
 async def reload_asset_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:
-    return (
-        await db.execute(
-            select(ApprovalRequest)
-            .options(
-                selectinload(ApprovalRequest.requested_by),
-                selectinload(ApprovalRequest.resolved_by),
-                selectinload(ApprovalRequest.governed_mutation_proposal),
-            )
-            .where(ApprovalRequest.id == approval_id)
-        )
-    ).scalar_one()
+    return await reload_resolution_approval(db, approval_id)
 
 
 def _positive_ids_for_keys(value: object, keys: frozenset[str]) -> set[int]:
@@ -140,6 +103,11 @@ async def _lock_asset_resolution_actors(
             frozenset({"business_owner_user_id", "ict_owner_user_id"}),
         )
     )
+    return await _lock_asset_actor_ids(db, actor_ids)
+
+
+async def _lock_asset_actor_ids(db: AsyncSession, actor_ids: list[int]) -> dict[int, User]:
+    """Lock only supplied relational identities; never traverse proposal JSON."""
     actor_states = list(
         (
             await db.execute(
@@ -280,12 +248,13 @@ async def load_live_asset_resolution_policy(
 ) -> tuple[User, User | None, str | None]:
     if not is_fixed_asset_resolution_authority(current_user, proposal):
         raise AuthorizationError("Only an independent configured Risk Manager or CRO may resolve this request")
-    if not valid_asset_governed_envelope(proposal):
-        return current_user, None, "Governed Asset approval envelope is malformed"
-    actors = await _lock_asset_resolution_actors(
-        db,
-        proposal=proposal,
-        resolver_id=current_user.id,
+    envelope_valid = resolution_envelope_is_valid(
+        proposal.approval_request, family_valid=valid_asset_governed_envelope(proposal)
+    )
+    actors = (
+        await _lock_asset_resolution_actors(db, proposal=proposal, resolver_id=current_user.id)
+        if envelope_valid
+        else await _lock_asset_actor_ids(db, sorted({proposal.requested_by_id, current_user.id}))
     )
     requester = actors.get(proposal.requested_by_id)
     resolver = actors.get(current_user.id)
@@ -293,6 +262,8 @@ async def load_live_asset_resolution_policy(
         raise AuthorizationError("The resolver account is unavailable")
     if not is_fixed_asset_resolution_authority(resolver, proposal):
         raise AuthorizationError("Only an independent configured Risk Manager or CRO may resolve this request")
+    if not envelope_valid:
+        return resolver, requester, "Governed Asset approval envelope is malformed"
     await _lock_asset_departments_resources_and_references(
         db,
         proposal=proposal,

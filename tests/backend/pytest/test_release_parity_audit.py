@@ -1879,8 +1879,10 @@ def test_release_parity_runtime_dry_runs_pass_hostile_run_id_as_one_literal_argu
         marker.unlink(missing_ok=True)
         arg_log = tmp_path / f"args-{index}.txt"
         command = builder(**kwargs)
+        script = tmp_path / f"runtime-command-{index}.sh"
+        script.write_text(command, encoding="utf-8")
         result = subprocess.run(
-            ["bash", "-c", command],
+            ["bash", str(script)],
             cwd=tmp_path,
             env={**os.environ, "ARG_LOG": str(arg_log)},
             check=False,
@@ -4416,8 +4418,10 @@ def test_prod_readiness_fixed_container_cleanup_stops_gracefully_then_propagates
         for command in cleanup_commands
         if command.command_id == "cleanup_final_riskhub-frontend"
     )
+    script = tmp_path / "cleanup.sh"
+    script.write_text(cleanup.command, encoding="utf-8")
     result = subprocess.run(
-        ["bash", "-c", cleanup.command],
+        ["bash", str(script)],
         cwd=tmp_path,
         env={
             **os.environ,
@@ -5214,8 +5218,10 @@ def test_readiness_postgres_bind_override_is_validated_before_docker(
         encoding="utf-8",
     )
     fake_docker.chmod(0o755)
+    script = tmp_path / "start-postgres.sh"
+    script.write_text(command.command, encoding="utf-8")
     result = subprocess.run(
-        ["bash", "-c", command.command],
+        ["bash", str(script)],
         env={
             **os.environ,
             "PATH": f'{bin_dir}:{os.environ["PATH"]}',
@@ -5278,8 +5284,10 @@ def test_readiness_workflow_bridge_discovery_fails_closed(
     )
     fake_docker.chmod(0o755)
     env_file = tmp_path / "github-env"
+    script = tmp_path / "discover-bridge.sh"
+    script.write_text(step["run"], encoding="utf-8")
     result = subprocess.run(
-        ["bash", "-c", step["run"]],
+        ["bash", str(script)],
         env={
             **os.environ,
             "PATH": f'{bin_dir}:{os.environ["PATH"]}',
