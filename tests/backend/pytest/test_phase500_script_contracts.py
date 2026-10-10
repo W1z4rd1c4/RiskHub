@@ -441,7 +441,7 @@ def test_frontend_dockerfile_pins_runtime_base_digests() -> None:
     assert (
         text.count(
             "FROM nginx:alpine@sha256:"
-            "db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913"
+            "df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2"
             " AS runtime"
         )
         == 1
