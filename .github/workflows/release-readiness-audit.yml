@@ -1,0 +1,120 @@
+name: Audit-Only Production Readiness
+
+# Runs the same full gate as release.yml without its publish jobs. Installer
+# exercises target disposable runner-local containers and a localhost registry.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-readiness-audit.yml'
+      - 'scripts/security/prod_readiness_audit/**'
+      - 'scripts/security/release_parity_audit/**'
+      - 'tests/backend/pytest/test_release_parity_audit.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-readiness-audit.yml'
+      - 'scripts/security/prod_readiness_audit/**'
+      - 'scripts/security/release_parity_audit/**'
+      - 'tests/backend/pytest/test_release_parity_audit.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness-audit:
+    name: Full Production Readiness Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-runtime.txt
+            backend/requirements-db.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies (venv fingerprint parity)
+        run: |
+          set -euo pipefail
+          python -m venv backend/venv
+          backend/venv/bin/pip install --upgrade pip
+          backend/venv/bin/pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Bind audit database to the disposable Docker bridge
+        run: |
+          set -euo pipefail
+          AUDIT_GATEWAY="$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')"
+          export AUDIT_GATEWAY
+          python3 - <<'PYTHON'
+          import ipaddress
+          import os
+
+          gateway = ipaddress.ip_address(os.environ["AUDIT_GATEWAY"])
+          if not (gateway.version == 4 and gateway.is_private and not (
+              gateway.is_unspecified or gateway.is_loopback
+              or gateway.is_multicast or gateway.is_link_local
+          )):
+              raise SystemExit("Expected a private disposable Docker bridge IPv4 address")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(f"RISKHUB_AUDIT_POSTGRES_BIND_HOST={gateway}\n")
+          PYTHON
+
+      - name: Run full release parity audit
+        env:
+          RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          python3 scripts/security/run_release_parity_audit.py --run-id "${RUN_ID}"
+
+      - name: Enforce GO decision
+        env:
+          RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import os
+
+          run_id = os.environ["RUN_ID"]
+          decision_path = pathlib.Path(f"tests/results/release-parity-audit-{run_id}/decision.json")
+          payload = json.loads(decision_path.read_text(encoding="utf-8"))
+          decision = payload.get("decision")
+          if decision != "GO":
+              raise SystemExit(f"Release blocked: parity decision is {decision}")
+          print(f"Release parity decision: {decision}")
+          PY
+
+      - name: Upload parity artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: release-parity-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            tests/results/release-parity-audit-${{ github.run_id }}-${{ github.run_attempt }}/
+            !**/tmp/**
+            !**/secrets/**
+            !**/*.env
+          if-no-files-found: error
+          retention-days: 14

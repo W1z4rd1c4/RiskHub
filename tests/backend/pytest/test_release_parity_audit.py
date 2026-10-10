@@ -4175,8 +4175,11 @@ def test_nested_cli_stops_at_verified_docker_host_failure(
     def fake_subprocess_run(args, **_kwargs):
         command = args[-1]
         executed_commands.append(command)
-        docker_start = command.startswith(
-            f"docker run -d --name {state.postgres_container} "
+        docker_start = command == next(
+            spec.command
+            for phase in prod_cli.build_prod_readiness_phases(state)
+            for spec in phase.commands
+            if spec.command_id == "p3_start_postgres"
         )
         return subprocess.CompletedProcess(
             args,
@@ -5101,3 +5104,198 @@ def test_nested_partial_code_failure_remains_audit_harness_no_go(
     assert decision["decision"] == "NO-GO"
     assert any(item["id"] == "P1-prod-readiness-evidence-invalid" for item in findings)
     assert not any(item["severity"] == "ENV" for item in findings)
+
+
+def test_audit_only_readiness_workflow_preserves_full_release_gate() -> None:
+    import yaml
+
+    path = REPO_ROOT / ".github/workflows/release-readiness-audit.yml"
+    workflow = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    release = yaml.load(
+        (REPO_ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    assert workflow["permissions"] == {"contents": "read"}
+    assert set(workflow["on"]) == {"pull_request", "push", "workflow_dispatch"}
+    assert set(workflow["jobs"]) == {"readiness-audit"}
+    job = workflow["jobs"]["readiness-audit"]
+    assert job["runs-on"] == "ubuntu-latest"
+    assert "continue-on-error" not in job
+    steps = job["steps"]
+    assert all("continue-on-error" not in step for step in steps)
+    checkout = next(
+        step for step in steps if "actions/checkout@" in step.get("uses", "")
+    )
+    assert (
+        checkout["with"]["ref"]
+        == "${{ github.event.pull_request.head.sha || github.sha }}"
+    )
+    assert checkout["with"]["persist-credentials"] == "false"
+    assert checkout["with"]["fetch-depth"] == "0"
+    source_steps = release["jobs"]["release-parity-gate"]["steps"]
+    for name in ("Run full release parity audit", "Enforce GO decision"):
+        actual = next(step for step in steps if step.get("name") == name)
+        expected = next(step for step in source_steps if step.get("name") == name)
+        assert actual["run"] == expected["run"]
+        assert actual["env"] == expected["env"]
+    assert "--skip-prod-readiness" not in path.read_text(encoding="utf-8")
+    assert "${{ secrets." not in path.read_text(encoding="utf-8")
+    assert not any("docker/login-action" in step.get("uses", "") for step in steps)
+    assert not any("docker/build-push-action" in step.get("uses", "") for step in steps)
+
+
+def test_audit_only_readiness_artifacts_exclude_fixture_secrets() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(
+            encoding="utf-8"
+        ),
+        Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["readiness-audit"]["steps"]
+    upload = next(
+        step for step in steps if "actions/upload-artifact@" in step.get("uses", "")
+    )
+    assert upload["if"] == "always()"
+    paths = upload["with"]["path"].splitlines()
+    assert (
+        paths[0]
+        == "tests/results/release-parity-audit-${{ github.run_id }}-${{ github.run_attempt }}/"
+    )
+    for excluded in ("!**/tmp/**", "!**/secrets/**", "!**/*.env"):
+        assert excluded in paths
+    assert upload["with"]["if-no-files-found"] == "error"
+
+
+def test_full_readiness_registry_is_loopback_only_and_images_stay_local(
+    tmp_path: Path,
+) -> None:
+    state, commands = _canonical_prod_readiness_commands(tmp_path)
+    registry = next(
+        command for command in commands if command.command_id == "p3_start_registry"
+    )
+    assert f"-p 127.0.0.1:{state.registry_port}:5000 registry:2" in registry.command
+    assert state.local_registry == f"127.0.0.1:{state.registry_port}"
+    pushes = [command for command in commands if "docker push " in command.command]
+    assert len(pushes) == 8
+    for command in pushes:
+        assert f"docker push {state.local_registry}/" in command.command
+        assert "docker login" not in command.command
+
+
+@pytest.mark.parametrize(
+    "bind_host",
+    [
+        "172.17.0.1",
+        "",
+        "0.0.0.0",
+        "8.8.8.8",
+        "127.0.0.1",
+        "::1",
+        "224.0.0.1",
+        "169.254.1.1",
+    ],
+)
+def test_readiness_postgres_bind_override_is_validated_before_docker(
+    tmp_path: Path, bind_host: str
+) -> None:
+    state, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
+    command = next(
+        command for command in commands if command.command_id == "p3_start_postgres"
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    capture = tmp_path / "docker-args.json"
+    fake_docker = bin_dir / "docker"
+    fake_docker.write_text(
+        f"#!{sys.executable}\nimport json,os,sys\n"
+        'open(os.environ["CAPTURE"], "w").write(json.dumps(sys.argv[1:]))\n',
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", command.command],
+        env={
+            **os.environ,
+            "PATH": f'{bin_dir}:{os.environ["PATH"]}',
+            "CAPTURE": str(capture),
+            "RISKHUB_AUDIT_PYTHON": sys.executable,
+            "RISKHUB_AUDIT_POSTGRES_BIND_HOST": bind_host,
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if bind_host == "172.17.0.1":
+        assert result.returncode == 0, result.stderr
+        args = json.loads(capture.read_text())
+        assert args[args.index("-p") + 1] == f"{bind_host}:{state.postgres_port}:5432"
+    else:
+        assert result.returncode != 0
+        assert (
+            not capture.exists()
+        ), "Invalid override must fail before starting any container"
+
+
+@pytest.mark.parametrize(
+    "gateway,exit_code",
+    [
+        ("172.17.0.1", 0),
+        ("", 0),
+        ("0.0.0.0", 0),
+        ("8.8.8.8", 0),
+        ("127.0.0.1", 0),
+        ("224.0.0.1", 0),
+        ("172.17.0.1\nINJECTED=value", 0),
+        ("172.17.0.1", 1),
+    ],
+)
+def test_readiness_workflow_bridge_discovery_fails_closed(
+    tmp_path: Path, gateway: str, exit_code: int
+) -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(
+            encoding="utf-8"
+        ),
+        Loader=yaml.BaseLoader,
+    )
+    step = next(
+        step
+        for step in workflow["jobs"]["readiness-audit"]["steps"]
+        if step.get("name") == "Bind audit database to the disposable Docker bridge"
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_docker = bin_dir / "docker"
+    fake_docker.write_text(
+        f"#!{sys.executable}\nimport os,sys\n"
+        'assert sys.argv[1:4] == ["network", "inspect", "bridge"]\n'
+        'print(os.environ["FAKE_GATEWAY"])\nsys.exit(int(os.environ["FAKE_EXIT"]))\n',
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    env_file = tmp_path / "github-env"
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env={
+            **os.environ,
+            "PATH": f'{bin_dir}:{os.environ["PATH"]}',
+            "FAKE_GATEWAY": gateway,
+            "FAKE_EXIT": str(exit_code),
+            "GITHUB_ENV": str(env_file),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if gateway == "172.17.0.1" and exit_code == 0:
+        assert result.returncode == 0, result.stderr
+        assert env_file.read_text() == "RISKHUB_AUDIT_POSTGRES_BIND_HOST=172.17.0.1\n"
+    else:
+        assert result.returncode != 0
+        assert (
+            not env_file.exists()
+        ), "Failed discovery must not publish a fallback binding"

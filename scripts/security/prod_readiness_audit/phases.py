@@ -25,6 +25,28 @@ def _graceful_container_cleanup(container: str) -> str:
     )
 
 
+def _postgres_fixture_command(state: ProdReadinessRunState) -> str:
+    # CI can bind only the disposable Docker bridge while preserving the
+    # host.docker.internal external-database seam used by installer containers.
+    # Existing local Docker Desktop invocations retain their default mapping.
+    validate_override = (
+        "import ipaddress,os,sys;"
+        "ip=ipaddress.ip_address(os.environ['RISKHUB_AUDIT_POSTGRES_BIND_HOST']);"
+        "valid=ip.version == 4 and ip.is_private and not "
+        "(ip.is_unspecified or ip.is_loopback or ip.is_multicast or ip.is_link_local);"
+        "sys.exit(0 if valid else 'audit PostgreSQL binding must be a private Docker bridge IPv4 address')"
+    )
+    return (
+        "set -euo pipefail; "
+        "if [[ -v RISKHUB_AUDIT_POSTGRES_BIND_HOST ]]; then "
+        f'"$RISKHUB_AUDIT_PYTHON" -c {shlex.quote(validate_override)}; fi; '
+        'bind_host="${RISKHUB_AUDIT_POSTGRES_BIND_HOST:-0.0.0.0}"; '
+        f"docker run -d --name {shlex.quote(state.postgres_container)} "
+        "-e POSTGRES_USER=riskhub -e POSTGRES_PASSWORD=riskhub_audit "
+        f'-e POSTGRES_DB=riskhub -p "${{bind_host}}:{state.postgres_port}:5432" postgres:16'
+    )
+
+
 def _repo_digest_resolution_command(images: tuple[tuple[str, str], ...]) -> str:
     resolver = (
         "set -euo pipefail; "
@@ -428,11 +450,7 @@ def build_prod_readiness_phases(
                 ),
                 ProdReadinessCommand(
                     "p3_start_postgres",
-                    (
-                        f"docker run -d --name {postgres_container} "
-                        "-e POSTGRES_USER=riskhub -e POSTGRES_PASSWORD=riskhub_audit "
-                        f"-e POSTGRES_DB=riskhub -p {state.postgres_port}:5432 postgres:16"
-                    ),
+                    _postgres_fixture_command(state),
                     timeout_sec=300,
                 ),
                 ProdReadinessCommand(
@@ -450,7 +468,7 @@ def build_prod_readiness_phases(
                 ),
                 ProdReadinessCommand(
                     "p3_start_registry",
-                    f"docker run -d --name {registry_container} -p {state.registry_port}:5000 registry:2",
+                    f"docker run -d --name {registry_container} -p 127.0.0.1:{state.registry_port}:5000 registry:2",
                     timeout_sec=300,
                 ),
                 ProdReadinessCommand(

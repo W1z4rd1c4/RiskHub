@@ -207,3 +207,30 @@ Native production admission remains closed until release acceptance. For native
 component/installer verification, follow the [recovery and key runbook](../security/identity-recovery.md):
 configure independently held approver keys, protect the native keyring and backup
 inventory, and rehearse recovery without clearing a suspension or enabled factor.
+
+## Audit-only full readiness evidence
+
+The `Audit-Only Production Readiness` workflow runs the same complete release
+parity command and explicit `GO` decision gate as `release.yml`, including the
+production-readiness audit. It is separate from the fast audit, which omits
+production readiness. A failed, incomplete, skipped, or environment-blocked full
+run is not release-acceptance evidence.
+
+This lane has only `contents: read`, checks out the exact candidate without
+persisting repository credentials, and has no release or external image-publish
+job. The existing installer tests build and push fixture images only to a
+runner-local registry bound to `127.0.0.1`; the database fixture binds only the
+validated private Docker bridge address so installer containers retain their
+`host.docker.internal` connection path. Bridge discovery or validation failure
+stops the lane rather than falling back to all interfaces. Install, upgrade, rollback, database
+and runtime probes use disposable containers and synthetic configuration on
+that runner. They do not target an existing installation or use production
+credentials. The harness retains its cleanup and failure-evidence behavior.
+Artifact upload excludes temporary workspaces, secret fixture directories and
+environment files while retaining reports, command results, scans and SBOMs.
+
+Run it for the immutable candidate when closing readiness requirements such as
+#143. Record the candidate SHA, full decision and completion evidence, image
+identity/SBOM/raw and policy-aware scans, review, and subsequent main evidence.
+Passing this lane does not publish a release, authorize deployment, or replace
+separate human acceptance and identity production-admission requirements.
