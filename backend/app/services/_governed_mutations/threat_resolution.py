@@ -9,7 +9,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.audit import threat as audit_threat
 from app.core.datetime_utils import utc_now
-from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
+from app.core.exceptions import AuthorizationError, ValidationError
 from app.core.permissions import can_manage_users
 from app.models import (
     ApprovalRequest,
@@ -41,6 +41,8 @@ from .fixed_accountability_policy import (
     load_fixed_accountability_scenario_for_update,
     validated_fixed_accountability_roles,
 )
+from .resolution_envelope import load_resolution_envelope, reload_resolution_approval
+from .resolution_guards import require_pending_resolution, require_rejection_reason, resolution_envelope_is_valid
 from .terminal_transitions import finalize_governed_terminal_transition
 from .threat_identity import valid_threat_governed_envelope
 
@@ -48,57 +50,12 @@ from .threat_identity import valid_threat_governed_envelope
 async def _load_envelope(
     db: AsyncSession,
     approval_id: int,
-) -> tuple[
-    ApprovalRequest,
-    GovernedMutationProposal,
-    list[GovernedMutationImpactLock],
-]:
-    approval = (
-        await db.execute(
-            select(ApprovalRequest)
-            .where(ApprovalRequest.id == approval_id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if approval is None:
-        raise NotFoundError("Approval request not found")
-    proposal = (
-        await db.execute(
-            select(GovernedMutationProposal)
-            .where(GovernedMutationProposal.approval_request_id == approval.id)
-            .with_for_update()
-        )
-    ).scalar_one_or_none()
-    if proposal is None or proposal.primary_resource_type != "threat":
-        raise ValidationError("Approval is not a governed Threat mutation")
-    locks = list(
-        (
-            await db.execute(
-                select(GovernedMutationImpactLock)
-                .where(GovernedMutationImpactLock.proposal_id == proposal.id)
-                .order_by(
-                    GovernedMutationImpactLock.resource_type,
-                    GovernedMutationImpactLock.resource_id,
-                )
-                .with_for_update()
-            )
-        ).scalars()
-    )
-    return approval, proposal, locks
+) -> tuple[ApprovalRequest, GovernedMutationProposal, list[GovernedMutationImpactLock]]:
+    return await load_resolution_envelope(db, approval_id, resource_type="threat")
 
 
 async def _reload(db: AsyncSession, approval_id: int) -> ApprovalRequest:
-    return (
-        await db.execute(
-            select(ApprovalRequest)
-            .options(
-                selectinload(ApprovalRequest.requested_by),
-                selectinload(ApprovalRequest.resolved_by),
-                selectinload(ApprovalRequest.governed_mutation_proposal),
-            )
-            .where(ApprovalRequest.id == approval_id)
-        )
-    ).scalar_one()
+    return await reload_resolution_approval(db, approval_id)
 
 
 async def _lock_resolution_actors(
@@ -225,8 +182,9 @@ async def _live_policy(
     requester = actors.get(proposal.requested_by_id)
     if resolver is None or requester is None:
         raise AuthorizationError("Governed Threat actor is unavailable")
-    raw_before = proposal.proposed_changes.get("before")
-    raw_after = proposal.proposed_changes.get("after")
+    changes = proposal.proposed_changes if isinstance(proposal.proposed_changes, dict) else {}
+    raw_before = changes.get("before")
+    raw_after = changes.get("after")
     current_id = (
         raw_before.get("threat_steward_user_id")
         if isinstance(raw_before, dict)
@@ -269,7 +227,8 @@ async def _live_policy(
     await load_ict_workbook_parameter_set_for_update(db)
     scenario = await load_fixed_accountability_scenario_for_update(db)
     roles = validated_fixed_accountability_roles(scenario)
-    snapshot_roles = proposal.scenario_snapshot.get("approver_roles")
+    snapshot_roles = (proposal.scenario_snapshot.get("approver_roles")
+                      if isinstance(proposal.scenario_snapshot, dict) else None)
     role_name = getattr(getattr(resolver, "role", None), "name", None)
     snapshot_authorized = bool(
         is_fixed_accountability_resolution_authority(resolver, proposal)
@@ -404,18 +363,15 @@ async def approve_threat_mutation(
     resolution_notes: str,
 ) -> ApprovalRequest:
     approval, proposal, locks = await _load_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(
-            f"Cannot approve request with status: {approval.status.value}"
-        )
-    resolver, _requester, threat, proposed_steward, stale_reason = (
-        await _live_policy(
-            db,
-            proposal=proposal,
-            current_user=current_user,
-            envelope_valid=valid_threat_governed_envelope(proposal, locks),
-            locks=locks,
-        )
+    require_pending_resolution(approval)
+    resolver, _requester, threat, proposed_steward, stale_reason = await _live_policy(
+        db,
+        proposal=proposal,
+        current_user=current_user,
+        envelope_valid=resolution_envelope_is_valid(
+            approval, family_valid=valid_threat_governed_envelope(proposal, locks)
+        ),
+        locks=locks,
     )
     if stale_reason:
         return await _expire(
@@ -531,22 +487,16 @@ async def reject_threat_mutation(
     current_user: User,
     resolution_notes: str,
 ) -> ApprovalRequest:
-    if not resolution_notes.strip():
-        raise ValidationError(
-            "A rejection reason is mandatory",
-            code="governed_mutation_rejection_reason_required",
-            status_code=422,
-        )
+    resolution_reason = require_rejection_reason(resolution_notes)
     approval, proposal, locks = await _load_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(
-            f"Cannot reject request with status: {approval.status.value}"
-        )
+    require_pending_resolution(approval)
     resolver, _requester, _threat, _target, stale_reason = await _live_policy(
         db,
         proposal=proposal,
         current_user=current_user,
-        envelope_valid=valid_threat_governed_envelope(proposal, locks),
+        envelope_valid=resolution_envelope_is_valid(
+            approval, family_valid=valid_threat_governed_envelope(proposal, locks)
+        ),
         locks=locks,
     )
     if stale_reason:
@@ -566,7 +516,7 @@ async def reject_threat_mutation(
         actor=resolver,
         department_id=resolver.department_id,
         status=ApprovalStatus.REJECTED,
-        resolution_notes=resolution_notes,
+        resolution_notes=resolution_reason,
     )
     await commit_service_boundary(
         db,
@@ -582,15 +532,12 @@ async def cancel_threat_mutation(
     current_user: User,
 ) -> ApprovalRequest:
     approval, proposal, locks = await _load_envelope(db, approval_id)
-    if approval.status != ApprovalStatus.PENDING:
-        raise ValidationError(
-            f"Cannot cancel request with status: {approval.status.value}"
-        )
+    require_pending_resolution(approval)
     if proposal.requested_by_id != current_user.id:
         raise AuthorizationError(
             "Only the requester may cancel a governed Threat mutation request"
         )
-    if not valid_threat_governed_envelope(proposal, locks):
+    if not resolution_envelope_is_valid(approval, family_valid=valid_threat_governed_envelope(proposal, locks)):
         return await _expire(
             db,
             approval=approval,
