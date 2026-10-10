@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { nativeAuthApi } from '@/services/nativeAuthApi';
 import { useSessionSnapshot } from '@/services/session';
@@ -78,7 +79,7 @@ export default function NativePublicPage() {
             action.clearSession(); action.setError(reason);
         }} />;
     return <NativeFrame title={title} error={action.error} pending={action.pending || config.isAuthConfigLoading}>
-        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
+        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button variant="accent" onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
             !config.isAuthConfigLoading && !permitted ? <p role="alert">{t('native.errors.forbidden')}</p> :
                 finished ? <p role="status">{t(finished === 'accepted' ? 'native.reset_sent' : 'native.reset_done')}</p> :
                     uncertain ? null : permitted && <form className="space-y-4" onSubmit={submit}>
@@ -86,9 +87,9 @@ export default function NativePublicPage() {
                             {recovery && <>
                                 <p>{t('native.recover_help')}</p>
                                 <Field label={t('native.recovery_kind')}>
-                                    {(field) => <select {...field} className="w-full border rounded-md bg-background p-2" value={recoveryKind} onChange={(event) => { setPassword(''); setNewPassword(''); setRecoveryKind(event.target.value as typeof recoveryKind); }}>
+                                    {(field) => <NativeSelect {...field} value={recoveryKind} onChange={(event) => { setPassword(''); setNewPassword(''); setRecoveryKind(event.target.value as typeof recoveryKind); }}>
                                         <option value="factor">{t('native.recover_factor')}</option><option value="password">{t('native.recover_password')}</option>
-                                    </select>}
+                                    </NativeSelect>}
                                 </Field>
                                 <Field label={t(recoveryEmail ? 'native.primary_grant' : 'native.verified_grant')} help={t('native.grant_help')} required={recoveryEmail}>
                                     {(field) => <Input {...field} type="password" autoComplete="off" value={verifiedGrant} onChange={(event) => setVerifiedGrant(event.target.value)} required={recoveryEmail} />}
@@ -101,7 +102,7 @@ export default function NativePublicPage() {
                             </Field> : <Field label={t('native.new_password')} help={t('native.password_help')} required>
                                 {(field) => <Input {...field} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />}
                             </Field>}
-                            <Button type="submit" disabled={action.pending}>{t(!enrollment && !recovery && !grant ? 'native.send_reset' : 'native.continue')}</Button>
+                            <Button variant="accent" type="submit" disabled={action.pending}>{t(!enrollment && !recovery && !grant ? 'native.send_reset' : 'native.continue')}</Button>
                         </>}
                     </form>}
         <Link to="/login" className="block underline" onClick={leave}>{t('native.back_login')}</Link>

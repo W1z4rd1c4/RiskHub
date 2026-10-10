@@ -270,9 +270,10 @@ export class KRIsPage {
     }
 
     async setStatusFilterArchived(): Promise<void> {
+        await this.page.getByTestId('kris-lifecycle-filter-trigger').click();
         await Promise.all([
             this.waitForKrisResponse({ lifecycle: 'archived' }),
-            this.page.getByTestId('kris-status-filter-archived').click(),
+            this.page.getByTestId('kris-lifecycle-filter-option-archived').click(),
         ]);
         await this.waitForListReady();
     }

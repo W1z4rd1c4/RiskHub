@@ -39,7 +39,7 @@ export function NativeLoginView({ config, onSession }: { config: AuthConfigRespo
             <Field label={t('native.password')} required>
                 {(field) => <Input {...field} type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required disabled={action.pending} />}
             </Field>
-            <Button type="submit" disabled={action.pending}>{t('native.sign_in')}</Button>
+            <Button variant="accent" type="submit" disabled={action.pending}>{t('native.sign_in')}</Button>
         </form>
         {config.identity?.password_reset_enabled && <Link className="block underline" to="/auth/local/reset-password">{t('native.forgot')}</Link>}
         <p className="text-sm text-muted-foreground">{t('native.invitation_only')}</p>

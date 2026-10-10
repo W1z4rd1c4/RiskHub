@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { resolveNativeRoute } from '@/routing/public';
@@ -102,10 +103,10 @@ export default function NativeSecurityPage() {
         <p>{t('native.backup_help')}</p>
         {notificationFailed && <p role="alert">{t('native.notification_failed')}</p>}
         <ul className="grid grid-cols-2 gap-2 font-mono text-sm">{codes.map((code) => <li key={code}>{code}</li>)}</ul>
-        <Button onClick={leave}>{t('native.backup_ack')}</Button>
+        <Button variant="accent" onClick={leave}>{t('native.backup_ack')}</Button>
     </NativeFrame>;
     if (completed || uncertain) return <NativeFrame title={t('native.security_title')} error={action.error}>
-        {completed && <p role="status">{t('native.changed')}</p>}<Button onClick={leave}>{t('native.back_login')}</Button>
+        {completed && <p role="status">{t('native.changed')}</p>}<Button variant="accent" onClick={leave}>{t('native.back_login')}</Button>
     </NativeFrame>;
     if (config.authConfig?.identity?.mode === 'native' && config.authConfig.password_login_enabled && !session.token) {
         return <NativeLoginView config={config.authConfig} onSession={(response) => {
@@ -117,21 +118,21 @@ export default function NativeSecurityPage() {
     const enabled = config.authConfig?.identity?.mode === 'native' && canManage;
     return <NativeFrame title={t(verifyingEmail ? 'native.email_confirm_title' : 'native.security_title')} pending={action.pending || config.isAuthConfigLoading} error={action.error}>
         {unchanged && <p role="status">{t('native.password_unchanged')}</p>}
-        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
+        {config.authConfigError ? <><p role="alert">{config.authConfigError}</p><Button variant="accent" onClick={config.reloadAuthConfig}>{t('native.retry')}</Button></> :
             !config.isAuthConfigLoading && !enabled ? <p role="alert">{t('native.errors.forbidden')}</p> :
-                accountError ? <><p role="alert">{t('native.errors.unavailable')}</p><Button onClick={() => setRetry((value) => value + 1)}>{t('native.retry')}</Button></> :
+                accountError ? <><p role="alert">{t('native.errors.unavailable')}</p><Button variant="accent" onClick={() => setRetry((value) => value + 1)}>{t('native.retry')}</Button></> :
                     !account ? <p role="status">{t('native.pending')}</p> :
                         verifyingEmail && !grant ? <p role="alert">{t('native.missing_link')}</p> :
                             emailSent ? <p role="status">{t('native.email_sent')}</p> : <form className="space-y-4" onSubmit={submit}>
                                 <p className="text-sm">{t(account.mfa_enabled ? 'native.mfa_enabled' : 'native.mfa_disabled')}</p>
                                 {!verifyingEmail && <Field label={t('native.security_action')}>
-                                    {(field) => <select {...field} className="w-full rounded-md border bg-background p-2" value={operation} disabled={action.pending} onChange={(event) => { setOperation(event.target.value as Operation); setPassword(''); setFactor(''); setNewPassword(''); setEmail(''); action.setError(null); }}>
+                                    {(field) => <NativeSelect {...field} value={operation} disabled={action.pending} onChange={(event) => { setOperation(event.target.value as Operation); setPassword(''); setFactor(''); setNewPassword(''); setEmail(''); action.setError(null); }}>
                                         <option value="password_change">{t('native.password_change')}</option>
                                         <option value="email_change">{t('native.email_change')}</option>
                                         {config.authConfig?.identity?.factor_management_enabled && <>
                                             {account.mfa_enabled ? <><option value="factor_replace">{t('native.factor_replace')}</option><option value="recovery_codes">{t('native.recovery_codes')}</option></> : <option value="factor_enroll">{t('native.factor_enroll')}</option>}
                                         </>}
-                                    </select>}
+                                    </NativeSelect>}
                                 </Field>}
                                 {operation === 'password_change' && <Field label={t('native.new_password')} help={t('native.password_help')} required>
                                     {(field) => <Input {...field} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required disabled={action.pending} />}
@@ -145,15 +146,15 @@ export default function NativeSecurityPage() {
                                 </Field>
                                 {account.factor_required && <>
                                     <Field label={t('native.factor_method')}>
-                                        {(field) => <select {...field} className="w-full border rounded-md bg-background p-2" value={method} onChange={(event) => { setFactor(''); setMethod(event.target.value as typeof method); }} disabled={action.pending}>
+                                        {(field) => <NativeSelect {...field} value={method} onChange={(event) => { setFactor(''); setMethod(event.target.value as typeof method); }} disabled={action.pending}>
                                             <option value="totp">{t('native.totp')}</option><option value="recovery_code">{t('native.recovery_code')}</option>
-                                        </select>}
+                                        </NativeSelect>}
                                     </Field>
                                     <Field label={t(method === 'totp' ? 'native.code' : 'native.recovery_code')} required>
                                         {(field) => <Input {...field} autoComplete="one-time-code" value={factor} onChange={(event) => setFactor(event.target.value)} required disabled={action.pending} />}
                                     </Field>
                                 </>}
-                                <Button type="submit" disabled={action.pending}>{t('native.confirm_change')}</Button>
+                                <Button variant="accent" type="submit" disabled={action.pending}>{t('native.confirm_change')}</Button>
                             </form>}
         <p className="text-sm text-muted-foreground">{t('native.recovery_help')}</p>
         <Link className="block underline" to="/settings" onClick={() => { action.cancel(); setGrant(''); }}>{t('native.back_settings')}</Link>

@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+import { Input, type InputProps } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
 import { ApiClientError } from '@/services/apiClient';
 import { lookupApi } from '@/services/lookupApi';
 import { processApi } from '@/services/processApi';
@@ -22,14 +21,9 @@ import {
     type ProcessApprovalQueuedResponse,
 } from '@/types/process';
 
+import { FormActions, FormErrorSummary, FormLoadFailedNotice, FormSection } from '../shared/EntityFormChrome';
 import { buildProcessWritePayload, PROCESS_CONTROLLED_CODES } from './processesPagePresentation';
 import { processEditNeedsRequestReason } from './processProtectedEdit';
-
-// Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
-// primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
-// the error visual with no extra class.
-const TEXTAREA_CLASS =
-    'flex min-h-[4.5rem] w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground hover:border-ring/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive resize-y';
 
 interface ProcessFormProps {
     initialData?: Process;
@@ -420,15 +414,13 @@ export function ProcessForm({
         }
     };
 
-    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
-
     const selectField = (
         field: keyof FormFields,
         label: string,
         options: Array<{ value: string; label: string }>,
         testId: string,
     ) => (
-        <Field label={label} error={fieldErrors[field]} labelClassName={labelClassName}>
+        <Field label={label} error={fieldErrors[field]}>
             {(control) => (
                 <ThemedSelect
                     {...control}
@@ -448,13 +440,12 @@ export function ProcessForm({
         field: keyof FormFields,
         label: string,
         testId: string,
-        props: React.InputHTMLAttributes<HTMLInputElement> = {},
+        props: InputProps = {},
     ) => (
         <Field
             label={label}
             required={props.required}
             error={fieldErrors[field]}
-            labelClassName={labelClassName}
         >
             {(control) => (
                 <Input
@@ -475,85 +466,58 @@ export function ProcessForm({
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error || hasFieldErrors ? (
-                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
-                </div>
+                <FormErrorSummary message={error ?? t('form.errors.fix_fields')} />
             ) : null}
 
             {closedListsQuery.isError || ownerQuery.isError || departmentQuery.isError ? (
-                <div
-                    role="status"
-                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
-                >
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                        <p className="text-sm font-medium">{t('form.errors.lists_failed')}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            void closedListsQuery.refetch();
-                            void ownerQuery.refetch();
-                            void departmentQuery.refetch();
-                        }}
-                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
-                    >
-                        {t('actions.retry')}
-                    </button>
-                </div>
+                <FormLoadFailedNotice
+                    message={t('form.errors.lists_failed')}
+                    retryLabel={t('actions.retry')}
+                    onRetry={() => {
+                        void closedListsQuery.refetch();
+                        void ownerQuery.refetch();
+                        void departmentQuery.refetch();
+                    }}
+                />
             ) : null}
 
-            <section className="glass-card space-y-4 border border-amber-400/20">
-                    <div>
-                        <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                            {t('form.sections.change_request')}
-                        </h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                            {t('form.request_reason_help')}
-                        </p>
-                    </div>
-                    <Field
-                        label={t('form.request_reason')}
-                        required={requestReasonRequired}
-                        error={fieldErrors.request_reason}
-                        labelClassName={labelClassName}
-                    >
-                        {(control) => (
-                            <textarea
-                                {...control}
-                                ref={registerFieldRef('request_reason')}
-                                data-testid="process-form-request-reason"
-                                value={fields.request_reason}
-                                onChange={(event) => setField('request_reason', event.target.value)}
-                                rows={3}
-                                className={TEXTAREA_CLASS}
-                            />
-                        )}
-                    </Field>
-            </section>
+            <FormSection
+                title={t('form.sections.change_request')}
+                description={t('form.request_reason_help')}
+                className="border-warning/20"
+            >
+                <Field
+                    label={t('form.request_reason')}
+                    required={requestReasonRequired}
+                    error={fieldErrors.request_reason}
+                >
+                    {(control) => (
+                        <Textarea
+                            {...control}
+                            ref={registerFieldRef('request_reason')}
+                            data-testid="process-form-request-reason"
+                            value={fields.request_reason}
+                            onChange={(event) => setField('request_reason', event.target.value)}
+                            rows={3}
+                        />
+                    )}
+                </Field>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.identity')}
-                </h2>
+            <FormSection title={t('form.sections.identity')}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {textField('l0_area', t('form.l0_area'), 'process-form-l0-area', { required: true })}
                     {textField('l1_process', t('form.l1_process'), 'process-form-l1-process', { required: true })}
                     {textField('l2_subprocess', t('form.l2_subprocess'), 'process-form-l2-subprocess')}
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.ownership')}
-                </h2>
+            <FormSection title={t('form.sections.ownership')}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <Field
                         label={t('form.owner')}
                         required
                         error={fieldErrors.process_owner_user_id}
-                        labelClassName={labelClassName}
                     >
                         {(control) => (
                             <SearchableEntitySelect
@@ -574,7 +538,6 @@ export function ProcessForm({
                         label={t('form.owner_department')}
                         required
                         error={fieldErrors.owning_department_id}
-                        labelClassName={labelClassName}
                     >
                         {(control) => (
                             <SearchableEntitySelect
@@ -592,12 +555,9 @@ export function ProcessForm({
                         )}
                     </Field>
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.impacts')}
-                </h2>
+            <FormSection title={t('form.sections.impacts')}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {IMPACT_FIELDS.map((field) =>
                         selectField(field, t(`form.${field}`), listOptions.impactScale, `process-form-${field.replaceAll('_', '-')}`)
@@ -607,23 +567,17 @@ export function ProcessForm({
                         min: 0,
                     })}
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.criticality')}
-                </h2>
+            <FormSection title={t('form.sections.criticality')}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {selectField('preliminary_criticality', t('form.preliminary_criticality'), controlledOptions.preliminaryCriticality, 'process-form-preliminary-criticality')}
                     {selectField('cif_override', t('form.cif_override'), controlledOptions.cifOverride, 'process-form-cif-override')}
                     {selectField('licensed_activity', t('form.licensed_activity'), controlledOptions.licensedActivity, 'process-form-licensed-activity')}
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.continuity')}
-                </h2>
+            <FormSection title={t('form.sections.continuity')}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {textField('rto_hours', t('form.rto_hours'), 'process-form-rto-hours', { type: 'number', min: 0 })}
                     {textField('rpo_hours', t('form.rpo_hours'), 'process-form-rpo-hours', { type: 'number', min: 0 })}
@@ -631,55 +585,38 @@ export function ProcessForm({
                     {textField('last_dr_test_date', t('form.last_dr_test_date'), 'process-form-last-dr-test-date', { type: 'date' })}
                     {selectField('dr_test_result', t('form.dr_test_result'), controlledOptions.drTestResult, 'process-form-dr-test-result')}
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.assessment')}
-                </h2>
+            <FormSection title={t('form.sections.assessment')}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {selectField('interruption_impact', t('form.interruption_impact'), controlledOptions.interruptionImpact, 'process-form-interruption-impact')}
                     {textField('assessment_date', t('form.assessment_date'), 'process-form-assessment-date', { type: 'date' })}
                 </div>
-                <Field label={t('form.notes')} labelClassName={labelClassName}>
+                <Field label={t('form.notes')}>
                     {(control) => (
-                        <textarea
+                        <Textarea
                             {...control}
                             data-testid="process-form-notes"
                             value={fields.notes}
                             onChange={(event) => setField('notes', event.target.value)}
                             rows={3}
-                            className={TEXTAREA_CLASS}
                         />
                     )}
                 </Field>
-            </section>
+            </FormSection>
 
-            <div className="flex items-center justify-end gap-3">
-                {onCancel ? (
-                    <button
-                        type="button"
-                        onClick={() => requestLocalLeave(onCancel)}
-                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                    >
-                        <X className="h-4 w-4" />
-                        {t('actions.cancel')}
-                    </button>
-                ) : null}
-                <button
-                    type="submit"
-                    disabled={isSubmitting || accountabilityScenarioUnavailable}
-                    data-testid="process-form-submit"
-                    className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {requestReasonRequired
-                        ? t('actions.submit_for_approval')
-                        : isEdit
-                            ? t('actions.save')
-                            : t('actions.create')}
-                </button>
-            </div>
+            <FormActions
+                submitLabel={requestReasonRequired
+                    ? t('actions.submit_for_approval')
+                    : isEdit
+                        ? t('actions.save')
+                        : t('actions.create')}
+                submitTestId="process-form-submit"
+                isSubmitting={isSubmitting}
+                submitDisabled={accountabilityScenarioUnavailable}
+                onCancel={onCancel ? () => requestLocalLeave(onCancel) : undefined}
+                cancelLabel={t('actions.cancel')}
+            />
             </fieldset>
             {confirmationDialog}
         </form>

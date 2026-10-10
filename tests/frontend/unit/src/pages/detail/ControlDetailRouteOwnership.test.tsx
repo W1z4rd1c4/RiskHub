@@ -128,8 +128,6 @@ vi.mock('@/components/executions/ExecutionLogModal', () => ({
     ),
 }));
 
-vi.mock('@/components/ArchiveConfirmDialog', () => ({ ArchiveConfirmDialog: () => null }));
-
 describe('Control detail route ownership', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -174,6 +172,9 @@ describe('Control detail route ownership', () => {
         expect(screen.queryByText('linked:Risk A')).not.toBeInTheDocument();
         expect(screen.queryByText('quick:Risk A quick view')).not.toBeInTheDocument();
 
+        // The log modal mounts only while open (PG-22 dirty guard): open it on Control 2.
+        fireEvent.click(screen.getByRole('tab', { name: /execution history/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /log execution/i }));
         fireEvent.click(screen.getByRole('button', { name: 'execution-succeeded' }));
         await waitFor(() => {
             expect(getControlMock.mock.calls.filter(([id]) => id === 2)).toHaveLength(2);

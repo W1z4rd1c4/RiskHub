@@ -1,10 +1,11 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { Link, RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RiskForm } from '@/components/RiskForm';
 import type { Risk } from '@/types/risk';
 import { createTestQueryClient } from '@test/queryClient';
@@ -54,6 +55,7 @@ function RiskFormHarness({
             <RiskForm
                 initialData={data}
                 isEdit={isEdit}
+                approvalReturnTo="/done"
                 onCancel={() => navigate('/done')}
                 onSuccess={async (_riskId, acceptNavigation) => {
                     if (successGate) await successGate;
@@ -69,7 +71,7 @@ function renderRiskForm(data = initialRisk, isEdit = true, successGate?: Promise
     const queryClient = createTestQueryClient();
     const router = createMemoryRouter([
         { path: '/edit', element: <RiskFormHarness data={data} isEdit={isEdit} successGate={successGate} /> },
-        { path: '/done', element: <p>Destination reached</p> },
+        { path: '/done', element: <><ApprovalQueuedNotice /><p>Destination reached</p></> },
     ], { initialEntries: ['/edit'] });
 
     render(
@@ -259,9 +261,11 @@ describe('RiskForm dirty-task protection', () => {
         const router = renderRiskEdit();
 
         await submitChangedRisk();
-        expect(await screen.findByText('Risk update queued for approval.')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('link', { name: 'Leave route' }));
+        // D12 / PM-2: the queued edit returns to the entity page (not blocked by
+        // the dirty guard) and shows the pending notice.
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
+        expect(within(screen.getByTestId('approval-queued-notice')).getByRole('link'))
+            .toHaveAttribute('href', '/approvals?tab=mine&approvalId=88');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
         shouldFail = true;
@@ -272,5 +276,16 @@ describe('RiskForm dirty-task protection', () => {
         fireEvent.click(screen.getByRole('link', { name: 'Leave route' }));
         expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
         expect(router.state.location.pathname).toBe('/edit');
+    });
+
+    it('moves focus to the first invalid field when a step check fails (§4.8, AX-04)', async () => {
+        renderRiskForm({ ...initialRisk, name: '', description: '' });
+        await screen.findByTestId('risk-name-input');
+        fireEvent.click(screen.getByTestId('risk-form-next-button'));
+        const name = screen.getByTestId('risk-name-input');
+        await waitFor(() => expect(name).toHaveFocus());
+        expect(name).toHaveAttribute('aria-invalid', 'true');
+        expect(name).toHaveAccessibleDescription('Risk Name is required.');
+        expect(screen.getByTestId('risk-description-input')).toHaveAttribute('aria-invalid', 'true');
     });
 });

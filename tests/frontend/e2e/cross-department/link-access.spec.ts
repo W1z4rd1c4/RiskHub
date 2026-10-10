@@ -35,9 +35,9 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         const dialog = riskManagerPage.locator('[data-testid="link-management-dialog"], [role="dialog"]').first();
         await expect(dialog).toBeVisible();
 
-        let includeArchivedCheckbox = dialog
-            .locator('label:has(input[type="checkbox"]) input[type="checkbox"]')
-            .first();
+        const includeArchivedCheckbox = dialog.getByRole('checkbox', {
+            name: /^(Include archived|Zobrazit archivované)$/i,
+        });
         await expect(includeArchivedCheckbox).not.toBeChecked();
     });
 
@@ -71,14 +71,14 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
             .first();
         await expect(archivedCandidate).toHaveCount(0);
 
-        let includeArchivedCheckbox = dialog
-            .locator('label:has(input[type="checkbox"]) input[type="checkbox"]')
-            .first();
+        const includeArchivedCheckbox = dialog.getByRole('checkbox', {
+            name: /^(Include archived|Zobrazit archivované)$/i,
+        });
+        await expect(includeArchivedCheckbox).not.toBeChecked();
         const includeArchivedSearchResponse = riskManagerPage.waitForResponse((response) =>
             matchesControlCandidateSearch(response, true),
         );
-        await includeArchivedCheckbox.click();
-        includeArchivedCheckbox = dialog.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
+        await includeArchivedCheckbox.check();
         await expect(includeArchivedCheckbox).toBeChecked();
         await includeArchivedSearchResponse;
         await waitForDataLoad(riskManagerPage);

@@ -352,7 +352,9 @@ describe('KRIsPage monitoring status filters', () => {
         await screen.findByText('Not Submitted KRI');
 
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
-        expect(screen.getByTestId('kris-status-filter-not_submitted')).toHaveClass('bg-accent');
+        // PG-25: the monitoring select is the only status control (the duplicate pill row is gone).
+        expect(screen.getByTestId('kris-monitoring-filter-trigger')).toHaveTextContent('Not Submitted');
+        expect(screen.queryByTestId('kris-status-filter-not_submitted')).not.toBeInTheDocument();
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?monitoring_status=not_submitted');
         expect(requestQueries.some((query) => query.filters.monitoring_status === 'not_submitted')).toBe(true);
     });
@@ -424,7 +426,7 @@ describe('KRIsPage monitoring status filters', () => {
         await screen.findByText('Due Soon KRI');
 
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
-        expect(screen.getByTestId('kris-status-filter-due_soon')).toHaveClass('bg-accent');
+        expect(screen.getByTestId('kris-due-soon-filter')).toBeChecked();
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?timeliness_status=due_soon');
         expect(requestQueries.some((query) => query.filters.timeliness_status === 'due_soon')).toBe(true);
     });
@@ -438,16 +440,21 @@ describe('KRIsPage monitoring status filters', () => {
         await screen.findByText('All KRI');
 
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('kris-status-filter-warning'));
-        await uiUser.click(screen.getByTestId('kris-status-filter-breach'));
-        await uiUser.click(screen.getByTestId('kris-status-filter-not_submitted'));
-        await uiUser.click(screen.getByTestId('kris-status-filter-due_soon'));
-        await uiUser.click(screen.getByTestId('kris-status-filter-archived'));
+        const chooseMonitoring = async (value: string) => {
+            await uiUser.click(screen.getByTestId('kris-monitoring-filter-trigger'));
+            await uiUser.click(await screen.findByTestId(`kris-monitoring-filter-option-${value}`));
+        };
+        await chooseMonitoring('warning');
+        await chooseMonitoring('breach');
+        await chooseMonitoring('not_submitted');
+        await uiUser.click(screen.getByTestId('kris-due-soon-filter'));
+        await uiUser.click(screen.getByTestId('kris-lifecycle-filter-trigger'));
+        await uiUser.click(await screen.findByTestId('kris-lifecycle-filter-option-archived'));
 
         await screen.findByText('Archived KRI');
 
         await waitFor(() => {
-            expect(screen.getByTestId('kris-status-filter-archived')).toHaveClass('bg-accent');
+            expect(screen.getByTestId('kris-lifecycle-filter-trigger')).toHaveTextContent('Archived');
             expect(screen.getByTestId('kris-refresh-button').querySelector('.animate-spin')).toBeNull();
         });
 
@@ -520,7 +527,7 @@ describe('KRIsPage monitoring status filters', () => {
         await uiUser.click(screen.getByRole('button', { name: /Finance/ }));
         await screen.findByText('Warning KRI');
 
-        expect(screen.getByTestId('kris-status-filter-warning')).toHaveClass('bg-accent');
+        expect(screen.getByTestId('kris-monitoring-filter-trigger')).toHaveTextContent('Warning');
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('view=category');
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('group=Finance');
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();

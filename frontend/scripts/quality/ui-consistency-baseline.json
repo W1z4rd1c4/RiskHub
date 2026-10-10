@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "G-RATCHET baseline (docs/audits/2026-09-30-frontend-ui-consistency-audit.md §4.1). Only allowlisted patterns are recorded (every other pattern is hard zero); counts may only go down; regenerate with `npm run quality:ui-ratchet -- --update-baseline`.",
+  "totals": {
+    "hex-literal": 3,
+    "important-css": 3
+  },
+  "counts": {
+    "hex-literal": {
+      "src/hooks/useRiskHubConfig.ts": 3
+    },
+    "important-css": {
+      "src/index.css": 3
+    }
+  }
+}

@@ -108,7 +108,50 @@ const THEMES = [
 ] as const;
 
 const STATUS_TOKENS = ['destructive', 'success', 'warning', 'info'] as const;
-const RISK_SCORE_BAND_TOKENS = ['destructive', 'warning', 'info', 'success'] as const;
+const RISK_SCORE_BAND_TOKENS = ['destructive', 'severity-high', 'warning', 'info', 'success'] as const;
+
+/*
+ * UI-contract token families (audit 2026-09-30 §4.2, ADR-015 Addendum 1). Fill
+ * tokens that carry text are tested as AA pairs; standalone text tokens at AA
+ * against every text-bearing surface; graphical tokens (chart series) at 3:1.
+ */
+const FILL_PAIR_TOKENS = [
+  'severity-high',
+  'heat-0',
+  'heat-1',
+  'heat-2',
+  'heat-3',
+  'heat-4',
+  'nav-active',
+  'nav-badge',
+  'badge-count',
+] as const;
+const HEAT_TOKENS = ['heat-0', 'heat-1', 'heat-2', 'heat-3', 'heat-4'] as const;
+const CHART_TOKENS = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5', 'chart-6', 'chart-7', 'chart-8'] as const;
+const TEXT_SURFACES = ['background', 'card', 'popover', 'glass'] as const;
+const CHART_SURFACES = ['background', 'glass'] as const;
+const NEW_TOKENS = [
+  'tint',
+  'overlay',
+  'severity-high',
+  'severity-high-foreground',
+  'severity-high-text',
+  ...CHART_TOKENS,
+  ...HEAT_TOKENS.flatMap((token) => [token, `${token}-foreground`]),
+  'nav-active',
+  'nav-active-foreground',
+  'nav-badge',
+  'nav-badge-foreground',
+  'badge-count',
+  'badge-count-foreground',
+] as const;
+
+/** Parse a unitless numeric custom property (`--name: 0.7`) from a rule body. */
+function readNumber(block: string, token: string): number {
+  const match = block.match(new RegExp(`--${token}:\\s*([\\d.]+)\\s*;`));
+  if (!match?.[1]) throw new Error(`Missing --${token} in theme block`);
+  return Number(match[1]);
+}
 
 const SURFACE_TEXT_PAIRS = [
   ['background', 'foreground'],
@@ -272,5 +315,87 @@ describe('semantic status tokens — WCAG AA contrast (FR-P1-3, N20)', () => {
       expect(tailwindConfig).toContain(`hsl(var(--${token}))`);
       expect(tailwindConfig).toContain(`hsl(var(--${token}-foreground))`);
     }
+  });
+});
+
+describe('UI-contract token families — audit 2026-09-30 §4.2 / ADR-015 Addendum 1', () => {
+  it('selects the riskhub block by both :root and the explicit .theme-riskhub class', () => {
+    expect(indexCss).toMatch(/\.theme-riskhub,\s*:root\s*\{[^{}]*--success:/);
+  });
+
+  it('declares every new token family in every theme and wires it into Tailwind', () => {
+    for (const { selector } of THEMES) {
+      const block = themeBlock(indexCss, selector);
+      for (const token of NEW_TOKENS) {
+        expect(block, `--${token} @ ${selector}`).toMatch(new RegExp(`--${token}:`));
+      }
+      expect(block, `--overlay-alpha @ ${selector}`).toContain('--overlay-alpha:');
+    }
+    for (const token of NEW_TOKENS.filter((name) => name !== 'overlay')) {
+      expect(tailwindConfig).toContain(`hsl(var(--${token}))`);
+    }
+    expect(tailwindConfig).toContain('hsl(var(--overlay) / var(--overlay-alpha))');
+  });
+
+  it('keeps --tint pure white in riskhub and a neutral 75% grey in True Dark (D3 parity)', () => {
+    // riskhub never remapped the white-alpha utilities, so tint/N must stay white/N there.
+    expect(readHsl(themeBlock(indexCss, ':root'), 'tint'), ':root').toEqual([0, 0, 100]);
+    // True Dark dimmed them with !important remaps (bg-white/5 → 3%, /10 → 5%); the remaps
+    // were deleted at Phase 2.3 (O6) and the grey base reproduces their rendered colour.
+    expect(readHsl(themeBlock(indexCss, '\\.theme-dark'), 'tint'), '.theme-dark').toEqual([0, 0, 75]);
+    const light = themeBlock(indexCss, '\\.theme-light');
+    expect(readHsl(light, 'tint'), 'light tint = navy foreground').toEqual(readHsl(light, 'foreground'));
+  });
+
+  it.each(THEMES)('gives the dialog overlay a real alpha in $name', ({ selector }) => {
+    const alpha = readNumber(themeBlock(indexCss, selector), 'overlay-alpha');
+    expect(alpha).toBeGreaterThan(0);
+    expect(alpha).toBeLessThanOrEqual(1);
+  });
+
+  it.each(THEMES)('every new fill token clears AA against its paired foreground in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    for (const token of FILL_PAIR_TOKENS) {
+      const ratio = contrastRatio(readHsl(block, token), readHsl(block, `${token}-foreground`));
+      expect(
+        ratio,
+        `--${token} vs --${token}-foreground @ ${name} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    }
+  });
+
+  it.each(THEMES)('severity-high-text clears AA on every text surface and its soft badge in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const text = readHsl(block, 'severity-high-text');
+    for (const surface of TEXT_SURFACES) {
+      const ratio = contrastRatio(text, readHsl(block, surface));
+      expect(ratio, `text-severity-high-text on --${surface} @ ${name} = ${ratio.toFixed(2)}:1`)
+        .toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+      const softBadge = composite(readHsl(block, 'severity-high'), readHsl(block, surface), 0.1);
+      const softRatio = contrastRatioRgb(hslToRgb(text), softBadge);
+      expect(
+        softRatio,
+        `text-severity-high-text on bg-severity-high/10 over --${surface} @ ${name} = ${softRatio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    }
+  });
+
+  it.each(THEMES)('every chart series clears 3:1 against the chart surfaces in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    for (const token of CHART_TOKENS) {
+      for (const surface of CHART_SURFACES) {
+        const ratio = contrastRatio(readHsl(block, token), readHsl(block, surface));
+        expect(ratio, `--${token} vs --${surface} @ ${name} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(WCAG_UI);
+      }
+    }
+  });
+
+  it.each(THEMES)('heat scale is sequential: heat-0 to heat-4 move monotonically toward --destructive in $name', ({ selector, name }) => {
+    const block = themeBlock(indexCss, selector);
+    const luminances = HEAT_TOKENS.map((token) => relativeLuminance(hslToRgb(readHsl(block, token))));
+    const steps = luminances.slice(1).map((value, index) => Math.sign(value - (luminances[index] ?? value)));
+    expect(new Set(steps).size, `heat luminance ${luminances.map((l) => l.toFixed(3)).join(' → ')} @ ${name}`).toBe(1);
+    expect(steps[0], `heat steps must not repeat a luminance @ ${name}`).not.toBe(0);
+    expect(readHsl(block, 'heat-4'), `heat-4 = --destructive @ ${name}`).toEqual(readHsl(block, 'destructive'));
   });
 });

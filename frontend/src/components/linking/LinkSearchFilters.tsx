@@ -1,10 +1,15 @@
-import { Filter, Loader2, RotateCcw, Search } from 'lucide-react';
+import { Filter, RotateCcw, Search } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 
 import { getSearchPlaceholder } from './linkSearchPresentation';
 import type { DepartmentLookup, LinkMode } from './linkTypes';
+import { Spinner } from '@/components/ui/state';
 
 interface LinkSearchFiltersProps {
     mode: LinkMode;
@@ -55,79 +60,90 @@ export function LinkSearchFilters({
 
     return (
         <div className="space-y-4">
-            <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
+            <div className="relative">
+                <Input
                     type="text"
+                    leadingIcon={Search}
+                    aria-label={getSearchPlaceholder(mode, t)}
                     placeholder={getSearchPlaceholder(mode, t)}
                     value={searchQuery}
                     onChange={(event) => onSearchQueryChange(event.target.value)}
-                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
+                    className="pr-10"
                 />
                 {isSearching && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 text-accent animate-spin" />
+                        <Spinner size="sm" label={t('common:loading.generic')} />
                     </div>
                 )}
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
-                <Filter className="h-3 w-3" />
+            <div className="text-eyebrow flex items-center gap-2">
+                <Filter aria-hidden="true" className="size-3" />
                 {t('common:actions.filter')}
-                {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                {isLoadingLookups && <Spinner size="sm" className="ml-auto" />}
             </div>
-            <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
-                <input
-                    type="checkbox"
-                    checked={includeArchived}
-                    onChange={(event) => onIncludeArchivedChange(event.target.checked)}
-                />
-                {t('filters.include_archived')}
-            </label>
+            <Field label={t('filters.include_archived')} layout="inline">
+                {(field) => (
+                    <Checkbox
+                        {...field}
+                        checked={includeArchived}
+                        onCheckedChange={onIncludeArchivedChange}
+                    />
+                )}
+            </Field>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ThemedSelect
-                    className="border-white/20 bg-slate-800/80 text-slate-100"
-                    value={selectedDeptId?.toString() ?? ''}
-                    onValueChange={(value) => onDeptIdChange(value ? Number(value) : null)}
-                    placeholder={t('filters.all_departments')}
-                    allowEmpty
-                    emptyLabel={t('filters.all_departments')}
-                    options={departments.map((department) => ({
-                        value: department.id.toString(),
-                        label: department.name,
-                    }))}
-                />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <Field label={t('labels.department')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={selectedDeptId?.toString() ?? ''}
+                            onValueChange={(value) => onDeptIdChange(value ? Number(value) : null)}
+                            placeholder={t('filters.all_departments')}
+                            allowEmpty
+                            emptyLabel={t('filters.all_departments')}
+                            options={departments.map((department) => ({
+                                value: department.id.toString(),
+                                label: department.name,
+                            }))}
+                        />
+                    )}
+                </Field>
 
-                <ThemedSelect
-                    className="border-white/20 bg-slate-800/80 text-slate-100"
-                    value={selectedProcess}
-                    onValueChange={onProcessChange}
-                    placeholder={t('filters.all_processes')}
-                    allowEmpty
-                    emptyLabel={t('filters.all_processes')}
-                    options={processes.map((process) => ({ value: process, label: process }))}
-                />
+                <Field label={t('labels.process')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={selectedProcess}
+                            onValueChange={onProcessChange}
+                            placeholder={t('filters.all_processes')}
+                            allowEmpty
+                            emptyLabel={t('filters.all_processes')}
+                            options={processes.map((process) => ({ value: process, label: process }))}
+                        />
+                    )}
+                </Field>
 
-                <ThemedSelect
-                    className="border-white/20 bg-slate-800/80 text-slate-100"
-                    value={selectedCategory}
-                    onValueChange={onCategoryChange}
-                    placeholder={t('filters.all_categories')}
-                    allowEmpty
-                    emptyLabel={t('filters.all_categories')}
-                    options={categories.map((category) => ({ value: category, label: category }))}
-                />
+                <Field label={t('labels.category')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={selectedCategory}
+                            onValueChange={onCategoryChange}
+                            placeholder={t('filters.all_categories')}
+                            allowEmpty
+                            emptyLabel={t('filters.all_categories')}
+                            options={categories.map((category) => ({ value: category, label: category }))}
+                        />
+                    )}
+                </Field>
             </div>
 
             {hasActiveFilters && (
-                <button
-                    onClick={clearAllFilters}
-                    className="flex items-center gap-2 text-xs text-slate-500 hover:text-accent transition-colors mt-1 ml-1 self-start group"
-                >
-                    <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
+                <Button variant="ghost" size="compact" onClick={clearAllFilters} className="self-start">
+                    <RotateCcw aria-hidden="true" />
                     {t('common:actions.clear')}
-                </button>
+                </Button>
             )}
         </div>
     );

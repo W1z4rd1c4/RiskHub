@@ -18,7 +18,7 @@ This directory records architecture decisions that should not be re-litigated by
 - [ADR-012 KRI Time-Series Period Algebra](./ADR-012-kri-time-series.md)
 - [ADR-013 Frontend Accessibility Standard (WCAG 2.2 AA target)](./ADR-013-frontend-accessibility-standard.md)
 - [ADR-014 Desktop-First Client Support Policy](./ADR-014-desktop-first-support.md)
-- [ADR-015 Frontend Design-System Foundation](./ADR-015-frontend-design-system-foundation.md)
+- [ADR-015 Frontend Design-System Foundation](./ADR-015-frontend-design-system-foundation.md) (includes Addendum 1: severity scale, tokens and UI-contract defaults)
 - [ADR-016 Governed Mutation Proposal and Impact-Lock Contract](./ADR-016-governed-mutation-proposals.md)
 - [ADR-017 Retained Compatibility Surfaces](./ADR-017-retained-compatibility-surfaces.md)
 

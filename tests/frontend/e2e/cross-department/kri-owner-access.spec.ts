@@ -33,21 +33,24 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
 
     test('KRI detail shows linked risk section for deterministic cross-department KRI', async ({ browser }) => {
         const { context, page } = await openDeterministicCrossDeptKriForFinanceOwner(browser);
-        await expect(page.locator('h3').filter({ hasText: /Linked Risk|Propojené riziko/i }).first()).toBeVisible();
-        await expect(page.locator('h4').filter({ hasText: E2E_RISKS.PRIORITY_PRIVILEGED_APPROVAL.name }).first()).toBeVisible();
+        await expect(page.getByRole('heading', { name: /^(Linked Risk|Propojené riziko)$/i })).toBeVisible();
+        await expect(page.getByRole('heading', { name: E2E_RISKS.PRIORITY_PRIVILEGED_APPROVAL.name, exact: true })).toBeVisible();
         await context.close();
     });
 
     test('Clicking linked risk card navigates to risk detail and shows controls surface', async ({ browser }) => {
         const { context, page } = await openDeterministicCrossDeptKriForFinanceOwner(browser);
 
-        const linkedRiskHeading = page.locator('h4').filter({ hasText: E2E_RISKS.PRIORITY_PRIVILEGED_APPROVAL.name }).first();
-        await expect(linkedRiskHeading).toBeVisible();
-        await linkedRiskHeading.click();
+        const linkedRiskCard = page.getByRole('link').filter({
+            has: page.getByRole('heading', { name: E2E_RISKS.PRIORITY_PRIVILEGED_APPROVAL.name, exact: true }),
+        });
+        await expect(linkedRiskCard).toBeVisible();
+        await expect(linkedRiskCard).toHaveAttribute('href', /^\/risks\/\d+$/);
+        await linkedRiskCard.click();
 
         await expect(page).toHaveURL(/\/risks\/\d+(?:\?.*)?$/);
-        await expect(page.locator('main h1, main h2').first()).toBeVisible();
-        await expect(page.locator('h3').filter({ hasText: /Mitigating Controls|Zmírňující kontroly/i }).first()).toBeVisible();
+        await expect(page.getByRole('heading', { name: E2E_RISKS.PRIORITY_PRIVILEGED_APPROVAL.name, exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: /^(Mitigating Controls|Zmírňující kontroly)$/i })).toBeVisible();
         await context.close();
     });
 

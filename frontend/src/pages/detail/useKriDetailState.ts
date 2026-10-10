@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation } from '@/i18n/hooks';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { KRI_HISTORY_PAGE_SIZE } from '@/lib/kriHistory';
@@ -46,12 +48,16 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         setHistoryParams(next);
     }, [historyParams, setHistoryParams]);
     const { t: tErrors } = useTranslation('errorKeys');
+    const { t: tCommon } = useTranslation('common');
+    const feedback = useFeedback();
+    // D12 / PM-2: approval-routed archive and edit keep the user on the KRI
+    // with the persistent pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
     const [activeTab, setActiveTab] = useContentTabQuery<KriDetailTabView>({
         tabs: kriDetailTabs,
         defaultTab: 'overview',
     });
     const [historyAccessDenied, setHistoryAccessDenied] = useState(false);
-    const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
     const {
         applyFailure: applyHistoryFailure,
         applySuccess: applyHistorySuccess,
@@ -231,7 +237,6 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
     ]);
 
     useEffect(() => {
-        setApprovalBanner(null);
         resetHistory();
         resetLinkedRisk();
         setIsDeleteDialogOpen(false);
@@ -279,9 +284,10 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
             const parsed = parseUpdateResult(result);
             setIsDeleteDialogOpen(false);
             if (parsed.kind === 'approval') {
-                setApprovalBanner({ message: parsed.message });
+                announceApprovalQueued({ approvalId: parsed.approvalId });
                 return;
             }
+            feedback.success({ title: tCommon('outcome.archived', { name: kri.metric_name }) });
             void navigate(returnTo);
         } catch (error) {
             if (detailOwnerRef.current !== ownerId) return;
@@ -292,7 +298,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
                 setIsDeleting(false);
             }
         }
-    }, [kri, navigate, returnTo]);
+    }, [announceApprovalQueued, feedback, kri, navigate, returnTo, tCommon]);
 
     const restoreState = useKriRestore({ kri, resourceId: kriId, setResource, refresh: refetchOutcome });
 
@@ -314,7 +320,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
             }
             const parsed = parseUpdateResult(result);
             if (parsed.kind === 'approval') {
-                setApprovalBanner({ message: parsed.message });
+                announceApprovalQueued({ approvalId: parsed.approvalId });
                 return parsed;
             }
 
@@ -331,7 +337,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
             }
             throw new Error(tErrors('save_kri_failed'), { cause: error });
         }
-    }, [fetchKRI, kri, tErrors]);
+    }, [announceApprovalQueued, fetchKRI, kri, tErrors]);
 
     const handleRecordSuccess = useCallback(() => {
         if (kri && detailOwnerRef.current === kri.id) {
@@ -351,7 +357,6 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
 
     return {
         activeTab,
-        approvalBanner,
         canRecordValue,
         canRequestHistoryCorrection,
         deleteErrorKey,
@@ -384,7 +389,6 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
         retryLinkedRisk: () => kri && fetchLinkedRisk(kri.id, kri.risk_id),
         selectedHistoryEntry,
         setActiveTab,
-        setApprovalBanner,
         setDeleteErrorKey,
         setIsDeleteDialogOpen,
         setIsEditModalOpen,

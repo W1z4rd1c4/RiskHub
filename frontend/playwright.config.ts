@@ -35,7 +35,10 @@ const CI_ONLY_SPECS = [
     '**/dora-ux-stateful-a11y.spec.ts',
     '**/dialog-render-sites.spec.ts',
     '**/theme-contrast-matrix.spec.ts',
+    '**/theme-rendered-contrast.spec.ts',
     '**/workflow-contrast.spec.ts',
+    '**/tailwind-compatibility.spec.ts',
+    '**/rendered-contrast-kernel.spec.ts',
 ];
 
 export default defineConfig({

@@ -14,12 +14,26 @@ vi.mock('@/services/apiClient', () => ({
     },
 }));
 
+const feedback = vi.hoisted(() => ({
+    error: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFeedback', () => ({
+    useFeedback: () => feedback,
+}));
+
 type TestItem = {
     id: number;
     name: string;
 };
 
-function renderResourceHarness(deleteResource: (id: number) => Promise<void>) {
+function renderResourceHarness(
+    deleteResource: (id: number) => Promise<void>,
+    restoreResource: (id: number) => Promise<void> = async () => undefined,
+) {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -34,7 +48,9 @@ function renderResourceHarness(deleteResource: (id: number) => Promise<void>) {
             create: async (item) => item,
             update: async (_id, item) => item,
             delete: deleteResource,
+            restore: (id) => restoreResource(Number(id)),
             itemId: (item) => item.id,
+            itemName: (item) => item.name,
         });
         const item = resource.items[0];
 
@@ -50,6 +66,14 @@ function renderResourceHarness(deleteResource: (id: number) => Promise<void>) {
                 <button type="button" onClick={() => void resource.handleDelete()}>
                     Confirm delete
                 </button>
+                <button type="button" onClick={() => void resource.handleSave({ id: 8, name: 'Saved item' })}>
+                    Save
+                </button>
+                {item ? (
+                    <button type="button" onClick={() => resource.handleRestore(item)}>
+                        Restore
+                    </button>
+                ) : null}
             </div>
         );
     }
@@ -78,6 +102,7 @@ describe('useRiskHubConfigResource', () => {
     });
 
     it('keeps delete confirmation open and sets the UI error key when delete fails', async () => {
+        feedback.success.mockClear();
         const deleteResource = vi.fn().mockRejectedValue(new Error('delete failed'));
         renderResourceHarness(deleteResource);
 
@@ -90,5 +115,57 @@ describe('useRiskHubConfigResource', () => {
         });
         expect(screen.getByTestId('confirm-name')).toHaveTextContent('Retained item');
         expect(deleteResource).toHaveBeenCalledWith(7);
+        expect(feedback.success).not.toHaveBeenCalled();
+    });
+
+    it('closes the confirmation and toasts a successful archive with the record name (D9)', async () => {
+        feedback.success.mockClear();
+        const deleteResource = vi.fn().mockResolvedValue(undefined);
+        renderResourceHarness(deleteResource);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Request delete' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }));
+
+        await waitFor(() => expect(feedback.success).toHaveBeenCalledWith({ title: 'Archived: Retained item' }));
+        expect(screen.getByTestId('confirm-name')).toHaveTextContent('');
+        expect(screen.getByTestId('action-error')).toHaveTextContent('');
+    });
+
+    it('toasts a successful save (D9)', async () => {
+        feedback.success.mockClear();
+        renderResourceHarness(vi.fn());
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(feedback.success).toHaveBeenCalledWith({ title: 'Changes saved successfully.' }));
+    });
+
+    it('reports a failed row restore as an error toast without an unhandled rejection', async () => {
+        feedback.error.mockClear();
+        feedback.success.mockClear();
+        const restoreResource = vi.fn().mockRejectedValue(new Error('restore failed'));
+        renderResourceHarness(vi.fn(), restoreResource);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+
+        await waitFor(() => {
+            expect(feedback.error).toHaveBeenCalledWith(expect.objectContaining({ messageKey: 'errors.failed' }));
+        });
+        expect(restoreResource).toHaveBeenCalledWith(7);
+        expect(feedback.success).not.toHaveBeenCalled();
+        expect(screen.getByTestId('action-error')).toHaveTextContent('');
+    });
+
+    it('confirms a successful row restore with a success toast', async () => {
+        feedback.error.mockClear();
+        feedback.success.mockClear();
+        const restoreResource = vi.fn().mockResolvedValue(undefined);
+        renderResourceHarness(vi.fn(), restoreResource);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+
+        await waitFor(() => expect(feedback.success).toHaveBeenCalledTimes(1));
+        expect(restoreResource).toHaveBeenCalledWith(7);
+        expect(feedback.error).not.toHaveBeenCalled();
     });
 });

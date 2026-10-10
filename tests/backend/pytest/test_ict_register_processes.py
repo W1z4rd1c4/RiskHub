@@ -3768,10 +3768,11 @@ async def test_reject_expires_corrupt_envelope_before_self_or_live_policy_checks
             json={"resolution_notes": "Corrupt envelope cannot be rejected"},
         )
 
-    malformed = corruption == "proposal_uuid"
-    assert rejected.status_code == (400 if malformed else 200), rejected.text
-    if not malformed:
-        assert rejected.json()["status"] == "expired"
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["status"] == "expired"
+    if corruption == "proposal_uuid":
+        assert rejected.json()["governed_mutation"] is None
+        assert rejected.json()["pending_changes"] is None
     db_session.expire_all()
     expired = await db_session.get(ApprovalRequest, approval_id)
     active_lock = (
@@ -3806,16 +3807,13 @@ async def test_reject_expires_corrupt_envelope_before_self_or_live_policy_checks
         .scalars()
         .all()
     )
-    expected_status = ApprovalStatus.PENDING if malformed else ApprovalStatus.EXPIRED
-    assert expired is not None and expired.status == expected_status
-    if malformed:
-        assert active_lock is not None
-        assert expiry_events == []
-        assert expiry_audits == []
-    else:
-        assert active_lock is None
-        assert len(expiry_events) == 1
-        assert len(expiry_audits) == 1
+    assert expired is not None and expired.status == ApprovalStatus.EXPIRED
+    assert active_lock is None
+    assert len(expiry_events) == 1
+    assert len(expiry_audits) == 1
+    process = await db_session.get(Process, process_id)
+    assert process is not None and process.l1_process != "Must never reject as valid"
+    assert process.governance_version == 1
 
 
 @pytest.mark.asyncio

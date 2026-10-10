@@ -31,8 +31,8 @@ const JOURNEYS = [
             riskLevelChip: 'Risk Level: Critical',
             riskCount: '3 Risks',
             riskScores: 'Gross and net Risk scores',
-            stockCompare: '2026-Q2 · Stored 2026-07-01T00:00:00+00:00',
-            stockCurrent: '2026-Q3 · Live 2026-08-15T12:00:00+00:00',
+            stockCompare: '2026-Q2 · Stored Jul 1, 2026, 02:00 AM',
+            stockCurrent: '2026-Q3 · Live Aug 15, 2026, 02:00 PM',
             stockEvidence: 'Stock observations',
             totalControls: 'Total Controls',
             updated: 'Updated',
@@ -61,11 +61,11 @@ const JOURNEYS = [
             noVendors: 'Žádní dodavatelé v rozsahu',
             questionnaires: 'Hodnoticí dotazníky',
             restricted: 'Omezeno rozsahem přístupu',
-            riskLevelChip: 'Úroveň rizika: Kritická',
+            riskLevelChip: 'Úroveň rizika: Kritické',
             riskCount: '3 rizika',
             riskScores: 'Hrubé a čisté skóre rizika',
-            stockCompare: '2026-Q2 · Uložená data 2026-07-01T00:00:00+00:00',
-            stockCurrent: '2026-Q3 · Živá data 2026-08-15T12:00:00+00:00',
+            stockCompare: '2026-Q2 · Uložená data 1. 7. 2026 02:00',
+            stockCurrent: '2026-Q3 · Živá data 15. 8. 2026 14:00',
             stockEvidence: 'Stavová pozorování',
             totalControls: 'Celkem kontrol',
             updated: 'Aktualizováno',
@@ -608,21 +608,25 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 }
                 await expect(page.getByTestId('dashboard-filter-scope-note')).toContainText(/access scope|rozsahu přístupu/);
 
-                const averageCard = page.getByRole('button').filter({ hasText: journey.labels.average });
+                const statCards = page.getByTestId('dashboard-stat-grid').getByRole('link');
+                const averageCard = statCards.filter({ hasText: journey.labels.average });
                 await expect(averageCard).toContainText('17');
+                await expect(averageCard).toHaveAttribute('href', '/risks');
                 await expect(averageCard).toHaveAccessibleName(new RegExp(journey.labels.critical));
-                for (const [label, value] of [
-                    [journey.labels.totalControls, '8'],
-                    [journey.labels.criticalRisks, '1'],
-                    [journey.labels.vendors, '2'],
+                for (const [label, value, href] of [
+                    [journey.labels.totalControls, '8', '/controls'],
+                    [journey.labels.criticalRisks, '1', '/risks?critical=true'],
+                    [journey.labels.vendors, '2', '/vendors'],
                 ] as const) {
-                    await expect(page.getByRole('button').filter({ hasText: label })).toContainText(value);
+                    const card = statCards.filter({ hasText: label });
+                    await expect(card).toContainText(value);
+                    await expect(card).toHaveAttribute('href', href);
                 }
 
                 const [summaryRequest, download] = await Promise.all([
                     page.waitForRequest((request) => new URL(request.url()).pathname === '/api/v1/reports/summary/export'),
                     page.waitForEvent('download'),
-                    page.getByTitle(journey.labels.exportSummary).click(),
+                    page.getByRole('button', { name: journey.labels.exportSummary, exact: true }).click(),
                 ]);
                 const summaryUrl = new URL(summaryRequest.url());
                 expect(summaryRequest.method()).toBe('GET');
@@ -650,8 +654,8 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                     'High-risk Vendors': '0',
                 });
 
-                await page.getByRole('button', { name: journey.labels.committee, exact: true }).click();
-                await expect(page.getByRole('status')).toHaveCount(0);
+                await page.getByRole('tab', { name: journey.labels.committee, exact: true }).click();
+                await expect(page.locator('main header').getByRole('status')).toHaveCount(0);
                 await expect(page.getByText(journey.labels.noCriticalRisks, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.restricted, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.noVendors, { exact: true })).toHaveCount(0);
@@ -659,10 +663,23 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 await expect(page.getByText(journey.labels.riskCount, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.newFromZero, { exact: true })).toBeVisible();
                 await expect(page.getByText('N/A', { exact: true })).toBeVisible();
-                await expect(page.getByText('2026-07-01T00:00:00+00:00 – 2026-08-15T12:00:00+00:00')).toBeVisible();
+                const flowEvidence = page.getByLabel(journey.locale === 'en'
+                    ? 'Quarterly comparison observation evidence' : 'Podklady čtvrtletního porovnání', { exact: true });
+                for (const [timestamp, english, czech] of [
+                    ['2026-07-01T00:00:00+00:00', 'Jul 1, 2026', '1. 7. 2026'],
+                    ['2026-08-15T12:00:00+00:00', 'Aug 15, 2026', '15. 8. 2026'],
+                    ['2026-04-01T00:00:00+00:00', 'Apr 1, 2026', '1. 4. 2026'],
+                    ['2026-05-16T12:00:00+00:00', 'May 16, 2026', '16. 5. 2026'],
+                ]) {
+                    const time = flowEvidence.locator(`time[datetime="${timestamp}"]`);
+                    await expect(time).toBeVisible();
+                    await expect(time).toHaveText(journey.locale === 'en' ? english : czech);
+                }
                 const stockEvidence = page.getByLabel(journey.labels.stockEvidence, { exact: true });
                 await expect(stockEvidence.getByText(journey.labels.stockCurrent, { exact: true })).toBeVisible();
                 await expect(stockEvidence.getByText(journey.labels.stockCompare, { exact: true })).toBeVisible();
+                await expect(stockEvidence.locator('time[datetime="2026-08-15T12:00:00+00:00"]')).toBeVisible();
+                await expect(stockEvidence.locator('time[datetime="2026-07-01T00:00:00+00:00"]')).toBeVisible();
                 await expect(page.getByRole('progressbar', { name: /Operations: 44/ })).toHaveAttribute('aria-valuenow', '44');
 
                 await assertDesktopSurface(
@@ -670,7 +687,7 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                     `Issue 165 ${journey.locale} ${journey.viewport.width}x${journey.viewport.height}`,
                 );
 
-                await page.getByRole('button', { name: journey.labels.ictCommittee, exact: true }).click();
+                await page.getByRole('tab', { name: journey.labels.ictCommittee, exact: true }).click();
                 await expect(page).toHaveURL(/view=ict-committee/);
                 const ictRisk = page.getByTestId('committee-top-risk-1');
                 for (const controlledLabel of journey.labels.ictControlled.slice(0, 3)) {
@@ -679,7 +696,7 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 await expect(page.getByTestId('committee-top-vendor-1')).toContainText(journey.labels.ictControlled[3]);
                 await expect(page.getByTestId('committee-risk-bar-gross-Kritické')).toHaveAttribute(
                     'href',
-                    '/risks?committee_scope=true&ict_linked=true&gross_band=Kritick%C3%A9',
+                    '/risks?committee_scope=true&ict_linked=true&gross_band=critical',
                 );
                 await assertDesktopSurface(
                     page,

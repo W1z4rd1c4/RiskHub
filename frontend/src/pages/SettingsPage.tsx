@@ -1,15 +1,17 @@
 import { Link } from 'react-router-dom';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { User, Palette, Globe, BookOpen, Bell } from 'lucide-react';
+import { User, Palette, Globe, BookOpen, Bell, Settings } from 'lucide-react';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
 import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings, NotificationSettings } from '@/components/settings';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
-import { useContentTabs } from '@/hooks/useContentTabs';
+import { TabList, TabPanel } from '@/components/ui/tabs';
 
 const settingsTabs = ['profile', 'appearance', 'localization', 'notifications', 'documentation'] as const;
 type TabId = (typeof settingsTabs)[number];
+const TABS_ID_PREFIX = 'settings';
 
 export function SettingsPage() {
     const { t } = useTranslation(['settings', 'auth']);
@@ -17,12 +19,6 @@ export function SettingsPage() {
     const [activeTab, setActiveTab] = useContentTabQuery<TabId>({
         tabs: settingsTabs,
         defaultTab: 'profile',
-    });
-    const { getPanelProps, getTabProps } = useContentTabs({
-        tabs: settingsTabs,
-        activeTab,
-        onChange: setActiveTab,
-        idPrefix: 'settings',
     });
 
     const tabs = [
@@ -34,60 +30,32 @@ export function SettingsPage() {
     ];
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <header className="glass-card p-6">
-                <div className="flex items-center gap-4">
-                    <div className="bg-gradient-to-br from-accent to-purple-600 p-3 rounded-xl shadow-lg shadow-accent/20">
-                        <User className="h-8 w-8 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">{t('title')}</h1>
-                        <p className="text-muted-foreground">
-                            {t('page_subtitle')}
-                        </p>
-                    </div>
-                </div>
-            </header>
+        <PageContainer>
+            <PageHeader icon={Settings} title={t('title')} description={t('page_subtitle')} />
 
             {resolveCapabilityFlag(user?.me_capabilities?.identity, 'can_manage_own_credentials') && (
                 <Link className="inline-flex rounded-lg border px-4 py-2 text-foreground underline" to="/auth/local/security">{t('auth:native.security_title')}</Link>
             )}
 
-            {/* Tab Navigation */}
-            <div className="glass-card p-2 flex gap-2 overflow-x-auto" role="tablist" aria-label={t('title')}>
-                {tabs.map((tab, index) => {
-                    const isActive = activeTab === tab.id;
-                    return (
-                        <button
-                            key={tab.id}
-                            {...getTabProps(tab.id, index)}
-                            data-testid={`settings-tab-${tab.id}`}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
-                                isActive
-                                    ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                            )}
-                        >
-                            <tab.icon className="h-4 w-4" />
-                            <span className="font-medium">{tab.label}</span>
-                        </button>
-                    );
-                })}
-            </div>
+            <TabList
+                tabs={tabs.map((tab) => ({ ...tab, testId: `settings-tab-${tab.id}` }))}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                idPrefix={TABS_ID_PREFIX}
+                variant="pill"
+                ariaLabel={t('title')}
+            />
 
-            {/* Tab Content */}
             {settingsTabs.map((tab) => (
-                <div key={tab} className="glass-card p-6" {...getPanelProps(tab)}>
+                <TabPanel key={tab} tab={tab} activeTab={activeTab} idPrefix={TABS_ID_PREFIX} className="glass-card p-6">
                     {activeTab === tab && tab === 'profile' && user ? <ProfileSettings user={user} nativeAccount={resolveCapabilityFlag(user.me_capabilities?.identity, 'can_manage_own_credentials')} /> : null}
                     {activeTab === tab && tab === 'appearance' ? <AppearanceSettings /> : null}
                     {activeTab === tab && tab === 'localization' ? <LocalizationSettings /> : null}
                     {activeTab === tab && tab === 'notifications' ? <NotificationSettings /> : null}
                     {activeTab === tab && tab === 'documentation' ? <DocumentationSettings /> : null}
-                </div>
+                </TabPanel>
             ))}
-        </div>
+        </PageContainer>
     );
 }
 

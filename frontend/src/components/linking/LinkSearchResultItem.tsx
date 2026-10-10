@@ -1,5 +1,7 @@
 import { Plus } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 
 import { buildLinkSearchResultPresentation } from './linkManagementPresentation';
@@ -22,59 +24,62 @@ export function LinkSearchResultItem({
     const presentation = buildLinkSearchResultPresentation(mode, result, t);
 
     return (
-        <div className="w-full flex items-stretch group">
-            <button
-                type="button"
+        <div className="flex w-full items-stretch">
+            <Button
+                variant="ghost"
                 onClick={() => onSelect(result.id)}
-                className="min-w-0 flex-1 flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left"
+                className="group h-auto min-w-0 flex-1 justify-between gap-0 whitespace-normal rounded-none px-4 py-3 text-left font-normal"
             >
-                <span className="flex flex-col flex-1 min-w-0 pr-4">
-                <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance flex items-center gap-2">
-                    <span>{presentation.title}</span>
-                    {presentation.isArchived && (
-                        <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-slate-300 text-xs uppercase tracking-widest">
-                            {t('labels.archived')}
-                        </span>
-                    )}
-                </span>
-                <span className="text-xs text-slate-400 mt-0.5">
-                    <span className="flex items-center gap-1">
-                        {presentation.primaryMeta}
-                        {presentation.secondaryMeta && (
-                            <>
-                                <span className="text-slate-400 mx-1">/</span>
-                                <span className="text-slate-400 font-medium italic">{presentation.secondaryMeta}</span>
-                            </>
+                <span className="flex min-w-0 flex-1 flex-col pr-4">
+                    <span className="flex items-center gap-2 truncate text-balance text-xs font-bold text-foreground transition-colors group-hover:text-accent-text">
+                        <span>{presentation.title}</span>
+                        {presentation.isArchived && (
+                            <Badge size="sm" tone="neutral">{t('labels.archived')}</Badge>
                         )}
                     </span>
+                    <span className="mt-0.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                            {presentation.primaryMeta}
+                            {presentation.secondaryMeta && (
+                                <>
+                                    <span className="mx-1 text-muted-foreground">/</span>
+                                    <span className="font-medium italic text-muted-foreground">{presentation.secondaryMeta}</span>
+                                </>
+                            )}
+                        </span>
+                    </span>
                 </span>
+                <span className="flex shrink-0 items-center gap-3">
+                    {mode === 'risk-to-control' && (
+                        <>
+                            <span className="flex flex-col items-end">
+                                <span className="text-eyebrow">{t('linking.risk_level_short')}</span>
+                                <span className="text-xs font-bold text-foreground">{result.risk_level}/5</span>
+                            </span>
+                            <span className="flex min-w-[60px] flex-col items-end">
+                                <span className="text-eyebrow text-right">{t('linking.frequency_short')}</span>
+                                <span className="text-xs font-bold text-foreground">
+                                    {result.frequency
+                                        ? t(`controls:frequencies.${result.frequency}`, { defaultValue: result.frequency })
+                                        : '—'}
+                                </span>
+                            </span>
+                        </>
+                    )}
+                    <span className="rounded-lg bg-tint/5 p-1.5 transition-colors group-hover:bg-accent/20">
+                        <Plus aria-hidden="true" className="text-muted-foreground group-hover:text-accent-text" />
+                    </span>
                 </span>
-                <span className="flex items-center gap-3 shrink-0">
-                {mode === 'risk-to-control' && (
-                    <>
-                        <div className="flex flex-col items-end">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('linking.risk_level_short')}</span>
-                            <span className="text-xs font-bold text-white">{result.risk_level}/5</span>
-                        </div>
-                        <div className="flex flex-col items-end min-w-[60px]">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest text-right">{t('linking.frequency_short')}</span>
-                            <span className="text-xs font-bold text-white capitalize">{result.frequency}</span>
-                        </div>
-                    </>
-                )}
-                <span className="p-1.5 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
-                    <Plus className="h-3 w-3 text-slate-500 group-hover:text-accent" />
-                </span>
-                </span>
-            </button>
+            </Button>
             {presentation.canUnarchive && (
-                <button
-                    type="button"
+                <Button
+                    variant="outline"
+                    size="compact"
                     onClick={() => { void onUnarchive(result.id); }}
-                    className="m-3 ml-0 self-center px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-black uppercase tracking-widest"
+                    className="m-3 ml-0 self-center"
                 >
                     {presentation.unarchiveLabel}
-                </button>
+                </Button>
             )}
         </div>
     );

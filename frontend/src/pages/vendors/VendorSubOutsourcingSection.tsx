@@ -1,15 +1,21 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Network, Plus, Save, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SortableTable } from '@/components/tables';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { closedListOptions } from '@/lib/closedListLabels';
 import { ictRegisterKeys } from '@/lib/queryKeys';
-import { navigateToApprovalRequest } from '@/pages/approvals/approvalNavigation';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useFeedback } from '@/hooks/useFeedback';
 import { assetApi } from '@/services/assetApi';
 import { logError } from '@/services/logger';
 import { vendorContractApi } from '@/services/vendorContractApi';
@@ -25,6 +31,7 @@ import {
     groupSubOutsourcingChainRows,
     resolveSubOutsourcingContractLabel,
 } from './vendorSubOutsourcingPresentation';
+import { ErrorState } from '@/components/ui/state';
 
 interface VendorSubOutsourcingSectionProps {
     vendorId: number;
@@ -83,7 +90,13 @@ export function VendorSubOutsourcingSection({
     protectedChangeRequiresApproval,
 }: VendorSubOutsourcingSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
-    const navigate = useNavigate();
+    // D12 / PM-2: approval-routed changes keep the user on this page with
+    // the pending notice plus a success toast.
+    const announceApprovalQueued = useApprovalQueued();
+    // D9: direct (non-approval) outcomes are confirmed with a success toast.
+    const feedback = useFeedback();
+    const entryName = (entry: VendorSubOutsourcing) =>
+        entry.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing');
     const queryClient = useQueryClient();
 
     const [formOpen, setFormOpen] = useState(false);
@@ -91,6 +104,7 @@ export function VendorSubOutsourcingSection({
     const [fields, setFields] = useState<SubOutsourcingFormFields>(() => initialSubOutsourcingFields());
     const [requestReason, setRequestReason] = useState('');
     const [requestReasonError, setRequestReasonError] = useState<string | null>(null);
+    const requestReasonRef = useRef<HTMLTextAreaElement>(null);
     const [pendingArchive, setPendingArchive] = useState<VendorSubOutsourcing | null>(null);
     const [sectionError, setSectionError] = useState<string | null>(null);
 
@@ -128,8 +142,8 @@ export function VendorSubOutsourcingSection({
 
     const listOptions = useMemo(() => {
         const lists = closedListsQuery.data ?? {};
-        const toOptions = (name: string) =>
-            (lists[name] ?? []).map((value) => ({ value: String(value), label: String(value) }));
+        // GAP-C-09 / PM-4: translated labels, the raw workbook codes stay the values.
+        const toOptions = (name: string) => closedListOptions(t, lists, name);
         const identifierTypes = toOptions('TypKodu');
         if (
             fields.identifier_type &&
@@ -222,12 +236,17 @@ export function VendorSubOutsourcingSection({
                 ? vendorSubOutsourcingApi.updateEntry(vendorId, editingEntry.id, buildPayload(), requestReason)
                 : vendorSubOutsourcingApi.createEntry(vendorId, buildPayload(), requestReason),
         onSuccess: async (result) => {
+            const wasEdit = editingEntry !== null;
             setSectionError(null);
             closeForm();
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
+            feedback.success({
+                title: t(wasEdit ? 'common:success.updated' : 'common:success.created'),
+                description: result.sub_provider_name ?? undefined,
+            });
             await refreshEntries();
         },
         onError: handleMutationError,
@@ -236,13 +255,14 @@ export function VendorSubOutsourcingSection({
     const archiveEntry = useMutation({
         mutationFn: ({ entry, reason }: { entry: VendorSubOutsourcing; reason: string }) =>
             vendorSubOutsourcingApi.archiveEntry(vendorId, entry.id, reason),
-        onSuccess: async (result) => {
+        onSuccess: async (result, { entry }) => {
             setSectionError(null);
             setPendingArchive(null);
             if (isProcessApprovalQueuedResponse(result)) {
-                navigateToApprovalRequest(navigate, result.approval_id);
+                announceApprovalQueued({ approvalId: result.approval_id });
                 return;
             }
+            feedback.success({ title: t('common:outcome.archived', { name: entryName(entry) }) });
             await refreshEntries();
         },
         onError: handleMutationError,
@@ -250,8 +270,9 @@ export function VendorSubOutsourcingSection({
 
     const restoreEntry = useMutation({
         mutationFn: (entry: VendorSubOutsourcing) => vendorSubOutsourcingApi.restoreEntry(vendorId, entry.id),
-        onSuccess: async () => {
+        onSuccess: async (_result, entry) => {
             setSectionError(null);
+            feedback.success({ title: t('common:outcome.restored', { name: entryName(entry) }) });
             await refreshEntries();
         },
         onError: handleMutationError,
@@ -276,13 +297,11 @@ export function VendorSubOutsourcingSection({
         t: (key, options) => t(key, options),
         getContractLabel,
         onEdit: openEditForm,
+        // GAP-C-06 / D10: every archive is confirmed; the reason is required
+        // only when the change is routed through approval (PM-1).
         onArchive: (entry) => {
-            if (protectedChangeRequiresApproval) {
-                setSectionError(null);
-                setPendingArchive(entry);
-                return;
-            }
-            archiveEntry.mutate({ entry, reason: '' });
+            setSectionError(null);
+            setPendingArchive(entry);
         },
         onRestore: (entry) => restoreEntry.mutate(entry),
     });
@@ -298,95 +317,86 @@ export function VendorSubOutsourcingSection({
     const setField = (field: keyof SubOutsourcingFormFields) => (value: string) =>
         setFields((previous) => ({ ...previous, [field]: value }));
 
+    // AX-04: every control is named by its visible label through `Field`.
     const textInput = (
         field: keyof SubOutsourcingFormFields,
         label: string,
         props: Record<string, unknown> = {},
     ) => (
-        <div className="vendor-field">
-            <span id={`vendor-sub-outsourcing-label-${field}`} className="vendor-label">{label}</span>
-            <input
-                type="text"
-                aria-labelledby={`vendor-sub-outsourcing-label-${field}`}
-                data-testid={`vendor-sub-outsourcing-field-${field}`}
-                value={fields[field]}
-                onChange={(event) => setField(field)(event.target.value)}
-                className="w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none"
-                {...props}
-            />
-        </div>
+        <Field label={label}>
+            {(control) => (
+                <Input
+                    {...control}
+                    type="text"
+                    data-testid={`vendor-sub-outsourcing-field-${field}`}
+                    value={fields[field]}
+                    onChange={(event) => setField(field)(event.target.value)}
+                    {...props}
+                />
+            )}
+        </Field>
     );
 
     const selectInput = (
         field: keyof SubOutsourcingFormFields,
         label: string,
         options: Array<{ value: string; label: string }>,
+        required = false,
     ) => (
-        <div className="vendor-field">
-            <span id={`vendor-sub-outsourcing-label-${field}`} className="vendor-label">{label}</span>
-            <ThemedSelect
-                aria-labelledby={`vendor-sub-outsourcing-label-${field}`}
-                value={fields[field]}
-                onValueChange={setField(field)}
-                options={options}
-                allowEmpty
-                emptyLabel={t('sub_outsourcing.form.not_set')}
-                placeholder={t('sub_outsourcing.form.not_set')}
-                triggerTestId={`vendor-sub-outsourcing-field-${field}`}
-            />
-        </div>
+        <Field label={label} required={required}>
+            {(control) => (
+                <ThemedSelect
+                    {...control}
+                    value={fields[field]}
+                    onValueChange={setField(field)}
+                    options={options}
+                    allowEmpty
+                    emptyLabel={t('sub_outsourcing.form.not_set')}
+                    placeholder={t('sub_outsourcing.form.not_set')}
+                    triggerTestId={`vendor-sub-outsourcing-field-${field}`}
+                />
+            )}
+        </Field>
     );
 
     return (
-        <div className="glass-card space-y-5">
-            <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                    <Network className="h-5 w-5 text-accent-text" />
-                    <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                        {t('sub_outsourcing.title')}
-                    </h2>
-                </div>
-                {canManageSubOutsourcing && !formOpen ? (
-                    <button
-                        type="button"
-                        data-testid="vendor-sub-outsourcing-add"
-                        onClick={openCreateForm}
-                        className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all flex items-center gap-2"
-                    >
-                        <Plus className="h-4 w-4" />
+        <Card as="section" className="space-y-5">
+            <CardHeader
+                icon={Network}
+                title={t('sub_outsourcing.title')}
+                className="mb-0"
+                actions={canManageSubOutsourcing && !formOpen ? (
+                    <Button variant="accent" data-testid="vendor-sub-outsourcing-add" onClick={openCreateForm}>
+                        <Plus aria-hidden="true" />
                         {t('sub_outsourcing.actions.add')}
-                    </button>
+                    </Button>
                 ) : null}
-            </div>
+            />
 
             {/* After-close visibility only: while the archive dialog is open the
                 error is announced inside it (#101 P2 — the shell traps focus). */}
             {sectionError && pendingArchive === null ? (
-                <div
-                    role="alert"
-                    className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-                >
-                    {sectionError}
-                </div>
+                <InlineMessage tone="danger">{sectionError}</InlineMessage>
             ) : null}
 
             {formOpen ? (
                 <form
                     noValidate
                     data-testid="vendor-sub-outsourcing-form"
-                    className="space-y-4 rounded-2xl border border-border bg-nested p-5"
+                    className="space-y-4 rounded-xl border border-border bg-nested p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
                             setRequestReasonError(t('errors.request_reason_required'));
+                            requestReasonRef.current?.focus();
                             return;
                         }
                         setRequestReasonError(null);
                         saveEntry.mutate();
                     }}
                 >
-                    <div className="vendor-form-grid">
-                        {selectInput('contract_id', t('sub_outsourcing.form.contract'), listOptions.contracts)}
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {selectInput('contract_id', t('sub_outsourcing.form.contract'), listOptions.contracts, true)}
                         {selectInput(
                             'predecessor_id',
                             t('sub_outsourcing.form.predecessor'),
@@ -411,29 +421,28 @@ export function VendorSubOutsourcingSection({
                             listOptions.ictServices,
                         )}
                     </div>
-                    <div className="vendor-field">
-                        <span id="vendor-sub-outsourcing-note-label" className="vendor-label">{t('sub_outsourcing.form.note')}</span>
-                        <textarea
-                            aria-labelledby="vendor-sub-outsourcing-note-label"
-                            data-testid="vendor-sub-outsourcing-field-note"
-                            value={fields.note}
-                            onChange={(event) => setField('note')(event.target.value)}
-                            rows={2}
-                            className="w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none"
-                        />
-                    </div>
+                    <Field label={t('sub_outsourcing.form.note')}>
+                        {(control) => (
+                            <Textarea
+                                {...control}
+                                data-testid="vendor-sub-outsourcing-field-note"
+                                value={fields.note}
+                                onChange={(event) => setField('note')(event.target.value)}
+                                rows={2}
+                            />
+                        )}
+                    </Field>
                     {protectedChangeRequiresApproval ? (
                         <Field
                             label={t('form.request_reason')}
                             required
                             help={t('form.request_reason_help')}
                             error={requestReasonError}
-                            labelClassName="vendor-label"
-                            className="vendor-field space-y-0"
                         >
                             {(control) => (
-                                <textarea
+                                <Textarea
                                     {...control}
+                                    ref={requestReasonRef}
                                     data-testid="vendor-sub-outsourcing-request-reason"
                                     value={requestReason}
                                     onChange={(event) => {
@@ -442,43 +451,46 @@ export function VendorSubOutsourcingSection({
                                     }}
                                     rows={2}
                                     required
-                                    className="w-full glass rounded-xl px-3 py-2 text-sm text-foreground bg-transparent border border-border focus:border-accent/50 outline-none"
                                 />
                             )}
                         </Field>
                     ) : null}
                     <div className="flex items-center justify-end gap-3">
-                        <button
-                            type="button"
-                            data-testid="vendor-sub-outsourcing-form-cancel"
-                            onClick={closeForm}
-                            className="px-4 py-2 glass rounded-xl text-sm font-semibold text-foreground hover:text-foreground hover:bg-glass-hover transition-colors flex items-center gap-2"
-                        >
-                            <X className="h-4 w-4" />
+                        <Button variant="outline" data-testid="vendor-sub-outsourcing-form-cancel" onClick={closeForm}>
+                            <X aria-hidden="true" />
                             {t('actions.cancel')}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
+                            variant="accent"
                             data-testid="vendor-sub-outsourcing-form-save"
                             disabled={saveEntry.isPending || fields.contract_id === ''}
-                            className="px-4 py-2 rounded-xl bg-accent text-accent-foreground text-sm font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
                         >
-                            <Save className="h-4 w-4" />
+                            <Save aria-hidden="true" />
                             {editingEntry ? t('actions.save') : t('sub_outsourcing.actions.create')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             ) : null}
 
             {/* Loading / error / empty keep #61's SortableTable contract verbatim;
                 only the populated state switches to the grouped, collapsible render. */}
-            {entriesQuery.isLoading || entriesQuery.isError || chainGroups.length === 0 ? (
+            {entriesQuery.isError && entriesQuery.data ? (
+                // GAP-C-11: a refetch error keeps the grouped data and adds a stale banner.
+                <ErrorState
+                    variant="banner"
+                    onRetry={() => void entriesQuery.refetch()}
+                    isRetrying={entriesQuery.isFetching}
+                    className="mb-3"
+                />
+            ) : null}
+            {entriesQuery.isLoading || (entriesQuery.isError && !entriesQuery.data) || chainGroups.length === 0 ? (
                 <SortableTable
                     data={chainRows}
                     columns={columns}
                     keyExtractor={(row) => row.entry.id}
                     isLoading={entriesQuery.isLoading}
-                    isError={entriesQuery.isError}
+                    isError={entriesQuery.isError && !entriesQuery.data}
                     onRetry={() => void entriesQuery.refetch()}
                     emptyMessage={t('sub_outsourcing.empty')}
                 />
@@ -490,23 +502,22 @@ export function VendorSubOutsourcingSection({
                 isOpen={pendingArchive !== null}
                 onClose={() => setPendingArchive(null)}
                 onConfirm={(reason) => {
-                    if (pendingArchive && reason?.trim()) {
-                        archiveEntry.mutate({ entry: pendingArchive, reason: reason.trim() });
+                    if (pendingArchive) {
+                        archiveEntry.mutate({ entry: pendingArchive, reason: reason?.trim() ?? '' });
                     }
                 }}
+                intent="archive"
                 title={t('sub_outsourcing.actions.archive')}
                 message={t('sub_outsourcing.archive_confirm', {
                     name: pendingArchive?.sub_provider_name || t('common:fallbacks.unknown_sub_outsourcing'),
                 })}
                 confirmLabel={t('sub_outsourcing.actions.archive')}
-                variant="danger"
                 isLoading={archiveEntry.isPending}
                 errorText={sectionError}
-                showInput
-                inputRequired
-                inputLabel={t('form.request_reason')}
-                inputPlaceholder={t('form.request_reason_help')}
+                reason={protectedChangeRequiresApproval ? 'required' : 'optional'}
+                reasonLabel={t('form.request_reason')}
+                reasonPlaceholder={t('form.request_reason_help')}
             />
-        </div>
+        </Card>
     );
 }

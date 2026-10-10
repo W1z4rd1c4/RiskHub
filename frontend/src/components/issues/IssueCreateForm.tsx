@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { PlusCircle, X } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { InlineMessage } from '@/components/ui/inline-message';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { getRoleLabel } from '@/lib/roleLabels';
 import { cn } from '@/lib/utils';
 import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
@@ -13,7 +19,8 @@ import type {
     IssueOwnerLookup,
     IssueSeverity,
 } from '@/types/issue';
-import { ISSUE_FIELD, ISSUE_LABEL, ISSUE_TEXTAREA } from './issueUi';
+
+type IssueCreateFieldErrors = Partial<Record<'title' | 'department_id', string>>;
 
 interface IssueCreateFormProps {
     onCreated: (issue: Issue) => void;
@@ -43,6 +50,10 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
     const [isOwnersLoading, setIsOwnersLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    // AX-04: validation errors sit on their field; `errorKey` is for load/server errors only.
+    const [fieldErrors, setFieldErrors] = useState<IssueCreateFieldErrors>({});
+    const titleId = useId();
+    const departmentFieldId = useId();
     const {
         acceptCurrentSnapshot,
         confirmationDialog,
@@ -124,14 +135,20 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
         };
     }, [departmentId, t]);
 
-    const handleCreateIssue = async () => {
-        if (!title.trim()) {
-            setErrorKey('errors.title_required');
-            return;
-        }
+    const handleCreateIssue = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (isCreating) return;
         const parsedDepartmentId = Number(departmentId);
-        if (!Number.isFinite(parsedDepartmentId) || parsedDepartmentId <= 0) {
-            setErrorKey('errors.department_required');
+        const nextFieldErrors: IssueCreateFieldErrors = {
+            ...(!title.trim() ? { title: t('errors.title_required') } : {}),
+            ...(!Number.isFinite(parsedDepartmentId) || parsedDepartmentId <= 0
+                ? { department_id: t('errors.department_required') }
+                : {}),
+        };
+        setFieldErrors(nextFieldErrors);
+        if (Object.keys(nextFieldErrors).length > 0) {
+            const firstInvalid = nextFieldErrors.title ? titleId : departmentFieldId;
+            document.getElementById(firstInvalid)?.focus();
             return;
         }
 
@@ -159,130 +176,129 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
     };
 
     return (
-        <section className={cn('space-y-6', className)}>
+        <form className={cn('space-y-6', className)} onSubmit={(event) => void handleCreateIssue(event)} noValidate>
             {errorKey && (
-                <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                    {errorKey.startsWith('errorKeys.')
-                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
-                        : t(errorKey)}
-                </div>
+                <InlineMessage tone="danger">
+                    {translateUiMessage(t, errorKey)}
+                </InlineMessage>
             )}
 
-            <div className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('form.fields.title')}</label>
-                    <input
-                        type="text"
-                        value={title}
-                        disabled={isCreating}
-                        onChange={(event) => setTitle(event.target.value)}
-                        placeholder={t('form.placeholders.title')}
-                        className={ISSUE_FIELD}
-                    />
-                </div>
+            <fieldset disabled={isCreating} className="grid min-w-0 gap-5 md:grid-cols-2">
+                <Field id={titleId} label={t('form.fields.title')} required error={fieldErrors.title} className="md:col-span-2">
+                    {(field) => (
+                        <Input
+                            {...field}
+                            type="text"
+                            value={title}
+                            onChange={(event) => {
+                                setTitle(event.target.value);
+                                setFieldErrors((current) => ({ ...current, title: undefined }));
+                            }}
+                            placeholder={t('form.placeholders.title')}
+                            data-testid="issue-create-title"
+                        />
+                    )}
+                </Field>
 
-                <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.severity')}</label>
-                    <ThemedSelect
-                        value={severity}
-                        disabled={isCreating}
-                        onValueChange={(value) => setSeverity(value as IssueSeverity)}
-                        options={severityOptions.map((option) => ({ label: option.label, value: option.value }))}
-                        className="w-full"
-                    />
-                </div>
+                <Field label={t('form.fields.severity')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={severity}
+                            onValueChange={(value) => setSeverity(value as IssueSeverity)}
+                            options={severityOptions.map((option) => ({ label: option.label, value: option.value }))}
+                            className="w-full"
+                        />
+                    )}
+                </Field>
 
-                <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.department')}</label>
-                    <ThemedSelect
-                        value={departmentId}
-                        disabled={isCreating}
-                        onValueChange={setDepartmentId}
-                        options={departmentOptions.map((department) => ({
-                            value: String(department.id),
-                            label: `${department.name} (${department.code})`,
-                        }))}
-                        allowEmpty
-                        emptyLabel={t('form.placeholders.department')}
-                        placeholder={t('form.placeholders.department')}
-                        className="w-full"
-                    />
-                </div>
+                <Field id={departmentFieldId} label={t('form.fields.department')} required error={fieldErrors.department_id}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={departmentId}
+                            onValueChange={(value) => {
+                                setDepartmentId(value);
+                                setFieldErrors((current) => ({ ...current, department_id: undefined }));
+                            }}
+                            options={departmentOptions.map((department) => ({
+                                value: String(department.id),
+                                label: `${department.name} (${department.code})`,
+                            }))}
+                            allowEmpty
+                            emptyLabel={t('form.placeholders.department')}
+                            placeholder={t('form.placeholders.department')}
+                            className="w-full"
+                        />
+                    )}
+                </Field>
 
-                <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.owner')}</label>
-                    <ThemedSelect
-                        value={ownerId}
-                        onValueChange={setOwnerId}
-                        options={ownerOptions.map((owner) => ({
-                            value: String(owner.id),
-                            label: `${owner.name}${owner.role_name ? ` - ${owner.role_name}` : ''}`,
-                        }))}
-                        allowEmpty
-                        emptyLabel={
-                            !departmentId
-                                ? t('form.placeholders.select_department_first')
-                                : isOwnersLoading
-                                    ? t('form.placeholders.loading_owners')
-                                    : t('fallbacks.unassigned')
-                        }
-                        placeholder={t('form.placeholders.owner')}
-                        disabled={isCreating || !departmentId || isOwnersLoading}
-                        className="w-full"
-                    />
-                </div>
+                <Field label={t('form.fields.owner')}>
+                    {(field) => (
+                        <ThemedSelect
+                            {...field}
+                            value={ownerId}
+                            onValueChange={setOwnerId}
+                            options={ownerOptions.map((owner) => ({
+                                value: String(owner.id),
+                                label: owner.role_name
+                                    ? t('form.owner_option', { name: owner.name, role: getRoleLabel(owner.role_name, t) })
+                                    : owner.name,
+                            }))}
+                            allowEmpty
+                            emptyLabel={
+                                !departmentId
+                                    ? t('form.placeholders.select_department_first')
+                                    : isOwnersLoading
+                                        ? t('form.placeholders.loading_owners')
+                                        : t('common:fallbacks.unassigned')
+                            }
+                            placeholder={t('form.placeholders.owner')}
+                            disabled={!departmentId || isOwnersLoading}
+                            className="w-full"
+                        />
+                    )}
+                </Field>
 
-                <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.due_date')}</label>
-                    <input
-                        type="datetime-local"
-                        value={dueAt}
-                        disabled={isCreating}
-                        onChange={(event) => setDueAt(event.target.value)}
-                        className={`${ISSUE_FIELD} h-10`}
-                    />
-                </div>
+                <Field label={t('form.fields.due_date')}>
+                    {(field) => (
+                        <Input
+                            {...field}
+                            type="datetime-local"
+                            value={dueAt}
+                            onChange={(event) => setDueAt(event.target.value)}
+                        />
+                    )}
+                </Field>
 
-                <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('form.fields.description')}</label>
-                    <textarea
-                        value={description}
-                        disabled={isCreating}
-                        onChange={(event) => setDescription(event.target.value)}
-                        placeholder={t('form.placeholders.description')}
-                        className={ISSUE_TEXTAREA}
-                    />
-                </div>
-            </div>
+                <Field label={t('form.fields.description')} className="md:col-span-2">
+                    {(field) => (
+                        <Textarea
+                            {...field}
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                            placeholder={t('form.placeholders.description')}
+                        />
+                    )}
+                </Field>
+            </fieldset>
 
-            <div className="mt-10 flex items-center justify-between border-t border-white/5 pt-6">
+            <div className="mt-10 flex items-center justify-between gap-3 border-t border-border pt-6">
                 {onCancel ? (
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        disabled={isCreating}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <X className="h-4 w-4" />
+                    <Button variant="secondary" onClick={onCancel} disabled={isCreating}>
+                        <X aria-hidden="true" />
                         {t('actions.cancel')}
-                    </button>
+                    </Button>
                 ) : (
                     <span />
                 )}
 
-                <button
-                    type="button"
-                    onClick={handleCreateIssue}
-                    disabled={isCreating}
-                    className="btn-primary px-6"
-                >
-                    <span className="inline-flex items-center gap-2">
-                        <PlusCircle className="h-4 w-4" />
-                        {isCreating ? t('actions.creating') : t('actions.create_issue')}
-                    </span>
-                </button>
+                <Button type="submit" variant="accent" isLoading={isCreating} data-testid="issue-create-submit">
+                    {!isCreating ? <PlusCircle aria-hidden="true" /> : null}
+                    {isCreating ? t('actions.creating') : t('actions.create_issue')}
+                </Button>
             </div>
             {confirmationDialog}
-        </section>
+        </form>
     );
 }

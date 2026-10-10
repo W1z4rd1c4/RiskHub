@@ -1,5 +1,8 @@
 import { User, Mail, Building, Shield, Key, BriefcaseBusiness } from 'lucide-react';
 import { getPermissionLabel } from '@/components/access/permissionPresentation';
+import { UserAvatar } from '@/components/access/UserAvatar';
+import { Badge } from '@/components/ui/badge';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { useTranslation } from '@/i18n/hooks';
 
 interface ProfileSettingsProps {
@@ -25,114 +28,108 @@ export function ProfileSettings({ user, nativeAccount = false }: ProfileSettings
     const effectivePermissions = user.effective_permissions ?? user.permissions ?? [];
     const listedPermissions = effectivePermissions.filter((permission) => permission !== '*:*');
 
+    const fieldLabelClass = 'flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground';
+
     return (
         <div className="space-y-8">
             {/* User Identity Section */}
             <section>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <User className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <User aria-hidden="true" className="h-5 w-5 text-accent-text" />
                     {t('profile.your_identity')}
-                </h3>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                </h2>
+                <div className="bg-tint/5 border border-border rounded-xl p-6">
                     <div className="flex items-center gap-4 mb-6">
-                        {/* Avatar */}
-                        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-accent to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                            {user.name.charAt(0).toUpperCase()}
-                        </div>
+                        <UserAvatar name={user.name} size="lg" />
                         <div>
-                            <h4 className="text-xl font-bold text-white">{user.name}</h4>
-                            <p className="text-slate-400">{user.role_display_name}</p>
+                            <h3 className="text-xl font-bold text-foreground">{user.name}</h3>
+                            <p className="text-muted-foreground">{user.role_display_name}</p>
                         </div>
                     </div>
 
-                    {/* Info Grid */}
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {/* Email */}
+                    {/* Read-only values are a description list, not form labels (AX-04). */}
+                    <dl className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Mail aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.email')}
-                            </label>
-                            <p className="text-white font-medium">{user.email}</p>
+                            </dt>
+                            <dd className="text-foreground font-medium">{user.email}</dd>
                         </div>
 
-                        {/* Department */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                <Building className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Building aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.department')}
-                            </label>
-                            <p className="text-white font-medium">{user.department_name || t('common:fallbacks.unassigned')}</p>
+                            </dt>
+                            <dd className="text-foreground font-medium">{user.department_name || t('common:fallbacks.unassigned')}</dd>
                         </div>
 
-                        {/* Role */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                <Shield className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Shield aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.role')}
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 bg-accent/20 text-accent rounded-full text-sm font-medium">
+                            </dt>
+                            <dd>
+                                <Badge tone="accent" className="px-3">
                                     {user.role_display_name}
-                                </span>
-                            </div>
+                                </Badge>
+                            </dd>
                         </div>
 
-                        {/* Organizational Role */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                <BriefcaseBusiness className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <BriefcaseBusiness aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.organizational_role')}
-                            </label>
-                            <p className="text-white font-medium">
+                            </dt>
+                            <dd className="text-foreground font-medium">
                                 {user.entra_business_role || t('common:fallbacks.unassigned')}
-                            </p>
+                            </dd>
                         </div>
 
-                        {/* Access Scope */}
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                                <Key className="h-3 w-3" />
+                            <dt className={fieldLabelClass}>
+                                <Key aria-hidden="true" className="h-3 w-3" />
                                 {t('profile.access_scope')}
-                            </label>
-                            <p className="text-white font-medium">{user.scope_label}</p>
+                            </dt>
+                            <dd className="text-foreground font-medium">{user.scope_label}</dd>
                         </div>
-                    </div>
+                    </dl>
                 </div>
 
                 {/* AD Notice */}
-                <p className="text-xs text-slate-500 mt-3 italic">
+                <p className="text-xs text-muted-foreground mt-3 italic">
                     {t(nativeAccount ? 'profile.local_notice' : 'profile.ad_notice')}
                 </p>
             </section>
 
             {/* Permissions Section */}
             <section>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Key className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Key aria-hidden="true" className="h-5 w-5 text-accent-text" />
                     {t('profile.your_permissions')}
-                </h3>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                </h2>
+                <div className="bg-tint/5 border border-border rounded-xl p-6">
                     {effectivePermissions.includes('*:*') && (
-                        <div className="mb-4 px-3 py-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 text-yellow-300 text-sm font-medium">
+                        <InlineMessage tone="warning" icon={null} className="mb-4 px-3 py-2 font-medium">
                             {getPermissionLabel('*:*', t)}
-                        </div>
+                        </InlineMessage>
                     )}
                     {effectivePermissions.length === 0 ? (
-                        <p className="text-slate-400 text-center py-4">{t('profile.no_permissions_assigned')}</p>
+                        <p className="text-muted-foreground text-center py-4">{t('profile.no_permissions_assigned')}</p>
                     ) : listedPermissions.length > 0 && (
                         <ul className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                             {listedPermissions.map((permission) => (
-                                <li key={permission} className="text-sm text-slate-300 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <li key={permission} className="text-sm text-foreground flex items-center gap-2">
+                                    <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-success" />
                                     {getPermissionLabel(permission, t)}
                                 </li>
                             ))}
                         </ul>
                     )}
                     {effectivePermissions.length > 0 && (
-                        <details className="mt-5 border-t border-white/10 pt-3 text-xs text-slate-400">
-                            <summary className="cursor-pointer font-medium text-slate-300">
+                        <details className="mt-5 border-t border-border pt-3 text-xs text-muted-foreground">
+                            <summary className="cursor-pointer font-medium text-foreground">
                                 {t('permissions.technical_details')}
                             </summary>
                             <ul className="mt-2 space-y-1">

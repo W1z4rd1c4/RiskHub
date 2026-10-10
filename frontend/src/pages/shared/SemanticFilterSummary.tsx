@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
 
 interface SemanticFilterSummaryProps {
@@ -32,13 +33,13 @@ export function SemanticFilterSummary({ filters, onRemove }: SemanticFilterSumma
 
     return (
         <section className="glass-card flex flex-wrap items-center gap-2" data-testid="semantic-filter-summary">
-            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 {t('semantic_filters.filtered_by')}
             </span>
             {entries.map(([key, value]) => (
                 <span
                     key={key}
-                    className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm text-slate-200"
+                    className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-sm text-foreground"
                 >
                     <span>
                         {t(FILTER_LABEL_KEYS[key] ?? 'semantic_filters.keys.unknown')}:{' '}
@@ -48,17 +49,18 @@ export function SemanticFilterSummary({ filters, onRemove }: SemanticFilterSumma
                               ? t('semantic_filters.values.acceptance')
                               : String(value)}
                     </span>
-                    <button
-                        type="button"
+                    <Button
+                        variant="ghost"
+                        size={null}
                         onClick={() => onRemove(key)}
                         aria-label={t('semantic_filters.remove', {
                             key: t(FILTER_LABEL_KEYS[key] ?? 'semantic_filters.keys.unknown'),
                         })}
                         data-testid={`semantic-filter-remove-${key}`}
-                        className="rounded-full p-0.5 text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        className="rounded-full p-0.5 text-muted-foreground hover:text-foreground [&_svg]:size-3.5"
                     >
-                        <X className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
+                        <X aria-hidden="true" />
+                    </Button>
                 </span>
             ))}
         </section>

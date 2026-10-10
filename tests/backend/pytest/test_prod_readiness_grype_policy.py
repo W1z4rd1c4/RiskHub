@@ -406,20 +406,18 @@ def test_repository_grype_policy_example_is_complete_and_valid(tmp_path: Path) -
     validate_grype_policy(policy, today=date(2026, 8, 3))
 
 
-def test_repository_grype_policy_only_records_verified_upstream_backports() -> None:
+def test_repository_grype_policy_has_no_retired_backport_exceptions() -> None:
     import yaml
 
     policy = yaml.safe_load(GRYPE_IGNORE.read_text(encoding="utf-8"))
     from prod_readiness_audit.grype_policy import validate_grype_policy
 
     validate_grype_policy(GRYPE_IGNORE)
-    assert {entry["vulnerability"] for entry in policy["ignore"]} == {"CVE-2026-82049", "CVE-2026-85091"}
-    for entry in policy["ignore"]:
-        assert "backport" in entry["reason"] or "upstream" in entry["reason"]
-        assert "backend/security/README.md" in entry["reason"]
+    assert policy["ignore"] == []
     dockerfile = (GRYPE_IGNORE.parents[1] / "Dockerfile").read_text()
-    assert dockerfile.count("RUN python /tmp/verify_runtime_backports.py") == 2
-    assert "ADD --checksum=sha256:" in dockerfile
+    assert dockerfile.count("RUN python /tmp/verify_runtime_security.py") == 2
+    assert "builder-security" not in dockerfile
+    assert "apply_cpython_backport.py" not in dockerfile
 
 
 def test_binary_without_upstream_requires_explicit_scanner_evidence(tmp_path: Path) -> None:

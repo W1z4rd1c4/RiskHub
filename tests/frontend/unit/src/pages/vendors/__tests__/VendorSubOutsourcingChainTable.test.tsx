@@ -86,11 +86,14 @@ describe('VendorSubOutsourcingChainTable (FR-P4-7)', () => {
         renderChainTable();
 
         const table = screen.getByRole('table');
+        // The shared ui/table viewport is the named horizontal scroll region (§4.13).
         const scrollContainer = table.parentElement;
-        const card = scrollContainer?.parentElement;
+        // D13: the shared `Card` surface (glass, no padding) replaces the hand-rolled glass-card.
+        const card = table.closest('.glass');
 
         expect(scrollContainer).toHaveClass('overflow-x-auto');
-        expect(card).toHaveClass('glass-card', '!p-0', 'overflow-hidden');
+        expect(scrollContainer).toHaveAttribute('role', 'region');
+        expect(card).toHaveClass('glass', 'p-0', 'overflow-hidden');
         expect(card).not.toHaveClass('overflow-x-auto');
     });
 

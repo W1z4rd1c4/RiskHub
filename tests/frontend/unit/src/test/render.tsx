@@ -7,7 +7,7 @@ import '@/i18n';
 
 import React, { ReactElement, useState } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, type MemoryRouterProps } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
@@ -50,6 +50,32 @@ function renderWithQueryClient(
     return render(ui, { wrapper: QueryClientWrapper, ...options });
 }
 
+/**
+ * Query client + `MemoryRouter`, composed with an optional extra `wrapper`
+ * (inside the router). Route pages render breadcrumb and back links in their
+ * `PageHeader` / `EntityDetailHeader` (D14, NAV-02), and links need a router.
+ */
+function renderInRouter(
+    ui: ReactElement,
+    {
+        queryClient = createTestQueryClient(),
+        initialEntries,
+        wrapper: Extra,
+        ...options
+    }: RenderOptions & { queryClient?: QueryClient; initialEntries?: MemoryRouterProps['initialEntries'] } = {},
+) {
+    function RouterWrapper({ children }: { children: React.ReactNode }) {
+        const content = Extra ? <Extra>{children}</Extra> : children;
+        return (
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={initialEntries}>{content}</MemoryRouter>
+            </QueryClientProvider>
+        );
+    }
+
+    return render(ui, { wrapper: RouterWrapper, ...options });
+}
+
 function renderWithoutProviders(
     ui: ReactElement,
     options?: RenderOptions,
@@ -62,3 +88,4 @@ export { userEvent } from '@testing-library/user-event';
 export { customRender as render };
 export { renderWithoutProviders };
 export { renderWithQueryClient };
+export { renderInRouter };

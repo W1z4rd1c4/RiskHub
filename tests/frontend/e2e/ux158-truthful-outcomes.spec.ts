@@ -194,7 +194,7 @@ test.describe('Issue #158 truthful outcomes and dirty-task browser acceptance', 
         await expect(unavailable).toBeVisible();
         await expect(unavailable).not.toContainText(rawDetail);
         expect(currentPath(riskManagerPage)).toBe(editUrl);
-        await unavailable.getByRole('button', { name: /Control Catalog|Katalog kontrol/i }).click();
+        await unavailable.getByRole('button', { name: /Back to Catalog|Zpět do katalogu/i }).click();
         await expect.poll(() => currentPath(riskManagerPage)).toBe(returnTo);
 
         await riskManagerPage.goto(editUrl);
@@ -364,9 +364,18 @@ test.describe('Issue #158 truthful outcomes and dirty-task browser acceptance', 
         ));
         await riskManagerPage.getByRole('button', { name: /Edit Control|Upravit kontrolu/i, exact: true }).click();
         await queued;
-        await expect(riskManagerPage.getByTestId('approval-queued-banner')).toContainText('UX158 Control update queued for approval.');
-        await riskManagerPage.evaluate(() => window.history.back());
+        // The queued-save contract returns to detail with a persistent localized
+        // notice and the exact request link; backend free text is not UI copy.
         await expect.poll(() => currentPath(riskManagerPage)).toBe(detailUrl);
+        const notice = riskManagerPage.getByTestId('approval-queued-notice');
+        await expect(notice).toContainText(/Pending approval|Čeká na schválení/);
+        await expect(notice).toContainText(/record stays unchanged|zůstane beze změny/i);
+        await expect(notice.getByTestId('approval-queued-notice-link')).toHaveAttribute(
+            'href', '/approvals?tab=mine&approvalId=158002',
+        );
+        await expect(riskManagerPage.getByRole('alertdialog')).toHaveCount(0);
+        await riskManagerPage.goBack();
+        await expect.poll(() => currentPath(riskManagerPage)).toBe(editUrl);
         await expect(riskManagerPage.getByRole('alertdialog')).toHaveCount(0);
     });
 

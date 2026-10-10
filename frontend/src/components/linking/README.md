@@ -7,6 +7,8 @@ UI components for `linking` area.
 ## Contents
 
 - `ExistingLinksPanel.tsx`
+- `LinkedItemList.tsx` — `LinkedItemList` / `LinkedItemRow` and the named `LinkRemoveButton`, shared with the
+  Asset, Process and Threat link sections
 - `LinkConfirmationPanel.tsx`
 - `LinkSearchFilters.tsx`
 - `LinkSearchPanel.tsx`

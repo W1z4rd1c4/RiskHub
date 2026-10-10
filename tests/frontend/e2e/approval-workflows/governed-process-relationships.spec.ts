@@ -63,6 +63,9 @@ async function submitGovernedDialog(
     const submitted = page.waitForResponse(responseMatches);
     await dialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
     expect((await submitted).status()).toBe(202);
+    // D12 / PM-2: the requester stays on the entity page with the pending
+    // notice; its link opens the queued request.
+    await page.getByTestId('approval-queued-notice-link').click();
     await expect(page).toHaveURL(/\/approvals\?tab=mine&approvalId=\d+/);
 
     // The requester can inspect/cancel but cannot self-approve or self-reject.

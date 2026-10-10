@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IssueNewPage } from '@/pages/IssueNewPage';
 import { issuesApi } from '@/services/issuesApi';
@@ -50,7 +51,7 @@ describe('IssueNewPage', () => {
     it('navigates to issue detail after successful create', async () => {
         render(<IssueNewPage />);
 
-        expect(await screen.findByText('Create Issue')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Create Issue' })).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Submit issue' }));
         expect(mockNavigate).toHaveBeenCalledWith('/issues/17?return_to=%2Fissues');
@@ -74,12 +75,17 @@ describe('IssueNewPage', () => {
         expect(screen.queryByRole('button', { name: 'Submit issue' })).not.toBeInTheDocument();
     });
 
-    it('hides create form when capability loading fails', async () => {
-        mockListIssues.mockRejectedValue(new Error('network unavailable'));
+    it('shows a retryable error, not a denial, when capability loading fails (PG-14)', async () => {
+        mockListIssues.mockRejectedValueOnce(new Error('network unavailable'));
 
         render(<IssueNewPage />);
 
-        expect(await screen.findByText('You do not have permission to create issues.')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toBeInTheDocument();
+        expect(screen.queryByText('You do not have permission to create issues.')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Submit issue' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(await screen.findByRole('button', { name: 'Submit issue' })).toBeInTheDocument();
+        expect(mockListIssues).toHaveBeenCalledTimes(2);
     });
 });

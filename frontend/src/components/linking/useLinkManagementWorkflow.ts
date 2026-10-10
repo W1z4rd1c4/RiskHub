@@ -177,18 +177,21 @@ export function useLinkManagementWorkflow({
         setUnlinkTargetId(targetId);
     };
 
+    // D10: a failed unlink rejects so the confirmation stays open and shows the
+    // error inside the dialog; only a successful unlink closes it.
     const handleConfirmUnlink = async () => {
         if (unlinkTargetId === null) return;
         try {
             setIsUnlinking(unlinkTargetId);
             await onUnlink(unlinkTargetId);
             resolveLinkActionOutcome({ action: 'unlink', ok: true });
+            setUnlinkTargetId(null);
         } catch (err) {
             resolveLinkActionOutcome({ action: 'unlink', ok: false });
             logError('Unlinking failed.', err);
+            throw err;
         } finally {
             setIsUnlinking(null);
-            setUnlinkTargetId(null);
         }
     };
 

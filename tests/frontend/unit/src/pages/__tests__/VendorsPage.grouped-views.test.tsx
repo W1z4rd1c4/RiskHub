@@ -361,7 +361,7 @@ describe('VendorsPage grouped views', () => {
         expect(await screen.findByText('Claims Cloud Platform')).toBeInTheDocument();
         expect(screen.getByText('AML Screening Service')).toBeInTheDocument();
 
-        await ui.click(screen.getByRole('button', { name: 'Back' }));
+        await ui.click(screen.getByRole('button', { name: 'Back to groups' }));
         await ui.click(screen.getByRole('button', { name: /Unlinked Risk/i }));
         expect(await screen.findByText('Print Partner')).toBeInTheDocument();
         expect(screen.queryByText('Claims Cloud Platform')).not.toBeInTheDocument();
@@ -426,7 +426,7 @@ describe('VendorsPage grouped views', () => {
         expect(await screen.findByText('Claims Cloud Platform')).toBeInTheDocument();
         expect(screen.queryByText('AML Screening Service')).not.toBeInTheDocument();
 
-        await ui.click(screen.getByRole('button', { name: 'Back' }));
+        await ui.click(screen.getByRole('button', { name: 'Back to groups' }));
         await ui.click(screen.getByRole('button', { name: /^Insignificant vendors 1 Items$/i }));
         expect(await screen.findByText('Print Partner')).toBeInTheDocument();
         expect(screen.queryByText('Claims Cloud Platform')).not.toBeInTheDocument();

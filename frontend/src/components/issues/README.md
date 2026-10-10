@@ -7,9 +7,12 @@ UI components for `issues` area.
 ## Contents
 
 - `__tests__/`
-- `IssueCreateForm.tsx`
+- `IssueBadges.tsx` — `IssueStatusBadge` / `IssueSeverityBadge` on the shared
+  `Badge` shell (translated labels; severity on the D1 scale via
+  `SeverityBadge`). The former `issueUi.ts` class constants are gone (DS-10).
+- `IssueCreateForm.tsx` — a real `<form>` on `Field` + `Input`/`Textarea`/
+  `ThemedSelect`, per-field validation errors, one server `InlineMessage`.
 - `IssueQuickCreateModal.tsx`
-- `issueUi.ts`
 - `RemediationPlanCard.tsx`
 
 ## Notes

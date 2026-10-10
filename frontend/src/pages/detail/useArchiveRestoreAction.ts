@@ -6,6 +6,10 @@ import { useEntityDetailMutationWorkflow } from './useEntityDetailMutationWorkfl
 interface UseArchiveRestoreActionOptions {
     setMessage: (message: DetailActionMessage) => void;
     toErrorKey: (error: unknown) => string;
+    /** See `useEntityDetailMutationWorkflow` (D12 / PM-2). */
+    onApprovalQueued?: (response: unknown) => void;
+    /** See `useEntityDetailMutationWorkflow` (D9 toast). */
+    onSuccessMessage?: (message: DetailActionMessage) => void;
 }
 
 interface RunArchiveOptions {
@@ -24,10 +28,14 @@ interface RunRestoreOptions {
 }
 
 export function useArchiveRestoreAction({
+    onApprovalQueued,
+    onSuccessMessage,
     setMessage,
     toErrorKey,
 }: UseArchiveRestoreActionOptions) {
     const { isMutating, runEntityMutation } = useEntityDetailMutationWorkflow({
+        onApprovalQueued,
+        onSuccessMessage,
         setMessage,
         toErrorKey,
     });

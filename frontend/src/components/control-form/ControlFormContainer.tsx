@@ -1,25 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Save,
-    X,
-    ChevronRight,
-    ChevronLeft,
-    AlertCircle,
     Info,
     User,
     Settings,
     ShieldCheck,
     Link as LinkIcon,
 } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { translateUiMessage, useTranslation } from '@/i18n/hooks';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
+import { useFocusFirstInvalidField } from '@/hooks/useFocusFirstInvalidField';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { InlineMessage } from '@/components/ui/inline-message';
 import { StepIndicator } from '@/components/ui/StepIndicator';
-import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
+import { WizardFooter } from '@/components/ui/WizardFooter';
 import { useFormStepNavigation } from '@/components/forms/FormStepContext';
-import {
-    resolveSubmitOutcome,
-} from '@/components/forms/entityFormWorkflow';
 import type { Control } from '@/types/control';
 import type { ControlEffectiveness } from '@/types/risk';
 import { ControlFormExecutionStep } from './ControlFormExecutionStep';
@@ -36,7 +32,6 @@ import { useControlFormLookups } from './useControlFormLookups';
 import {
     createControlFormSnapshot,
     useControlFormWorkflow,
-    type ControlFormLocationState,
 } from './useControlFormWorkflow';
 
 interface ControlFormProps {
@@ -44,23 +39,31 @@ interface ControlFormProps {
     isEdit?: boolean;
     onSuccess?: (
         controlId: number,
-        locationState?: ControlFormLocationState,
         acceptNavigation?: () => void,
     ) => void | Promise<void>;
+    /** Entity page shown after an approval-routed edit (D12 / PM-2). */
+    approvalReturnTo?: string;
     onCancel?: () => void;
     firstStepBackLabel?: string;
     allowRiskLinking?: boolean;
     registerCloseRequest?: (requestClose: (() => void) | null) => void;
+    /**
+     * `card` (pages): the step body sits on the glass card surface.
+     * `nested` (inside a dialog): a nested panel, never glass-in-popover (§4.10, §4.11).
+     */
+    surface?: 'card' | 'nested';
 }
 
 export function ControlForm({
     initialData,
     isEdit = false,
     onSuccess,
+    approvalReturnTo,
     onCancel,
     firstStepBackLabel,
     allowRiskLinking = true,
     registerCloseRequest,
+    surface = 'card',
 }: ControlFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
@@ -99,13 +102,12 @@ export function ControlForm({
     const [selectedCategory, setSelectedCategory] = useState('');
 
     const {
-        approvalQueued,
         currentStep,
         error,
+        fieldError,
         formData,
         isSubmitting,
         handleInputChange,
-        setApprovalQueued,
         setCurrentStep,
         setError,
         submit,
@@ -114,6 +116,7 @@ export function ControlForm({
         initialData,
         isEdit,
         onSuccess,
+        approvalReturnTo,
         users,
         t,
     });
@@ -146,6 +149,11 @@ export function ControlForm({
     const uniqueRoles = getUniqueRoles(users);
     const selectedRisk = risks.find((risk) => risk.id === selectedRiskId);
     const visibleError = error ?? dataErrorKey;
+    // §4.8 / AX-04: a failed step check shows its message on the field and
+    // focuses it. The owner picker has no single input and announces its
+    // error with role="alert" instead.
+    const formRef = useFocusFirstInvalidField(fieldError);
+    const fieldErrors: Partial<Record<keyof Control, string>> = fieldError ? { [fieldError.field]: fieldError.message } : {};
     const riskLinkStepContext: ControlRiskLinkStepContextValue = {
         selectedRisk,
         setSelectedRiskId,
@@ -206,11 +214,9 @@ export function ControlForm({
         return () => registerCloseRequest?.(null);
     }, [registerCloseRequest, requestClose]);
 
-    const submitOutcome = resolveSubmitOutcome({ approvalQueued: Boolean(approvalQueued) });
-
     return (
         <>
-        <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
             {/*
               * Loaded-state sentinel for tests: the identity step (step 0) shows no
               * load-dependent UI, so the background lookups (users / departments /
@@ -228,41 +234,24 @@ export function ControlForm({
                 onStepClick={handleStepClick}
             />
 
-            <div className="glass-card min-h-[400px] flex flex-col">
-                {/* Approval-queued banner */}
-                {submitOutcome.approvalQueued && approvalQueued && (
-                    <ApprovalQueuedBanner
-                        closeLabel={t('common:actions.close')}
-                        message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
-                        onClose={() => setApprovalQueued(null)}
-                        title={t('approval_submitted', { ns: 'errorKeys' })}
-                        viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
-                    />
-                )}
-
+            <Card tone={surface === 'nested' ? 'nested' : 'default'} className="min-h-[400px] flex flex-col">
                 {visibleError && (
-                    <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
-                        <AlertCircle className="h-5 w-5" />
-                        <span>
-                            {visibleError.startsWith('errorKeys.') ? t(visibleError, { ns: 'errorKeys' }) : visibleError}
-                        </span>
-                        {dataErrorKey && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    void reloadData();
-                                }}
-                                className="ml-auto text-xs underline hover:text-rose-300 transition-colors"
-                            >
+                    <InlineMessage
+                        tone="danger"
+                        className="mb-6"
+                        action={dataErrorKey ? (
+                            <Button variant="outline" size="compact" onClick={() => void reloadData()}>
                                 {t('common:actions.retry')}
-                            </button>
-                        )}
-                    </div>
+                            </Button>
+                        ) : undefined}
+                    >
+                        {translateUiMessage(t, visibleError)}
+                    </InlineMessage>
                 )}
 
                 <fieldset disabled={isSubmitting} className="min-w-0 flex-1 space-y-6">
                     {currentStep === 0 && (
-                        <ControlFormIdentityStep formData={formData} handleInputChange={handleInputChange} t={t} />
+                        <ControlFormIdentityStep formData={formData} fieldErrors={fieldErrors} handleInputChange={handleInputChange} t={t} />
                     )}
 
                     {currentStep === 1 && (
@@ -271,6 +260,7 @@ export function ControlForm({
                                 t={t}
                                 isLoadingLookups={isLoadingLookups}
                                 formData={formData}
+                                fieldErrors={fieldErrors}
                                 departments={departments}
                                 users={users}
                                 filteredUsers={filteredUsers}
@@ -286,7 +276,7 @@ export function ControlForm({
 
 
                     {currentStep === 2 && (
-                        <ControlFormExecutionStep formData={formData} handleInputChange={handleInputChange} t={t} />
+                        <ControlFormExecutionStep formData={formData} fieldErrors={fieldErrors} handleInputChange={handleInputChange} t={t} />
                     )}
 
                     {currentStep === 3 && (
@@ -302,51 +292,20 @@ export function ControlForm({
                     )}
                 </fieldset>
 
-                {/* Footer Controls */}
-                <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
-                    <button
-                        type="button"
-                        aria-disabled={isSubmitting}
-                        onClick={() => {
-                            if (isSubmitting) return;
-                            if (currentStep === 0) {
-                                requestClose();
-                            } else {
-                                prevStep();
-                            }
-                        }}
-                        className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-widest"
-                    >
-                        {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                        {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}
-                    </button>
-
-                    {currentStep < steps.length - 1 ? (
-                        <button
-                            key="next-step"
-                            type="button"
-                            aria-disabled={isSubmitting}
-                            onClick={() => {
-                                if (isSubmitting) return;
-                                nextStep();
-                            }}
-                            className="btn-primary"
-                        >
-                            {t('common:actions.next')} <ChevronRight className="h-4 w-4" />
-                        </button>
-                    ) : (
-                        <button
-                            key="submit"
-                            type="submit"
-                            aria-disabled={isSubmitting}
-                            className="btn-primary aria-disabled:cursor-wait aria-disabled:opacity-60"
-                        >
-                            {isSubmitting ? t('common:loading.generic') : (isEdit ? t('controls:edit_control') : t('controls:create_control'))}
-                            <Save className="h-4 w-4" />
-                        </button>
-                    )}
-                </div>
-            </div>
+                <WizardFooter
+                    className="mt-12 pt-8"
+                    stepIndex={currentStep}
+                    stepCount={steps.length}
+                    isSubmitting={isSubmitting}
+                    cancelLabel={firstStepBackLabel || t('common:actions.cancel')}
+                    onCancel={requestClose}
+                    onBack={prevStep}
+                    onNext={() => nextStep()}
+                    submitLabel={isEdit ? t('controls:edit_control') : t('controls:create_control')}
+                    nextTestId="control-form-next-button"
+                    submitTestId="control-form-submit-button"
+                />
+            </Card>
         </form>
         {confirmationDialog}
         </>

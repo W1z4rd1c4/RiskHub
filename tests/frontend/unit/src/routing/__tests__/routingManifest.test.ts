@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AdminConsoleRouteGuard,
   AuditTrailRouteGuard,
+  GovernanceRouteGuard,
 } from '@/authz/BusinessRouteGuards';
 import { buildAuthz, type AuthUser, type PermissionChecker } from '@/authz/policy';
 import { adminRoutes } from '@/routing/admin';
@@ -161,6 +162,10 @@ describe('routing manifest parity', () => {
     expectRouteElementGuard(businessRoutes, 'audit-trail', AuditTrailRouteGuard);
     expectRouteElementGuard(adminRoutes, 'admin', AdminConsoleRouteGuard);
     expectRouteElementGuard(adminRoutes, 'admin-docs', AdminConsoleRouteGuard);
+  });
+
+  it('owns Governance access at the route level (NAV-05: the page keeps no duplicate guard)', () => {
+    expectRouteElementGuard(businessRoutes, 'governance', GovernanceRouteGuard);
   });
 
   it('matches admin sidebar visibility contract', () => {
@@ -443,6 +448,24 @@ describe('resolveActiveSidebarHref (FR-P4-2, finding S3)', () => {
 
   it('returns null when no nav item matches', () => {
     expect(resolveActiveSidebarHref('/unmapped', hrefs)).toBeNull();
+  });
+
+  it('highlights the parent section of a route without its own entry (activeNavHref, NAV-02)', () => {
+    const withEvidence = [...hrefs, '/evidence'];
+    expect(resolveActiveSidebarHref('/audit-trail', withEvidence)).toBe('/evidence');
+    expect(resolveActiveSidebarHref('/vendor-reports', withEvidence)).toBe('/evidence');
+  });
+
+  it('falls back to no highlight when the parent section is not visible to the user', () => {
+    expect(resolveActiveSidebarHref('/audit-trail', hrefs)).toBeNull();
+  });
+
+  it('assigns every unowned business route a sidebar parent that exists', () => {
+    const navHrefs = new Set(protectedAppRoutes.flatMap((route) => (route.nav ? [route.nav.href] : [])));
+    for (const route of protectedAppRoutes.filter((candidate) => candidate.activeNavHref)) {
+      expect(route.nav).toBeUndefined();
+      expect(navHrefs.has(route.activeNavHref!)).toBe(true);
+    }
   });
 });
 

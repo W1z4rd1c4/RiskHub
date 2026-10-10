@@ -6,6 +6,11 @@ response reaches the existing session coordinator. `NativePublicPage` handles
 invitation, reset and approved recovery links. `NativeSecurityPage` consumes the
 backend's own-credential capability and requests recent proof for each change.
 
+`NativeFrame` maps native error kinds and pending state onto the shared public frame
+(`components/layout/AuthFrame`), which owns the landmark, heading focus, CS/EN switch
+and theme scope: the OS colour scheme while signed out without a stored theme, the
+user's app theme on authenticated routes such as `/auth/local/security`.
+
 `NativeFactor` owns setup, verification and display-once backup codes.
 `useNativeAction` cancels stale work on owner changes. `useFragmentCredential`
 captures a link credential once and immediately removes it from navigation state.

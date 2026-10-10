@@ -26,7 +26,7 @@ import {
 } from './issueRegisterConfig';
 
 const ISSUE_VIEWS = ISSUE_REGISTER_CONFIG.views.map(({ value }) => value);
-const ISSUE_SORT_FIELDS = ['title', 'severity', 'status', 'opened_at', 'due_at', 'updated_at', 'created_at'] as const;
+const ISSUE_SORT_FIELDS = ['title', 'severity', 'status', 'opened_at', 'due_at', 'updated_at', 'created_at', 'department_name', 'owner_user_name'] as const;
 const validSort = (sort: RegisterSortState | null) => sort && ISSUE_SORT_FIELDS.includes(sort.field as typeof ISSUE_SORT_FIELDS[number]) ? sort : null;
 const groupLabel = (groups: Array<{ value: string; label: string }>, value: string | null) => value ? groups.find((group) => group.value === value)?.label ?? null : null;
 

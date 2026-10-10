@@ -1,3 +1,4 @@
+import type { Tone } from '@/lib/tones';
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorType } from '@/types/vendor';
 
@@ -12,6 +13,11 @@ export type VendorDisplayStatus = 'active' | 'inactive';
 
 export function getVendorDisplayStatus(vendor: Pick<Vendor, 'is_archived'>): VendorDisplayStatus {
     return vendor.is_archived ? 'inactive' : 'active';
+}
+
+/** Register and header status tone (§4.9): active reads as success, archived as neutral. */
+export function getVendorStatusTone(status: VendorDisplayStatus): Extract<Tone, 'success' | 'neutral'> {
+    return status === 'active' ? 'success' : 'neutral';
 }
 
 export function formatVendorGroupLabel(

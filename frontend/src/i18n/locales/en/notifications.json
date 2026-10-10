@@ -1,7 +1,10 @@
 {
   "title": "Notifications",
   "subtitle": {
-    "unread_count": "{{count}} unread",
+    "unread_count_one": "{{count}} unread",
+    "unread_count_few": "{{count}} unread",
+    "unread_count_many": "{{count}} unread",
+    "unread_count_other": "{{count}} unread",
     "stale": "Notification totals may be out of date.",
     "unavailable": "Notification totals are unavailable."
   },
@@ -23,10 +26,11 @@
   "status": {
     "retrying": "Retrying notifications."
   },
-  "pagination": {
-    "page_of": "Page {{page}} of {{total}}"
-  },
   "aria": {
-    "bell": "Notifications"
+    "bell": "Notifications",
+    "bell_unread": "Notifications, {{count}} unread",
+    "bell_unread_one": "Notifications, {{count}} unread",
+    "bell_unread_few": "Notifications, {{count}} unread",
+    "bell_unread_other": "Notifications, {{count}} unread"
   }
 }

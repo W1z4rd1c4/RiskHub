@@ -2,6 +2,7 @@ import { type ComponentPropsWithoutRef, type ReactNode, useMemo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { useTranslation } from '@/i18n/hooks';
 import type { DocumentationEntry } from '@/services/adminApi';
 
 interface DocumentationMarkdownProps {
@@ -26,6 +27,13 @@ type HeadingComponentProps = ComponentPropsWithoutRef<'h1'> & {
     children?: ReactNode;
     node?: MarkdownNodeWithPosition;
 };
+
+/**
+ * The `#` permalink beside a heading: hidden until the heading is hovered or
+ * focused, always reachable by keyboard. `not-prose` keeps it out of the
+ * body-link colour so it reads as a muted affordance (DS-32: tokens, not hex).
+ */
+const HEADING_ANCHOR_CLASS = 'not-prose ml-2 inline-flex items-center text-muted-foreground no-underline opacity-0 transition-opacity duration-150 hover:text-accent-text focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100';
 
 const EXTERNAL_PREFIXES = ['http://', 'https://', 'mailto:'];
 const MARKDOWN_HEADING_PATTERN = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/;
@@ -214,6 +222,7 @@ export function DocumentationMarkdown({
     onOpenDoc,
     onNavigateApp,
 }: DocumentationMarkdownProps) {
+    const { t } = useTranslation('common');
     const headingIdByLine = useMemo(() => buildHeadingIdMap(content), [content]);
 
     const docsBySlug = useMemo(() => {
@@ -230,16 +239,17 @@ export function DocumentationMarkdown({
             const id = (typeof sourceLine === 'number' ? headingIdByLine.get(sourceLine) : undefined)
                 ?? (slugifyHeading(headingText) || 'section');
             const Tag = tag;
+            // GAP-D-23: the accessible name is translated, not an English template string.
             const anchorLabel = headingText
-                ? `Anchor link for ${headingText}`
-                : 'Anchor link for section';
+                ? t('documentation.anchor_link', { heading: headingText })
+                : t('documentation.anchor_link_untitled');
 
             return (
                 <Tag id={id} className="group scroll-mt-24">
                     <span>{children}</span>
                     <a
                         href={`#${id}`}
-                        className="docs-heading-anchor"
+                        className={HEADING_ANCHOR_CLASS}
                         aria-label={anchorLabel}
                         onClick={(event) => {
                             event.preventDefault();
@@ -321,6 +331,7 @@ export function DocumentationMarkdown({
                 return (
                     <a {...props} href={href} target="_blank" rel="noopener noreferrer">
                         {children}
+                        <span className="sr-only"> ({t('documentation.opens_in_new_tab')})</span>
                     </a>
                 );
             }

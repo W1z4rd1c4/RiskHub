@@ -1,4 +1,5 @@
-import { ControlStatus } from '@/types/control';
+import { ordinalSeverityBand, severityClass } from '@/lib/severity';
+import type { ControlForm, ControlFrequency, ControlStatus } from '@/types/control';
 import type { CollectionGroup } from '@/types/collection';
 
 export const CONTROL_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
@@ -11,11 +12,52 @@ export const ARCHIVED_CONTROL_FILTER = 'archived' as const;
 export const ARCHIVED_CONTROL_BADGE_CLASS_NAME = 'text-muted-foreground bg-muted';
 export type ControlDisplayStatus = ControlStatus | typeof ARCHIVED_CONTROL_FILTER;
 
+/**
+ * GAP-D-01 / PG-03: translated control enums. Literal keys (never a regex
+ * "prettifier") so the i18n usage validator sees every label.
+ */
+export const CONTROL_FREQUENCY_LABEL_KEYS: Readonly<Record<ControlFrequency, string>> = {
+    daily: 'controls:frequencies.daily',
+    weekly: 'controls:frequencies.weekly',
+    monthly: 'controls:frequencies.monthly',
+    quarterly: 'controls:frequencies.quarterly',
+    'semi-annually': 'controls:frequencies.semi-annually',
+    annually: 'controls:frequencies.annually',
+    ad_hoc: 'controls:frequencies.ad_hoc',
+    continuous: 'controls:frequencies.continuous',
+};
+
+export const CONTROL_FORM_LABEL_KEYS: Readonly<Record<ControlForm, string>> = {
+    manual: 'controls:control_forms.manual',
+    automatic: 'controls:control_forms.automatic',
+};
+
+export const CONTROL_STATUS_LABEL_KEYS: Readonly<Record<ControlDisplayStatus, string>> = {
+    draft: 'controls:status.draft',
+    active: 'controls:status.active',
+    inactive: 'controls:status.inactive',
+    archived: 'controls:status.archived',
+};
+
+type ControlEnumTranslate = (key: string, fallback: string) => string;
+
+/** Translated frequency; unknown (legacy) codes fall back to the raw code. */
+export function formatControlFrequency(frequency: string | null | undefined, t: ControlEnumTranslate): string {
+    if (!frequency) return '';
+    const key = CONTROL_FREQUENCY_LABEL_KEYS[frequency as ControlFrequency];
+    return key ? t(key, frequency) : frequency;
+}
+
+/** Translated control form (manual / automatic). */
+export function formatControlForm(form: string | null | undefined, t: ControlEnumTranslate): string {
+    if (!form) return '';
+    const key = CONTROL_FORM_LABEL_KEYS[form as ControlForm];
+    return key ? t(key, form) : form;
+}
+
+/** Control risk level (1-5) on the D1 severity scale; blue never encodes severity. */
 export function getControlRiskLevelColor(level: number): string {
-    if (level >= 4) return 'text-destructive bg-destructive/10 border-destructive/20';
-    if (level >= 3) return 'text-warning-text bg-warning/10 border-warning/20';
-    if (level >= 2) return 'text-accent-text bg-info/10 border-info/20';
-    return 'text-success-text bg-success/10 border-success/20';
+    return severityClass('badge', ordinalSeverityBand(level));
 }
 
 export function getControlDisplayStatus(control: { status: ControlStatus; is_archived: boolean }): ControlDisplayStatus {
@@ -26,16 +68,12 @@ export function getControlStatusColor(status: ControlDisplayStatus): string {
     switch (status) {
         case ARCHIVED_CONTROL_FILTER:
             return ARCHIVED_CONTROL_BADGE_CLASS_NAME;
-        case ControlStatus.ACTIVE:
-            return 'text-success-text bg-success/10';
-        case ControlStatus.DRAFT:
-            return 'text-muted-foreground bg-muted';
-        case ControlStatus.INACTIVE:
-            return 'text-destructive bg-destructive/10';
         case 'active':
+            return 'text-success-text bg-success/10';
         case 'draft':
-        case 'inactive':
             return 'text-muted-foreground bg-muted';
+        case 'inactive':
+            return 'text-destructive bg-destructive/10';
         default:
             return 'text-muted-foreground bg-muted';
     }

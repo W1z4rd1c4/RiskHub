@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IssueNewPage } from '@/pages/IssueNewPage';
 import { issuesApi } from '@/services/issuesApi';

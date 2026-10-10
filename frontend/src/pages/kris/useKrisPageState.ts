@@ -14,6 +14,7 @@ import type { KRIFacets, KRIListCapabilities, KeyRiskIndicator } from '@/types/k
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import { buildKriExportFilters, readKriRouteFilters } from './kriPagePresentation';
 import {
     buildKriRegisterListParams,
@@ -66,9 +67,10 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     const {
         applyFailure, applySuccess, beginQuery, commitQueryIdentity, forQuery,
         isLoading: collectionIsLoading, isQueryCurrent,
-        setErrorKey, setIsLoading,
+        setIsLoading,
     } = useCollectionDataState<KeyRiskIndicator, KRIListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const runRowRestore = useRestoreWithFeedback();
 
     const listParams = useMemo(() => buildKriRegisterListParams({
         currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
@@ -147,15 +149,18 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         writeUrl({ filters: next, group: null });
     }, [filters, writeUrl]);
     const clearFilters = useCallback(() => writeUrl({ filters: EMPTY_KRI_REGISTER_FILTERS, group: null }), [writeUrl]);
+    // D9 / FB-01: a row restore reports through a toast and never flips the
+    // register into its error state.
     const restoreKri = useCallback(async (kriId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await kriApi.restoreKRI(kriId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchKris();
-        } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchKris, isQueryCurrent, queryIdentity, setErrorKey]);
+        await runRowRestore({
+            restore: () => kriApi.restoreKRI(kriId),
+            name: items.find((item) => item.id === kriId)?.metric_name,
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchKris();
+            },
+        });
+    }, [fetchKris, isQueryCurrent, items, queryIdentity, runRowRestore]);
     const exportCurrentKris = useCallback(async () => {
         setIsExporting(true);
         try { await kriApi.downloadExport({ ...listParams, offset: 0 }, language); }

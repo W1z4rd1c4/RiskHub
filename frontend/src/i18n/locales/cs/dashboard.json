@@ -44,10 +44,20 @@
       "probability": "Pravděpodobnost",
       "impact": "Dopad"
     },
-    "cell_aria": "Zobrazit {{count}} rizik při pravděpodobnosti {{probability}}, dopadu {{impact}}",
-    "cell_title": "P:{{probability}} × I:{{impact}} | {{count}} rizik",
+    "cell_aria": "Zobrazit {{count}} rizik při pravděpodobnosti {{probability}}, dopadu {{impact}} ({{level}})",
+    "cell_aria_one": "Zobrazit {{count}} riziko při pravděpodobnosti {{probability}}, dopadu {{impact}} ({{level}})",
+    "cell_aria_few": "Zobrazit {{count}} rizika při pravděpodobnosti {{probability}}, dopadu {{impact}} ({{level}})",
+    "cell_aria_other": "Zobrazit {{count}} rizik při pravděpodobnosti {{probability}}, dopadu {{impact}} ({{level}})",
+    "cell_title": "P:{{probability}} × I:{{impact}} | {{count}} rizik ({{level}})",
+    "cell_title_one": "P:{{probability}} × I:{{impact}} | {{count}} riziko ({{level}})",
+    "cell_title_few": "P:{{probability}} × I:{{impact}} | {{count}} rizika ({{level}})",
+    "cell_title_other": "P:{{probability}} × I:{{impact}} | {{count}} rizik ({{level}})",
     "click_to_view": " - Klikněte pro zobrazení",
-    "risks": "Rizika"
+    "legend": "Úrovně rizika",
+    "risks": "Rizika",
+    "risks_one": "Riziko",
+    "risks_few": "Rizika",
+    "risks_other": "Rizik"
   },
   "issues": {
     "summary": {
@@ -70,6 +80,7 @@
     }
   },
   "views": {
+    "label": "Pohledy přehledu",
     "overview": "Přehled",
     "risk_committee": "Výbor pro řízení rizik",
     "ict_committee": "Výbor pro řízení rizik ICT"
@@ -138,19 +149,34 @@
     "appetite_maintained": "Rizikový apetit dodržen",
     "no_breaches_org": "V organizaci aktuálně nejsou překročeny žádné KRI.",
     "status_title": "Stav KRI",
+    "status_views_label": "Zobrazení stavu KRI",
     "upcoming_count": "{{count}} nadcházejících",
+    "upcoming_count_one": "{{count}} nadcházející",
+    "upcoming_count_few": "{{count}} nadcházející",
+    "upcoming_count_other": "{{count}} nadcházejících",
     "overdue_count": "{{count}} po termínu",
+    "overdue_count_one": "{{count}} po termínu",
+    "overdue_count_few": "{{count}} po termínu",
+    "overdue_count_other": "{{count}} po termínu",
     "upcoming": "Nadcházející",
     "overdue": "Po termínu",
     "no_due_next_7": "V příštích 7 dnech nejsou splatná žádná KRI.",
     "no_overdue_short": "Žádná KRI po termínu",
     "days_overdue": "{{count}} dní po termínu",
+    "days_overdue_one": "{{count}} den po termínu",
+    "days_overdue_few": "{{count}} dny po termínu",
+    "days_overdue_other": "{{count}} dní po termínu",
     "days_until_due": "zbývá {{count}} dní",
+    "days_until_due_one": "zbývá {{count}} den",
+    "days_until_due_few": "zbývají {{count}} dny",
+    "days_until_due_other": "zbývá {{count}} dní",
     "view_all": "Zobrazit všechna KRI",
     "view_all_overdue": "Zobrazit vše po termínu",
     "showing": "Zobrazeno {{shown}} z {{total}}",
     "breaches_load_failed": "Nepodařilo se načíst porušení KRI",
-    "status_load_failed": "Nepodařilo se načíst stav KRI"
+    "status_load_failed": "Nepodařilo se načíst stav KRI",
+    "current_label": "Aktuálně:",
+    "limit_label": "Limit:"
   },
   "charts": {
     "by_status": "Podle stavu",
@@ -182,7 +208,24 @@
     "breaches": "Překročení",
     "no_risk_trend_data": "Data trendu rizik nejsou k dispozici.",
     "no_kri_breach_data": "Data o překročení KRI nejsou k dispozici.",
-    "breakdown": "Rozpad kontrol"
+    "no_open_issues": "Žádné otevřené nálezy.",
+    "breakdown": "Rozpad kontrol",
+    "a11y": {
+      "issue_aging": "Sloupcový graf otevřených nálezů podle stáří ve dnech. Otevřené nálezy: {{total}}.",
+      "issue_severity": "Prstencový graf otevřených nálezů podle závažnosti. Otevřené nálezy: {{total}}.",
+      "control_trend": "Sloupcový graf exekucí kontrol podle období. Exekucí celkem: {{total}}.",
+      "risk_trend": "Plošný graf nových rizik podle období. Všechna nová: {{total}}; kritická: {{critical}}.",
+      "kri_breach_trend": "Plošný graf vzorků a překročení KRI podle období. Vzorky: {{total}}; překročení: {{breaches}}.",
+      "breakdown": "{{title}}: prstencový graf kontrol. Kontrol celkem: {{total}}.",
+      "columns": {
+        "age": "Stáří (dny)",
+        "severity": "Závažnost",
+        "period": "Období",
+        "category": "Kategorie",
+        "controls": "Kontroly",
+        "share": "Podíl"
+      }
+    }
   },
   "errors": {
     "export_summary_failed": "Export souhrnu přehledu do CSV selhal. Opakování použije filtry platné při zahájení exportu.",
@@ -242,11 +285,6 @@
     "risk_count_few": "{{count}} rizika",
     "risk_count_other": "{{count}} rizik",
     "no_recent_significant_activity": "Žádná nedávná významná aktivita",
-    "today": "Dnes",
-    "yesterday": "Včera",
-    "days_ago": "před {{count}} dny",
-    "weeks_ago": "před {{count}} týdny",
-    "months_ago": "před {{count}} měsíci",
     "actions": {
       "create": "Vytvoření",
       "delete": "Smazání",
@@ -301,6 +339,7 @@
     "no_risks_at_position": "V této pozici nejsou žádná rizika",
     "footer_prefix": "Klikněte na riziko pro detail • Stiskněte",
     "footer_suffix": "pro zavření",
-    "results": "Výsledky detailu rizik"
+    "results": "Výsledky detailu rizik",
+    "score_value": "Skóre: {{score}}"
   }
 }

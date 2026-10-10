@@ -4,6 +4,13 @@ Presentational components specific to the DORA ICT register: `CriticalityClassPi
 renders an entity's criticality classification as a status pill, and
 `RegisterExportLink` renders the register export (download) action.
 
+`RegisterFilterCard` is the one "added filter" card a filter bar renders per
+optional filter (tokenised `bg-nested` surface + named remove button,
+GAP-D-22), and `registerFilterChips.ts` builds the active-filter chips
+(`buildFilterChip` / `buildFacetChip`: always "Label: value" via
+`common:labels.label_value`, PG-05). Risk, Control, KRI and Issue bars use
+both; the remaining bars can adopt them when their modules migrate.
+
 `RegisterListShell` and `RegisterListToolbar` are the canonical shared list seam
 for Process, Asset, Threat, Vendor, Risk, Control, KRI, and Issue. They own the
 layout and interaction rhythm, including the table/grouping branch, loading,

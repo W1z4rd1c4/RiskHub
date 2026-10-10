@@ -19,8 +19,13 @@ export interface ChartTooltipProps {
     offset: number;
 }
 
+type TooltipTheme = Pick<
+    ChartTheme,
+    'tooltipBackground' | 'tooltipBorder' | 'tooltipTextPrimary' | 'tooltipTextSecondary'
+>;
+
 export function getChartTooltipProps(
-    chartTheme: ChartTheme,
+    chartTheme: TooltipTheme,
     options: ChartTooltipOptions = {},
 ): ChartTooltipProps {
     const base: ChartTooltipProps = {
@@ -29,7 +34,8 @@ export function getChartTooltipProps(
             border: `1px solid ${chartTheme.tooltipBorder}`,
             borderRadius: '8px',
             backdropFilter: 'blur(8px)',
-            boxShadow: '0 10px 20px -8px rgba(0, 0, 0, 0.45)',
+            // The popover elevation token (per theme in index.css), not a raw rgba.
+            boxShadow: 'var(--popover-shadow)',
             padding: '10px 12px',
         },
         itemStyle: {
@@ -40,8 +46,9 @@ export function getChartTooltipProps(
         },
         labelStyle: {
             color: chartTheme.tooltipTextSecondary,
-            fontSize: '10px',
-            fontWeight: 700,
+            // D6: 11px is the type floor (the eyebrow size).
+            fontSize: '11px',
+            fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
             marginBottom: '6px',

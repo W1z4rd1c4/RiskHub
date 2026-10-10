@@ -28,6 +28,7 @@ import {
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildProcessRegisterListParams,
     parseProcessRegisterFilters,
@@ -79,10 +80,10 @@ export function useProcessesPageState(
         forQuery,
         isLoading: collectionIsLoading,
         isQueryCurrent,
-        setErrorKey,
         setIsLoading,
     } = useCollectionDataState<Process, ProcessListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const runRowRestore = useRestoreWithFeedback();
 
     const effectiveFilters = useMemo<ProcessRegisterFilters>(() => ({
         ...filters,
@@ -192,15 +193,18 @@ export function useProcessesPageState(
         writeUrl({ sort: field && direction ? { field, direction } : null });
     }, [writeUrl]);
 
+    // D9 / FB-01: a row restore reports through a toast and never flips the
+    // register into its error state.
     const restoreProcess = useCallback(async (processId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await processApi.restoreProcess(processId);
-            if (isQueryCurrent(restoreQueryIdentity)) await fetchProcesses();
-        } catch (error) {
-            if (isQueryCurrent(restoreQueryIdentity)) setErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchProcesses, isQueryCurrent, queryIdentity, setErrorKey]);
+        await runRowRestore({
+            restore: () => processApi.restoreProcess(processId),
+            name: items.find((item) => item.id === processId)?.l1_process,
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchProcesses();
+            },
+        });
+    }, [fetchProcesses, isQueryCurrent, items, queryIdentity, runRowRestore]);
 
     const exportProcesses = useCallback(async () => {
         setIsExporting(true);

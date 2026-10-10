@@ -1,7 +1,7 @@
-import { Building2, Shield, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
+import { RiskGroupMetaBody } from '@/components/risks/RiskGroupMetaBody';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import type { SortDirection } from '@/components/tables';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
@@ -11,8 +11,9 @@ import type { ControlSummary } from '@/types/control';
 import { buildControlColumns } from './controls/controlColumns';
 import { CONTROL_REGISTER_CONFIG, type ControlRegisterView } from './controls/controlRegisterConfig';
 import { ControlRegisterFilterBar } from './controls/ControlRegisterFilterBar';
-import { formatControlGroupLabel } from './controls/controlsPagePresentation';
+import { CONTROL_GROUP_UNKNOWN_RISK_TYPE, formatControlForm, formatControlGroupLabel } from './controls/controlsPagePresentation';
 import { useControlsPageState } from './controls/useControlsPageState';
+import { useRiskTypeLabel } from './risks/useRiskTypeLabel';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 
@@ -21,7 +22,8 @@ export function ControlsPage() {
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(`${location.pathname}${location.search}${location.hash}`, '/controls');
     const { language } = useLanguage();
-    const { t } = useTranslation('controls');
+    const { t } = useTranslation(['controls', 'common']);
+    const riskTypeLabel = useRiskTypeLabel();
     const state = useControlsPageState(language);
     const columns = buildControlColumns({
         translate: t,
@@ -34,7 +36,7 @@ export function ControlsPage() {
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
-        onCreate={() => void navigate(appendRegisterReturnTo('/controls/new', returnTo))} createLabel={t('new_control')} exportLabel={t('actions.export')}
+        onCreate={() => void navigate(appendRegisterReturnTo('/controls/new', returnTo))} createLabel={t('new_control')} exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentControls(); onClose(); }}
             onSubmit={async (payload) => { await state.exportControlSnapshot(payload); onClose(); }}
@@ -44,18 +46,21 @@ export function ControlsPage() {
         table={{ keyExtractor: (control) => control.id, onRowClick: (control) => void navigate(appendRegisterReturnTo(`/controls/${control.id}`, returnTo)), rowHref: (control) => appendRegisterReturnTo(`/controls/${control.id}`, returnTo), rowLabel: (control) => control.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
         currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
         onPageChange={state.setCurrentPage} onRetry={() => void state.fetchControls()}
-        emptyMessage={state.hasLoadedOnce ? t('empty_state.no_controls') : t('common:loading.data')}
+        emptyMessage={t('empty_state.no_controls')}
         grouping={{
             groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,
             hideActive: state.viewMode === 'risk', hideHighlighted: state.viewMode === 'risk',
-            groupLabel: (group) => formatControlGroupLabel(group, {
-                unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('form.labels.uncategorized'),
-                unknownDepartment: t('common:fallbacks.unassigned'), noProcess: t('common:fallbacks.not_available'),
-                unknownRiskType: t('common:fallbacks.unknown_type'), unknownRisk: t('common:fallbacks.unknown_risk'),
-                controlForm: (value) => t(`form.${value}`, value),
-            }),
-            renderGroupBody: state.viewMode === 'risk' ? (group) => <div className="grid grid-cols-2 gap-y-2 pb-2 border-b border-white/5"><div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><Shield className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_type || '') || t('common:fallbacks.unknown_type')}</span></div><div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><Building2 className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_department_name || '') || t('common:fallbacks.unassigned')}</span></div><div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"><User className="h-3 w-3 text-accent shrink-0" aria-hidden="true" /><span className="truncate">{String(group.meta?.risk_owner_name || '') || t('common:fallbacks.no_owner')}</span></div></div> : undefined,
+            // Risk-type groups show the same translated display name as the Risk register.
+            groupLabel: (group) => state.viewMode === 'risk_type' && group.value !== CONTROL_GROUP_UNKNOWN_RISK_TYPE
+                ? riskTypeLabel(group.value, group.label)
+                : formatControlGroupLabel(group, {
+                    unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.uncategorized'),
+                    unknownDepartment: t('common:fallbacks.unassigned'), noProcess: t('common:fallbacks.not_available'),
+                    unknownRiskType: t('common:fallbacks.unknown_type'), unknownRisk: t('common:fallbacks.unknown_risk'),
+                    controlForm: (value) => formatControlForm(value, t),
+                }),
+            renderGroupBody: state.viewMode === 'risk' ? (group) => <RiskGroupMetaBody group={group} /> : undefined,
         }}
         testIdPrefix="controls"
         toolbar={<ControlRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchControls()} onSearchChange={state.updateSearch} search={state.search} />}

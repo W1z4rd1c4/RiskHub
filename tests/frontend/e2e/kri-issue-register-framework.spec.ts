@@ -119,14 +119,27 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         const page = new KRIsPage(riskManagerPage);
         await page.navigate('?source=external-review&page=5');
 
-        let requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).monitoring_status === 'breach');
-        await riskManagerPage.getByTestId('kris-status-filter-breach').click();
+        // Monitoring depends on submitted history and the current reporting window.
+        // Select a populated facet; zero-count options are deliberately disabled.
+        // breach_only remains an independent filter exercised below.
+        await riskManagerPage.getByTestId('kris-monitoring-filter-trigger').click();
+        const monitoringOption = riskManagerPage.locator(
+            '[data-testid^="kris-monitoring-filter-option-"]:not([data-testid$="-empty"]):not([aria-disabled="true"])',
+        ).first();
+        await expect(monitoringOption).toBeEnabled();
+        const monitoringStatus = (await monitoringOption.getAttribute('data-testid'))!
+            .replace('kris-monitoring-filter-option-', '');
+        expect(['new', 'not_submitted', 'optimal', 'warning', 'breach']).toContain(monitoringStatus);
+        let requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => (
+            filters(url).monitoring_status === monitoringStatus
+        ));
+        await monitoringOption.click();
         let requestUrl = new URL((await requestPromise).url());
-        expect(filters(requestUrl)).toMatchObject({ monitoring_status: 'breach' });
+        expect(filters(requestUrl)).toMatchObject({ monitoring_status: monitoringStatus });
         await expect(riskManagerPage).toHaveURL((url) => !url.searchParams.has('page'));
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).timeliness_status === 'due_soon');
-        await riskManagerPage.getByTestId('kris-status-filter-due_soon').click();
+        await riskManagerPage.getByTestId('kris-due-soon-filter').click();
         requestUrl = new URL((await requestPromise).url());
         expect(filters(requestUrl).monitoring_status).toBeUndefined();
 
@@ -136,7 +149,8 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).lifecycle === 'archived');
-        await riskManagerPage.getByTestId('kris-status-filter-archived').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-trigger').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-option-archived').click();
         requestUrl = new URL((await requestPromise).url());
         expect(filters(requestUrl)).toMatchObject({ lifecycle: 'archived', is_archived: true });
         expect(filters(requestUrl).monitoring_status).toBeUndefined();
@@ -166,7 +180,8 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         await requestPromise;
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).lifecycle === 'archived');
-        await riskManagerPage.getByTestId('kris-status-filter-archived').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-trigger').click();
+        await riskManagerPage.getByTestId('kris-lifecycle-filter-option-archived').click();
         await requestPromise;
 
         await page.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);

@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, CircleDashed } from 'lucide-react';
 
 import { RegisterExportLink } from '@/components/ict-register/RegisterExportLink';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Pagination } from '@/components/tables/Pagination';
 import { TableErrorState, useTableErrorContract } from '@/components/tables/tableError';
+import { RefreshButton } from '@/components/ui/RefreshButton';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { Badge, SeverityBadge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useTranslation } from '@/i18n/hooks';
+import type { SeverityBand } from '@/lib/severity';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { ictRegisterDqApi } from '@/services/ictRegisterDqApi';
 import type { IctDqCheck, IctDqViolationsPage, IctRegisterDq } from '@/types/ictRegisterDq';
@@ -23,59 +30,49 @@ import {
     violatingRowPath,
 } from './ictRegisterDq/dqPresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
+import { LoadingState } from '@/components/ui/state';
 
 function StatusPill({ check }: { check: IctDqCheck }) {
     const { t } = useTranslation('ictRegisterDq');
+    const testId = `dq-status-${check.check_id}`;
     if (isFinding(check)) {
         return (
-            <span
-                data-testid={`dq-status-${check.check_id}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-destructive/10 text-destructive"
-            >
-                <AlertCircle className="h-3.5 w-3.5" />
+            <Badge data-testid={testId} tone="danger" icon={AlertCircle}>
                 {t('status.finding')}
-            </span>
+            </Badge>
         );
     }
     if (isProductionInert(check)) {
         // A quiet check with no app column feeding it (DQ-23): muted "not
         // yet measurable", never a false OK.
         return (
-            <span
-                data-testid={`dq-status-${check.check_id}`}
-                title={t('status.not_measurable_hint')}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-muted-foreground"
-            >
-                <CircleDashed className="h-3.5 w-3.5" />
+            <Badge data-testid={testId} tone="neutral" icon={CircleDashed} title={t('status.not_measurable_hint')}>
                 {t('status.not_measurable')}
-            </span>
+            </Badge>
         );
     }
     return (
-        <span
-            data-testid={`dq-status-${check.check_id}`}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-success/10 text-success-text"
-        >
-            <CheckCircle2 className="h-3.5 w-3.5" />
+        <Badge data-testid={testId} tone="success" icon={CheckCircle2}>
             {t('status.ok')}
-        </span>
+        </Badge>
     );
 }
+
+/** DQ severities on the D1 scale (medium → warning, high → severity-high, critical → danger). */
+const DQ_SEVERITY_BAND: Readonly<Record<string, SeverityBand>> = {
+    medium: 'medium',
+    high: 'high',
+    critical: 'critical',
+};
 
 function SeverityChip({ severity }: { severity: string }) {
     const { t } = useTranslation('ictRegisterDq');
     const key = dqSeverityKey(severity);
-    const tone =
-        key === 'critical'
-            ? 'bg-destructive/10 text-destructive'
-            : key === 'high'
-              ? 'bg-warning/10 text-warning-text'
-              : 'bg-info/10 text-accent-text';
-    return (
-        <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${tone}`}>
-            {key ? t(`severity.${key}`) : severity}
-        </span>
-    );
+    const band = key ? DQ_SEVERITY_BAND[key] : undefined;
+    if (!key || !band) {
+        return <Badge tone="neutral">{severity}</Badge>;
+    }
+    return <SeverityBadge band={band} label={t(`severity.${key}`)} />;
 }
 
 interface DqDetailState {
@@ -100,7 +97,7 @@ function ViolatingRows({
     const page = detail?.page;
     const showRows = !detail?.isLoading && !detail?.hasError;
     return (
-        <div className="mt-3 border-t border-white/10 pt-3 space-y-1.5">
+        <div className="mt-3 border-t border-tint/10 pt-3 space-y-1.5">
             {detail?.isLoading ? (
                 <p role="status" className="text-muted-foreground text-sm">
                     {t('rows_loading')}
@@ -109,9 +106,9 @@ function ViolatingRows({
             {detail?.hasError ? (
                 <div role="alert" className="flex items-center gap-3 text-sm text-destructive">
                     <span>{t('rows_error')}</span>
-                    <button type="button" className="underline" onClick={onRetry}>
+                    <Button variant="outline" size="compact" onClick={onRetry}>
                         {t('actions.retry_rows')}
-                    </button>
+                    </Button>
                 </div>
             ) : null}
             {showRows && rows.length === 0 ? (
@@ -150,31 +147,20 @@ function ViolatingRows({
                   })
                 : null}
             {page && page.total > page.limit ? (
-                <div className="flex items-center justify-between gap-3 pt-3">
-                    <button
-                        type="button"
-                        disabled={page.offset === 0 || detail?.isLoading}
-                        onClick={() => onPage(Math.max(0, page.offset - page.limit))}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-40"
-                    >
-                        {t('actions.previous')}
-                    </button>
-                    <span className="text-xs text-muted-foreground">
-                        {t('rows_page', {
-                            from: page.offset + 1,
-                            to: Math.min(page.offset + page.items.length, page.total),
-                            total: page.total,
-                        })}
-                    </span>
-                    <button
-                        type="button"
-                        disabled={page.offset + page.limit >= page.total || detail?.isLoading}
-                        onClick={() => onPage(page.offset + page.limit)}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 disabled:opacity-40"
-                    >
-                        {t('actions.next')}
-                    </button>
-                </div>
+                <Pagination
+                    mode="cursor"
+                    className="pt-3"
+                    hasPrevious={page.offset > 0}
+                    hasNext={page.offset + page.limit < page.total}
+                    isLoading={detail?.isLoading}
+                    onPrevious={() => onPage(Math.max(0, page.offset - page.limit))}
+                    onNext={() => onPage(page.offset + page.limit)}
+                    summary={t('rows_page', {
+                        from: page.offset + 1,
+                        to: Math.min(page.offset + page.items.length, page.total),
+                        total: page.total,
+                    })}
+                />
             ) : null}
         </div>
     );
@@ -323,8 +309,16 @@ export function IctRegisterDqPage() {
     const hasData = data !== null;
     const errorContract = useTableErrorContract({ isError: errorKey !== null, hasData });
 
+    // D7: the page title is the route's one `h1` (and `document.title`) in every state.
+    const pageHeader = <PageHeader title={t('title')} description={t('subtitle')} />;
+
     if (isAccessDenied) {
-        return <ReadAccessDeniedState />;
+        return (
+            <PageContainer>
+                {pageHeader}
+                <ReadAccessDeniedState />
+            </PageContainer>
+        );
     }
 
     // Explicit aria-busy loading branch — only while there is nothing to show yet.
@@ -332,17 +326,12 @@ export function IctRegisterDqPage() {
     // button instead of flashing 0/0/0 during load (C3).
     if (isLoading && !hasData) {
         return (
-            <div
-                className="flex flex-col items-center justify-center gap-4 py-24"
-                aria-busy="true"
-                data-loading="true"
-                data-testid="dq-loading"
-            >
-                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
-                    {t('loading')}
-                </p>
-            </div>
+            <PageContainer>
+                {pageHeader}
+                <div data-loading="true">
+                    <LoadingState label={t('loading')} testId="dq-loading" className="py-24" />
+                </div>
+            </PageContainer>
         );
     }
 
@@ -350,11 +339,14 @@ export function IctRegisterDqPage() {
     // localized error + retry, never an empty/zero state (C4, N17).
     if (errorContract.showErrorBlock) {
         return (
-            <TableErrorState
-                onRetry={() => void fetchDq()}
-                isRetrying={isLoading}
-                testId="dq-error"
-            />
+            <PageContainer>
+                {pageHeader}
+                <TableErrorState
+                    onRetry={() => void fetchDq()}
+                    isRetrying={isLoading}
+                    testId="dq-error"
+                />
+            </PageContainer>
         );
     }
 
@@ -363,27 +355,24 @@ export function IctRegisterDqPage() {
     const visibleChecks = filterChecks(checks, queryState.statusFilter);
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">{t('title')}</h1>
-                    <p className="text-muted-foreground font-medium mt-1">{t('subtitle')}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
-                        gated on the separate can_download_dora_register capability. */}
-                    <RegisterExportLink className="px-5 py-2.5 rounded-xl bg-accent border border-accent text-accent-foreground font-bold hover:bg-accent-hover transition-colors flex items-center gap-2 w-fit" />
-                    <button
-                        type="button"
-                        onClick={() => void fetchDq()}
-                        data-testid="dq-refresh-button"
-                        className="px-5 py-2.5 rounded-xl bg-muted border border-border text-foreground font-bold hover:bg-secondary transition-colors flex items-center gap-2"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        {t('actions.refresh')}
-                    </button>
-                </div>
-            </div>
+        <PageContainer>
+            <PageHeader
+                title={t('title')}
+                description={t('subtitle')}
+                actions={(
+                    <>
+                        {/* FR-P5-8 (S2 / N21): discoverability link to the register export,
+                            gated on the separate can_download_dora_register capability. */}
+                        <RegisterExportLink className={buttonVariants({ variant: 'accent' })} />
+                        <RefreshButton
+                            label={t('actions.refresh')}
+                            onRefresh={() => void fetchDq()}
+                            isFetching={isLoading}
+                            data-testid="dq-refresh-button"
+                        />
+                    </>
+                )}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="glass-card">
@@ -468,8 +457,8 @@ export function IctRegisterDqPage() {
                         visibleCount < check.count && (visibleCount === 0 || isExpanded);
                     return (
                         <div key={check.check_id} className="glass-card">
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
                                 data-testid={`dq-check-${check.check_id}`}
                                 aria-expanded={isExpandable ? isExpanded : undefined}
                                 aria-controls={
@@ -479,14 +468,14 @@ export function IctRegisterDqPage() {
                                 onClick={() =>
                                     updateExpandedCheck(isExpanded ? null : check.check_id)
                                 }
-                                className="w-full flex flex-col md:flex-row md:items-center gap-3 text-left disabled:cursor-default"
+                                className="h-auto w-full flex-col items-stretch justify-start gap-3 whitespace-normal p-0 text-left font-normal hover:bg-transparent disabled:cursor-default disabled:opacity-100 md:flex-row md:items-center"
                             >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                     {isExpandable ? (
                                         isExpanded ? (
-                                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground shrink-0" />
                                         ) : (
-                                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <ChevronRight aria-hidden="true" className="h-4 w-4 text-muted-foreground shrink-0" />
                                         )
                                     ) : (
                                         <span className="w-4 shrink-0" />
@@ -511,7 +500,7 @@ export function IctRegisterDqPage() {
                                     </span>
                                     <StatusPill check={check} />
                                 </div>
-                            </button>
+                            </Button>
                             {/* S12 (FR-P5-5): the count badge is global, while
                                 visible_count is RBAC-scoped. Keep that distinction
                                 visible even when zero visible rows make the details
@@ -557,7 +546,7 @@ export function IctRegisterDqPage() {
                     <div className="glass-card text-muted-foreground text-center py-8">{t('empty')}</div>
                 )}
             </div>
-        </div>
+        </PageContainer>
     );
 }
 

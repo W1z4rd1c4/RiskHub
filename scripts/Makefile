@@ -146,9 +146,9 @@ test-e2e:
 	@test "$${RISKHUB_E2E_TEST_DATABASE:-}" = "1" || (echo "Refusing E2E reset: export RISKHUB_E2E_TEST_DATABASE=1 and use a DATABASE_URL ending in _test" >&2; exit 1)
 	cd backend && venv/bin/python -m scripts.run_playwright_matrix
 
-# Run frontend lint and debt budget
+# Run frontend lint, debt budget and UI-consistency ratchet
 lint-frontend:
-	cd frontend && npm run lint && npx tsc --noEmit && npm run cleanup:deadcode && npm run build && npm run quality:debt
+	cd frontend && npm run lint && npx tsc --noEmit && npm run cleanup:deadcode && npm run build && npm run quality:debt && npm run quality:ui-ratchet
 
 # Run backend lint
 lint-backend:

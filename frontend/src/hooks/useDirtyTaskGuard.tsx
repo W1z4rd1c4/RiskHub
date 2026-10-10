@@ -116,11 +116,11 @@ export function useDirtyTaskGuard({
             isOpen={!busy && (hasLocalLeave || blocker.state === 'blocked')}
             onClose={stay}
             onConfirm={leave}
+            intent="discard"
             title={t('confirmation.unsaved_title')}
             message={t('confirmation.unsaved_changes')}
             cancelLabel={t('actions.stay')}
             confirmLabel={t('actions.leave')}
-            variant="warning"
         />
     );
 

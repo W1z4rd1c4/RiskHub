@@ -84,19 +84,19 @@ export function buildNotificationPresentation(notification: Notification): Notif
 function toneClassName(tone: NotificationTone): string {
     switch (tone) {
         case 'amber':
-            return 'text-amber-400';
+            return 'text-warning-text';
         case 'emerald':
-            return 'text-emerald-400';
+            return 'text-success-text';
         case 'orange':
-            return 'text-orange-400';
+            return 'text-severity-high-text';
         case 'rose':
-            return 'text-rose-400';
+            return 'text-destructive';
         case 'rose-strong':
-            return 'text-rose-500';
+            return 'text-destructive';
         case 'sky':
-            return 'text-sky-400';
+            return 'text-accent-text';
         case 'slate':
-            return 'text-slate-400';
+            return 'text-muted-foreground';
     }
 }
 

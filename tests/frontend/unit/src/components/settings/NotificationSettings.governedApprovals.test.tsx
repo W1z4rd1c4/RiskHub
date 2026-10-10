@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({ t: (key: string) => key }),
 }));
 
@@ -15,6 +16,7 @@ vi.mock('@/services/notificationsApi', () => ({
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
 
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
+import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { NotificationPreferences } from '@/types/notification';
 
@@ -64,5 +66,16 @@ describe('NotificationSettings governed approval preferences', () => {
                 governed_approval_action_required: false,
             });
         });
+    });
+    it('rolls back and reports a failed save as an error toast (GAP-C-14)', async () => {
+        vi.mocked(notificationsApi.updatePreferences).mockRejectedValueOnce(new Error('offline'));
+        render(<FeedbackProvider><NotificationSettings /></FeedbackProvider>);
+
+        const toggle = await screen.findByRole('switch', { name: 'notifications.governed_approval_action_required' });
+        fireEvent.click(toggle);
+
+        const toast = (await screen.findByText('notifications.save_failed')).closest('li');
+        expect(toast).toHaveAttribute('data-tone', 'danger');
+        await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
     });
 });

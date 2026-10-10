@@ -1,14 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { RiskQuestionnairesPanel } from '@/components/riskhub/RiskQuestionnairesPanel';
 import { riskHubApi } from '@/services/riskHubApi';
 
-vi.mock('@/i18n/hooks', () => ({
+vi.mock('@/i18n/hooks', async (importOriginal) => ({
+    // `translateUiMessage` stays real; only `useTranslation` is stubbed.
+    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
     useTranslation: () => ({
-        t: (key: string) => key,
+        t: (key: string, options?: { name?: string }) => (options?.name ? `${key}:${options.name}` : key),
     }),
 }));
 
@@ -148,9 +150,18 @@ describe('RiskQuestionnairesPanel', () => {
         renderWithQueryClient(<RiskQuestionnairesPanel />);
 
         await screen.findByText('Owner named risk');
-        const rowCheckboxes = screen.getAllByRole('checkbox');
-        fireEvent.click(rowCheckboxes[2]);
+        // AX-04: every selection checkbox has a name.
+        expect(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_all' })).not.toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_all_visible' })).not.toBeChecked();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_risk:Owner named risk' }));
         fireEvent.click(screen.getByRole('button', { name: 'riskhub.questionnaires.send' }));
+
+        // GAP-B-05 / D10: the outbound send is confirmed first (send intent).
+        expect(riskHubApi.batchSendQuestionnaires).not.toHaveBeenCalled();
+        const dialog = await screen.findByRole('alertdialog');
+        expect(within(dialog).getByRole('heading', { name: 'riskhub.questionnaires.confirm_title' })).toBeInTheDocument();
+        expect(dialog.querySelector('svg.lucide-send')).not.toBeNull();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'riskhub.questionnaires.send' }));
 
         await waitFor(() => {
             expect(riskHubApi.batchSendQuestionnaires).toHaveBeenCalledWith({
@@ -158,6 +169,61 @@ describe('RiskQuestionnairesPanel', () => {
                 risk_ids: [1],
             });
         });
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        // The post-send refresh keeps the send outcome on screen, as an announced
+        // summary whose counts are term/value pairs (no "Label: value" concatenation).
+        const outcome = (await screen.findByText('riskhub.questionnaires.results')).closest('[role="status"]');
+        expect(outcome).not.toBeNull();
+        const created = within(outcome as HTMLElement).getByText('riskhub.questionnaires.created');
+        expect(created.tagName).toBe('DT');
+        expect(created.nextElementSibling).toHaveTextContent('1');
+    });
+
+    it('labels the free-text filters visibly instead of with placeholders only (AX-04)', async () => {
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        const process = screen.getByRole('textbox', { name: 'riskhub.questionnaires.process' });
+        expect(process).not.toHaveAttribute('placeholder');
+        fireEvent.change(process, { target: { value: 'Payments' } });
+        fireEvent.change(screen.getByRole('textbox', { name: 'riskhub.questionnaires.category' }), { target: { value: 'IT' } });
+
+        await waitFor(() => {
+            expect(mockGetRisks).toHaveBeenLastCalledWith(expect.objectContaining({ process: 'Payments', category: 'IT' }));
+        });
+    });
+
+    it('confirms a select-all send against the filters and keeps a failure inside the dialog', async () => {
+        vi.mocked(riskHubApi.batchSendQuestionnaires).mockRejectedValueOnce(new Error('offline'));
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        fireEvent.click(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_all' }));
+        fireEvent.click(screen.getByRole('button', { name: 'riskhub.questionnaires.send' }));
+
+        const dialog = await screen.findByRole('alertdialog');
+        expect(within(dialog).getByRole('heading', { name: 'riskhub.questionnaires.confirm_all_title' })).toBeInTheDocument();
+        expect(dialog).toHaveTextContent('riskhub.questionnaires.confirm_all_body');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'riskhub.questionnaires.send' }));
+
+        await waitFor(() => expect(riskHubApi.batchSendQuestionnaires).toHaveBeenCalledWith(
+            expect.objectContaining({ select_all: true }),
+        ));
+        expect(await within(dialog).findByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    it('cancelling the confirmation sends nothing', async () => {
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        fireEvent.click(screen.getByRole('checkbox', { name: 'riskhub.questionnaires.select_risk:Owner named risk' }));
+        fireEvent.click(screen.getByRole('button', { name: 'riskhub.questionnaires.send' }));
+        const dialog = await screen.findByRole('alertdialog');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'actions.cancel' }));
+
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(riskHubApi.batchSendQuestionnaires).not.toHaveBeenCalled();
     });
 
     it('hides batch-send controls when backend capability is false', async () => {
@@ -177,5 +243,48 @@ describe('RiskQuestionnairesPanel', () => {
         expect(screen.queryByText('riskhub.questionnaires.select_all')).not.toBeInTheDocument();
         expect(screen.queryByText('riskhub.questionnaires.selected_count')).not.toBeInTheDocument();
         expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    });
+
+    it('renders an empty result through the shared EmptyState, not a bare table cell (DS-17)', async () => {
+        mockGetRisks.mockReset();
+        mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 50 });
+
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        const empty = await screen.findByTestId('risk-questionnaires-empty');
+        expect(empty).toHaveAttribute('role', 'status');
+        // The default "active" status filter is applied, so the empty list is a no-results state.
+        expect(empty).toHaveAttribute('data-kind', 'no-results');
+        expect(empty).toHaveTextContent('riskhub.questionnaires.empty');
+    });
+
+    it('reloads the risks from the shared RefreshButton', async () => {
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        const callsBefore = mockGetRisks.mock.calls.length;
+        fireEvent.click(screen.getByRole('button', { name: 'actions.refresh' }));
+
+        await waitFor(() => expect(mockGetRisks.mock.calls.length).toBeGreaterThan(callsBefore));
+    });
+
+    it('renders a first-load failure as an error with retry, never as "no risks" (GAP-C-11)', async () => {
+        const loaded = await mockGetRisks.getMockImplementation()?.();
+        mockGetRisks.mockReset();
+        mockGetRisks.mockRejectedValueOnce(new Error('offline')).mockResolvedValue(
+            loaded ?? { items: [], total: 0 },
+        );
+
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        const error = await screen.findByTestId('risk-questionnaires-load-error');
+        expect(error).toHaveAttribute('role', 'alert');
+        expect(screen.queryByText('riskhub.questionnaires.empty')).not.toBeInTheDocument();
+
+        fireEvent.click(within(error).getByRole('button', { name: 'actions.retry' }));
+
+        expect(await screen.findByText('Owner named risk')).toBeInTheDocument();
+        expect(screen.queryByTestId('risk-questionnaires-load-error')).not.toBeInTheDocument();
+        expect(mockGetRisks).toHaveBeenCalledTimes(2);
     });
 });

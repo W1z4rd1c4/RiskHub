@@ -7,8 +7,6 @@
  */
 import type { ApprovalCreatedResponse } from '@/types/approval';
 
-export type ApprovalUiTFunction = (key: string) => string;
-
 /**
  * Type guard to check if a response is an approval-created response
  */
@@ -41,16 +39,4 @@ export function parseUpdateResult(response: unknown): ParseResult {
         };
     }
     return { kind: 'applied' };
-}
-
-/**
- * Generate a user-friendly banner message for approval submissions.
- * 
- * @param approvalId - The approval request ID
- * @param t - Optional i18next translation function
- * @returns Formatted message string
- */
-export function getApprovalBannerMessage(approvalId: number, t?: ApprovalUiTFunction): string {
-    const prefix = t ? t('approval.submitted_for_approval') : 'Submitted for approval';
-    return `${prefix} (ID: ${approvalId})`;
 }

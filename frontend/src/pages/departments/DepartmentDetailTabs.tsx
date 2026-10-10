@@ -1,3 +1,4 @@
+import { TabList, type TabItem } from '@/components/ui/tabs';
 import { useTranslation } from '@/i18n/hooks';
 import type { TabView } from '@/hooks/useDepartmentDetail';
 
@@ -6,10 +7,8 @@ interface DepartmentDetailTabsProps {
     onSelectTab: (tab: TabView) => void;
 }
 
-const tabClassName = (isActive: boolean) =>
-    `px-6 py-3 font-bold transition-colors ${
-        isActive ? 'text-accent-text border-b-2 border-accent' : 'text-muted-foreground hover:text-foreground'
-    }`;
+/** Tab / panel id prefix shared with `DepartmentTabContent`. */
+export const DEPARTMENT_TABS_ID_PREFIX = 'department';
 
 export function DepartmentDetailTabs({
     activeTab,
@@ -17,41 +16,27 @@ export function DepartmentDetailTabs({
 }: DepartmentDetailTabsProps) {
     const { t } = useTranslation(['common']);
 
-    const tabs: Array<{ key: TabView; label: string }> = [
-        { key: 'overview', label: t('department_detail.tabs.overview') },
-        { key: 'risks', label: t('department_detail.tabs.risks') },
-        { key: 'controls', label: t('department_detail.tabs.controls') },
-        { key: 'kris', label: t('department_detail.tabs.kris') },
-        { key: 'issues', label: t('department_detail.tabs.issues') },
-        { key: 'processes', label: t('department_detail.tabs.processes') },
-        { key: 'assets', label: t('department_detail.tabs.assets') },
-        { key: 'vendors', label: t('department_detail.tabs.vendors') },
-        { key: 'users', label: t('department_detail.tabs.users') },
-        { key: 'activity', label: t('department_detail.tabs.activity') },
+    const tabs: Array<TabItem<TabView>> = [
+        { id: 'overview', label: t('department_detail.tabs.overview') },
+        { id: 'risks', label: t('department_detail.tabs.risks') },
+        { id: 'controls', label: t('department_detail.tabs.controls') },
+        { id: 'kris', label: t('department_detail.tabs.kris') },
+        { id: 'issues', label: t('department_detail.tabs.issues') },
+        { id: 'processes', label: t('department_detail.tabs.processes') },
+        { id: 'assets', label: t('department_detail.tabs.assets') },
+        { id: 'vendors', label: t('department_detail.tabs.vendors') },
+        { id: 'users', label: t('department_detail.tabs.users') },
+        { id: 'activity', label: t('department_detail.tabs.activity') },
     ];
 
     return (
-        <div
+        <TabList
             data-testid="department-detail-tabs"
-            className="flex items-center gap-2 overflow-x-auto border-b border-white/10"
-            role="tablist"
-            aria-label={t('department_detail.tabs.label')}
-        >
-            {tabs.map((tab) => (
-                <button
-                    key={tab.key}
-                    type="button"
-                    role="tab"
-                    id={`department-tab-${tab.key}`}
-                    aria-controls={`department-panel-${tab.key}`}
-                    aria-selected={activeTab === tab.key}
-                    data-department-tab={tab.key}
-                    onClick={() => onSelectTab(tab.key)}
-                    className={tabClassName(activeTab === tab.key)}
-                >
-                    {tab.label}
-                </button>
-            ))}
-        </div>
+            tabs={tabs}
+            activeTab={activeTab}
+            onChange={onSelectTab}
+            idPrefix={DEPARTMENT_TABS_ID_PREFIX}
+            ariaLabel={t('department_detail.tabs.label')}
+        />
     );
 }

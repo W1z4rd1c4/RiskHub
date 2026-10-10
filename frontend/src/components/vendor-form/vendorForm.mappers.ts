@@ -8,7 +8,7 @@ import type {
 } from '@/types/vendor';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 
-import type { DepartmentLookup, VendorFormData, VendorFormField } from './vendorForm.types';
+import type { DepartmentLookup, VendorFormData, VendorFormField, VendorOption } from './vendorForm.types';
 import { VENDOR_REGISTER_DATE_FIELDS, VENDOR_REGISTER_TEXT_FIELDS } from './vendorForm.types';
 
 interface VendorApprovalScenario {
@@ -164,10 +164,29 @@ export function getSubprocessSuggestions(
     return filterSuggestions(subprocessesByProcess[process || ''] || [], subprocessQuery);
 }
 
-export function scoreColor(score: number): string {
-    if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-    if (score >= 4) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-    if (score >= 3) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-    if (score >= 2) return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-    return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+/** Keeps the record's current owner selectable when the lookup page does not include it. */
+export function withCurrentOwnerOption(options: VendorOption[], vendor: Vendor | undefined): VendorOption[] {
+    const owner = vendor?.outsourcing_owner;
+    const ownerId = vendor?.outsourcing_owner_user_id;
+    if (!ownerId || !owner || options.some((option) => option.value === String(ownerId))) {
+        return options;
+    }
+    return [
+        ...options,
+        {
+            value: String(ownerId),
+            label: [`${owner.name} — ${owner.email}`, owner.department_name, owner.role_name]
+                .filter(Boolean)
+                .join(' · '),
+        },
+    ];
+}
+
+/** Keeps the record's current department selectable when the lookup page does not include it. */
+export function withCurrentDepartmentOption(options: VendorOption[], vendor: Vendor | undefined): VendorOption[] {
+    const departmentId = vendor?.department_id;
+    if (!departmentId || !vendor?.department_name || options.some((option) => option.value === String(departmentId))) {
+        return options;
+    }
+    return [...options, { value: String(departmentId), label: vendor.department_name }];
 }

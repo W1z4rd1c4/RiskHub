@@ -1,9 +1,14 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 
 import { Star, X } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import type { SafeTFunction } from '@/i18n/hooks';
+import { getRoleLabel } from '@/lib/roleLabels';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk } from '@/types/risk';
 
@@ -57,11 +62,13 @@ export function RiskFormOwnershipStep({
   handleInputChange,
 }: RiskFormOwnershipStepProps) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const priorityLabelId = useId();
+  const roleLabel = (role: string | null | undefined) => getRoleLabel(role, t as SafeTFunction);
   const selectedOwner = formData.owner?.id === formData.owner_id ? formData.owner : undefined;
   const selectedName = selectedOwner?.name || t('risks:form.owner_search.unknown_owner');
   const ownerError = (fieldErrors.owner_id || ownerLookupStatus === 'error') ? (
     <>
-      {fieldErrors.owner_id && <span>{fieldErrors.owner_id} </span>}
+      {fieldErrors.owner_id && <span>{t(fieldErrors.owner_id, fieldErrors.owner_id)} </span>}
       {ownerLookupStatus === 'error' && <span role="alert">{t('risks:form.owner_search.failed')}</span>}
     </>
   ) : undefined;
@@ -71,8 +78,7 @@ export function RiskFormOwnershipStep({
         <Field
           label={t('common:labels.department')}
           required
-          error={fieldErrors.department_id || undefined}
-          labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
+          error={fieldErrors.department_id ? t(fieldErrors.department_id, fieldErrors.department_id) : undefined}
         >
           {(field) => (
             <ThemedSelect
@@ -92,35 +98,29 @@ export function RiskFormOwnershipStep({
             label={t('risks:form.owner_search.label')}
             help={t('risks:form.owner_search.help')}
             error={ownerError}
-            labelClassName="block text-[10px] font-black text-muted-foreground uppercase tracking-widest"
           >
             {(field) => (
               <>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  <button
-                    type="button"
+                {/* GAP-D-06: role chips show the translated role name; the code stays the filter value. */}
+                <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label={t('risks:form.owner_search.role_filter')}>
+                  <Button
+                    size="compact"
+                    variant={!roleFilter ? 'accent' : 'secondary'}
                     onClick={() => setRoleFilter('')}
                     aria-pressed={!roleFilter}
-                    className={`px-2.5 py-1 text-xs rounded-lg transition-all ${!roleFilter
-                      ? 'bg-accent text-accent-foreground'
-                      : 'bg-secondary text-muted-foreground hover:bg-secondary'
-                      }`}
                   >
                     {t('common:labels.all')}
-                  </button>
+                  </Button>
                   {uniqueRoles.map((role) => (
-                    <button
+                    <Button
                       key={role}
-                      type="button"
+                      size="compact"
+                      variant={roleFilter === role ? 'accent' : 'secondary'}
                       onClick={() => setRoleFilter(role)}
                       aria-pressed={roleFilter === role}
-                      className={`px-2.5 py-1 text-xs rounded-lg transition-all capitalize ${roleFilter === role
-                        ? 'bg-accent text-accent-foreground'
-                        : 'bg-secondary text-muted-foreground hover:bg-secondary'
-                        }`}
                     >
-                      {role}
-                    </button>
+                      {roleLabel(role)}
+                    </Button>
                   ))}
                 </div>
 
@@ -135,20 +135,20 @@ export function RiskFormOwnershipStep({
                         {t('risks:form.owner_search.selected')}
                       </p>
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="iconCompact"
                       aria-label={t('risks:form.owner_search.clear', { name: selectedName })}
                       onClick={() => {
                         handleInputChange('owner_id', null);
                         searchRef.current?.focus();
                       }}
-                      className="text-muted-foreground hover:text-foreground p-1"
                     >
-                      <X className="h-4 w-4" />
-                    </button>
+                      <X aria-hidden="true" />
+                    </Button>
                   </div>
                 ) : null}
-                <input
+                <Input
                   ref={searchRef}
                   {...field}
                   type="text"
@@ -158,7 +158,6 @@ export function RiskFormOwnershipStep({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') event.preventDefault();
                   }}
-                  className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
                 />
               </>
             )}
@@ -170,34 +169,36 @@ export function RiskFormOwnershipStep({
                 <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{t('risks:form.owner_search.loading')}</p>
               ) : ownerLookupStatus === 'error' ? (
                 <div className="px-4 py-3">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="compact"
                     onClick={() => {
                       retryOwnerSearch();
                       searchRef.current?.focus();
                     }}
-                    className="btn-secondary mt-2"
+                    className="mt-2"
                   >
                     {t('common:actions.retry')}
-                  </button>
+                  </Button>
                 </div>
               ) : filteredUsers.length === 0 ? (
                 <p role="status" className="px-4 py-3 text-sm text-muted-foreground">{ownerResultsLimited || ownerResultsHiddenByRole ? t('risks:form.owner_search.no_visible_matches') : t('common:empty.no_users_found')}</p>
               ) : (
                 filteredUsers.map((u) => (
-                  <button
+                  <Button
                     key={u.id}
-                    type="button"
+                    variant="ghost"
                     aria-pressed={formData.owner_id === u.id}
                     onClick={() => {
                       selectOwner(u);
                       searchRef.current?.focus();
                     }}
-                    className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-secondary transition-colors"
+                    className="h-auto w-full justify-between rounded-none px-4 py-2.5 font-normal"
                   >
                     <span className="text-sm text-foreground">{u.name}</span>
-                    <span className="text-xs text-muted-foreground capitalize">{u.role_name}</span>
-                  </button>
+                    <span className="text-xs text-muted-foreground">{roleLabel(u.role_name)}</span>
+                  </Button>
                 ))
               )}
             </div>
@@ -209,21 +210,16 @@ export function RiskFormOwnershipStep({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-3 cursor-pointer group">
-          <div className={`relative w-12 h-6 rounded-full transition-all ${formData.is_priority ? 'bg-accent' : 'bg-input'}`}>
-            <input
-              type="checkbox"
-              className="sr-only"
-              checked={formData.is_priority}
-              onChange={(e) => handleInputChange('is_priority', e.target.checked)}
-            />
-            <div className={`absolute top-1 left-1 w-4 h-4 bg-background rounded-full transition-transform ${formData.is_priority ? 'translate-x-6' : 'translate-x-0'}`} />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Star className={`h-4 w-4 ${formData.is_priority ? 'text-warning-text fill-warning-text' : 'text-muted-foreground'}`} />
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest group-hover:text-foreground transition-colors">{t('risks:fields.is_priority')}</span>
-          </div>
-        </label>
+        <Switch
+          checked={Boolean(formData.is_priority)}
+          onCheckedChange={(checked) => handleInputChange('is_priority', checked)}
+          aria-labelledby={priorityLabelId}
+          data-testid="risk-priority-switch"
+        />
+        <span id={priorityLabelId} className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Star aria-hidden="true" className={`h-4 w-4 ${formData.is_priority ? 'text-warning-text fill-warning-text' : 'text-muted-foreground'}`} />
+          {t('risks:fields.is_priority')}
+        </span>
       </div>
     </div>
   );

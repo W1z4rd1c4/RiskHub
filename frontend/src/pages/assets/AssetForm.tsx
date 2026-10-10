@@ -1,29 +1,23 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Save, X } from 'lucide-react';
 
 import { Field } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
+import { Input, type InputProps } from '@/components/ui/input';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
+import { Textarea } from '@/components/ui/textarea';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useAccountabilityReassignmentScenario } from '@/hooks/useAccountabilityReassignmentScenario';
 import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { ictRegisterKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/utils';
 import { assetApi } from '@/services/assetApi';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 import type { Asset } from '@/types/asset';
 import { isProcessApprovalQueuedResponse, type ProcessApprovalQueuedResponse } from '@/types/process';
 
+import { FormActions, FormErrorSummary, FormLoadFailedNotice, FormSection } from '../shared/EntityFormChrome';
 import { ASSET_CONTROLLED_CODES, buildAssetWritePayload } from './assetsPagePresentation';
-
-// Token-driven textarea styling matching the `Input` primitive (no `<Textarea>`
-// primitive shipped in #58); the `aria-[invalid=true]` hook lets `Field` drive
-// the error visual with no extra class.
-const TEXTAREA_CLASS =
-    'flex min-h-[4.5rem] w-full rounded-xl border border-input bg-input/40 px-4 py-2.5 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground hover:border-ring/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive resize-y';
 
 interface AssetFormProps {
     initialData?: Asset;
@@ -358,15 +352,13 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         }
     };
 
-    const labelClassName = 'text-xs font-bold uppercase tracking-widest text-slate-500';
-
     const selectField = (
         field: keyof FormFields,
         label: string,
         options: Array<{ value: string; label: string }>,
         testId: string,
     ) => (
-        <Field label={label} error={fieldErrors[field]} labelClassName={labelClassName}>
+        <Field label={label} error={fieldErrors[field]}>
             {(control) => (
                 <ThemedSelect
                     {...control}
@@ -386,13 +378,12 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         field: keyof FormFields,
         label: string,
         testId: string,
-        props: React.InputHTMLAttributes<HTMLInputElement> = {},
+        props: InputProps = {},
     ) => (
         <Field
             label={label}
             required={props.required}
             error={fieldErrors[field]}
-            labelClassName={labelClassName}
         >
             {(control) => (
                 <Input
@@ -413,40 +404,23 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         <form noValidate onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error || hasFieldErrors ? (
-                <div role="alert" className="glass-card flex items-start gap-3 border border-rose-400/30 text-rose-300">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{error ?? t('form.errors.fix_fields')}</p>
-                </div>
+                <FormErrorSummary message={error ?? t('form.errors.fix_fields')} />
             ) : null}
 
             {closedListsQuery.isError || businessOwnerQuery.isError || ictOwnerQuery.isError || departmentQuery.isError ? (
-                <div
-                    role="status"
-                    className="glass-card flex items-center justify-between gap-3 border border-amber-400/30 text-amber-200"
-                >
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                        <p className="text-sm font-medium">{t('form.errors.lists_failed')}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            void closedListsQuery.refetch();
-                            void businessOwnerQuery.refetch();
-                            void ictOwnerQuery.refetch();
-                            void departmentQuery.refetch();
-                        }}
-                        className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-100 transition-colors hover:bg-white/10"
-                    >
-                        {t('actions.retry')}
-                    </button>
-                </div>
+                <FormLoadFailedNotice
+                    message={t('form.errors.lists_failed')}
+                    retryLabel={t('actions.retry')}
+                    onRetry={() => {
+                        void closedListsQuery.refetch();
+                        void businessOwnerQuery.refetch();
+                        void ictOwnerQuery.refetch();
+                        void departmentQuery.refetch();
+                    }}
+                />
             ) : null}
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.identity')}
-                </h2>
+            <FormSection title={t('form.sections.identity')}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {textField('name', t('form.name'), 'asset-form-name', { required: true })}
                     {selectField('asset_type', t('form.asset_type'), controlledOptions.assetTypes, 'asset-form-asset-type')}
@@ -455,44 +429,37 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     {textField('physical_location', t('form.physical_location'), 'asset-form-physical-location')}
                     {textField('alternative_names', t('form.alternative_names'), 'asset-form-alternative-names')}
                 </div>
-                <Field label={t('form.description')} labelClassName={labelClassName}>
+                <Field label={t('form.description')}>
                     {(control) => (
-                        <textarea
+                        <Textarea
                             {...control}
                             data-testid="asset-form-description"
                             value={fields.description}
                             onChange={(event) => setField('description', event.target.value)}
                             rows={2}
-                            className={TEXTAREA_CLASS}
                         />
                     )}
                 </Field>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.ownership')}
-                </h2>
+            <FormSection title={t('form.sections.ownership')}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <Field label={t('form.business_owner')} required error={fieldErrors.business_owner_user_id} labelClassName={labelClassName}>
+                    <Field label={t('form.business_owner')} required error={fieldErrors.business_owner_user_id}>
                         {(control) => <SearchableEntitySelect {...control} value={fields.business_owner_user_id} onValueChange={setBusinessOwner} options={businessOwnerOptions} searchValue={businessOwnerSearch} onSearchChange={setBusinessOwnerSearch} placeholder={t('form.business_owner_placeholder')} searchPlaceholder={t('form.owner_search')} triggerTestId="asset-form-business-owner" triggerRef={registerFieldRef('business_owner_user_id')} />}
                     </Field>
-                    <Field label={t('form.ict_owner')} required error={fieldErrors.ict_owner_user_id} labelClassName={labelClassName}>
+                    <Field label={t('form.ict_owner')} required error={fieldErrors.ict_owner_user_id}>
                         {(control) => <SearchableEntitySelect {...control} value={fields.ict_owner_user_id} onValueChange={(value) => setField('ict_owner_user_id', value)} options={ictOwnerOptions} searchValue={ictOwnerSearch} onSearchChange={setIctOwnerSearch} placeholder={t('form.ict_owner_placeholder')} searchPlaceholder={t('form.owner_search')} triggerTestId="asset-form-ict-owner" triggerRef={registerFieldRef('ict_owner_user_id')} />}
                     </Field>
-                    <Field label={t('form.owner_department')} required error={fieldErrors.owning_department_id} labelClassName={labelClassName}>
+                    <Field label={t('form.owner_department')} required error={fieldErrors.owning_department_id}>
                         {(control) => <SearchableEntitySelect {...control} value={fields.owning_department_id} onValueChange={(value) => setField('owning_department_id', value)} options={departmentOptions} searchValue={departmentSearch} onSearchChange={setDepartmentSearch} placeholder={t('form.department_placeholder')} searchPlaceholder={t('form.department_search')} triggerTestId="asset-form-owner-department" triggerRef={registerFieldRef('owning_department_id')} />}
                     </Field>
                     {selectField('gdpr_relevance', t('form.gdpr_relevance'), controlledOptions.yesNoUndetermined, 'asset-form-gdpr-relevance')}
                     {selectField('ai_relevance', t('form.ai_relevance'), controlledOptions.yesNoUndetermined, 'asset-form-ai-relevance')}
                     {selectField('data_classification', t('form.data_classification'), controlledOptions.dataClassifications, 'asset-form-data-classification')}
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.ratings')}
-                </h2>
+            <FormSection title={t('form.sections.ratings')}>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                     {RATING_FIELDS.map((field) => (
                         <div key={field} className="contents">
@@ -500,13 +467,10 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                         </div>
                     ))}
                 </div>
-                <p className="text-xs text-slate-500">{t('form.ratings_note')}</p>
-            </section>
+                <p className="text-xs text-muted-foreground">{t('form.ratings_note')}</p>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.impact_dependencies')}
-                </h2>
+            <FormSection title={t('form.sections.impact_dependencies')}>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                     {selectField('impact_client', t('form.impact_client'), listOptions.ratingScale, 'asset-form-impact-client')}
                     {selectField('impact_regulatory', t('form.impact_regulatory'), listOptions.ratingScale, 'asset-form-impact-regulatory')}
@@ -515,12 +479,9 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     {selectField('internet_exposed', t('form.internet_exposed'), controlledOptions.yesNo, 'asset-form-internet-exposed')}
                     {selectField('preliminary_criticality', t('form.preliminary_criticality'), controlledOptions.criticalityClasses, 'asset-form-preliminary-criticality')}
                 </div>
-            </section>
+            </FormSection>
 
-            <section className="glass-card space-y-5">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">
-                    {t('form.sections.lifecycle')}
-                </h2>
+            <FormSection title={t('form.sections.lifecycle')}>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                     {selectField('lifecycle_state', t('form.lifecycle_state'), controlledOptions.lifecycleStates, 'asset-form-lifecycle-state')}
                     {textField('standard_support_end_date', t('form.standard_support_end_date'), 'asset-form-standard-support-end-date', { type: 'date' })}
@@ -529,15 +490,14 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     {textField('last_legacy_risk_assessment_date', t('form.last_legacy_risk_assessment_date'), 'asset-form-last-legacy-risk-assessment-date', { type: 'date' })}
                     {selectField('review_state', t('form.review_state'), controlledOptions.reviewStates, 'asset-form-review-state')}
                 </div>
-                <Field label={t('form.notes')} labelClassName={labelClassName}>
+                <Field label={t('form.notes')}>
                     {(control) => (
-                        <textarea
+                        <Textarea
                             {...control}
                             data-testid="asset-form-notes"
                             value={fields.notes}
                             onChange={(event) => setField('notes', event.target.value)}
                             rows={3}
-                            className={TEXTAREA_CLASS}
                         />
                     )}
                 </Field>
@@ -546,43 +506,28 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                     required={accountabilityChangeRequiresApproval}
                     error={fieldErrors.request_reason}
                     help={t('form.request_reason_help')}
-                    labelClassName={labelClassName}
                 >
                     {(control) => (
-                        <textarea
+                        <Textarea
                             {...control}
                             ref={registerFieldRef('request_reason')}
                             data-testid="asset-form-request-reason"
                             value={fields.request_reason}
                             onChange={(event) => setField('request_reason', event.target.value)}
                             rows={3}
-                            className={TEXTAREA_CLASS}
                         />
                     )}
                 </Field>
-            </section>
+            </FormSection>
 
-            <div className="flex items-center justify-end gap-3">
-                {onCancel ? (
-                    <button
-                        type="button"
-                        onClick={() => requestLocalLeave(onCancel)}
-                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2 text-sm font-semibold"
-                    >
-                        <X className="h-4 w-4" />
-                        {t('actions.cancel')}
-                    </button>
-                ) : null}
-                <button
-                    type="submit"
-                    disabled={isSubmitting || accountabilityScenarioUnavailable}
-                    data-testid="asset-form-submit"
-                    className="px-5 py-2.5 rounded-xl bg-accent text-accent-foreground font-bold hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
-                    {submitLabel}
-                </button>
-            </div>
+            <FormActions
+                submitLabel={submitLabel}
+                submitTestId="asset-form-submit"
+                isSubmitting={isSubmitting}
+                submitDisabled={accountabilityScenarioUnavailable}
+                onCancel={onCancel ? () => requestLocalLeave(onCancel) : undefined}
+                cancelLabel={t('actions.cancel')}
+            />
             </fieldset>
             {confirmationDialog}
         </form>

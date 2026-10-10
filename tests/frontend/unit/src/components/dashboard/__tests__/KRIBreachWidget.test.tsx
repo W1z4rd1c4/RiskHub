@@ -57,4 +57,19 @@ describe('KRIBreachWidget population count', () => {
         expect(screen.getByText('Breach 5')).toBeInTheDocument();
         expect(screen.queryByText('Breach 6')).not.toBeInTheDocument();
     });
+
+    it('renders each breach and the register shortcut as keyboard-reachable links', async () => {
+        render(
+            <MemoryRouter>
+                <KRIBreachWidget />
+            </MemoryRouter>,
+        );
+
+        const firstBreach = await screen.findByRole('link', { name: /Breach 1/ });
+        expect(firstBreach).toHaveAttribute('href', '/risks/10');
+        expect(firstBreach).toHaveTextContent('120 %');
+        expect(screen.getByRole('link', { name: 'kri.view_risk_register' })).toHaveAttribute('href', '/risks?breached=true');
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'kri.active_breaches' })).toBeInTheDocument();
+    });
 });

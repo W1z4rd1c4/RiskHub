@@ -64,8 +64,8 @@ export function LinkSearchPanel({
 
     return (
         <section className="space-y-4">
-            <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                <Plus className="h-3 w-3" />
+            <h3 className="text-eyebrow flex items-center gap-2">
+                <Plus aria-hidden="true" className="size-3" />
                 {getSearchPanelHeading(mode, t)}
             </h3>
 
