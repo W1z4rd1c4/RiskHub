@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-10-02
+**Analysis Date:** 2026-10-10
 
 This file is a versioned repository-structure snapshot for the commit that
 contains it. It does not assign live work or determine whether an issue, pull
@@ -36,7 +36,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-10.
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 526 tracked test files (488 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 527 tracked test files (489 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -55,7 +55,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-10.
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 89 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - 91 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 
@@ -92,4 +92,4 @@ in the applicable GitHub Issue, pull request, or Project item.
 
 ---
 
-*Structure audit refreshed on 2026-10-02*
+*Structure audit refreshed on 2026-10-10*

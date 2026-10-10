@@ -1,32 +1,52 @@
-# Container security backports
+# Container runtime security
 
-The pinned Python 3.13.15 / Alpine 3.24 image requires two upstream corrections
-reported by the September 26, 2026 container scan. Both runtime and DB-task images
-apply the same fixes. These are source corrections, not acceptance of vulnerable
-runtime behavior. Grype's package metadata cannot identify these corrections, so
-exact package/CVE/match rules expire on October 10, 2026.
+The backend builder, runtime and DB-task targets use the official
+`python:3.13.16-alpine3.24` image, pinned to multi-platform manifest digest
+`sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a`.
+The tag, manifest contents and image configuration were verified on October 10,
+2026. Its amd64 manifest is
+`sha256:ba27df8b6499cc3756cff167690f3fcb5321faa1703b3a914df5f4fdadb32f05`.
 
-- CPython CVE-2026-82049: apply the one-line Python 3.13 upstream fix from
-  [b8f23e3](https://github.com/python/cpython/commit/b8f23e307097552eaea2604383a12ab280520d0d).
-  The patch requires the exact Python version and one expected source occurrence.
-  Every final image executes the hard-link-to-symlink archive regression with both
-  `data` and `tar` filters. External contents must remain outside the extracted tree.
-- zlib CVE-2026-85091: build upstream commit
-  [d81c2d7](https://github.com/madler/zlib/commit/d81c2d7eb705c62294ba03299255672078e89115),
-  which includes [df84af2](https://github.com/madler/zlib/commit/df84af25dc1942490e1d1c899a07619152a46148)
-  and subsequent return/blocked-write corrections. Docker verifies the archive's
-  SHA-256 before compiling. `make check` must pass. Only the fixed shared object
-  and its license enter the final image; compiler/source stay in the build stage.
-  CPython and a direct system-soname load must both report `1.3.2.1-motley`.
+## Fixed upstream releases
 
-Alpine's installed-package record remains `zlib 1.3.2-r0`; the overlay is explicitly
-recorded here and in the Dockerfile. Rebuilding with another base/package layout
-requires re-evaluating the overlay. Do not run `apk upgrade` inside a deployed
-container: deploy a rebuilt, rescanned immutable image instead.
+- CPython 3.13.16 fixes CVE-2026-82049 (tarfile hard-link-to-symlink extraction),
+  CVE-2026-19445 (SNI callback context lifetime), and CVE-2026-19553 (missing
+  hostname validation in `SSLContext.wrap_bio`). See the
+  [Python release](https://www.python.org/downloads/release/python-31316/),
+  [versioned release notes](https://github.com/python/cpython/blob/v3.13.16/Misc/NEWS.d/3.13.16.rst)
+  and [official image source](https://github.com/docker-library/python/blob/d2a898cb88e46203577eabc62cdcf6e92aaee176/3.13/alpine3.24/Dockerfile).
+- Alpine 3.24's `zlib 1.3.2-r1` fixes CVE-2026-85091. The
+  [Alpine security database](https://secdb.alpinelinux.org/v3.24/main.json) and
+  [package recipe](https://gitlab.alpinelinux.org/alpine/aports/-/blob/0afa2da0e8c8051c6f8f64a7a388e5a259904245/main/zlib/APKBUILD)
+  record that fix. Every image lane requires `zlib>=1.3.2-r1` through `apk`, so
+  an unavailable fixed package fails construction. This is necessary because
+  the pinned Python base predates the October 6 Alpine package update.
 
-Retire each overlay and its exact scanner rule as soon as its official fixed
-package is available. Any version mismatch, failed regression, expired rule, or
-additional vulnerability blocks the build/release. The scanner still records its
-ignored matches for audit; unrelated HIGH/CRITICAL findings remain blocking.
+## Build-time regression checks
 
-`pip-audit-allowlist.txt` remains the separate Python-package audit policy.
+Both final targets execute `verify_runtime_security.py`. It requires the fixed
+Python 3.13 release and checks:
+
+- Missing and empty TLS verification hostnames raise `ValueError`, while a
+  supplied hostname is accepted
+- An SNI callback can switch context, release the original application reference
+  and raise without use-after-free; the expected callback error is observed
+- Both `data` and `tar` extraction filters keep outside-file contents private
+- CPython and the normal `libz.so.1` soname load the same library, with a
+  compression/decompression round trip
+
+Alpine backports the zlib fix without changing its upstream runtime version
+string (`1.3.2`); the package revision is enforced by the Dockerfile, not inferred
+from `zlibVersion()`.
+
+## Retired source overlays
+
+The temporary Python `tarfile.py` edit and custom zlib shared-object overlay
+were removed after these official fixes became available. Both exact scanner
+exceptions were removed before their October 10 review deadline. The active
+Grype policy is `ignore: []`; no expiry was extended. All HIGH/CRITICAL findings
+remain blocking. Rebuild and scan both runtime and DB-task images before release.
+
+Do not run `apk upgrade` inside a deployed container: deploy a rebuilt,
+rescanned immutable image instead. `pip-audit-allowlist.txt` remains the separate
+Python-package audit policy.

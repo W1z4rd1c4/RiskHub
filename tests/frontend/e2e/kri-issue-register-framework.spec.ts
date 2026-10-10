@@ -119,12 +119,23 @@ test.describe('ICT Register — shared KRI and Issue framework (#82)', () => {
         const page = new KRIsPage(riskManagerPage);
         await page.navigate('?source=external-review&page=5');
 
-        let requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).monitoring_status === 'breach');
-        // PG-25: the monitoring select is the only status control (no duplicate pill row).
+        // Monitoring depends on submitted history and the current reporting window.
+        // Select a populated facet; zero-count options are deliberately disabled.
+        // breach_only remains an independent filter exercised below.
         await riskManagerPage.getByTestId('kris-monitoring-filter-trigger').click();
-        await riskManagerPage.getByTestId('kris-monitoring-filter-option-breach').click();
+        const monitoringOption = riskManagerPage.locator(
+            '[data-testid^="kris-monitoring-filter-option-"]:not([data-testid$="-empty"]):not([aria-disabled="true"])',
+        ).first();
+        await expect(monitoringOption).toBeEnabled();
+        const monitoringStatus = (await monitoringOption.getAttribute('data-testid'))!
+            .replace('kris-monitoring-filter-option-', '');
+        expect(['new', 'not_submitted', 'optimal', 'warning', 'breach']).toContain(monitoringStatus);
+        let requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => (
+            filters(url).monitoring_status === monitoringStatus
+        ));
+        await monitoringOption.click();
         let requestUrl = new URL((await requestPromise).url());
-        expect(filters(requestUrl)).toMatchObject({ monitoring_status: 'breach' });
+        expect(filters(requestUrl)).toMatchObject({ monitoring_status: monitoringStatus });
         await expect(riskManagerPage).toHaveURL((url) => !url.searchParams.has('page'));
 
         requestPromise = waitForCollection(riskManagerPage, REGISTERS[0], (url) => filters(url).timeliness_status === 'due_soon');

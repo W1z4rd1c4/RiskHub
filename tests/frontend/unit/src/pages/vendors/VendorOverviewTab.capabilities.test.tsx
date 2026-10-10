@@ -106,6 +106,19 @@ describe('VendorOverviewTab linked-register capabilities', () => {
         linkApiMocks.getLinkedRisks.mockResolvedValue([]);
     });
 
+    it('renders summary field labels at full opacity without staggered entry fading', () => {
+        renderOverview(vendorWithLinkedVisibility({ controls: false, kris: false, risks: false }));
+
+        for (const name of ['detail.classification', 'detail.ownership', 'detail.connections']) {
+            const section = screen.getByRole('heading', { level: 2, name }).closest('section');
+            const item = section?.parentElement;
+            // Both the item and its grid used to fade, compounding text opacity.
+            expect(item).toHaveStyle({ opacity: '1' });
+            expect(item?.parentElement).toHaveStyle({ opacity: '1' });
+            expect(section?.querySelector('dt')).toHaveClass('text-eyebrow');
+        }
+    });
+
     it('makes zero linked-register requests and mounts no linked surfaces when all view capabilities are false', async () => {
         renderOverview(vendorWithLinkedVisibility({ controls: false, kris: false, risks: false }));
 

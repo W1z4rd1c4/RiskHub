@@ -200,7 +200,7 @@ export function AuthFrame({
                 <Card as="section" className={cn('w-full space-y-5 shadow-popover', CARD_WIDTH[size])}>
                     <div className="space-y-2">
                         {eyebrow ? <p className="text-eyebrow">{eyebrow}</p> : null}
-                        <h1 ref={heading} tabIndex={-1} className="font-heading text-2xl font-bold tracking-tight text-foreground focus:outline-none">
+                        <h1 ref={heading} tabIndex={-1} className="font-heading text-2xl font-bold tracking-tight text-foreground focus:outline-hidden">
                             {title}
                         </h1>
                         {subtitle ? <div className="space-y-2 text-sm text-muted-foreground">{subtitle}</div> : null}

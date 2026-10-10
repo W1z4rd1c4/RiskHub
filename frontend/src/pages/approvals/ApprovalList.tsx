@@ -237,7 +237,7 @@ export function ApprovalList({
                             expandedRows.has(approval.id) &&
                             canViewPendingChanges && (
                                 <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
+                                    initial={{ height: 0, opacity: 1 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
                                     className="bg-tint/[0.03] border-t border-border px-6 py-4"

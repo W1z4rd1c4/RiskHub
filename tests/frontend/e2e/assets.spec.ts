@@ -8,6 +8,8 @@
  * weighted score, resulting criticality, CIF, SPOF rollups — ticket #48)
  * render read-only on the register and the detail, never as inputs.
  */
+import type { Page } from '@playwright/test';
+
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ASSETS, E2E_PROCESSES } from './fixtures/e2e-data';
 import {
@@ -55,6 +57,22 @@ const OWNER_PERSONAS = [
         unrelatedAsset: E2E_ASSETS.CLAIMS_DATABASE,
     },
 ] as const;
+
+async function navigateToUnavailableAsset(page: Page, assetId: number, mode: 'detail' | 'edit' = 'detail') {
+    const deniedRead = page.waitForResponse((response) => (
+        response.request().method() === 'GET'
+        && new URL(response.url()).pathname === `/api/v1/assets/${assetId}`
+    ));
+    await page.goto(`/assets/${assetId}${mode === 'edit' ? '/edit' : ''}`);
+    const response = await deniedRead;
+    expect(response.status()).toBe(404);
+    expect(await response.json()).toEqual({ detail: 'Asset not found' });
+    // Settle the denied route before asserting absence or starting a new navigation.
+    // A missing form during session bootstrap is not evidence of denied access.
+    await expect(page.getByTestId('detail-load-unavailable')).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { level: 1 }))
+        .toHaveText('Record unavailable');
+}
 
 test.describe('ICT Register — Assets (Deterministic)', () => {
     test('Risk manager sees Assets in the sidebar and navigates to the register', async ({ riskManagerPage }) => {
@@ -121,7 +139,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 await expect(page.getByText('Supporting', { exact: true }).first()).toBeVisible();
                 await expect(page.getByText('SaaS', { exact: true }).first()).toBeVisible();
 
-                const ownership = page.locator('.glass-card').filter({
+                const ownership = page.locator('main section').filter({
                     has: page.getByRole('heading', {
                         name: /^(Ownership and regulation|Vlastnictví a regulace)$/,
                     }),
@@ -148,9 +166,8 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 await assetsPage.navigate();
                 await assetsPage.search(unrelatedAsset.name);
                 await expect(assetsPage.tableRows.filter({ hasText: unrelatedAsset.name })).toHaveCount(0);
-                await page.goto(`/assets/${unrelated!.id}`);
-                await expect(page.getByTestId('detail-load-unavailable')).toBeVisible();
-                await page.goto(`/assets/${unrelated!.id}/edit`);
+                await navigateToUnavailableAsset(page, unrelated!.id);
+                await navigateToUnavailableAsset(page, unrelated!.id, 'edit');
                 await expect(page.getByTestId('asset-form-submit')).toHaveCount(0);
 
                 await assetsPage.navigate();
@@ -217,15 +234,23 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             }),
         ).toHaveCount(0);
 
-        await deptHeadPage.goto(`/assets/${asset!.id}`);
-        await waitForDataLoad(deptHeadPage);
-        await expect(deptHeadPage.getByTestId('detail-load-unavailable')).toBeVisible();
-        await expect(deptHeadPage.locator('main h1')).toHaveCount(0);
+        await navigateToUnavailableAsset(deptHeadPage, asset!.id);
+        const main = deptHeadPage.getByRole('main');
+        for (const protectedValue of [
+            E2E_ASSETS.OWNER_SCOPED_ACTIVE.name,
+            E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_name,
+            E2E_ASSETS.OWNER_SCOPED_ACTIVE.business_owner_email,
+            E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_name,
+            E2E_ASSETS.OWNER_SCOPED_ACTIVE.ict_owner_email,
+            'Finance (FIN)',
+        ]) {
+            await expect(main).not.toContainText(protectedValue);
+        }
+        await expect(deptHeadPage.getByTestId('asset-derived-section')).toHaveCount(0);
         await expect(deptHeadPage.getByTestId('asset-detail-edit')).toHaveCount(0);
         await expect(deptHeadPage.getByTestId('asset-detail-archive')).toHaveCount(0);
 
-        await deptHeadPage.goto(`/assets/${asset!.id}/edit`);
-        await waitForDataLoad(deptHeadPage);
+        await navigateToUnavailableAsset(deptHeadPage, asset!.id, 'edit');
         await expect(deptHeadPage.getByTestId('asset-form-submit')).toHaveCount(0);
     });
 
@@ -483,7 +508,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
         await riskManagerPage.getByTestId('asset-process-link-select').click();
         await riskManagerPage.getByRole('option', { name: /E2E-PROC-002/ }).click();
         await riskManagerPage.getByTestId('asset-process-link-significance').click();
-        await riskManagerPage.getByRole('option', { name: 'BCM/DR vazba', exact: true }).click();
+        await riskManagerPage.getByRole('option', { name: 'BCM/DR link', exact: true }).click();
         await riskManagerPage.getByTestId('asset-process-link-add').click();
         const firstAddDialog = riskManagerPage.getByRole('alertdialog');
         await expect(
@@ -491,7 +516,19 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 name: /Request reason|Důvod žádosti/,
             }),
         ).toHaveCount(0);
+        const firstAdded = riskManagerPage.waitForResponse((response) => (
+            response.request().method() === 'POST'
+            && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links`
+        ));
         await firstAddDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+        const firstAddedResponse = await firstAdded;
+        expect(firstAddedResponse.status()).toBe(201);
+        expect(firstAddedResponse.request().postDataJSON()).toMatchObject({
+            process_id: processA!.id,
+            significance: 'BCM/DR vazba',
+            is_primary: false,
+            request_reason: '',
+        });
 
         const processLinks = riskManagerPage.getByTestId('asset-process-links');
         await expect(processLinks.getByText(E2E_PROCESSES.POLICY_ADMIN.l1_process).first()).toBeVisible();
@@ -541,7 +578,14 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                     name: /Request reason|Důvod žádosti/,
                 }),
             ).toHaveCount(0);
-            await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+            const removed = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'DELETE'
+                && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links/${processId}`
+            ));
+            await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
+            const removedResponse = await removed;
+            expect(removedResponse.status()).toBe(204);
+            expect(removedResponse.request().postDataJSON()).toMatchObject({ request_reason: '' });
             await expect(riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`)).toHaveCount(0);
         }
         await expect(riskManagerPage.getByText(/No Processes linked yet|Zatím žádné vazby na procesy/)).toBeVisible();
@@ -568,7 +612,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             await riskManagerPage.getByTestId('asset-asset-link-select').click();
             await riskManagerPage.getByRole('option', { name: /E2E-ASSET-004/ }).click();
             await riskManagerPage.getByTestId('asset-asset-link-dependency-type').click();
-            await riskManagerPage.getByRole('option', { name: 'Datová', exact: true }).click();
+            await riskManagerPage.getByRole('option', { name: 'Data', exact: true }).click();
             await riskManagerPage.getByTestId('asset-asset-link-add').click();
             const addDialog = riskManagerPage.getByRole('alertdialog');
             await addDialog.getByRole('textbox').fill('E2E direct asset dependency addition');
@@ -577,7 +621,15 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/asset-links`
             ));
             await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
-            dependencyCreated = (await added).status() === 201;
+            const addedResponse = await added;
+            dependencyCreated = addedResponse.status() === 201;
+            expect(addedResponse.status()).toBe(201);
+            expect(addedResponse.request().postDataJSON()).toMatchObject({
+                dependent_asset_id: asset!.id,
+                supporting_asset_id: supportingAsset!.id,
+                dependency_type: 'Datová',
+                request_reason: 'E2E direct asset dependency addition',
+            });
             await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}(?:\\?.*)?$`));
 
             const assetLinks = riskManagerPage.getByTestId('asset-asset-links');

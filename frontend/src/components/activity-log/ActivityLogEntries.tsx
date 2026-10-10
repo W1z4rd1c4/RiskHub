@@ -127,7 +127,7 @@ export function ActivityLogEntries({ entries, outcome, needsRiskSelection = fals
                         data-entity-type={entry.entity_type}
                         data-action={entry.action}
                         layout
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={false}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         className="relative overflow-hidden rounded-2xl border border-border p-5 glass-card"

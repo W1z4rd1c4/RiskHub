@@ -92,8 +92,9 @@ function auditInPage(root: Element, { kernel, failureCap }: AuditArgs): Rendered
     const large = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
     const required = large ? 3 : 4.5;
     const { ratio } = sample;
-    const color = style.color.match(/[\d.]+/g)?.map(Number) ?? [];
-    const white = (color[0] ?? 0) >= 250 && (color[1] ?? 0) >= 250 && (color[2] ?? 0) >= 250;
+    // Use the kernel's normalized, composited sRGB foreground. Raw computed
+    // colors can be color(srgb …)/oklab(…) after the Tailwind 4 migration.
+    const white = sample.foreground.slice(0, 3).every((channel) => channel >= 250);
 
     counts.total += 1;
     if (white && luminance(sample.background) > 0.5) counts.whiteOnLight += 1;

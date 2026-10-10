@@ -192,7 +192,7 @@ const MultiSelect = React.forwardRef<HTMLButtonElement, MultiSelectProps>(functi
             className={cn(
               "themed-select-content z-popover w-[var(--radix-popover-trigger-width)] min-w-48 rounded-2xl border p-1 shadow-popover backdrop-blur-xl",
               "border-border bg-popover/95 text-popover-foreground",
-              "focus-visible:outline-none"
+              "focus-visible:outline-hidden"
             )}
           >
             {searchable ? (

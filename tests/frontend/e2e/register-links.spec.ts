@@ -249,7 +249,7 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
                     name: /Request reason|Důvod žádosti/,
                 }),
             ).toHaveCount(0);
-            await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+            await removeDialog.getByRole('button', { name: /Remove link|Odebrat propojení/, exact: true }).click();
             await expect(riskManagerPage.getByTestId(`process-vendor-link-remove-${created!.id}`)).toHaveCount(0);
             const remaining = await listProcessVendorLinks(processId);
             expect(remaining.some((link) => link.vendor_id === vendorId)).toBe(false);

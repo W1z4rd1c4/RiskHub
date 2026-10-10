@@ -30,7 +30,7 @@ export function LinkConfirmationPanel({
         <AnimatePresence>
             {selectedTargetId && selectedResult && (
                 <motion.div
-                    initial={{ opacity: 0, height: 0 }}
+                    initial={{ opacity: 1, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"

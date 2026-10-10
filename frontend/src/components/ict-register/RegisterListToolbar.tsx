@@ -76,7 +76,7 @@ export function RegisterListToolbar({
                 </label>
                 <div className="flex flex-wrap items-start gap-3">
                     {lifecycleControl}
-                    <label className="glass relative flex h-10 items-center gap-2 rounded-lg px-3 text-sm text-foreground focus-within:outline-none focus-within:ring-1 focus-within:ring-ring">
+                    <label className="glass relative flex h-10 items-center gap-2 rounded-lg px-3 text-sm text-foreground focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring">
                         <Filter className="h-4 w-4" aria-hidden="true" />
                         <span>{filtersLabel}</span>
                         {activeFilterCount > 0 ? (

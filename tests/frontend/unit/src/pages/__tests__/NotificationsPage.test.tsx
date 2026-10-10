@@ -943,10 +943,12 @@ describe('NotificationsPage read-state controls', () => {
 
     it('clears the Unread view and pagination after acknowledged mark-all', async () => {
         let inboxCleared = false;
+        let clearedFirstPageRequested = false;
         server.use(
             http.get('*/api/v1/notifications', ({ request }) => {
                 const url = new URL(request.url);
                 const skip = Number(url.searchParams.get('skip') ?? '0');
+                if (inboxCleared && skip === 0) clearedFirstPageRequested = true;
                 return HttpResponse.json({
                     items: inboxCleared ? [] : [{ ...linkedUnread, id: skip === 20 ? 606 : 605 }],
                     total: inboxCleared ? 0 : 21,
@@ -970,10 +972,17 @@ describe('NotificationsPage read-state controls', () => {
 
         await user.click(screen.getByRole('button', { name: 'Mark all as read' }));
 
-        expect(await screen.findByText('No notifications')).toBeInTheDocument();
-        expect(screen.getAllByText('All caught up!')).toHaveLength(2);
-        expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
-        expect(markAllRequests).toBe(1);
+        // Mark-all resets page 2 to page 0, which remounts the query surface.
+        // Reacquire nodes inside the assertion instead of retaining a detached
+        // transient empty-state element across the URL/refetch transition.
+        await waitFor(() => {
+            expect(clearedFirstPageRequested).toBe(true);
+            expect(screen.getByTestId('location')).toHaveTextContent(/^\/notifications\?tab=unread$/);
+            expect(screen.getByText('No notifications')).toBeInTheDocument();
+            expect(screen.getAllByText('All caught up!')).toHaveLength(2);
+            expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
+            expect(markAllRequests).toBe(1);
+        });
     });
 
     it('localizes read, unread, and mark-all actions and failures in Czech', async () => {

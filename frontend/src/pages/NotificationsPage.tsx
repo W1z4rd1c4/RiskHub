@@ -363,7 +363,7 @@ export function NotificationsPage() {
                             const presentation = buildNotificationPresentation(notification);
                             const content = (
                                 <div className="flex gap-4">
-                                    <div className="flex-shrink-0 mt-1">
+                                    <div className="shrink-0 mt-1">
                                         <NotificationPresentationIcon model={presentation} />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -372,7 +372,7 @@ export function NotificationsPage() {
                                                 {presentation.title}
                                             </p>
                                             {!notification.is_read && (
-                                                <span aria-hidden="true" className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                                                <span aria-hidden="true" className="w-2 h-2 bg-accent rounded-full shrink-0" />
                                             )}
                                             <span className="text-xs text-muted-foreground ml-auto">
                                                 {formatRelativeDate(presentation.date)}

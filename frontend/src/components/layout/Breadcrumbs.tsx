@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { Link, type To } from 'react-router-dom';
 
 import { useTranslation } from '@/i18n/hooks';
+import { cn } from '@/lib/utils';
 
 export interface BreadcrumbItem {
     label: string;
@@ -26,26 +27,29 @@ export function Breadcrumbs({ items, label, className }: BreadcrumbsProps) {
     if (items.length === 0) return null;
 
     return (
-        <nav aria-label={label ?? t('breadcrumbs.label')} className={className}>
+        <nav
+            aria-label={label ?? t('breadcrumbs.label')}
+            className={cn('min-w-0 max-w-full [overflow-wrap:anywhere]', className)}
+        >
             <ol className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                 {items.map((item, index) => {
                     const isCurrent = index === items.length - 1;
                     return (
-                        <li key={`${index}-${item.label}`} className="flex min-w-0 items-center gap-1.5">
+                        <li key={`${index}-${item.label}`} className="flex min-w-0 max-w-full items-center gap-1.5">
                             {index > 0 ? <ChevronRight aria-hidden="true" className="size-4 shrink-0" /> : null}
                             {isCurrent ? (
-                                <span aria-current="page" className="min-w-0 break-words font-medium text-foreground">
+                                <span aria-current="page" className="min-w-0 font-medium text-foreground">
                                     {item.label}
                                 </span>
                             ) : item.to !== undefined ? (
                                 <Link
                                     to={item.to}
-                                    className="rounded underline-offset-4 transition-colors duration-base hover:text-foreground hover:underline focus-ring"
+                                    className="min-w-0 rounded underline-offset-4 transition-colors duration-base hover:text-foreground hover:underline focus-ring"
                                 >
                                     {item.label}
                                 </Link>
                             ) : (
-                                <span>{item.label}</span>
+                                <span className="min-w-0">{item.label}</span>
                             )}
                         </li>
                     );

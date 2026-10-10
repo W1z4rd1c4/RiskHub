@@ -83,7 +83,7 @@ function CriticalRisksCard({
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
         >
@@ -160,7 +160,7 @@ function CriticalVendorsCard({
 }) {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
         >
@@ -216,7 +216,7 @@ function CriticalVendorsCard({
 function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
         >
@@ -279,7 +279,7 @@ function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary
     const format = useFormat();
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
         >
@@ -327,7 +327,7 @@ export function RiskCommitteeSummaryContent({
 }) {
     return (
         <motion.div
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             className="space-y-6"
         >

@@ -52,7 +52,8 @@ UI components for `layout` area.
   `description`, decorative `icon`, `actions`, a destination-labelled `back` (`{ label, to }` or
   `{ label, onClick }` → `BackButton`, D14/AX-06), `breadcrumbs`, and `document.title` through
   `hooks/usePageTitle` (`documentTitle`, else a string `title`). Also exports `PageBackButton` /
-  `PageHeaderNavigation`, shared with `pages/detail/EntityDetailHeader`.
+  `PageHeaderNavigation`, shared with `pages/detail/EntityDetailHeader`. Page back links and buttons
+  use the default 40px control height and 12px radius, including blocked edit states.
 - `PageContainer.tsx` — the single page container (D11, DS-16): `size` `default` (`max-w-page`, 1520px),
   `form` (`max-w-form`, 960px) or `prose`; page-section rhythm `space-y-8`. `MainLayout`'s `<main>` owns
   the gutter, so pages add no outer padding.

@@ -123,7 +123,7 @@ export function CollectionGroupDrillDown<T>({
                             <h3 className="text-lg font-bold text-foreground group-hover:text-accent-text transition-colors">
                                 {card.label}
                             </h3>
-                            <ChevronRight aria-hidden="true" className="h-5 w-5 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
+                            <ChevronRight aria-hidden="true" className="h-5 w-5 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform,translate]" />
                         </div>
 
                         {renderGroupBody && <div className="mb-4">{renderGroupBody(card.group)}</div>}
@@ -149,7 +149,7 @@ export function CollectionGroupDrillDown<T>({
                                     </div>
                                 )}
                             </div>
-                            {renderGroupExtra && <div className="flex-shrink-0">{renderGroupExtra(card.group)}</div>}
+                            {renderGroupExtra && <div className="shrink-0">{renderGroupExtra(card.group)}</div>}
                         </div>
                     </Card>
                 );

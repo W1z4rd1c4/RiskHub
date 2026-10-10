@@ -12,10 +12,15 @@ Folder for `frontend/scripts/quality` implementation assets.
 - `ui-consistency-ratchet.mjs`
 - `validate-debt-budget-report.mjs`
 - `validate-dora-e2e-coverage.mjs`
+- `validate-font-assets.mjs`
 - `validate-login-dependency-graph.mjs`
 - `validate-no-inline-styles.mjs`
 
 ## Notes
+
+- `validate-font-assets.mjs` runs after production builds and requires every vendored WOFF2
+  file to be emitted byte-for-byte, present in the Vite manifest, and referenced by built CSS.
+  It rejects missing assets and unresolved font URLs instead of accepting a fallback font.
 
 - `debt-budget.mjs` resolves its frontend root from `--root`, then `cwd`, then the script-local frontend tree.
 - Fixture and temp-worktree runs should prefer `--root=/abs/path/to/frontend-root` when executing outside that frontend directory.

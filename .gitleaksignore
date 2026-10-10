@@ -5,3 +5,6 @@ c01491201c5136cfe68cad8b0a1e1f3fc14b0816:scripts/install_lib/doctor.py:generic-a
 # Synthetic ICT asset natural key "aquarius/profibank" is not a credential.
 1119445512ee2f704cec9049d8084b621f4bec7f:docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524
 docs/dora-ict-register/ict-register-accountability-map.synthetic.json:generic-api-key:1524
+
+# Historical workflow KEEP value is commit 125de63e7c482fe38f13df36c9ce9ef57d577cfa, not a credential.
+90d89d48af5e11442ef4867405e7cd177b89167a:.github/workflows/identity-obsolete-runs.yml:generic-api-key:27

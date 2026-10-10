@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
 import { E2E_ASSETS, E2E_CONTROLS, E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
@@ -34,6 +34,43 @@ const TEXT_SPACING_CSS = `
 `;
 
 type Locale = 'en' | 'cs';
+
+async function attachVisibleSurfaceSlices(page: Page, surface: Locator, testInfo: TestInfo, name: string) {
+    const main = page.getByRole('main');
+    const bounds = await surface.evaluate((element) => {
+        const scroller = element.closest('main');
+        if (!scroller) throw new Error('Expected the audited surface inside main');
+        const mainBox = scroller.getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        return {
+            original: scroller.scrollTop,
+            start: scroller.scrollTop + box.top - mainBox.top,
+            end: scroller.scrollTop + box.bottom - mainBox.top,
+            height: scroller.clientHeight,
+            max: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+        };
+    });
+    const start = Math.max(0, Math.min(bounds.max, Math.floor(bounds.start)));
+    const end = Math.max(start, Math.min(bounds.max, Math.ceil(bounds.end - bounds.height)));
+    const step = Math.max(1, bounds.height - 64);
+    let offset = start;
+    let slice = 1;
+    try {
+        while (true) {
+            await main.evaluate((element, top) => element.scrollTo({ top, behavior: 'instant' }), offset);
+            await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(offset);
+            await testInfo.attach(`${name}-visible-slice-${slice}`, {
+                body: await page.screenshot({ animations: 'disabled' }),
+                contentType: 'image/png',
+            });
+            if (offset === end) break;
+            offset = Math.min(offset + step, end);
+            slice += 1;
+        }
+    } finally {
+        await main.evaluate((element, top) => element.scrollTo({ top, behavior: 'instant' }), bounds.original);
+    }
+}
 
 async function setLocale(page: Page, locale: Locale): Promise<void> {
     await page.unroute('**/api/v1/preferences');
@@ -227,10 +264,15 @@ test.describe('Supported desktop resilience (#156)', () => {
             await croPage.locator('body').evaluate((body) => body.focus());
             for (let step = 0; step < expectedHrefs.length + 12; step += 1) {
                 await croPage.keyboard.press('Tab');
-                const activeHref = await croPage.evaluate(() => document.activeElement?.getAttribute('href'));
-                if (activeHref && expectedHrefs.includes(activeHref)) {
-                    reached.add(activeHref);
-                    await expectContained(croPage.locator(':focus'), navigation, `focused sidebar ${activeHref}`);
+                // Dashboard drill-downs can share a sidebar destination href.
+                // Only a link focused inside this navigation proves sidebar reach.
+                const focusedLink = navigation.locator('a:focus');
+                if (await focusedLink.count()) {
+                    const activeHref = await focusedLink.getAttribute('href');
+                    expect(activeHref).not.toBeNull();
+                    expect(expectedHrefs).toContain(activeHref);
+                    reached.add(activeHref!);
+                    await expectContained(focusedLink, navigation, `focused sidebar ${activeHref}`);
                 }
             }
             expect([...reached].sort()).toEqual([...new Set(expectedHrefs.filter(Boolean) as string[])].sort());
@@ -302,7 +344,7 @@ test.describe('Supported desktop resilience (#156)', () => {
         await expectTableKeyboardReach(riskManagerPage, '/threats');
     });
 
-    test('keeps Department metrics contained in both locales, long text, and all supported geometries', async ({ riskManagerPage }) => {
+    test('keeps Department metrics contained in both locales, long text, and all supported geometries', async ({ riskManagerPage }, testInfo) => {
         for (const locale of ['en', 'cs'] as const) {
             await setLocale(riskManagerPage, locale);
             await riskManagerPage.setViewportSize({ width: 1024, height: 900 });
@@ -312,7 +354,9 @@ test.describe('Supported desktop resilience (#156)', () => {
             }).first();
             await expect(listCard).toBeVisible();
             await applyTextSpacing(riskManagerPage);
-            const firstMetricLabel = listCard.getByText(locale === 'en' ? 'People' : 'Lidé', { exact: true });
+            // Keep the locator stable when this stress fixture appends long text.
+            const firstMetricLabel = listCard.getByText(locale === 'en' ? /^People(?:\s|$)/ : /^Lidé(?:\s|$)/);
+            await expect(firstMetricLabel).toHaveText(locale === 'en' ? 'People' : 'Lidé');
             await firstMetricLabel.evaluate((element) => {
                 element.textContent = `${element.textContent} ${'DELIBERATELYLONGLOCALIZEDMETRIC'.repeat(4)}`;
             });
@@ -330,6 +374,10 @@ test.describe('Supported desktop resilience (#156)', () => {
             await departmentStatus.evaluate((element) => {
                 element.textContent = `${element.textContent}${'DELIBERATELYLONGDEPARTMENTSTATUS'.repeat(6)}`;
             });
+            for (const text of [departmentName, departmentCode, departmentStatus, firstMetricLabel]) {
+                expect(await text.evaluate((element) => getComputedStyle(element).overflowWrap),
+                    `${locale} Department long text retains intrinsic wrapping`).toBe('anywhere');
+            }
 
             const listCardGeometry = await listCard.evaluate((element) => ({
                 clientWidth: element.clientWidth,
@@ -394,6 +442,12 @@ test.describe('Supported desktop resilience (#156)', () => {
             await expectContained(departmentCode, listCard, `${locale} Department list code`);
             await expectContained(departmentStatus, listCard, `${locale} Department list status`);
             await expectNoDocumentHorizontalOverflow(riskManagerPage, `${locale} Department list 1024x900`);
+            await testInfo.attach(`department-long-card-${locale}-1024x900`, {
+                body: await listCard.screenshot({ animations: 'disabled' }),
+                contentType: 'image/png',
+            });
+
+            await attachVisibleSurfaceSlices(riskManagerPage, listCard, testInfo, `department-long-card-${locale}-1024x900`);
 
             for (const viewport of SUPPORTED_VIEWPORTS) {
                 await riskManagerPage.setViewportSize(viewport);
@@ -420,11 +474,17 @@ test.describe('Supported desktop resilience (#156)', () => {
                     }
                 }
                 await expectNoDocumentHorizontalOverflow(riskManagerPage, `${locale} Department ${viewport.width}x${viewport.height}`);
+                await testInfo.attach(`department-metrics-${locale}-${viewport.width}x${viewport.height}`, {
+                    body: await grid.screenshot({ animations: 'disabled' }),
+                    contentType: 'image/png',
+                });
+                await attachVisibleSurfaceSlices(riskManagerPage, grid, testInfo,
+                    `department-metrics-${locale}-${viewport.width}x${viewport.height}`);
             }
         }
     });
 
-    test('keeps Vendor, Risk, Control, and Asset headers semantic and contained for CRO with text spacing', async ({ croPage }) => {
+    test('keeps Vendor, Risk, Control, and Asset headers semantic and contained for CRO with text spacing', async ({ croPage }, testInfo) => {
         await setLocale(croPage, 'en');
         await croPage.setViewportSize(DETAIL_HEADER_VIEWPORTS[0]);
         await installLongDetailFixture(croPage, 'vendors');
@@ -456,6 +516,9 @@ test.describe('Supported desktop resilience (#156)', () => {
                     const header = croPage.locator('main header').filter({ has: croPage.getByRole('heading', { level: 1 }) }).first();
                     await expect(header).toBeVisible();
                     await expect(header.getByRole('heading', { level: 1 })).toHaveCount(1);
+                    expect(await header.locator('[aria-current="page"]').evaluate((element) => (
+                        getComputedStyle(element).overflowWrap
+                    )), `${locale} ${route} breadcrumb intrinsic wrapping`).toBe('anywhere');
                     await expectContained(
                         header.getByRole('heading', { level: 1 }),
                         header,
@@ -474,9 +537,23 @@ test.describe('Supported desktop resilience (#156)', () => {
                     }
                     const headerButtons = header.getByRole('button');
                     await expect(headerButtons).not.toHaveCount(0);
-                    await headerButtons.last().evaluate((element) => {
+                    // Stress a text action's localization, not a fixed-size icon
+                    // action whose accessible label is intentionally not visible.
+                    const textAction = headerButtons.filter({ hasText: /\S/ }).last();
+                    await expect(textAction).toBeVisible();
+                    await textAction.evaluate((element) => {
                         element.textContent = 'DELIBERATELYLONGUNBROKENACTION'.repeat(6);
                     });
+                    const actionTextGeometry = await textAction.evaluate((element) => ({
+                        height: element.getBoundingClientRect().height,
+                        clientHeight: element.clientHeight,
+                        scrollHeight: element.scrollHeight,
+                        overflowWrap: getComputedStyle(element).overflowWrap,
+                    }));
+                    expect(actionTextGeometry.overflowWrap, `${locale} ${route} action intrinsic wrapping`).toBe('anywhere');
+                    expect(actionTextGeometry.height, `${locale} ${route} action minimum hit target`).toBeGreaterThanOrEqual(40);
+                    expect(actionTextGeometry.scrollHeight, `${locale} ${route} action vertical text clipping`)
+                        .toBeLessThanOrEqual(actionTextGeometry.clientHeight + 1);
                     for (const button of await headerButtons.all()) {
                         await expectContained(
                             button,
@@ -494,6 +571,10 @@ test.describe('Supported desktop resilience (#156)', () => {
                         croPage,
                         `${locale} ${route} ${viewport.width}x${viewport.height} header`,
                     );
+                    await testInfo.attach(`long-header-${locale}-${route.split('/')[1]}-${viewport.width}x${viewport.height}`, {
+                        body: await header.screenshot({ animations: 'disabled' }),
+                        contentType: 'image/png',
+                    });
                 }
             }
             await croPage.setViewportSize(DETAIL_HEADER_VIEWPORTS[0]);

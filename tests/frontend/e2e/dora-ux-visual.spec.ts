@@ -29,6 +29,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
 import { test, expect } from './fixtures/auth.fixture';
+import type { Rgba } from './helpers/renderedContrast';
 import { waitForDataLoad } from './helpers/wait';
 
 const THEMES = ['riskhub', 'light', 'dark'] as const;
@@ -139,6 +140,41 @@ async function resolveToken(page: Page, triple: string, alpha?: number): Promise
     );
 }
 
+/** Normalize computed CSS Color 4 and legacy RGB to the same comparison format. */
+async function normalizeColors(page: Page, colors: string[]): Promise<Rgba[]> {
+    return page.evaluate((values) => values.map((value): [number, number, number, number] => {
+        const relative = `color(from ${value} srgb r g b / alpha)`;
+        if (!CSS.supports('color', relative)) {
+            throw new Error(`Cannot normalize theme color: ${value}`);
+        }
+        const probe = document.createElement('span');
+        probe.hidden = true;
+        probe.style.setProperty('color', relative, 'important');
+        document.documentElement.append(probe);
+        let resolved: string;
+        try {
+            resolved = getComputedStyle(probe).color;
+        } finally {
+            probe.remove();
+        }
+        const match = resolved.match(/^color\(srgb\s+([^)]+)\)$/);
+        const components = match?.[1]?.trim().split(/[\s/]+/).map(Number);
+        if (!components || components.length < 3 || components.length > 4
+            || !components.every(Number.isFinite)) {
+            throw new Error(`Unrecognized normalized theme color: ${value} -> ${resolved}`);
+        }
+        // Legacy computed rgb() serialized 8-bit channels. Compare the same
+        // channel precision across formats, preserving alpha independently.
+        // The contrast kernel and axe still use their unchanged AA thresholds.
+        return [
+            Math.round(Math.max(0, Math.min(1, components[0]!)) * 255),
+            Math.round(Math.max(0, Math.min(1, components[1]!)) * 255),
+            Math.round(Math.max(0, Math.min(1, components[2]!)) * 255),
+            Number((components[3] ?? 1).toFixed(6)),
+        ];
+    }), colors);
+}
+
 async function openProcessesFilter(page: Page): Promise<void> {
     await page.goto('/processes');
     await waitForDataLoad(page);
@@ -171,9 +207,14 @@ for (const theme of THEMES) {
                 color: cs.color,
             };
         });
-        expect(resting.border, `${theme} border == --input`).toBe(expectedBorder);
-        expect(resting.background, `${theme} background == --input @ 0.4`).toBe(expectedBackground);
-        expect(resting.color, `${theme} text == --foreground`).toBe(expectedText);
+        const [actualBorderRgba, actualBackgroundRgba, actualTextRgba,
+            expectedBorderRgba, expectedBackgroundRgba, expectedTextRgba, expectedRingRgba] = await normalizeColors(page, [
+            resting.border, resting.background, resting.color,
+            expectedBorder, expectedBackground, expectedText, expectedRing,
+        ]);
+        expect(actualBorderRgba, `${theme} border == --input`).toEqual(expectedBorderRgba);
+        expect(actualBackgroundRgba, `${theme} background == --input @ 0.4`).toEqual(expectedBackgroundRgba);
+        expect(actualTextRgba, `${theme} text == --foreground`).toEqual(expectedTextRgba);
 
         // Focus-visible ring == --ring. Keyboard focus (Tab from the adjacent
         // search box) is what activates :focus-visible / the ring box-shadow.
@@ -187,7 +228,9 @@ for (const theme of THEMES) {
             boxShadow: getComputedStyle(el).boxShadow,
         }));
         expect(focused.focusVisible, `${theme} trigger is :focus-visible`).toBe(true);
-        expect(focused.boxShadow, `${theme} focus ring == --ring`).toContain(expectedRing);
+        const shadowColors = focused.boxShadow.match(/\b(?:rgba?|color|oklab|oklch|lab|lch)\([^)]*\)/g) ?? [];
+        const normalizedShadowColors = await normalizeColors(page, shadowColors);
+        expect(normalizedShadowColors, `${theme} focus ring == --ring`).toContainEqual(expectedRingRgba);
 
         // Open the listbox and assert zero color-contrast violations on the open
         // control + listbox (axe color-contrast stays ENABLED).

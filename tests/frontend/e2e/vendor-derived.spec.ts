@@ -74,13 +74,22 @@ test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () 
         await waitForDataLoad(riskManagerPage);
 
         const detail = await (await detailResponse).json() as {
-            derived: { tier: string; cif: string; cif_chain: string };
+            derived: {
+                tier: string;
+                cif: string;
+                cif_chain: string;
+                inputs: { missing_for_completeness: string[] };
+            };
             replaceability: string;
         };
         expect(detail.derived.tier).toBe('critical');
         expect(detail.derived.cif).toBe('yes');
         expect(detail.derived.cif_chain).toBe('yes');
         expect(detail.replaceability).toBe('highly_complex');
+        expect(detail.derived.inputs.missing_for_completeness).toEqual([
+            'exit_plan_state',
+            'ex_ante_assessment_date',
+        ]);
 
         const section = riskManagerPage.getByTestId('vendor-derived-section');
         await expect(section).toBeVisible();
@@ -91,11 +100,11 @@ test.describe('ICT Register — Vendor-cascade derivations (Deterministic)', () 
         await expect(riskManagerPage.getByTestId('vendor-derived-cif-chain')).toHaveText('Yes');
 
         // Explain inputs localize the stored substitutability code and retain
-        // the completeness gaps by stable field name (07!hotovo misses
+        // the completeness gaps as localized field labels (07!hotovo misses
         // the exit plan and — Kritický tier — the ex-ante assessment date).
         await expect(section.getByText('Highly complex substitutability').first()).toBeVisible();
         await expect(riskManagerPage.getByTestId('vendor-derived-missing')).toHaveText(
-            'exit_plan_state, ex_ante_assessment_date',
+            'Exit plan, state, Ex-ante assessment (date)',
         );
 
         // The derived-only §2 table: 3 rows, VAD-major order, exact content.
