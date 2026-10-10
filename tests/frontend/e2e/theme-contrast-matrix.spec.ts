@@ -404,7 +404,7 @@ async function expectCitedMutedForegrounds(
 }
 
 test('hover sampling retains the interaction when async content moves its target', async ({ page }) => {
-  await page.setContent(`
+  await page.setContent(`<!doctype html>
     <style>
       button { position: absolute; left: 20px; top: 20px; background: rgb(255, 255, 255); color: rgb(0, 0, 0); }
       button:hover { background: rgb(0, 0, 0); color: rgb(255, 255, 255); }
@@ -419,6 +419,9 @@ test('hover sampling retains the interaction when async content moves its target
       });
     </script>
   `);
+  // Match the application's standards mode: bare :hover has link-only quirks
+  // semantics without a doctype, even while button:hover styles still apply.
+  expect(await page.evaluate(() => document.compatMode)).toBe('CSS1Compat');
   const button = page.getByRole('button', { name: 'Moving footer' });
   await button.hover();
   const colors = await settledComputedColors(button, 'moving footer', true);
@@ -454,7 +457,7 @@ test.describe('UX-24 audited theme matrix', () => {
         return response.request().method() === 'GET'
           && url.pathname.replace(/\/$/, '') === '/api/v1/controls'
           && url.searchParams.get('limit') === '20'
-          && url.searchParams.get('lifecycle') === 'active';
+          && JSON.parse(url.searchParams.get('filters') ?? '{}').lifecycle === 'active';
       });
       await page.getByRole('button', { name: /link existing/i }).first().click();
       expect((await suggestionsResponse).status()).toBe(200);
