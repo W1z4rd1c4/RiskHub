@@ -317,11 +317,21 @@ def test_importer_rejects_fifo_manifest_input_without_blocking(tmp_path: Path) -
     builder.mkdir(parents=True)
     os.mkfifo(builder / "seed.py")
 
+    # Load the application before starting the unchanged FIFO-operation budget.
+    # Cold application imports are not evidence of a blocking FIFO open.
+    harness = tmp_path / "fifo_importer_probe.py"
+    harness.write_text(
+        "import sys\n"
+        "from scripts import import_ict_register_workbook as importer\n"
+        "print(\"IMPORTER_READY\", flush=True)\n"
+        "if sys.stdin.readline() != \"RUN\\n\": raise SystemExit(2)\n"
+        "importer.main()\n",
+        encoding="utf-8",
+    )
     process = subprocess.Popen(
         [
             sys.executable,
-            "-m",
-            "scripts.import_ict_register_workbook",
+            str(harness),
             "--source",
             str(source_root),
         ],
@@ -329,14 +339,20 @@ def test_importer_rejects_fifo_manifest_input_without_blocking(tmp_path: Path) -
         env={
             **os.environ,
             "DATABASE_URL": "postgresql+asyncpg://riskhub:secret@localhost/riskhub_test",
+            "PYTHONPATH": str(BACKEND_ROOT),
         },
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
     )
     try:
+        assert process.stdout is not None
+        ready, _, _ = select.select([process.stdout], [], [], 30)
+        assert ready, "Importer did not finish application startup"
+        assert process.stdout.readline().strip() == "IMPORTER_READY"
         try:
-            stdout, stderr = process.communicate(timeout=2)
+            stdout, stderr = process.communicate(input="RUN\n", timeout=2)
         except subprocess.TimeoutExpired:
             pytest.fail("importer blocked while opening a FIFO manifest input")
     finally:
