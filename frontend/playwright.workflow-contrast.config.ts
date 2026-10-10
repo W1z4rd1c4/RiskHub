@@ -7,7 +7,12 @@ import config from './playwright.config';
 export default defineConfig({
   ...config,
   globalSetup: undefined,
-  testMatch: ['**/workflow-contrast.spec.ts', '**/theme-rendered-contrast.spec.ts'],
+  testMatch: [
+    '**/workflow-contrast.spec.ts',
+    '**/theme-rendered-contrast.spec.ts',
+    '**/tailwind-compatibility.spec.ts',
+    '**/rendered-contrast-kernel.spec.ts',
+  ],
   projects: config.projects?.filter(project => project.name === 'ci'),
   use: { ...config.use, baseURL: 'http://localhost:5185' },
   webServer: {

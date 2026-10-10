@@ -25,8 +25,50 @@ export interface RenderedContrastSample {
 export function measureRenderedContrast(element: Element): RenderedContrastSample {
   type Color = [number, number, number, number];
   const parse = (value: string): Color => {
-    const channels = value.match(/[\d.]+/g)?.map(Number) ?? [];
-    return [channels[0] ?? 0, channels[1] ?? 0, channels[2] ?? 0, channels[3] ?? 1];
+    let resolved = value;
+    if (!/^(?:rgba?\(|color\(srgb\s)/.test(resolved)) {
+      // Tailwind 4 alpha utilities compute to color()/oklab(), not necessarily
+      // rgb(). Let the browser convert the actual color space to sRGB; treating
+      // Oklab or 0..1 sRGB channels as 0..255 RGB silently corrupts the AA gate.
+      // Relative color conversion preserves fractional channels and alpha,
+      // unlike sampling an 8-bit canvas near the 4.5:1 threshold.
+      const relative = `color(from ${value} srgb r g b / alpha)`;
+      if (!CSS.supports('color', relative)) {
+        throw new Error(`Cannot normalize rendered color to sRGB: ${value}`);
+      }
+      const probe = document.createElement('span');
+      probe.hidden = true;
+      probe.style.setProperty('color', relative, 'important');
+      document.documentElement.append(probe);
+      try {
+        resolved = getComputedStyle(probe).color;
+      } finally {
+        probe.remove();
+      }
+    }
+    const rgb = resolved.match(/^rgba?\(([^)]+)\)$/);
+    const srgb = resolved.match(/^color\(srgb\s+([^)]+)\)$/);
+    const components = (rgb?.[1] ?? srgb?.[1])?.trim().split(/[\s,/]+/);
+    if (!components || components.length < 3 || components.length > 4) {
+      throw new Error(`Unrecognized rendered sRGB color: ${value} -> ${resolved}`);
+    }
+    const channels = components.map((component, index) => {
+      const percent = component.endsWith('%');
+      const numeric = component === 'none' ? 0 : Number(percent ? component.slice(0, -1) : component);
+      if (!Number.isFinite(numeric)) {
+        throw new Error(`Invalid rendered sRGB channel: ${value} -> ${resolved}`);
+      }
+      const unit = percent ? numeric / 100 : numeric;
+      return index < 3 && (srgb || percent) ? unit * 255 : unit;
+    });
+    // WCAG 2.x uses the rendered sRGB range, including colors converted from
+    // wider gamuts. Keep fractional precision while clipping to that range.
+    return [
+      Math.max(0, Math.min(255, channels[0]!)),
+      Math.max(0, Math.min(255, channels[1]!)),
+      Math.max(0, Math.min(255, channels[2]!)),
+      Math.max(0, Math.min(1, channels[3] ?? 1)),
+    ];
   };
   const over = (front: Color, back: Color): Color => {
     const alpha = front[3] + back[3] * (1 - front[3]);

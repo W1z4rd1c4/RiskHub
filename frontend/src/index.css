@@ -1,8 +1,47 @@
 @import './assets/fonts/fonts.css';
+@import 'tailwindcss' source(none);
+@config '../tailwind.config.js';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Preserve the v3 hover behavior on both pointer and touch devices. */
+@custom-variant hover (&:hover);
+
+@theme {
+  --default-ring-color: #3b82f6;
+}
+
+/* Keep v3's following-visible-sibling spacing. v4 moves the margin to the
+   preceding child, which changes inline labels, hidden fields and child margins.
+   The zero-specificity reset only cancels v4's native spacing rule; explicit
+   child margin utilities still work exactly as before. */
+@utility space-y-* {
+  & > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(--spacing(--value(number)) * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(--spacing(--value(number)) * var(--tw-space-y-reverse));
+  }
+}
+
+/* Tables and grouped choices retain top dividers on subsequent visible rows. */
+@utility divide-y {
+  & > :not([hidden]) ~ :not([hidden]) {
+    border-top-width: 1px;
+    border-bottom-width: 0;
+    border-color: hsl(var(--border));
+  }
+}
+
+/* Keep these resets after the imported utility layer. Custom @utility rules
+   are sorted by Tailwind and can otherwise precede the stock spacing rules. */
+@layer utilities {
+  :where([class*='space-y-'] > :not(:last-child)) {
+    margin-block-start: 0;
+    margin-block-end: 0;
+  }
+  :where(.divide-y > :not(:last-child)) {
+    border-block-start-width: 0;
+    border-block-end-width: 0;
+  }
+}
 
 @layer base {
   /* RiskHub theme (default) - Dark blue. Also selected by the explicit
@@ -151,6 +190,22 @@
     @apply border-border;
   }
 
+  /* v3's reset used pointer cursors and a 50%-gray placeholder fallback. */
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
   /* `font-sans` / `font-heading` resolve to tailwind.config.js `fontFamily`. */
   body {
     @apply bg-background text-foreground font-sans antialiased;
@@ -188,22 +243,22 @@
   }
 }
 
-@layer components {
-  .glass {
+@utility glass {
     @apply backdrop-blur-xl border;
     background-color: hsl(var(--glass));
     border-color: hsl(var(--border));
     box-shadow: var(--glass-shadow);
     color: hsl(var(--glass-foreground));
-  }
+}
 
+@layer components {
   .glass-card {
     @apply glass rounded-2xl p-6;
     transition-property: none;
   }
 
   .interactive-card {
-    transition-property: background-color, border-color, box-shadow, transform;
+    transition-property: background-color, border-color, box-shadow, transform, translate, scale, rotate;
     transition-duration: 300ms;
   }
 
@@ -236,7 +291,7 @@
 @layer utilities {
   /* Audit §4.6 / DS-26: the one keyboard-focus recipe every primitive uses. */
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 

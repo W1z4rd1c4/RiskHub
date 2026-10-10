@@ -200,7 +200,7 @@ export function KRIStatusWidget() {
                                         </span>
                                     </div>
                                 </div>
-                                <ArrowRight aria-hidden="true" className="h-3 w-3 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform]" />
+                                <ArrowRight aria-hidden="true" className="h-3 w-3 text-muted-foreground group-hover:text-accent-text group-hover:translate-x-1 transition-[color,transform,translate]" />
                             </Link>
                         );
                     })}

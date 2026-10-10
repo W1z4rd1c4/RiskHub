@@ -41,6 +41,23 @@ RiskHub frontend is a React 19 + TypeScript SPA built with Vite. It owns the aut
 
 ## Theme interface
 
+The CSS build uses Tailwind 4 through `@tailwindcss/postcss`; `src/index.css`
+explicitly loads the existing semantic-token configuration. Supported browsers
+must meet Tailwind 4's minimums: Safari 16.4, Chrome 111, or Firefox 128.
+See the [upstream upgrade guide](https://tailwindcss.com/docs/upgrade-guide).
+
+The v3 small-shadow/blur/ring scales, visible-sibling spacing/dividers, hover
+behavior and forced-colors focus outlines are intentionally preserved. Keep the
+spacing resets after the imported utility layer. The selector-parser override
+protects the typography plugin until its dependency range includes the patched
+7.1.6 release; it is not an audit exemption.
+
+`npm run test:run -- src/design-system/tailwindCompatibility.test.ts` checks the
+compiled CSS and dependency removal. For browser checks without a live API, run
+`npx playwright test -c playwright.workflow-contrast.config.ts --project=ci`.
+The standard CI E2E project also runs these checks and attaches primitive/form
+and dialog screenshots for all three themes at 1024px and 1440px widths.
+
 `src/index.css` defines the same semantic interface for RiskHub, light, and dark themes; `tailwind.config.js` exposes it to components. Components select a meaning from this inventory and do not reinterpret literal colors per theme.
 
 | Meaning | CSS pair or value | Tailwind interface |

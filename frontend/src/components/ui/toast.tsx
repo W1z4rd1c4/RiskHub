@@ -42,7 +42,7 @@ export const ToastViewport = React.forwardRef<
     <ToastPrimitive.Viewport
         ref={ref}
         className={cn(
-            'pointer-events-none fixed bottom-0 right-0 z-toast m-0 flex max-h-screen w-full list-none flex-col gap-2 p-4 outline-none sm:max-w-sm',
+            'pointer-events-none fixed bottom-0 right-0 z-toast m-0 flex max-h-screen w-full list-none flex-col gap-2 p-4 outline-hidden sm:max-w-sm',
             className,
         )}
         {...props}

@@ -297,7 +297,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                                     const presentation = buildNotificationPresentation(notification);
                                     const content = (
                                         <div className="flex gap-3">
-                                            <div className="flex-shrink-0 mt-0.5">
+                                            <div className="shrink-0 mt-0.5">
                                                 <NotificationPresentationIcon model={presentation} size="sm" />
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -306,7 +306,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                                                         {presentation.title}
                                                     </p>
                                                     {!notification.is_read && (
-                                                        <span aria-hidden="true" className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
+                                                        <span aria-hidden="true" className="w-2 h-2 bg-accent rounded-full shrink-0" />
                                                     )}
                                                 </div>
                                                 <p className="mt-0.5 truncate text-xs text-muted-foreground">

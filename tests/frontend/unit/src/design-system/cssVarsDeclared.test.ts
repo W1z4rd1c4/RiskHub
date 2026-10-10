@@ -35,6 +35,8 @@ const RUNTIME_PROVIDED_VARS: Record<string, { pkg: string; reason: string }> = {
   // consumed by frontend/src/components/ui/select.tsx.
   '--radix-select-trigger-height': { pkg: '@radix-ui/react-select', reason: 'popper content wrapper' },
   '--radix-select-trigger-width': { pkg: '@radix-ui/react-select', reason: 'popper content wrapper' },
+  '--radix-select-content-available-height': { pkg: '@radix-ui/react-select', reason: 'popper content available height' },
+  '--radix-select-content-transform-origin': { pkg: '@radix-ui/react-select', reason: 'popper content transform origin' },
   // Radix Popover sets this on the popper wrapper; consumed by
   // frontend/src/components/ui/multi-select.tsx (panel matches trigger width).
   '--radix-popover-trigger-width': { pkg: '@radix-ui/react-popover', reason: 'popper content wrapper' },

@@ -25,7 +25,7 @@ const inputVariants = cva(
     "border-input bg-input/40 text-foreground",
     "placeholder:text-muted-foreground",
     "hover:border-ring/40",
-    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+    "focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring",
     "disabled:cursor-not-allowed disabled:opacity-50",
     "aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-1 aria-[invalid=true]:ring-destructive",
   ],

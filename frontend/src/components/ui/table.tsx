@@ -104,7 +104,7 @@ function TableViewport({ children, regionLabel, continuationLabel, className }: 
                 role="region"
                 aria-label={regionLabel}
                 aria-describedby={canScrollRight ? cueId : undefined}
-                className="w-full overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                className="w-full overflow-x-auto focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             >
                 {children}
             </div>

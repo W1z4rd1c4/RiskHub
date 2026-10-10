@@ -1,3 +1,5 @@
+import defaultTheme from 'tailwindcss/defaultTheme';
+
 /**
  * Design tokens for the UI contract (docs/audits/2026-09-30-frontend-ui-consistency-audit.md
  * §4, ADR-015 Addendum 1). Colours resolve to the per-theme CSS custom properties in
@@ -18,6 +20,12 @@ export default {
 		"./src/**/*.{js,ts,jsx,tsx}",
 	],
 	theme: {
+		// v4's CSS defaults renamed the small shadow/blur scales. The published
+		// compatibility theme preserves the existing component and dialog recipes.
+		boxShadow: defaultTheme.boxShadow,
+		blur: defaultTheme.blur,
+		backdropBlur: defaultTheme.blur,
+		ringWidth: defaultTheme.ringWidth,
 		extend: {
 			// D6: `font-heading` is the display face (page/section/dialog titles, KPI values).
 			fontFamily: {

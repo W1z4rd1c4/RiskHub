@@ -83,7 +83,7 @@ export function RiskScoreMatrix({
                                 const cellClasses = `
                                     ${cellClass} ${riskScoreVariantClass('matrix-cell', cellScore, thresholds)}
                                     rounded-sm flex items-center justify-center font-bold
-                                    transition-[background-color,border-color,box-shadow,transform] duration-200
+                                    transition-[background-color,border-color,box-shadow,transform,scale] duration-200
                                     ${selected
                                         ? 'ring-2 ring-foreground ring-offset-1 ring-offset-background scale-110 z-10'
                                         : 'opacity-60'

@@ -109,6 +109,7 @@ describe('select.tsx — tokenization (S6 / FR-P2a-3)', () => {
         );
         const cls = screen.getByRole('combobox').className;
         expect(cls).toContain('focus-visible:ring-ring');
+        expect(cls).toContain('focus-visible:outline-hidden');
         expect(cls).toContain('border-input');
         expect(cls).toContain('data-[placeholder]:text-muted-foreground');
         // S6 regressions must stay fixed:
@@ -134,6 +135,8 @@ describe('select.tsx — tokenization (S6 / FR-P2a-3)', () => {
         const content = await screen.findByTestId('content');
         expect(content.className).toContain('bg-popover/95');
         expect(content.className).toContain('text-popover-foreground');
+        expect(content.className).toContain('max-h-[var(--radix-select-content-available-height)]');
+        expect(content.className).toContain('origin-[var(--radix-select-content-transform-origin)]');
         expect(content.className).not.toContain('bg-slate-900');
         // Fading the whole menu changes text and backdrop opacity together;
         // axe can sample the opening frame before unselected options reach AA.
