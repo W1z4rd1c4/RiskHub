@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -10,6 +11,7 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../
 const require = createRequire(resolve(frontendRoot, 'package.json'));
 const postcss = require('postcss');
 const tailwind = require('@tailwindcss/postcss');
+const { validateFontAssets } = require(resolve(frontendRoot, 'scripts/quality/validate-font-assets.mjs'));
 let css: string;
 
 beforeAll(async () => {
@@ -33,6 +35,35 @@ function declarations(selector: string): Record<string, string> {
 }
 
 describe('Tailwind 4 security migration compatibility', () => {
+  it('requires emitted, byte-identical fonts referenced by the production CSS', () => {
+    const fixture = mkdtempSync(resolve(tmpdir(), 'riskhub-font-assets-'));
+    const source = 'src/assets/fonts/files/inter-latin-wght-normal.woff2';
+    const emitted = 'assets/inter-latin-wght-normal-fixture.woff2';
+    try {
+      mkdirSync(resolve(fixture, 'src/assets/fonts/files'), { recursive: true });
+      mkdirSync(resolve(fixture, 'dist/assets'), { recursive: true });
+      mkdirSync(resolve(fixture, 'dist/.vite'), { recursive: true });
+      writeFileSync(resolve(fixture, source), 'wOF2fixture');
+      writeFileSync(resolve(fixture, 'dist', emitted), 'wOF2fixture');
+      writeFileSync(resolve(fixture, 'dist/.vite/manifest.json'), JSON.stringify({
+        [source]: { file: emitted },
+        'index.html': { file: 'assets/main.js', css: ['assets/main.css'] },
+      }));
+      const cssPath = resolve(fixture, 'dist/assets/main.css');
+      writeFileSync(cssPath, `@font-face{src:url(/${emitted})}`);
+      expect(validateFontAssets(fixture)).toEqual([emitted]);
+      writeFileSync(cssPath, '@font-face{src:url(./files/inter-latin-wght-normal.woff2)}');
+      expect(() => validateFontAssets(fixture)).toThrow('not referenced by built CSS');
+      writeFileSync(cssPath, `@font-face{src:url(/${emitted})}`);
+      writeFileSync(resolve(fixture, 'dist', emitted), 'wrong bytes');
+      expect(() => validateFontAssets(fixture)).toThrow('differs from vendored source');
+      rmSync(resolve(fixture, 'dist', emitted));
+      expect(() => validateFontAssets(fixture)).toThrow();
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
   it('preserves the small shadow, backdrop blur and ring scales', () => {
     expect(declarations('.shadow-sm')['--tw-shadow']).toContain('0 1px 2px 0');
     expect(declarations('.backdrop-blur-sm')['--tw-backdrop-blur']).toBe('blur(4px)');

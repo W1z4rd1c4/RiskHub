@@ -1,15 +1,48 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Response } from '@playwright/test';
 
 // CI screenshots are review evidence, not an auto-updated visual baseline.
 // Computed-style assertions independently lock the v3 behaviors retained by v4.
 for (const theme of ['light', 'riskhub', 'dark']) {
   for (const width of [1024, 1440]) {
     test(`${theme} ${width}: Tailwind migration primitives and screenshots`, async ({ page }, testInfo) => {
+      const fontResponses: Response[] = [];
+      page.on('response', response => {
+        if (new URL(response.url()).pathname.endsWith('.woff2')) fontResponses.push(response);
+      });
       await page.setViewportSize({ width, height: 900 });
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(`/design-system.html?theme=${theme}&locale=en`);
       await expect(page.getByTestId('design-system-ready')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
+      const fonts = await page.evaluate(async () => {
+        const sample = 'RiskHub Příliš žluťoučký kůň';
+        return Promise.all(['Inter Variable', 'Outfit Variable'].map(async family => {
+          const descriptor = `400 16px "${family}"`;
+          const faces = await document.fonts.load(descriptor, sample);
+          return {
+            family,
+            checked: document.fonts.check(descriptor, sample),
+            faces: faces.map(face => ({ family: face.family.replace(/^['"]|['"]$/g, ''), status: face.status })),
+          };
+        }));
+      });
+      for (const font of fonts) {
+        expect(font.checked, `${font.family} available for Latin and Czech text`).toBe(true);
+        expect(font.faces, `${font.family} must not silently fall back`).toHaveLength(2);
+        expect(font.faces.every(face => face.family === font.family && face.status === 'loaded')).toBe(true);
+      }
+      const assets = [];
+      for (const name of ['inter-latin', 'inter-latin-ext', 'outfit-latin', 'outfit-latin-ext']) {
+        const response = fontResponses.find(candidate => new URL(candidate.url()).pathname.includes(`${name}-wght-normal`));
+        expect(response, `${name} font request`).toBeDefined();
+        expect(response!.ok(), `${name} font HTTP status`).toBe(true);
+        const bytes = await response!.body();
+        expect(bytes.subarray(0, 4).toString(), `${name} must be WOFF2, not an HTML fallback`).toBe('wOF2');
+        assets.push({ url: response!.url(), bytes: bytes.length });
+      }
+      await testInfo.attach(`font-loading-${theme}-${width}`, {
+        body: JSON.stringify({ fonts, assets }, null, 2), contentType: 'application/json',
+      });
       const focusTarget = page.locator('[data-ds-section="buttons"] button:enabled').first();
       await focusTarget.focus();
       await expect(focusTarget).toBeFocused();

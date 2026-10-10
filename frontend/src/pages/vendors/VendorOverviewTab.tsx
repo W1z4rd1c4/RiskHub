@@ -222,7 +222,8 @@ export function VendorOverviewTab({
 
             <motion.div
                 variants={container}
-                initial="hidden"
+                // Field labels must retain full contrast while the overview mounts.
+                initial={false}
                 animate="show"
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             >

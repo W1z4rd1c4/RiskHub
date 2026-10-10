@@ -227,10 +227,15 @@ test.describe('Supported desktop resilience (#156)', () => {
             await croPage.locator('body').evaluate((body) => body.focus());
             for (let step = 0; step < expectedHrefs.length + 12; step += 1) {
                 await croPage.keyboard.press('Tab');
-                const activeHref = await croPage.evaluate(() => document.activeElement?.getAttribute('href'));
-                if (activeHref && expectedHrefs.includes(activeHref)) {
-                    reached.add(activeHref);
-                    await expectContained(croPage.locator(':focus'), navigation, `focused sidebar ${activeHref}`);
+                // Dashboard drill-downs can share a sidebar destination href.
+                // Only a link focused inside this navigation proves sidebar reach.
+                const focusedLink = navigation.locator('a:focus');
+                if (await focusedLink.count()) {
+                    const activeHref = await focusedLink.getAttribute('href');
+                    expect(activeHref).not.toBeNull();
+                    expect(expectedHrefs).toContain(activeHref);
+                    reached.add(activeHref!);
+                    await expectContained(focusedLink, navigation, `focused sidebar ${activeHref}`);
                 }
             }
             expect([...reached].sort()).toEqual([...new Set(expectedHrefs.filter(Boolean) as string[])].sort());
@@ -474,7 +479,11 @@ test.describe('Supported desktop resilience (#156)', () => {
                     }
                     const headerButtons = header.getByRole('button');
                     await expect(headerButtons).not.toHaveCount(0);
-                    await headerButtons.last().evaluate((element) => {
+                    // Stress a text action's localization, not a fixed-size icon
+                    // action whose accessible label is intentionally not visible.
+                    const textAction = headerButtons.filter({ hasText: /\S/ }).last();
+                    await expect(textAction).toBeVisible();
+                    await textAction.evaluate((element) => {
                         element.textContent = 'DELIBERATELYLONGUNBROKENACTION'.repeat(6);
                     });
                     for (const button of await headerButtons.all()) {

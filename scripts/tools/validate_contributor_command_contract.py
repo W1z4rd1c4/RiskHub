@@ -48,12 +48,17 @@ EXPECTED_MAKE_TARGETS = {
 }
 
 EXPECTED_REQUIRED_CHECKS = {
+    "Authorization Capability Contract",
     "Backend Quality",
+    "Container Scan (Trivy + SBOM Correlation)",
     "Docker Onboarding Smoke",
     "Frontend + Repo Contracts",
+    "Frontend Security (npm audit)",
     "PR Merge Result Build",
     "Playwright E2E Tests",
     "Public Repo Hygiene",
+    "Python Security (Bandit + pip-audit)",
+    "Secrets Detection (Gitleaks)",
 }
 
 GOVERNED_WORKFLOWS = {

@@ -22,9 +22,11 @@ test.describe('Access Scope Visibility', () => {
             await dashboard.navigateToDepartments();
             await waitForDataLoad(page);
 
-            // Department cards on this page are rendered as clickable glass-card buttons.
-            // Keep the selector scoped to main content to avoid matching sidebar cards.
-            const departmentCards = page.locator('main button.glass-card');
+            // Each Department is a native Card button named by its heading.
+            // Avoid coupling visibility coverage to the retired glass-card class.
+            const departmentCards = page.getByRole('main').getByRole('button').filter({
+                has: page.getByRole('heading', { level: 3 }),
+            });
             await expect(departmentCards.first()).toBeVisible({ timeout: 10000 });
             const count = await departmentCards.count();
             expect(count).toBeGreaterThan(1); // Multiple departments visible

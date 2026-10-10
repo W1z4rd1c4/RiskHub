@@ -21,15 +21,15 @@ export class ApprovalsPage {
     }
 
     get pendingQueueTab(): Locator {
-        return this.page.locator('button:has-text("Pending Queue"), button:has-text("Fronta čekajících")');
+        return this.page.getByRole('tab', { name: /^(Pending Queue|Fronta čekajících)$/ });
     }
 
     get myRequestsTab(): Locator {
-        return this.page.locator('button:has-text("My Requests"), button:has-text("Moje žádosti")');
+        return this.page.getByRole('tab', { name: /^(My Requests|Moje žádosti)$/ });
     }
 
     get historyTab(): Locator {
-        return this.page.locator('button:has-text("History"), button:has-text("Historie")');
+        return this.page.getByRole('tab', { name: /^(History|Historie)$/ });
     }
 
     get loadingSpinner(): Locator {
@@ -79,7 +79,7 @@ export class ApprovalsPage {
     }
 
     async selectPendingQueue(): Promise<void> {
-        if (await this.pendingQueueTab.evaluate((tab) => tab.classList.contains('bg-accent'))) {
+        if (await this.pendingQueueTab.getAttribute('aria-selected') === 'true') {
             await this.waitForApprovalsReady();
             return;
         }
@@ -92,7 +92,7 @@ export class ApprovalsPage {
     }
 
     async selectMyRequests(): Promise<void> {
-        if (await this.myRequestsTab.evaluate((tab) => tab.classList.contains('bg-accent'))) {
+        if (await this.myRequestsTab.getAttribute('aria-selected') === 'true') {
             await this.waitForApprovalsReady();
             return;
         }
@@ -105,6 +105,10 @@ export class ApprovalsPage {
     }
 
     async selectHistory(): Promise<void> {
+        if (await this.historyTab.getAttribute('aria-selected') === 'true') {
+            await this.waitForApprovalsReady();
+            return;
+        }
         await Promise.all([
             this.waitForApprovalsResponse({ myRequests: false }),
             this.historyTab.click(),
@@ -114,7 +118,7 @@ export class ApprovalsPage {
     }
 
     private async waitForActiveTab(tab: Locator, timeout = 15000): Promise<void> {
-        await expect(tab).toHaveClass(/bg-accent/, { timeout });
+        await expect(tab).toHaveAttribute('aria-selected', 'true', { timeout });
     }
 
     private async waitForApprovalsResponse(expected: { status?: string; myRequests?: boolean }, timeout = 15000): Promise<void> {
@@ -172,8 +176,10 @@ export class ApprovalsPage {
      */
     async getStatus(index: number): Promise<string> {
         const card = this.getCard(index);
-        // The status badge has specific styling: rounded-full with text-[10px] font-black uppercase tracking-widest
-        const statusBadge = card.locator('span.rounded-full.uppercase');
+        // ApprovalList uses the shared Badge; status labels are no longer uppercase.
+        const statusBadge = card.locator('span[data-tone]').filter({
+            hasText: /^(Pending|Čeká|Pending privileged review|Čeká na privilegované schválení|Approved|Schváleno|Rejected|Zamítnuto|Cancelled|Zrušeno|Expired|Vypršelo)$/i,
+        });
         const label = (await statusBadge.textContent() ?? '').toLowerCase().trim();
         const statuses: Record<string, string> = {
             'pending': 'pending',

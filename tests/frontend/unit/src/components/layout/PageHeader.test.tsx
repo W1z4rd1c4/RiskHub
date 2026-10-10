@@ -90,6 +90,8 @@ describe('PageHeader', () => {
         renderInRouter(<PageHeader title="New risk" back={{ label: 'Back to Risks', to: '/risks' }} />, '/risks/new');
         const back = screen.getByRole('link', { name: 'Back to Risks' });
         expect(back).toHaveAttribute('href', '/risks');
+        // The entire hit target must stay inside its header, including the back affordance.
+        expect(back.className).not.toMatch(/(?:^|\s)-m(?:[trblxyse])?-/);
         await user.click(back);
         expect(await screen.findByText('Risk register')).toBeInTheDocument();
     });
@@ -100,6 +102,7 @@ describe('PageHeader', () => {
         renderInRouter(<PageHeader title="Edit risk" back={{ label: 'Back to Risk A', onClick }} />);
         const back = screen.getByRole('button', { name: 'Back to Risk A' });
         expect(back).toHaveAttribute('type', 'button');
+        expect(back.className).not.toMatch(/(?:^|\s)-m(?:[trblxyse])?-/);
         await user.click(back);
         expect(onClick).toHaveBeenCalledTimes(1);
     });

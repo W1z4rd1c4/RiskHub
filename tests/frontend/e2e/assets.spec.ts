@@ -121,7 +121,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 await expect(page.getByText('Supporting', { exact: true }).first()).toBeVisible();
                 await expect(page.getByText('SaaS', { exact: true }).first()).toBeVisible();
 
-                const ownership = page.locator('.glass-card').filter({
+                const ownership = page.locator('main section').filter({
                     has: page.getByRole('heading', {
                         name: /^(Ownership and regulation|Vlastnictví a regulace)$/,
                     }),

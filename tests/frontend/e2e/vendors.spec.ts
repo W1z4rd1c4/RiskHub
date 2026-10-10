@@ -351,14 +351,17 @@ test.describe('Vendor Management (Deterministic)', () => {
             await orphanRow.getByRole('button', { name: /Resolve/i }).click();
             await expect(croPage.getByTestId('resolve-orphan-ready')).toBeVisible();
 
+            const originalOwnerEmail = originalOwner.email;
             const ownerLookup = croPage.waitForResponse((response) => {
                 const url = new URL(response.url());
                 return url.pathname.endsWith('/api/v1/users/lookup/vendor-owners')
-                    && url.searchParams.get('q') === originalOwner.email;
+                    && url.searchParams.get('q') === originalOwnerEmail;
             });
-            await croPage.getByTestId('orphan-owner-search').fill(originalOwner.email);
+            await croPage.getByTestId('orphan-owner-search').fill(originalOwnerEmail);
             expect((await ownerLookup).ok()).toBe(true);
-            await croPage.getByRole('button', { name: new RegExp(originalOwner.email, 'i') }).click();
+            const ownerOption = croPage.getByRole('radio', { name: new RegExp(originalOwnerEmail, 'i') });
+            await ownerOption.check();
+            await expect(ownerOption).toBeChecked();
             await croPage.getByRole('button', { name: /Submit for approval/i }).click();
             await expect(croPage.getByTestId('resolve-orphan-request-reason'))
                 .toHaveAttribute('aria-invalid', 'true');

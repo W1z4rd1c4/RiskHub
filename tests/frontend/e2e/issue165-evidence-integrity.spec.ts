@@ -61,7 +61,7 @@ const JOURNEYS = [
             noVendors: 'Žádní dodavatelé v rozsahu',
             questionnaires: 'Hodnoticí dotazníky',
             restricted: 'Omezeno rozsahem přístupu',
-            riskLevelChip: 'Úroveň rizika: Kritická',
+            riskLevelChip: 'Úroveň rizika: Kritické',
             riskCount: '3 rizika',
             riskScores: 'Hrubé a čisté skóre rizika',
             stockCompare: '2026-Q2 · Uložená data 2026-07-01T00:00:00+00:00',
@@ -608,21 +608,25 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 }
                 await expect(page.getByTestId('dashboard-filter-scope-note')).toContainText(/access scope|rozsahu přístupu/);
 
-                const averageCard = page.getByRole('button').filter({ hasText: journey.labels.average });
+                const statCards = page.getByTestId('dashboard-stat-grid').getByRole('link');
+                const averageCard = statCards.filter({ hasText: journey.labels.average });
                 await expect(averageCard).toContainText('17');
+                await expect(averageCard).toHaveAttribute('href', '/risks');
                 await expect(averageCard).toHaveAccessibleName(new RegExp(journey.labels.critical));
-                for (const [label, value] of [
-                    [journey.labels.totalControls, '8'],
-                    [journey.labels.criticalRisks, '1'],
-                    [journey.labels.vendors, '2'],
+                for (const [label, value, href] of [
+                    [journey.labels.totalControls, '8', '/controls'],
+                    [journey.labels.criticalRisks, '1', '/risks?critical=true'],
+                    [journey.labels.vendors, '2', '/vendors'],
                 ] as const) {
-                    await expect(page.getByRole('button').filter({ hasText: label })).toContainText(value);
+                    const card = statCards.filter({ hasText: label });
+                    await expect(card).toContainText(value);
+                    await expect(card).toHaveAttribute('href', href);
                 }
 
                 const [summaryRequest, download] = await Promise.all([
                     page.waitForRequest((request) => new URL(request.url()).pathname === '/api/v1/reports/summary/export'),
                     page.waitForEvent('download'),
-                    page.getByTitle(journey.labels.exportSummary).click(),
+                    page.getByRole('button', { name: journey.labels.exportSummary, exact: true }).click(),
                 ]);
                 const summaryUrl = new URL(summaryRequest.url());
                 expect(summaryRequest.method()).toBe('GET');
@@ -650,8 +654,8 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                     'High-risk Vendors': '0',
                 });
 
-                await page.getByRole('button', { name: journey.labels.committee, exact: true }).click();
-                await expect(page.getByRole('status')).toHaveCount(0);
+                await page.getByRole('tab', { name: journey.labels.committee, exact: true }).click();
+                await expect(page.locator('main header').getByRole('status')).toHaveCount(0);
                 await expect(page.getByText(journey.labels.noCriticalRisks, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.restricted, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.noVendors, { exact: true })).toHaveCount(0);
@@ -670,7 +674,7 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                     `Issue 165 ${journey.locale} ${journey.viewport.width}x${journey.viewport.height}`,
                 );
 
-                await page.getByRole('button', { name: journey.labels.ictCommittee, exact: true }).click();
+                await page.getByRole('tab', { name: journey.labels.ictCommittee, exact: true }).click();
                 await expect(page).toHaveURL(/view=ict-committee/);
                 const ictRisk = page.getByTestId('committee-top-risk-1');
                 for (const controlledLabel of journey.labels.ictControlled.slice(0, 3)) {

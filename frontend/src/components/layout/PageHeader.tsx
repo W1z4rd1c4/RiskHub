@@ -25,7 +25,9 @@ export function PageBackButton({ back, className }: { back: PageBackTarget; clas
         label: back.label,
         variant: 'ghost',
         size: 'compact',
-        className: cn('-ml-3 text-muted-foreground', className),
+        // Keep the full hit target inside the header. A negative alignment
+        // margin pushes the back control outside the header's layout bounds.
+        className: cn('text-muted-foreground', className),
         'data-testid': back.testId,
     } as const;
     return 'to' in back

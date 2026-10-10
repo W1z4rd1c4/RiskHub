@@ -64,7 +64,7 @@ test.describe('questionnaire workflow', () => {
                 })
                 .click();
             await page.getByRole('button', { name: /send questionnaire|odeslat dotazník/i }).click();
-            await expect(page.getByText(/questionnaire sent|dotazník.*odeslán/i)).toBeVisible({ timeout: 15000 });
+            await expect(page.getByRole('region', { name: /Notifications|Oznámení/ }).getByText(/questionnaire sent|dotazník.*odeslán/i)).toBeVisible({ timeout: 15000 });
 
             // Logout CRO
             await logout(page);
