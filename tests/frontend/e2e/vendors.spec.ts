@@ -478,21 +478,20 @@ test.describe('Vendor Management (Deterministic)', () => {
         expect(approvedResponse.ok()).toBe(true);
         expect((await approvedResponse.json() as { status?: string }).status).toBe('approved');
 
-        const refreshed = croPage.waitForResponse(async (response) => {
-            if (
-                response.request().method() !== 'GET'
-                || new URL(response.url()).pathname !== '/api/v1/orphaned-items/overview'
-                || !response.ok()
-            ) return false;
-            const overview = await response.json() as {
-                items?: Array<{ item_type?: string; item_id?: number }>;
-            };
-            return !overview.items?.some((item) => (
-                item.item_type === 'vendor' && item.item_id === vendorId
-            ));
-        });
+        const refreshed = croPage.waitForResponse((response) => (
+            response.request().method() === 'GET'
+            && new URL(response.url()).pathname === '/api/v1/orphaned-items/overview'
+        ));
         await croPage.getByRole('button', { name: /Refresh Data/i }).click();
-        expect((await refreshed).ok()).toBe(true);
+        const refreshedResponse = await refreshed;
+        expect(refreshedResponse.ok()).toBe(true);
+        const refreshedOverview = await refreshedResponse.json() as {
+            items: Array<{ item_type: string; item_id: number }>;
+        };
+        expect(Array.isArray(refreshedOverview.items)).toBe(true);
+        expect(refreshedOverview.items.some((item) => (
+            item.item_type === 'vendor' && item.item_id === vendorId
+        ))).toBe(false);
         await croPage.getByRole('button', { name: /Vendors Orphaned Vendors/i }).click();
         await expect(croPage.locator('tbody tr').filter({
             hasText: E2E_VENDORS.ACTIVE_PRIMARY.name,

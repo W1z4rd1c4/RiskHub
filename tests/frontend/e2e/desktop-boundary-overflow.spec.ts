@@ -317,7 +317,9 @@ test.describe('Supported desktop resilience (#156)', () => {
             }).first();
             await expect(listCard).toBeVisible();
             await applyTextSpacing(riskManagerPage);
-            const firstMetricLabel = listCard.getByText(locale === 'en' ? 'People' : 'Lidé', { exact: true });
+            // Keep the locator stable when this stress fixture appends long text.
+            const firstMetricLabel = listCard.getByText(locale === 'en' ? /^People(?:\s|$)/ : /^Lidé(?:\s|$)/);
+            await expect(firstMetricLabel).toHaveText(locale === 'en' ? 'People' : 'Lidé');
             await firstMetricLabel.evaluate((element) => {
                 element.textContent = `${element.textContent} ${'DELIBERATELYLONGLOCALIZEDMETRIC'.repeat(4)}`;
             });

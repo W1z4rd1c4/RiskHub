@@ -131,20 +131,22 @@ test.describe('rendered contrast browser color normalization', () => {
 });
 
 test.describe('computed color semantic equality', () => {
-  for (const [name, color, legacy, differentChannel, differentAlpha] of [
+  for (const [name, color, legacy, differentChannel, differentAlpha, expectedKey] of [
     [
       'risk score', 'oklab(0.485555 -0.109064 0.0630848 / 0.4)',
-      'rgba(19, 114, 54, 0.4)', 'rgba(20, 114, 54, 0.4)', 'rgba(19, 114, 54, 0.41)',
+      'rgba(19, 114, 54, 0.4)', 'rgba(20, 114, 54, 0.4)',
+      'color(srgb 0.0745098 0.4470588 0.2117647 / 0.403921568627451)', 'rgba8(19, 114, 54, 102)',
     ],
     [
       'neutral hover', 'oklab(0.206403 -0.00300531 -0.0387002 / 0.1)',
-      'rgba(15, 23, 41, 0.1)', 'rgba(16, 23, 41, 0.1)', 'rgba(15, 23, 41, 0.11)',
+      'rgba(15, 23, 41, 0.1)', 'rgba(16, 23, 41, 0.1)',
+      'color(srgb 0.0588235 0.0901961 0.1607843 / 0.10588235294117647)', 'rgba8(15, 23, 41, 26)',
     ],
   ] as const) {
-    test(`${name} matches legacy RGBA while rejecting channel and alpha changes`, async ({ page }) => {
+    test(`${name} matches legacy RGBA while rejecting one-byte channel and alpha changes`, async ({ page }) => {
       await page.setContent(`<span id="sample" style="color:${color};background-color:${color}">Sample</span>`);
       const normalized = await page.evaluate(normalizeComputedColor, color);
-      expect(normalized).toBe(legacy);
+      expect(normalized).toBe(expectedKey);
       expect(await page.evaluate(normalizeComputedColor, legacy)).toBe(normalized);
       expect(await page.evaluate(normalizeComputedColor, differentChannel)).not.toBe(normalized);
       expect(await page.evaluate(normalizeComputedColor, differentAlpha)).not.toBe(normalized);

@@ -31,8 +31,8 @@ const JOURNEYS = [
             riskLevelChip: 'Risk Level: Critical',
             riskCount: '3 Risks',
             riskScores: 'Gross and net Risk scores',
-            stockCompare: '2026-Q2 · Stored 2026-07-01T00:00:00+00:00',
-            stockCurrent: '2026-Q3 · Live 2026-08-15T12:00:00+00:00',
+            stockCompare: '2026-Q2 · Stored Jul 1, 2026, 02:00 AM',
+            stockCurrent: '2026-Q3 · Live Aug 15, 2026, 02:00 PM',
             stockEvidence: 'Stock observations',
             totalControls: 'Total Controls',
             updated: 'Updated',
@@ -64,8 +64,8 @@ const JOURNEYS = [
             riskLevelChip: 'Úroveň rizika: Kritické',
             riskCount: '3 rizika',
             riskScores: 'Hrubé a čisté skóre rizika',
-            stockCompare: '2026-Q2 · Uložená data 2026-07-01T00:00:00+00:00',
-            stockCurrent: '2026-Q3 · Živá data 2026-08-15T12:00:00+00:00',
+            stockCompare: '2026-Q2 · Uložená data 1. 7. 2026 02:00',
+            stockCurrent: '2026-Q3 · Živá data 15. 8. 2026 14:00',
             stockEvidence: 'Stavová pozorování',
             totalControls: 'Celkem kontrol',
             updated: 'Aktualizováno',
@@ -663,10 +663,23 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 await expect(page.getByText(journey.labels.riskCount, { exact: true })).toBeVisible();
                 await expect(page.getByText(journey.labels.newFromZero, { exact: true })).toBeVisible();
                 await expect(page.getByText('N/A', { exact: true })).toBeVisible();
-                await expect(page.getByText('2026-07-01T00:00:00+00:00 – 2026-08-15T12:00:00+00:00')).toBeVisible();
+                const flowEvidence = page.getByLabel(journey.locale === 'en'
+                    ? 'Quarterly comparison observation evidence' : 'Podklady čtvrtletního porovnání', { exact: true });
+                for (const [timestamp, english, czech] of [
+                    ['2026-07-01T00:00:00+00:00', 'Jul 1, 2026', '1. 7. 2026'],
+                    ['2026-08-15T12:00:00+00:00', 'Aug 15, 2026', '15. 8. 2026'],
+                    ['2026-04-01T00:00:00+00:00', 'Apr 1, 2026', '1. 4. 2026'],
+                    ['2026-05-16T12:00:00+00:00', 'May 16, 2026', '16. 5. 2026'],
+                ]) {
+                    const time = flowEvidence.locator(`time[datetime="${timestamp}"]`);
+                    await expect(time).toBeVisible();
+                    await expect(time).toHaveText(journey.locale === 'en' ? english : czech);
+                }
                 const stockEvidence = page.getByLabel(journey.labels.stockEvidence, { exact: true });
                 await expect(stockEvidence.getByText(journey.labels.stockCurrent, { exact: true })).toBeVisible();
                 await expect(stockEvidence.getByText(journey.labels.stockCompare, { exact: true })).toBeVisible();
+                await expect(stockEvidence.locator('time[datetime="2026-08-15T12:00:00+00:00"]')).toBeVisible();
+                await expect(stockEvidence.locator('time[datetime="2026-07-01T00:00:00+00:00"]')).toBeVisible();
                 await expect(page.getByRole('progressbar', { name: /Operations: 44/ })).toHaveAttribute('aria-valuenow', '44');
 
                 await assertDesktopSurface(

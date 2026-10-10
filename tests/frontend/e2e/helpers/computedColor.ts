@@ -1,8 +1,10 @@
 import type { Locator } from '@playwright/test';
 
 /**
- * Semantic color equality only: normalize CSS Color 4 to the byte precision of
- * legacy computed rgb()/rgba(), retaining alpha. Contrast measurements must use
+ * Semantic color equality only: normalize CSS Color 4 to legacy 8-bit RGBA
+ * precision, including alpha. The result is an equality key, not CSS.
+ * Relative-color conversion can expose legacy alpha 0.1 as 26/255.
+ * Contrast measurements must use
  * measureRenderedContrast instead, which preserves fractional RGB channels.
  * Self-contained because Playwright serializes this function into the browser.
  */
@@ -27,7 +29,8 @@ export function normalizeComputedColor(value: string): string {
     throw new Error(`Unrecognized normalized computed color: ${value} -> ${resolved}`);
   }
   const rgb = channels.slice(0, 3).map((channel) => Math.round(Math.max(0, Math.min(1, channel)) * 255));
-  return `rgba(${rgb.join(', ')}, ${channels[3] ?? 1})`;
+  const alpha = Math.round(Math.max(0, Math.min(1, channels[3] ?? 1)) * 255);
+  return `rgba8(${[...rgb, alpha].join(', ')})`;
 }
 
 export async function readComputedColor(

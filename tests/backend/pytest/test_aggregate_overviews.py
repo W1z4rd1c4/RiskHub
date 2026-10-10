@@ -656,3 +656,49 @@ async def test_orphaned_items_overview_cache_key_includes_effective_permissions(
     refreshed_resp = await client.get("/api/v1/orphaned-items/overview", headers=_headers_for(test_user_cro))
     assert refreshed_resp.status_code == 200
     assert refreshed_resp.json()["stats"]["total_count"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("second_resolution_offset", [0, -1])
+async def test_orphan_overview_refreshes_after_resolution_with_same_or_earlier_timestamp(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user: User,
+    test_user_cro: User,
+    second_resolution_offset: int,
+):
+    """Committed resolutions invalidate every worker even when max(time) is unchanged."""
+    orphans = []
+    for index in range(2):
+        risk = Risk(
+            risk_id_code=f"R-RESOLUTION-{index}", name=f"Resolution risk {index}",
+            process="Ops", description="", category="Operational",
+            department_id=test_department.id, owner_id=test_user.id,
+            risk_type="operational", gross_probability=2, gross_impact=2,
+            net_probability=2, net_impact=2, status=RiskStatus.active.value,
+        )
+        db_session.add(risk)
+        await db_session.flush()
+        orphan = OrphanedItem(
+            item_type="risk", item_id=risk.id,
+            previous_owner_id=test_user.id, status="pending",
+        )
+        db_session.add(orphan)
+        orphans.append(orphan)
+    await db_session.commit()
+    headers = _headers_for(test_user_cro)
+    first = await client.get("/api/v1/orphaned-items/overview", headers=headers)
+    assert first.status_code == 200
+    assert first.json()["stats"]["total_count"] == 2
+
+    resolution_time = utc_now()
+    for index, orphan in enumerate(orphans):
+        orphan.status = "resolved"
+        orphan.resolved_at = resolution_time + timedelta(seconds=second_resolution_offset if index else 0)
+        await db_session.commit()
+        # No process-local clear/expiry: emulate a resolution in another worker.
+        refreshed = await client.get("/api/v1/orphaned-items/overview", headers=headers)
+        assert refreshed.status_code == 200
+        assert refreshed.json()["stats"]["total_count"] == 1 - index
+        assert all(item["id"] != orphan.id for item in refreshed.json()["items"])
