@@ -254,3 +254,8 @@ Run it for the immutable candidate when closing readiness requirements such as
 identity/SBOM/raw and policy-aware scans, review, and subsequent main evidence.
 Passing this lane does not publish a release, authorize deployment, or replace
 separate human acceptance and identity production-admission requirements.
+
+The read-only `scripts/prod/verify_runtime.sh` reliability report emits scheduler
+`started_at` values as UTC ISO-8601 strings (or null). Populated job history must
+remain JSON-serializable; query failures and unexpected payload types still fail
+the diagnostic rather than being hidden or converted to generic strings.
