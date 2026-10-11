@@ -1188,8 +1188,10 @@ def test_prod_readiness_phase_plan_resolves_registry_tags_before_deploy_and_upgr
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
 
+    deploy_script = tmp_path / "resolve-deploy-images.sh"
+    deploy_script.write_text(deploy_resolver, encoding="utf-8")
     resolved = subprocess.run(
-        ["bash", "-c", deploy_resolver],
+        ["bash", str(deploy_script)],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -1205,8 +1207,10 @@ def test_prod_readiness_phase_plan_resolves_registry_tags_before_deploy_and_upgr
         )
 
     fake_docker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    upgrade_script = tmp_path / "resolve-upgrade-images.sh"
+    upgrade_script.write_text(upgrade_resolver, encoding="utf-8")
     unresolved = subprocess.run(
-        ["bash", "-c", upgrade_resolver],
+        ["bash", str(upgrade_script)],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -1430,26 +1434,30 @@ def test_prod_readiness_generated_negative_probe_reaches_frontend_validation(
 def _run_production_backend_preflight(
     backend_env: Path, *, secret_dir: Path, runtime_dir: Path
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [
-            "bash",
-            "-c",
+    with tempfile.TemporaryDirectory(prefix="riskhub-preflight-harness-") as td:
+        script = Path(td) / "preflight.sh"
+        script.write_text(
             'source "$1"; source "$2"; preflight_backend_env "$3"',
-            "bash",
-            str(PROD_SCRIPTS_DIR / "lib" / "common.sh"),
-            str(PROD_PREFLIGHT_LIB),
-            str(backend_env),
-        ],
-        cwd=REPO_ROOT,
-        env={
-            **os.environ,
-            "RISKHUB_DEFAULT_SECRET_DIR": str(secret_dir),
-            "RISKHUB_RUNTIME_DIR": str(runtime_dir),
-        },
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+            encoding="utf-8",
+        )
+        return subprocess.run(
+            [
+                "bash",
+                str(script),
+                str(PROD_SCRIPTS_DIR / "lib" / "common.sh"),
+                str(PROD_PREFLIGHT_LIB),
+                str(backend_env),
+            ],
+            cwd=REPO_ROOT,
+            env={
+                **os.environ,
+                "RISKHUB_DEFAULT_SECRET_DIR": str(secret_dir),
+                "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
 
 @pytest.mark.parametrize(
