@@ -253,12 +253,13 @@ async def test_process_owner_gets_record_specific_update_without_archive(
         archived = await client.delete(f"/api/v1/processes/{process_id}")
 
     assert detail.status_code == 200
+    assert detail.json()["derived"]["cif"] == "no"
     assert detail.json()["capabilities"] == {
         "can_read": True,
         "can_update": True,
         "can_archive": False,
         "can_restore": False,
-        "protected_change_requires_approval": True,
+        "protected_change_requires_approval": False,
         "can_request_change": True,
         "can_cancel_pending_change": False,
         "has_pending_change": False,
