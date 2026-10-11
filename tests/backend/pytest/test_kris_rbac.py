@@ -1722,12 +1722,16 @@ async def test_unrelated_scoped_user_cannot_read_cross_department_kri_surfaces(
 
 
 @pytest.mark.asyncio
-async def test_kri_breaches_explicit_unauthorized_department_filter_is_strict(
+async def test_kri_breaches_explicit_department_filter_matches_owned_register_rows(
     client_approval_requester: AsyncClient,
     db_session,
     test_user_approval_requester,
 ):
-    """Explicit department filters should not include ownership-exception rows from unauthorized departments."""
+    """ARCH-12 #244/#245 resolved visibility rule: widgets preview the KRI register.
+
+    Explicit department selection intersects existing read authority, including
+    cross-department ownership; it never grants access to unrelated rows.
+    """
     other_dept = Department(name="KRI Filter Other Dept", code="KRI-FILTER-X", is_active=True)
     db_session.add(other_dept)
     await db_session.commit()
@@ -1771,7 +1775,12 @@ async def test_kri_breaches_explicit_unauthorized_department_filter_is_strict(
         params={"department_id": other_dept.id},
     )
     assert breaches.status_code == 200
-    assert breaches.json() == []
+    register = await client_approval_requester.get(
+        "/api/v1/kris", params={"department_id": other_dept.id, "breach_only": True}
+    )
+    assert register.status_code == 200
+    assert {item["id"] for item in breaches.json()} == {item["id"] for item in register.json()["items"]} == {kri.id}
+
 
 
 @pytest.mark.asyncio

@@ -9,6 +9,7 @@ import signal
 import subprocess
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -809,6 +810,7 @@ def start_background_service(
     screenshot_url: str | None = None,
     screenshot_file: Path | None = None,
     max_wait_sec: int = 90,
+    on_ready: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     log_path = logs_dir / f"{context_id}.log"
     with log_path.open("w", encoding="utf-8") as handle:
@@ -886,6 +888,8 @@ def start_background_service(
                     )
                 else:
                     fingerprint.update(listener_identity)
+            if started and on_ready is not None:
+                on_ready()
             return fingerprint
         finally:
             if proc.poll() is None:

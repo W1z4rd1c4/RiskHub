@@ -16,6 +16,7 @@ from app.services._monitoring_response import (
     serialize_kri_response,
 )
 from app.services._monitoring_status import KRIMonitoringStatus, apply_kri_monitoring_status_filter
+from app.services.kri_populations import live_clause
 
 from ._shared import _assert_department_in_scope
 
@@ -51,8 +52,7 @@ async def list_department_kris(
         .where(
             and_(
                 Risk.department_id == department_id,
-                Risk.live(),
-                KeyRiskIndicator.is_archived.is_(False),
+                live_clause(),
             )
         )
         .options(

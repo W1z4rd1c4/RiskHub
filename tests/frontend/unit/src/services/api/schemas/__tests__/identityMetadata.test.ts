@@ -30,3 +30,15 @@ describe('identity metadata wire validation', () => {
         expect(accessUserCapabilitiesSchema.safeParse({ ...actions, can_initiate_recovery: 'true' }).success).toBe(false);
     });
 });
+
+// #196: healthy directory responses can retain a locally unavailable account.
+describe('directory account-state response contract', () => {
+    it.each(['suspended', 'inactive'])('retains %s in single and check-all responses', async (status) => {
+        const { directoryCheckResultSchema, directoryCheckAllResponseSchema } = await import('@/services/api/schemas/admin');
+        const result = { user_id: 9, email: 'person@example.test', status, reason: status === 'suspended' ? 'local_suspension' : null, revoked_sessions: 0, orphaned_items_flagged: 0 };
+        expect(directoryCheckResultSchema.parse(result).status).toBe(status);
+        const summary = { checked: 1, active: 0, deprovisioned: 0, suspended: Number(status === 'suspended'), inactive: Number(status === 'inactive'), errors: 0, skipped: 0, results: [result] };
+        expect(directoryCheckAllResponseSchema.parse(summary)).toEqual(summary);
+        expect(directoryCheckResultSchema.safeParse({ ...result, status: 'unknown-state' }).success).toBe(false);
+    });
+});

@@ -2,6 +2,6 @@
 # Human-edited intent lives in requirements-dev.in; exact resolution is installed
 # from requirements-dev-constraints.txt for both local setup and CI.
 # input-sha256: 967d4900702c751993b8b4e3b8ddfdc45208d12d98019bbb0ab156a7f225e3d0
-# lock-sha256: 8f87ac1746997a7809a68d00889ec618cfd50cdcec6c5d94ab8c61fb61877714
+# lock-sha256: bad4df09ed0c18dc3a2480fb635cf91934b8ba70d8abc5a454e7d75c114ae817
 -r requirements-dev.in
 -r requirements-dev-constraints.txt

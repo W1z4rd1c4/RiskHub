@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import Optional, Tuple
 
 from sqlalchemy import select
@@ -9,13 +8,13 @@ from sqlalchemy.orm import selectinload
 
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
+from app.models.risk import Risk
+from app.models.user import User
+from app.services.kri_populations import due_soon_period_end, live_clause, overdue_period_end, visible_query
 
 from . import clock
 from .periods import (
     due_date,
-    never_reported_is_overdue,
-    overdue_required_period_end,
-    period_bounds_for_date,
     reporting_owner_id,
 )
 
@@ -121,6 +120,7 @@ async def get_history(
 
 async def get_overdue_kris(
     db: AsyncSession,
+    *, current_user: User | None = None, department_id: int | None = None,
 ) -> list[dict]:
     """
     Get all KRIs that are overdue for reporting.
@@ -132,39 +132,24 @@ async def get_overdue_kris(
     # Fetch all ACTIVE (non-archived) KRIs with their risk relationships
     stmt = (
         select(KeyRiskIndicator)
-        .where(KeyRiskIndicator.is_archived.is_(False))
+        .join(Risk)
+        .where(live_clause())
         .options(
             selectinload(KeyRiskIndicator.risk),
             selectinload(KeyRiskIndicator.reporting_owner),
         )
     )
+    if current_user is not None:
+        stmt = await visible_query(stmt, db=db, actor=current_user, department_id=department_id)
     result = await db.execute(stmt)
     kris = result.scalars().all()
 
     overdue = []
     for kri in kris:
-        # Overdue anchor is the latest STRICTLY past-due period (ADR-012 SSOT), shared
-        # with the snapshot metrics and the monitoring not_submitted filter. This flags
-        # a KRI that missed an EARLIER period even while the most recent period is still
-        # inside its grace window; the previous latest-closed-at-today anchor + grace gate
-        # under-reported that case. overdue_required_period_end always returns a period
-        # whose due date is strictly before today, so no separate today > due gate is needed.
-        period_end = overdue_required_period_end(today, kri.frequency)
+        period_end = overdue_period_end(frequency=kri.frequency, last_period_end=kri.last_period_end, today=today)
+        if period_end is None:
+            continue
         due = due_date(period_end)
-
-        if kri.last_period_end is not None:
-            # HAS-REPORTED: overdue iff the last report predates the latest strictly
-            # past-due period end (backtracking anchor). Behavior unchanged.
-            if kri.last_period_end >= period_end:
-                continue
-        else:
-            # NEVER-REPORTED (last_period_end IS NULL): gate through the shared
-            # never_reported_is_overdue SSOT so this listing agrees with the DETAIL
-            # classifier and the not_submitted list filter. A never-reported KRI stays
-            # `new` inside its initial (today-anchored) grace window and is overdue ONLY
-            # once its first required period is strictly past due.
-            if not never_reported_is_overdue(today, kri.frequency):
-                continue
 
         days_overdue = (today - due).days
         overdue.append(
@@ -184,6 +169,7 @@ async def get_overdue_kris(
 
 async def get_due_soon_kris(
     db: AsyncSession,
+    *, current_user: User | None = None, department_id: int | None = None,
 ) -> list[dict]:
     """
     Get all KRIs that are due soon (within 7 days before period end).
@@ -191,43 +177,31 @@ async def get_due_soon_kris(
     Returns list of dicts with KRI info, period_end, due_date, and days_until_due.
     """
     today = clock.today()
-    advance_days = 7  # 7 days before period end
 
     # Fetch all ACTIVE (non-archived) KRIs with their risk relationships
     stmt = (
         select(KeyRiskIndicator)
-        .where(KeyRiskIndicator.is_archived.is_(False))
+        .join(Risk)
+        .where(live_clause())
         .options(
             selectinload(KeyRiskIndicator.risk),
             selectinload(KeyRiskIndicator.reporting_owner),
         )
     )
+    if current_user is not None:
+        stmt = await visible_query(stmt, db=db, actor=current_user, department_id=department_id)
     result = await db.execute(stmt)
     kris = result.scalars().all()
 
     due_soon = []
     for kri in kris:
-        # Get current period (not closed period)
-        _, period_end = period_bounds_for_date(today, kri.frequency)
-
-        # Check if already reported for this period
-        if kri.last_period_end and kri.last_period_end >= period_end:
-            continue  # Already reported
-
-        # Check if within 7 days before period end
-        advance_date = period_end - timedelta(days=advance_days)
-        if today >= advance_date and today < period_end:
-            days_until_due = (period_end - today).days
-            due = due_date(period_end)
-            due_soon.append(
-                _build_kri_period_due_row(
-                    kri,
-                    period_end=period_end,
-                    due=due,
-                    metric_key="days_until_due",
-                    metric_value=days_until_due,
-                )
-            )
+        period_end = due_soon_period_end(frequency=kri.frequency, last_period_end=kri.last_period_end, today=today)
+        if period_end is None:
+            continue
+        due_soon.append(_build_kri_period_due_row(
+            kri, period_end=period_end, due=due_date(period_end),
+            metric_key="days_until_due", metric_value=(period_end - today).days,
+        ))
 
     # Sort by days until due ascending (most urgent first)
     due_soon.sort(key=lambda x: _int_sort_value(x, "days_until_due"))

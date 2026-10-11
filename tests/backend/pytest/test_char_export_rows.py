@@ -44,7 +44,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import KeyRiskIndicator, Risk
-from app.models.key_risk_indicator import kri_breach_condition
 from app.models.risk import ControlRiskLink
 from app.services._reporting.exports.fetch import (
     _fetch_controls_for_export,
@@ -58,6 +57,7 @@ from app.services._reporting.exports.rows import (
     _risk_to_row,
     _vendor_to_row,
 )
+from app.services.kri_populations import kri_breach_condition
 from tests.backend.pytest.factories import (
     create_test_control,
     create_test_kri,

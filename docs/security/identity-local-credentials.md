@@ -245,3 +245,12 @@ backup codes can be acknowledged after that clearing. No web privileged-recovery
 override or public registration is provided. EN/CS forms use shared accessible
 controls and preserve the cold-login dependency gate. The native production guard
 remains closed until #208.
+
+## Authentication audit classifications
+
+Completed native password-only and factor logins use the shared `login` audit
+action. Denied passwords, factors, recent-authentication proofs and exhausted
+grant attempts use `failed_login`, including known-user failures, so the existing
+operational filter and WARNING projection retain them. Credential and factor
+enrollment mutations remain `update`. This changes event classification only; it
+does not change session issuance, revocation, factor requirements or optional MFA.

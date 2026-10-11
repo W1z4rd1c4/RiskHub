@@ -888,7 +888,7 @@ async function driveUx157UsersAndAdmin(page: Page, config: Ux157JourneyConfig): 
         }
         await route.fulfill({
             status: 200,
-            json: { checked: 1, deprovisioned: 0, active: 1, errors: 0, skipped: 0, results: [] },
+            json: { checked: 1, deprovisioned: 0, active: 1, suspended: 0, inactive: 0, errors: 0, skipped: 0, results: [] },
         });
     });
     await page.route('**/api/v1/admin/directory/check-user/9757', async (route) => {

@@ -29,13 +29,13 @@ class DepartmentSummary(BaseModel):
     id: int
     name: str
     code: str
-    user_count: int
-    risk_count: int
-    control_count: int
-    high_risk_count: int
-    breaching_kri_count: int = 0
-    kri_count: int = 0
-    total_net_score: int = 0
+    user_count: int | None
+    risk_count: int | None
+    control_count: int | None
+    high_risk_count: int | None
+    breaching_kri_count: int | None = None
+    kri_count: int | None = None
+    total_net_score: int | None = None
 
     model_config = {"from_attributes": True}
 

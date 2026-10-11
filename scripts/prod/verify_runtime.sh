@@ -64,6 +64,15 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app.core.datetime_utils import coerce_utc
+
+
+def job_json(row):
+    record = dict(row)
+    started_at = coerce_utc(record["started_at"])
+    record["started_at"] = started_at.isoformat() if started_at is not None else None
+    return record
+
 
 async def main() -> None:
     db_url = Path(os.environ["DATABASE_URL_FILE"]).read_text(encoding="utf-8").strip()
@@ -107,7 +116,7 @@ async def main() -> None:
             {
                 "scheduler_runtime_rows": scheduler_runtime_rows,
                 "dead_letter_count": dead_letter_count,
-                "latest_jobs": [dict(row) for row in latest_jobs],
+                "latest_jobs": [job_json(row) for row in latest_jobs],
             },
             sort_keys=True,
         )

@@ -1879,8 +1879,10 @@ def test_release_parity_runtime_dry_runs_pass_hostile_run_id_as_one_literal_argu
         marker.unlink(missing_ok=True)
         arg_log = tmp_path / f"args-{index}.txt"
         command = builder(**kwargs)
+        script = tmp_path / f"runtime-command-{index}.sh"
+        script.write_text(command, encoding="utf-8")
         result = subprocess.run(
-            ["bash", "-c", command],
+            ["bash", str(script)],
             cwd=tmp_path,
             env={**os.environ, "ARG_LOG": str(arg_log)},
             check=False,
@@ -4175,8 +4177,11 @@ def test_nested_cli_stops_at_verified_docker_host_failure(
     def fake_subprocess_run(args, **_kwargs):
         command = args[-1]
         executed_commands.append(command)
-        docker_start = command.startswith(
-            f"docker run -d --name {state.postgres_container} "
+        docker_start = command == next(
+            spec.command
+            for phase in prod_cli.build_prod_readiness_phases(state)
+            for spec in phase.commands
+            if spec.command_id == "p3_start_postgres"
         )
         return subprocess.CompletedProcess(
             args,
@@ -4413,8 +4418,10 @@ def test_prod_readiness_fixed_container_cleanup_stops_gracefully_then_propagates
         for command in cleanup_commands
         if command.command_id == "cleanup_final_riskhub-frontend"
     )
+    script = tmp_path / "cleanup.sh"
+    script.write_text(cleanup.command, encoding="utf-8")
     result = subprocess.run(
-        ["bash", "-c", cleanup.command],
+        ["bash", str(script)],
         cwd=tmp_path,
         env={
             **os.environ,
@@ -5101,3 +5108,618 @@ def test_nested_partial_code_failure_remains_audit_harness_no_go(
     assert decision["decision"] == "NO-GO"
     assert any(item["id"] == "P1-prod-readiness-evidence-invalid" for item in findings)
     assert not any(item["severity"] == "ENV" for item in findings)
+
+
+def test_audit_only_readiness_workflow_preserves_full_release_gate() -> None:
+    import yaml
+
+    path = REPO_ROOT / ".github/workflows/release-readiness-audit.yml"
+    workflow = yaml.load(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    release = yaml.load(
+        (REPO_ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8"),
+        Loader=yaml.BaseLoader,
+    )
+    assert workflow["permissions"] == {"contents": "read"}
+    assert set(workflow["on"]) == {"pull_request", "push", "workflow_dispatch"}
+    assert set(workflow["jobs"]) == {"readiness-audit", "fixture-group-diagnostic"}
+    job = workflow["jobs"]["readiness-audit"]
+    assert job["runs-on"] == "ubuntu-latest"
+    assert "continue-on-error" not in job
+    steps = job["steps"]
+    assert all("continue-on-error" not in step for step in steps)
+    checkout = next(
+        step for step in steps if "actions/checkout@" in step.get("uses", "")
+    )
+    assert (
+        checkout["with"]["ref"]
+        == "${{ github.event.pull_request.head.sha || github.sha }}"
+    )
+    assert checkout["with"]["persist-credentials"] == "false"
+    assert checkout["with"]["fetch-depth"] == "0"
+    browser_step = next(
+        step
+        for step in steps
+        if step.get("name") == "Install matching Playwright Chromium"
+    )
+    assert browser_step["working-directory"] == "frontend"
+    assert (
+        browser_step["run"]
+        == "npx --no-install playwright install --with-deps chromium"
+    )
+    source_steps = release["jobs"]["release-parity-gate"]["steps"]
+    for name in ("Run full release parity audit", "Enforce GO decision"):
+        actual = next(step for step in steps if step.get("name") == name)
+        expected = next(step for step in source_steps if step.get("name") == name)
+        assert actual["run"] == expected["run"]
+        assert actual["env"] == expected["env"]
+    assert "--skip-prod-readiness" not in path.read_text(encoding="utf-8")
+    assert "${{ secrets." not in path.read_text(encoding="utf-8")
+    assert not any("docker/login-action" in step.get("uses", "") for step in steps)
+    assert not any("docker/build-push-action" in step.get("uses", "") for step in steps)
+
+
+def test_audit_only_readiness_artifacts_exclude_fixture_secrets() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(
+            encoding="utf-8"
+        ),
+        Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["readiness-audit"]["steps"]
+    upload = next(
+        step for step in steps if "actions/upload-artifact@" in step.get("uses", "")
+    )
+    assert upload["if"] == "always()"
+    paths = upload["with"]["path"].splitlines()
+    assert (
+        paths[0]
+        == "tests/results/release-parity-audit-${{ github.run_id }}-${{ github.run_attempt }}/"
+    )
+    for excluded in ("!**/tmp/**", "!**/secrets/**", "!**/*.env"):
+        assert excluded in paths
+    assert upload["with"]["if-no-files-found"] == "error"
+
+
+def test_full_readiness_registry_is_loopback_only_and_images_stay_local(
+    tmp_path: Path,
+) -> None:
+    state, commands = _canonical_prod_readiness_commands(tmp_path)
+    registry = next(
+        command for command in commands if command.command_id == "p3_start_registry"
+    )
+    assert f"-p 127.0.0.1:{state.registry_port}:5000 registry:2" in registry.command
+    assert state.local_registry == f"127.0.0.1:{state.registry_port}"
+    pushes = [command for command in commands if "docker push " in command.command]
+    assert len(pushes) == 8
+    for command in pushes:
+        assert f"docker push {state.local_registry}/" in command.command
+        assert "docker login" not in command.command
+
+
+@pytest.mark.parametrize(
+    "bind_host",
+    [
+        "172.17.0.1",
+        "",
+        "0.0.0.0",
+        "8.8.8.8",
+        "127.0.0.1",
+        "::1",
+        "224.0.0.1",
+        "169.254.1.1",
+    ],
+)
+def test_readiness_postgres_bind_override_is_validated_before_docker(
+    tmp_path: Path, bind_host: str
+) -> None:
+    state, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
+    command = next(
+        command for command in commands if command.command_id == "p3_start_postgres"
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    capture = tmp_path / "docker-args.json"
+    fake_docker = bin_dir / "docker"
+    fake_docker.write_text(
+        f"#!{sys.executable}\nimport json,os,sys\n"
+        'open(os.environ["CAPTURE"], "w").write(json.dumps(sys.argv[1:]))\n',
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    script = tmp_path / "start-postgres.sh"
+    script.write_text(command.command, encoding="utf-8")
+    result = subprocess.run(
+        ["bash", str(script)],
+        env={
+            **os.environ,
+            "PATH": f'{bin_dir}:{os.environ["PATH"]}',
+            "CAPTURE": str(capture),
+            "RISKHUB_AUDIT_PYTHON": sys.executable,
+            "RISKHUB_AUDIT_POSTGRES_BIND_HOST": bind_host,
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if bind_host == "172.17.0.1":
+        assert result.returncode == 0, result.stderr
+        args = json.loads(capture.read_text())
+        assert args[args.index("-p") + 1] == f"{bind_host}:{state.postgres_port}:5432"
+    else:
+        assert result.returncode != 0
+        assert (
+            not capture.exists()
+        ), "Invalid override must fail before starting any container"
+
+
+@pytest.mark.parametrize(
+    "gateway,exit_code",
+    [
+        ("172.17.0.1", 0),
+        ("", 0),
+        ("0.0.0.0", 0),
+        ("8.8.8.8", 0),
+        ("127.0.0.1", 0),
+        ("224.0.0.1", 0),
+        ("172.17.0.1\nINJECTED=value", 0),
+        ("172.17.0.1", 1),
+    ],
+)
+def test_readiness_workflow_bridge_discovery_fails_closed(
+    tmp_path: Path, gateway: str, exit_code: int
+) -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(
+            encoding="utf-8"
+        ),
+        Loader=yaml.BaseLoader,
+    )
+    step = next(
+        step
+        for step in workflow["jobs"]["readiness-audit"]["steps"]
+        if step.get("name") == "Bind audit database to the disposable Docker bridge"
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_docker = bin_dir / "docker"
+    fake_docker.write_text(
+        f"#!{sys.executable}\nimport os,sys\n"
+        'assert sys.argv[1:4] == ["network", "inspect", "bridge"]\n'
+        'print(os.environ["FAKE_GATEWAY"])\nsys.exit(int(os.environ["FAKE_EXIT"]))\n',
+        encoding="utf-8",
+    )
+    fake_docker.chmod(0o755)
+    env_file = tmp_path / "github-env"
+    script = tmp_path / "discover-bridge.sh"
+    script.write_text(step["run"], encoding="utf-8")
+    result = subprocess.run(
+        ["bash", str(script)],
+        env={
+            **os.environ,
+            "PATH": f'{bin_dir}:{os.environ["PATH"]}',
+            "FAKE_GATEWAY": gateway,
+            "FAKE_EXIT": str(exit_code),
+            "GITHUB_ENV": str(env_file),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if gateway == "172.17.0.1" and exit_code == 0:
+        assert result.returncode == 0, result.stderr
+        assert env_file.read_text() == "RISKHUB_AUDIT_POSTGRES_BIND_HOST=172.17.0.1\n"
+    else:
+        assert result.returncode != 0
+        assert (
+            not env_file.exists()
+        ), "Failed discovery must not publish a fallback binding"
+
+
+def test_audit_runtime_group_survives_readonly_file_replacement(tmp_path: Path) -> None:
+    import shlex
+    import stat
+
+    _, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
+    permission_command = next(
+        command
+        for command in commands
+        if "chgrp -R 10001 /audit-secrets" in command.command
+    )
+    tokens = shlex.split(permission_command.command)
+    normalize = tokens[tokens.index("-euc") + 1]
+    assert "chmod 2750 /audit-runtime" in normalize
+    runtime = tmp_path / "runtime"
+    secrets = tmp_path / "secrets"
+    runtime.mkdir(mode=0o750)
+    secrets.mkdir(mode=0o750)
+    destination = runtime / "redis_url"
+    destination.write_text("old synthetic fixture\n")
+    destination.chmod(0o440)
+    source = tmp_path / "replacement"
+    source.write_text("new synthetic fixture\n")
+    # Exercise the real shell commands with our own local group. The hosted
+    # container gate separately proves readability by the image's group 10001.
+    normalize = normalize.replace("chgrp -R 10001", f"chgrp -R {os.getgid()}")
+    normalize = normalize.replace("/audit-secrets", shlex.quote(str(secrets)))
+    normalize = normalize.replace("/audit-runtime", shlex.quote(str(runtime)))
+    harness = tmp_path / "replace-runtime.sh"
+    harness.write_text(
+        "set -euo pipefail\numask 077\n"
+        + normalize
+        + "\nsource "
+        + shlex.quote(str(REPO_ROOT / "scripts/deploy/lib/common.sh"))
+        + "\ncopy_runtime_file "
+        + shlex.quote(str(source))
+        + " "
+        + shlex.quote(str(destination))
+        + " 440\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["bash", str(harness)],
+        env={**os.environ, "RISKHUB_RUNTIME_DIR": str(runtime)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert stat.S_IMODE(runtime.stat().st_mode) == 0o2750
+    assert stat.S_IMODE(secrets.stat().st_mode) == 0o750
+    assert stat.S_IMODE(destination.stat().st_mode) == 0o440
+    assert destination.stat().st_gid == runtime.stat().st_gid
+    assert destination.read_text() == "new synthetic fixture\n"
+
+
+def test_readiness_gitleaks_keeps_full_tree_scope_with_current_scanner(tmp_path: Path) -> None:
+    _, commands = _canonical_prod_readiness_commands(tmp_path / "artifacts")
+    scan = next(command for command in commands if command.command_id == "p4_gitleaks_scan")
+    assert (
+        "zricethezav/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055"
+        in scan.command
+    )
+    assert "-w /repo" in scan.command
+    assert "--source . --no-git --config .gitleaks.toml" in scan.command
+    assert "--exit-code 1" in scan.command
+    assert scan.required is True
+
+
+@pytest.mark.parametrize("fail_heading", [False, True])
+def test_screenshot_harness_preserves_csp_and_retains_failure_evidence(
+    tmp_path: Path, fail_heading: bool
+) -> None:
+    screenshots = importlib.import_module("release_parity_audit.screenshots")
+    output = tmp_path / "login.png"
+    state = tmp_path / "login.state.json"
+    command = screenshots.build_login_screenshot_command(
+        url="http://localhost:5174/login", output_path=output, ui_state_path=state
+    )
+    assert "addStyleTag" not in command
+    assert "bypassCSP" not in command
+    script = command.split("<<'NODE'\n", 1)[1].rsplit("\nNODE", 1)[0]
+    preload = tmp_path / "fake-playwright.cjs"
+    events = tmp_path / "events.json"
+    preload.write_text(
+        "const Module = require('module'); const fs = require('fs');\n"
+        "const original = Module._load; const events = [];\n"
+        "global.location = { pathname: '/login' }; global.window = { location };\n"
+        "global.document = { fonts: { ready: Promise.resolve() }, "
+        "querySelector: () => ({ textContent: 'RiskHub Demo' }), "
+        "querySelectorAll: () => [], body: { innerText: 'RiskHub Demo' } };\n"
+        "const page = { on() {}, async emulateMedia() {}, async goto() {}, "
+        "async waitForLoadState() {}, async waitForTimeout() {}, "
+        "async waitForSelector(selector, options) { events.push({selector, options}); "
+        "if (process.env.FAIL_HEADING === '1') throw new Error('heading unavailable'); }, "
+        "async evaluate(fn) { return fn(); }, "
+        "async screenshot(options) { events.push({screenshot: options}); "
+        "fs.writeFileSync(options.path, 'synthetic screenshot'); } };\n"
+        "Module._load = function(name, ...args) { if (name !== 'playwright') "
+        "return original.call(this, name, ...args); return { chromium: { "
+        "async launch() { return { async newContext(options) { events.push({context: options}); "
+        "return { async newPage() { return page; }, async close() {} }; }, "
+        "async close() { fs.writeFileSync(process.env.EVENTS, JSON.stringify(events)); } }; } } }; };\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["node", "--require", str(preload), "-", "http://localhost:5174/login", str(output), str(state)],
+        input=script,
+        env={**os.environ, "FAIL_HEADING": "1" if fail_heading else "0", "EVENTS": str(events)},
+        capture_output=True, text=True, check=False,
+    )
+    recorded = json.loads(events.read_text())
+    heading = next(event for event in recorded if "selector" in event)
+    assert heading == {"selector": 'h1:has-text("RiskHub")', "options": {"timeout": 30000}}
+    shot = next(event["screenshot"] for event in recorded if "screenshot" in event)
+    assert shot["animations"] == "disabled"
+    if fail_heading:
+        assert result.returncode != 0
+        assert not output.exists()
+        assert not state.exists()
+        failure = json.loads(Path(str(output) + ".failure.json").read_text())
+        assert "heading unavailable" in failure["error"]
+        assert failure["path"] == "/login"
+        assert Path(str(output) + ".failure.png").exists()
+    else:
+        assert result.returncode == 0, result.stderr
+        assert output.exists()
+        assert json.loads(state.read_text())["heading"] == "RiskHub Demo"
+
+
+def test_fixture_group_diagnostic_is_disposable_and_non_networked() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    job = workflow["jobs"]["fixture-group-diagnostic"]
+    assert job["runs-on"] == "ubuntu-latest"
+    assert len(job["steps"]) == 1
+    command = job["steps"][0]["run"]
+    assert "--network none --read-only --tmpfs /tmp:rw,nosuid,nodev" in command
+    assert "--security-opt no-new-privileges" in command
+    assert "--privileged" not in command
+    assert " -v " not in command
+    assert "--mount" not in command
+    assert "os.setgroups(extra_groups)" in command
+    assert "os.setuid(1001)" in command
+    assert '("foreign_group", 1001, [], 0o750, 1001)' in command
+    assert '("member_group", 10001, [], 0o2750, 10001)' in command
+
+
+def test_component_frontends_use_their_live_paired_backend(tmp_path: Path) -> None:
+    launches = {}
+    references = {}
+    alive = set()
+
+    class AuditStub:
+        ui_dir = tmp_path
+        runtime_fingerprints = []
+
+        def _start_background_service(self, command_id, command, **kwargs):
+            launches[command_id] = {"command": command, **kwargs}
+            if command_id.startswith("path_backend_"):
+                alive.add(kwargs["listener_port"])
+                callback = kwargs.get("on_ready")
+                if callback:
+                    callback()
+                alive.remove(kwargs["listener_port"])
+            else:
+                port = 8010 if command_id.endswith("dev") else 8011
+                assert port in alive, "paired backend must outlive frontend capture"
+            return {"context_id": command_id, "started": True}
+
+        def _capture_backend_fingerprint(self, context_id, base_url):
+            assert int(base_url.rsplit(":", 1)[1]) in alive
+            references[context_id] = base_url
+            return {"auth_mode": "hybrid_dev"}
+
+    audit = AuditStub()
+    RUNTIME_MODULE._append_component_runtime_paths(audit)
+    for mode, port in (("dev", 8010), ("test", 8011)):
+        target = f"http://localhost:{port}"
+        backend = launches[f"path_backend_runtime_{mode}"]
+        frontend = launches[f"path_frontend_runtime_{mode}"]
+        assert backend["endpoint_base_url"] == target
+        assert frontend["command"].startswith(f"VITE_DEV_API_TARGET={target} ")
+        assert references[f"frontend_runtime_{mode}_reference"] == target
+    assert len(audit.runtime_fingerprints) == 4
+
+
+def test_audit_fixture_shell_drops_privilege_without_persistent_membership() -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    steps = workflow["jobs"]["readiness-audit"]["steps"]
+    setup = next(
+        step
+        for step in steps
+        if step.get("name") == "Prepare process-only fixture group shell"
+    )
+    audit = next(
+        step for step in steps if step.get("name") == "Run full release parity audit"
+    )
+    assert audit["shell"] == "riskhub-audit-shell {0}"
+    assert "${{" not in audit["shell"]
+    command = setup["run"]
+    assert '--reuid="$runner_uid" --regid="$runner_gid"' in command
+    assert '--groups="$runner_groups,10001"' in command
+    assert '-- /bin/bash --noprofile --norc -euo pipefail "$1"' in command
+    assert 'test "$runner_uid" -ne 0' in command
+    assert "usermod" not in command
+    assert "groupadd" not in command
+    assert "/etc/group" not in command
+    assert "--preserve-env" not in command
+    assert "env -i" in command
+    for name in (
+        "PATH",
+        "HOME",
+        "RUN_ID",
+        "RISKHUB_AUDIT_POSTGRES_BIND_HOST",
+        "RUNNER_TEMP",
+        "GITHUB_WORKSPACE",
+    ):
+        assert f'{name}="${{{name}' in command or f'{name}="${name}"' in command
+
+
+@pytest.mark.parametrize("runner_uid", ["1001", "0"])
+def test_audit_fixture_shell_executes_only_with_original_nonroot_identity(
+    tmp_path: Path, runner_uid: str
+) -> None:
+    import yaml
+
+    workflow = yaml.load(
+        (REPO_ROOT / ".github/workflows/release-readiness-audit.yml").read_text(),
+        Loader=yaml.BaseLoader,
+    )
+    setup = next(
+        step
+        for step in workflow["jobs"]["readiness-audit"]["steps"]
+        if step.get("name") == "Prepare process-only fixture group shell"
+    )
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    capture = tmp_path / "launch.json"
+    fake_id = bin_dir / "id"
+    fake_id.write_text(
+        f"#!{sys.executable}\nimport sys\n"
+        f"print({{'-u': {runner_uid!r}, '-g': '1001', '-G': '1001 121'}}[sys.argv[1]])\n"
+    )
+    fake_id.chmod(0o755)
+    fake_sudo = bin_dir / "sudo"
+    fake_sudo.write_text(
+        f"#!{sys.executable}\nimport json,sys\nfrom pathlib import Path\n"
+        f"Path({str(capture)!r}).write_text(json.dumps(sys.argv[1:]))\n"
+    )
+    fake_sudo.chmod(0o755)
+    environment = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "HOME": str(tmp_path / "home"),
+        "RUNNER_TEMP": str(tmp_path),
+        "GITHUB_WORKSPACE": str(tmp_path / "checkout"),
+        "GITHUB_PATH": str(tmp_path / "github-path"),
+        "RUN_ID": "fixture-test-1",
+        "RISKHUB_AUDIT_POSTGRES_BIND_HOST": "172.17.0.1",
+        "UNRELATED_PRIVATE_VALUE": "must-not-cross-launch-boundary",
+    }
+    setup_script = tmp_path / "setup.sh"
+    setup_script.write_text(setup["run"])
+    subprocess.run(["bash", str(setup_script)], env=environment, check=True)
+    installed_path = (tmp_path / "github-path").read_text().strip()
+    assert installed_path == str(tmp_path / "riskhub-audit-shell-bin")
+    audit_script = tmp_path / "audit script.sh"
+    audit_script.write_text("exit 0\n")
+    result = subprocess.run(
+        [str(Path(installed_path) / "riskhub-audit-shell"), str(audit_script)],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if runner_uid == "0":
+        assert result.returncode != 0
+        assert not capture.exists()
+        return
+    assert result.returncode == 0, result.stderr
+    args = json.loads(capture.read_text())
+    assert args[:3] == ["-n", "env", "-i"]
+    boundary = args.index("/usr/bin/setpriv")
+    preserved = dict(value.split("=", 1) for value in args[3:boundary])
+    assert preserved == {
+        name: environment[name]
+        for name in (
+            "PATH",
+            "HOME",
+            "RUN_ID",
+            "RISKHUB_AUDIT_POSTGRES_BIND_HOST",
+            "RUNNER_TEMP",
+            "GITHUB_WORKSPACE",
+        )
+    } | {"CI": "true", "LANG": "C.UTF-8"}
+    assert args[boundary:] == [
+        "/usr/bin/setpriv",
+        "--reuid=1001",
+        "--regid=1001",
+        "--groups=1001,121,10001",
+        "--",
+        "/bin/bash",
+        "--noprofile",
+        "--norc",
+        "-euo",
+        "pipefail",
+        str(audit_script),
+    ]
+
+
+@pytest.mark.parametrize("ready,callback_fails", [(True, False), (True, True), (False, False)])
+def test_component_callback_runs_inside_live_process_cleanup_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ready: bool, callback_fails: bool
+) -> None:
+    processes = []
+    events = []
+    real_popen = subprocess.Popen
+
+    def launch(*args, **kwargs):
+        process = real_popen(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    def callback():
+        assert processes[0].poll() is None
+        os.kill(processes[0].pid, 0)
+        events.append("dependent-capture-while-backend-alive")
+        if callback_fails:
+            raise RuntimeError("dependent capture failed")
+
+    monkeypatch.setattr(FINGERPRINTS_MODULE.subprocess, "Popen", launch)
+    monkeypatch.setattr(
+        FINGERPRINTS_MODULE, "resolve_listener_source_identity", lambda _port: {}
+    )
+    arguments = {
+        "context_id": "component-lifecycle",
+        "command": "sleep 30",
+        "logs_dir": tmp_path,
+        "root_dir": REPO_ROOT,
+        "baseline": {"git_sha": BASELINE_GIT_SHA},
+        "readiness_url": "http://127.0.0.1:8010/api/v1/readyz",
+        "listener_port": 8010,
+        "wait_http": lambda *_args, **_kwargs: ready,
+        "http_json": lambda *_args, **_kwargs: (200, {}),
+        "capture_screenshot": lambda *_args, **_kwargs: (False, None, None),
+        "captured_at_utc": lambda: "2026-10-10T00:00:00+00:00",
+        "max_wait_sec": 1 if ready else 0,
+        "on_ready": callback,
+    }
+    if callback_fails:
+        with pytest.raises(RuntimeError, match="dependent capture failed"):
+            FINGERPRINTS_MODULE.start_background_service(**arguments)
+    else:
+        fingerprint = FINGERPRINTS_MODULE.start_background_service(**arguments)
+        assert fingerprint["started"] is ready
+    assert events == (["dependent-capture-while-backend-alive"] if ready else [])
+    assert len(processes) == 1
+    assert processes[0].poll() is not None
+
+
+def test_failed_paired_backend_keeps_frontend_missing_evidence_blocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    audit = ReleaseParityAudit("failed-component-pair", run_prod_readiness=False)
+    audit.baseline = {"git_sha": BASELINE_GIT_SHA}
+    audit.startup_paths = [
+        {"id": f"{component}_runtime_{mode}"}
+        for component in ("backend", "frontend")
+        for mode in ("dev", "test")
+    ]
+    calls = []
+
+    def failed_backend(context_id, _command, **_kwargs):
+        calls.append(context_id)
+        assert context_id.startswith("path_backend_")
+        return {"context_id": context_id, "started": False}
+
+    monkeypatch.setattr(audit, "_start_background_service", failed_backend)
+    RUNTIME_MODULE._append_component_runtime_paths(audit)
+    audit._ensure_startup_path_runtime_coverage()
+    assert calls == ["path_backend_runtime_dev", "path_backend_runtime_test"]
+    for mode in ("dev", "test"):
+        frontend = next(
+            item for item in audit.runtime_fingerprints
+            if item["startup_path_id"] == f"frontend_runtime_{mode}"
+        )
+        assert frontend["not_executed"] is True
+    findings, decision = _evaluate_prod_readiness(
+        [*audit.runtime_fingerprints, _valid_prod_readiness_fingerprint(tmp_path / "prod")],
+        tmp_path,
+    )
+    assert decision["decision"] == "NO-GO"
+    ids = {item["id"] for item in findings}
+    for mode in ("dev", "test"):
+        assert f"P1-startup-path-not-ready-frontend_runtime_{mode}" in ids
