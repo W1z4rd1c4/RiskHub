@@ -30,7 +30,7 @@ from tests.backend.pytest.test_local_identity import (
 pytestmark = [pytest.mark.asyncio, pytest.mark.postgres]
 
 
-@pytest.mark.parametrize("operation", ["enrollment", "recovery_code", "totp", "reset"])
+@pytest.mark.parametrize("operation", ["enrollment", "recovery_code", "totp", "reset", "mfa_challenge"])
 async def test_native_one_time_proof_concurrent_consumption(
     async_engine,
     db_session,
@@ -60,29 +60,28 @@ async def test_native_one_time_proof_concurrent_consumption(
             bodies = [{"grant": invitation["credential"], "password": PASSWORD}] * 2
         else:
             codes, setup = await enroll(client, invitation["credential"])
-            if operation in {"recovery_code", "totp"}:
+            if operation in {"recovery_code", "totp", "mfa_challenge"}:
                 path = "/api/v1/auth/local/mfa/verify"
                 bodies = []
-                for _ in range(2):
-                    result = await client.post(
-                        "/api/v1/auth/login",
-                        json={"email": "journey@example.com", "password": PASSWORD},
-                    )
-                    assert result.status_code == 202, result.text
-                    code = (
-                        codes[0]
-                        if operation == "recovery_code"
-                        else pyotp.parse_uri(setup["provisioning_uri"]).at(
-                            utc_now() + timedelta(seconds=30)
+                for attempt in range(2):
+                    if operation != "mfa_challenge" or attempt == 0:
+                        result = await client.post(
+                            "/api/v1/auth/login",
+                            json={"email": "journey@example.com", "password": PASSWORD},
                         )
+                        assert result.status_code == 202, result.text
+                    code = (
+                        codes[attempt]
+                        if operation == "mfa_challenge"
+                        else codes[0]
+                        if operation in {"recovery_code", "mfa_challenge"}
+                        else pyotp.parse_uri(setup["provisioning_uri"]).at(utc_now() + timedelta(seconds=30))
                     )
                     bodies.append(
                         {
                             "challenge": result.json()["challenge"],
                             "code": code,
-                            "method": "recovery_code"
-                            if operation == "recovery_code"
-                            else "totp",
+                            "method": "recovery_code" if operation in {"recovery_code", "mfa_challenge"} else "totp",
                         }
                     )
             else:
@@ -149,7 +148,7 @@ async def test_native_one_time_proof_concurrent_consumption(
         .scalars()
         .all()
     )
-    assert len(active) == (1 if operation in {"recovery_code", "totp"} else 0)
+    assert len(active) == (1 if operation in {"recovery_code", "totp", "mfa_challenge"} else 0)
     if operation == "recovery_code":
         used = (
             (
@@ -164,6 +163,35 @@ async def test_native_one_time_proof_concurrent_consumption(
             .all()
         )
         assert len(used) == 1
+
+    if operation == "mfa_challenge":
+        import hashlib
+
+        from app.core.tokens import decode_refresh_token
+        from app.models import LocalAuthGrant
+
+        assert bodies[0]["challenge"] == bodies[1]["challenge"]
+        assert bodies[0]["code"] != bodies[1]["code"]
+        winner = next(index for index, response in enumerate(results) if response.status_code == 200)
+        loser = 1 - winner
+        assert "access_token" not in results[loser].json()
+        assert "riskhub_refresh_token=" not in results[loser].headers.get("set-cookie", "")
+        refresh_claims = decode_refresh_token(results[winner].cookies["riskhub_refresh_token"], native_context)
+        async with maker() as fresh:
+            grant = await fresh.get(LocalAuthGrant, bodies[0]["challenge"].split(".")[0])
+            assert grant.consumed_at is not None and grant.failures == 0
+            rows = list((await fresh.scalars(select(RefreshToken).where(RefreshToken.user_id == user_id))).all())
+            assert len(rows) == 1 and rows[0].revoked_at is None and rows[0].jti == refresh_claims["jti"]
+            assert rows[0].factor_generation == grant.factor_generation == refresh_claims["factor_generation"]
+            for index in [winner, loser]:
+                digest = hashlib.sha256(
+                    f"riskhub-recovery-v1:{grant.installation_id}:{user_id}:{grant.factor_generation}:{bodies[index]['code']}".encode()
+                ).hexdigest()
+                code_row = await fresh.scalar(
+                    select(LocalAuthRecoveryCode).where(LocalAuthRecoveryCode.digest == digest)
+                )
+                assert code_row is not None
+                assert (code_row.consumed_at is not None) == (index == winner)
 
 
 async def test_concurrent_invitation_email_uniqueness_has_one_outbox_side_effect(

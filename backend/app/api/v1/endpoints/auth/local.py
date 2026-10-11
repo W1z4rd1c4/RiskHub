@@ -38,6 +38,7 @@ from app.services._local_auth.common import (
     invalid_proof,
     local_user_ready,
 )
+from app.services._local_auth.factor_policy import evaluate_factor_policy
 
 from ._local_transport import SafeAuthRoute, browser_binding, establish_browser, native_context, native_read_context
 from ._shared import _build_token_response, _issue_refresh_session
@@ -54,10 +55,10 @@ async def account_security(
     if not local_user_ready(user):
         raise invalid_proof()
     factor = await db.get(LocalAuthFactor, user.id)
-    enabled = factor is not None and factor.confirmed_at is not None
+    policy = evaluate_factor_policy(ctx.settings.local_mfa_policy, factor)
     return LocalAccountSecurityResponse(
-        mfa_enabled=enabled,
-        factor_required=enabled or ctx.settings.local_mfa_policy == "required",
+        mfa_enabled=policy.confirmed,
+        factor_required=policy.required,
         mfa_policy=ctx.settings.local_mfa_policy,
     )
 

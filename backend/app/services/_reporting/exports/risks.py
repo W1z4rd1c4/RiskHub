@@ -7,15 +7,16 @@ from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services.export_snapshot_service import ExportSnapshotService
+from app.services.risk_row_criteria import parse_risk_row_criteria
 
 from .fetch import _fetch_risks_for_export
 from .filters import (
     _filter_rows_by_final_scope,
-    _filter_rows_by_risk_criteria,
     _prefilter_department_id_for_as_of,
 )
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
+from .risk_rows import filter_replayed_risk_rows
 from .rows import _risk_to_row
 from .shared import ExportFormat
 
@@ -28,10 +29,20 @@ async def _export_risks(
     as_of_date: date,
     department_id: int | None,
     status_filter: str | None,
+    lifecycle: str | None = None,
     search: str | None,
     risk_type: str | None,
     is_priority: bool | None,
 ) -> StreamingResponse:
+    criteria = parse_risk_row_criteria(
+        {
+            "lifecycle": lifecycle,
+            "status": status_filter,
+            "search": search,
+            "risk_type": risk_type,
+            "is_priority": is_priority,
+        }
+    )
     fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
     models = await _fetch_risks_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_risk_to_row(risk) for risk in models]
@@ -88,13 +99,7 @@ async def _export_risks(
                 department_name_field="department_name",
             ),
             apply_final_scope,
-            lambda current_rows: _filter_rows_by_risk_criteria(
-                current_rows,
-                status_filter=status_filter,
-                search=search,
-                risk_type=risk_type,
-                is_priority=is_priority,
-            ),
+            lambda current_rows: filter_replayed_risk_rows(db, current_rows, criteria),
         ),
         row_values=lambda row: [
             row.get("risk_id_code"),

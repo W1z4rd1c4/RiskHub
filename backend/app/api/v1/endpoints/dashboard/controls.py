@@ -22,10 +22,12 @@ async def get_control_trends(
         None,
         description="Filter by control status",
     ),
+    control_form: Optional[Literal["manual", "automatic"]] = Query(None, description="Filter by control form"),
 ):
     return await load_control_trends(
         db=db,
         current_user=current_user,
         department_id=department_id,
         control_status=control_status,
+        control_form=control_form,
     )

@@ -133,7 +133,7 @@ async def reconcile_user(db: AsyncSession, settings: Settings, review: AccessRev
     user.local_suspended = review.suspended
     user.local_suspended_at = utc_now() if review.suspended else None
     user.restore_quarantined = False
-    await invalidate_user_sessions(db=db, user=user, reason="identity_restore_access_review")
+    revoked_count = await invalidate_user_sessions(db=db, user=user, reason="identity_restore_access_review")
     user.is_active = projected_account_active(user, settings=settings)
     await audit_local(
         db,
@@ -153,6 +153,7 @@ async def reconcile_user(db: AsyncSession, settings: Settings, review: AccessRev
             "local_suspended": review.suspended,
             "credential_recovery_pending": user.local_recovery_pending,
         },
+        revoke_count=revoked_count,
     )
     await commit_auth_transaction(db, boundary="identity_restore_access_review")
     return {

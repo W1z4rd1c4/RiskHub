@@ -42,7 +42,7 @@ export function RisksPage() {
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
         onCreate={() => void navigate(appendRegisterReturnTo('/risks/new', returnTo))} createLabel={t('new_risk')} exportLabel={t('common:actions.export')}
-        exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
+        exportDialog={({ isOpen, onClose }) => <ExportDialog datedUnavailableReason={state.snapshotUnavailableReason} isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentRisks(); onClose(); }}
             onSubmit={async (payload) => { await state.exportRiskSnapshot(payload); onClose(); }}
             isSubmitting={state.isExporting} dataTestId="risks-export-dialog" title={t('register.export.title')} />}

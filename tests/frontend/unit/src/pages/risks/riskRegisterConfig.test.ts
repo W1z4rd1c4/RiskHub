@@ -46,7 +46,7 @@ describe('Risk shared register contract', () => {
         expect(JSON.parse(query.get('filters') ?? '{}')).toMatchObject({
             search: 'resilience',
             is_priority: true,
-            min_net_score: 15,
+            critical: true,
             net_band: 'Kritické',
         });
     });

@@ -104,6 +104,7 @@ function ownedAsset(): Asset {
         ownership_status: 'assigned',
         is_archived: false,
         capabilities: {
+            protected_change_requires_approval: true,
             can_read: true,
             can_update: true,
             can_archive: true,
@@ -403,7 +404,7 @@ describe('AssetDetailPage ownership resolution', () => {
 
         expect(await within(dialog).findByRole('alert')).toHaveTextContent('errors.archive_failed');
         expect(reason).toHaveValue('  Exact Asset rationale  ');
-        expect(mocks.archiveAsset).toHaveBeenCalledWith(75, 'Exact Asset rationale');
+        expect(mocks.archiveAsset).toHaveBeenCalledWith(75, '  Exact Asset rationale  ');
     });
 
     it('renders the generic pending banner from a redacted Asset API projection', () => {
@@ -417,4 +418,15 @@ describe('AssetDetailPage ownership resolution', () => {
         expect(screen.queryByTestId('asset-detail-edit')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'pending_change.cancel' })).not.toBeInTheDocument();
     });
+    it('uses false capability despite protected-looking Asset derivation for archive', async () => {
+        const user = userEvent.setup();
+        const asset = ownedAsset();
+        mocks.asset = { ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false }, derived: { cif: 'yes', resulting_criticality: 'critical', inputs: { missing_for_completeness: [] }, cif_process_names: [], linked_asset_names: [], vendor_names: [], ict_service_codes: [], contract_references: [] } } as Asset;
+        renderPage('view');
+        await user.click(screen.getByTestId('asset-detail-archive'));
+        const dialog = screen.getByRole('alertdialog');
+        await user.click(within(dialog).getByRole('button', { name: 'actions.archive' }));
+        expect(mocks.archiveAsset).toHaveBeenCalledWith(75, '');
+    });
+
 });

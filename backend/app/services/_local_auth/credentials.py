@@ -46,7 +46,7 @@ async def request_password_reset(
                 from app.core.permissions import is_platform_admin
                 from app.services._identity_authority_lock import lock_identity_transition
 
-                user = await lock_identity_transition(db, user_id=user.id, actor=actor)
+                user = await lock_identity_transition(db, user_id=user.id, actor=actor, settings=ctx.settings)
                 if not is_platform_admin(actor) or not local_user_ready(actor):
                     raise invalid_proof()
             else:
@@ -77,17 +77,14 @@ async def complete_password_reset(
         validate_local_password(password, additions_file=ctx.settings.local_password_blocklist_file)
         encoded = await run_password_work(lambda: get_password_hash(password))
         grant, user = await read_grant(db, ctx, raw, "reset", locked=True)
-        if (
-            not local_user_ready(user)
-            or grant.context.get("email") != user.email
-        ):
+        if not local_user_ready(user) or grant.context.get("email") != user.email:
             raise invalid_proof()
         await consume_grant(db, grant)
         user.hashed_password = encoded
-        await invalidate_user_sessions(db=db, user=user, reason="local_password_reset")
+        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_password_reset")
         await revoke_grants(db, user.id)
         await enqueue_mail(db, ctx, user, recipient=user.email, kind="credentials_changed")
-        await audit_local(db, user, "local_password_reset_completed")
+        await audit_local(db, user, "local_password_reset_completed", revoke_count=revoked_count)
         await commit_local(db, "reset_complete")
         return CompletedResponse()
 
@@ -117,10 +114,10 @@ async def change_password(
             await commit_local(db, "password_unchanged")
             return CompletedResponse(reauthentication_required=False)
         user.hashed_password = encoded
-        await invalidate_user_sessions(db=db, user=user, reason="local_password_changed")
+        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_password_changed")
         await revoke_grants(db, user.id)
         await enqueue_mail(db, ctx, user, recipient=user.email, kind="credentials_changed")
-        await audit_local(db, user, "local_password_changed", actor=user)
+        await audit_local(db, user, "local_password_changed", actor=user, revoke_count=revoked_count)
         await commit_local(db, "password_change")
         return CompletedResponse()
 
@@ -176,11 +173,11 @@ async def complete_email_change(
         user.email, user.local_email_verified_at = address, utc_now()
         try:
             await db.flush()
-            await invalidate_user_sessions(db=db, user=user, reason="local_email_changed")
+            revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_email_changed")
             await revoke_grants(db, user.id)
             for recipient in (old_address, address):
                 await enqueue_mail(db, ctx, user, recipient=recipient, kind="credentials_changed")
-            await audit_local(db, user, "local_email_changed", actor=user)
+            await audit_local(db, user, "local_email_changed", actor=user, revoke_count=revoked_count)
             await commit_local(db, "email_complete")
         except IntegrityError:
             raise ConflictError("The requested address is unavailable") from None

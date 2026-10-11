@@ -351,7 +351,7 @@ def test_identity_access_routes_use_lifecycle_module() -> None:
 
 def test_identity_access_lifecycle_split_modules_own_decisions() -> None:
     assert {
-        "ensure_sso_local_field_update_allowed",
+        "ensure_identity_field_update_allowed",
         "ensure_directory_reenable_allowed",
         "ensure_remaining_global_privileged_user",
         "is_global_privileged_user",
@@ -386,7 +386,7 @@ def test_identity_access_lifecycle_split_modules_own_decisions() -> None:
     for leaked_implementation_detail in (
         "await db.commit()",
         "flag_orphaned_items(",
-        "def _ensure_sso_local_field_update_allowed",
+        "def _ensure_identity_field_update_allowed",
         "def _resolve_role_for_directory_import",
     ):
         assert leaked_implementation_detail not in lifecycle_source
@@ -1710,3 +1710,88 @@ def test_endpoint_shim_build_approval_read_repointed() -> None:
     src = inspect.getsource(resolve) + inspect.getsource(detail)
     assert "build_approval_read" in src, "endpoints must consume canonical helper"
     assert "_build_approval_read" not in src, "endpoints must not call deleted shim"
+
+
+def test_governed_frontend_outcomes_have_one_rule_owner() -> None:
+    owner = _source("frontend/src/lib/governedMutationOutcome.ts")
+    assert owner.count("function isApprovalCreatedResponse(") == 1
+    for facade in ("frontend/src/types/approval.ts", "frontend/src/lib/approvalUi.ts"):
+        source = _source(facade)
+        assert "function isApprovalCreatedResponse(" not in source
+        assert "governedMutationOutcome" in source
+    for form in (
+        "frontend/src/pages/processes/ProcessForm.tsx",
+        "frontend/src/pages/assets/AssetForm.tsx",
+        "frontend/src/pages/threats/ThreatForm.tsx",
+        "frontend/src/components/vendor-form/useVendorSubmit.ts",
+    ):
+        source = _source(form)
+        assert "governedMutationSuccess(" in source
+        assert "governedMutationRejection(" in source
+    for module in (
+        "processApi",
+        "assetApi",
+        "vendorApi",
+        "threatApi",
+        "vendorContractApi",
+        "vendorLinkApi",
+        "vendorSubOutsourcingApi",
+        "orphanedItemsApi",
+    ):
+        source = _source(f"frontend/src/services/{module}.ts")
+        assert "api/governedReason" in source
+        assert "JSON.stringify({ request_reason:" not in source
+        assert "request_reason: requestReason" not in source
+
+
+def test_risk_report_criteria_share_sql_owner_after_replay_and_scope():
+    listing = _source("backend/app/services/_register_listings/risks.py")
+    predicates = _source("backend/app/services/risk_row_criteria.py")
+    replay = _source("backend/app/services/_reporting/exports/risk_rows.py")
+    report = _source("backend/app/services/_reporting/exports/risks.py")
+    assert "risk_row_predicates(Risk, row_criteria)" in listing
+    assert "risk_row_predicates(facts.c, criteria)" in replay
+    assert 'RISK_SEARCH_FIELDS = ("risk_id_code", "name", "description", "process")' in predicates
+    assert ".ilike(pattern)" in predicates
+    assert "archived_clause(archive_source" in predicates
+    assert "_filter_rows_by_risk_criteria" not in _source("backend/app/services/_reporting/exports/filters.py")
+    stages = report[report.index("        stages=(") : report.index("        row_values=")]
+    assert (
+        stages.index("apply_as_of_snapshot")
+        < stages.index("apply_final_scope")
+        < stages.index("filter_replayed_risk_rows")
+    )
+    assert "ReportExportDefinition(" in report
+    assert "_fetch_risks_for_export(db" in report
+    assert "from app.models" not in replay
+    assert "literal(row.get(field)" in replay
+
+
+def test_dashboard_cell_filter_reuses_configured_range_owner():
+    path = "backend/app/services/_dashboard_metrics/risks.py"
+    for function in ["load_risk_distribution", "load_risks_by_cell"]:
+        body = _function_body_source(path, function)
+        assert "get_configured_risk_level_ranges(db)" in body
+        assert "build_risk_level_condition_from_ranges(" in body
+        assert "risk_visibility_clause(db, current_user, department_id=department_id)" in body
+        assert "Risk.live()" in body
+    route = _function_body_source("backend/app/api/v1/endpoints/dashboard/risks.py", "get_risks_by_cell")
+    assert "risk_level=risk_level" in route
+
+
+def test_legacy_risk_status_refusal_precedes_effects_after_authority_and_staleness():
+    helper = _function_body_source(
+        "backend/app/services/_approval_execution/helpers.py", "apply_whitelisted_pending_changes"
+    )
+    assert helper.index("reject_if_stale_pending_change(") < helper.index("validate_changes(changes)")
+    assert helper.index("validate_changes(changes)") < helper.index("setattr(target,")
+    risk_edit = _function_body_source(
+        "backend/app/services/_approval_execution/edit_risk_control.py", "_apply_edit_risk_control"
+    )
+    assert "validate_changes=_validate_risk_edit_status" in risk_edit
+    restore = _function_body_source(
+        "backend/app/services/_entity_mutation_lifecycle/lifecycle.py", "restore_risk_detail"
+    )
+    assert restore.index("_ensure_department_access(") < restore.index("risk_restore_status_unsupported")
+    assert restore.index("risk_restore_status_unsupported") < restore.index("risk.mark_restored(")
+    assert restore.index("risk_restore_status_unsupported") < restore.index("await risk_restored(")

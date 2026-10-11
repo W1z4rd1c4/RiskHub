@@ -37,11 +37,11 @@ describe('useVendorLinkedEntities', () => {
         expect(adapter.fetch).toHaveBeenCalledWith(7);
     });
 
-    it('refreshes after link and reports a direct success as null', async () => {
+    it('refreshes after link and reports an explicit applied outcome', async () => {
         const { result } = renderHook(() => useVendorLinkedEntities(7, adapter));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         await act(async () => {
-            expect(await result.current.link(99)).toBeNull();
+            expect(await result.current.link(99)).toMatchObject({ kind: 'applied' });
         });
         expect(adapter.link).toHaveBeenCalledWith(7, 99, undefined);
         expect(adapter.fetch).toHaveBeenCalledTimes(2);
@@ -64,7 +64,7 @@ describe('useVendorLinkedEntities', () => {
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         await act(async () => {
             expect(await result.current.link(99, 'Material register change'))
-                .toMatchObject({ status: 'approval_required', approval_id: 186 });
+                .toMatchObject({ kind: 'pending', approvalId: 186 });
         });
         expect(queuedAdapter.link).toHaveBeenCalledWith(7, 99, 'Material register change');
         expect(queuedAdapter.fetch).toHaveBeenCalledTimes(1);

@@ -128,6 +128,25 @@ describe('RiskCommitteeSection', () => {
         expect(dashboardApi.fetchCommitteeSummary).toHaveBeenCalledTimes(1);
     });
 
+    it('uses configured critical and Vendor score criteria rather than workbook or ignored legacy parameters', async () => {
+        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(populatedSummary());
+        renderSection();
+        await screen.findByText('Solvency Stress');
+        const risk = new URL(screen.getByRole('link', { name: 'risk_committee.view_all_critical_risks' }).getAttribute('href')!, 'https://riskhub.test');
+        expect(JSON.parse(risk.searchParams.get('filters') ?? '{}')).toEqual({ critical: true });
+        expect(risk.searchParams.has('net_band')).toBe(false);
+        const vendor = new URL(screen.getByRole('link', { name: 'risk_committee.view_all_high_risk_vendors' }).getAttribute('href')!, risk);
+        expect(JSON.parse(vendor.searchParams.get('filters') ?? '{}')).toEqual({ risk_scores: [4, 5] });
+    });
+
+    it('emits Vendor score filters consumed by the register rather than repeated legacy parameters', async () => {
+        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(populatedSummary());
+        renderSection();
+        await screen.findByText('Solvency Stress');
+        const vendor = new URL(screen.getByRole('link', { name: 'risk_committee.view_all_high_risk_vendors' }).getAttribute('href')!, 'https://riskhub.test');
+        expect(JSON.parse(vendor.searchParams.get('filters') ?? '{}')).toEqual({ risk_scores: [4, 5] });
+    });
+
     it('renders a committee summary load error without hiding quarterly comparison', async () => {
         vi.mocked(dashboardApi.fetchCommitteeSummary).mockRejectedValue(new Error('boom'));
 
@@ -176,11 +195,11 @@ describe('RiskCommitteeSection', () => {
 
         expect(screen.getByRole('link', { name: 'risk_committee.view_all_critical_risks' })).toHaveAttribute(
             'href',
-            '/risks?net_band=critical',
+            '/risks?filters=' + encodeURIComponent(JSON.stringify({ critical: true })),
         );
         expect(screen.getByRole('link', { name: 'risk_committee.view_all_high_risk_vendors' })).toHaveAttribute(
             'href',
-            '/vendors?risk_scores=4&risk_scores=5',
+            '/vendors?filters=' + encodeURIComponent(JSON.stringify({ risk_scores: [4, 5] })),
         );
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
 

@@ -1,3 +1,4 @@
+import { withReason, reasonBody } from './api/governedReason';
 import { apiClient } from './apiClient';
 import {
     assetVendorLinkListSchema,
@@ -158,7 +159,7 @@ export const vendorApi = {
     },
 
     async createVendor(data: VendorCreate): Promise<Vendor | ProcessApprovalQueuedResponse> {
-        return apiClient.post('/vendors', data, {
+        return apiClient.post('/vendors', withReason(data), {
             schema: vendorSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -167,7 +168,7 @@ export const vendorApi = {
         id: number,
         data: VendorUpdate & { request_reason?: string },
     ): Promise<Vendor | ProcessApprovalQueuedResponse> {
-        return apiClient.patch(`/vendors/${id}`, data, {
+        return apiClient.patch(`/vendors/${id}`, withReason(data), {
             schema: vendorSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -181,7 +182,7 @@ export const vendorApi = {
         requestReason: string,
     ): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/vendors/${id}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },

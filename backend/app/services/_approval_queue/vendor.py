@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.models import ApprovalRequest, ApprovalStatus, GovernedMutationProposal, User
 from app.services._governed_mutations.fixed_vendor_policy import (
     is_live_eligible_vendor_resolver,
-    load_fixed_vendor_scenario,
+    load_vendor_visibility_scenarios,
 )
 from app.services._governed_mutations.vendor_identity import (
     VENDOR_ARCHIVE_KIND,
@@ -68,14 +68,14 @@ async def live_vendor_resolver_approval_ids(
     current_user: User,
     proposals: dict[int, GovernedMutationProposal],
 ) -> frozenset[int]:
-    scenario = await load_fixed_vendor_scenario(db)
+    scenarios = await load_vendor_visibility_scenarios(db)
     return frozenset(
         approval_id
         for approval_id, proposal in proposals.items()
         if is_live_eligible_vendor_resolver(
             current_user,
             proposal,
-            scenario,
+            scenarios,
         )
     )
 

@@ -189,11 +189,16 @@
     "breached_only_clear": "Pouze překročené (kliknutím zrušíte)"
   },
   "register": {
+    "snapshot_net_band": "Pásmo rizika z metodiky",
+    "snapshot_group": "Vybraná skupina rizik",
+    "snapshot_breach_yes": "Překročení KRI: Ano",
+    "snapshot_breach_no": "Překročení KRI: Ne",
     "views": { "all": "Vše", "category": "Podle kategorie", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "vendor": "Podle dodavatele" },
-    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo" },
+    "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "has_breach": "Překročení KRI", "critical": "Kritické riziko", "net_band": "Čisté pásmo", "risk_level": "Nastavená úroveň rizika" },
     "net_bands": { "low": "Nízké", "medium": "Střední", "high": "Vysoké", "critical": "Kritické" },
     "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },
-    "export": { "title": "Export filtrovaných rizik" }
+    "export": { "title": "Export filtrovaných rizik" },
+    "snapshot_unavailable": "Export snímku nemůže použít nastavené kritérium rizika: {{criteria}}. Použijte Aktuální zobrazení pro export s těmito filtry, nebo je před vytvořením snímku zrušte."
   },
   "grouping": {
     "unlinked_vendor": "Bez propojeného dodavatele"

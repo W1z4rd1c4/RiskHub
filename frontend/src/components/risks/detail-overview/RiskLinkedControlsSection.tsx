@@ -1,3 +1,4 @@
+import type { LinkMutationContinuation } from '@/lib/governedMutationOutcome';
 import type * as React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Link as LinkIcon, Plus } from 'lucide-react';
@@ -24,8 +25,8 @@ interface RiskLinkedControlsSectionProps {
     setDialogMode: (mode: DialogMode) => void;
     isCreateDialogOpen: boolean;
     setIsCreateDialogOpen: (open: boolean) => void;
-    onLinkControl: (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
-    onUnlinkControl: (controlId: number) => Promise<void>;
+    onLinkControl: (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<LinkMutationContinuation>;
+    onUnlinkControl: (controlId: number) => Promise<LinkMutationContinuation>;
     onOpenCreateControl: () => void;
     onNavigateToControl: (controlId: number) => void;
     onRefreshData: () => void;

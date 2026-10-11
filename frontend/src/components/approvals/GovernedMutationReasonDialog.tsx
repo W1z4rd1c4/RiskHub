@@ -1,3 +1,4 @@
+import type { GovernedReasonRequirement } from '@/lib/governedReasonRequirement';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -17,6 +18,7 @@ interface GovernedMutationReasonDialogProps {
     kind: 'link_add' | 'link_remove' | 'link_update';
     namespace: GovernedMutationReasonNamespace;
     reasonRequired?: boolean;
+    reasonRequirement?: GovernedReasonRequirement;
     /** Rejected-mutation error shown INSIDE the open dialog (#100/#101 P2). */
     errorText?: string | null;
     onClose: () => void;
@@ -29,6 +31,7 @@ export function GovernedMutationReasonDialog({
     kind,
     namespace,
     reasonRequired = true,
+    reasonRequirement,
     errorText = null,
     onClose,
     onConfirm,
@@ -37,8 +40,10 @@ export function GovernedMutationReasonDialog({
     // D10: a removal is an unlink (Unlink icon, destructive action). Without
     // an approval requirement it reads as a plain "Remove link"; with one it
     // keeps the governed request wording and asks for the reason.
+    const required = reasonRequirement ? reasonRequirement === 'required' : reasonRequired;
+    const unavailable = reasonRequirement === 'unavailable';
     const isRemoval = kind === 'link_remove';
-    const useRequestCopy = !isRemoval || reasonRequired;
+    const useRequestCopy = !isRemoval || required;
     return (
         <ConfirmDialog
             isOpen={isOpen}
@@ -49,10 +54,11 @@ export function GovernedMutationReasonDialog({
             message={useRequestCopy ? t(`${namespace}:link_approval.${kind}.message`) : undefined}
             confirmLabel={useRequestCopy ? t(`${namespace}:link_approval.continue`) : undefined}
             isLoading={isLoading}
-            reason={reasonRequired ? 'required' : 'none'}
+            reason={required ? 'required' : 'none'}
+            confirmDisabled={unavailable}
             reasonLabel={t(`${namespace}:form.request_reason`)}
             reasonPlaceholder={t(`${namespace}:link_approval.reason_placeholder`)}
-            errorText={errorText}
+            errorText={errorText ?? (unavailable ? t('common:governed_mutation.capability_unavailable') : null)}
         />
     );
 }

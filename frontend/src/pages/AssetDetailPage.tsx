@@ -1,3 +1,4 @@
+import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
@@ -48,17 +49,7 @@ import { useAssetDetailState, type AssetDetailMode } from './assets/useAssetDeta
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
 import { LoadingState } from '@/components/ui/state';
 
-/**
- * PM-1 reason policy for archiving an asset: the API routes the archive of a
- * protected asset (CIF or critical) through approval, where a reason is
- * mandatory; otherwise it is optional. Unknown protection fails closed.
- */
-function assetArchiveReasonPolicy(asset: Asset): 'required' | 'optional' {
-    if (!asset.derived) return 'required';
-    return asset.derived.cif === 'yes' || asset.derived.resulting_criticality === 'critical'
-        ? 'required'
-        : 'optional';
-}
+
 
 interface AssetDetailPageProps {
     mode?: AssetDetailMode;
@@ -114,7 +105,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         try {
             setIsArchiving(true);
             setActionError(null);
-            const result = await assetApi.archiveAsset(asset.id, requestReason?.trim() ?? '');
+            const result = await assetApi.archiveAsset(asset.id, requestReason ?? '');
             setIsArchiveDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
                 // D12 / PM-2: stay on the asset with the pending notice + toast.
@@ -641,10 +632,11 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 entityLabel={tCommon('labels.asset')}
                 message={t('messages.archive_confirm', { assetName: asset.name })}
                 isLoading={isArchiving}
-                reason={assetArchiveReasonPolicy(asset)}
+                reason={governedReasonRequirement(asset) === 'required' ? 'required' : 'optional'}
                 reasonLabel={t('form.request_reason')}
                 reasonPlaceholder={t('form.request_reason_help')}
-                errorText={actionError}
+                confirmDisabled={governedReasonRequirement(asset) === 'unavailable'}
+                errorText={actionError ?? (governedReasonRequirement(asset) === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)}
             />
             {pendingCancellationDialog}
         </PageContainer>

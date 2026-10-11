@@ -79,3 +79,44 @@ def strict_triggered_policy_snapshots(
     if list(effective_roles) != calculated or not calculated:
         raise ValueError("Malformed governed mutation effective policy roles")
     return tuple(snapshots)
+
+
+def live_visibility_policy_roles(enabled: bool, roles: object) -> tuple[str, ...] | None:
+    """Normalize a fixed live policy for read visibility, failing closed."""
+    if not (
+        enabled
+        and isinstance(roles, list)
+        and roles
+        and all(isinstance(role, str) for role in roles)
+        and len(roles) == len(set(roles))
+        and set(roles).issubset(ALLOWED_APPROVER_ROLES)
+    ):
+        return None
+    return tuple(roles)
+
+
+def role_visible_in_snapshot(
+    role_name: str | None,
+    snapshot_roles: Sequence[str],
+    *,
+    live_policy_roles: Sequence[Sequence[str] | None] | None = None,
+) -> bool:
+    """One current-role/snapshot rule; adapters retain family authority.
+
+    Callers first validate immutable proposal identity. Process intentionally
+    omits live-policy filtering so existing resolvers can discover stale work.
+    Fixed Asset/Vendor/Threat adapters supply every actual triggering policy.
+    This read predicate never grants business-mutation or cleanup authority.
+    """
+    return bool(
+        isinstance(role_name, str)
+        and role_name
+        and not isinstance(snapshot_roles, (str, bytes))
+        and snapshot_roles
+        and all(isinstance(role, str) for role in snapshot_roles)
+        and role_name in snapshot_roles
+        and (
+            live_policy_roles is None
+            or (live_policy_roles and all(roles is not None and role_name in roles for roles in live_policy_roles))
+        )
+    )

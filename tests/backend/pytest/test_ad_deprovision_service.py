@@ -41,9 +41,9 @@ async def test_deprovision_missing_user_deactivates_revokes_and_flags_orphans(
     async def capture_lock(db: AsyncSession) -> None:
         call_order.append("lock")
 
-    async def capture_clear(db: AsyncSession, *, user_id: int) -> None:
+    async def capture_clear(db: AsyncSession, *, user_id: int, actor: User | None) -> None:
         call_order.append("clear")
-        await original_clear(db, user_id=user_id)
+        await original_clear(db, user_id=user_id, actor=actor)
 
     monkeypatch.setattr(ad_deprovision_module, "acquire_org_chart_lock", capture_lock, raising=False)
     monkeypatch.setattr(ad_deprovision_module, "clear_manager_references_for_inactive_user", capture_clear)

@@ -6,6 +6,7 @@ parent. Presentation monitoring status is distinct from raw band breach.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from sqlalchemy import and_, false, or_
@@ -28,6 +29,24 @@ from app.services._kri_history.periods import (
 DUE_SOON_DAYS = ConfigDefaults.ADVANCE_REMINDER_DAYS
 
 
+@dataclass(frozen=True)
+class RiskPopulationState:
+    """Loaded or reconstructed parent facts; no persistence or authority grant."""
+
+    is_archived: bool
+    status: str
+
+
+@dataclass(frozen=True)
+class KRIPopulationState:
+    """Pure row facts for replayed exports, classified by the same ORM rules."""
+
+    is_archived: bool
+    risk: RiskPopulationState | None
+    frequency: str
+    last_period_end: date | None
+
+
 def live_clause() -> ColumnElement[bool]:
     return and_(KeyRiskIndicator.live(), Risk.live())
 
@@ -48,7 +67,7 @@ def breaching_clause() -> ColumnElement[bool]:
     return and_(live_clause(), kri_breach_condition())
 
 
-def is_live(kri: KeyRiskIndicator) -> bool:
+def is_live(kri: KeyRiskIndicator | KRIPopulationState) -> bool:
     risk = getattr(kri, "risk", None)
     status = getattr(getattr(risk, "status", None), "value", getattr(risk, "status", None))
     return not bool(kri.is_archived) and risk is not None and not bool(risk.is_archived) and status != "archived"
@@ -110,7 +129,7 @@ def overdue_clause(*, today: date) -> ColumnElement[bool]:
     return and_(live_clause(), overdue_condition(today=today))
 
 
-def is_overdue(kri: KeyRiskIndicator, *, today: date) -> bool:
+def is_overdue(kri: KeyRiskIndicator | KRIPopulationState, *, today: date) -> bool:
     return (
         is_live(kri)
         and overdue_period_end(frequency=kri.frequency, last_period_end=kri.last_period_end, today=today) is not None
@@ -144,7 +163,7 @@ def due_soon_clause(*, today: date) -> ColumnElement[bool]:
     return and_(live_clause(), due_soon_condition(today=today))
 
 
-def is_due_soon(kri: KeyRiskIndicator, *, today: date) -> bool:
+def is_due_soon(kri: KeyRiskIndicator | KRIPopulationState, *, today: date) -> bool:
     return (
         is_live(kri)
         and due_soon_period_end(frequency=kri.frequency, last_period_end=kri.last_period_end, today=today) is not None

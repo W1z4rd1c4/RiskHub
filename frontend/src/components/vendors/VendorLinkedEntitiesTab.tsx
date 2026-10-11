@@ -1,3 +1,5 @@
+import { useMutationOwner } from '@/hooks/useMutationOwner';
+import { governedReasonRequirementFromFlags } from '@/lib/governedReasonRequirement';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -37,7 +39,7 @@ export interface VendorLinkedEntitiesTabProps<T extends { id: number }> {
      * Vendor read payload (#100). It is the ONLY switch between the direct link
      * path and the governed reason-then-queue path — no local re-derivation.
      */
-    protectedChangeRequiresApproval: boolean;
+    protectedChangeRequiresApproval: boolean | undefined;
     onAdd: () => void;
     /**
      * Renders one linked record. `archived` marks a card of the archived group:
@@ -62,7 +64,7 @@ export interface VendorLinkedEntitiesTabProps<T extends { id: number }> {
     onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;
 }
 
-export function VendorLinkedEntitiesTab<T extends { id: number }>({
+function VendorLinkedEntitiesTabContent<T extends { id: number }>({
     vendorId,
     adapter,
     canCreate,
@@ -83,6 +85,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
     // D12 / PM-2: approval-routed changes keep the user on this page with
     // the pending notice plus a success toast.
     const announceApprovalQueued = useApprovalQueued();
+    const mutationOwner = useMutationOwner(vendorId);
     const entities = useVendorLinkedEntities(vendorId, adapter);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogMode, setDialogMode] = useState<DialogMode>('search-only');
@@ -116,25 +119,32 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
         }
     }, [entities.active.length, entities.outcome.kind, onCollectionStateChange]);
 
+    const mutateRelation = async (kind: 'link_add' | 'link_remove', targetId: number, reason?: string) => {
+        const isCurrent = mutationOwner.capture();
+        const outcome = kind === 'link_add'
+            ? await entities.link(targetId, reason) : await entities.unlink(targetId, reason);
+        if (!isCurrent() || outcome.kind === 'superseded') return { kind: 'superseded' } as const;
+        if (outcome.kind === 'pending') announceApprovalQueued({ approvalId: outcome.approvalId });
+        return outcome;
+    };
+
     const confirmGovernedAction = async (reason: string) => {
         if (pendingGovernedAction === null) {
             return;
         }
+        const isCurrent = mutationOwner.capture();
         try {
             setIsGovernedSubmitting(true);
             setMutationError(null);
-            const queued = pendingGovernedAction.kind === 'link_add'
-                ? await entities.link(pendingGovernedAction.targetId, reason)
-                : await entities.unlink(pendingGovernedAction.targetId, reason);
+            const outcome = await mutateRelation(pendingGovernedAction.kind, pendingGovernedAction.targetId, reason);
+            if (!isCurrent() || outcome.kind === 'superseded') return;
             setPendingGovernedAction(null);
-            if (queued !== null) {
-                announceApprovalQueued({ approvalId: queued.approval_id });
-            }
         } catch (mutationErr) {
+            if (!isCurrent()) return;
             logError('Vendor link mutation failed:', mutationErr);
             setMutationError(t('register_links.errors.mutation_failed'));
         } finally {
-            setIsGovernedSubmitting(false);
+            if (isCurrent()) setIsGovernedSubmitting(false);
         }
     };
 
@@ -266,6 +276,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                     </InlineMessage>
                 ) : null}
 
+                {protectedChangeRequiresApproval === undefined ? <InlineMessage tone="warning">{t('common:governed_mutation.capability_unavailable')}</InlineMessage> : null}
                 {collectionContent}
 
                 {canEdit && !isDenied ? (
@@ -273,6 +284,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                         variant="outline"
                         className="mt-6 w-full border-dashed"
                         onClick={() => { setDialogMode('links-only'); setIsDialogOpen(true); }}
+                        disabled={protectedChangeRequiresApproval === undefined}
                         data-testid={testId('manage-existing')}
                     >
                         {t('links.actions.manage_existing')}
@@ -284,20 +296,22 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                         title={t(i18nKeys.dialogTitle)}
                         existingLinks={entities.existingLinks}
                         onLink={async (targetId) => {
+                            if (protectedChangeRequiresApproval === undefined) throw new Error(t('common:governed_mutation.capability_unavailable'));
                             if (protectedChangeRequiresApproval) {
                                 setMutationError(null);
                                 setPendingGovernedAction({ kind: 'link_add', targetId });
                                 return;
                             }
-                            await entities.link(targetId);
+                            return mutateRelation('link_add', targetId);
                         }}
                         onUnlink={async (targetId) => {
+                            if (protectedChangeRequiresApproval === undefined) throw new Error(t('common:governed_mutation.capability_unavailable'));
                             if (protectedChangeRequiresApproval) {
                                 setMutationError(null);
                                 setPendingGovernedAction({ kind: 'link_remove', targetId });
                                 return;
                             }
-                            await entities.unlink(targetId);
+                            return mutateRelation('link_remove', targetId);
                         }}
                         isOpen={isDialogOpen}
                         onClose={() => setIsDialogOpen(false)}
@@ -309,7 +323,7 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
                 {protectedChangeRequiresApproval && !isDenied ? (
                     <GovernedMutationReasonDialog
                         isOpen={pendingGovernedAction !== null}
-                        reasonRequired
+                        reasonRequirement={governedReasonRequirementFromFlags(protectedChangeRequiresApproval)}
                         namespace="vendors"
                         kind={pendingGovernedAction?.kind ?? 'link_add'}
                         isLoading={isGovernedSubmitting}
@@ -323,4 +337,8 @@ export function VendorLinkedEntitiesTab<T extends { id: number }>({
             </Card>
         </motion.div>
     );
+}
+
+export function VendorLinkedEntitiesTab<T extends { id: number }>(props: VendorLinkedEntitiesTabProps<T>) {
+    return <VendorLinkedEntitiesTabContent key={props.vendorId} {...props} />;
 }

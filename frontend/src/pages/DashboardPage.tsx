@@ -201,6 +201,7 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
     }, [requestedView, activeView, searchParams, setSearchParams]);
 
     const {
+        drillthrough,
         breachTrends,
         departmentMetrics,
         error,
@@ -218,6 +219,7 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
         // The overview request only runs for its own tab; both committee tabs
         // render independently of it (acceptance d).
         canReadControls: authz.canReadControls,
+        canReadDepartments: authz.canReadDepartments,
         enabled: activeView === 'overview',
         filters,
         t,
@@ -276,10 +278,12 @@ function DashboardPageContent({ isExporting, exportError, onExport }: DashboardP
         <IctCommitteeSection />
     ) : (
         <DashboardOverviewContent
+            drillthrough={drillthrough}
             breachHistoryTitle={t('sections.kri_breach_history')}
             breachTrends={breachTrends}
             canReadIssues={canViewIssueMetrics}
             canUseDepartmentFilter={canUseDepartmentFilter}
+            canReadDepartments={authz.canReadDepartments}
             categoryAnalyticsTitle={t('sections.control_analytics')}
             controlExecutionTitle={t('sections.control_execution_trends')}
             departmentMetrics={departmentMetrics}

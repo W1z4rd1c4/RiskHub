@@ -34,6 +34,7 @@ from app.services._auth_session_workflow.authority import invalidate_user_sessio
 from .artifacts import consume_grant, failed_factor, issue_grant, read_grant, revoke_grants
 from .bootstrap_progress import complete_bootstrap_target
 from .common import NativeContext, atomic_local_work, audit_local, commit_local, invalid_proof, local_user_ready
+from .factor_policy import evaluate_factor_policy
 
 
 async def begin_password_login(
@@ -85,9 +86,10 @@ async def begin_password_login(
         if upgraded:
             user.hashed_password = upgraded  # same credential, not a version-advancing change
         factor = await db.get(LocalAuthFactor, user.id)
-        confirmed = factor is not None and factor.confirmed_at is not None
+        policy = evaluate_factor_policy(ctx.settings.local_mfa_policy, factor)
+        confirmed = policy.confirmed
         enrolling = not confirmed
-        if not confirmed and ctx.settings.local_mfa_policy == "optional":
+        if policy.enrollment_completes_without_factor:
             if local_user_ready(user, enrollment=True):
                 user.local_enrollment_state, user.is_active = "enrolled", True
                 await complete_bootstrap_target(db, user)
@@ -228,9 +230,9 @@ async def confirm_factor(
             )
         user.local_enrollment_state, user.is_active = "enrolled", True
         await complete_bootstrap_target(db, user)
-        await invalidate_user_sessions(db=db, user=user, reason="local_factor_enrolled")
+        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_factor_enrolled")
         await revoke_grants(db, user.id)
-        await audit_local(db, user, "local_factor_enrolled")
+        await audit_local(db, user, "local_factor_enrolled", revoke_count=revoked_count)
         await commit_local(db, "factor_confirmed")
         return FactorEnrollmentResponse(recovery_codes=codes)
 
@@ -324,7 +326,7 @@ async def recent_authentication(
 
             from .recovery_policy import require_recoverable, require_recovery_actor
 
-            target = await lock_identity_transition(db, user_id=data.target_user_id, actor=actor)
+            target = await lock_identity_transition(db, user_id=data.target_user_id, actor=actor, settings=ctx.settings)
             require_recovery_actor(actor)
             if data.expected_token_version is None:
                 raise invalid_proof()
@@ -339,8 +341,9 @@ async def recent_authentication(
         ):
             raise invalid_proof()
         factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
-        confirmed = factor is not None and factor.confirmed_at is not None
-        if confirmed or ctx.settings.local_mfa_policy == "required":
+        policy = evaluate_factor_policy(ctx.settings.local_mfa_policy, factor)
+        confirmed = policy.confirmed
+        if policy.required:
             if factor is None or not confirmed or data.factor is None:
                 raise invalid_proof()
             if not await consume_factor(db, ctx, user, factor, code=data.factor.get_secret_value(), method=data.method):
@@ -397,8 +400,9 @@ async def check_recent_proof(
     if not secrets.compare_digest(expected, grant.context.get("intent", "")):
         raise invalid_proof()
     factor = await db.get(LocalAuthFactor, user.id, populate_existing=True)
-    confirmed = factor is not None and factor.confirmed_at is not None
-    if confirmed or ctx.settings.local_mfa_policy == "required":
+    policy = evaluate_factor_policy(ctx.settings.local_mfa_policy, factor)
+    confirmed = policy.confirmed
+    if policy.required:
         if factor is None or not confirmed or factor.generation != grant.factor_generation:
             raise invalid_proof()
     elif grant.factor_generation is not None:

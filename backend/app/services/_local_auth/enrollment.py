@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.email import email_equals, normalize_email
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
@@ -25,10 +26,11 @@ from .artifacts import consume_grant, issue_grant, read_grant, revoke_grants
 from .bootstrap_progress import complete_bootstrap_target
 from .common import NativeContext, atomic_local_work, audit_local, commit_local, invalid_proof, local_user_ready
 from .delivery import enqueue_mail
+from .factor_policy import evaluate_factor_policy
 
 
-async def local_admin(db: AsyncSession, actor: User) -> User:
-    current = await lock_identity_transition(db, user_id=actor.id, actor=actor)
+async def local_admin(db: AsyncSession, actor: User, *, settings: Settings) -> User:
+    current = await lock_identity_transition(db, user_id=actor.id, actor=actor, settings=settings)
     if not is_platform_admin(current) or not local_user_ready(current):
         raise AuthorizationError("Platform administrator with completed enrollment required")
     return current
@@ -41,7 +43,7 @@ async def invite_user(db: AsyncSession, ctx: NativeContext, actor: User, data: I
     await ctx.limiter.require("invite-target", email, 3, 3600)
     await ctx.limiter.require("invite-actor", str(actor.id), 30, 3600)
     async with atomic_local_work(db):
-        actor = await local_admin(db, actor)
+        actor = await local_admin(db, actor, settings=ctx.settings)
         if (await db.execute(select(User.id).where(email_equals(User.email, email)))).scalar_one_or_none():
             raise ConflictError("An account already uses this email")
         role = await db.get(Role, data.role_id) if data.role_id else await resolve_safe_default_role(db)
@@ -90,7 +92,7 @@ async def manage_invitation(
         await ctx.limiter.require("invite-target", preliminary.email, 3, 3600)
     async with atomic_local_work(db):
         # The administration guard serializes this with other lifecycle writers.
-        target = await lock_identity_transition(db, user_id=user_id, actor=actor)
+        target = await lock_identity_transition(db, user_id=user_id, actor=actor, settings=ctx.settings)
         if not is_platform_admin(actor) or not local_user_ready(actor):
             raise AuthorizationError("Platform administrator required")
         if target.external_id or target.local_enrollment_state != "invited" or target.local_suspended:
@@ -126,16 +128,18 @@ async def start_enrollment(
         await consume_grant(db, grant)
         user.hashed_password = encoded
         user.local_email_verified_at = utc_now()
-        requires_factor = ctx.settings.local_mfa_policy == "required"
+        requires_factor = not evaluate_factor_policy(
+            ctx.settings.local_mfa_policy, None
+        ).enrollment_completes_without_factor
         user.local_enrollment_state = "password_set" if requires_factor else "enrolled"
         user.is_active = not requires_factor
-        await invalidate_user_sessions(db=db, user=user, reason="local_password_enrollment")
+        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_password_enrollment")
         await revoke_grants(db, user.id)
         challenge = None
         if requires_factor:
             _, challenge = await issue_grant(db, ctx, user, "enrollment", LOCAL_CHALLENGE_TTL_SECONDS, browser=browser)
         await complete_bootstrap_target(db, user)
-        await audit_local(db, user, "local_password_enrolled")
+        await audit_local(db, user, "local_password_enrolled", revoke_count=revoked_count)
         await commit_local(db, "enrollment_start")
         if challenge is not None:
             return LocalAuthChallenge(status="enrollment_required", challenge=challenge)

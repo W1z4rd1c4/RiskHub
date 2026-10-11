@@ -164,7 +164,7 @@ async def reconcile_restored_security(
             factor.last_time_step = max(
                 factor.last_time_step, cutoff_step, state.factor_last_step or -1 if state else -1
             )
-        await invalidate_user_sessions(
+        revoked_count = await invalidate_user_sessions(
             db=db,
             user=user,
             reason="identity_restore_cutover",
@@ -184,6 +184,7 @@ async def reconcile_restored_security(
                 "checkpoint_matched": known_access and known_credentials,
                 "source": source,
             },
+            revoke_count=revoked_count,
         )
     await db.flush()
     if not await effective_platform_admin_ids(db, settings=settings):

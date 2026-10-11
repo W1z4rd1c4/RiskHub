@@ -1,3 +1,4 @@
+import type { LinkMutationContinuation } from '@/lib/governedMutationOutcome';
 /**
  * LinkManagementDialog
  *
@@ -30,8 +31,8 @@ interface LinkManagementDialogProps {
     mode: LinkMode;
     title?: string;
     existingLinks: ExistingLinkItem[];
-    onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
-    onUnlink: (targetId: number) => Promise<void>;
+    onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<LinkMutationContinuation>;
+    onUnlink: (targetId: number) => Promise<LinkMutationContinuation>;
     isOpen: boolean;
     onClose: () => void;
     showSearch?: boolean;

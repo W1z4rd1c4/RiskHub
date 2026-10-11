@@ -17,6 +17,7 @@ export interface ExportDialogSubmitPayload {
 }
 
 interface ExportDialogProps {
+    datedUnavailableReason?: string;
     dateMode?: 'evaluation' | 'point_in_time';
     isOpen: boolean;
     onClose: () => void;
@@ -35,6 +36,7 @@ function getTodayLocalDate(): string {
 
 export function ExportDialog({
     dateMode = 'point_in_time',
+    datedUnavailableReason,
     isOpen,
     onClose,
     onSubmit,
@@ -72,7 +74,7 @@ export function ExportDialog({
     }, [isSubmitting, submitFailed]);
 
     const handleSubmit = async () => {
-        if ((purpose === datedPurpose && !asOfDate) || isSubmitting) {
+        if ((purpose === datedPurpose && (!asOfDate || Boolean(datedUnavailableReason))) || isSubmitting) {
             return;
         }
         setSubmitFailed(false);
@@ -139,6 +141,9 @@ export function ExportDialog({
                         )}
                     </Field>
                 )}
+                {purpose === datedPurpose && datedUnavailableReason && (
+                    <InlineMessage tone="warning">{datedUnavailableReason}</InlineMessage>
+                )}
                 {submitFailed && (
                     <InlineMessage tone="danger">
                         {t('export.errors.failed')}
@@ -155,7 +160,7 @@ export function ExportDialog({
                     type="button"
                     variant="accent"
                     onClick={() => void handleSubmit()}
-                    disabled={isSubmitting || (purpose === datedPurpose && !asOfDate)}
+                    disabled={isSubmitting || (purpose === datedPurpose && (!asOfDate || Boolean(datedUnavailableReason)))}
                     data-testid="export-submit-button"
                 >
                     <Download aria-hidden="true" />

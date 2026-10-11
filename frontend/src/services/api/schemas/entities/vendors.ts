@@ -49,7 +49,7 @@ const vendorCapabilitiesSchema = passthroughObject({
     can_view_asset_links: z.boolean(),
     can_manage_asset_links: z.boolean(),
     can_manage_process_links: z.boolean(),
-    protected_change_requires_approval: z.boolean().default(false),
+    protected_change_requires_approval: z.boolean().optional(),
     can_request_change: z.boolean().default(false),
     can_cancel_pending_change: z.boolean().default(false),
     has_pending_change: z.boolean().default(false),

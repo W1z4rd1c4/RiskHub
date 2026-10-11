@@ -9,6 +9,7 @@ import {
 import { GOVERNED_MUTATION_KINDS } from '@/types/approval';
 
 export const assetCapabilitiesSchema = passthroughObject({
+    protected_change_requires_approval: z.boolean(),
     can_read: z.boolean(),
     can_update: z.boolean(),
     can_archive: z.boolean(),

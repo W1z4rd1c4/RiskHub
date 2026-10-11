@@ -6,7 +6,6 @@ import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContai
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useTranslation } from '@/i18n/hooks';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { kriApi } from '@/services/kriApi';
 import { vendorApi } from '@/services/vendorApi';
 
@@ -82,7 +81,7 @@ export function KRINewPage() {
                         vendorId,
                         vendorName: vendorContextGate.data?.name,
                         returnTo,
-                        protectedChangeRequiresApproval: resolveCapabilityFlag(vendorContextGate.data?.capabilities, 'protected_change_requires_approval'),
+                        protectedChangeRequiresApproval: vendorContextGate.data?.capabilities?.protected_change_requires_approval,
                     } : null}
                 />
             )}

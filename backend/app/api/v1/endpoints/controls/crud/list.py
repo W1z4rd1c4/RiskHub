@@ -9,6 +9,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.schemas.control import (
+    ControlFormEnum,
     ControlListResponse,
 )
 from app.services._monitoring_status import ControlMonitoringStatus
@@ -31,6 +32,7 @@ def control_listing_criteria_dependency(
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
     status: Optional[str] = None,
+    control_form: ControlFormEnum | None = Query(None),
     include_archived: bool = Query(False, description="Include archived controls in results"),
     lifecycle: Literal["active", "archived", "all"] | None = Query(None),
     search: Optional[str] = None,
@@ -53,6 +55,7 @@ def control_listing_criteria_dependency(
         legacy_filters={
             "department_id": department_id,
             "status": status,
+            "control_form": control_form,
             "include_archived": include_archived,
             "lifecycle": lifecycle,
             "search": search,

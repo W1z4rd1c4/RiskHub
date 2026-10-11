@@ -6,6 +6,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import audit_logger
+from app.core.config import Settings
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.identity_policy import can_authenticate_user
 from app.core.tokens import token_decode_or_none
@@ -191,9 +192,14 @@ async def lock_refresh_rotation_user(
     db: AsyncSession,
     user_id: int,
     expected_token_version: int,
+    settings: Settings,
 ) -> User | None:
     user = await _load_refresh_user(db, user_id, for_update=True)
-    if user is None or not can_authenticate_user(user) or user.token_version != expected_token_version:
+    if (
+        user is None
+        or not can_authenticate_user(user, settings=settings)
+        or user.token_version != expected_token_version
+    ):
         return None
     return user
 
@@ -222,7 +228,7 @@ async def resolve_refresh_session(
     *,
     db: AsyncSession,
     raw_token: str | None,
-    settings,
+    settings: Settings,
     current_ip: str | None,
     current_user_agent: str | None,
 ) -> RefreshSessionResolution:
@@ -330,7 +336,7 @@ async def resolve_refresh_session(
             user_id=user_id,
             jti=jti,
         )
-    if not can_authenticate_user(user):
+    if not can_authenticate_user(user, settings=settings):
         await _record_failed_refresh(db=db, user=user, failure_code="inactive_user", revoke_count=0)
         return RefreshSessionResolution(
             outcome=_failed_refresh_outcome("inactive_user", failure_code="inactive_user"),

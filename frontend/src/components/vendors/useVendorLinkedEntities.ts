@@ -6,7 +6,8 @@ import {
     useCollectionDataState,
 } from '@/pages/shared/collectionPageState';
 import { logError } from '@/services/logger';
-import { isProcessApprovalQueuedResponse, type ProcessApprovalQueuedResponse } from '@/types/process';
+import { executeGovernedMutation, type OwnedMutationOutcome } from '@/lib/governedMutationOutcome';
+import { useMutationOwner } from '@/hooks/useMutationOwner';
 
 export interface VendorLinkedEntitiesAdapter<T> {
     fetch: (vendorId: number) => Promise<T[]>;
@@ -21,6 +22,7 @@ export function useVendorLinkedEntities<T>(
     vendorId: number,
     adapter: VendorLinkedEntitiesAdapter<T>,
 ) {
+    const mutationOwner = useMutationOwner(vendorId);
     const queryIdentity = String(vendorId);
     const collection = useCollectionDataState<T>();
     const {
@@ -108,42 +110,25 @@ export function useVendorLinkedEntities<T>(
     const archived = useMemo(() => items.filter((item) => adapter.isArchived(item)), [adapter, items]);
     const existingLinks = useMemo(() => items.map(adapter.toExistingLink), [adapter, items]);
 
-    // A queued (202) response means approved link truth is UNCHANGED (#100):
-    // the caller surfaces the pending approval instead of refreshing links.
-    // Returns the queued response, or null after a direct success + refresh.
-    const link = useCallback(async (
-        entityId: number,
-        requestReason?: string,
-    ): Promise<ProcessApprovalQueuedResponse | null> => {
-        const mutationVendorId = vendorId;
-        const mutationQueryIdentity = queryIdentity;
-        const result = await adapter.link(mutationVendorId, entityId, requestReason);
-        if (!isQueryCurrent(mutationQueryIdentity)) {
-            return null;
+    // Superseded is explicit: an outer dialog must never treat it as applied.
+    const mutateRelation = useCallback(async (
+        action: 'link' | 'unlink', entityId: number, requestReason?: string,
+    ): Promise<OwnedMutationOutcome<unknown>> => {
+        const ownsGeneration = mutationOwner.capture();
+        const isCurrent = () => ownsGeneration() && isQueryCurrent(queryIdentity);
+        const outcome = await executeGovernedMutation(
+            () => adapter[action](vendorId, entityId, requestReason), isCurrent,
+        );
+        if (outcome.kind === 'applied') {
+            await refresh();
+            if (!isCurrent()) return { kind: 'superseded' };
         }
-        if (isProcessApprovalQueuedResponse(result)) {
-            return result;
-        }
-        await refresh();
-        return null;
-    }, [adapter, isQueryCurrent, queryIdentity, refresh, vendorId]);
-
-    const unlink = useCallback(async (
-        entityId: number,
-        requestReason?: string,
-    ): Promise<ProcessApprovalQueuedResponse | null> => {
-        const mutationVendorId = vendorId;
-        const mutationQueryIdentity = queryIdentity;
-        const result = await adapter.unlink(mutationVendorId, entityId, requestReason);
-        if (!isQueryCurrent(mutationQueryIdentity)) {
-            return null;
-        }
-        if (isProcessApprovalQueuedResponse(result)) {
-            return result;
-        }
-        await refresh();
-        return null;
-    }, [adapter, isQueryCurrent, queryIdentity, refresh, vendorId]);
+        return outcome;
+    }, [adapter, isQueryCurrent, mutationOwner, queryIdentity, refresh, vendorId]);
+    const link = useCallback((entityId: number, reason?: string) =>
+        mutateRelation('link', entityId, reason), [mutateRelation]);
+    const unlink = useCallback((entityId: number, reason?: string) =>
+        mutateRelation('unlink', entityId, reason), [mutateRelation]);
 
     const error = outcome.kind === 'fatal-error' || outcome.kind === 'stale-with-error'
         ? outcome.errorKey

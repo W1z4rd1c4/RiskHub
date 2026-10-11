@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Check, X } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { riskHubKeys } from '@/lib/queryKeys';
+import { ictRegisterKeys, riskHubKeys } from '@/lib/queryKeys';
+import { entityDetailQueryPrefix } from '@/lib/queryKeys/detail';
 import { getRoleLabel } from '@/lib/roleLabels';
 import {
     APPROVAL_SCENARIO_APPROVER_ROLES,
@@ -217,10 +218,22 @@ export function ApprovalScenariosPanel() {
         ].join(' · ');
     };
 
+    const queryClient = useQueryClient();
     const scenariosResource = useRiskHubConfigResource<ApprovalScenario, ApprovalScenarioUpdate, ApprovalScenarioUpdate>({
         queryKey: riskHubKeys.approvalScenarios(),
         load: () => riskHubApi.getApprovalScenarios(),
-        update: (key, data) => riskHubApi.updateApprovalScenario(String(key), data),
+        update: async (key, data) => {
+            const result = await riskHubApi.updateApprovalScenario(String(key), data);
+            // Detail caches are session-scoped below these entity prefixes. Register
+            // pages reload on mount; their cached counterpart options live separately.
+            await Promise.all([
+                ...(['process', 'asset', 'vendor'] as const).map((entity) =>
+                    queryClient.invalidateQueries({ queryKey: entityDetailQueryPrefix(entity) })),
+                ...ictRegisterKeys.reasonCapabilityPrefixes().map((queryKey) =>
+                    queryClient.invalidateQueries({ queryKey })),
+            ]);
+            return result;
+        },
         itemId: (scenario) => scenario.key,
         panelCapabilityKey: 'approval_scenarios',
         includeShowInactive: false,

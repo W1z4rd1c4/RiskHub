@@ -1,3 +1,4 @@
+import { buildKriBreachRiskDestination } from '@/pages/dashboard/dashboardStats';
 import { useState, useEffect } from 'react';
 import { AlertTriangle, ArrowRight, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -12,9 +13,17 @@ import type { KeyRiskIndicator } from '@/types/kri';
 import { logError } from '@/services/logger';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 
-export function KRIBreachWidget() {
-    const { t } = useTranslation('dashboard');
+interface KRIBreachWidgetProps { canUseDepartmentFilter?: boolean; canReadDepartments?: boolean }
+
+export function KRIBreachWidget({ canUseDepartmentFilter, canReadDepartments }: KRIBreachWidgetProps) {
     const departmentId = useDashboardFilterSelector(state => state.filters.departmentId);
+    // A new owner instance prevents old counts/footers surviving A→B→A changes.
+    return <KRIBreachPopulation key={departmentId ?? 'all'} departmentId={departmentId} canUseDepartmentFilter={canUseDepartmentFilter} canReadDepartments={canReadDepartments} />;
+}
+
+function KRIBreachPopulation({ departmentId, canUseDepartmentFilter, canReadDepartments }: KRIBreachWidgetProps & { departmentId: number | null }) {
+    const { t } = useTranslation('dashboard');
+    const destination = buildKriBreachRiskDestination(departmentId, canUseDepartmentFilter && canReadDepartments === true);
     const [breaches, setBreaches] = useState<KeyRiskIndicator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
@@ -34,7 +43,7 @@ export function KRIBreachWidget() {
             } catch (err) {
                 logError('Failed to fetch breaches:', err);
                 if (!cancelled) {
-                    setError(err instanceof Error ? err : new Error(t('kri.breaches_load_failed')));
+                    setError(err instanceof Error ? err : new Error());
                     setBreaches([]);
                 }
             } finally {
@@ -47,7 +56,7 @@ export function KRIBreachWidget() {
         return () => {
             cancelled = true;
         };
-    }, [departmentId, t]);
+    }, [departmentId]);
 
     const loadingFallback = (
         <div className="glass-card h-[300px]">
@@ -129,12 +138,12 @@ export function KRIBreachWidget() {
                     ))}
                 </div>
 
-                <Link
-                    to="/risks?breached=true"
+                {destination ? <Link
+                    to={destination}
                     className="text-eyebrow block w-full py-3 text-center bg-tint/[0.03] hover:bg-tint/5 hover:text-foreground border-t border-border transition-colors focus-ring"
                 >
                     {t('kri.view_risk_register')}
-                </Link>
+                </Link> : <p className="p-3 text-sm text-muted-foreground">{t(canReadDepartments !== true ? 'destinations.department_unavailable' : 'kri.destination_unavailable')}</p>}
             </Card>
         </WidgetShell>
     );

@@ -14,7 +14,7 @@ from app.core.datetime_utils import utc_now
 from app.core.exceptions import ValidationError
 from app.core.permissions import (
     can_read_vendor,
-    get_user_department_ids,
+    control_visibility_clause,
     risk_visibility_clause,
     visible_risk_ids,
 )
@@ -80,17 +80,8 @@ async def apply_control_department_scoping(
     current_user: User,
     department_id_filter: int | None,
 ):
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        return query.where(
-            or_(
-                Control.department_id.in_(dept_ids),
-                Control.control_owner_id == current_user.id,
-            )
-        )
-    if department_id_filter:
-        return query.where(Control.department_id == department_id_filter)
-    return query
+    clause = control_visibility_clause(current_user, department_id=department_id_filter)
+    return query.where(clause) if clause is not None else query
 
 
 def apply_control_process_category_filters(
@@ -513,6 +504,7 @@ async def build_control_listing_plan(
         if consumed_legacy_archived_status
         else coerce_optional_enum(ControlStatusEnum, status_value, "status")
     )
+    control_form = coerce_optional_enum(ControlFormEnum, filter_values.get("control_form"), "control_form")
     search = coerce_optional_string("search", filter_values.get("search"))
     process = coerce_optional_string("process", filter_values.get("process"))
     category = coerce_optional_string("category", filter_values.get("category"))
@@ -528,6 +520,9 @@ async def build_control_listing_plan(
     base_query = apply_control_lifecycle(base_query, lifecycle)
     if status:
         base_query = base_query.where(Control.status == status.value)
+
+    if control_form is not None:
+        base_query = base_query.where(Control.control_form == control_form.value)
 
     risk_dept = aliased(Department)
     base_query = base_query.outerjoin(Control.department)

@@ -1,3 +1,4 @@
+import { buildDashboardDrillthrough } from '@/pages/dashboard/dashboardStats';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Activity, AlertTriangle, Building2, Clock, Handshake, Star } from 'lucide-react';
@@ -22,6 +23,8 @@ const ACTION_TONES: Readonly<Record<string, StatusTone>> = {
     approve: 'info',
     reject: 'warning',
 };
+
+const COMMITTEE_LINKS = buildDashboardDrillthrough({ departmentId: null }).committee;
 
 const VIEW_ALL_LINK_CLASS = 'rounded text-xs font-bold text-accent-text hover:underline focus-ring';
 
@@ -93,7 +96,7 @@ function CriticalRisksCard({
                     icon={AlertTriangle}
                     className="mb-6"
                     actions={summary.critical_risks_total > 0 ? (
-                        <Link to="/risks?net_band=critical" className={VIEW_ALL_LINK_CLASS}>
+                        <Link to={COMMITTEE_LINKS.criticalRisks} className={VIEW_ALL_LINK_CLASS}>
                             {t('risk_committee.view_all_critical_risks', { ns: 'dashboard' })}
                         </Link>
                     ) : null}
@@ -170,7 +173,7 @@ function CriticalVendorsCard({
                     icon={Handshake}
                     className="mb-6"
                     actions={summary.can_view_vendors && (summary.critical_vendors_total ?? 0) > 0 ? (
-                        <Link to="/vendors?risk_scores=4&risk_scores=5" className={VIEW_ALL_LINK_CLASS}>
+                        <Link to={COMMITTEE_LINKS.highRiskVendors} className={VIEW_ALL_LINK_CLASS}>
                             {t('risk_committee.view_all_high_risk_vendors', { ns: 'dashboard' })}
                         </Link>
                     ) : null}

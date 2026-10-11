@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const getOverdueMock = vi.fn();
 const getDueSoonMock = vi.fn();
+const dashboardScope = vi.hoisted(() => ({ departmentId: null as number | null }));
 
 vi.mock('@/i18n/hooks', () => {
     const t = (key: string, options?: { shown?: number; total?: number }) => (
@@ -23,12 +24,12 @@ vi.mock('@/i18n/hooks', () => {
 vi.mock('@/contexts/DashboardFilterContext', () => ({
     useDashboardFilters: () => ({
         filters: {
-            departmentId: null,
+            departmentId: dashboardScope.departmentId,
         },
     }),
     useDashboardFilterSelector: (selector: (state: { filters: { departmentId: number | null } }) => unknown) => selector({
         filters: {
-            departmentId: null,
+            departmentId: dashboardScope.departmentId,
         },
     }),
 }));
@@ -50,6 +51,7 @@ function LocationProbe() {
 describe('KRIStatusWidget drilldown', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        dashboardScope.departmentId = null;
         getOverdueMock.mockResolvedValue([
             {
                 kri_id: 10,
@@ -72,6 +74,22 @@ describe('KRIStatusWidget drilldown', () => {
                 risk_id: 8,
             },
         ]);
+    });
+
+    it.each(['upcoming', 'overdue'] as const)('keeps the fetched department in the %s destination (DEF-07)', async (tab) => {
+        dashboardScope.departmentId = 17;
+        render(<MemoryRouter><KRIStatusWidget /></MemoryRouter>);
+        await screen.findByText('Due Soon KRI');
+        if (tab === 'overdue') await userEvent.setup().click(screen.getByRole('tab', { name: 'kri.overdue' }));
+        await screen.findByText(tab === 'overdue' ? 'Overdue KRI' : 'Due Soon KRI');
+        expect(getDueSoonMock).toHaveBeenCalledWith({ department_id: 17 });
+        expect(getOverdueMock).toHaveBeenCalledWith({ department_id: 17 });
+        const link = screen.getByRole('link', { name: tab === 'overdue' ? 'kri.view_all_overdue' : 'kri.view_all' });
+        const url = new URL(link.getAttribute('href')!, 'https://riskhub.test');
+        expect(JSON.parse(url.searchParams.get('filters') ?? '{}')).toEqual({
+            department_id: 17,
+            ...(tab === 'overdue' ? { monitoring_status: 'not_submitted' } : { timeliness_status: 'due_soon' }),
+        });
     });
 
     it('routes the upcoming tab to the due-soon KRI list mode', async () => {
@@ -97,7 +115,7 @@ describe('KRIStatusWidget drilldown', () => {
         await ui.click(screen.getByText('kri.view_all'));
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/kris?timeliness_status=due_soon');
+            expect(screen.getByTestId('location')).toHaveTextContent('/kris?filters=' + encodeURIComponent(JSON.stringify({ timeliness_status: 'due_soon' })));
         });
     });
 
@@ -126,7 +144,7 @@ describe('KRIStatusWidget drilldown', () => {
         await ui.click(screen.getByText('kri.view_all_overdue'));
 
         await waitFor(() => {
-            expect(screen.getByTestId('location')).toHaveTextContent('/kris?monitoring_status=not_submitted');
+            expect(screen.getByTestId('location')).toHaveTextContent('/kris?filters=' + encodeURIComponent(JSON.stringify({ monitoring_status: 'not_submitted' })));
         });
     });
 

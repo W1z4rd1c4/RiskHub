@@ -246,6 +246,4 @@ export interface ApprovalCreatedResponse {
     requires_privileged_approval?: boolean;
 }
 
-export function isApprovalCreatedResponse(response: unknown): response is ApprovalCreatedResponse {
-    return typeof response === 'object' && response !== null && 'approval_id' in response && 'status' in response;
-}
+export { isApprovalCreatedResponse } from '@/lib/governedMutationOutcome';

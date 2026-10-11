@@ -1,16 +1,17 @@
-/**
- * Governed-mutation request reason serialization, shared by the protected
- * Vendor mutation services (#100 vendorLinkApi, #101 vendorSubOutsourcingApi):
- * the reason is trimmed, and OMITTED entirely when blank, so a reason-less
- * direct call never invents a `request_reason` on the wire.
- */
-
-/** Spread into a JSON payload: `{ request_reason }` or nothing. */
-export function reasonField(requestReason?: string) {
-    return requestReason?.trim() ? { request_reason: requestReason.trim() } : {};
+/** Canonical governed request serialization: trim once and omit blank reasons. */
+export function reasonField(requestReason?: string): { request_reason?: string } {
+    const normalized = requestReason?.trim();
+    return normalized ? { request_reason: normalized } : {};
 }
 
-/** Spread into DELETE options: `{ body }` carrying the reason, or nothing. */
-export function reasonBody(requestReason?: string) {
-    return requestReason?.trim() ? { body: JSON.stringify({ request_reason: requestReason.trim() }) } : {};
+/** Remove a caller's blank key as well as normalizing populated reasons. */
+export function withReason<T extends object>(payload: T): Omit<T, 'request_reason'> & { request_reason?: string } {
+    const { request_reason: requestReason, ...rest } = payload as T & { request_reason?: string };
+    return { ...rest, ...reasonField(requestReason) };
+}
+
+/** Blank DELETE requests have no body, rather than an empty JSON object. */
+export function reasonBody(requestReason?: string): { body?: string } {
+    const field = reasonField(requestReason);
+    return field.request_reason ? { body: JSON.stringify(field) } : {};
 }

@@ -63,7 +63,7 @@ from app.core._snapshot_metrics.risk_control import (
 )
 from app.models.risk import ControlRiskLink
 from app.services._dashboard_metrics.lifecycle import build_dashboard_summary_metrics
-from app.services._dashboard_metrics.risk_levels import (
+from app.services.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )

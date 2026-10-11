@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ApprovalScenarioConfigurationError
 from app.models import GovernedMutationProposal, User
 from app.models.approval_scenario import ApprovalScenario
+
+from .composite_policy import live_visibility_policy_roles, role_visible_in_snapshot
 
 ASSET_SCENARIO_KEY = "protected_asset_edit"
 ASSET_ALLOWED_APPROVER_ROLES = frozenset({"risk_manager", "cro"})
@@ -59,16 +62,27 @@ def validated_fixed_asset_roles(scenario: ApprovalScenario) -> list[str]:
 def is_live_eligible_asset_resolver(
     user: User,
     proposal: GovernedMutationProposal,
-    scenario: ApprovalScenario | None,
+    scenarios: Mapping[str, ApprovalScenario],
 ) -> bool:
-    """One live resolver predicate for every governed Asset consumer."""
+    """Use strict immutable identity and only its actual live triggering policies."""
+    from .asset_identity import valid_asset_governed_envelope
+
+    if not valid_asset_governed_envelope(proposal):
+        return False
+    scenario_keys = tuple(proposal.proposed_changes.get("triggered_scenarios", [ASSET_SCENARIO_KEY]))
     role_name = getattr(getattr(user, "role", None), "name", None)
-    live_roles = tuple(str(role) for role in (scenario.approver_roles or ())) if scenario else ()
     return bool(
         is_fixed_asset_resolution_authority(user, proposal)
-        and scenario is not None
-        and scenario.requires_approval
-        and role_name in live_roles
+        and role_visible_in_snapshot(
+            role_name,
+            proposal.scenario_snapshot["approver_roles"],
+            live_policy_roles=[
+                live_visibility_policy_roles(scenario.requires_approval, scenario.approver_roles)
+                if (scenario := scenarios.get(key)) is not None
+                else None
+                for key in scenario_keys
+            ],
+        )
     )
 
 
@@ -97,5 +111,19 @@ async def can_live_resolve_asset_proposal(
     return is_live_eligible_asset_resolver(
         user,
         proposal,
-        await load_fixed_asset_scenario(db),
+        await load_asset_visibility_scenarios(db),
     )
+
+
+async def load_asset_visibility_scenarios(db: AsyncSession) -> dict[str, ApprovalScenario]:
+    """Batch-load the bounded policy domain once, then select strict proposal keys."""
+    rows = (
+        await db.scalars(
+            select(ApprovalScenario).where(
+                ApprovalScenario.key.in_(
+                    ("protected_asset_edit", "protected_vendor_edit", "accountability_reassignment")
+                )
+            )
+        )
+    ).all()
+    return {scenario.key: scenario for scenario in rows}

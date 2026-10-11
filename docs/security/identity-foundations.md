@@ -179,3 +179,97 @@ See [native directory isolation](identity-directory-isolation.md) for external s
 Follow [identity-safe restore](identity-restore.md) for signed manifests, current security
 checkpoints, new signing authority, quarantine, explicit access review and compatible
 rollback. Old JWT keys and consumed authentication artifacts must never be reinstated.
+
+
+### Security-transition evidence and audit facts (#195)
+
+Actual manual/effective-access transitions preserve one existing mutation audit
+and project the controlled transition code under `changes.event_type`, plus the
+actual refresh-row count under `changes.revoke_count`. Directory eligibility,
+deprovision, import and break-glass events, admin revocation, native credential /
+factor / recovery events and restore reconciliation carry the equivalent safe
+facts in their existing events. Zero means a real transition revoked no remaining
+live refresh row; it is not an unavailable count. Logout and replay retain their
+existing reason/count projections. No nested session-authority or credential
+payload is unredacted and no new audit transaction is introduced.
+
+`test_identity_revocation_acceptance.py` exercises real retained access/refresh
+credentials after reactivation and genuine commit failure with a fresh persistence
+observer across both manual adapters. `test_identity_transition_evidence.py` adds
+strict signed production claim matrices, nonmanual persisted revocation, rejected
+and no-op assignment, successful native KDF rehash without authority revocation,
+and DB/public/SIEM projection without secret exposure. The existing full native
+journeys are reused by `test_identity_audit_projection.py` to compare real primitive
+return counts with persisted and streamed audit facts. PostgreSQL issuance/reset /
+refresh/replay races remain authoritative; SQLite skips do not prove lock behavior.
+The business Activity Log keeps its existing authority boundary, including the
+platform-Admin exclusion; operational and SIEM visibility are not broadened.
+
+
+Manager cleanup records one `manager_deactivated` USER/UPDATE for each genuinely
+changed subordinate, with the initiating actor (or truthful system `None`) and
+actual refresh-row revoke count. It uses the existing ordered User lock loop and
+caller transaction; repeated cleanup has no subordinate rows/events, and a failed
+parent commit rolls back manager references, versions, refresh rows and persisted audit rows.
+The existing immediate SIEM emission remains an attempted-event record and is not
+rolled back with the database transaction.
+Existing directory operational check records are preserved separately from this
+no-op subordinate guarantee.
+
+
+### Identity field ownership (#251)
+
+`core/identity_field_ownership.py` classifies known identity fields for the account
+and explicit deployment: directory, credential workflow, or administrator. Both
+write adapters and access-user capability projection consume that answer. Ownership
+does not grant edit permission: Admin/CRO authority, target visibility and Entra
+password-endpoint availability remain separate. Visible readers receive the same
+owned-field facts; the dialog retains English/Czech explanations and excludes those
+fields from requests. Unchanged native email remains a no-op. Early credential
+checks intentionally preserve existing denial precedence before generic field checks.
+
+The two refresh eligibility checks and ordered lifecycle actor recheck receive the
+caller's explicit deployment Settings, including native workflow context, directory
+checks and the offline recovery CLI. The caller inventory covers application and
+operator-script Python sources. The eligibility policy, actor/version checks and acquisition/commit order are
+unchanged. Native downstream validation remains an independent defense; a missing
+settings argument alone was not claimed as a demonstrated authentication bypass.
+
+
+### Upstream loss of the last platform administrator (#196)
+
+An upstream disabled/missing result still deprovisions the existing Entra account,
+revokes its session authority and creates no fallback account. If no effective
+platform administrator remains, the existing incident event exposes the fixed code
+`platform_admin_unavailable` in persisted and SIEM metadata. Its constant description
+“Platform administrator unavailable after upstream revocation; operator recovery
+required” appears in persisted, authorized operational and SIEM descriptions.
+The event retains its original actor
+(or system `None`), target and transaction; its accompanying deprovision event owns
+the actual revoke count. Raw provider narratives, target identity fields and
+credentials are not made public by this template.
+
+`test_identity_lifecycle_acceptance.py` covers disabled/missing upstream results,
+HTTP/system actors, the remaining-administrator negative control, retained-token
+denial and absence of fallback. It also preserves local suspension across directory
+re-enable and proves rejected manual last-Admin changes have no authority effects.
+These cases do not expand web authority or replace the separately verified,
+dual-signature offline recovery exception or PostgreSQL concurrency acceptance.
+
+
+### Ordinary factor policy (#252)
+
+`_local_auth.factor_policy.evaluate_factor_policy` owns confirmed-factor,
+factor-required and factorless enrollment-step completion decisions. Login,
+session validation, both recent-authentication checks, enrollment, account-security
+projection and bootstrap status use its answers. Under optional policy, accounts
+with an already-confirmed factor still authenticate with it; accounts without one
+retain password-only completion. Required policy with a confirmed factor remains
+an operational bootstrap account. Unknown policy raises before a successful transition
+commit; normal Settings validation independently rejects unknown values.
+
+The pure answer grants no account authority. Enrollment/readiness, recovery-pending,
+verified invite completion, grants, intent binding, factor generation and existing
+locks/transactions remain separate. Restore credential-confidence and factor artifact
+lifecycle checks retain their own semantics. Native MFA verification continues using
+the existing shared session issuers and is now covered by the token-exchange lock.

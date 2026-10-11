@@ -1,5 +1,6 @@
+import { useOwnedGovernedMutation } from '@/hooks/useOwnedGovernedMutation';
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, ShieldAlert } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -33,7 +34,7 @@ interface ThreatRiskLinksSectionProps {
 }
 
 /** The Threat<->Risk Link relations managed from the Threat page (issue #47). */
-export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged }: ThreatRiskLinksSectionProps) {
+function ThreatRiskLinksSectionContent({ threat, canManageLinks, onLinksChanged }: ThreatRiskLinksSectionProps) {
     const { t } = useTranslation(['threats', 'common']);
     const queryClient = useQueryClient();
     const feedback = useFeedback();
@@ -60,9 +61,9 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
         staleTime: 60_000,
     });
 
-    const refreshLinks = async () => {
+    const refreshLinks = async (isCurrent: () => boolean) => {
         await queryClient.invalidateQueries({ queryKey: ictRegisterKeys.threatRiskLinks(threat.id) });
-        await onLinksChanged?.();
+        if (isCurrent()) await onLinksChanged?.();
     };
 
     const handleMutationError = (mutationError: unknown) => {
@@ -72,28 +73,28 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
 
     const targetRiskId = parseLinkTargetId(riskToLink);
 
-    const addRiskLink = useMutation({
+    const addRiskLink = useOwnedGovernedMutation(threat.id, {
         mutationFn: () => {
             if (targetRiskId === null) {
                 return Promise.reject(new Error('Risk is required'));
             }
             return threatApi.addRiskLink(threat.id, targetRiskId);
         },
-        onSuccess: async () => {
+        onSuccess: async (_outcome, _variables, isCurrent) => {
             setLinkError(null);
             setRiskToLink('');
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const removeRiskLink = useMutation({
+    const removeRiskLink = useOwnedGovernedMutation(threat.id, {
         mutationFn: (linkId: number) => threatApi.removeRiskLink(threat.id, linkId),
-        onSuccess: async () => {
+        onSuccess: async (_outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingRemoval(null);
             feedback.success({ title: t('common:outcome.link_removed') });
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: (mutationError) => logError('Threat risk link removal failed:', mutationError),
     });
@@ -188,4 +189,9 @@ export function ThreatRiskLinksSection({ threat, canManageLinks, onLinksChanged 
             />
         </DetailSection>
     );
+}
+
+/** Owner transitions remount draft state; in-flight effects remain generation-fenced. */
+export function ThreatRiskLinksSection(props: ThreatRiskLinksSectionProps) {
+    return <ThreatRiskLinksSectionContent key={props.threat.id} {...props} />;
 }

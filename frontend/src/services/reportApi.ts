@@ -17,6 +17,7 @@ interface DashboardSummaryExportFilters extends ReportFilters {
 export type UnifiedExportFormat = 'csv';
 
 interface RiskExportFilters extends ReportFilters {
+    lifecycle?: 'active' | 'archived' | 'all' | null;
     search?: string | null;
     riskType?: string | null;
     isPriority?: boolean | null;
@@ -182,6 +183,7 @@ export const reportApi = {
         await downloadUnifiedExport('risks', format, asOfDate, {
             department_id: filters.departmentId,
             status: filters.status,
+            lifecycle: filters.lifecycle,
             search: filters.search,
             risk_type: filters.riskType,
             is_priority: filters.isPriority,

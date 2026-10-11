@@ -1,3 +1,4 @@
+import type { LinkMutationContinuation } from '@/lib/governedMutationOutcome';
 import type { ReactNode } from 'react';
 import type { OverdueKRI } from '@/types/kri';
 import type { ControlEffectiveness, Risk, RiskControlLink } from '@/types/risk';
@@ -35,8 +36,8 @@ interface RiskDetailOverviewTabProps {
     getDisplayName: (type: string) => string;
     onNavigateToNewKri: () => void;
     onNavigateToKri: (kriId: number) => void;
-    onLinkControl: (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
-    onUnlinkControl: (controlId: number) => Promise<void>;
+    onLinkControl: (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<LinkMutationContinuation>;
+    onUnlinkControl: (controlId: number) => Promise<LinkMutationContinuation>;
     onOpenCreateControl: () => void;
     onNavigateToControl: (controlId: number) => void;
     onNavigateToVendor: (vendorId: number) => void;

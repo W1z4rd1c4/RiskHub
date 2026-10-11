@@ -4,11 +4,15 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import * as axe from 'axe-core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorForm } from '@/components/VendorForm';
 import { processApprovalQueuedResponseSchema } from '@/services/api/schemas';
 import type { Vendor } from '@/types/vendor';
+import { ApiClientError } from '@/services/apiClient';
+import i18n from '@/i18n';
+
+const realTranslation = vi.hoisted(() => ({ locale: null as string | null }));
 
 const getVendorOwnersMock = vi.fn();
 const getVendorDepartmentsMock = vi.fn();
@@ -62,8 +66,9 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
 }
 
 vi.mock('@/i18n/hooks', () => ({
-    useTranslation: () => ({
+    useTranslation: (namespace?: string) => ({
         t: (key: string, options?: string | { defaultValue?: string }) => {
+            if (realTranslation.locale) return i18n.t(key, { ns: namespace, lng: realTranslation.locale, ...(typeof options === 'object' ? options : {}) });
             if (typeof options === 'string') return options;
             return options?.defaultValue ?? key;
         },
@@ -129,6 +134,7 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 describe('VendorForm', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        realTranslation.locale = null;
         accountabilityScenario.enabled = true;
         accountabilityScenario.error = false;
         accountabilityScenario.loading = false;
@@ -311,6 +317,7 @@ describe('VendorForm', () => {
             capabilities: {
                 can_update: true,
                 can_manage_accountability: false,
+                protected_change_requires_approval: false,
             },
         } as Vendor;
 
@@ -379,10 +386,10 @@ describe('VendorForm', () => {
         fireEvent.change(screen.getByTestId('vendor-form-name'), {
             target: { value: 'Protected Vendor v2' },
         });
-        fireEvent.change(screen.getByLabelText('form.request_reason'), {
+        fireEvent.change(screen.getByLabelText(/form.request_reason/), {
             target: { value: 'Material service change' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+        fireEvent.click(screen.getByRole('button', { name: 'actions.submit_for_approval' }));
 
         await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
         expect(updateVendorMock).toHaveBeenCalledWith(42, {
@@ -651,7 +658,7 @@ describe('VendorForm', () => {
             accountabilityScenario.enabled = false;
             accountabilityScenario.protectedVendorEnabled = true;
             renderWithQueryClient(
-                <VendorForm initialData={protectedVendor} isEdit onSaved={vi.fn()} />,
+                <VendorForm initialData={{ ...protectedVendor, capabilities: { ...protectedVendor.capabilities, protected_change_requires_approval: true } }} isEdit onSaved={vi.fn()} />,
             );
             await waitFor(() => expect(getVendorOwnersMock).toHaveBeenCalledTimes(1));
 
@@ -759,4 +766,40 @@ describe('VendorForm', () => {
             expect(updateVendorMock).not.toHaveBeenCalled();
         });
     });
+    afterEach(async () => { realTranslation.locale = null; await i18n.changeLanguage('en'); });
+
+    it.each([['en', 'critical'], ['cs', 'critical'], ['en', 'significant'], ['cs', 'significant']])('flags backend reason rejection for protected Vendor in %s (%s)', async (locale, tier) => {
+        realTranslation.locale = locale;
+        await i18n.changeLanguage(locale);
+        updateVendorMock.mockRejectedValue(new ApiClientError({
+            status: 422, code: 'governed_mutation_reason_required', messageKey: 'errors.request_failed',
+        }));
+        const onSaved = vi.fn();
+        const onApprovalQueued = vi.fn();
+        // Policy activation after this read snapshot is enforced by the backend.
+        const initialData = {
+            id: 42, name: 'Protected Vendor', process: 'Claims', department_id: 99,
+            outsourcing_owner_user_id: 7, vendor_type: 'ict',
+            derived: { tier },
+            capabilities: { can_update: true, protected_change_requires_approval: false },
+        } as Vendor;
+        renderWithQueryClient(<VendorForm initialData={initialData} isEdit onSaved={onSaved} onApprovalQueued={onApprovalQueued} />);
+        const name = screen.getByTestId('vendor-form-name');
+        fireEvent.change(name, { target: { value: 'Protected Vendor draft retained' } });
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('vendors:actions.save') }));
+        await waitFor(() => expect(updateVendorMock).toHaveBeenCalledTimes(1));
+        const reason = screen.getByTestId('vendor-form-request-reason');
+        await waitFor(() => expect(reason).toHaveAttribute('aria-invalid', 'true'));
+        const localized = i18n.t('vendors:errors.request_reason_required');
+        expect(localized).toBeTruthy();
+        expect(localized).not.toContain('request_reason_required');
+        expect(reason).toHaveAccessibleDescription(expect.stringContaining(localized));
+        await waitFor(() => expect(reason).toHaveFocus());
+        expect(name).toHaveValue('Protected Vendor draft retained');
+        expect(reason).toHaveValue('');
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(onApprovalQueued).not.toHaveBeenCalled();
+        expect(screen.queryByText(i18n.t('vendors:errors.save_failed'))).not.toBeInTheDocument();
+    });
+
 });

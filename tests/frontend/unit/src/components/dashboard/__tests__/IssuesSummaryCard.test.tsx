@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { buildDashboardDrillthrough } from '@/pages/dashboard/dashboardStats';
 import { IssuesSummaryCard } from '@/components/dashboard/IssuesSummaryCard';
 
 const translations: Record<string, string> = {
@@ -25,10 +26,11 @@ function LocationProbe() {
     return <output data-testid="location">{location.pathname}{location.search}</output>;
 }
 
-function renderCard() {
+function renderCard(departmentId: number | null = null) {
     return render(
         <MemoryRouter>
             <IssuesSummaryCard
+                links={buildDashboardDrillthrough({ departmentId }).issues}
                 issueSummary={{
                     open_issues: 20,
                     overdue_issues: 8,
@@ -42,21 +44,35 @@ function renderCard() {
 }
 
 describe('IssuesSummaryCard', () => {
+    it('renders the same department and exception criteria for every count row', () => {
+        renderCard(17);
+        for (const [name, extra] of [
+            ['Open: 20', {}], ['Overdue: 8', { overdue: true }],
+            ['High/Critical Open: 4', { severity_group: 'high_critical' }],
+        ] as const) {
+            const url = new URL(screen.getByRole('link', { name }).getAttribute('href')!, 'https://riskhub.test');
+            expect(JSON.parse(url.searchParams.get('filters')!)).toEqual({
+                include_closed: false, exclude_active_exceptions: true, department_id: 17, ...extra,
+            });
+        }
+        expect(screen.queryByRole('link', { name: /Median Age/ })).not.toBeInTheDocument();
+    });
+
     it('renders the drill-down rows as named links, while median age remains informational', () => {
         renderCard();
 
         expect(screen.getByRole('heading', { level: 2, name: 'Issues Summary' })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Open: 20' })).toHaveAttribute(
             'href',
-            '/issues?include_closed=false&exclude_active_exceptions=true',
+            '/issues?filters=' + encodeURIComponent(JSON.stringify({ include_closed: false, exclude_active_exceptions: true })),
         );
         expect(screen.getByRole('link', { name: 'Overdue: 8' })).toHaveAttribute(
             'href',
-            '/issues?include_closed=false&exclude_active_exceptions=true&overdue=true',
+            '/issues?filters=' + encodeURIComponent(JSON.stringify({ include_closed: false, exclude_active_exceptions: true, overdue: true })),
         );
         expect(screen.getByRole('link', { name: 'High/Critical Open: 4' })).toHaveAttribute(
             'href',
-            '/issues?include_closed=false&exclude_active_exceptions=true&severity_group=high_critical',
+            '/issues?filters=' + encodeURIComponent(JSON.stringify({ include_closed: false, exclude_active_exceptions: true, severity_group: 'high_critical' })),
         );
         expect(screen.queryByRole('link', { name: /Median Age/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
@@ -70,7 +86,7 @@ describe('IssuesSummaryCard', () => {
         fireEvent.click(screen.getByRole('link', { name: 'Overdue: 8' }));
 
         expect(screen.getByTestId('location')).toHaveTextContent(
-            '/issues?include_closed=false&exclude_active_exceptions=true&overdue=true',
+            '/issues?filters=' + encodeURIComponent(JSON.stringify({ include_closed: false, exclude_active_exceptions: true, overdue: true })),
         );
     });
 });

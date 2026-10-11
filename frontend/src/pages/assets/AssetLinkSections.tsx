@@ -1,5 +1,7 @@
+import { useOwnedGovernedMutation } from '@/hooks/useOwnedGovernedMutation';
+import { useGovernedReasonRequirement } from '@/hooks/useGovernedReasonRequirement';
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Link2, Plus, Star, Workflow } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -24,11 +26,9 @@ import { vendorApi } from '@/services/vendorApi';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { Asset } from '@/types/asset';
-import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import {
     processBusinessEditBlocked,
-    processMutationRequiresApprovalReason,
 } from '@/pages/processes/processProtectedEdit';
 
 import { DetailSection } from '../detail/DetailSection';
@@ -62,7 +62,7 @@ type PendingProcessAction =
     | { kind: 'update'; processId: number }
     | { kind: 'remove'; processId: number };
 
-export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: AssetLinkSectionsProps) {
+function AssetLinkSectionsContent({ asset, canManageLinks, onLinksChanged }: AssetLinkSectionsProps) {
     const { t } = useTranslation(['assets', 'common']);
     // D12 / PM-2: approval-routed link changes keep the user on the asset.
     const announceApprovalQueued = useApprovalQueued();
@@ -208,23 +208,33 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             ?.filter((link) => link.is_primary)
             .forEach((link) => pendingProcessIds.add(link.process_id));
     }
-    const processReasonRequired = asset.derived?.cif === 'yes'
-        || asset.derived?.resulting_criticality === 'critical'
-        || [...pendingProcessIds].some((processId) =>
-            processMutationRequiresApprovalReason(
-                processOptionsQuery.data?.items.find((candidate) => candidate.id === processId),
-            ));
+    const processRequirement = useGovernedReasonRequirement([
+        { kind: 'asset', id: asset.id, record: asset },
+        ...[...pendingProcessIds].map((id) => ({ kind: 'process' as const, id, record: processOptionsQuery.data?.items.find((row) => row.id === id) })),
+    ], pendingProcessAction !== null);
+    const removedAssetLink = assetLinksQuery.data?.find((link) => link.id === pendingRemoval?.id);
+    const counterpartAssetId = pendingAssetAction === 'asset_add' ? Number(assetToLink)
+        : removedAssetLink?.dependent_asset_id === asset.id ? removedAssetLink.supporting_asset_id : removedAssetLink?.dependent_asset_id;
+    const counterpartVendorId = pendingAssetAction === 'vendor_add' ? Number(vendorToLink)
+        : vendorLinksQuery.data?.find((link) => link.id === pendingRemoval?.id)?.vendor_id;
+    const vendorAction = pendingAssetAction === 'vendor_add' || pendingRemoval?.kind === 'vendor';
+    const linkRequirement = useGovernedReasonRequirement([
+        { kind: 'asset', id: asset.id, record: asset },
+        vendorAction
+            ? { kind: 'vendor', id: counterpartVendorId, record: vendorOptionsQuery.data?.items.find((row) => row.id === counterpartVendorId) }
+            : { kind: 'asset', id: counterpartAssetId, record: assetOptionsQuery.data?.items.find((row) => row.id === counterpartAssetId) },
+    ], pendingAssetAction !== null || pendingRemoval !== null);
     const selectedProcess = processOptionsQuery.data?.items.find(
         (candidate) => candidate.id === Number(processToLink),
     );
 
-    const refreshLinks = async () => {
+    const refreshLinks = async (isCurrent: () => boolean) => {
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ictRegisterKeys.assetProcessLinks(asset.id) }),
             queryClient.invalidateQueries({ queryKey: ictRegisterKeys.assetAssetLinks(asset.id) }),
             queryClient.invalidateQueries({ queryKey: ictRegisterKeys.assetVendorLinks(asset.id) }),
         ]);
-        await onLinksChanged?.();
+        if (isCurrent()) await onLinksChanged?.();
     };
 
     const handleMutationError = (mutationError: unknown) => {
@@ -232,7 +242,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         setLinkError(t('links.errors.mutation_failed'));
     };
 
-    const addProcessLink = useMutation({
+    const addProcessLink = useOwnedGovernedMutation(asset.id, {
         mutationFn: (requestReason: string) =>
             assetApi.addProcessLink(asset.id, {
                 process_id: Number(processToLink),
@@ -241,53 +251,53 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 is_primary: processLinkIsPrimary,
                 request_reason: requestReason,
             }),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             setProcessToLink('');
             setProcessLinkSignificance('');
             setProcessLinkSpof('');
             setProcessLinkIsPrimary(false);
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const setPrimaryProcess = useMutation({
+    const setPrimaryProcess = useOwnedGovernedMutation(asset.id, {
         mutationFn: ({ processId, reason }: { processId: number; reason: string }) =>
             assetApi.updateProcessLink(asset.id, processId, { is_primary: true, request_reason: reason }),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const removeProcessLink = useMutation({
+    const removeProcessLink = useOwnedGovernedMutation(asset.id, {
         mutationFn: ({ processId, reason }: { processId: number; reason: string }) =>
             assetApi.removeProcessLink(asset.id, processId, reason),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const addAssetLink = useMutation({
+    const addAssetLink = useOwnedGovernedMutation(asset.id, {
         mutationFn: (reason: string) =>
             assetApi.addAssetLink(asset.id, {
                 dependent_asset_id: assetLinkDirection === 'depends_on' ? asset.id : Number(assetToLink),
@@ -296,32 +306,32 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 spof: assetLinkSpof || null,
                 request_reason: reason,
             }),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingAssetAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             setAssetToLink('');
             setAssetLinkDependencyType('');
             setAssetLinkSpof('');
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const removeAssetLink = useMutation({
+    const removeAssetLink = useOwnedGovernedMutation(asset.id, {
         mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) => assetApi.removeAssetLink(asset.id, linkId, reason),
         onMutate: () => setLinkError(null),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingRemoval(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
@@ -334,18 +344,18 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
         reliance: vendorLinkReliance,
     });
 
-    const addVendorLink = useMutation({
+    const addVendorLink = useOwnedGovernedMutation(asset.id, {
         mutationFn: (reason: string) => {
             if (!vendorLinkPayload) {
                 return Promise.reject(new Error('Vendor and S-code are required'));
             }
             return assetApi.addVendorLink(asset.id, { ...vendorLinkPayload, request_reason: reason });
         },
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingAssetAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             setVendorToLink('');
@@ -353,22 +363,22 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             setVendorLinkRole('');
             setVendorLinkReliance('');
             setVendorLinkContractRef('');
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const removeVendorLink = useMutation({
+    const removeVendorLink = useOwnedGovernedMutation(asset.id, {
         mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) => assetApi.removeVendorLink(asset.id, linkId, reason),
         onMutate: () => setLinkError(null),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingRemoval(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
@@ -404,9 +414,9 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             return;
         }
         if (pendingRemoval.kind === 'asset') {
-            removeAssetLink.mutate({ linkId: pendingRemoval.id, reason: reason?.trim() ?? '' });
+            removeAssetLink.mutate({ linkId: pendingRemoval.id, reason: reason ?? '' });
         } else if (pendingRemoval.kind === 'vendor') {
-            removeVendorLink.mutate({ linkId: pendingRemoval.id, reason: reason?.trim() ?? '' });
+            removeVendorLink.mutate({ linkId: pendingRemoval.id, reason: reason ?? '' });
         }
     };
 
@@ -851,15 +861,16 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
                 intent="unlink"
                 entityName={pendingRemoval?.name}
                 message={t('links.remove_confirm.message', { name: pendingRemoval?.name ?? '' })}
-                reason="required"
+                reason={linkRequirement === 'required' ? 'required' : 'none'}
+                confirmDisabled={linkRequirement === 'unavailable'}
                 reasonLabel={t('form.request_reason')}
                 reasonPlaceholder={t('form.request_reason_help')}
                 isLoading={removeAssetLink.isPending || removeVendorLink.isPending}
-                errorText={pendingRemoval ? linkError : null}
+                errorText={pendingRemoval ? linkError ?? (linkRequirement === 'unavailable' ? t('common:governed_mutation.capability_unavailable') : null) : null}
             />
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null}
-                reasonRequired={processReasonRequired}
+                reasonRequirement={processRequirement}
                 namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove'
                     ? 'link_remove'
@@ -884,7 +895,7 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             />
             <GovernedMutationReasonDialog
                 isOpen={pendingAssetAction !== null}
-                reasonRequired
+                reasonRequirement={linkRequirement}
                 namespace="assets"
                 kind="link_add"
                 isLoading={addAssetLink.isPending || addVendorLink.isPending}
@@ -900,4 +911,9 @@ export function AssetLinkSections({ asset, canManageLinks, onLinksChanged }: Ass
             />
         </>
     );
+}
+
+/** Owner transitions remount draft state; in-flight effects remain generation-fenced. */
+export function AssetLinkSections(props: AssetLinkSectionsProps) {
+    return <AssetLinkSectionsContent key={props.asset.id} {...props} />;
 }

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,6 +46,7 @@ async def apply_whitelisted_pending_changes(
     changes: Mapping[str, Any],
     allowed_fields: set[str],
     owner_field_labels: Mapping[str, str] | None = None,
+    validate_changes: Callable[[Mapping[str, Any]], None] | None = None,
 ) -> AppliedFieldChanges:
     stale_result = reject_if_stale_pending_change(
         approval,
@@ -55,6 +56,9 @@ async def apply_whitelisted_pending_changes(
     )
     if stale_result is not None:
         return AppliedFieldChanges(stale_result=stale_result)
+
+    if validate_changes is not None:
+        validate_changes(changes)
 
     applied_changes: dict[str, Any] = {}
     rejected_fields: list[str] = []

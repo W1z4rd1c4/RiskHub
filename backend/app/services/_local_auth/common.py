@@ -113,6 +113,7 @@ async def audit_local(
     action: ActivityAction = ActivityAction.UPDATE,
     reason: str | None = None,
     evidence: dict | None = None,
+    revoke_count: int | None = None,
 ) -> None:
     await log_activity(
         db=db,
@@ -124,7 +125,12 @@ async def audit_local(
         description=event,
         safe_description=event,
         safe_description_siem=event,
-        changes={"security_event": event, **({"reason": reason} if reason is not None else {}), **(evidence or {})},
+        changes={
+            "security_event": event,
+            **({"reason": reason} if reason is not None else {}),
+            **(evidence or {}),
+            **({"event_type": event, "revoke_count": revoke_count} if revoke_count is not None else {}),
+        },
     )
 
 

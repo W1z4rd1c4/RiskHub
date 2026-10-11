@@ -18,7 +18,7 @@ from app.models import Department, Risk, User
 from app.models.activity_log import ActivityLog
 from app.models.risk import RiskStatus
 from app.models.vendor import Vendor
-from app.services._dashboard_metrics.risk_levels import (
+from app.services.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )

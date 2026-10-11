@@ -1,3 +1,4 @@
+import type { DashboardDrillthrough } from '@/pages/dashboard/dashboardStats';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, AlertTriangle, CalendarClock, ChevronRight, Clock3 } from 'lucide-react';
@@ -6,6 +7,7 @@ import { useFormat, useTranslation } from '@/i18n/hooks';
 import type { IssueDashboardSummary } from '@/types/dashboard';
 
 interface IssuesSummaryCardProps {
+    links: DashboardDrillthrough['issues'];
     issueSummary: IssueDashboardSummary;
 }
 
@@ -19,20 +21,7 @@ interface SummaryRow {
     iconClassName: string;
 }
 
-const DASHBOARD_PARITY_QUERY: Record<string, string> = {
-    include_closed: 'false',
-    exclude_active_exceptions: 'true',
-};
-
-function buildIssuesDrilldownHref(extraQuery: Record<string, string> = {}): string {
-    const params = new URLSearchParams({
-        ...DASHBOARD_PARITY_QUERY,
-        ...extraQuery,
-    });
-    return `/issues?${params.toString()}`;
-}
-
-export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
+export function IssuesSummaryCard({ issueSummary, links }: IssuesSummaryCardProps) {
     const { t } = useTranslation('dashboard');
     const format = useFormat();
 
@@ -43,7 +32,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 label: t('issues.summary.open'),
                 value: issueSummary.open_issues,
                 kind: 'drilldown',
-                href: buildIssuesDrilldownHref(),
+                href: links.open,
                 Icon: AlertCircle,
                 iconClassName: 'text-warning-text',
             },
@@ -52,7 +41,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 label: t('issues.summary.overdue'),
                 value: issueSummary.overdue_issues,
                 kind: 'drilldown',
-                href: buildIssuesDrilldownHref({ overdue: 'true' }),
+                href: links.overdue,
                 Icon: Clock3,
                 iconClassName: 'text-destructive',
             },
@@ -61,7 +50,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 label: t('issues.summary.high_critical_open'),
                 value: issueSummary.high_severity_open,
                 kind: 'drilldown',
-                href: buildIssuesDrilldownHref({ severity_group: 'high_critical' }),
+                href: links.highSeverity,
                 Icon: AlertTriangle,
                 iconClassName: 'text-severity-high-text',
             },
@@ -74,7 +63,7 @@ export function IssuesSummaryCard({ issueSummary }: IssuesSummaryCardProps) {
                 iconClassName: 'text-accent-text',
             },
         ],
-        [issueSummary.high_severity_open, issueSummary.median_days_open, issueSummary.open_issues, issueSummary.overdue_issues, t]
+        [issueSummary.high_severity_open, issueSummary.median_days_open, issueSummary.open_issues, issueSummary.overdue_issues, links, t]
     );
 
     return (

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
@@ -12,6 +12,7 @@ import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness'
 import { clearBootstrapSession } from '@/services/session/coordinator';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
 import { ControlsPage } from '@/pages/ControlsPage';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
@@ -47,7 +48,9 @@ async function renderWithRoute(route: string) {
                         <DashboardFilterProvider>
                             <Routes>
                                 <Route path="/controls" element={<ControlsPage />} />
+                                <Route path="/departments/:departmentId" element={<DepartmentRegisterScopeProvider value={{departmentId:17,departmentName:'Scoped'}}><ControlsPage/></DepartmentRegisterScopeProvider>} />
                             </Routes>
+                            <LocationProbe/>
                         </DashboardFilterProvider>
                     </LanguageProvider>
                 </AuthProviderWithReady>
@@ -56,6 +59,8 @@ async function renderWithRoute(route: string) {
     );
     await waitForAuthBootstrapReady();
 }
+
+function LocationProbe(){const location=useLocation();return <output data-testid="location">{location.pathname+location.search}</output>;}
 
 describe('ControlsPage archived visibility', () => {
     beforeEach(() => {
@@ -220,4 +225,25 @@ describe('ControlsPage archived visibility', () => {
         await screen.findByText('Passed Control');
         expect(screen.queryByText('Failed Control')).not.toBeInTheDocument();
     });
+    it.each([false,true])('retains form and locked Department scope through real page URL cleanup (department=%s)',async department=>{
+        const criteria:Record<string,unknown>[]=[];let reports=0;
+        server.use(
+            http.get('*/api/v1/auth/me',()=>HttpResponse.json(makeUser({effective_permissions:['controls:read','reports:read']}))),
+            http.get('*/api/v1/controls',({request})=>{criteria.push(JSON.parse(new URL(request.url).searchParams.get('filters')??'{}'));return HttpResponse.json({items:[],total:0,offset:0,limit:50,capabilities:{can_export:true}});}),
+            http.get('*/api/v1/reports/controls/export',()=>{reports++;return new HttpResponse('unexpected');}),
+        );
+        const query='?filters='+encodeURIComponent(JSON.stringify({control_form:'automatic',status:'inactive'}));
+        await renderWithRoute((department?'/departments/17':'/controls')+query+(department?'&tab=controls':''));
+        expect(await screen.findByText('Control Form: Automatic')).toBeVisible();
+        expect(criteria.at(-1)).toMatchObject({control_form:'automatic',status:'inactive',...(department?{department_id:17}:{})});
+        expect(screen.getByTestId('location')).toHaveTextContent('control_form');
+        if(department)expect(screen.getByTestId('location')).toHaveTextContent('tab=controls');
+        const user=userEvent.setup();
+        await user.click(await screen.findByRole('button',{name:/export/i}));
+        await user.click(screen.getByTestId('export-purpose-point-in-time'));
+        expect(screen.getByText(/Snapshot export cannot apply the Control form: Automatic/)).toBeVisible();
+        expect(screen.getByTestId('export-submit-button')).toBeDisabled();
+        expect(reports).toBe(0);
+    });
+
 });

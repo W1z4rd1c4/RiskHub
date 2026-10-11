@@ -14,8 +14,13 @@ describe('Department alternate evidence exports', () => {
         const source = readFileSync(resolve(ROOT, path), 'utf8');
         const exportStart = source.indexOf(`const ${exportName}`);
         expect(exportStart).toBeGreaterThan(-1);
-        expect(source.slice(exportStart, exportStart + 1_500)).toContain(
-            'departmentId: departmentScope?.departmentId',
-        );
+        const callback = source.slice(exportStart, exportStart + 1_500);
+        if (_name === 'Risk') {
+            const planner = source.slice(source.indexOf('const listParams'), source.indexOf('const configuredRangeIdentity'));
+            expect(planner).toContain('...apiSemanticFilters,\n            department_id: departmentScope?.departmentId,');
+            expect(callback).toContain('departmentId: listParams.department_id');
+        } else {
+            expect(callback).toContain('departmentId: departmentScope?.departmentId');
+        }
     });
 });

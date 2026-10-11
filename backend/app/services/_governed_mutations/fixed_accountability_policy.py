@@ -12,6 +12,8 @@ from app.core.exceptions import ApprovalScenarioConfigurationError
 from app.models import GovernedMutationProposal, User
 from app.models.approval_scenario import ApprovalScenario
 
+from .composite_policy import live_visibility_policy_roles, role_visible_in_snapshot
+
 ACCOUNTABILITY_SCENARIO_KEY = "accountability_reassignment"
 
 
@@ -98,24 +100,28 @@ def is_live_eligible_accountability_resolver(
     scenario: ApprovalScenario | None,
 ) -> bool:
     role_name = getattr(getattr(user, "role", None), "name", None)
-    live_roles = (
-        tuple(str(role) for role in (scenario.approver_roles or ()))
-        if scenario
-        else ()
-    )
+    # Visibility callers strictly classify the proposal first. Resolution also
+    # uses this authority seam before bounded malformed-envelope expiry, so it
+    # must not demand a fully valid mutation payload here.
     snapshot = proposal.scenario_snapshot
     snapshot_roles = (
-        tuple(str(role) for role in snapshot.get("approver_roles", ()))
+        snapshot["approver_roles"]
         if isinstance(snapshot, dict)
         and isinstance(snapshot.get("approver_roles"), list)
+        and all(isinstance(role, str) for role in snapshot["approver_roles"])
         else ()
     )
     return bool(
         is_fixed_accountability_resolution_authority(user, proposal)
-        and scenario is not None
-        and scenario.requires_approval
-        and role_name in live_roles
-        and role_name in snapshot_roles
+        and role_visible_in_snapshot(
+            role_name,
+            snapshot_roles,
+            live_policy_roles=[
+                live_visibility_policy_roles(scenario.requires_approval, scenario.approver_roles)
+                if scenario is not None
+                else None
+            ],
+        )
     )
 
 

@@ -41,6 +41,7 @@ interface ConfirmDialogProps {
     confirmLabel?: string;
     cancelLabel?: string;
     isLoading?: boolean;
+    confirmDisabled?: boolean;
     /**
      * Rejected-mutation error announced INSIDE the dialog (#100/#101 P2): the
      * shell traps focus, so a page-level banner behind the overlay is
@@ -77,6 +78,7 @@ export function ConfirmDialog({
     confirmLabel,
     cancelLabel,
     isLoading = false,
+    confirmDisabled = false,
     errorText = null,
 }: ConfirmDialogProps) {
     const { t } = useTranslation('common');
@@ -122,7 +124,7 @@ export function ConfirmDialog({
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (busy) return;
+        if (busy || confirmDisabled) return;
         if (reasonPolicy === 'required' && !reasonValue.trim()) {
             setValidationError(t('errors.required_field'));
             reasonRef.current?.focus();
@@ -154,7 +156,7 @@ export function ConfirmDialog({
         validationError ? validationId : '',
         displayedError ? errorId : '',
     ];
-    const isConfirmDisabled = reasonPolicy === 'required' && !reasonValue.trim();
+    const isConfirmDisabled = confirmDisabled || reasonPolicy === 'required' && !reasonValue.trim();
 
     return (
         <DialogShell

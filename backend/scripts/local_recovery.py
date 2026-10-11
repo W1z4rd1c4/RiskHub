@@ -68,7 +68,7 @@ async def run(args: argparse.Namespace) -> dict:
         async with session_context(settings) as db:
             ctx = await build_context(db, settings=settings, redis=redis, source="offline-recovery")
             if args.command in {"prepare", "status"}:
-                user = await lock_identity_transition(db, user_id=args.target_user_id)
+                user = await lock_identity_transition(db, user_id=args.target_user_id, settings=settings)
                 if args.command == "status":
                     return {
                         "status": "read-only",
@@ -101,7 +101,7 @@ async def run(args: argparse.Namespace) -> dict:
             approvers = verify_approvals(envelope, approvals, settings.local_recovery_approvers_file)
             if envelope.installation_id != ctx.installation_id:
                 raise invalid_proof()
-            user = await lock_identity_transition(db, user_id=envelope.target_user_id)
+            user = await lock_identity_transition(db, user_id=envelope.target_user_id, settings=settings)
             # Recheck time and target after any lock wait.
             validate_envelope(envelope)
             require_recoverable(user, version=envelope.expected_token_version)

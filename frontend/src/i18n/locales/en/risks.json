@@ -189,11 +189,16 @@
     "breached_only_clear": "Breached Only (click to clear)"
   },
   "register": {
+    "snapshot_net_band": "Workbook Risk band",
+    "snapshot_group": "Selected Risk group",
+    "snapshot_breach_yes": "KRI breach: Yes",
+    "snapshot_breach_no": "KRI breach: No",
     "views": { "all": "All", "category": "By Category", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "vendor": "By Vendor" },
-    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band" },
+    "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "has_breach": "KRI breach", "critical": "Critical risk", "net_band": "Net band", "risk_level": "Configured Risk level" },
     "net_bands": { "low": "Low", "medium": "Medium", "high": "High", "critical": "Critical" },
     "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },
-    "export": { "title": "Export filtered risks" }
+    "export": { "title": "Export filtered risks" },
+    "snapshot_unavailable": "Snapshot export cannot apply the configured Risk criterion: {{criteria}}. Use Current view to export these filters, or clear them before creating a snapshot."
   },
   "grouping": {
     "unlinked_vendor": "Unlinked Vendor"

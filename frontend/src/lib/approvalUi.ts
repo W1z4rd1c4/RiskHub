@@ -5,20 +5,9 @@
  * Used by forms (RiskForm, ControlForm, KRIForm) to detect when an edit
  * requires approval instead of being applied immediately.
  */
+import { governedMutationSuccess } from './governedMutationOutcome';
 import type { ApprovalCreatedResponse } from '@/types/approval';
-
-/**
- * Type guard to check if a response is an approval-created response
- */
-export function isApprovalCreatedResponse(response: unknown): response is ApprovalCreatedResponse {
-    return (
-        typeof response === 'object' &&
-        response !== null &&
-        'status' in response &&
-        'approval_id' in response &&
-        typeof (response as { approval_id: unknown }).approval_id === 'number'
-    );
-}
+export { isApprovalCreatedResponse } from './governedMutationOutcome';
 
 export type ParseResult =
     | { kind: 'applied' }
@@ -31,11 +20,12 @@ export type ParseResult =
  * @returns ParseResult indicating whether change was applied or queued
  */
 export function parseUpdateResult(response: unknown): ParseResult {
-    if (isApprovalCreatedResponse(response)) {
+    const outcome = governedMutationSuccess<ApprovalCreatedResponse | unknown>(response);
+    if (outcome.kind === 'pending') {
         return {
             kind: 'approval',
-            approvalId: response.approval_id,
-            message: response.message,
+            approvalId: outcome.approvalId,
+            message: (response as ApprovalCreatedResponse).message,
         };
     }
     return { kind: 'applied' };

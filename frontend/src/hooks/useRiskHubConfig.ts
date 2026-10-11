@@ -46,7 +46,7 @@ const DEFAULT_THRESHOLDS = {
 };
 
 // Correct config keys as seeded by Risk Hub
-const THRESHOLD_KEYS = {
+export const THRESHOLD_KEYS = {
     critical: 'critical_risk_min_net_score',
     high: 'high_risk_min_net_score',
     medium: 'medium_risk_min_net_score',

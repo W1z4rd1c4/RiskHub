@@ -169,6 +169,7 @@ class AssetArchiveRequest(BaseModel):
 
 
 class AssetCapabilities(BaseModel):
+    protected_change_requires_approval: bool = False
     can_read: bool
     can_update: bool
     can_archive: bool

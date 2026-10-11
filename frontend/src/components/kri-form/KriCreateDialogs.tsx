@@ -46,7 +46,7 @@ export function KriCreateDialogs({
                     isLoading={isSubmitting}
                     kind="link_add"
                     namespace="vendors"
-                    reasonRequired
+                    reasonRequired={isProtectedVendor}
                     errorText={errorText}
                     onClose={onCancelGoverned}
                     onConfirm={onConfirmGoverned}

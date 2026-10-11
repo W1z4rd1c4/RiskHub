@@ -1,3 +1,4 @@
+import { withReason, reasonBody } from './api/governedReason';
 import { apiClient } from './apiClient';
 import {
     assetAssetLinkListSchema,
@@ -108,16 +109,16 @@ export const assetApi = {
     },
 
     async createAsset(data: AssetWritePayload): Promise<Asset | ProcessApprovalQueuedResponse> {
-        return apiClient.post('/assets', data, { schema: assetSchema.or(processApprovalQueuedResponseSchema) });
+        return apiClient.post('/assets', withReason(data), { schema: assetSchema.or(processApprovalQueuedResponseSchema) });
     },
 
     async updateAsset(id: number, data: AssetWritePayload): Promise<Asset | ProcessApprovalQueuedResponse> {
-        return apiClient.patch(`/assets/${id}`, data, { schema: assetSchema.or(processApprovalQueuedResponseSchema) });
+        return apiClient.patch(`/assets/${id}`, withReason(data), { schema: assetSchema.or(processApprovalQueuedResponseSchema) });
     },
 
     async archiveAsset(id: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/assets/${id}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -135,7 +136,7 @@ export const assetApi = {
         assetId: number,
         data: ProcessAssetLinkCreatePayload,
     ): Promise<ProcessAssetLink | ProcessApprovalQueuedResponse> {
-        return apiClient.post(`/assets/${assetId}/process-links`, data, {
+        return apiClient.post(`/assets/${assetId}/process-links`, withReason(data), {
             schema: processAssetLinkSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -146,7 +147,7 @@ export const assetApi = {
         processId: number,
         data: ProcessAssetLinkUpdatePayload,
     ): Promise<ProcessAssetLink | ProcessApprovalQueuedResponse> {
-        return apiClient.patch(`/assets/${assetId}/process-links/${processId}`, data, {
+        return apiClient.patch(`/assets/${assetId}/process-links/${processId}`, withReason(data), {
             schema: processAssetLinkSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -157,7 +158,7 @@ export const assetApi = {
         requestReason: string,
     ): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/assets/${assetId}/process-links/${processId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -168,14 +169,14 @@ export const assetApi = {
     },
 
     async addAssetLink(assetId: number, data: AssetAssetLinkCreatePayload): Promise<AssetAssetLink | ProcessApprovalQueuedResponse> {
-        return apiClient.post(`/assets/${assetId}/asset-links`, data, {
+        return apiClient.post(`/assets/${assetId}/asset-links`, withReason(data), {
             schema: assetAssetLinkSchema.or(processApprovalQueuedResponseSchema),
         });
     },
 
     async removeAssetLink(assetId: number, linkId: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/assets/${assetId}/asset-links/${linkId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -186,14 +187,14 @@ export const assetApi = {
     },
 
     async addVendorLink(assetId: number, data: AssetVendorLinkCreatePayload): Promise<AssetVendorLink | ProcessApprovalQueuedResponse> {
-        return apiClient.post(`/assets/${assetId}/vendor-links`, data, {
+        return apiClient.post(`/assets/${assetId}/vendor-links`, withReason(data), {
             schema: assetVendorLinkSchema.or(processApprovalQueuedResponseSchema),
         });
     },
 
     async removeVendorLink(assetId: number, linkId: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/assets/${assetId}/vendor-links/${linkId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },

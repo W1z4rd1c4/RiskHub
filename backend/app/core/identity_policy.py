@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 AUTO_DEPROVISION_REASONS = frozenset({"ad_deprovision", "missing", "directory_disabled"})
-DIRECTORY_OWNED_FIELDS = frozenset({"name", "email", "job_title", "entra_business_role", "external_id"})
 AUTHORITY_FIELDS = frozenset(
     {
         "password_changed",

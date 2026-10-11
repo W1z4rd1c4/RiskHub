@@ -1,3 +1,6 @@
+import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
+import { reasonField } from '@/services/api/governedReason';
+import { governedMutationSuccess, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -14,7 +17,7 @@ import { assetApi } from '@/services/assetApi';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 import type { Asset } from '@/types/asset';
-import { isProcessApprovalQueuedResponse, type ProcessApprovalQueuedResponse } from '@/types/process';
+import { type ProcessApprovalQueuedResponse } from '@/types/process';
 
 import { FormActions, FormErrorSummary, FormLoadFailedNotice, FormSection } from '../shared/EntityFormChrome';
 import { ASSET_CONTROLLED_CODES, buildAssetWritePayload } from './assetsPagePresentation';
@@ -149,7 +152,7 @@ function buildAssetFormPayload(fields: FormFields) {
         last_legacy_risk_assessment_date: fields.last_legacy_risk_assessment_date,
         review_state: fields.review_state,
         notes: fields.notes,
-        request_reason: fields.request_reason.trim() || undefined,
+        ...reasonField(fields.request_reason),
     });
 }
 
@@ -181,21 +184,13 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             || fields.owning_department_id !== toFieldValue(initialData.owning_department_id)
         ),
     );
-    const protectedAssetEditApplies = Boolean(
-        initialData?.derived?.cif === 'yes'
-        || initialData?.derived?.resulting_criticality === 'critical',
-    );
-    const accountabilityChangeRequiresApproval = accountabilityChanged && (
-        accountabilityScenario.isEnabled
-        || (
-            protectedAssetEditApplies
-            && accountabilityScenario.requiresApproval('protected_asset_edit')
-        )
-    );
-    const accountabilityScenarioUnavailable = accountabilityChanged
-        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
+    const reasonRequirement = governedReasonRequirement(initialData);
+    const accountabilityChangeRequiresApproval = accountabilityChanged && accountabilityScenario.isEnabled;
+    const requestReasonRequired = accountabilityChangeRequiresApproval || (isEdit && reasonRequirement === 'required');
+    const accountabilityScenarioUnavailable = (isEdit && reasonRequirement === 'unavailable')
+        || (accountabilityChanged && (accountabilityScenario.isLoading || accountabilityScenario.isError));
     let submitLabel = t('actions.create');
-    if (accountabilityChangeRequiresApproval) {
+    if (requestReasonRequired) {
         submitLabel = t('actions.submit_for_approval');
     } else if (isEdit) {
         submitLabel = t('actions.save');
@@ -207,7 +202,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         'business_owner_user_id',
         'ict_owner_user_id',
         'owning_department_id',
-        ...(accountabilityChangeRequiresApproval ? ['request_reason' as const] : []),
+        ...(requestReasonRequired ? ['request_reason' as const] : []),
     ];
     const fieldRefs = useRef<Partial<Record<keyof FormFields, HTMLElement | null>>>({});
     const registerFieldRef = (field: keyof FormFields) => (element: HTMLElement | null) => {
@@ -313,7 +308,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
         if (!fields.business_owner_user_id) nextErrors.business_owner_user_id = t('form.errors.business_owner_required');
         if (!fields.ict_owner_user_id) nextErrors.ict_owner_user_id = t('form.errors.ict_owner_required');
         if (!fields.owning_department_id) nextErrors.owning_department_id = t('form.errors.owning_department_required');
-        if (accountabilityChangeRequiresApproval && !fields.request_reason.trim()) {
+        if (requestReasonRequired && !fields.request_reason.trim()) {
             nextErrors.request_reason = t('form.errors.request_reason_required');
         }
         return nextErrors;
@@ -338,15 +333,23 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
             const saved = isEdit && initialData
                 ? await assetApi.updateAsset(initialData.id, payload)
                 : await assetApi.createAsset(payload);
+            const outcome = governedMutationSuccess(saved);
             acceptCurrentSnapshot();
-            if (isProcessApprovalQueuedResponse(saved)) {
-                onApprovalQueued?.(saved);
+            if (outcome.kind === 'pending') {
+                onApprovalQueued?.(outcome.response);
             } else {
-                onSaved(saved);
+                onSaved(outcome.response);
             }
         } catch (submitError) {
             logError('Failed to save asset:', submitError);
-            setError(t('form.errors.save_failed'));
+            const rejection = governedMutationRejection(submitError);
+            if (rejection.field === 'request_reason') {
+                setError(null);
+                setFieldErrors((current) => ({ ...current, request_reason: t('form.errors.request_reason_required') }));
+                requestAnimationFrame(() => fieldRefs.current.request_reason?.focus());
+            } else {
+                setError(t(`form.errors.${rejection.message}`));
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -503,7 +506,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                 </Field>
                 <Field
                     label={t('form.request_reason')}
-                    required={accountabilityChangeRequiresApproval}
+                    required={requestReasonRequired}
                     error={fieldErrors.request_reason}
                     help={t('form.request_reason_help')}
                 >
@@ -520,6 +523,7 @@ export function AssetForm({ initialData, isEdit = false, onSaved, onApprovalQueu
                 </Field>
             </FormSection>
 
+            {isEdit && reasonRequirement === 'unavailable' ? <FormErrorSummary message={t('common:governed_mutation.capability_unavailable')} /> : null}
             <FormActions
                 submitLabel={submitLabel}
                 submitTestId="asset-form-submit"

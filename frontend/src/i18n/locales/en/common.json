@@ -1,4 +1,9 @@
 {
+  "governed_mutation": {
+      "capability_unavailable": "Approval requirements are unavailable. Refresh the record before submitting.",
+      "request_reason_required": "A request reason is required for this governed change.",
+      "pending_change_exists": "A change is already pending. Cancel or resolve it before submitting another."
+  },
   "actions": {
     "save": "Save",
     "cancel": "Cancel",

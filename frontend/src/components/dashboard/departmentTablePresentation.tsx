@@ -1,3 +1,4 @@
+import type { DashboardDrillthrough } from '@/pages/dashboard/dashboardStats';
 import { AlertTriangle, ChevronRight, ClipboardList, Target, type LucideIcon } from 'lucide-react';
 import type { NavigateFunction } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,8 @@ const FOCUS_SELECTED_CLASS = 'text-accent-text bg-accent/10';
 const FOCUS_IDLE_CLASS = 'hover:text-chart-2 hover:bg-chart-2/10';
 
 interface DepartmentQuickActionsProps {
+    unavailableReason?: string;
+    destinations: Pick<DashboardDrillthrough, 'controls' | 'risks'>;
     canUseDepartmentFilter: boolean;
     departmentId: number;
     isSelected: boolean;
@@ -26,11 +29,13 @@ interface DepartmentQuickActionsProps {
  */
 function QuickActionButton({
     icon: Icon,
+    disabledReason,
     label,
     onClick,
     className,
 }: {
     icon: LucideIcon;
+    disabledReason?: string;
     label: string;
     onClick: () => void;
     className?: string;
@@ -41,6 +46,8 @@ function QuickActionButton({
                 variant="ghost"
                 size="iconCompact"
                 aria-label={label}
+                disabled={Boolean(disabledReason)}
+                title={disabledReason}
                 onClick={(event) => {
                     event.stopPropagation();
                     onClick();
@@ -60,6 +67,8 @@ function QuickActionButton({
 }
 
 function DepartmentQuickActions({
+    destinations,
+    unavailableReason,
     canUseDepartmentFilter,
     departmentId,
     isSelected,
@@ -75,13 +84,15 @@ function DepartmentQuickActions({
             <QuickActionButton
                 icon={ClipboardList}
                 label={t('department_table.actions.view_controls')}
-                onClick={() => void navigate(`/controls?department=${departmentId}`)}
+                disabledReason={unavailableReason}
+                onClick={() => void navigate(destinations.controls)}
                 className="hover:text-accent-text hover:bg-accent/10"
             />
             <QuickActionButton
                 icon={AlertTriangle}
                 label={t('department_table.actions.view_risks')}
-                onClick={() => void navigate(`/risks?department=${departmentId}`)}
+                disabledReason={unavailableReason}
+                onClick={() => void navigate(destinations.risks.all)}
                 className="hover:text-severity-high-text hover:bg-severity-high/10"
             />
             {canUseDepartmentFilter && (
@@ -95,7 +106,8 @@ function DepartmentQuickActions({
             <QuickActionButton
                 icon={ChevronRight}
                 label={t('department_table.actions.go_to_department')}
-                onClick={() => void navigate(`/risks?department=${departmentId}`)}
+                disabledReason={unavailableReason}
+                onClick={() => void navigate(destinations.risks.all)}
                 className="group-hover:text-foreground"
             />
         </div>
@@ -103,6 +115,8 @@ function DepartmentQuickActions({
 }
 
 export function DepartmentMetricRow({
+    destinations,
+    unavailableReason,
     canUseDepartmentFilter,
     dept,
     isSelected,
@@ -110,6 +124,8 @@ export function DepartmentMetricRow({
     setDepartmentId,
     t,
 }: {
+    unavailableReason?: string;
+    destinations: Pick<DashboardDrillthrough, 'controls' | 'risks'>;
     canUseDepartmentFilter: boolean;
     dept: DepartmentMetrics;
     isSelected: boolean;
@@ -178,6 +194,8 @@ export function DepartmentMetricRow({
             </TD>
             <TD>
                 <DepartmentQuickActions
+                    destinations={destinations}
+                    unavailableReason={unavailableReason}
                     canUseDepartmentFilter={canUseDepartmentFilter}
                     departmentId={dept.department_id}
                     isSelected={isSelected}

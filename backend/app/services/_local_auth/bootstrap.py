@@ -32,6 +32,7 @@ from .common import (
     local_user_ready,
     require_native_identity,
 )
+from .factor_policy import evaluate_factor_policy
 from .recovery_approvals import load_recovery_approvers
 
 
@@ -193,11 +194,7 @@ async def bootstrap_status(db: AsyncSession, ctx: NativeContext) -> dict:
                 and user.role.is_active
                 and user.access_scope == AccessScope.GLOBAL
                 and local_user_ready(user)
-                and (
-                    ctx.settings.local_mfa_policy == "optional"
-                    or factor is not None
-                    and factor.confirmed_at is not None
-                )
+                and evaluate_factor_policy(ctx.settings.local_mfa_policy, factor).satisfied
             )
         entries.append(
             {
@@ -246,7 +243,7 @@ async def _deliver_pending(db: AsyncSession, ctx: NativeContext) -> dict:
         try:
             async with atomic_local_work(db):
                 await _guard(db, ctx)
-                user = await lock_identity_transition(db, user_id=user_id)
+                user = await lock_identity_transition(db, user_id=user_id, settings=ctx.settings)
                 target = await db.get(
                     LocalBootstrapTarget, (ctx.installation_id, slot), populate_existing=True, with_for_update=True
                 )

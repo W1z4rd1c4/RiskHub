@@ -28,6 +28,10 @@ async def log_user_update_and_commit(
     if AUTHORITY_FIELDS.intersection(changes):
         reason = "identity_access_changed"
         revoked = await invalidate_user_sessions(db=db, user=user, reason=reason)
+        # Project only already-allowlisted, nonsecret transition facts. The
+        # nested session-authority payload remains redacted by the audit policy.
+        changes["event_type"] = {"old": None, "new": reason}
+        changes["revoke_count"] = {"old": None, "new": revoked}
         changes["session_authority"] = {
             "old": None,
             "new": {
@@ -68,6 +72,7 @@ async def commit_directory_import(
     import_status: Literal["created", "updated"],
     provider_name: str,
     account_enabled: bool,
+    revoked_count: int | None = None,
 ) -> None:
     if account_enabled:
         await log_activity(
@@ -78,6 +83,9 @@ async def commit_directory_import(
             entity_id=user.id,
             entity_name=user.name,
             description=f"Directory import ({provider_name}) for {user.email}",
+            changes={"event_type": "directory_import_identity_changed", "revoke_count": revoked_count}
+            if revoked_count is not None
+            else None,
         )
 
     await commit_service_boundary(db, boundary="identity_access.directory_import")

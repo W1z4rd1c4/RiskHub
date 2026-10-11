@@ -1,4 +1,10 @@
 export const ictRegisterKeys = {
+    reasonRequirement: (userId: number | undefined, kind: 'asset' | 'process' | 'vendor', id: number | undefined) =>
+        ['ictRegister', 'reasonRequirement', userId ?? 'anonymous', kind, id] as const,
+    reasonCapabilityPrefixes: () => [
+        ['ictRegister', 'processOptions'], ['ictRegister', 'assetOptions'],
+        ['ictRegister', 'vendorOptions'], ['ictRegister', 'reasonRequirement'],
+    ] as const,
     closedLists: () => ['ictRegister', 'closedLists'] as const,
     processOwnerLookup: (search = '') => ['ictRegister', 'processOwnerLookup', search] as const,
     threatStewardLookup: (search = '') => ['threat-steward-lookup', search] as const,

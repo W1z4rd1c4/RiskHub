@@ -636,9 +636,9 @@ async def test_update_user_deactivation_clears_org_manager_references(
     async def capture_lock(db: AsyncSession) -> None:
         call_order.append("lock")
 
-    async def capture_clear(db: AsyncSession, *, user_id: int) -> None:
+    async def capture_clear(db: AsyncSession, *, user_id: int, actor: User | None) -> None:
         call_order.append("clear")
-        await original_clear(db, user_id=user_id)
+        await original_clear(db, user_id=user_id, actor=actor)
 
     monkeypatch.setattr(profile_updates, "acquire_org_chart_lock", capture_lock)
     monkeypatch.setattr(profile_updates, "clear_manager_references_for_inactive_user", capture_clear)

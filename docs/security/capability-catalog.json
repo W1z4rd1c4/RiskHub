@@ -436,6 +436,7 @@
     "can_update",
     "can_archive",
     "can_restore",
+    "protected_change_requires_approval",
     "has_pending_change",
     "business_edit_blocked",
     "can_cancel_pending_change"
@@ -798,8 +799,11 @@
     "path": "frontend/src/services/api/schemas/entities/identity.ts",
     "schema": "accessUserCapabilitiesSchema"
    },
+   "string_array_fields": ["directory_owned_fields", "verified_identity_fields"],
    "fields": [
     "can_edit_identity",
+    "directory_owned_fields",
+    "verified_identity_fields",
     "can_edit_business_access",
     "can_edit_role",
     "can_deactivate",

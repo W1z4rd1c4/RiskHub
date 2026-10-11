@@ -1,5 +1,7 @@
+import { useOwnedGovernedMutation } from '@/hooks/useOwnedGovernedMutation';
+import { useGovernedReasonRequirement } from '@/hooks/useGovernedReasonRequirement';
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, Plus, Workflow } from 'lucide-react';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
@@ -23,12 +25,10 @@ import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorSubOutsourcingApi } from '@/services/vendorSubOutsourcingApi';
 import type { VendorCapabilities } from '@/types/vendor';
-import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import {
     processBusinessEditBlocked,
-    processMutationRequiresApprovalReason,
 } from '@/pages/processes/processProtectedEdit';
 
 import {
@@ -40,7 +40,7 @@ interface VendorRegisterLinksSectionProps {
     vendorId: number;
     capabilities?: Pick<
         VendorCapabilities,
-        'can_view_asset_links' | 'can_manage_asset_links' | 'can_manage_process_links'
+        'can_view_asset_links' | 'can_manage_asset_links' | 'can_manage_process_links' | 'protected_change_requires_approval'
     > | null;
 }
 
@@ -51,7 +51,7 @@ interface VendorRegisterLinksSectionProps {
  * metadata controls whether each block is fetched; mutations call the
  * register-end routes and are gated separately by add and per-row capabilities.
  */
-export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorRegisterLinksSectionProps) {
+function VendorRegisterLinksSectionContent({ vendorId, capabilities }: VendorRegisterLinksSectionProps) {
     const { t } = useTranslation(['vendors', 'common']);
     // D12 / PM-2: approval-routed changes keep the user on this page with
     // the pending notice plus a success toast.
@@ -145,18 +145,18 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         setSectionError(t('register_links.errors.mutation_failed'));
     };
 
-    const addAssetLink = useMutation({
+    const addAssetLink = useOwnedGovernedMutation(vendorId, {
         mutationFn: (reason: string) =>
             assetApi.addVendorLink(Number(assetToLink), {
                 vendor_id: vendorId,
                 ict_service_code: assetLinkServiceCode,
                 request_reason: reason,
             }),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome) => {
             setSectionError(null);
             setPendingAssetAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             setAssetToLink('');
@@ -166,14 +166,14 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         onError: handleMutationError,
     });
 
-    const removeAssetLink = useMutation({
+    const removeAssetLink = useOwnedGovernedMutation(vendorId, {
         mutationFn: ({ assetId, linkId, reason }: { assetId: number; linkId: number; reason: string }) =>
             assetApi.removeVendorLink(assetId, linkId, reason),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome) => {
             setSectionError(null);
             setPendingAssetAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             feedback.success({ title: t('common:outcome.link_removed') });
@@ -182,16 +182,16 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         onError: handleMutationError,
     });
 
-    const addProcessLink = useMutation({
+    const addProcessLink = useOwnedGovernedMutation(vendorId, {
         mutationFn: (reason: string) => processApi.addVendorLink(Number(processToLink), {
             vendor_id: vendorId,
             request_reason: reason,
         }),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome) => {
             setSectionError(null);
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             setProcessToLink('');
@@ -200,14 +200,14 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         onError: handleMutationError,
     });
 
-    const removeProcessLink = useMutation({
+    const removeProcessLink = useOwnedGovernedMutation(vendorId, {
         mutationFn: ({ processId, linkId, reason }: { processId: number; linkId: number; reason: string }) =>
             processApi.removeVendorLink(processId, linkId, reason),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome) => {
             setSectionError(null);
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             feedback.success({ title: t('common:outcome.link_removed') });
@@ -215,6 +215,22 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
         },
         onError: handleMutationError,
     });
+
+    const pendingProcessId = pendingProcessAction?.kind === 'add'
+        ? Number(processToLink)
+        : pendingProcessAction?.processId;
+    const pendingProcess = processOptionsQuery.data?.items.find(
+        (candidate) => candidate.id === pendingProcessId,
+    );
+    const pendingAssetId = pendingAssetAction?.kind === 'add' ? Number(assetToLink) : pendingAssetAction?.assetId;
+    const processRequirement = useGovernedReasonRequirement([
+        { kind: 'vendor', id: vendorId, record: { capabilities } },
+        { kind: 'process', id: pendingProcessId, record: pendingProcess },
+    ], pendingProcessAction !== null);
+    const assetRequirement = useGovernedReasonRequirement([
+        { kind: 'vendor', id: vendorId, record: { capabilities } },
+        { kind: 'asset', id: pendingAssetId, record: assetOptionsQuery.data?.items.find((row) => row.id === pendingAssetId) },
+    ], pendingAssetAction !== null);
 
     if (!canReadAssetLinks && !canReadProcessLinks) {
         return null;
@@ -248,12 +264,6 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
                 : ''}`,
             disabled: processBusinessEditBlocked(process),
         }));
-    const pendingProcessId = pendingProcessAction?.kind === 'add'
-        ? Number(processToLink)
-        : pendingProcessAction?.processId;
-    const pendingProcess = processOptionsQuery.data?.items.find(
-        (candidate) => candidate.id === pendingProcessId,
-    );
     const addProcessBlocked = processBusinessEditBlocked(
         processOptionsQuery.data?.items.find((candidate) => candidate.id === Number(processToLink)),
     );
@@ -454,7 +464,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             ) : null}
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null}
-                reasonRequired={processMutationRequiresApprovalReason(pendingProcess)}
+                reasonRequirement={processRequirement}
                 namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addProcessLink.isPending || removeProcessLink.isPending}
@@ -472,7 +482,7 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             />
             <GovernedMutationReasonDialog
                 isOpen={pendingAssetAction !== null}
-                reasonRequired
+                reasonRequirement={assetRequirement}
                 namespace="assets"
                 kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addAssetLink.isPending || removeAssetLink.isPending}
@@ -491,4 +501,9 @@ export function VendorRegisterLinksSection({ vendorId, capabilities }: VendorReg
             />
         </Card>
     );
+}
+
+/** Owner transitions remount draft state; in-flight effects remain generation-fenced. */
+export function VendorRegisterLinksSection(props: VendorRegisterLinksSectionProps) {
+    return <VendorRegisterLinksSectionContent key={props.vendorId} {...props} />;
 }

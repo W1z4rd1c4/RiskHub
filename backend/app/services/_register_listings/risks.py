@@ -23,7 +23,6 @@ from app.models import (
     User,
     VendorRiskLink,
 )
-from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.risk import RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
@@ -31,7 +30,6 @@ from app.services._authorization_capabilities.common import pending_approvals_fo
 from app.services._collection_contracts import CollectionGroupEntry, CollectionQuery, build_grouped_collection_page
 from app.services._collection_filters import (
     coerce_optional_bool,
-    coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
 )
@@ -44,14 +42,16 @@ from app.services._ict_register_lifecycle.dq import (
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services.authorization_capabilities import risk_capabilities
 from app.services.kri_populations import kri_breach_condition
+from app.services.risk_levels import build_risk_level_condition_from_ranges, get_configured_risk_level_ranges
+from app.services.risk_row_criteria import parse_risk_row_criteria, risk_lifecycle_predicates, risk_row_predicates
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
 from .shared import (
     GROUP_UNCATEGORIZED,
     GROUP_UNLINKED_VENDOR,
+    RegisterLifecycle,
     build_facet_options,
     parse_prefixed_group_value,
-    resolve_register_lifecycle,
     visible_vendor_link_context,
 )
 
@@ -64,12 +64,8 @@ RISK_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
 RISK_SQL_GROUPS = {"category", "department", "process", "risk_type", "type", "vendor"}
 
 
-def apply_risk_lifecycle(query, lifecycle: str):
-    if lifecycle == "active":
-        return query.where(archived_clause(Risk, archived=False))
-    if lifecycle == "archived":
-        return query.where(archived_clause(Risk, archived=True))
-    return query
+def apply_risk_lifecycle(query, lifecycle: RegisterLifecycle):
+    return query.where(*risk_lifecycle_predicates(Risk, lifecycle))
 
 
 @dataclass(frozen=True)
@@ -473,16 +469,13 @@ async def plan_risk_listing(
     if collection_query.group_value is not None and collection_query.group_by is None:
         raise ValidationError("Risk group_value requires group_by")
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
-    status_value = filter_values.get("status")
-    lifecycle, consumed_legacy_archived_status = resolve_register_lifecycle(filter_values)
-    status = (
-        None
-        if consumed_legacy_archived_status
-        else coerce_optional_enum(RiskStatusEnum, status_value, "status")
-    )
-    risk_type = coerce_optional_string("risk_type", filter_values.get("risk_type"))
-    is_priority = coerce_optional_bool("is_priority", filter_values.get("is_priority"))
-    search = coerce_optional_string("search", filter_values.get("search"))
+    row_criteria = parse_risk_row_criteria(filter_values)
+    lifecycle = row_criteria.lifecycle
+    consumed_legacy_archived_status = row_criteria.consumed_legacy_archived_status
+    risk_level = coerce_optional_string("risk_level", filter_values.get("risk_level"))
+    if risk_level is not None and risk_level not in {"low", "medium", "high", "critical"}:
+        raise ValidationError("Invalid risk_level value")
+    critical = coerce_optional_bool("critical", filter_values.get("critical"))
     has_breach = coerce_optional_bool("has_breach", filter_values.get("has_breach"))
     min_net_score = coerce_optional_int("min_net_score", filter_values.get("min_net_score"), min_value=0, max_value=25)
     process = coerce_optional_string("process", filter_values.get("process"))
@@ -509,26 +502,7 @@ async def plan_risk_listing(
     if visibility_clause is not None:
         base_query = base_query.where(visibility_clause)
 
-    base_query = apply_risk_lifecycle(base_query, lifecycle)
-    if status:
-        base_query = base_query.where(Risk.status == status.value)
-
-    if risk_type:
-        base_query = base_query.where(Risk.risk_type == risk_type)
-
-    if is_priority is not None:
-        base_query = base_query.where(Risk.is_priority == is_priority)
-
-    if search:
-        search_pattern = f"%{search}%"
-        base_query = base_query.where(
-            or_(
-                Risk.risk_id_code.ilike(search_pattern),
-                Risk.name.ilike(search_pattern),
-                Risk.description.ilike(search_pattern),
-                Risk.process.ilike(search_pattern),
-            )
-        )
+    base_query = base_query.where(*risk_row_predicates(Risk, row_criteria))
 
     if has_breach is not None:
         breaching_subq = (
@@ -544,6 +518,13 @@ async def plan_risk_listing(
             base_query = base_query.where(Risk.id.in_(breaching_subq))
         else:
             base_query = base_query.where(Risk.id.notin_(breaching_subq))
+
+    if risk_level is not None or critical:
+        ranges = await get_configured_risk_level_ranges(db)
+        for selected_level in (risk_level, "critical" if critical else None):
+            condition = build_risk_level_condition_from_ranges(selected_level, ranges)
+            if condition is not None:
+                base_query = base_query.where(condition)
 
     if min_net_score is not None:
         base_query = base_query.where(Risk.net_score >= min_net_score)

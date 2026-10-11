@@ -20,7 +20,7 @@ from app.models.control import ControlForm, ControlFrequency, ControlStatus
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
 from app.models.risk import RiskStatus
 from app.schemas.dashboard import DashboardRiskThresholds, DashboardSummaryResponse
-from app.services._dashboard_metrics.risk_levels import (
+from app.services.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )

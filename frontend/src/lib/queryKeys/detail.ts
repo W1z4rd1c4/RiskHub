@@ -9,3 +9,8 @@ export function toQuerySessionScope(userId: number | null | undefined): QuerySes
 export function entityDetailQueryKey(entity: string, userId: number | null | undefined, entityId: number) {
     return [entity, toQuerySessionScope(userId), entityId] as const;
 }
+
+/** All actor-scoped detail entries for one entity after a live policy change. */
+export function entityDetailQueryPrefix(entity: 'process' | 'asset' | 'vendor') {
+    return [entity] as const;
+}

@@ -5,11 +5,12 @@ import { dashboardKeys } from '@/lib/queryKeys';
 import { dashboardApi } from '@/services/dashboardApi';
 import type { DashboardFilters, DashboardOverview } from '@/types/dashboard';
 
-import { buildDashboardStats } from './dashboardStats';
+import { buildDashboardDrillthrough, buildDashboardStats } from './dashboardStats';
 import { extractDashboardOverviewData } from './dashboardOverviewData';
 
 interface UseDashboardOverviewStateOptions {
     canReadControls: boolean;
+    canReadDepartments: boolean;
     enabled?: boolean;
     filters: DashboardFilters;
     t: (key: string) => string;
@@ -17,6 +18,7 @@ interface UseDashboardOverviewStateOptions {
 
 export function useDashboardOverviewState({
     canReadControls,
+    canReadDepartments,
     enabled = true,
     filters,
     t,
@@ -45,8 +47,11 @@ export function useDashboardOverviewState({
         error: overviewQuery.error,
         t,
     });
+    const drillthrough = buildDashboardDrillthrough(filters);
     const stats = buildDashboardStats({
+        filters,
         canReadControls,
+        canReadDepartments,
         canReadIssues: resolveCapabilityFlag(overviewQuery.data?.capabilities, 'can_view_issue_metrics'),
         canReadVendors: resolveCapabilityFlag(overviewQuery.data?.capabilities, 'can_view_vendor_metrics'),
         departmentMetrics,
@@ -56,6 +61,7 @@ export function useDashboardOverviewState({
     });
 
     return {
+        drillthrough,
         breachTrends,
         departmentMetrics,
         error,

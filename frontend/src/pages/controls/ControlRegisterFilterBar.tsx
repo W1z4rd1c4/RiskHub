@@ -31,12 +31,14 @@ export function ControlRegisterFilterBar({ facets, filters, isLoading, onClearAl
     ), [t]);
     const facetFor = useCallback((key: OptionalControlFilter): CollectionFacetOption[] => facets[key] ?? [], [facets]);
     const chips = useMemo<RegisterFilterChip[]>(() => [
+        ...(filters.control_form ? [buildFilterChip(t, 'control_form', t('detail.control_form'), t(`control_forms.${filters.control_form}`))] : []),
         ...(filters.lifecycle !== 'active' ? [buildFilterChip(t, 'lifecycle', t('register.filters.lifecycle'), t(`register.lifecycle.${filters.lifecycle}`))] : []),
         ...(filters.monitoring_status ? [buildFilterChip(t, 'monitoring_status', t('register.filters.monitoring_status'), t(`monitoring.${filters.monitoring_status}`))] : []),
         ...selected.map((key) => buildFacetChip(t, key, labels[key], facetFor(key), filters[key], (value, fallback) => filterValueLabel(key, value, fallback))),
     ], [facetFor, filterValueLabel, filters, labels, selected, t]);
     const remove = (key: string) => {
-        if (key === 'lifecycle') onFilterChange('lifecycle', 'active');
+        if (key === 'control_form') onFilterChange('control_form', '');
+        else if (key === 'lifecycle') onFilterChange('lifecycle', 'active');
         else if (key === 'monitoring_status') onFilterChange('monitoring_status', '');
         else { onFilterChange(key as OptionalControlFilter, ''); setActiveKeys((current) => current.filter((item) => item !== key)); }
     };

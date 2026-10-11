@@ -1052,11 +1052,11 @@ async def governed_process_snapshot_access_ids(
     )
     from app.services._governed_mutations.fixed_asset_policy import (
         is_live_eligible_asset_resolver,
-        load_fixed_asset_scenario,
+        load_asset_visibility_scenarios,
     )
     from app.services._governed_mutations.fixed_vendor_policy import (
         is_live_eligible_vendor_resolver,
-        load_fixed_vendor_scenario,
+        load_vendor_visibility_scenarios,
     )
     from app.services._governed_mutations.threat_identity import (
         strict_threat_mutation_kind,
@@ -1065,8 +1065,8 @@ async def governed_process_snapshot_access_ids(
         strict_vendor_mutation_kind,
     )
 
-    asset_scenario = await load_fixed_asset_scenario(db)
-    vendor_scenario = await load_fixed_vendor_scenario(db)
+    asset_scenarios = await load_asset_visibility_scenarios(db)
+    vendor_scenarios = await load_vendor_visibility_scenarios(db)
     accountability_scenario = await load_fixed_accountability_scenario(db)
     asset_access_ids = {
         approval.id
@@ -1075,7 +1075,7 @@ async def governed_process_snapshot_access_ids(
         and valid_asset_governed_envelope(proposal)
         and (
             proposal.requested_by_id == current_user.id
-            or is_live_eligible_asset_resolver(current_user, proposal, asset_scenario)
+            or is_live_eligible_asset_resolver(current_user, proposal, asset_scenarios)
         )
     }
     vendor_access_ids = {
@@ -1088,7 +1088,7 @@ async def governed_process_snapshot_access_ids(
             or is_live_eligible_vendor_resolver(
                 current_user,
                 proposal,
-                vendor_scenario,
+                vendor_scenarios,
             )
         )
     }
@@ -1167,11 +1167,11 @@ async def governed_process_resolver_ids(
     )
     from app.services._governed_mutations.fixed_asset_policy import (
         is_live_eligible_asset_resolver,
-        load_fixed_asset_scenario,
+        load_asset_visibility_scenarios,
     )
     from app.services._governed_mutations.fixed_vendor_policy import (
         is_live_eligible_vendor_resolver,
-        load_fixed_vendor_scenario,
+        load_vendor_visibility_scenarios,
     )
     from app.services._governed_mutations.threat_identity import (
         strict_threat_mutation_kind,
@@ -1180,8 +1180,8 @@ async def governed_process_resolver_ids(
         strict_vendor_mutation_kind,
     )
 
-    asset_scenario = await load_fixed_asset_scenario(db)
-    vendor_scenario = await load_fixed_vendor_scenario(db)
+    asset_scenarios = await load_asset_visibility_scenarios(db)
+    vendor_scenarios = await load_vendor_visibility_scenarios(db)
     accountability_scenario = await load_fixed_accountability_scenario(db)
     identities = []
     for approval in approvals:
@@ -1204,7 +1204,7 @@ async def governed_process_resolver_ids(
         for approval in approvals
         if (proposal := approval.governed_mutation_proposal) is not None
         and valid_asset_governed_envelope(proposal)
-        and is_live_eligible_asset_resolver(current_user, proposal, asset_scenario)
+        and is_live_eligible_asset_resolver(current_user, proposal, asset_scenarios)
     }
     result.update(
         approval.id
@@ -1214,7 +1214,7 @@ async def governed_process_resolver_ids(
         and is_live_eligible_vendor_resolver(
             current_user,
             proposal,
-            vendor_scenario,
+            vendor_scenarios,
         )
     )
     result.update(

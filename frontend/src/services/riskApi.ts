@@ -32,6 +32,8 @@ function compactRiskFilters(params: RiskListParams): Record<string, unknown> {
         search: params.search,
         has_breach: params.has_breach,
         min_net_score: params.min_net_score,
+        risk_level: params.risk_level,
+        critical: params.critical,
         process: params.process,
         category: params.category,
         ict_linked: params.ict_linked,

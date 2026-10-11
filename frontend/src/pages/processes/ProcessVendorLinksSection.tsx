@@ -1,5 +1,7 @@
+import { useOwnedGovernedMutation } from '@/hooks/useOwnedGovernedMutation';
+import { useGovernedReasonRequirement } from '@/hooks/useGovernedReasonRequirement';
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus } from 'lucide-react';
 
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
@@ -16,9 +18,8 @@ import { ictRegisterKeys } from '@/lib/queryKeys';
 import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
 import { vendorApi } from '@/services/vendorApi';
-import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
+import type { Process } from '@/types/process';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
-import { processMutationRequiresApprovalReason } from '@/pages/processes/processProtectedEdit';
 
 import { DetailSection } from '../detail/DetailSection';
 
@@ -36,7 +37,7 @@ interface ProcessVendorLinksSectionProps {
 }
 
 /** The manual Process<->Vendor Link relations (sheet 11 §1, issue #46). */
-export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChanged }: ProcessVendorLinksSectionProps) {
+function ProcessVendorLinksSectionContent({ process, canManageLinks, onLinksChanged }: ProcessVendorLinksSectionProps) {
     const { t } = useTranslation(['processes', 'common']);
     // D12 / PM-2: approval-routed changes keep the user on this page with
     // the pending notice plus a success toast.
@@ -65,9 +66,9 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
         staleTime: 60_000,
     });
 
-    const refreshLinks = async () => {
+    const refreshLinks = async (isCurrent: () => boolean) => {
         await queryClient.invalidateQueries({ queryKey: ictRegisterKeys.processVendorLinks(process.id) });
-        await onLinksChanged?.();
+        if (isCurrent()) await onLinksChanged?.();
     };
 
     const handleMutationError = (mutationError: unknown) => {
@@ -80,44 +81,50 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
         direct_service_description: serviceDescription,
     });
 
-    const addVendorLink = useMutation({
+    const addVendorLink = useOwnedGovernedMutation(process.id, {
         mutationFn: (requestReason: string) => {
             if (!linkPayload) {
                 return Promise.reject(new Error('Vendor is required'));
             }
             return processApi.addVendorLink(process.id, { ...linkPayload, request_reason: requestReason });
         },
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             setVendorToLink('');
             setServiceDescription('');
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
-    const removeVendorLink = useMutation({
+    const removeVendorLink = useOwnedGovernedMutation(process.id, {
         mutationFn: ({ linkId, reason }: { linkId: number; reason: string }) =>
             processApi.removeVendorLink(process.id, linkId, reason),
-        onSuccess: async (result) => {
+        onSuccess: async (outcome, _variables, isCurrent) => {
             setLinkError(null);
             setPendingAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: result.approval_id });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
-            await refreshLinks();
+            await refreshLinks(isCurrent);
         },
         onError: handleMutationError,
     });
 
     const vendorLinks = vendorLinksQuery.data ?? [];
     const linkedVendorIds = new Set(vendorLinks.map((link) => link.vendor_id));
+    const pendingVendorId = pendingAction?.kind === 'add' ? Number(vendorToLink)
+        : vendorLinks.find((link) => link.id === pendingAction?.linkId)?.vendor_id;
+    const reasonRequirement = useGovernedReasonRequirement([
+        { kind: 'process', id: process.id, record: process },
+        { kind: 'vendor', id: pendingVendorId, record: vendorOptionsQuery.data?.items.find((row) => row.id === pendingVendorId) },
+    ], pendingAction !== null);
     const vendorOptions = (vendorOptionsQuery.data?.items ?? [])
         .filter((vendor) => !vendor.is_archived && !linkedVendorIds.has(vendor.id))
         .map((vendor) => ({ value: String(vendor.id), label: vendor.name }));
@@ -208,7 +215,7 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
             </div>
             <GovernedMutationReasonDialog
                 isOpen={pendingAction !== null}
-                reasonRequired={processMutationRequiresApprovalReason(process)}
+                reasonRequirement={reasonRequirement}
                 namespace="processes"
                 kind={pendingAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={addVendorLink.isPending || removeVendorLink.isPending}
@@ -227,4 +234,9 @@ export function ProcessVendorLinksSection({ process, canManageLinks, onLinksChan
             />
         </DetailSection>
     );
+}
+
+/** Owner transitions remount draft state; in-flight effects remain generation-fenced. */
+export function ProcessVendorLinksSection(props: ProcessVendorLinksSectionProps) {
+    return <ProcessVendorLinksSectionContent key={props.process.id} {...props} />;
 }

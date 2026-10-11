@@ -216,3 +216,38 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         expect(toggle).toHaveAttribute('aria-checked', 'false');
     });
 });
+
+it.each(['medium_risk_min_net_score', 'high_risk_min_net_score', 'critical_risk_min_net_score'])('refreshes warmed public thresholds and overview after %s succeeds', async (key) => {
+    vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({system_settings:{can_update:true}} as never);
+    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({risk_thresholds:[config({key,value:'12',display_name:'Configured threshold'})]} as never);
+    vi.mocked(riskHubApi.updateConfig).mockResolvedValue({} as never);
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(['riskHub','thresholds','public'], {high:12});
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    render(<QueryClientProvider client={queryClient}><FeedbackProvider><SystemSettingsPanel/></FeedbackProvider></QueryClientProvider>);
+    const input=await screen.findByRole('textbox',{name:'Configured threshold'});
+    await userEvent.clear(input); await userEvent.type(input,'13');
+    await userEvent.click(screen.getByRole('button',{name:'admin:system_settings.save_named:Configured threshold'}));
+    await waitFor(()=>expect(invalidate).toHaveBeenCalledWith({queryKey:['dashboardOverview']}));
+    expect(invalidate).toHaveBeenCalledWith({queryKey: ['riskHub','thresholds','public']});
+});
+
+it.each([false,true])('does not invalidate capability populations for failed threshold/unrelated success (failure=%s)', async (failure) => {
+    const key=failure?'critical_risk_min_net_score':'approval_sla_days';
+    vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({system_settings:{can_update:true}} as never);
+    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({risk_thresholds:[config({key,value:'12',display_name:'Bounded setting'})]} as never);
+    if(failure) vi.mocked(riskHubApi.updateConfig).mockRejectedValue(new Error('rejected'));
+    else vi.mocked(riskHubApi.updateConfig).mockResolvedValue({} as never);
+    const queryClient=createTestQueryClient();
+    const invalidate=vi.spyOn(queryClient,'invalidateQueries');
+    render(<QueryClientProvider client={queryClient}><FeedbackProvider><SystemSettingsPanel/></FeedbackProvider></QueryClientProvider>);
+    const input=await screen.findByRole('textbox',{name:'Bounded setting'});
+    await userEvent.clear(input); await userEvent.type(input,'13');
+    await userEvent.click(screen.getByRole('button',{name:'admin:system_settings.save_named:Bounded setting'}));
+    if(failure) await screen.findByRole('alert');
+    else await waitFor(()=>expect(invalidate).toHaveBeenCalled());
+    expect(invalidate).not.toHaveBeenCalledWith({queryKey:['dashboardOverview']});
+    expect(invalidate).not.toHaveBeenCalledWith({queryKey:['riskHub','thresholds','public']});
+    if(failure) expect(invalidate).not.toHaveBeenCalled();
+    expect(input).toHaveValue('13');
+});

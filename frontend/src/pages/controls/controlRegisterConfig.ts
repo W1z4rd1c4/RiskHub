@@ -1,4 +1,4 @@
-import type { ControlListParams, ControlMonitoringStatus, ControlStatus } from '@/types/control';
+import type { ControlForm, ControlListParams, ControlMonitoringStatus, ControlStatus } from '@/types/control';
 
 import type { RegisterFilters, RegisterSortState } from '../shared/registerListQuery';
 
@@ -6,6 +6,7 @@ export type ControlRegisterView = 'all' | 'category' | 'department' | 'process' 
 export type ControlLifecycleFilter = 'active' | 'archived' | 'all';
 
 export interface ControlRegisterFilters {
+    control_form?: ControlForm | '';
     lifecycle: ControlLifecycleFilter;
     monitoring_status: ControlMonitoringStatus | '';
     status: ControlStatus | '';
@@ -26,6 +27,7 @@ export const CONTROL_REGISTER_CONFIG = {
 };
 
 export const EMPTY_CONTROL_REGISTER_FILTERS: ControlRegisterFilters = {
+    control_form: '',
     lifecycle: 'active',
     monitoring_status: '',
     status: '',
@@ -38,6 +40,7 @@ export function parseControlRegisterFilters(filters: RegisterFilters): ControlRe
     const monitoring = filters.monitoring_status;
     const status = filters.status;
     return {
+        control_form: filters.control_form === 'manual' || filters.control_form === 'automatic' ? filters.control_form : '',
         lifecycle: lifecycle === 'archived' || lifecycle === 'all' ? lifecycle : 'active',
         monitoring_status: ['new', 'needs_review', 'failed', 'passed'].includes(String(monitoring))
             ? monitoring as ControlMonitoringStatus
@@ -50,6 +53,7 @@ export function parseControlRegisterFilters(filters: RegisterFilters): ControlRe
 
 export function serializeControlRegisterFilters(filters: ControlRegisterFilters): RegisterFilters {
     return {
+        control_form: filters.control_form || undefined,
         lifecycle: filters.lifecycle === 'active' ? undefined : filters.lifecycle,
         monitoring_status: filters.monitoring_status || undefined,
         status: filters.status || undefined,
@@ -83,6 +87,7 @@ export function buildControlRegisterListParams({
         offset: (currentPage - 1) * limit,
         limit,
         search: search.trim() || undefined,
+        control_form: filters.control_form || undefined,
         lifecycle: filters.lifecycle,
         status: filters.status || undefined,
         monitoring_status: filters.monitoring_status || undefined,
@@ -95,4 +100,9 @@ export function buildControlRegisterListParams({
         group_by: controlGroupBy(view),
         group_value: groupValue ?? undefined,
     };
+}
+
+/** A selected form is unsupported by the historical report contract. */
+export function controlSnapshotUnsupportedForm(filters: ControlRegisterFilters): ControlForm | undefined {
+    return filters.control_form || undefined;
 }

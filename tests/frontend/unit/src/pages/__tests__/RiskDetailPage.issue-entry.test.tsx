@@ -11,6 +11,7 @@ const mockGetLinkedControls = vi.fn();
 const mockGetLinkedVendors = vi.fn();
 const mockGetOverdue = vi.fn();
 const mockLinkControl = vi.fn();
+const mockLinkContinuationRejected = vi.fn();
 const mockDeleteRisk = vi.fn();
 let canIssueWrite = true;
 let mockSearchParams = new URLSearchParams();
@@ -78,7 +79,7 @@ vi.mock('@/components/risks/RiskDetailOverviewTab', () => ({
     RiskDetailOverviewTab: ({ onLinkControl }: { onLinkControl: (controlId: number, effectiveness: 'high') => Promise<void> }) => (
         <div>
             Overview tab
-            <button type="button" onClick={() => void onLinkControl(99, 'high')}>Trigger link failure</button>
+            <button type="button" onClick={() => void onLinkControl(99, 'high').catch(mockLinkContinuationRejected)}>Trigger link failure</button>
         </div>
     ),
 }));
@@ -220,12 +221,14 @@ describe('RiskDetailPage issue entry', () => {
     });
 
     it('exposes an adequate named action for dismissing a link error', async () => {
-        mockLinkControl.mockRejectedValueOnce(new Error('link failed'));
+        const failure = new Error('link failed');
+        mockLinkControl.mockRejectedValueOnce(failure);
         render(<RiskDetailPage />);
         await screen.findByRole('heading', { level: 1, name: 'Liquidity Risk' });
 
         fireEvent.click(screen.getByRole('button', { name: 'Trigger link failure' }));
         const close = await screen.findByRole('button', { name: 'Close' });
+        await waitFor(() => expect(mockLinkContinuationRejected).toHaveBeenCalledExactlyOnceWith(failure));
         expect(close).toHaveAttribute('type', 'button');
         fireEvent.click(close);
         expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();

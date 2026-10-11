@@ -1,3 +1,4 @@
+import { withReason, reasonBody, reasonField } from './api/governedReason';
 import { apiClient } from './apiClient';
 import {
     riskAssetLinkListSchema,
@@ -123,11 +124,11 @@ export const threatApi = {
     },
 
     async createThreat(data: ThreatWritePayload): Promise<Threat> {
-        return apiClient.post('/threats', data, { schema: threatSchema });
+        return apiClient.post('/threats', withReason(data), { schema: threatSchema });
     },
 
     async updateThreat(id: number, data: ThreatWritePayload): Promise<Threat | ApprovalCreatedResponse> {
-        return apiClient.patch(`/threats/${id}`, data, {
+        return apiClient.patch(`/threats/${id}`, withReason(data), {
             schema: threatSchema.or(approvalCreatedResponseSchema),
         });
     },
@@ -187,7 +188,7 @@ export const riskRegisterLinksApi = {
     ): Promise<RiskProcessLink | ProcessApprovalQueuedResponse> {
         return apiClient.post(
             `/risks/${riskId}/process-links`,
-            { process_id: processId, request_reason: requestReason },
+            { process_id: processId, ...reasonField(requestReason) },
             { schema: riskProcessLinkSchema.or(processApprovalQueuedResponseSchema) }
         );
     },
@@ -198,7 +199,7 @@ export const riskRegisterLinksApi = {
         requestReason: string,
     ): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/risks/${riskId}/process-links/${linkId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -214,7 +215,7 @@ export const riskRegisterLinksApi = {
     ): Promise<RiskAssetLink | ProcessApprovalQueuedResponse> {
         return apiClient.post(
             `/risks/${riskId}/asset-links`,
-            { asset_id: assetId, request_reason: requestReason },
+            { asset_id: assetId, ...reasonField(requestReason) },
             { schema: riskAssetLinkSchema.or(processApprovalQueuedResponseSchema) }
         );
     },
@@ -225,7 +226,7 @@ export const riskRegisterLinksApi = {
         requestReason: string,
     ): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/risks/${riskId}/asset-links/${linkId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },

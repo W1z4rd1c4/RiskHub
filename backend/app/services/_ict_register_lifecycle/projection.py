@@ -33,6 +33,7 @@ from app.schemas.process import (
     ProcessRead,
 )
 from app.services._authorization_capabilities import process_capabilities
+from app.services._authorization_capabilities.governed_reasons import protected_change_requires_reason
 from app.services._governed_mutations.process_identity import (
     GovernedProcessIdentity,
     InvalidGovernedProcessIdentity,
@@ -626,7 +627,10 @@ def serialize_process_detail(
                 pending_requested_by_id=(
                     current_user.id if pending_change is not None and pending_change.capabilities.can_cancel else None
                 ),
-                protected_change_requires_approval=protected_change_requires_approval,
+                protected_change_requires_approval=protected_change_requires_reason(
+                    scenario_enabled=protected_change_requires_approval,
+                    currently_protected=derived is not None and derived.cif == "yes",
+                ),
             ),
             "derived": derived,
             "pending_change": pending_change,

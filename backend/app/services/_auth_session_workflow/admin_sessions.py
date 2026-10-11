@@ -124,6 +124,7 @@ async def revoke_user_sessions(
         entity_id=target_user_id,
         entity_name=user.name,
         description=f"Sessions revoked for user {user.email} by admin (count={revoked_count})",
+        changes={"event_type": "admin_sessions_revoked", "revoke_count": revoked_count},
     )
 
     return SessionRevocationResult(user=user, revoked_count=revoked_count)

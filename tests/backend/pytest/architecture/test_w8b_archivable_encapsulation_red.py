@@ -33,13 +33,81 @@ def test_register_listings_use_archivable_clause_for_default_archive_filters():
         ROOT / "backend/app/services/_register_listings/vendors.py",
     ]
 
-    for path in listing_files:
+    # Risk delegates both listing rows and facets to the shared replay/list owner.
+    risk_source = listing_files[0].read_text()
+    assert "risk_row_predicates(Risk, row_criteria)" in risk_source
+    assert "apply_risk_lifecycle(facet_query, lifecycle)" in risk_source
+    for path in listing_files[1:]:
         text = path.read_text()
         assert "archived_clause(" in text, f"{path} should use the Archivable interface"
 
     assert "Risk.status != RiskStatusEnum.archived.value" not in listing_files[0].read_text()
     assert "Control.status != ControlStatusEnum.archived.value" not in listing_files[1].read_text()
     assert "query = query.where(Vendor.status == VendorStatusEnum.active.value)" not in listing_files[3].read_text()
+
+
+def _assert_risk_archive_delegation(monkeypatch, entrypoint, lifecycle):
+    from sqlalchemy import select
+    from sqlalchemy.dialects import postgresql, sqlite
+
+    from app.models._archivable import archived_clause
+    from app.models.risk import Risk
+    from app.services import risk_row_criteria
+    from app.services._register_listings import risks
+
+    calls = []
+
+    def tracked_archive_clause(source, *, archived=True):
+        assert source.__tablename__ == "risks"
+        assert source.is_archived is Risk.is_archived
+        assert source.status is Risk.status
+        calls.append(archived)
+        return archived_clause(source, archived=archived)
+
+    monkeypatch.setattr(risk_row_criteria, "archived_clause", tracked_archive_clause)
+    query = select(Risk.id)
+    if entrypoint == "planner":
+        actual = risks.apply_risk_lifecycle(query, lifecycle)
+    else:
+        criteria = risk_row_criteria.parse_risk_row_criteria({"lifecycle": lifecycle})
+        actual = query.where(*risk_row_criteria.risk_row_predicates(Risk, criteria))
+    expected = query
+    if lifecycle != "all":
+        expected = query.where(Risk.archived() if lifecycle == "archived" else Risk.live())
+    assert calls == ([] if lifecycle == "all" else [lifecycle == "archived"])
+    for dialect in (sqlite.dialect(), postgresql.dialect()):
+        options = {"dialect": dialect, "compile_kwargs": {"literal_binds": True}}
+        assert str(actual.compile(**options)) == str(expected.compile(**options))
+
+
+@pytest.mark.parametrize("entrypoint", ["planner", "row_predicates"])
+@pytest.mark.parametrize("lifecycle", ["active", "archived", "all"])
+def test_risk_archive_delegation_matches_canonical_predicate(monkeypatch, entrypoint, lifecycle):
+    _assert_risk_archive_delegation(monkeypatch, entrypoint, lifecycle)
+
+
+@pytest.mark.parametrize("entrypoint", ["planner", "row_predicates"])
+@pytest.mark.parametrize("lifecycle", ["active", "archived"])
+def test_risk_archive_contract_detects_seeded_predicate_bypass(monkeypatch, entrypoint, lifecycle):
+    from app.services import risk_row_criteria
+    from app.services._register_listings import risks
+
+    owner = risks if entrypoint == "planner" else risk_row_criteria
+    monkeypatch.setattr(owner, "risk_lifecycle_predicates", lambda source, lifecycle: [])
+    with pytest.raises(AssertionError):
+        _assert_risk_archive_delegation(monkeypatch, entrypoint, lifecycle)
+
+
+@pytest.mark.parametrize("entrypoint", ["planner", "row_predicates"])
+def test_risk_archive_contract_detects_seeded_all_filter(monkeypatch, entrypoint):
+    from app.models.risk import Risk
+    from app.services import risk_row_criteria
+    from app.services._register_listings import risks
+
+    owner = risks if entrypoint == "planner" else risk_row_criteria
+    monkeypatch.setattr(owner, "risk_lifecycle_predicates", lambda source, lifecycle: [Risk.live()])
+    with pytest.raises(AssertionError):
+        _assert_risk_archive_delegation(monkeypatch, entrypoint, "all")
 
 
 def test_archivable_mixin_exposes_deep_interface():

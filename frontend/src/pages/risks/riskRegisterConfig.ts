@@ -58,6 +58,7 @@ export interface RiskRegisterFilters {
     is_priority: boolean | null;
     has_breach: boolean | null;
     critical: boolean;
+    risk_level?: RiskNetBand | '';
     net_band: RiskNetBand | '';
 }
 
@@ -79,6 +80,7 @@ export const EMPTY_RISK_REGISTER_FILTERS: RiskRegisterFilters = {
     is_priority: null,
     has_breach: null,
     critical: false,
+    risk_level: '',
     net_band: '',
 };
 
@@ -89,11 +91,12 @@ export function parseRiskRegisterFilters(filters: RegisterFilters): RiskRegister
     const status = filters.status;
     return {
         lifecycle: lifecycle === 'archived' || lifecycle === 'all' ? lifecycle : 'active',
-        status: status === 'emerging' ? 'emerging' : status === '' ? '' : 'active',
+        status: status === 'emerging' ? 'emerging' : status === '' || status === 'all' ? '' : 'active',
         risk_type: typeof filters.risk_type === 'string' ? filters.risk_type : '',
         is_priority: booleanOrNull(filters.is_priority),
         has_breach: booleanOrNull(filters.has_breach),
         critical: filters.critical === true,
+        risk_level: typeof filters.risk_level === 'string' && (RISK_NET_BAND_CODES as readonly string[]).includes(filters.risk_level) ? filters.risk_level as RiskNetBand : '',
         net_band: parseRiskNetBand(filters.net_band),
     };
 }
@@ -101,11 +104,12 @@ export function parseRiskRegisterFilters(filters: RegisterFilters): RiskRegister
 export function serializeRiskRegisterFilters(filters: RiskRegisterFilters): RegisterFilters {
     return {
         lifecycle: filters.lifecycle === 'active' ? undefined : filters.lifecycle,
-        status: filters.status === 'active' ? undefined : filters.status,
+        status: filters.status === 'active' ? undefined : filters.status || 'all',
         risk_type: filters.risk_type || undefined,
         is_priority: filters.is_priority,
         has_breach: filters.has_breach,
         critical: filters.critical || undefined,
+        risk_level: filters.risk_level || undefined,
         net_band: filters.net_band || undefined,
     };
 }
@@ -115,7 +119,6 @@ export function riskGroupBy(view: RiskRegisterView): RiskListParams['group_by'] 
 }
 
 export function buildRiskRegisterListParams({
-    criticalMinNetScore,
     currentPage,
     filters,
     groupValue,
@@ -142,7 +145,8 @@ export function buildRiskRegisterListParams({
         risk_type: filters.risk_type || undefined,
         is_priority: filters.is_priority ?? undefined,
         has_breach: filters.has_breach ?? undefined,
-        min_net_score: filters.critical ? criticalMinNetScore : undefined,
+        critical: filters.critical || undefined,
+        risk_level: filters.risk_level || undefined,
         net_band: toBackendRiskNetBand(filters.net_band),
         sort: sort ?? undefined,
         sort_by: sort?.field,
@@ -151,4 +155,15 @@ export function buildRiskRegisterListParams({
         group_by: riskGroupBy(view),
         group_value: groupValue ?? undefined,
     };
+}
+
+/** Historical replay cannot interpret today's configured classification. */
+export function riskSnapshotUnsupportedCriteria(filters: RiskRegisterFilters, selectedGroupValue?: string | null): string[] {
+    return [
+        ...(filters.net_band ? ['register.snapshot_net_band'] : []),
+        ...(selectedGroupValue ? ['register.snapshot_group'] : []),
+        ...(filters.risk_level ? [`register.net_bands.${filters.risk_level}`] : []),
+        ...(filters.critical ? ['register.filters.critical'] : []),
+        ...(filters.has_breach !== null ? [filters.has_breach ? 'register.snapshot_breach_yes' : 'register.snapshot_breach_no'] : []),
+    ];
 }

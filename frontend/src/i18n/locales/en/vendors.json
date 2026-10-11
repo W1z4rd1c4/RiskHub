@@ -373,6 +373,7 @@
     "department_required": "Department is required",
     "owner_required": "Outsourcing owner is required",
     "request_reason_required": "A request reason is required for this governed Vendor change.",
+    "pending_change_exists": "This Vendor already has a pending change. Cancel or resolve it before submitting another.",
     "owner_lookup_failed": "Active owners could not be loaded. Retry the protected owner lookup.",
     "score_required": "Risk score (1–5) is required"
   },

@@ -31,7 +31,7 @@
   },
   "stats": {
     "total_controls": "Celkem kontrol",
-    "active_depts": "Aktivní oddělení",
+    "active_depts": "Oddělení s odpovídajícími záznamy",
     "critical_risks": "Kritická rizika",
     "avg_risk_score": "Průměrné skóre",
     "vendors": "Dodavatelé"
@@ -145,6 +145,7 @@
     "no_due_soon": "Žádná KRI nejsou brzy splatná ani opožděná.",
     "no_overdue": "Žádná KRI nejsou opožděná.",
     "active_breaches": "Aktivní překročení",
+    "destination_unavailable": "Cíl v registru rizik není dostupný, dokud není zrušen filtr oddělení.",
     "view_risk_register": "Zobrazit registr rizik",
     "appetite_maintained": "Rizikový apetit dodržen",
     "no_breaches_org": "V organizaci aktuálně nejsou překročeny žádné KRI.",
@@ -341,5 +342,8 @@
     "footer_suffix": "pro zavření",
     "results": "Výsledky detailu rizik",
     "score_value": "Skóre: {{score}}"
+  },
+  "destinations": {
+    "department_unavailable": "Tento cíl vyžaduje oprávnění číst pracovní prostor oddělení."
   }
 }

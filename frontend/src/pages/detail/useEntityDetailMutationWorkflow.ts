@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { isApprovalCreatedResponse } from '@/types/approval';
+import { governedMutationSuccess, governedMutationRejection } from '@/lib/governedMutationOutcome';
 
 import type { DetailActionMessage } from './DetailActionBanner';
 
@@ -54,8 +54,9 @@ export function useEntityDetailMutationWorkflow({
                 return { kind: 'superseded', response };
             }
 
-            if (approvalKey && isApprovalCreatedResponse(response)) {
-                const message = { key: approvalKey, isError: false };
+            const outcome = governedMutationSuccess(response);
+            if (outcome.kind === 'pending') {
+                const message = { key: approvalKey ?? 'common:approval.queued.title', isError: false };
                 if (onApprovalQueued) onApprovalQueued(response);
                 else setMessage(message);
                 closeDialog?.();
@@ -77,7 +78,11 @@ export function useEntityDetailMutationWorkflow({
             if (!isCurrent()) {
                 return { kind: 'superseded', error };
             }
-            const message = { key: toErrorKey(error), isError: true };
+            const rejection = governedMutationRejection(error);
+            const message = {
+                key: rejection.message === 'save_failed' ? toErrorKey(error) : `common:governed_mutation.${rejection.message}`,
+                isError: true,
+            };
             setMessage(message);
             return { kind: 'failed', error, message };
         } finally {

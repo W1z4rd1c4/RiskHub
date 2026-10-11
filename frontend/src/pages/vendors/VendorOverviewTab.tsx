@@ -115,10 +115,7 @@ export function VendorOverviewTab({
     const canViewLinkedKris = resolveCapabilityFlag(vendor.capabilities, 'can_view_linked_kris');
     // ADR-016 (#100/#101): the backend's capability is the single protected-Vendor
     // switch for governed link/contract/sub-outsourcing mutations — never re-derived locally.
-    const protectedChangeRequiresApproval = resolveCapabilityFlag(
-        vendor.capabilities,
-        'protected_change_requires_approval',
-    );
+    const protectedChangeRequiresApproval = vendor.capabilities?.protected_change_requires_approval;
     const canViewAnyLinkedExposure = canViewLinkedRisks || canViewLinkedControls || canViewLinkedKris;
     const currentSummary = summary.vendorId === vendor.id
         ? summary

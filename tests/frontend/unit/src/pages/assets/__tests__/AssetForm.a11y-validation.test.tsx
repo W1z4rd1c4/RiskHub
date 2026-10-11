@@ -57,6 +57,7 @@ import { AssetForm } from '@/pages/assets/AssetForm';
 import i18n from '@/i18n';
 import { processApprovalQueuedResponseSchema } from '@/services/api/schemas';
 import type { Asset } from '@/types/asset';
+import { ApiClientError } from '@/services/apiClient';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -386,6 +387,7 @@ const nonProtectedAsset: Asset = {
     },
     is_archived: false,
     capabilities: {
+        protected_change_requires_approval: false,
         can_read: true,
         can_update: true,
         can_archive: true,
@@ -399,6 +401,7 @@ const nonProtectedAsset: Asset = {
 };
 const protectedAsset = {
     ...nonProtectedAsset,
+    capabilities: { ...nonProtectedAsset.capabilities, protected_change_requires_approval: true },
     derived: {
         ...nonProtectedAsset.derived,
         resulting_criticality: 'critical',
@@ -695,7 +698,7 @@ describe('AssetForm — governed accountability edits (#88)', () => {
         accountabilityScenario.protectedAssetEnabled = false;
         const user = userEvent.setup();
         mockUpdateAsset.mockResolvedValue({ ...protectedAsset, business_owner_user_id: 33 });
-        const { onSaved } = await renderForm(protectedAsset);
+        const { onSaved } = await renderForm({ ...protectedAsset, capabilities: { ...protectedAsset.capabilities, protected_change_requires_approval: false } });
 
         await user.click(screen.getByTestId('asset-form-business-owner'));
         await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
@@ -729,5 +732,43 @@ describe('AssetForm — governed accountability edits (#88)', () => {
 
         expect(screen.getByTestId('asset-form-submit')).toBeDisabled();
         expect(mockUpdateAsset).not.toHaveBeenCalled();
+    });
+});
+
+
+describe('governed backend rejection (#246)', () => {
+    it.each(['en', 'cs'])('flags a blank reason after protected Asset rejection in %s', async (locale) => {
+        await i18n.changeLanguage(locale);
+        mockUpdateAsset.mockRejectedValue(new ApiClientError({
+            status: 422, code: 'governed_mutation_reason_required', messageKey: 'errors.request_failed',
+        }));
+        // The read snapshot predates policy activation; the backend now requires a reason.
+        const initial = { ...protectedAsset, capabilities: { ...protectedAsset.capabilities, protected_change_requires_approval: false } } as Asset;
+        const { onSaved, onApprovalQueued } = await renderForm(initial);
+        const name = screen.getByRole('textbox', { name: nameLabel() });
+        fireEvent.change(name, { target: { value: 'Protected draft retained' } });
+        fireEvent.click(screen.getByTestId('asset-form-submit'));
+        await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledTimes(1));
+        const reason = screen.getByTestId('asset-form-request-reason');
+        await waitFor(() => expect(reason).toHaveAttribute('aria-invalid', 'true'));
+        const localized = i18n.t('assets:form.errors.request_reason_required');
+        expect(localized).toBeTruthy();
+        expect(localized).not.toContain('request_reason_required');
+        expect(reason).toHaveAccessibleDescription(expect.stringContaining(localized));
+        await waitFor(() => expect(reason).toHaveFocus());
+        expect(name).toHaveValue('Protected draft retained');
+        expect(reason).toHaveValue('');
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(onApprovalQueued).not.toHaveBeenCalled();
+        expect(screen.queryByText(i18n.t('assets:form.errors.save_failed'))).not.toBeInTheDocument();
+    });
+});
+
+
+describe('reason capability authority (#247)', () => {
+    it('requires a reason from capability even when displayed Asset derivation is unprotected', async () => {
+        const initial = { ...nonProtectedAsset, capabilities: { ...nonProtectedAsset.capabilities, protected_change_requires_approval: true } } as Asset;
+        await renderForm(initial);
+        expect(screen.getByTestId('asset-form-request-reason')).toHaveAttribute('aria-required', 'true');
     });
 });

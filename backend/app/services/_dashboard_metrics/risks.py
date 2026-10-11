@@ -11,7 +11,7 @@ from app.core.permissions import risk_visibility_clause
 from app.models import Department, Risk, User
 from app.schemas.dashboard import RiskDistributionItem, RiskDistributionResponse, RiskTrendPoint
 from app.services._dashboard_metrics.periods import month_period_expr
-from app.services._dashboard_metrics.risk_levels import (
+from app.services.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )
@@ -73,6 +73,7 @@ async def load_risks_by_cell(
     department_id: int | None,
     risk_type: Literal["gross", "net"],
     include_archived: bool,
+    risk_level: Literal["critical", "high", "medium", "low"] | None = None,
 ) -> list[dict]:
     if risk_type == "gross":
         prob_col = Risk.gross_probability
@@ -91,6 +92,12 @@ async def load_risks_by_cell(
     visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
     if visibility_clause is not None:
         conditions.append(visibility_clause)
+
+    if risk_level:
+        ranges = await get_configured_risk_level_ranges(db)
+        level_condition = build_risk_level_condition_from_ranges(risk_level, ranges)
+        if level_condition is not None:
+            conditions.append(level_condition)
 
     query = (
         select(

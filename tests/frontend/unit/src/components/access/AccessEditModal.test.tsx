@@ -4,6 +4,8 @@ import { userEvent } from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { HTMLAttributes, ReactNode } from 'react';
 
+import i18n from '@/i18n';
+
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { ApiClientError } from '@/services/apiClient';
 import type { AccessUserRead, RoleWithPermissions } from '@/types/access';
@@ -470,6 +472,27 @@ describe('AccessEditModal', () => {
         expect(await screen.findByLabelText(/full name/i)).toBeDisabled();
         expect(screen.getByLabelText(/email address/i)).toBeDisabled();
         expect(screen.getByText(/These identity fields are managed in Microsoft Entra/)).toBeInTheDocument();
+    });
+
+    it.each(['native', 'directory'])('shows Czech ownership reason for %s fields', async (mode) => {
+        await act(async () => { await i18n.changeLanguage('cs'); });
+        try {
+            const target = makeAccessUser();
+            if (mode === 'native') target.capabilities.verified_identity_fields = ['email'];
+            else {
+                target.capabilities.directory_owned_fields = ['name', 'email'];
+                target.capabilities.can_edit_identity = false;
+            }
+            render(<AccessEditModal isOpen user={target} onClose={vi.fn()} onSaved={vi.fn()} />);
+            expect(await screen.findByDisplayValue(target.email)).toBeDisabled();
+            if (mode === 'directory') expect(screen.getByDisplayValue(target.name)).toBeDisabled();
+            expect(screen.getByText(mode === 'native'
+                ? 'Uživatelé mění e-mail pro obnovení po ověření v Zabezpečení účtu. Nedostupnou adresu řešte řízeným obnovením.'
+                : 'Tyto údaje spravuje Microsoft Entra. Změňte je v adresáři.')).toBeInTheDocument();
+            expect(accessApiMocks.updateAccessUser).not.toHaveBeenCalled();
+        } finally {
+            await act(async () => { await i18n.changeLanguage('en'); });
+        }
     });
 
 });

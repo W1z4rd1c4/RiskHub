@@ -16,7 +16,7 @@ import {
     buildVendorPayload,
     filterSuggestions,
     getSubprocessSuggestions,
-    vendorOwnerChangeRequiresApproval,
+    vendorReasonFormState,
     withCurrentDepartmentOption,
     withCurrentOwnerOption,
 } from './vendorForm.mappers';
@@ -97,13 +97,8 @@ export function VendorFormContainer({
         && initialData
         && formData.outsourcing_owner_user_id !== initialData.outsourcing_owner_user_id,
     );
-    const requestReasonRequired = vendorOwnerChangeRequiresApproval(
-        initialData,
-        accountabilityChanged,
-        accountabilityScenario,
-    );
-    const accountabilityScenarioUnavailable = accountabilityChanged
-        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
+    const { requestReasonRequired, unavailable: accountabilityScenarioUnavailable, unavailableReasonFact } =
+        vendorReasonFormState(initialData, isEdit, accountabilityChanged, accountabilityScenario);
     let submitLabel = t('actions.create');
     if (requestReasonRequired) {
         submitLabel = t('actions.submit_for_approval');
@@ -158,6 +153,7 @@ export function VendorFormContainer({
                 : handleSubmit}
             className="space-y-6"
         >
+            {unavailableReasonFact ? <InlineMessage tone="danger">{t('common:governed_mutation.capability_unavailable')}</InlineMessage> : null}
             <fieldset disabled={isSubmitting} className="min-w-0 space-y-6 border-0 p-0">
             {error ? <InlineMessage tone="danger">{error}</InlineMessage> : null}
 

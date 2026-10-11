@@ -164,6 +164,8 @@ export interface RiskListParams {
     risk_type?: string;
     is_priority?: boolean;
     has_breach?: boolean;
+    risk_level?: 'low' | 'medium' | 'high' | 'critical';
+    critical?: boolean;
     min_net_score?: number;
     process?: string;
     category?: string;

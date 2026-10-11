@@ -373,6 +373,7 @@
     "department_required": "Oddělení je povinné",
     "owner_required": "Vlastník outsourcingu je povinný",
     "request_reason_required": "U této řízené změny Dodavatele je důvod žádosti povinný.",
+    "pending_change_exists": "Tento Dodavatel již má čekající změnu. Před odesláním další změny ji zrušte nebo vyřešte.",
     "owner_lookup_failed": "Aktivní vlastníky se nepodařilo načíst. Zopakujte chráněné vyhledání vlastníka.",
     "score_required": "Skóre rizika (1–5) je povinné"
   },
