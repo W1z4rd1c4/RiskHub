@@ -27,14 +27,15 @@ single-file endpoint module and must not be deleted during package-split
 cleanup. It owns the live `POST /api/v1/riskhub/questionnaires/batch-send`
 route.
 
-Frontend caller chain verified on 2026-05-09:
-- `frontend/src/components/riskhub/RiskQuestionnairesPanel.tsx:257` invokes `handleBatchSend`.
-- `frontend/src/components/riskhub/riskQuestionnairePanelState.ts:170` calls `riskHubApi.batchSendQuestionnaires`.
-- `frontend/src/services/riskHubApi.ts:308` posts to `/riskhub/questionnaires/batch-send`.
-- `backend/app/api/v1/endpoints/riskhub_questionnaires.py:37` serves the batch-send route.
+Executable caller chain (symbol references, not historical line numbers):
+- `frontend/src/components/riskhub/RiskQuestionnairesPanel.tsx` invokes `handleBatchSend`.
+- `frontend/src/components/riskhub/riskQuestionnairePanelState.ts` calls `riskHubApi.batchSendQuestionnaires`.
+- `frontend/src/services/riskHubApi.ts` posts to `/riskhub/questionnaires/batch-send`.
+- `backend/app/api/v1/endpoints/riskhub_questionnaires.py` serves the batch-send route.
 
-Presence lock:
-- `tests/backend/pytest/architecture/test_riskhub_questionnaires_module_present_red.py`
+Executable locks:
+- `tests/backend/pytest/architecture/test_riskhub_questionnaires_module_present_red.py` verifies the mounted POST route
+- `tests/frontend/unit/src/components/riskhub/__tests__/RiskQuestionnairesPanel.callChain.test.tsx` exercises the real panel, hook and API client through the HTTP boundary, including the exact method, path, payload and rendered outcome
 
 ## Graph Directory Adapter Package
 
