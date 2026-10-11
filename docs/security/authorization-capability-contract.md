@@ -16,6 +16,8 @@ Native bootstrap (#203) seeds only canonical references and distinct pending Adm
 
 ## Architecture exception review
 
+2026-10-11: The #254 two-package pilot declares existing Questionnaire and Control-execution service exports and narrower HTTP caller classes in their owning packages. Static import/member checks preserve lifecycle and governed adapter boundaries; two existing service-only leaf dependencies remain explicit, expiring exceptions. Public compatibility exports, runtime permissions, capability values, transaction ownership and mutation behavior are unchanged. This pilot does not complete the remaining classified architecture migration.
+
 2026-09-06: Architecture exception review routes RiskHub configuration and Vendor archive/restore commits through the shared rollback boundary. Mutation plus audit remain atomic; authorization guards, row visibility, capability exports, and permission semantics are unchanged. The existing four-module auth baseline and 27 public capability exports were reviewed and renewed through 2026-12-05.
 
 ## UI-consistency remediation (presentation only) — 2026-10-01
