@@ -26,7 +26,14 @@ namespace assignments and module globals used by later-called functions. Boundar
 bindings are conservatively retained across branch traversal. Ambiguous boundary
 aliases fail closed. External namespace reflection/escape and unresolved dynamic
 imports are unsupported and rejected; known relative dynamic imports use their
-actual package argument. This is a static import/member contract, not a sandbox
+actual package argument. Finite literal target maps are trusted only while their
+references remain in supported read-only forms and the target has one direct,
+unconditional tuple binding in its lexical module/function body. Conditional or
+multiply bound targets, global/nonlocal escape, reassignment, branch/function
+mutation, alias escape, parameter shadowing and a shadowed metadata `list` call
+invalidate that inference and force an unresolved-target rejection. Inference
+is fresh in nested lexical scopes; no general branch-state simulation is claimed.
+This is a static import/member contract, not a sandbox
 for arbitrary Python metaprogramming or a replacement for runtime authorization.
 
 Two existing capability-projection leaf imports are retained in a manually reviewed

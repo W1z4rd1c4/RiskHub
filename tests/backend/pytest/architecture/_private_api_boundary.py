@@ -76,6 +76,112 @@ def load_surfaces(root: Path) -> tuple[Surface, ...]:
     return tuple(result)
 
 
+def _stable_literal_maps(tree: ast.Module, parents: dict[ast.AST, ast.AST]) -> dict[str, dict]:
+    """Infer only literal maps whose references stay within supported read-only forms.
+
+    This scans whole function/branch bodies too: initialization before a mutation
+    does not prove that a later dynamic import still sees the initial targets.
+    """
+    candidates = {}
+    for statement in tree.body:
+        if not isinstance(statement, ast.Assign) or not isinstance(statement.value, ast.Dict):
+            continue
+        try:
+            value = ast.literal_eval(statement.value)
+        except (ValueError, TypeError):
+            continue
+        for target in statement.targets:
+            if isinstance(target, ast.Name):
+                candidates[target.id] = (target, value)
+    list_is_shadowed = any(
+        (isinstance(node, ast.Name) and node.id == "list" and isinstance(node.ctx, ast.Store))
+        or (isinstance(node, ast.arg) and node.arg == "list")
+        or (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == "list")
+        or (isinstance(node, ast.alias) and (node.asname or node.name.split(".")[0]) == "list")
+        for node in ast.walk(tree)
+    )
+    result = {}
+    for name, (declaration, value) in candidates.items():
+        stable = True
+        for node in ast.walk(tree):
+            if isinstance(node, ast.arg) and node.arg == name:
+                stable = False
+            if not isinstance(node, ast.Name) or node.id != name or node is declaration:
+                continue
+            owner = parents.get(node)
+            if not isinstance(node.ctx, ast.Load):
+                stable = False
+            elif isinstance(owner, ast.Subscript) and owner.value is node:
+                stable = stable and isinstance(owner.ctx, ast.Load)
+            elif isinstance(owner, ast.Compare) and node in owner.comparators:
+                stable = stable and all(isinstance(op, (ast.In, ast.NotIn)) for op in owner.ops)
+            elif isinstance(owner, ast.Call) and isinstance(owner.func, ast.Name) and owner.func.id == "list":
+                # __all__ = list(_EXPORTS) is the supported metadata projection.
+                stable = stable and len(owner.args) == 1 and not owner.keywords and not list_is_shadowed
+            else:
+                # Namespace aliasing, methods, argument escape, and unsupported
+                # access cannot supply a trusted finite dynamic-import target set.
+                stable = False
+        if stable:
+            result[name] = value
+    return result
+
+
+def _single_unconditional_targets(tree: ast.Module, parents: dict[ast.AST, ast.AST]) -> set[ast.Name]:
+    """A deliberately narrow finite-value grammar, without branch-state simulation."""
+    from collections import Counter
+
+    scopes = (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+    def scope_of(node: ast.AST) -> ast.AST:
+        owner = parents.get(node, tree)
+        while not isinstance(owner, scopes):
+            owner = parents.get(owner, tree)
+        return owner
+
+    writes = Counter()
+    escaped = set()
+    wildcard_scopes = set()
+    for node in ast.walk(tree):
+        names = []
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            names = [node.id]
+        elif isinstance(node, ast.arg):
+            names = [node.arg]
+        elif isinstance(node, ast.alias):
+            names = [node.asname or node.name.split(".")[0]]
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names = [node.name]
+        elif isinstance(node, (ast.ExceptHandler, ast.MatchAs, ast.MatchStar)) and node.name:
+            names = [node.name]
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            names = [node.rest]
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            escaped.update(node.names)
+        if isinstance(node, ast.ImportFrom) and any(alias.name == "*" for alias in node.names):
+            wildcard_scopes.add(scope_of(node))
+        for name in names:
+            writes[scope_of(node), name] += 1
+    allowed = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Subscript):
+            continue
+        scope = scope_of(node)
+        if parents.get(node) is not scope or not isinstance(scope, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Tuple):
+                allowed.update(
+                    element
+                    for element in target.elts
+                    if isinstance(element, ast.Name)
+                    and writes[scope, element.id] == 1
+                    and element.id not in escaped
+                    and scope not in wildcard_scopes
+                )
+    return allowed
+
+
 def violations(
     source: str,
     caller: str,
@@ -90,17 +196,9 @@ def violations(
     except SyntaxError as exc:
         return [f"private API {caller}: unparseable source: {exc.msg}"]
     found: list[str] = []
-    literal_maps = {}
-    for statement in tree.body:
-        if isinstance(statement, ast.Assign) and isinstance(statement.value, ast.Dict):
-            try:
-                value = ast.literal_eval(statement.value)
-            except (ValueError, TypeError):
-                continue
-            for target in statement.targets:
-                if isinstance(target, ast.Name):
-                    literal_maps[target.id] = value
     parent = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+    literal_maps = _stable_literal_maps(tree, parent)
+    inferable_targets = _single_unconditional_targets(tree, parent)
 
     class Visitor(ast.NodeVisitor):
         def __init__(self) -> None:
@@ -119,6 +217,7 @@ def violations(
             )
 
         def bind(self, local: str, target: str | None) -> None:
+            self.string_targets.pop(local, None)
             previous = self.bindings.get(local)
             # Conservative across branches: an unrelated assignment cannot erase a
             # possible boundary namespace. This is not a general Python type analysis.
@@ -189,6 +288,7 @@ def violations(
 
         def visit_Name(self, node: ast.Name) -> None:
             if not isinstance(node.ctx, ast.Load):
+                self.string_targets.pop(node.id, None)
                 return
             container = parent.get(node)
             if isinstance(container, ast.Attribute) and container.value is node:
@@ -204,14 +304,22 @@ def violations(
             self.visit(node.value)
             for target in node.targets:
                 if isinstance(target, ast.Tuple) and isinstance(node.value, ast.Subscript):
+                    for element in ast.walk(target):
+                        if isinstance(element, ast.Name):
+                            self.string_targets.pop(element.id, None)
                     mapping = literal_maps.get(getattr(node.value.value, "id", ""))
                     if isinstance(mapping, dict) and mapping:
                         for index, element in enumerate(target.elts):
-                            if isinstance(element, ast.Name) and all(
-                                isinstance(value, tuple) and len(value) > index and isinstance(value[index], str)
-                                for value in mapping.values()
+                            if (
+                                isinstance(element, ast.Name)
+                                and element in inferable_targets
+                                and all(
+                                    isinstance(value, tuple) and len(value) > index and isinstance(value[index], str)
+                                    for value in mapping.values()
+                                )
                             ):
                                 self.string_targets[element.id] = {value[index] for value in mapping.values()}
+                    continue  # Inferred tuple bindings have already been handled above.
                 if isinstance(target, ast.Name):
                     self.string_targets.pop(target.id, None)
                     self.bind(target.id, name)
@@ -270,7 +378,9 @@ def violations(
             if node.returns is not None:
                 self.visit(node.returns)
             outer = self.bindings
+            outer_targets = self.string_targets
             self.bindings = dict(outer)
+            self.string_targets = {}
             for argument in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs):
                 if argument.annotation is not None:
                     self.visit(argument.annotation)
@@ -281,8 +391,36 @@ def violations(
             for child in node.body:
                 self.visit(child)
             self.bindings = outer
+            self.string_targets = outer_targets
+            self.string_targets.pop(node.name, None)
 
         visit_AsyncFunctionDef = visit_FunctionDef
+
+        def visit_Lambda(self, node: ast.Lambda) -> None:
+            for expression in (*node.args.defaults, *node.args.kw_defaults):
+                if expression is not None:
+                    self.visit(expression)
+            outer, outer_targets = self.bindings, self.string_targets
+            self.bindings, self.string_targets = dict(outer), {}
+            for argument in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs):
+                self.bindings.pop(argument.arg, None)
+            for argument in (node.args.vararg, node.args.kwarg):
+                if argument is not None:
+                    self.bindings.pop(argument.arg, None)
+            self.visit(node.body)
+            self.bindings, self.string_targets = outer, outer_targets
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            for expression in (*node.decorator_list, *node.bases):
+                self.visit(expression)
+            for keyword in node.keywords:
+                self.visit(keyword.value)
+            outer, outer_targets = self.bindings, self.string_targets
+            self.bindings, self.string_targets = dict(outer), {}
+            for statement in node.body:
+                self.visit(statement)
+            self.bindings, self.string_targets = outer, outer_targets
+            self.string_targets.pop(node.name, None)
 
     visitor = Visitor()
 

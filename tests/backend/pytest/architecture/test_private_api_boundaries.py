@@ -306,3 +306,130 @@ def test_missing_export_binding_is_detected(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.delattr(package, "read_questionnaire_detail")
     with pytest.raises(AttributeError, match="read_questionnaire_detail"):
         test_exports_resolve_without_implementation_location_pins()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        '_EXPORTS["op"] = ("app.services._risk_questionnaires.workflow", "open_questionnaire_for_user")',
+        '_EXPORTS.update({"op": ("app.services._risk_questionnaires.workflow", "open_questionnaire_for_user")})',
+        'alias = _EXPORTS\nalias["op"] = ("app.services._risk_questionnaires.workflow", "open_questionnaire_for_user")',
+        '_EXPORTS = {"op": ("app.services._risk_questionnaires.workflow", "open_questionnaire_for_user")}',
+    ],
+)
+def test_mutated_dynamic_target_map_cannot_hide_private_import(mutation: str) -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (
+        'from importlib import import_module\n_EXPORTS = {"op": ("math", "sqrt")}\n'
+        + mutation
+        + '\nmodule_name, attr = _EXPORTS["op"]\n'
+        "module = import_module(module_name)\nmodule.open_questionnaire_for_user(None)\n"
+    )
+    assert violations(source, "app.api.endpoints.new", load_surfaces(ROOT))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        'if flag:\n _EXPORTS["op"] = ("app.services._risk_questionnaires.workflow", "open_questionnaire_for_user")',
+        'def change():\n _EXPORTS["op"] = ("app.services._risk_questionnaires.workflow", '
+        '"open_questionnaire_for_user")\nchange()',
+    ],
+)
+def test_later_branch_or_function_target_map_mutation_is_not_trusted(mutation: str) -> None:
+    test_mutated_dynamic_target_map_cannot_hide_private_import(mutation)
+
+
+def test_dynamic_target_map_function_parameter_shadow_is_not_trusted() -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (
+        'from importlib import import_module\n_EXPORTS = {"op": ("math", "sqrt")}\n'
+        'def call(_EXPORTS):\n module_name, attr = _EXPORTS["op"]\n import_module(module_name)\n'
+    )
+    assert violations(source, "app.api.endpoints.new", load_surfaces(ROOT))
+
+
+def test_immutable_internal_lazy_export_map_remains_supported() -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (ROOT / "backend/app/services/_riskhub_config/__init__.py").read_text()
+    assert violations(source, "app.services._riskhub_config", load_surfaces(ROOT), is_package=True) == []
+
+
+def test_shadowed_list_cannot_smuggle_target_map_mutation() -> None:
+    mutation = (
+        'def list(value):\n value["op"] = ("app.services._risk_questionnaires.workflow", '
+        '"open_questionnaire_for_user")\n return []\n__all__ = list(_EXPORTS)'
+    )
+    test_mutated_dynamic_target_map_cannot_hide_private_import(mutation)
+
+
+@pytest.mark.parametrize(
+    "function",
+    [
+        "def run(module_name):\n return import_module(module_name)",
+        'def run(module_name="math"):\n return import_module(module_name)',
+        "run = lambda module_name: import_module(module_name)",
+    ],
+)
+def test_inner_parameter_does_not_inherit_outer_inferred_import_target(function: str) -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (
+        'from importlib import import_module\n_EXPORTS = {"op": ("math", "sqrt")}\n'
+        'module_name, attr = _EXPORTS["op"]\n' + function + '\nrun("app.services._risk_questionnaires.workflow")\n'
+    )
+    assert violations(source, "app.api.endpoints.new", load_surfaces(ROOT))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        'module_name: str = "app.services._risk_questionnaires.workflow"',
+        'module_name += ".unexpected"',
+        'for module_name in ["app.services._risk_questionnaires.workflow"]:\n pass',
+        '(module_name := "app.services._risk_questionnaires.workflow")',
+        'module_name, attr = external_targets["op"]',
+    ],
+)
+def test_unsupported_target_rebinding_invalidates_finite_inference(mutation: str) -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (
+        'from importlib import import_module\n_EXPORTS = {"op": ("math", "sqrt")}\n'
+        'module_name, attr = _EXPORTS["op"]\n' + mutation + "\nimport_module(module_name)\n"
+    )
+    assert violations(source, "app.api.endpoints.new", load_surfaces(ROOT))
+
+
+def test_unexecuted_branch_cannot_replace_unknown_target_with_trusted_inference() -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (
+        'from importlib import import_module\n_EXPORTS = {"op": ("math", "sqrt")}\n'
+        'module_name = "app.services._risk_questionnaires.workflow"\n'
+        'if False:\n module_name, attr = _EXPORTS["op"]\nimport_module(module_name)\n'
+    )
+    assert violations(source, "app.api.endpoints.new", load_surfaces(ROOT))
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        "for module_name in []:\n pass",
+        "match incoming:\n case module_name:\n  pass",
+        "try:\n pass\nexcept Exception as module_name:\n pass",
+        "from external_plugin import *",
+        'def change():\n global module_name\n module_name = "app.services._risk_questionnaires.workflow"\nchange()',
+    ],
+)
+def test_finite_target_requires_one_unconditional_unescaped_binding(binding: str) -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    source = (
+        'from importlib import import_module\n_EXPORTS = {"op": ("math", "sqrt")}\n'
+        'module_name, attr = _EXPORTS["op"]\n' + binding + "\nimport_module(module_name)\n"
+    )
+    assert violations(source, "app.api.endpoints.new", load_surfaces(ROOT))
