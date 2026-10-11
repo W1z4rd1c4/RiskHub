@@ -47,9 +47,11 @@ async def test_historical_seeder_writes_comparable_stock_metric_definitions(
             )
         )
     ).scalar_one()
-    assert seeded_snapshot.metrics[SNAPSHOT_METRIC_DEFINITIONS_KEY] == (
-        SNAPSHOT_METRIC_DEFINITION_IDS
-    )
+    # ARCH-12 #245: historical reconstruction keeps the old null-history exclusion.
+    assert seeded_snapshot.metrics[SNAPSHOT_METRIC_DEFINITIONS_KEY] == {
+        **SNAPSHOT_METRIC_DEFINITION_IDS,
+        "overdue_kris": "riskhub.snapshot.overdue_kris.v1",
+    }
     expected_observed_at = datetime(2026, 4, 1, tzinfo=UTC)
     assert coerce_utc(seeded_snapshot.captured_at) == expected_observed_at
 
@@ -144,7 +146,7 @@ async def test_historical_seeder_uses_frequency_aligned_overdue_kri_definition(
     }
     assert snapshots["2025-Q1"].metrics["overdue_kris"] == 0
     assert snapshots["2025-Q1"].metrics[SNAPSHOT_METRIC_DEFINITIONS_KEY]["overdue_kris"] == (
-        SNAPSHOT_METRIC_DEFINITION_IDS["overdue_kris"]
+        "riskhub.snapshot.overdue_kris.v1"
     )
     assert snapshots["2025-Q2"].metrics["overdue_kris"] == 1
 

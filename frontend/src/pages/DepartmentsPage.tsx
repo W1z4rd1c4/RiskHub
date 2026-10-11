@@ -124,14 +124,14 @@ export function DepartmentsPage() {
                                 </div>
                                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                                     {/* Each badge sits in its own wrapper so the card keeps one status element per slot. */}
-                                    {dept.breaching_kri_count > 0 && (
+                                    {dept.breaching_kri_count != null && dept.breaching_kri_count > 0 && (
                                         <div className="max-w-full">
                                             <Badge tone="warning" className={DEPARTMENT_BADGE_CLASS}>
                                                 {dept.breaching_kri_count} {t('kris:status.breached')}
                                             </Badge>
                                         </div>
                                     )}
-                                    {dept.high_risk_count > 0 && (
+                                    {dept.high_risk_count != null && dept.high_risk_count > 0 && (
                                         <div className="max-w-full">
                                             <SeverityBadge
                                                 band="critical"
@@ -147,27 +147,27 @@ export function DepartmentsPage() {
                             <div className="grid min-w-0 grid-cols-2 gap-2 text-center xl:grid-cols-5 [&>div]:min-w-0 [&_span]:max-w-full [&_span]:[overflow-wrap:anywhere]">
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <Users aria-hidden="true" className="h-4 w-4 text-accent-text" />
-                                    <span className="text-lg font-bold text-foreground">{dept.user_count}</span>
+                                    <span className="text-lg font-bold text-foreground">{dept.user_count ?? t('common:fallbacks.not_available')}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('dashboard:department_exposure.people')}</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <ENTITY_ICONS.risk aria-hidden="true" className="h-4 w-4 text-severity-high-text" />
-                                    <span className="text-lg font-bold text-foreground">{dept.risk_count}</span>
+                                    <span className="text-lg font-bold text-foreground">{dept.risk_count ?? t('common:fallbacks.not_available')}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('risks:title')}</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <ENTITY_ICONS.control aria-hidden="true" className="h-4 w-4 text-chart-2" />
-                                    <span className="text-lg font-bold text-foreground">{dept.control_count}</span>
+                                    <span className="text-lg font-bold text-foreground">{dept.control_count ?? t('common:fallbacks.not_available')}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('controls:title')}</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <ENTITY_ICONS.kri aria-hidden="true" className="h-4 w-4 text-success-text" />
-                                    <span className="text-lg font-bold text-foreground">{dept.kri_count}</span>
+                                    <span className="text-lg font-bold text-foreground">{dept.kri_count ?? t('common:fallbacks.not_available')}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('kris:title')}</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-tint/5">
                                     <TrendingUp aria-hidden="true" className="h-4 w-4 text-destructive" />
-                                    <span className="text-lg font-bold text-foreground">{dept.total_net_score}</span>
+                                    <span className="text-lg font-bold text-foreground">{dept.total_net_score ?? t('common:fallbacks.not_available')}</span>
                                     <span className="text-xs font-bold text-muted-foreground uppercase">{t('dashboard:department_exposure.risk_sum')}</span>
                                 </div>
                             </div>

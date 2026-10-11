@@ -20,6 +20,7 @@ if __package__ in {None, ""}:
 
 import argparse
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -295,6 +296,7 @@ class ReleaseParityAudit:
         screenshot_url: str | None = None,
         screenshot_file: Path | None = None,
         max_wait_sec: int = 90,
+        on_ready: Callable[[], None] | None = None,
     ) -> dict[str, Any]:
         return start_background_service(
             context_id=context_id,
@@ -312,6 +314,7 @@ class ReleaseParityAudit:
             screenshot_url=screenshot_url,
             screenshot_file=screenshot_file,
             max_wait_sec=max_wait_sec,
+            on_ready=on_ready,
         )
 
     def _build_startup_inventory(self) -> None:

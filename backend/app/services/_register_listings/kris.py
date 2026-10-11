@@ -4,7 +4,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import String, and_, case, false, func, literal, or_, select, union_all
+from sqlalchemy import String, case, false, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,13 +13,11 @@ from app.core.exceptions import ValidationError
 from app.core.permissions import (
     get_kri_ids_where_reporting_owner,
     get_user_department_ids,
-    kri_visibility_clause,
 )
 from app.core.security import check_permission
 from app.models import ApprovalResourceType, Department, KeyRiskIndicator, Risk, User, VendorKRILink
-from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
-from app.models.key_risk_indicator import KRIFrequency, kri_breach_condition
+from app.models.key_risk_indicator import KRIFrequency
 from app.schemas.collection import CollectionFacetOption, CollectionGroupRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._collection_contracts import CollectionGroupEntry, build_grouped_collection_page
@@ -39,6 +37,19 @@ from app.services._monitoring_status import (
     kri_monitoring_status_expression,
 )
 from app.services.authorization_capabilities import kri_capabilities
+from app.services.kri_populations import (
+    archived_clause as kri_effective_archived_clause,
+)
+from app.services.kri_populations import (
+    breaching_clause as kri_effective_breach_clause,
+)
+from app.services.kri_populations import (
+    is_live,
+    visible_query,
+)
+from app.services.kri_populations import (
+    live_clause as kri_effective_active_clause,
+)
 
 from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
 from .shared import (
@@ -90,31 +101,8 @@ def resolve_kri_lifecycle(filters: dict[str, Any]) -> str:
     return "active"
 
 
-def kri_effective_active_clause():
-    """Canonical live KRI predicate, including the parent Risk lifecycle."""
-
-    return and_(archived_clause(KeyRiskIndicator, archived=False), Risk.live())
-
-
-def kri_effective_archived_clause():
-    """Canonical archived KRI predicate, including non-live parent Risks."""
-
-    return or_(archived_clause(KeyRiskIndicator, archived=True), Risk.archived())
-
-
-def kri_effective_breach_clause():
-    """Canonical live-breach predicate, including the parent Risk lifecycle."""
-
-    return and_(kri_effective_active_clause(), kri_breach_condition())
-
-
 def effective_kri_lifecycle(kri: KeyRiskIndicator) -> str:
-    """Resolve effective lifecycle for already-loaded current-view export rows."""
-
-    risk = getattr(kri, "risk", None)
-    risk_status = getattr(getattr(risk, "status", None), "value", getattr(risk, "status", None))
-    parent_is_archived = risk is None or bool(getattr(risk, "is_archived", False)) or risk_status == "archived"
-    return "archived" if bool(kri.is_archived) or parent_is_archived else "active"
+    return "active" if is_live(kri) else "archived"
 
 
 def apply_kri_lifecycle(query, lifecycle: str):
@@ -560,9 +548,7 @@ async def build_kri_listing_plan(
 
     readable_query = select(KeyRiskIndicator).join(Risk)
 
-    visibility_clause = await kri_visibility_clause(db, current_user)
-    if visibility_clause is not None:
-        readable_query = readable_query.where(visibility_clause)
+    readable_query = await visible_query(readable_query, db=db, actor=current_user)
 
     query = apply_kri_lifecycle(readable_query, lifecycle)
 

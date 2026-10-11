@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
+import runpy
 import shlex
 import subprocess
 import sys
 import tempfile
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 import yaml
@@ -441,7 +445,7 @@ def test_frontend_dockerfile_pins_runtime_base_digests() -> None:
     assert (
         text.count(
             "FROM nginx:alpine@sha256:"
-            "db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913"
+            "df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2"
             " AS runtime"
         )
         == 1
@@ -740,6 +744,215 @@ def test_prod_readiness_security_probe_owns_bounded_local_runtime() -> None:
     assert "|| true" not in command
 
 
+def _runtime_verifier_python():
+    payload = _script_text("verify_runtime.sh").split("<<'PY'\n", 1)[1]
+    return payload.rsplit("\nPY", 1)[0]
+
+
+def _runtime_verifier_probe(tmp_path, monkeypatch, jobs, *, fail_query=False):
+    """Execute the real container Python payload with PostgreSQL-shaped rows."""
+    script = tmp_path / "runtime_verifier.py"
+    script.write_text(_runtime_verifier_python(), encoding="utf-8")
+    database_file = tmp_path / "database_url"
+    database_file.write_text("synthetic-readonly-database", encoding="utf-8")
+    monkeypatch.setenv("DATABASE_URL_FILE", str(database_file))
+    state = {"disposed": False, "queries": []}
+
+    class Result:
+        def __init__(self, value):
+            self.value = value
+
+        def scalar_one(self):
+            return self.value
+
+        def mappings(self):
+            return [MappingProxyType(row) for row in jobs]
+
+    class Connection:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def execute(self, statement):
+            query = str(statement)
+            state["queries"].append(query)
+            if fail_query:
+                raise RuntimeError("fixture query failed")
+            return Result(1 if len(state["queries"]) == 1 else 2)
+
+    class Engine:
+        def connect(self):
+            return Connection()
+
+        async def dispose(self):
+            state["disposed"] = True
+
+    def create_engine(url):
+        assert url == "synthetic-readonly-database"
+        return Engine()
+
+    monkeypatch.setattr("sqlalchemy.ext.asyncio.create_async_engine", create_engine)
+    return script, state
+
+
+@pytest.mark.parametrize(
+    ("started_at", "expected"),
+    [
+        (
+            datetime(2026, 10, 11, 1, 2, 3, 456789, tzinfo=UTC),
+            "2026-10-11T01:02:03.456789+00:00",
+        ),
+        (
+            datetime(2026, 10, 11, 3, 2, 3, tzinfo=timezone(timedelta(hours=2))),
+            "2026-10-11T01:02:03+00:00",
+        ),
+        (datetime(2026, 10, 11, 1, 2, 3), "2026-10-11T01:02:03+00:00"),
+        (None, None),
+    ],
+)
+def test_runtime_verifier_serializes_job_instants_as_utc(
+    tmp_path, monkeypatch, capsys, started_at, expected
+):
+    script, state = _runtime_verifier_probe(
+        tmp_path,
+        monkeypatch,
+        [{"job_name": "kri_deadlines", "status": "success", "started_at": started_at}],
+    )
+    runpy.run_path(str(script))
+    assert state["disposed"] is True
+    assert json.loads(capsys.readouterr().out) == {
+        "scheduler_runtime_rows": 1,
+        "dead_letter_count": 2,
+        "latest_jobs": [
+            {
+                "job_name": "kri_deadlines",
+                "status": "success",
+                "started_at": expected,
+            }
+        ],
+    }
+    assert len(state["queries"]) == 3
+    assert all(query.startswith("SELECT ") for query in state["queries"])
+    assert "ORDER BY started_at DESC LIMIT 5" in state["queries"][-1]
+
+
+def test_runtime_verifier_empty_jobs_remain_empty(tmp_path, monkeypatch, capsys):
+    script, state = _runtime_verifier_probe(tmp_path, monkeypatch, [])
+    runpy.run_path(str(script))
+    assert json.loads(capsys.readouterr().out)["latest_jobs"] == []
+    assert state["disposed"] is True
+
+
+def test_runtime_verifier_preserves_query_failure_and_disposes_engine(
+    tmp_path, monkeypatch, capsys
+):
+    script, state = _runtime_verifier_probe(tmp_path, monkeypatch, [], fail_query=True)
+    with pytest.raises(RuntimeError, match="fixture query failed"):
+        runpy.run_path(str(script))
+    assert state["disposed"] is True
+    assert capsys.readouterr().out == ""
+
+
+def test_runtime_verifier_does_not_stringify_unknown_payload_types(
+    tmp_path, monkeypatch, capsys
+):
+    script, state = _runtime_verifier_probe(
+        tmp_path,
+        monkeypatch,
+        [{"job_name": object(), "status": "success", "started_at": None}],
+    )
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        runpy.run_path(str(script))
+    assert state["disposed"] is True
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_runtime_verifier_reads_committed_postgres_job_history(
+    tmp_path, db_session
+):
+    from uuid import uuid4
+
+    from sqlalchemy import delete
+
+    from app.models.scheduler_job_run import SchedulerJobRun
+
+    if db_session.bind.dialect.name != "postgresql":
+        pytest.skip("requires the isolated PostgreSQL test database")
+    instant = datetime(
+        2026, 10, 11, 3, 2, 3, 456789, tzinfo=timezone(timedelta(hours=2))
+    )
+    rows = [
+        SchedulerJobRun(
+            id=str(uuid4()),
+            job_name=name,
+            run_id=str(uuid4()),
+            instance_id=str(uuid4()),
+            status=status,
+            started_at=started,
+        )
+        for name, status, started in [
+            ("__scheduler_runtime__", "running", instant),
+            ("older_job", "success", instant - timedelta(minutes=1)),
+            ("newer_job", "failed", instant),
+        ]
+    ]
+    ids = [row.id for row in rows]
+    db_session.add_all(rows)
+    await db_session.commit()
+    script = tmp_path / "runtime_verifier_postgres.py"
+    script.write_text(_runtime_verifier_python(), encoding="utf-8")
+    database_file = tmp_path / "test_database_url"
+    database_file.write_text(
+        db_session.bind.url.render_as_string(hide_password=False), encoding="utf-8"
+    )
+    database_file.chmod(0o600)
+    process = None
+    try:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(script),
+            cwd=REPO_ROOT / "backend",
+            env={
+                **os.environ,
+                "DATABASE_URL_FILE": str(database_file),
+                "PYTHONPATH": str(REPO_ROOT / "backend"),
+            },
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
+        assert process.returncode == 0, stderr.decode()
+        assert json.loads(stdout) == {
+            "scheduler_runtime_rows": 1,
+            "dead_letter_count": 0,
+            "latest_jobs": [
+                {
+                    "job_name": "newer_job",
+                    "status": "failed",
+                    "started_at": "2026-10-11T01:02:03.456789+00:00",
+                },
+                {
+                    "job_name": "older_job",
+                    "status": "success",
+                    "started_at": "2026-10-11T01:01:03.456789+00:00",
+                },
+            ],
+        }
+    finally:
+        if process is not None and process.returncode is None:
+            process.kill()
+            await process.wait()
+        database_file.unlink(missing_ok=True)
+        await db_session.execute(
+            delete(SchedulerJobRun).where(SchedulerJobRun.id.in_(ids))
+        )
+        await db_session.commit()
+
+
 def test_package_dependent_runtime_probes_execute_as_riskhub_user() -> None:
     smoke_script = _script_text("smoke_test.sh")
     verify_script = _script_text("verify_runtime.sh")
@@ -975,8 +1188,10 @@ def test_prod_readiness_phase_plan_resolves_registry_tags_before_deploy_and_upgr
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env['PATH']}"
 
+    deploy_script = tmp_path / "resolve-deploy-images.sh"
+    deploy_script.write_text(deploy_resolver, encoding="utf-8")
     resolved = subprocess.run(
-        ["bash", "-c", deploy_resolver],
+        ["bash", str(deploy_script)],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -992,8 +1207,10 @@ def test_prod_readiness_phase_plan_resolves_registry_tags_before_deploy_and_upgr
         )
 
     fake_docker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    upgrade_script = tmp_path / "resolve-upgrade-images.sh"
+    upgrade_script.write_text(upgrade_resolver, encoding="utf-8")
     unresolved = subprocess.run(
-        ["bash", "-c", upgrade_resolver],
+        ["bash", str(upgrade_script)],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -1021,7 +1238,8 @@ def test_prod_readiness_detached_tree_gitleaks_scan_uses_no_git_mode_and_fails_c
         if command.command_id == "p4_gitleaks_scan"
     )
 
-    assert "--source /repo --no-git" in scan.command
+    assert "-w /repo" in scan.command
+    assert "--source . --no-git" in scan.command
     assert "--exit-code 1" in scan.command
     assert scan.required is True
 
@@ -1216,26 +1434,30 @@ def test_prod_readiness_generated_negative_probe_reaches_frontend_validation(
 def _run_production_backend_preflight(
     backend_env: Path, *, secret_dir: Path, runtime_dir: Path
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [
-            "bash",
-            "-c",
+    with tempfile.TemporaryDirectory(prefix="riskhub-preflight-harness-") as td:
+        script = Path(td) / "preflight.sh"
+        script.write_text(
             'source "$1"; source "$2"; preflight_backend_env "$3"',
-            "bash",
-            str(PROD_SCRIPTS_DIR / "lib" / "common.sh"),
-            str(PROD_PREFLIGHT_LIB),
-            str(backend_env),
-        ],
-        cwd=REPO_ROOT,
-        env={
-            **os.environ,
-            "RISKHUB_DEFAULT_SECRET_DIR": str(secret_dir),
-            "RISKHUB_RUNTIME_DIR": str(runtime_dir),
-        },
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+            encoding="utf-8",
+        )
+        return subprocess.run(
+            [
+                "bash",
+                str(script),
+                str(PROD_SCRIPTS_DIR / "lib" / "common.sh"),
+                str(PROD_PREFLIGHT_LIB),
+                str(backend_env),
+            ],
+            cwd=REPO_ROOT,
+            env={
+                **os.environ,
+                "RISKHUB_DEFAULT_SECRET_DIR": str(secret_dir),
+                "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
 
 @pytest.mark.parametrize(

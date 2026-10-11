@@ -1,5 +1,6 @@
 """Restore security proofs; a version increment cannot replace new signing authority."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -179,8 +180,16 @@ async def test_checkpoint_preserves_new_suspension_and_revokes_restored_artifact
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "cutover_at",
+    [
+        datetime(2026, 10, 10, 20, 57, 59, 999999, tzinfo=UTC),
+        datetime(2026, 10, 10, 20, 58, 0, tzinfo=UTC),
+    ],
+    ids=["before-step-boundary", "at-step-boundary"],
+)
 async def test_restored_factor_cutoff_and_changed_credentials_require_recovery(
-    native_context, db_session, test_user_employee
+    native_context, db_session, test_user_employee, monkeypatch, cutover_at
 ):
     import pyotp
 
@@ -221,9 +230,12 @@ async def test_restored_factor_cutoff_and_changed_credentials_require_recovery(
         signing_fingerprint=fingerprint(settings.secret_key.encode()),
         source="test",
     )
+    # Production captures one cutover instant. A later assertion-time clock can
+    # cross a TOTP boundary without making the persisted cutoff incorrect.
+    monkeypatch.setattr("app.services._identity_restore.cutover.utc_now", lambda: cutover_at)
     await reconcile_restored_security(db_session, settings, **kwargs)
     await db_session.refresh(factor)
-    assert factor.last_time_step >= int(utc_now().timestamp()) // 30
+    assert factor.last_time_step == int(cutover_at.timestamp()) // 30
     assert (
         keys.decrypt(
             "totp", factor.key_id, factor.encrypted_seed, [binding.installation_id, str(user.id), factor.generation]

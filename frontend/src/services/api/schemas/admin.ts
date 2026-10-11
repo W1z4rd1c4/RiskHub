@@ -159,7 +159,7 @@ export const activeSessionArraySchema = z.array(activeSessionSchema);
 export const directoryCheckResultSchema: z.ZodType<DirectoryCheckResult> = passthroughObject({
     user_id: z.number(),
     email: z.string(),
-    status: z.enum(['active', 'deprovisioned', 'error', 'skipped']),
+    status: z.enum(['active', 'deprovisioned', 'suspended', 'inactive', 'error', 'skipped']),
     reason: z.string().nullable(),
     revoked_sessions: z.number(),
     orphaned_items_flagged: z.number(),
@@ -169,6 +169,8 @@ export const directoryCheckAllResponseSchema: z.ZodType<DirectoryCheckAllRespons
         checked: z.number(),
         deprovisioned: z.number(),
         active: z.number(),
+        suspended: z.number(),
+        inactive: z.number(),
         errors: z.number(),
         skipped: z.number(),
         results: z.array(directoryCheckResultSchema),

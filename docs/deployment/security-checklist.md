@@ -71,6 +71,7 @@ RiskHub production deploys must satisfy these invariants:
 - Entra-side disablement is not instant logout today; RiskHub revokes on the next `AD_DEPROVISION_CHECK_INTERVAL_MINUTES` cycle plus the remaining access-token lifetime.
 - Admin Console session revocation must go through `/api/v1/admin/sessions/{user_id}/revoke`; it rejects self-revocation, bumps `token_version`, revokes active refresh rows, and records the admin activity in one transaction.
 - The Entra verifier cache must be scoped by tenant, client, discovery URL, clock skew, allowed email domains, and business-role token claim; discovery/JWKS calls remain protected by the outbound egress guard.
+- JWKS refresh attempts share a per-verifier 60-second cooldown, including failures, scheduled refreshes, and unknown or same-`kid` key rotation. Unknown-key misses reuse that bounded negative-cache window without storing attacker-supplied identifiers. A newly rotated key can require a retry after the window; invalid claims never trigger a refresh, and expired metadata fails closed during provider failures. Cached valid keys remain usable without waiting on in-flight refresh I/O.
 - Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
 - Confirm bootstrap admin/CRO external IDs are distinct when both are supplied.
@@ -207,3 +208,54 @@ Native production admission remains closed until release acceptance. For native
 component/installer verification, follow the [recovery and key runbook](../security/identity-recovery.md):
 configure independently held approver keys, protect the native keyring and backup
 inventory, and rehearse recovery without clearing a suspension or enabled factor.
+
+## Audit-only full readiness evidence
+
+The `Audit-Only Production Readiness` workflow runs the same complete release
+parity command and explicit `GO` decision gate as `release.yml`, including the
+production-readiness audit. It is separate from the fast audit, which omits
+production readiness. A failed, incomplete, skipped, or environment-blocked full
+run is not release-acceptance evidence.
+
+This lane has only `contents: read`, checks out the exact candidate without
+persisting repository credentials, and has no release or external image-publish
+job. The existing installer tests build and push fixture images only to a
+runner-local registry bound to `127.0.0.1`; the database fixture binds only the
+validated private Docker bridge address so installer containers retain their
+`host.docker.internal` connection path. Bridge discovery or validation failure
+stops the lane rather than falling back to all interfaces. Install, upgrade, rollback, database
+and runtime probes use disposable containers and synthetic configuration on
+that runner. They do not target an existing installation or use production
+credentials. On Linux, the disposable runtime fixture directory uses group
+10001 with setgid mode `2750`; secret directories remain `0750` and fixture
+files remain `0440`. A separate disposable, non-networked container diagnostic
+compares replacement inheritance when the directory owner is outside, directly
+in, or supplementally in that group. The hosted audit shell adds group 10001
+only to the audit process and its children, dropping to the original non-root
+runner UID/GID before running the unchanged release gate. It preserves an explicit
+environment allowlist and does not modify account or group membership. Initial
+normalization alone does not prove post-replacement readability: the complete installation and runtime checks must still pass. The lane installs the matching Playwright Chromium before
+rendered checks. Its full-tree Gitleaks audit uses pinned version 8.24.3, matching
+the Security workflow scanner, with unchanged rules and no new suppressions.
+The full-tree scan uses the repository working directory and relative source
+path so existing exact fingerprints keep their canonical path convention.
+Screenshots use browser-native animation handling under the actual CSP; failed
+login readiness retains diagnostic DOM state and an explicitly failed screenshot.
+Component frontend probes explicitly target their paired live backend (8010 for
+dev and 8011 for test), including their authentication reference checks. Each
+backend remains alive only inside its paired frontend capture callback; the
+existing process-group cleanup runs afterward, including when capture fails. The
+harness retains its cleanup and failure-evidence behavior.
+Artifact upload excludes temporary workspaces, secret fixture directories and
+environment files while retaining reports, command results, scans and SBOMs.
+
+Run it for the immutable candidate when closing readiness requirements such as
+#143. Record the candidate SHA, full decision and completion evidence, image
+identity/SBOM/raw and policy-aware scans, review, and subsequent main evidence.
+Passing this lane does not publish a release, authorize deployment, or replace
+separate human acceptance and identity production-admission requirements.
+
+The read-only `scripts/prod/verify_runtime.sh` reliability report emits scheduler
+`started_at` values as UTC ISO-8601 strings (or null). Populated job history must
+remain JSON-serializable; query failures and unexpected payload types still fail
+the diagnostic rather than being hidden or converted to generic strings.

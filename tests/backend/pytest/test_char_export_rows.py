@@ -44,7 +44,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import KeyRiskIndicator, Risk
-from app.models.key_risk_indicator import kri_breach_condition
 from app.models.risk import ControlRiskLink
 from app.services._reporting.exports.fetch import (
     _fetch_controls_for_export,
@@ -58,6 +57,7 @@ from app.services._reporting.exports.rows import (
     _risk_to_row,
     _vendor_to_row,
 )
+from app.services.kri_populations import kri_breach_condition
 from tests.backend.pytest.factories import (
     create_test_control,
     create_test_kri,
@@ -120,10 +120,10 @@ async def test_risk_export_row_shape(db_session: AsyncSession, test_department, 
 @pytest.mark.asyncio
 async def test_control_export_row_uses_monitoring_facts(db_session: AsyncSession, test_department, test_user_cro):
     """_control_to_row pins the linked-risk fields + monitoring-fact keys."""
-    await _seed_export_fixture(db_session, department_id=test_department.id, owner_id=test_user_cro.id)
+    risk_id = await _seed_export_fixture(db_session, department_id=test_department.id, owner_id=test_user_cro.id)
 
     controls = await _fetch_controls_for_export(db_session, current_user=test_user_cro, department_id=None)
-    rows = [_control_to_row(c) for c in controls]
+    rows = [_control_to_row(c, visible_linked_risk_ids={risk_id}) for c in controls]
     assert len(rows) == 1
     row = rows[0]
 

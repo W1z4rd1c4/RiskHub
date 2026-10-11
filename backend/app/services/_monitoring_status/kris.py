@@ -9,9 +9,9 @@ from app.models.key_risk_indicator import KeyRiskIndicator
 from app.services._kri_history.periods import (
     due_date,
     latest_closed_period_for_date,
-    never_reported_is_overdue,
-    overdue_required_period_end,
 )
+from app.services.kri_populations import classify_kri_breach as classify_kri_breach
+from app.services.kri_populations import overdue_period_end
 
 from .types import (
     KRIMonitoringConfig,
@@ -20,14 +20,6 @@ from .types import (
     KRIMonitoringSnapshot,
     KRIMonitoringStatus,
 )
-
-
-def classify_kri_breach(*, current_value: float, lower_limit: float, upper_limit: float) -> str:
-    if current_value < lower_limit:
-        return "below"
-    if current_value > upper_limit:
-        return "above"
-    return "within"
 
 
 def build_kri_monitoring_facts(kri: KeyRiskIndicator) -> KRIMonitoringFacts:
@@ -58,7 +50,7 @@ def is_within_upper_warning_margin(
 ) -> bool:
     if upper_limit <= lower_limit:
         return False
-    if current_value < lower_limit or current_value > upper_limit:
+    if classify_kri_breach(current_value=current_value, lower_limit=lower_limit, upper_limit=upper_limit) != "within":
         return False
     warning_distance = (upper_limit - lower_limit) * warning_upper_margin_ratio
     return (upper_limit - current_value) <= warning_distance
@@ -76,22 +68,9 @@ def derive_kri_monitoring_snapshot(
         facts.last_period_end is not None and facts.last_period_end >= required_period_end
     )
 
-    # not_submitted/overdue keys off the backtracking overdue anchor (ADR-012 SSOT),
-    # shared with the snapshot metrics and the monitoring not_submitted list filter, so
-    # a KRI that missed an EARLIER period is flagged even while the most recent period is
-    # still inside its grace window. breach/warning/optimal keep is_submitted_for_required
-    # period on the latest-closed-at-today period above -- their behavior is unchanged.
-    # A never-reported KRI (no last_period_end) keeps its today-anchored new-vs-overdue
-    # window: it is overdue only once the latest closed period's due date has itself passed.
-    overdue_period_end = overdue_required_period_end(today, facts.frequency)
-    if facts.last_period_end is not None:
-        is_overdue = facts.last_period_end < overdue_period_end
-        overdue_row_period_end = overdue_period_end
-    else:
-        # Null-history overdue decision is the shared SSOT (never_reported_is_overdue),
-        # identical to the monitoring not_submitted list filter's null-history clause.
-        is_overdue = never_reported_is_overdue(today, facts.frequency)
-        overdue_row_period_end = required_period_end
+    missing_period = overdue_period_end(frequency=facts.frequency, last_period_end=facts.last_period_end, today=today)
+    is_overdue = missing_period is not None
+    overdue_row_period_end = missing_period or required_period_end
     overdue_due_date = due_date(overdue_row_period_end)
     days_overdue = max((today - overdue_due_date).days, 0) if is_overdue else 0
 

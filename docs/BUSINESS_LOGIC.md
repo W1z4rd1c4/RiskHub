@@ -116,6 +116,8 @@ Access-management read/list behavior and write behavior are intentionally differ
 | `GET /api/v1/access/roles` | GLOBAL-scope users | Role option endpoint. The `admin` role is returned only to platform Admin callers. |
 | `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. CRO owns business-access fields (`department_id`, `manager_id`, `access_scope`) and non-admin `role_id` assignment for non-Admin users, including department assignment. Admin owns platform identity/lifecycle fields (`name`, `email`, authentication/local-account lifecycle) and Admin-role assignment only. Non-Admin callers cannot target platform Admin users; unavailable Admin targets are concealed with not-found behavior. Validation failures reject the whole patch. |
 
+`PATCH /api/v1/users/{id}` remains platform-Admin-only and applies the same field-level policy as `/access/users`: identity/lifecycle and Admin-role assignment are allowed; department/manager changes and business-role assignments are rejected atomically. The legacy schema does not expose `access_scope`; CRO business changes use `/access/users`. Unchanged role values are permitted, and native credential, SSO field-ownership, self-deactivation, and last-effective-Admin safeguards still apply.
+
 Access-user responses may include additive `capabilities` metadata (`can_edit_identity`, `can_edit_business_access`, `can_edit_role`, `can_deactivate`, `can_change_active_status`, `can_break_glass_enable`, `can_revoke_sessions`). The frontend should prefer those 7 backend-authoritative flags over local role guesses per ADR-001; when a flag is absent, older local fallback behavior remains acceptable.
 
 Admin session operations use the shared auth-session workflow. `/api/v1/admin/sessions` lists only active users with unrevoked, unexpired refresh-token sessions; inactive or deleted users are excluded from the active-session projection. `/api/v1/admin/sessions/{user_id}/revoke` rejects self-revocation, locks the target user row, revokes active refresh-token rows, bumps the target `token_version` exactly once, and writes the admin activity entry in the same transaction.
@@ -1000,6 +1002,7 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Department-scoped users only receive in-scope entities
 - Privileged/global users can export across departments
 - Ownership/reporting-owner exceptions follow the same logic as list/detail views
+- Controls as-of CSV exports expose linked Risk metadata and counts only for Risks the caller can read independently. The first readable linked Risk supplies the displayed name/code; no readable links means blank Risk fields and a zero count without removing the visible Control. Search uses the same redacted context, and historical replay cannot restore hidden linked-Risk metadata.
 - Risks, Controls, KRIs, and Vendors unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
 - Issues exports are fetch-time scoped and do not use as-of replay; their row scope is enforced at fetch time plus explicit issue filters.
 - An Issue export `as_of_date` is an evaluation date for age and overdue calculations over current Issue rows. The export records both the evaluation date and its independent generation time and makes no historical-reconstruction promise. A zero-row result contains one explicitly typed `Export Metadata` record with that context and blank Issue identity fields.
@@ -1332,3 +1335,44 @@ explicit operator review. Recovery alone cannot clear restore quarantine. Entra 
 requires current upstream eligibility. No available platform administrator means
 ordinary access stays quarantined pending existing-admin recovery. See
 [the restore contract](security/identity-restore.md).
+
+### ARCH-12 canonical current KRI populations
+
+Live KRI counts require both the child and its parent Risk to be live (ADR-005).
+The breach population tests the measurement against its limits independently of
+monitoring presentation precedence. Overdue and due-soon populations share the
+ADR-012 period algebra, including the monthly never-reported grace-window rule.
+The due-soon window uses the notification default (seven days), inclusive at its
+start and exclusive at period end; a submitted current period is excluded.
+Deadline jobs exclude archived parents while retaining configured notification
+cadence and grace overrides. Live quarterly overdue uses definition
+`riskhub.snapshot.overdue_kris.v2`, including never-reported obligations. Stored
+snapshots and historical v1 reconstruction retain their original metrics and
+version; incomparable definitions suppress deltas rather than rewrite history.
+
+Default live-surface breach parity does not remove the breach widget endpoint's
+explicit `include_archived=true` inspection mode: that opt-in can return archived
+children and children of archived Risks. The register's `breach_only` filter keeps
+its existing live-only definition even with `lifecycle=all`. The dedicated HTTP
+archive-inspection test preserves this deliberate distinction; overdue and due-soon
+widgets have no archive opt-in and match their live register populations.
+
+### Department list aggregate authority
+
+Department cards apply the same domain authority as the workspace: Risk count,
+high-risk count, and total net score require `risks:read`; Control count requires
+`controls:read`. Denied metrics are unavailable (`null`), and their aggregate
+queries are skipped. User counts use the canonical access-roster eligibility,
+target resolution, and query: Department Heads retain own-only access without
+`users:read`; eligible privileged callers can explicitly target a Department even
+when unassigned; only true platform Admins see Admin users. Inactive users stay
+excluded. Authorized empty counts remain zero. Cards render unavailable metrics
+as N/A and omit unavailable warning badges without changing navigation or layout.
+
+### Identity response and audit contract corrections (#196, #199)
+
+Healthy upstream directory checks preserve local `suspended` and `inactive` states
+in single responses and distinct check-all counters. They do not reactivate local
+accounts or relabel them deprovisioned. Native completed logins use `login` audit
+actions, authentication failures use `failed_login`, and credential/factor
+mutations retain `update`; existing operational filters and warning severity apply.

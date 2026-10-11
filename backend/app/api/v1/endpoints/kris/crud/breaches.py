@@ -10,9 +10,7 @@ from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
 from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services._monitoring_response import load_monitoring_response_context, serialize_kri_response
-from app.services._monitoring_status import KRIMonitoringStatus
-
-from ..access import apply_kri_department_scope
+from app.services.kri_populations import kri_breach_condition, live_clause, visible_query
 
 router = APIRouter()
 
@@ -26,16 +24,15 @@ async def list_breaches(
 ):
     """List only breached KRIs for dashboard widget. Excludes archived risks AND archived KRIs by default."""
     # Apply department filtering via Risk join
-    query = select(KeyRiskIndicator).join(Risk)
+    query = select(KeyRiskIndicator).join(Risk).where(kri_breach_condition())
 
     # Exclude archived risks AND archived KRIs by default
     if not include_archived:
         query = query.where(
-            Risk.live(),
-            KeyRiskIndicator.is_archived.is_(False),
+            live_clause(),
         )
 
-    query = await apply_kri_department_scope(query, db=db, current_user=current_user, department_id=department_id)
+    query = await visible_query(query, db=db, actor=current_user, department_id=department_id)
 
     query = query.order_by(
         Risk.is_priority.desc(),
@@ -65,6 +62,4 @@ async def list_breaches(
         )
         for kri in kris
     ]
-    breaches = [item for item in items if item.monitoring_status == KRIMonitoringStatus.breach]
-
-    return breaches
+    return items

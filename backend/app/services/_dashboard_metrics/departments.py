@@ -10,12 +10,12 @@ from app.core.permissions import get_user_department_ids, has_permission
 from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
 from app.models.global_config import ConfigDefaults, get_config_int
-from app.models.key_risk_indicator import kri_breach_condition
 from app.schemas.dashboard import DepartmentMetrics
 from app.services._dashboard_metrics.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )
+from app.services.kri_populations import kri_breach_condition, live_clause
 
 
 def _count_map(rows) -> dict[int, int]:
@@ -146,8 +146,7 @@ async def load_department_dashboard_metrics(
             .join(Risk)
             .where(
                 Risk.department_id.in_(department_ids),
-                Risk.live(),
-                KeyRiskIndicator.is_archived.is_(False),
+                live_clause(),
             )
             .group_by(Risk.department_id)
         )

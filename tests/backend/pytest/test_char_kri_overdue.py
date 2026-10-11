@@ -111,25 +111,21 @@ async def test_snapshot_overdue_ignores_a_5_day_fresh_weekly_kri(
 
 
 @pytest.mark.asyncio
-async def test_snapshot_overdue_ignores_null_last_period_end(
-    db_session: AsyncSession, test_department, test_user
+async def test_snapshot_overdue_uses_monthly_never_reported_rule(
+    db_session: AsyncSession, test_department, test_user, monkeypatch
 ):
-    """A never-reported KRI (last_period_end IS NULL) is NOT overdue.
+    """ARCH-12 #245 resolved rule: monthly null-history is overdue after grace.
 
-    count_overdue_kris requires last_period_end IS NOT NULL, so brand-new KRIs are
-    excluded regardless of frequency.
+    Replaces the old blanket null-history exclusion; before/equal-to due remains new.
     """
     risk = await create_test_risk(
         db_session, department_id=test_department.id, owner_id=test_user.id, risk_id_code="R-OVERDUE-NULL"
     )
-    await create_test_kri(
-        db_session,
-        risk_id=risk.id,
-        metric_name="Never reported",
-        overrides={"frequency": "weekly", "last_period_end": None},
-    )
-
-    assert await count_overdue_kris(db_session, None) == 0
+    await create_test_kri(db_session, risk_id=risk.id, metric_name="Never reported",
+        overrides={"frequency": "monthly", "last_period_end": None})
+    for day, expected in [(15, 0), (16, 1)]:
+        monkeypatch.setattr(clock, "today", lambda day=day: date(2026, 10, day))
+        assert await count_overdue_kris(db_session, None) == expected
 
 
 # ---------------------------------------------------------------------------

@@ -53,6 +53,7 @@ from app.services._register_listings.vendors import (
     can_view_vendor_full_derivation,
     list_vendor_governance,
 )
+from app.services.kri_populations import live_clause
 
 from ._shared import _assert_department_in_scope
 
@@ -179,8 +180,7 @@ async def get_department(
         .where(
             and_(
                 Risk.department_id == department_id,
-                Risk.live(),
-                KeyRiskIndicator.is_archived.is_(False),
+                live_clause(),
                 kri_visibility,
             )
         )

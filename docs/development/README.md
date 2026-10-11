@@ -1,7 +1,7 @@
 # RiskHub Development Startup
 
 > **Version**: 1.4
-> **Last Updated**: 2026-09-27
+> **Last Updated**: 2026-09-30
 > **Audience**: Engineering, QA
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -29,6 +29,7 @@ Behavior:
 
 - `up` boots DB + Redis, runs `alembic upgrade head`, seeds base demo data, then starts backend/frontend containers
 - Full Docker stack serves the app at `http://localhost/`
+- Demo frontend and API access are bound to loopback by default; passwordless demo identities must not be exposed to untrusted networks
 - `reset --dataset test` wipes Docker volumes, reruns migrations + base seed, then adds deterministic E2E fixtures
 
 Open `http://localhost/login` after startup.
@@ -40,11 +41,31 @@ Deterministic live-verification preference:
 - The Docker bootstrap service now uses the backend `dbtasks` target, so `reset --dataset test` runs migrations and seed commands with the required Postgres client dependencies.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
-LAN mode:
+LAN mode is an explicit opt-in to passwordless access, including administrative
+identities. Use synthetic data on a trusted, isolated network only. Pass an IPv4
+address assigned to the Docker host for the advertised/CORS origin. This option
+publishes the frontend on **all IPv4 host interfaces** (`0.0.0.0:80`):
 
 ```bash
-./scripts/compose.sh up --lan 192.168.x.x
+./scripts/compose.sh up --lan 192.168.1.20
 ```
+
+The script prints a warning and serves the demo login at
+`http://192.168.1.20/login`; PostgreSQL, Redis, and the direct backend port stay on
+loopback. `http://localhost/login` remains reachable so the supported
+verify/status/doctor commands keep working. CORS is not a network access control.
+Running `up` again without `--lan`
+restores loopback-only publication, even if a shell or `.env` contains an old bind
+override. Reset also uses the loopback default.
+
+For advanced direct Compose use, `RISKHUB_DEMO_BIND_HOST` controls only the
+frontend host bind and defaults to `127.0.0.1`; setting it to a non-loopback address
+is the same explicit security opt-in. Set `LAN_HOST` to the matching origin host
+when overriding it. Use `0.0.0.0` to preserve localhost-based lifecycle probes;
+binding only a specific LAN interface requires adapting those probes manually.
+Inspect without starting containers using
+`docker compose --profile full config`. This demo topology is never a production
+deployment option; use `./scripts/install.sh production` for production.
 
 ### Local contributor path
 

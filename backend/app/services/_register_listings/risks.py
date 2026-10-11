@@ -25,7 +25,6 @@ from app.models import (
 )
 from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
-from app.models.key_risk_indicator import kri_breach_condition
 from app.schemas.risk import RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
@@ -44,6 +43,7 @@ from app.services._ict_register_lifecycle.dq import (
 )
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services.authorization_capabilities import risk_capabilities
+from app.services.kri_populations import kri_breach_condition
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
 from .shared import (

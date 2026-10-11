@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
+from app.models.user import User
 
 from . import clock
 from .corrections import apply_history_correction as _apply_history_correction
@@ -96,14 +97,16 @@ class KRIHistoryService:
     @staticmethod
     async def get_overdue_kris(
         db: AsyncSession,
+        *, current_user: User | None = None, department_id: int | None = None,
     ) -> list[dict]:
-        return await _get_overdue_kris(db)
+        return await _get_overdue_kris(db, current_user=current_user, department_id=department_id)
 
     @staticmethod
     async def get_due_soon_kris(
         db: AsyncSession,
+        *, current_user: User | None = None, department_id: int | None = None,
     ) -> list[dict]:
-        return await _get_due_soon_kris(db)
+        return await _get_due_soon_kris(db, current_user=current_user, department_id=department_id)
 
     @staticmethod
     async def apply_history_correction(
