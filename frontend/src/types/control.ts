@@ -154,6 +154,7 @@ export interface ControlFacets {
 }
 
 export interface ControlListParams {
+    control_form?: ControlForm;
     offset?: number;
     limit?: number;
     search?: string;

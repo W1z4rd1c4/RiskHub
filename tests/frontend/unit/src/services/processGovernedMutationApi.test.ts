@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { assetApi } from '@/services/assetApi';
 import { processApi } from '@/services/processApi';
+import { vendorApi } from '@/services/vendorApi';
+import { vendorContractApi } from '@/services/vendorContractApi';
+import { threatApi } from '@/services/threatApi';
 import { riskRegisterLinksApi } from '@/services/threatApi';
 
 const queued = {
@@ -53,5 +57,49 @@ describe('governed Process mutation API contracts', () => {
             { process_id: 7, request_reason: 'Primary dependency' },
             { request_reason: 'Risk remapped' },
         ]);
+    });
+});
+
+
+describe('canonical governed request normalization (#246)', () => {
+    it.each([
+        ['Process', (reason: string) => processApi.archiveProcess(7, reason)],
+        ['Asset', (reason: string) => assetApi.archiveAsset(8, reason)],
+        ['Vendor', (reason: string) => vendorApi.archiveVendor(9, reason)],
+        ['Vendor Contract', (reason: string) => vendorContractApi.archiveContract(9, 10, reason)],
+        ['Risk/Threat link', (reason: string) => riskRegisterLinksApi.removeProcessLink(11, 12, reason)],
+    ] as const)('normalizes %s DELETE without a blank body', async (_family, execute) => {
+        const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(queuedResponse()));
+        vi.stubGlobal('fetch', fetchMock);
+        await execute('   ');
+        expect(fetchMock.mock.calls[0]?.[1]?.body).toBeUndefined();
+        await execute('  Independent review  ');
+        expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({ request_reason: 'Independent review' });
+    });
+    it('normalizes governed orphan intake without inventing an optional reason', async () => {
+        const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(queuedResponse()));
+        vi.stubGlobal('fetch', fetchMock);
+        const input = Object.freeze({ new_owner_id: 7, request_reason: '  Independent reassignment  ' });
+        await orphanedItemsApi.resolveOrphan(8, input);
+        await orphanedItemsApi.resolveOrphan(8, { new_owner_id: 7, request_reason: '  ' });
+        expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ new_owner_id: 7, request_reason: 'Independent reassignment' });
+        expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({ new_owner_id: 7 });
+        expect(input.request_reason).toBe('  Independent reassignment  ');
+    });
+
+    it('normalizes field payloads through each governed resource API without mutating callers', async () => {
+        const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(queuedResponse()));
+        vi.stubGlobal('fetch', fetchMock);
+        const input = Object.freeze({ name: 'Draft', request_reason: '  Review proposal  ' });
+        await processApi.updateProcess(7, input);
+        await assetApi.updateAsset(8, input);
+        await vendorApi.updateVendor(9, input);
+        await threatApi.updateThreat(10, input);
+        for (const call of fetchMock.mock.calls) {
+            expect(JSON.parse(String(call[1]?.body))).toEqual({ name: 'Draft', request_reason: 'Review proposal' });
+        }
+        expect(input.request_reason).toBe('  Review proposal  ');
+        await assetApi.updateAsset(8, { name: 'Draft', request_reason: '   ' });
+        expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toEqual({ name: 'Draft' });
     });
 });

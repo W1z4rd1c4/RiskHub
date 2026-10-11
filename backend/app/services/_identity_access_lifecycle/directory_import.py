@@ -74,6 +74,7 @@ async def import_directory_identity(
 
     user = (await db.execute(select(User).where(User.external_id == directory_user.external_id))).scalar_one_or_none()
     import_status: Literal["created", "updated"] = "updated"
+    revoked_count: int | None = None
     seed_directory_department = False
     if user is None:
         existing_email_user = (
@@ -101,7 +102,7 @@ async def import_directory_identity(
             seed_directory_department = True
 
     if import_status == "updated":
-        user = await lock_identity_transition(db, user_id=user.id, actor=current_user)
+        user = await lock_identity_transition(db, user_id=user.id, actor=current_user, settings=settings)
         if user.external_id not in (None, directory_user.external_id):
             raise ConflictError("Directory identity binding changed; retry the import")
     previous_version = user.token_version or 0
@@ -155,7 +156,7 @@ async def import_directory_identity(
             and user.token_version == previous_version
             and previous_authority != (user.role_id, user.is_active, user.external_id)
         ):
-            await invalidate_user_sessions(db=db, user=user, reason="directory_import_identity_changed")
+            revoked_count = await invalidate_user_sessions(db=db, user=user, reason="directory_import_identity_changed")
         db.add(user)
         await db.flush()
         await commit_directory_import(
@@ -165,6 +166,7 @@ async def import_directory_identity(
             import_status=import_status,
             provider_name=provider_name,
             account_enabled=directory_user.account_enabled,
+            revoked_count=revoked_count,
         )
     except IntegrityError as exc:
         await db.rollback()

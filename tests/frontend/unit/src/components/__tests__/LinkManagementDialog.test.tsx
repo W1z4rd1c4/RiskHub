@@ -329,6 +329,49 @@ describe('LinkManagementDialog', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    it('retains the current selection and dialog when the parent link rejects', async () => {
+        const onLink = vi.fn(async () => { throw new Error('current link rejection'); });
+        const onClose = vi.fn();
+        mockGetControls.mockResolvedValue(collection([controlResult(202, 'Visible control result')]));
+        render(<LinkManagementDialog {...defaultProps({ onLink, onClose })} />);
+        await advanceDebounce();
+        fireEvent.change(screen.getByPlaceholderText(/search controls/i), { target: { value: 'Current draft' } });
+        fireEvent.click(screen.getByText('Visible control result'));
+        fireEvent.click(screen.getByRole('button', { name: /create link/i }));
+        await flushPromises();
+        expect(onLink).toHaveBeenCalledExactlyOnceWith(202, 'medium', '');
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText(/search controls/i)).toHaveValue('Current draft');
+        expect(screen.getByRole('button', { name: /create link/i })).toBeEnabled();
+        fireEvent.click(screen.getByRole('button', { name: /create link/i }));
+        await flushPromises();
+        expect(onLink).toHaveBeenLastCalledWith(202, 'medium', '');
+        expect(onLink).toHaveBeenCalledTimes(2);
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('does not close a reopened dialog when its previous link completes', async () => {
+        const oldRequest = deferred<void>();
+        const onLink = vi.fn(() => oldRequest.promise);
+        const onClose = vi.fn();
+        mockGetControls.mockResolvedValue(collection([controlResult(202, 'Visible control result')]));
+        const props = defaultProps({ onLink, onClose });
+        const view = render(<LinkManagementDialog {...props} />);
+        await advanceDebounce();
+        fireEvent.click(screen.getByText('Visible control result'));
+        fireEvent.click(screen.getByRole('button', { name: /create link/i }));
+        await flushPromises();
+        expect(onLink).toHaveBeenCalledExactlyOnceWith(202, 'medium', '');
+        view.rerender(<LinkManagementDialog {...props} isOpen={false} />);
+        view.rerender(<LinkManagementDialog {...props} isOpen />);
+        await advanceDebounce();
+        fireEvent.change(screen.getByPlaceholderText(/search controls/i), { target: { value: 'New owner draft' } });
+        oldRequest.resolve();
+        await flushPromises();
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText(/search controls/i)).toHaveValue('New owner draft');
+    });
+
     it('confirms unlink before calling the parent unlink handler', async () => {
         const onUnlink = vi.fn(async () => undefined);
         render(<LinkManagementDialog

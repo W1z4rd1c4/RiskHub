@@ -5,6 +5,10 @@ import { assertZeroAxeFindings, toFindings, WCAG_TAGS } from './helpers/axeBasel
 
 type Locale = 'en' | 'cs';
 
+function registerHref(path: string, filters: Record<string, string | boolean>): string {
+    return `${path}?${new URLSearchParams({ filters: JSON.stringify(filters) })}`;
+}
+
 const JOURNEYS = [
     {
         locale: 'en' as const,
@@ -611,11 +615,11 @@ test.describe('Issue #165 desktop evidence integrity', () => {
                 const statCards = page.getByTestId('dashboard-stat-grid').getByRole('link');
                 const averageCard = statCards.filter({ hasText: journey.labels.average });
                 await expect(averageCard).toContainText('17');
-                await expect(averageCard).toHaveAttribute('href', '/risks');
+                await expect(averageCard).toHaveAttribute('href', registerHref('/risks', { status: 'all', risk_level: 'critical' }));
                 await expect(averageCard).toHaveAccessibleName(new RegExp(journey.labels.critical));
                 for (const [label, value, href] of [
-                    [journey.labels.totalControls, '8', '/controls'],
-                    [journey.labels.criticalRisks, '1', '/risks?critical=true'],
+                    [journey.labels.totalControls, '8', registerHref('/controls', { control_form: 'manual', status: 'active' })],
+                    [journey.labels.criticalRisks, '1', registerHref('/risks', { status: 'all', risk_level: 'critical', critical: true })],
                     [journey.labels.vendors, '2', '/vendors'],
                 ] as const) {
                     const card = statCards.filter({ hasText: label });

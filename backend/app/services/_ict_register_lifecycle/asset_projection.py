@@ -36,6 +36,7 @@ from app.schemas.asset import (
     AssetRead,
 )
 from app.services._authorization_capabilities import asset_capabilities
+from app.services._authorization_capabilities.governed_reasons import asset_reason_requirements
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 
 from ._derivation_impl import ARTICLE8_CRITICAL, ARTICLE8_NON_CRITICAL
@@ -358,6 +359,7 @@ def serialize_asset_detail(
     orphaned_roles: set[str] | None = None,
     pending_change: AssetPendingChange | None = None,
     has_pending_change: bool = False,
+    protected_change_requires_approval: bool = False,
 ) -> AssetRead:
     orphaned_roles = orphaned_roles or set()
 
@@ -399,6 +401,7 @@ def serialize_asset_detail(
                 current_user,
                 asset,
                 ownership_pending=bool(orphaned_roles),
+                protected_change_requires_approval=protected_change_requires_approval,
             ).model_copy(
                 update={
                     "can_update": False
@@ -584,7 +587,7 @@ async def load_pending_asset_changes(
             if isinstance(process_identity, ExtendedProcessMutationIdentity)
             else getattr(process_identity, "triggered_scenarios", (proposal.scenario_snapshot.get("key"),))
             if process_identity is not None
-            else (proposal.scenario_snapshot.get("key"),)
+            else tuple(proposal.proposed_changes.get("triggered_scenarios", [proposal.scenario_snapshot.get("key")]))
         )
         scenario_rows = list(
             (await db.execute(select(ApprovalScenario).where(ApprovalScenario.key.in_(tuple(triggers))))).scalars()
@@ -596,7 +599,7 @@ async def load_pending_asset_changes(
             live_resolver = is_live_eligible_asset_resolver(
                 current_user,
                 proposal,
-                scenarios.get(proposal.scenario_snapshot.get("key")),
+                scenarios,
             )
         else:
             from app.services.approval_scenario_policy import (
@@ -678,6 +681,7 @@ async def serialize_asset_detail_with_primary(
     *,
     current_user: User,
 ) -> AssetRead:
+    reasons = await asset_reason_requirements(db, [asset])
     primary_map = await load_primary_process_ids(db, [asset.id], current_user=current_user)
     blocks = await load_asset_derived_blocks(db, [asset], current_user=current_user)
     orphaned = await pending_asset_responsibility_roles(db, asset_ids=[asset.id])
@@ -690,6 +694,7 @@ async def serialize_asset_detail_with_primary(
         orphaned_roles=orphaned.get(asset.id),
         pending_change=pending.get(asset.id),
         has_pending_change=asset.id in pending_asset_ids,
+        protected_change_requires_approval=reasons[asset.id],
     )
 
 
@@ -706,6 +711,7 @@ async def serialize_asset_list(
     offset: int,
     limit: int,
 ) -> AssetListResponse:
+    reasons = await asset_reason_requirements(db, assets)
     primary_map = await load_primary_process_ids(db, [asset.id for asset in assets], current_user=current_user)
     blocks = await load_asset_derived_blocks(db, assets, current_user=current_user)
     orphaned = await pending_asset_responsibility_roles(
@@ -725,6 +731,7 @@ async def serialize_asset_list(
                 orphaned_roles=orphaned.get(asset.id),
                 pending_change=pending.get(asset.id),
                 has_pending_change=asset.id in pending_asset_ids,
+                protected_change_requires_approval=reasons[asset.id],
             )
             for asset in assets
         ],

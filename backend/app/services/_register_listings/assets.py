@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.schemas.asset import AssetFacetOption, AssetLookupOption, AssetRead
 from app.schemas.collection import CollectionGroupRead
+from app.services._authorization_capabilities.governed_reasons import asset_reason_requirements
 from app.services._collection_filters import (
     coerce_optional_bool,
     coerce_optional_string,
@@ -347,6 +348,7 @@ async def build_asset_listing(
     asset_ids = {asset.id for asset in asset_rows}
     links = await _load_visible_link_context(db, current_user=current_user, asset_ids=asset_ids)
     blocks = await load_asset_derived_blocks(db, asset_rows, current_user=current_user)
+    reasons = await asset_reason_requirements(db, asset_rows)
     pending_roles = await pending_asset_responsibility_roles(db, asset_ids=list(asset_ids))
     all_items = [
         serialize_asset_detail(
@@ -357,6 +359,7 @@ async def build_asset_listing(
             ),
             derived=blocks.get(asset.id),
             orphaned_roles=pending_roles.get(asset.id),
+            protected_change_requires_approval=reasons[asset.id],
         )
         for asset in asset_rows
     ]

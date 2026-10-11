@@ -29,7 +29,7 @@ interface VendorLinkedControlsTabProps {
     vendorId: number;
     canCreateControl: boolean;
     canEdit: boolean;
-    protectedChangeRequiresApproval: boolean;
+    protectedChangeRequiresApproval: boolean | undefined;
     onAddControl: () => void;
     onNavigateToControl: (controlId: number) => void;
     onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;

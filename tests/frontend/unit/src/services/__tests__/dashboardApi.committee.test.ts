@@ -58,3 +58,32 @@ describe('dashboardApi response contracts', () => {
         expect(result.success).toBe(false);
     });
 });
+
+it('exposes only the five Dashboard fetchers with production consumers', () => {
+    expect(Object.keys(dashboardApi).sort()).toEqual([
+        'fetchAvailablePeriods',
+        'fetchCommitteeSummary',
+        'fetchOverview',
+        'fetchQuarterlyComparison',
+        'fetchRisksByCell',
+    ]);
+});
+
+it('retains transport, schema validation and abort options on all live fetchers', async () => {
+    const { apiClient } = await import('@/services/apiClient');
+    const get = vi.spyOn(apiClient, 'get').mockResolvedValue({});
+    const filters = { departmentId: 17, riskLevel: 'high' as const, controlStatus: 'active' as const, controlForm: 'manual' as const };
+    const params = { department_id: 17, risk_level: 'high', control_status: 'active', control_form: 'manual' };
+    const signal = new AbortController().signal;
+    await dashboardApi.fetchOverview(filters, { signal });
+    await dashboardApi.fetchRisksByCell(3, 4, filters, 'gross');
+    await dashboardApi.fetchQuarterlyComparison('2026-Q3', '2026-Q2');
+    await dashboardApi.fetchAvailablePeriods();
+    await dashboardApi.fetchCommitteeSummary();
+    expect(get).toHaveBeenNthCalledWith(1, '/dashboard/overview', expect.objectContaining({ params, signal, schema: expect.objectContaining({ parse: expect.any(Function) }) }));
+    expect(get).toHaveBeenNthCalledWith(2, '/dashboard/risks-by-cell', expect.objectContaining({ params: { ...params, probability: 3, impact: 4, risk_type: 'gross' }, schema: expect.objectContaining({ parse: expect.any(Function) }) }));
+    expect(get).toHaveBeenNthCalledWith(3, '/dashboard/quarterly-comparison', expect.objectContaining({ params: { current_quarter: '2026-Q3', compare_quarter: '2026-Q2' }, schema: expect.objectContaining({ parse: expect.any(Function) }) }));
+    expect(get).toHaveBeenNthCalledWith(4, '/dashboard/available-periods', expect.objectContaining({ schema: expect.objectContaining({ parse: expect.any(Function) }) }));
+    expect(get).toHaveBeenNthCalledWith(5, '/dashboard/committee-summary', expect.objectContaining({ schema: expect.objectContaining({ parse: expect.any(Function) }) }));
+    get.mockRestore();
+});

@@ -18,7 +18,7 @@ from app.core.user_query_options import user_selectinload_options
 from app.models import Control, KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.control import ControlCreate, ControlRead
 from app.schemas.kri import KRICreate, KRIResponse
-from app.schemas.risk import RiskCreate, RiskRead
+from app.schemas.risk import RiskCreate, RiskRead, RiskStatusEnum
 from app.services import risk_identifier
 from app.services._entity_mutation_lifecycle.approval_plans import (
     create_control_edit_approval_if_required,
@@ -359,6 +359,12 @@ async def restore_risk_detail(
         _ensure_department_access(risk.department_id, current_user)
     if not risk.is_archived:
         raise ValidationError("Risk is not archived")
+    if risk.status not in {status.value for status in RiskStatusEnum}:
+        raise ConflictError(
+            "This Risk has an unsupported stored lifecycle status. "
+            "An administrator must review its migration state before restoration.",
+            code="risk_restore_status_unsupported",
+        )
 
     before_data = {
         "is_archived": risk.is_archived,

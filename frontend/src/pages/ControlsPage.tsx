@@ -37,7 +37,7 @@ export function ControlsPage() {
         view={state.viewMode} onViewChange={state.updateViewMode}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
         onCreate={() => void navigate(appendRegisterReturnTo('/controls/new', returnTo))} createLabel={t('new_control')} exportLabel={t('common:actions.export')}
-        exportDialog={({ isOpen, onClose }) => <ExportDialog isOpen={isOpen} onClose={onClose}
+        exportDialog={({ isOpen, onClose }) => <ExportDialog datedUnavailableReason={state.snapshotUnavailableReason} isOpen={isOpen} onClose={onClose}
             onCurrentViewSubmit={async () => { await state.exportCurrentControls(); onClose(); }}
             onSubmit={async (payload) => { await state.exportControlSnapshot(payload); onClose(); }}
             isSubmitting={state.isExporting} dataTestId="controls-export-dialog" title={t('register.export.title')} />}

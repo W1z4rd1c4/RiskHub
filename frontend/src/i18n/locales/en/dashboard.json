@@ -31,7 +31,7 @@
   },
   "stats": {
     "total_controls": "Total Controls",
-    "active_depts": "Active Depts",
+    "active_depts": "Departments with matching records",
     "critical_risks": "Critical Risks",
     "avg_risk_score": "Avg Risk Score",
     "vendors": "Vendors"
@@ -145,6 +145,7 @@
     "no_due_soon": "No KRIs are due soon or overdue.",
     "no_overdue": "No KRIs are overdue for reporting.",
     "active_breaches": "Active Breaches",
+    "destination_unavailable": "The Risk destination is unavailable until the Department filter is cleared.",
     "view_risk_register": "View Risk Register",
     "appetite_maintained": "Appetite Maintained",
     "no_breaches_org": "No KRIs are currently in breach across the organization.",
@@ -341,5 +342,8 @@
     "footer_suffix": "to close",
     "results": "Risk drilldown results",
     "score_value": "Score: {{score}}"
+  },
+  "destinations": {
+    "department_unavailable": "This destination requires permission to read the Department workspace."
   }
 }

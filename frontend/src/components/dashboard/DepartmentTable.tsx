@@ -1,3 +1,4 @@
+import { buildDashboardDrillthrough } from '@/pages/dashboard/dashboardStats';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WidgetShell } from '@/components/dashboard/WidgetShell';
@@ -15,13 +16,15 @@ import {
 
 interface DepartmentTableProps {
     canUseDepartmentFilter: boolean;
+    canReadDepartments?: boolean;
     metrics: DepartmentMetrics[];
 }
 
-export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentTableProps) {
+export function DepartmentTable({ canUseDepartmentFilter, canReadDepartments, metrics }: DepartmentTableProps) {
     const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
-    const departmentId = useDashboardFilterSelector(state => state.filters.departmentId);
+    const filters = useDashboardFilterSelector(state => state.filters);
+    const departmentId = filters.departmentId;
     const { setDepartmentId } = useDashboardFilterMutators();
     const [sortKey, setSortKey] = useState<DepartmentSortKey>('department_name');
     const [sortDirection, setSortDirection] = useState<DepartmentSortDirection>('asc');
@@ -49,6 +52,7 @@ export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentT
 
     return (
         <WidgetShell title={t('department_table.title')}>
+            {canReadDepartments !== true && <p className="p-3 text-sm text-muted-foreground">{t('destinations.department_unavailable')}</p>}
             {/* GAP-D-10: sortable headers are buttons with `aria-sort` on the `th` (ui/table, D14). */}
             <Table className="text-left" regionLabel={t('department_table.title')}>
                 <THead>
@@ -66,9 +70,11 @@ export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentT
                         const isSelected = canUseDepartmentFilter && departmentId === dept.department_id;
                         return (
                             <DepartmentMetricRow
+                                unavailableReason={canReadDepartments === true ? undefined : t('destinations.department_unavailable')}
                                 canUseDepartmentFilter={canUseDepartmentFilter}
                                 key={dept.department_id}
                                 dept={dept}
+                                destinations={buildDashboardDrillthrough({ ...filters, departmentId: dept.department_id })}
                                 isSelected={isSelected}
                                 navigate={navigate}
                                 setDepartmentId={setDepartmentId}

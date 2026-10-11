@@ -1,3 +1,4 @@
+import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
 import type { SafeTFunction } from '@/i18n/hooks';
 import type {
     Vendor,
@@ -23,12 +24,21 @@ export function vendorOwnerChangeRequiresApproval(
 ): boolean {
     if (!accountabilityChanged) return false;
     if (scenario.isEnabled) return true;
-    if (!scenario.requiresApproval('protected_vendor_edit')) return false;
-    return (
-        vendor?.derived?.tier === 'critical'
-        || vendor?.derived?.tier === 'significant'
-        || resolveCapabilityFlag(vendor?.capabilities, 'protected_change_requires_approval')
-    );
+    return resolveCapabilityFlag(vendor?.capabilities, 'protected_change_requires_approval');
+}
+
+export function vendorReasonFormState(
+    vendor: Vendor | undefined,
+    isEdit: boolean,
+    accountabilityChanged: boolean,
+    scenario: VendorApprovalScenario & { isLoading: boolean; isError: boolean },
+) {
+    const requirement = governedReasonRequirement(vendor);
+    return {
+        requestReasonRequired: (isEdit && requirement === 'required') || vendorOwnerChangeRequiresApproval(vendor, accountabilityChanged, scenario),
+        unavailable: (isEdit && requirement === 'unavailable') || (accountabilityChanged && (scenario.isLoading || scenario.isError)),
+        unavailableReasonFact: isEdit && requirement === 'unavailable',
+    };
 }
 
 export function buildOwnerOptions(

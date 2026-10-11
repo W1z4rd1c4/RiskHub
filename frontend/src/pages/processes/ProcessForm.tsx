@@ -1,3 +1,4 @@
+import { reasonField } from '@/services/api/governedReason';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -11,19 +12,18 @@ import { useDirtyTaskGuard } from '@/hooks/useDirtyTaskGuard';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ictRegisterKeys } from '@/lib/queryKeys';
-import { ApiClientError } from '@/services/apiClient';
+import { governedMutationSuccess, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import { lookupApi } from '@/services/lookupApi';
 import { processApi } from '@/services/processApi';
 import { logError } from '@/services/logger';
 import {
-    isProcessApprovalQueuedResponse,
     type Process,
     type ProcessApprovalQueuedResponse,
 } from '@/types/process';
 
 import { FormActions, FormErrorSummary, FormLoadFailedNotice, FormSection } from '../shared/EntityFormChrome';
 import { buildProcessWritePayload, PROCESS_CONTROLLED_CODES } from './processesPagePresentation';
-import { processEditNeedsRequestReason } from './processProtectedEdit';
+import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
 
 interface ProcessFormProps {
     initialData?: Process;
@@ -132,7 +132,7 @@ function buildProcessFormPayload(fields: FormFields) {
         interruption_impact: fields.interruption_impact,
         assessment_date: fields.assessment_date,
         notes: fields.notes,
-        request_reason: fields.request_reason.trim() || undefined,
+        ...reasonField(fields.request_reason),
     });
 }
 
@@ -194,6 +194,7 @@ export function ProcessForm({
         });
     }, [protectionRoutingSignature]);
 
+    const reasonRequirement = governedReasonRequirement(initialData);
     const serverRequiresApproval = serverRequiredRoutingSignature === protectionRoutingSignature;
     const accountabilityChanged = Boolean(
         isEdit
@@ -204,19 +205,15 @@ export function ProcessForm({
         )
     );
     const accountabilityChangeRequiresApproval = accountabilityScenario.isEnabled && accountabilityChanged;
-    const accountabilityScenarioUnavailable = accountabilityChanged
-        && (accountabilityScenario.isLoading || accountabilityScenario.isError);
+    const accountabilityScenarioUnavailable = (isEdit && reasonRequirement === 'unavailable')
+        || (accountabilityChanged && (accountabilityScenario.isLoading || accountabilityScenario.isError));
     const requestReasonRequired = Boolean(
         serverRequiresApproval
         || accountabilityChangeRequiresApproval
         || (
             isEdit
             && initialData !== undefined
-            && (
-                protectedChangeRequiresApproval
-                && canRequestChange
-                && processEditNeedsRequestReason(initialData, fields)
-            )
+            && reasonRequirement === 'required'
         )
     );
 
@@ -381,22 +378,22 @@ export function ProcessForm({
             const result = isEdit && initialData
                 ? await processApi.updateProcess(initialData.id, payload)
                 : await processApi.createProcess(payload);
+            const outcome = governedMutationSuccess(result);
             acceptCurrentSnapshot();
-            if (isProcessApprovalQueuedResponse(result)) {
+            if (outcome.kind === 'pending') {
                 setServerRequiredRoutingSignature(null);
-                onApprovalQueued?.(result);
+                onApprovalQueued?.(outcome.response);
                 return;
             }
             setServerRequiredRoutingSignature(null);
-            onSaved(result);
+            onSaved(outcome.response);
         } catch (submitError) {
             logError('Failed to save process:', submitError);
-            if (submitError instanceof ApiClientError && submitError.code === 'process_pending_mutation') {
+            const rejection = governedMutationRejection(submitError);
+            if (rejection.message === 'pending_change_exists') {
                 setError(t('form.errors.pending_change_exists'));
             } else if (
-                submitError instanceof ApiClientError
-                && submitError.status === 422
-                && submitError.code === 'governed_mutation_reason_required'
+                rejection.field === 'request_reason'
                 && protectionRoutingSignatureRef.current === protectionRoutingSignature
             ) {
                 setServerRequiredRoutingSignature(protectionRoutingSignature);
@@ -605,6 +602,7 @@ export function ProcessForm({
                 </Field>
             </FormSection>
 
+            {isEdit && reasonRequirement === 'unavailable' ? <FormErrorSummary message={t('common:governed_mutation.capability_unavailable')} /> : null}
             <FormActions
                 submitLabel={requestReasonRequired
                     ? t('actions.submit_for_approval')

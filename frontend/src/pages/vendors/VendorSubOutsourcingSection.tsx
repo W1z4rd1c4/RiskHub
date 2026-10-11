@@ -42,7 +42,7 @@ interface VendorSubOutsourcingSectionProps {
      * the direct create/edit/archive path and the governed reason-then-queue
      * path — no local re-derivation. Restore stays direct by design.
      */
-    protectedChangeRequiresApproval: boolean;
+    protectedChangeRequiresApproval: boolean | undefined;
 }
 
 type SubOutsourcingFormFields = {
@@ -386,6 +386,7 @@ export function VendorSubOutsourcingSection({
                     className="space-y-4 rounded-xl border border-border bg-nested p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
+                        if (protectedChangeRequiresApproval === undefined) return;
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
                             setRequestReasonError(t('errors.request_reason_required'));
                             requestReasonRef.current?.focus();
@@ -432,6 +433,7 @@ export function VendorSubOutsourcingSection({
                             />
                         )}
                     </Field>
+                    {protectedChangeRequiresApproval === undefined ? <InlineMessage tone="warning">{t('common:governed_mutation.capability_unavailable')}</InlineMessage> : null}
                     {protectedChangeRequiresApproval ? (
                         <Field
                             label={t('form.request_reason')}
@@ -464,7 +466,7 @@ export function VendorSubOutsourcingSection({
                             type="submit"
                             variant="accent"
                             data-testid="vendor-sub-outsourcing-form-save"
-                            disabled={saveEntry.isPending || fields.contract_id === ''}
+                            disabled={protectedChangeRequiresApproval === undefined || saveEntry.isPending || fields.contract_id === ''}
                         >
                             <Save aria-hidden="true" />
                             {editingEntry ? t('actions.save') : t('sub_outsourcing.actions.create')}
@@ -513,8 +515,9 @@ export function VendorSubOutsourcingSection({
                 })}
                 confirmLabel={t('sub_outsourcing.actions.archive')}
                 isLoading={archiveEntry.isPending}
-                errorText={sectionError}
+                errorText={protectedChangeRequiresApproval === undefined ? t('common:governed_mutation.capability_unavailable') : sectionError}
                 reason={protectedChangeRequiresApproval ? 'required' : 'optional'}
+                confirmDisabled={protectedChangeRequiresApproval === undefined}
                 reasonLabel={t('form.request_reason')}
                 reasonPlaceholder={t('form.request_reason_help')}
             />

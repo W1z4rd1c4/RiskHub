@@ -23,6 +23,14 @@ FRONTEND_BOOL_RECORD_FIELD_PATTERN = re.compile(
     r"^\s*([A-Za-z_][A-Za-z0-9_]*):\s*z\.record\(\s*z\.string\(\)\s*,\s*z\.boolean\(\)\s*\)"
 )
 
+BACKEND_STRING_ARRAY_FIELD_PATTERN = re.compile(
+    r"^\s+([A-Za-z_][A-Za-z0-9_]*):\s*list\s*\[\s*str\s*\](?:\s*=.*)?(?:\s*#.*)?$"
+)
+FRONTEND_STRING_ARRAY_FIELD_PATTERN = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*):\s*z\.array\(\s*z\.string\(\)\s*\)"
+    r"(?:\.optional\(\))?\s*,?\s*(?://.*)?$"
+)
+
 SourceReader = Callable[[Path], str]
 
 
@@ -77,6 +85,9 @@ def _extract_backend_capability_fields(source: str, class_name: str) -> set[str]
             fields.add(match.group(1))
             continue
         if match := BACKEND_BOOL_DICT_FIELD_PATTERN.match(line):
+            fields.add(match.group(1))
+            continue
+        if match := BACKEND_STRING_ARRAY_FIELD_PATTERN.match(line):
             fields.add(match.group(1))
     return fields
 
@@ -137,6 +148,9 @@ def _extract_frontend_capability_fields(source: str, schema_name: str) -> set[st
             continue
         if match := FRONTEND_BOOL_RECORD_FIELD_PATTERN.match(line):
             fields.add(match.group(1))
+            continue
+        if match := FRONTEND_STRING_ARRAY_FIELD_PATTERN.match(line):
+            fields.add(match.group(1))
     return fields
 
 
@@ -175,14 +189,8 @@ def validate_capability_catalog(
             continue
 
         fields = surface.get("fields")
-        if (
-            not isinstance(fields, list)
-            or not fields
-            or not all(isinstance(field, str) and field for field in fields)
-        ):
-            findings.append(
-                Finding("capability_catalog_fields", f"{surface_id}: fields must be non-empty strings")
-            )
+        if not isinstance(fields, list) or not fields or not all(isinstance(field, str) and field for field in fields):
+            findings.append(Finding("capability_catalog_fields", f"{surface_id}: fields must be non-empty strings"))
             continue
         expected_fields = set(fields)
         if len(expected_fields) != len(fields):
@@ -207,6 +215,41 @@ def validate_capability_catalog(
         if not isinstance(frontend_path_raw, str) or not isinstance(frontend_schema, str):
             findings.append(Finding("capability_catalog_frontend_reference", str(surface_id)))
             continue
+
+        string_arrays = surface.get("string_array_fields", [])
+        if (
+            not isinstance(string_arrays, list)
+            or not all(isinstance(field, str) and field in expected_fields for field in string_arrays)
+            or len(set(string_arrays)) != len(string_arrays)
+        ):
+            findings.append(Finding("capability_catalog_string_array_fields", str(surface_id)))
+            continue
+        for path, name, extract_body, pattern, side in (
+            (
+                backend_path_raw,
+                backend_class,
+                _extract_python_class_body,
+                BACKEND_STRING_ARRAY_FIELD_PATTERN,
+                "backend",
+            ),
+            (
+                frontend_path_raw,
+                frontend_schema,
+                _extract_typescript_schema_body,
+                FRONTEND_STRING_ARRAY_FIELD_PATTERN,
+                "frontend",
+            ),
+        ):
+            body = extract_body(_read_catalog_source(Path(path), source_by_path, read_source), name) or ""
+            array_fields = {match.group(1) for line in body.splitlines() if (match := pattern.match(line))}
+            for field in sorted(set(string_arrays) - array_fields):
+                findings.append(
+                    Finding(f"capability_catalog_{side}_string_array_type", f"{surface_id}: {name}.{field}")
+                )
+            for field in sorted(array_fields - set(string_arrays)):
+                findings.append(
+                    Finding(f"capability_catalog_{side}_string_array_undeclared", f"{surface_id}: {name}.{field}")
+                )
 
         _validate_backend_fields(
             findings,

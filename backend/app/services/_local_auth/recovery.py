@@ -63,7 +63,7 @@ async def initiate_recovery(
     if nonce is not None and await db.get(LocalAuthGrant, nonce) is not None:
         raise invalid_proof()
     user.local_recovery_pending, user.is_active = True, False
-    await invalidate_user_sessions(db=db, user=user, reason="local_recovery_started")
+    revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_recovery_started")
     grant, raw = await issue_grant(
         db,
         ctx,
@@ -110,6 +110,7 @@ async def initiate_recovery(
             "approved_version": version,
             "operation": operation,
         },
+        revoke_count=revoked_count,
     )
     await queue_security_notice(db, ctx, user)
     return grant, raw
@@ -127,7 +128,7 @@ async def assisted_recovery(
     require_recovery_actor(actor)
     await ctx.limiter.require("recovery-actor", str(actor.id), 5, 3600)
     async with atomic_local_work(db):
-        user = await lock_identity_transition(db, user_id=target_id, actor=actor)
+        user = await lock_identity_transition(db, user_id=target_id, actor=actor, settings=ctx.settings)
         require_recovery_actor(actor)
         require_recoverable(user, version=data.expected_token_version, web=True)
         grant, _ = await check_recent_proof(
@@ -274,7 +275,7 @@ async def complete_recovery(
             user.email, user.local_email_verified_at = address, utc_now()
         user.local_recovery_pending, user.is_active = False, not user.restore_quarantined
         codes = await replace_recovery_codes(db, ctx, user, active.generation)
-        await invalidate_user_sessions(db=db, user=user, reason="local_recovery_completed")
+        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_recovery_completed")
         await audit_local(
             db,
             user,
@@ -285,6 +286,7 @@ async def complete_recovery(
                 "approved_version": grant.context["approved_version"],
                 "operation": operation,
             },
+            revoke_count=revoked_count,
         )
         notification = await queue_security_notice(db, ctx, user)
         await commit_local(db, "recovery_completed")

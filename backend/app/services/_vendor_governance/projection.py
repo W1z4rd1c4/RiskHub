@@ -15,7 +15,6 @@ from app.core.permissions import get_user_department_ids, visible_risk_ids
 from app.core.security import check_permission
 from app.models import (
     ApprovalRequest,
-    ApprovalScenario,
     ApprovalStatus,
     GovernedMutationImpactLock,
     GovernedMutationProposal,
@@ -31,6 +30,7 @@ from app.schemas.vendor import (
     VendorPendingChange,
     VendorRead,
 )
+from app.services._authorization_capabilities.governed_reasons import protected_change_requires_reason
 from app.services._ict_register_lifecycle.asset_policy import has_editable_asset_record
 from app.services._ict_register_lifecycle.derivation import IctRegisterDerivation, derive_ict_register
 from app.services._ict_register_lifecycle.derivation_inputs import load_ict_register_graph
@@ -165,6 +165,34 @@ async def _load_vendor_collection_projection_context(
     )
 
 
+async def _vendor_reason_requirements(
+    db: AsyncSession, vendors: list[Vendor], blocks: dict[int, VendorDerived] | None = None
+) -> dict[int, bool]:
+    from app.services._governed_mutations.fixed_vendor_policy import load_fixed_vendor_scenario
+
+    if not vendors:
+        return {}
+    scenario = await load_fixed_vendor_scenario(db)
+    enabled = scenario is not None and scenario.requires_approval
+    if not enabled:
+        return {vendor.id: False for vendor in vendors}
+    blocks = blocks if blocks is not None else await load_vendor_derived_blocks(db, vendors)
+    return {
+        vendor.id: protected_change_requires_reason(
+            scenario_enabled=enabled, currently_protected=blocks[vendor.id].tier in {"critical", "significant"}
+        )
+        for vendor in vendors
+    }
+
+
+def _with_reason_capability(read: VendorRead, required: bool) -> VendorRead:
+    if read.capabilities is None:
+        return read
+    return read.model_copy(update={"capabilities": read.capabilities.model_copy(
+        update={"protected_change_requires_approval": required}
+    )})
+
+
 async def serialize_vendor_reads(
     db: AsyncSession,
     vendors: list[Vendor],
@@ -180,8 +208,9 @@ async def serialize_vendor_reads(
         can_read_risks=can_read_risks,
         visible_risk_ids_loader=visible_risk_ids_loader,
     )
+    reasons = await _vendor_reason_requirements(db, vendors)
     return [
-        vendor_to_read(
+        _with_reason_capability(vendor_to_read(
             vendor,
             current_user=current_user,
             linked_risks=context.linked_risks_by_vendor_id.get(vendor.id, []),
@@ -189,7 +218,7 @@ async def serialize_vendor_reads(
             can_manage_process_links=context.can_manage_process_links,
             ownership_pending=vendor.id in context.pending_vendor_ids,
             has_pending_change=vendor.id in context.governed_pending_vendor_ids,
-        )
+        ), reasons[vendor.id])
         for vendor in vendors
     ]
 
@@ -213,7 +242,7 @@ async def serialize_vendor_list_items(
         can_read_risks=can_read_risks,
         visible_risk_ids_loader=visible_risk_ids_loader,
     )
-    return vendor_list_response(
+    response = vendor_list_response(
         vendors=vendors,
         total=total,
         offset=offset,
@@ -225,6 +254,11 @@ async def serialize_vendor_list_items(
         can_manage_process_links=context.can_manage_process_links,
         pending_vendor_ids=context.pending_vendor_ids,
         governed_pending_vendor_ids=context.governed_pending_vendor_ids,
+    )
+
+    reasons = await _vendor_reason_requirements(db, vendors)
+    return response.model_copy(
+        update={"items": [_with_reason_capability(item, reasons[item.id]) for item in response.items]}
     )
 
 
@@ -351,16 +385,7 @@ async def serialize_vendor_detail_with_derived(db: AsyncSession, vendor: Vendor,
         vendor_id=vendor.id,
         current_user=current_user,
     )
-    from app.services._governed_mutations.fixed_vendor_policy import (
-        load_fixed_vendor_scenario,
-    )
-
-    scenario = await load_fixed_vendor_scenario(db)
-    protected_change_requires_approval = bool(
-        scenario is not None
-        and scenario.requires_approval
-        and blocks[vendor.id].tier in {"critical", "significant"}
-    )
+    protected_change_requires_approval = (await _vendor_reason_requirements(db, [vendor], blocks))[vendor.id]
     can_manage_asset_links, can_manage_process_links = await _register_link_capabilities(db, current_user=current_user)
     read = serialize_vendor_detail(
         vendor,
@@ -438,6 +463,7 @@ async def load_pending_vendor_change(
         return None
     from app.services._governed_mutations.fixed_vendor_policy import (
         is_live_eligible_vendor_resolver,
+        load_vendor_visibility_scenarios,
     )
     from app.services._governed_mutations.notification_identity import (
         InvalidGovernedProcessNotificationIdentity,
@@ -470,14 +496,10 @@ async def load_pending_vendor_change(
                 "can_cancel": False,
             },
         )
-    scenario = await db.scalar(
-        select(ApprovalScenario).where(
-            ApprovalScenario.key == proposal.scenario_snapshot.get("key")
-        )
-    )
+    scenarios = await load_vendor_visibility_scenarios(db)
     can_view_diff = bool(
         proposal.requested_by_id == current_user.id
-        or is_live_eligible_vendor_resolver(current_user, proposal, scenario)
+        or is_live_eligible_vendor_resolver(current_user, proposal, scenarios)
     )
     safe_before = _actor_safe_vendor_snapshot(proposal.before_snapshot)
     safe_after = _actor_safe_vendor_snapshot(proposal.after_snapshot)

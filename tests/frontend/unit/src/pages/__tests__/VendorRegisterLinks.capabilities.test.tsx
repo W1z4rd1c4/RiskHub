@@ -54,6 +54,7 @@ afterEach(() => {
 });
 
 function renderSection(capabilities: {
+    protected_change_requires_approval?: boolean;
     can_view_asset_links: boolean;
     can_manage_asset_links: boolean;
     can_manage_process_links: boolean;
@@ -135,6 +136,7 @@ describe('Vendor register-link backend capability gates', () => {
         vi.mocked(assetApi.removeVendorLink).mockResolvedValue(undefined);
 
         renderSection({
+            protected_change_requires_approval: true,
             can_view_asset_links: true,
             can_manage_asset_links: false,
             can_manage_process_links: false,
@@ -167,6 +169,7 @@ describe('Vendor register-link backend capability gates', () => {
         }]);
         vi.mocked(assetApi.removeVendorLink).mockRejectedValueOnce(new Error('rejected'));
         renderSection({
+            protected_change_requires_approval: true,
             can_view_asset_links: true,
             can_manage_asset_links: false,
             can_manage_process_links: false,
@@ -211,6 +214,7 @@ describe('Vendor register-link backend capability gates', () => {
         });
 
         renderSection({
+            protected_change_requires_approval: true,
             can_view_asset_links: true,
             can_manage_asset_links: false,
             can_manage_process_links: false,

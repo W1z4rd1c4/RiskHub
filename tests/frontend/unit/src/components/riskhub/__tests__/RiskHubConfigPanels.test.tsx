@@ -80,13 +80,12 @@ vi.mock('@/services/apiClient', () => ({
     },
 }));
 
-function renderWithQueryClient(ui: ReactElement) {
-    const queryClient = new QueryClient({
+function renderWithQueryClient(ui: ReactElement, queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
             mutations: { retry: false },
         },
-    });
+    })) {
     return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
@@ -310,6 +309,33 @@ describe('Risk Hub config panels', () => {
                 requires_approval: true,
             });
         });
+    });
+
+    it.each([true, false])('refreshes every cached reason surface only after a successful policy save (%s)', async (succeeds) => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const affected = [
+            ['process', 7, 10], ['asset', 7, 20], ['vendor', 7, 30],
+            ['ictRegister', 'processOptions', 'search'],
+            ['ictRegister', 'assetOptions', 'search'],
+            ['ictRegister', 'vendorOptions', 'search'],
+            ['ictRegister', 'reasonRequirement', 7, 'asset', 99],
+        ];
+        affected.forEach((key) => client.setQueryData(key, { capabilities: { protected_change_requires_approval: true } }));
+        const unrelated = ['ictRegister', 'closedLists'];
+        client.setQueryData(unrelated, {});
+        if (!succeeds) vi.mocked(riskHubApi.updateApprovalScenario).mockRejectedValueOnce(new Error('save failed'));
+        renderWithQueryClient(<ApprovalScenariosPanel />, client);
+        await screen.findByText('Risk update');
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.modal.configure:Risk update' }));
+        fireEvent.click(screen.getByRole('button', { name: 'common:actions.save' }));
+        await waitFor(() => expect(riskHubApi.updateApprovalScenario).toHaveBeenCalledOnce());
+        if (succeeds) {
+            await waitFor(() => affected.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(true)));
+        } else {
+            await screen.findByText('errors.failed');
+            affected.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(false));
+        }
+        expect(client.getQueryState(unrelated)?.isInvalidated).toBe(false);
     });
 
     it('only offers backend-supported approver roles in approval scenarios', async () => {

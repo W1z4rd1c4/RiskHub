@@ -7,6 +7,7 @@ import type {
 } from './approval';
 
 export interface AssetCapabilities {
+    protected_change_requires_approval?: boolean;
     can_read: boolean;
     can_update: boolean;
     can_archive: boolean;

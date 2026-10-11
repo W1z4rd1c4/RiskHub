@@ -93,3 +93,18 @@ export function mapRiskToSummary(risk: Risk): RiskSummary {
         owner_id: risk.owner_id ?? undefined,
     };
 }
+
+/** Preserve ordinary validation while refusing an unavailable Vendor reason fact. */
+export function validateKriCreatePrerequisites(
+    validateStep1: () => boolean,
+    validateStep2: () => boolean,
+    vendorContext: { protectedChangeRequiresApproval?: boolean } | null,
+    setError: (patch: { error: string }) => void,
+): boolean {
+    if (!validateStep1() || !validateStep2()) return false;
+    if (vendorContext && vendorContext.protectedChangeRequiresApproval === undefined) {
+        setError({ error: 'common:governed_mutation.capability_unavailable' });
+        return false;
+    }
+    return true;
+}

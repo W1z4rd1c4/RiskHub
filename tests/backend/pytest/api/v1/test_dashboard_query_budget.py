@@ -44,6 +44,9 @@ async def test_department_metrics_query_count_is_bounded(
             db=db_session,
             current_user=test_user,
             department_id=None,
+            control_status=None,
+            control_form=None,
+            risk_level=None,
             include_archived=False,
         )
 

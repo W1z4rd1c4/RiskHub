@@ -28,6 +28,7 @@ function compactControlFilters(params: ControlListParams): Record<string, unknow
         department_id: params.department_id,
         lifecycle: params.lifecycle,
         status: params.status,
+        control_form: params.control_form,
         search: params.search,
         process: params.process,
         category: params.category,

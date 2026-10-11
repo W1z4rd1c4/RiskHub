@@ -1,3 +1,4 @@
+import { reasonField } from '@/services/api/governedReason';
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, Save, X } from 'lucide-react';
@@ -28,7 +29,7 @@ import { buildVendorContractColumns, buildVendorContractPayload } from './vendor
 interface VendorContractsSectionProps {
     vendorId: number;
     canManageContracts: boolean;
-    protectedChangeRequiresApproval: boolean;
+    protectedChangeRequiresApproval: boolean | undefined;
 }
 
 type ContractFormFields = {
@@ -192,7 +193,7 @@ export function VendorContractsSection({
             currency: fields.currency,
             note: fields.note,
         }),
-        ...(requestReason.trim() ? { request_reason: requestReason.trim() } : {}),
+        ...reasonField(requestReason),
     });
 
     const saveContract = useMutation({
@@ -329,6 +330,7 @@ export function VendorContractsSection({
                     className="space-y-4 rounded-xl border border-border bg-nested p-5"
                     onSubmit={(event) => {
                         event.preventDefault();
+                        if (protectedChangeRequiresApproval === undefined) return;
                         if (protectedChangeRequiresApproval && !requestReason.trim()) {
                             setRequestReasonError(t('errors.request_reason_required'));
                             requestReasonRef.current?.focus();
@@ -474,6 +476,7 @@ export function VendorContractsSection({
                             />
                         )}
                     </Field>
+                    {protectedChangeRequiresApproval === undefined ? <InlineMessage tone="warning">{t('common:governed_mutation.capability_unavailable')}</InlineMessage> : null}
                     {protectedChangeRequiresApproval ? (
                         <Field
                             id="vendor-contract-request-reason"
@@ -507,7 +510,7 @@ export function VendorContractsSection({
                             type="submit"
                             variant="accent"
                             data-testid="vendor-contract-form-save"
-                            disabled={saveContract.isPending}
+                            disabled={protectedChangeRequiresApproval === undefined || saveContract.isPending}
                         >
                             <Save aria-hidden="true" />
                             {editingContract ? t('actions.save') : t('contracts.actions.create')}
@@ -577,8 +580,9 @@ export function VendorContractsSection({
                 })}
                 confirmLabel={t('contracts.actions.archive')}
                 isLoading={archiveContract.isPending}
-                errorText={sectionError}
+                errorText={protectedChangeRequiresApproval === undefined ? t('common:governed_mutation.capability_unavailable') : sectionError}
                 reason={protectedChangeRequiresApproval ? 'required' : 'optional'}
+                confirmDisabled={protectedChangeRequiresApproval === undefined}
                 reasonLabel={t('form.request_reason')}
                 reasonPlaceholder={t('form.request_reason_help')}
             />

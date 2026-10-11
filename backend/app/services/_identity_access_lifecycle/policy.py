@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ConflictError, ValidationError
-from app.core.identity_policy import DIRECTORY_OWNED_FIELDS, can_authenticate_user, upstream_and_enrollment_allow_access
+from app.core.identity_field_ownership import identity_field_owners
+from app.core.identity_policy import can_authenticate_user, upstream_and_enrollment_allow_access
 from app.core.permissions import is_platform_admin
 from app.models import Role, User
 from app.models.user import AccessScope
@@ -41,18 +42,23 @@ async def ensure_remaining_global_privileged_user(
         raise ValidationError(detail)
 
 
-def ensure_sso_local_field_update_allowed(
+def ensure_identity_field_update_allowed(
     *,
     settings: Settings,
     user: User,
     update_data: dict,
     fields: set[str],
 ) -> None:
-    if settings.auth_mode != "microsoft_sso" or not user.external_id:
-        return
-    for field in fields & DIRECTORY_OWNED_FIELDS:
-        if field in update_data and update_data[field] != getattr(user, field):
+    owners = identity_field_owners(settings=settings, user=user)
+    for field in fields & owners.keys():
+        if field not in update_data or update_data[field] == getattr(user, field):
+            continue
+        if owners[field] == "directory":
             raise AuthorizationError(f"{field} is managed by directory sync for SSO-linked users.")
+        if owners[field] == "credential_workflow":
+            raise AuthorizationError(
+                "Use the verified local credential workflow", code="LOCAL_CREDENTIAL_WORKFLOW_REQUIRED"
+            )
 
 
 def ensure_directory_reenable_allowed(*, user: User, update_data: dict) -> None:

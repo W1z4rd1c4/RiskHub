@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { DashboardFilterProvider, useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable';
 import type { DepartmentMetrics } from '@/types/dashboard';
 
@@ -63,12 +63,25 @@ const metrics: DepartmentMetrics[] = [
     },
 ];
 
+function FilterControls() {
+    const { setRiskLevel, setControlForm, setControlStatus } = useDashboardFilters();
+    return <button onClick={() => { setRiskLevel('high'); setControlForm('manual'); setControlStatus('active'); }}>Apply criteria</button>;
+}
+
 function renderDepartmentTable(rows: DepartmentMetrics[] = metrics, canUseDepartmentFilter = true) {
     return render(
         <DashboardFilterProvider>
-            <DepartmentTable canUseDepartmentFilter={canUseDepartmentFilter} metrics={rows} />
+            <FilterControls />
+            <DepartmentTable canReadDepartments canUseDepartmentFilter={canUseDepartmentFilter} metrics={rows} />
         </DashboardFilterProvider>,
     );
+}
+
+function expectDepartmentDestination(call: number, tab: 'risks' | 'controls') {
+    const destination = new URL(mockNavigate.mock.calls[call - 1][0], 'https://riskhub.test');
+    expect(destination.pathname).toBe('/departments/10');
+    expect(destination.searchParams.get('tab')).toBe(tab);
+    expect(JSON.parse(destination.searchParams.get('filters') ?? '{}')).toEqual(tab === 'risks' ? { status: 'all' } : {});
 }
 
 function expectTextBefore(first: string, second: string) {
@@ -127,13 +140,13 @@ describe('DepartmentTable', () => {
         fireEvent.click(row.getByRole('button', { name: 'View risks' }));
         fireEvent.click(row.getByRole('button', { name: 'Set focus' }));
 
-        expect(mockNavigate).toHaveBeenNthCalledWith(1, '/controls?department=10');
-        expect(mockNavigate).toHaveBeenNthCalledWith(2, '/risks?department=10');
+        expectDepartmentDestination(1, 'controls');
+        expectDepartmentDestination(2, 'risks');
         expect(row.getByRole('button', { name: 'Remove focus' })).toBeInTheDocument();
 
         fireEvent.click(row.getByRole('button', { name: 'Go to department' }));
 
-        expect(mockNavigate).toHaveBeenNthCalledWith(3, '/risks?department=10');
+        expectDepartmentDestination(3, 'risks');
     });
 
     it('disables dashboard focus affordances when department filtering is disallowed', () => {
@@ -152,8 +165,36 @@ describe('DepartmentTable', () => {
         fireEvent.click(row.getByRole('button', { name: 'View risks' }));
         fireEvent.click(row.getByRole('button', { name: 'Go to department' }));
 
-        expect(mockNavigate).toHaveBeenNthCalledWith(1, '/controls?department=10');
-        expect(mockNavigate).toHaveBeenNthCalledWith(2, '/risks?department=10');
-        expect(mockNavigate).toHaveBeenNthCalledWith(3, '/risks?department=10');
+        expectDepartmentDestination(1, 'controls');
+        expectDepartmentDestination(2, 'risks');
+        expectDepartmentDestination(3, 'risks');
     });
+    it('preserves applicable criteria in actual Department quick-action routes', () => {
+        renderDepartmentTable();
+        fireEvent.click(screen.getByText('Apply criteria'));
+        const row = within(screen.getByRole('button', { name: 'Alpha' }).closest('tr')!);
+        fireEvent.click(row.getByRole('button', { name: 'View controls' }));
+        fireEvent.click(row.getByRole('button', { name: 'View risks' }));
+        for (const [index, tab, filters] of [[0, 'controls', { control_form: 'manual', status: 'active' }], [1, 'risks', { status: 'all', risk_level: 'high' }]] as const) {
+            const destination = new URL(mockNavigate.mock.calls[index][0], 'https://riskhub.test');
+            expect(destination.pathname).toBe('/departments/10');
+            expect(destination.searchParams.get('tab')).toBe(tab);
+            expect(JSON.parse(destination.searchParams.get('filters')!)).toEqual(filters);
+        }
+    });
+
+    it('keeps Department route actions unavailable without shell read permission', () => {
+        render(<DashboardFilterProvider><DepartmentTable canUseDepartmentFilter metrics={metrics}/></DashboardFilterProvider>);
+        const row = within(screen.getByRole('button', {name:'Alpha'}).closest('tr')!);
+        for(const name of ['View controls','View risks','Go to department']) {
+            const action=row.getByRole('button',{name});
+            expect(action).toBeDisabled();
+            expect(action).toHaveAttribute('title','destinations.department_unavailable');
+            fireEvent.click(action);
+        }
+        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(screen.getByText('destinations.department_unavailable')).toBeVisible();
+        expect(row.getByRole('button',{name:'Set focus'})).toBeEnabled();
+    });
+
 });

@@ -1,3 +1,4 @@
+import { DEPARTMENT_POPULATION_ANCHOR, populatedDashboardDepartments } from './dashboardStats';
 import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Building2, ShieldAlert, TrendingUp } from 'lucide-react';
@@ -21,6 +22,7 @@ interface DashboardRiskSectionsProps {
     breachHistoryTitle: string;
     breachTrends: DashboardOverview['kri_breach_trends'];
     canUseDepartmentFilter: boolean;
+    canReadDepartments?: boolean;
     controlExecutionTitle: string;
     departmentMetrics: DepartmentMetrics[];
     departmentVisibilityTitle: string;
@@ -48,6 +50,7 @@ export function DashboardRiskSections({
     breachHistoryTitle,
     breachTrends,
     canUseDepartmentFilter,
+    canReadDepartments,
     controlExecutionTitle,
     departmentMetrics,
     departmentVisibilityTitle,
@@ -89,7 +92,7 @@ export function DashboardRiskSections({
                     transition={{ delay: 0.65 }}
                     className="h-full"
                 >
-                    <KRIBreachWidget />
+                    <KRIBreachWidget canReadDepartments={canReadDepartments} canUseDepartmentFilter={canUseDepartmentFilter} />
                 </motion.div>
                 <motion.div
                     initial={{ opacity: 1, x: 20 }}
@@ -173,17 +176,16 @@ export function DashboardRiskSections({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.85 }}
             >
-                <Card as="section" padding="none" className="overflow-hidden">
+                <Card as="section" id={DEPARTMENT_POPULATION_ANCHOR} tabIndex={-1} aria-label={departmentVisibilityTitle} padding="none" className="overflow-hidden">
                     <CardHeader
                         title={departmentVisibilityTitle}
                         icon={Building2}
                         className="mb-0 border-b border-border p-6"
                     />
                     <DepartmentTable
+                        canReadDepartments={canReadDepartments}
                         canUseDepartmentFilter={canUseDepartmentFilter}
-                        metrics={departmentMetrics.filter(
-                            (metric) => metric.risk_count > 0 || metric.control_count > 0,
-                        )}
+                        metrics={populatedDashboardDepartments(departmentMetrics)}
                     />
                 </Card>
             </motion.div>

@@ -15,6 +15,8 @@ CATALOG = REPO_ROOT / "docs/security/capability-catalog.json"
 BASELINE_PATH = REPO_ROOT / "tests/backend/pytest/architecture/_capability_catalog_access_user_baseline.toml"
 EXPECTED_CAPABILITY_COUNT_KEY = "expected_capability_count"
 REQUIRED_FIELDS = {
+    "directory_owned_fields",
+    "verified_identity_fields",
     "can_edit_identity",
     "can_edit_business_access",
     "can_edit_role",
@@ -63,6 +65,7 @@ def test_access_user_surface_present() -> None:
 def test_access_user_carries_required_fields_and_schema_refs() -> None:
     entry = _access_user_surface()
     assert set(entry.get("fields", [])) == REQUIRED_FIELDS
+    assert entry["string_array_fields"] == ["directory_owned_fields", "verified_identity_fields"]
     assert entry["backend"] == {
         "path": "backend/app/schemas/access.py",
         "class": "AccessUserCapabilities",

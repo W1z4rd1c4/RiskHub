@@ -11,6 +11,7 @@ from app.models import LocalAuthFactor, RefreshToken, User
 from app.services.identity_installation import IdentityBindingError, validate_installation_binding
 
 from .common import local_user_ready
+from .factor_policy import evaluate_factor_policy
 
 
 async def validate_native_session(
@@ -29,9 +30,10 @@ async def validate_native_session(
         or binding.installation_id != context.installation_id
     ):
         raise ValueError("Native session authority is no longer valid")
-    confirmed = factor is not None and factor.confirmed_at is not None
+    policy = evaluate_factor_policy(settings.local_mfa_policy, factor)
+    confirmed = policy.confirmed
     if context.auth_method == "local_password":
-        if settings.local_mfa_policy != "optional" or confirmed:
+        if policy.required:
             raise ValueError("A factor is required for this account")
     elif factor is None or not confirmed or factor.generation != context.factor_generation:
         raise ValueError("Native factor authority is no longer valid")

@@ -87,6 +87,7 @@
     "search_placeholder": "Search by name, description, risk or department..."
   },
   "register": {
+    "snapshot_unavailable": "Snapshot export cannot apply the Control form: {{form}}. Use Current view to export this filter, or clear it before creating a snapshot.",
     "views": { "all": "All", "category": "By Control Form", "department": "By Department", "process": "By Process", "risk_type": "By Risk Type", "risk": "By Risk", "vendor": "By Vendor" },
     "filters": { "lifecycle": "Lifecycle", "add": "Add filter", "active_count_one": "{{count}} active filter", "active_count_few": "{{count}} active filters", "active_count_many": "{{count}} active filters", "active_count_other": "{{count}} active filters", "clear_all": "Clear all", "remove": "Remove {{label}}", "process": "Process", "category": "Control Form", "monitoring_status": "Monitoring status" },
     "lifecycle": { "active": "Active", "archived": "Archived", "all": "All" },

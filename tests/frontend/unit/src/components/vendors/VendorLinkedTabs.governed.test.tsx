@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
@@ -61,14 +61,14 @@ const queuedResponse = {
 
 function LocationProbe() {
     const location = useLocation();
-    return <div data-testid="location">{location.pathname}{location.search}</div>;
+    return <><div data-testid="location">{location.pathname}{location.search}</div><output data-testid="location-state">{JSON.stringify(location.state)}</output></>;
 }
 
-function renderTab(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresApproval: boolean) {
+function tabView(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresApproval: boolean, vendorId = 7) {
     const tabElement = tab === 'risk'
         ? (
             <VendorLinkedRisksTab
-                vendorId={7}
+                vendorId={vendorId}
                 canCreateRisk
                 canEdit
                 protectedChangeRequiresApproval={protectedChangeRequiresApproval}
@@ -79,7 +79,7 @@ function renderTab(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresAppro
         : tab === 'control'
             ? (
                 <VendorLinkedControlsTab
-                    vendorId={7}
+                    vendorId={vendorId}
                     canCreateControl
                     canEdit
                     protectedChangeRequiresApproval={protectedChangeRequiresApproval}
@@ -89,7 +89,7 @@ function renderTab(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresAppro
             )
             : (
                 <VendorLinkedKRIsTab
-                    vendorId={7}
+                    vendorId={vendorId}
                     canCreateKri
                     canEdit
                     protectedChangeRequiresApproval={protectedChangeRequiresApproval}
@@ -97,13 +97,17 @@ function renderTab(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresAppro
                     onNavigateToKri={vi.fn()}
                 />
             );
-    return render(
+    return (
         <MemoryRouter>
             <ApprovalQueuedNotice />
             {tabElement}
             <LocationProbe />
         </MemoryRouter>,
     );
+}
+
+function renderTab(tab: 'risk' | 'control' | 'kri', protectedChangeRequiresApproval: boolean) {
+    return render(tabView(tab, protectedChangeRequiresApproval));
 }
 
 beforeEach(() => {
@@ -184,5 +188,33 @@ describe('protected Vendor link/unlink governed UX (#100)', () => {
         expect(screen.getByTestId('location')).toHaveTextContent('/');
         // The reason dialog stays open for correction — no silent success.
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+});
+
+
+describe.each(matrix)('$tab $action mutation generation', ({ tab, mutation, trigger }) => {
+    it.each(['rejected-after-switch', 'pending-after-return'])('ignores %s from a previous owner generation', async (completion) => {
+        let resolve!: (value: unknown) => void;
+        let reject!: (error: Error) => void;
+        mutation.mockReturnValueOnce(new Promise((res, rej) => { resolve = res; reject = rej; }));
+        const view = renderTab(tab as 'risk' | 'control' | 'kri', true);
+        fireEvent.click(await screen.findByText('links.actions.link_existing'));
+        fireEvent.click(screen.getByText(trigger));
+        const dialog = screen.getByRole('alertdialog');
+        fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Owner A rationale' } });
+        fireEvent.submit(dialog.querySelector('form')!);
+        await waitFor(() => expect(mutation).toHaveBeenCalledOnce());
+        view.rerender(tabView(tab as 'risk' | 'control' | 'kri', true, 8));
+        await act(async () => { await Promise.resolve(); });
+        if (completion === 'pending-after-return') {
+            view.rerender(tabView(tab as 'risk' | 'control' | 'kri', true, 7));
+            await act(async () => { await Promise.resolve(); });
+        }
+        await act(async () => {
+            if (completion === 'rejected-after-switch') reject(new Error('Old owner rejection'));
+            else resolve({ ...queuedResponse, proposal_id: '10000000-0000-4000-8000-000000000186' });
+        });
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByTestId('location-state')).not.toHaveTextContent('approvalQueued');
     });
 });

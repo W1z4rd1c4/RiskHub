@@ -1,3 +1,4 @@
+import { withReason } from './api/governedReason';
 import { apiClient } from './apiClient';
 import {
     orphanScanResponseSchema,
@@ -30,7 +31,7 @@ export const orphanedItemsApi = {
         apiClient.get(`/orphaned-items/${id}`, { schema: orphanedItemSchema }),
 
     resolveOrphan: (id: number, data: ResolveOrphanRequest): Promise<ResolveOrphanResponse> =>
-        apiClient.post(`/orphaned-items/${id}/resolve`, data, {
+        apiClient.post(`/orphaned-items/${id}/resolve`, withReason(data), {
             schema: resolveOrphanResponseSchema,
         }),
 };

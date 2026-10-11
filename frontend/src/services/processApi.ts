@@ -1,3 +1,4 @@
+import { withReason, reasonBody } from './api/governedReason';
 import { apiClient } from './apiClient';
 import {
     ictClosedListCollectionSchema,
@@ -131,20 +132,20 @@ export const processApi = {
     },
 
     async createProcess(data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {
-        return apiClient.post('/processes', data, {
+        return apiClient.post('/processes', withReason(data), {
             schema: processSchema.or(processApprovalQueuedResponseSchema),
         });
     },
 
     async updateProcess(id: number, data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {
-        return apiClient.patch(`/processes/${id}`, data, {
+        return apiClient.patch(`/processes/${id}`, withReason(data), {
             schema: processSchema.or(processApprovalQueuedResponseSchema),
         });
     },
 
     async archiveProcess(id: number, requestReason: string): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/processes/${id}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -162,7 +163,7 @@ export const processApi = {
         processId: number,
         data: ProcessVendorLinkCreatePayload,
     ): Promise<ProcessVendorLink | ProcessApprovalQueuedResponse> {
-        return apiClient.post(`/processes/${processId}/vendor-links`, data, {
+        return apiClient.post(`/processes/${processId}/vendor-links`, withReason(data), {
             schema: processVendorLinkSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -173,7 +174,7 @@ export const processApi = {
         requestReason: string,
     ): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/processes/${processId}/vendor-links/${linkId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },

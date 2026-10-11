@@ -7,8 +7,8 @@ from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
 from app.core.external_identity_policy import external_directory_enabled
-from app.core.identity_policy import DIRECTORY_OWNED_FIELDS, upstream_and_enrollment_allow_access
-from app.core.local_session import native_identity_selected
+from app.core.identity_field_ownership import identity_field_owners
+from app.core.identity_policy import upstream_and_enrollment_allow_access
 from app.core.permissions import has_permission, is_privileged_user
 from app.models import Role, User
 from app.models.role import RoleType
@@ -113,16 +113,8 @@ def access_user_capabilities(
     can_change_active_status = bool(
         can_change_active_status and not last_admin and (target_user.is_active or can_resume)
     )
-    directory_fields = (
-        sorted(DIRECTORY_OWNED_FIELDS)
-        if (
-            settings is not None
-            and settings.auth_mode == "microsoft_sso"
-            and target_user.external_id
-            and current_is_admin
-        )
-        else []
-    )
+    owners = identity_field_owners(settings=settings, user=target_user)
+    directory_fields = sorted(field for field, owner in owners.items() if owner == "directory")
     return AccessUserCapabilities(
         **(target_identity_capabilities(current_user, target_user, settings) if settings is not None else {}),
         can_edit_identity=bool(current_is_admin and not hidden_from_current and not directory_fields),
@@ -138,7 +130,7 @@ def access_user_capabilities(
         can_resume=can_resume,
         active_status_block_reason=block_reason,
         directory_owned_fields=directory_fields,
-        verified_identity_fields=["email"] if settings is not None and native_identity_selected(settings) else [],
+        verified_identity_fields=["email"] if owners["email"] == "credential_workflow" else [],
         can_revoke_sessions=bool(current_is_admin and current_user.id != target_user.id and not hidden_from_current),
     )
 

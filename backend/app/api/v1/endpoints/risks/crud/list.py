@@ -32,6 +32,8 @@ def risk_listing_criteria_dependency(
     include_archived: bool = Query(False, description="Include archived risks in results"),
     lifecycle: Literal["active", "archived", "all"] | None = Query(None),
     has_breach: Optional[bool] = None,
+    risk_level: Literal["low", "medium", "high", "critical"] | None = Query(None),
+    critical: bool | None = Query(None),
     min_net_score: Optional[int] = Query(
         None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"
     ),
@@ -69,6 +71,8 @@ def risk_listing_criteria_dependency(
             "lifecycle": lifecycle,
             "has_breach": has_breach,
             "min_net_score": min_net_score,
+            "risk_level": risk_level,
+            "critical": critical,
             "process": process,
             "category": category,
             "ict_linked": ict_linked,

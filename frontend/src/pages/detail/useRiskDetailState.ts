@@ -1,3 +1,4 @@
+import { executeGovernedMutation, type LinkMutationContinuation } from '@/lib/governedMutationOutcome';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,7 +7,7 @@ import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { useFeedback } from '@/hooks/useFeedback';
 import { translateUiMessage, useFormat, useTranslation } from '@/i18n/hooks';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
-import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
+import { useEntityDetailMutationWorkflow } from '@/pages/detail/useEntityDetailMutationWorkflow';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
 import { useCollectionDataState } from '@/pages/shared/collectionPageState';
 import { ApiClientError, apiClient } from '@/services/apiClient';
@@ -253,7 +254,7 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
 
     // D9 / D12: direct outcomes are toasts; an approval-routed archive keeps the
     // user on the risk with the pending notice. Failures stay in the banner.
-    const { isRunning: isDeleting, runArchive, runRestore } = useArchiveRestoreAction({
+    const { isMutating: isDeleting, runEntityMutation } = useEntityDetailMutationWorkflow({
         onApprovalQueued: (response) => announceApprovalQueued({ approvalId: approvalIdFromResponse(response) }),
         onSuccessMessage: (message) => feedback.success({ title: translateUiMessage(t, message.key) }),
         setMessage: setApprovalMessage,
@@ -308,11 +309,11 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
 
     const handleArchive = useCallback(async (reason?: string) => {
         if (!risk) return;
-        const outcome = await runArchive({
-            archive: () => riskApi.deleteRisk(risk.id, reason || 'Archived by user'),
+        const outcome = await runEntityMutation({
+            execute: () => riskApi.deleteRisk(risk.id, reason || 'Archived by user'),
             approvalKey: 'risks:messages.archive_submitted_for_approval',
             isCurrent: () => detailOwnerRef.current === risk.id,
-            onImmediate: () => {
+            onDirectSuccess: () => {
                 feedback.success({ title: t('outcome.archived', { name: risk.name }) });
                 void navigate(returnTo);
             },
@@ -323,52 +324,64 @@ export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) 
         ) {
             setIsDeleteDialogOpen(false);
         }
-    }, [feedback, navigate, returnTo, risk, runArchive, t]);
+    }, [feedback, navigate, returnTo, risk, runEntityMutation, t]);
 
     const handleRestore = useCallback(async () => {
         if (!risk) return;
         const ownerId = risk.id;
-        await runRestore({
-            restore: () => riskApi.restoreRisk(ownerId),
+        await runEntityMutation({
+            execute: () => riskApi.restoreRisk(ownerId),
             successKey: 'risks:messages.restore_success',
             isCurrent: () => detailOwnerRef.current === ownerId,
-            onRestored: async () => {
+            onDirectSuccess: async () => {
                 if (detailOwnerRef.current === ownerId) await refreshData();
             },
         });
-    }, [refreshData, risk, runRestore]);
+    }, [refreshData, risk, runEntityMutation]);
 
     const handleLinkControl = useCallback(async (
         controlId: number,
         effectiveness: ControlEffectiveness,
         notes?: string,
-    ) => {
+    ): Promise<LinkMutationContinuation> => {
         if (!risk) return;
         const ownerId = risk.id;
+        const isCurrent = () => detailOwnerRef.current === ownerId;
         setLinkErrorKey(null);
         try {
-            await riskApi.linkControl(ownerId, { control_id: controlId, effectiveness, notes });
-            if (detailOwnerRef.current === ownerId) await fetchLinkedControls(ownerId);
+            const outcome = await executeGovernedMutation(
+                () => riskApi.linkControl(ownerId, { control_id: controlId, effectiveness, notes }), isCurrent,
+            );
+            if (outcome.kind === 'superseded') return outcome;
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
+                return outcome;
+            }
+            await fetchLinkedControls(ownerId);
+            return isCurrent() ? outcome : { kind: 'superseded' };
         } catch (error) {
-            if (detailOwnerRef.current !== ownerId) return;
+            if (!isCurrent()) return { kind: 'superseded' };
             logError('Linking failed.', error);
             setLinkErrorKey(apiClient.toUiMessageKey(error));
-        }
-    }, [fetchLinkedControls, risk]);
-
-    const handleUnlinkControl = useCallback(async (controlId: number) => {
-        if (!risk) return;
-        const ownerId = risk.id;
-        setLinkErrorKey(null);
-        try {
-            await riskApi.unlinkControl(ownerId, controlId);
-        } catch (error) {
-            if (detailOwnerRef.current !== ownerId) return;
-            // D10: the unlink confirmation shows this failure inside the dialog.
             throw error;
         }
-        if (detailOwnerRef.current === ownerId) await fetchLinkedControls(ownerId);
-    }, [fetchLinkedControls, risk]);
+    }, [announceApprovalQueued, fetchLinkedControls, risk]);
+
+    const handleUnlinkControl = useCallback(async (controlId: number): Promise<LinkMutationContinuation> => {
+        if (!risk) return;
+        const ownerId = risk.id;
+        const isCurrent = () => detailOwnerRef.current === ownerId;
+        setLinkErrorKey(null);
+        const outcome = await executeGovernedMutation(() => riskApi.unlinkControl(ownerId, controlId), isCurrent);
+        if (outcome.kind === 'superseded') return outcome;
+        if (outcome.kind === 'pending') {
+            announceApprovalQueued({ approvalId: outcome.approvalId });
+            return outcome;
+        }
+        // Current failure remains a rejection for the open unlink confirmation.
+        await fetchLinkedControls(ownerId);
+        return isCurrent() ? outcome : { kind: 'superseded' };
+    }, [announceApprovalQueued, fetchLinkedControls, risk]);
 
     return {
         activeTab,

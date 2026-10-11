@@ -13,6 +13,7 @@ def asset_capabilities(
     asset: Asset,
     *,
     ownership_pending: bool = False,
+    protected_change_requires_approval: bool = False,
 ) -> AssetCapabilities:
     """Per-row Asset action capabilities (ADR-001 capability SSOT).
 
@@ -27,6 +28,7 @@ def asset_capabilities(
     can_delete = has_permission(current_user, "assets", "delete") and can_read
     is_active = not asset.is_archived
     return AssetCapabilities(
+        protected_change_requires_approval=protected_change_requires_approval,
         can_read=bool(can_read),
         can_update=bool(can_write and is_active and not ownership_pending),
         can_archive=bool(can_read and can_delete and is_active),

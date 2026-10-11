@@ -4,7 +4,9 @@ from fastapi import HTTPException
 from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.activity_logger import log_activity
 from app.models import User
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.department import Department
 
 ORG_CHART_LOCK_KEY = "org_chart"
@@ -112,7 +114,7 @@ async def validate_dept_manager_dept_change(
         raise HTTPException(status_code=400, detail="Clear the department manager before moving this user")
 
 
-async def clear_manager_references_for_inactive_user(db: AsyncSession, *, user_id: int) -> None:
+async def clear_manager_references_for_inactive_user(db: AsyncSession, *, user_id: int, actor: User | None) -> None:
     await db.execute(update(Department).where(Department.manager_id == user_id).values(manager_id=None))
     from app.services._auth_session_workflow.authority import invalidate_user_sessions
 
@@ -123,4 +125,16 @@ async def clear_manager_references_for_inactive_user(db: AsyncSession, *, user_i
     )
     for subordinate in subordinates:
         subordinate.manager_id = None
-        await invalidate_user_sessions(db=db, user=subordinate, reason="manager_deactivated")
+        revoked_count = await invalidate_user_sessions(db=db, user=subordinate, reason="manager_deactivated")
+        await log_activity(
+            db=db,
+            actor=actor,
+            action=ActivityAction.UPDATE,
+            entity_type=ActivityEntityType.USER,
+            entity_id=subordinate.id,
+            entity_name=subordinate.name,
+            department_id=subordinate.department_id,
+            changes={"event_type": "manager_deactivated", "revoke_count": revoked_count},
+            safe_description="Manager assignment cleared after account deactivation",
+            safe_description_siem="Manager assignment cleared after account deactivation",
+        )

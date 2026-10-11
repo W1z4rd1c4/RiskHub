@@ -1,11 +1,12 @@
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids
 from app.models import User
-from app.services._kri_history.periods import period_bounds_for_date
+from app.services.kri_populations import is_due_soon, is_live, is_overdue
 
+from .kri_population import population_state
 from .shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitoringExportStatus, _contains, _safe_int
 
 
@@ -55,7 +56,7 @@ def _filter_rows_by_final_scope(
 
 def _normalize_kri_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in rows:
-        row["status"] = "archived" if bool(row.get("is_archived")) else "active"
+        row["status"] = "active" if is_live(population_state(row)) else "archived"
     return rows
 
 
@@ -63,44 +64,6 @@ def _normalize_vendor_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     for row in rows:
         row["status"] = "archived" if bool(row.get("is_archived")) else "active"
     return rows
-
-
-def _filter_rows_by_risk_criteria(
-    rows: list[dict[str, Any]],
-    *,
-    status_filter: str | None,
-    search: str | None,
-    risk_type: str | None,
-    is_priority: bool | None,
-) -> list[dict[str, Any]]:
-    filtered = rows
-
-    if status_filter:
-        if status_filter == "archived":
-            filtered = [r for r in filtered if bool(r.get("is_archived"))]
-        else:
-            filtered = [r for r in filtered if str(r.get("status")) == status_filter and not bool(r.get("is_archived"))]
-    else:
-        filtered = [r for r in filtered if not bool(r.get("is_archived"))]
-
-    if risk_type:
-        filtered = [r for r in filtered if str(r.get("risk_type") or "") == risk_type]
-
-    if is_priority is not None:
-        filtered = [r for r in filtered if bool(r.get("is_priority")) == is_priority]
-
-    if search:
-        needle = search.strip().lower()
-        filtered = [
-            r
-            for r in filtered
-            if any(
-                _contains(r.get(field), needle)
-                for field in ("risk_id_code", "name", "description", "process", "category")
-            )
-        ]
-
-    return sorted(filtered, key=lambda x: str(x.get("risk_id_code") or ""))
 
 
 def _filter_rows_by_control_criteria(
@@ -155,22 +118,16 @@ def _filter_rows_by_kri_criteria(
     filtered = rows
 
     if status_filter == "archived":
-        filtered = [r for r in filtered if bool(r.get("is_archived"))]
+        filtered = [r for r in filtered if not is_live(population_state(r))]
     else:
-        filtered = [r for r in filtered if not bool(r.get("is_archived"))]
+        filtered = [r for r in filtered if is_live(population_state(r))]
 
     if status_filter == "within":
         filtered = [r for r in filtered if str(r.get("breach_status")) == "within"]
     elif status_filter == "breach":
         filtered = [r for r in filtered if str(r.get("breach_status")) in {"below", "above"}]
     elif status_filter == "overdue":
-        filtered = [
-            r
-            for r in filtered
-            if r.get("last_period_end") is not None
-            and isinstance(r.get("last_period_end"), date)
-            and r["last_period_end"] < as_of_date
-        ]
+        filtered = [r for r in filtered if is_overdue(population_state(r), today=as_of_date)]
 
     if search:
         needle = search.strip().lower()
@@ -180,24 +137,7 @@ def _filter_rows_by_kri_criteria(
         filtered = [r for r in filtered if str(r.get("monitoring_status")) == monitoring_status_filter]
 
     if timeliness_status_filter == "due_soon":
-        due_soon_rows: list[dict[str, Any]] = []
-        for row in filtered:
-            frequency = row.get("frequency")
-            if not isinstance(frequency, str):
-                continue
-            _, current_period_end = period_bounds_for_date(as_of_date, frequency)
-            advance_date = current_period_end - timedelta(days=7)
-            last_period_end = row.get("last_period_end")
-            if not (advance_date <= as_of_date < current_period_end):
-                continue
-            if (
-                last_period_end is not None
-                and isinstance(last_period_end, date)
-                and last_period_end >= current_period_end
-            ):
-                continue
-            due_soon_rows.append(row)
-        filtered = due_soon_rows
+        filtered = [r for r in filtered if is_due_soon(population_state(r), today=as_of_date)]
 
     return sorted(filtered, key=lambda x: str(x.get("metric_name") or ""))
 

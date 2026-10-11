@@ -87,6 +87,7 @@
     "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
   },
   "register": {
+    "snapshot_unavailable": "Export snímku nemůže použít formu kontroly: {{form}}. Použijte Aktuální zobrazení pro export s tímto filtrem, nebo jej před vytvořením snímku zrušte.",
     "views": { "all": "Vše", "category": "Podle formy kontroly", "department": "Podle oddělení", "process": "Podle procesu", "risk_type": "Podle typu rizika", "risk": "Podle rizika", "vendor": "Podle dodavatele" },
     "filters": { "lifecycle": "Životní cyklus", "add": "Přidat filtr", "active_count_one": "{{count}} aktivní filtr", "active_count_few": "{{count}} aktivní filtry", "active_count_many": "{{count}} aktivního filtru", "active_count_other": "{{count}} aktivních filtrů", "clear_all": "Vymazat vše", "remove": "Odebrat {{label}}", "process": "Proces", "category": "Forma kontroly", "monitoring_status": "Stav monitoringu" },
     "lifecycle": { "active": "Aktivní", "archived": "Archivované", "all": "Vše" },

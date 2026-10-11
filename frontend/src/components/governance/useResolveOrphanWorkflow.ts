@@ -1,3 +1,4 @@
+import { reasonField } from '@/services/api/governedReason';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiClient, ApiClientError } from '@/services/apiClient';
@@ -325,7 +326,7 @@ export function useResolveOrphanWorkflow({
                 target_risk_id: selectedRiskId || undefined,
             };
             if (requestReasonRequired) {
-                request.request_reason = requestReason.trim();
+                Object.assign(request, reasonField(requestReason));
             }
             const response = await orphanedItemsApi.resolveOrphan(orphan.id, request);
             if (isApprovalCreatedResponse(response)) {

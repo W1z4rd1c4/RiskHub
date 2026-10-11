@@ -11,11 +11,11 @@ from app.models import Control, ControlExecution, Department, KeyRiskIndicator, 
 from app.models.control import ControlStatus
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.dashboard import DepartmentMetrics
-from app.services._dashboard_metrics.risk_levels import (
+from app.services.kri_populations import kri_breach_condition, live_clause
+from app.services.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )
-from app.services.kri_populations import kri_breach_condition, live_clause
 
 
 def _count_map(rows) -> dict[int, int]:

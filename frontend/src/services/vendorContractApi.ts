@@ -1,3 +1,4 @@
+import { withReason, reasonBody } from './api/governedReason';
 import { apiClient } from './apiClient';
 import {
     processApprovalQueuedResponseSchema,
@@ -21,7 +22,7 @@ export const vendorContractApi = {
         vendorId: number,
         data: VendorContractWritePayload,
     ): Promise<VendorContract | ProcessApprovalQueuedResponse> {
-        return apiClient.post(`/vendors/${vendorId}/contracts`, data, {
+        return apiClient.post(`/vendors/${vendorId}/contracts`, withReason(data), {
             schema: vendorContractSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -31,7 +32,7 @@ export const vendorContractApi = {
         contractId: number,
         data: VendorContractWritePayload,
     ): Promise<VendorContract | ProcessApprovalQueuedResponse> {
-        return apiClient.patch(`/vendors/${vendorId}/contracts/${contractId}`, data, {
+        return apiClient.patch(`/vendors/${vendorId}/contracts/${contractId}`, withReason(data), {
             schema: vendorContractSchema.or(processApprovalQueuedResponseSchema),
         });
     },
@@ -42,7 +43,7 @@ export const vendorContractApi = {
         requestReason: string,
     ): Promise<void | ProcessApprovalQueuedResponse> {
         return apiClient.delete(`/vendors/${vendorId}/contracts/${contractId}`, {
-            body: JSON.stringify({ request_reason: requestReason }),
+            ...reasonBody(requestReason),
             schema: voidSchema.or(processApprovalQueuedResponseSchema),
         });
     },

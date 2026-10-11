@@ -1,6 +1,7 @@
 import type { DashboardFilters } from '@/types/dashboard';
 
 export const dashboardKeys = {
+    overviewRoot: () => ['dashboardOverview'] as const,
     shellSummary: (
         userId: number | undefined,
         departmentId: number | null,

@@ -16,6 +16,7 @@ from app.core.security import require_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import User
+from app.models.global_config import get_risk_thresholds
 from app.schemas.dashboard import DashboardFilterScope, DashboardOverviewCapabilities, DashboardOverviewResponse
 from app.services._dashboard_metrics import build_dashboard_summary_metrics
 from app.services._dashboard_metrics.controls import load_control_trends
@@ -54,6 +55,7 @@ async def get_dashboard_overview(
         control_form,
         risk_level,
         include_archived,
+        await get_risk_thresholds(db),
     )
     cached = DASHBOARD_OVERVIEW_CACHE.get(cache_key)
     if cached is not None:

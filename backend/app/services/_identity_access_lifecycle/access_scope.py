@@ -7,7 +7,7 @@ from app.core.activity_logger import build_change_set
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
-from app.core.local_session import native_identity_selected
+from app.core.identity_field_ownership import identity_field_owners
 from app.models import User
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserUpdate
@@ -32,10 +32,10 @@ from .ciso_stewardship import (
 from .execution import log_user_update_and_commit
 from .policy import (
     ensure_directory_reenable_allowed,
+    ensure_identity_field_update_allowed,
     ensure_platform_admin_survives,
     ensure_remaining_global_privileged_user,
     ensure_role_change_keeps_privileged_access,
-    ensure_sso_local_field_update_allowed,
     is_global_privileged_user,
     prepare_manual_activity_update,
 )
@@ -57,11 +57,15 @@ async def update_access_profile(
     update_data = user_data if isinstance(user_data, dict) else user_data.model_dump(exclude_unset=True)
     update_data = dict(update_data)
     reason = update_data.pop("reason", None)
-    user = await lock_identity_transition(db, user_id=user_id, actor=current_user)
+    user = await lock_identity_transition(db, user_id=user_id, actor=current_user, settings=settings)
     if is_platform_admin(user) and not is_platform_admin(current_user):
         raise NotFoundError("User not found")
 
-    if native_identity_selected(settings) and "email" in update_data and update_data["email"] != user.email:
+    if (
+        identity_field_owners(settings=settings, user=user)["email"] == "credential_workflow"
+        and "email" in update_data
+        and update_data["email"] != user.email
+    ):
         raise AuthorizationError(
             "Use the verified local credential workflow", code="LOCAL_CREDENTIAL_WORKFLOW_REQUIRED"
         )
@@ -88,7 +92,7 @@ async def update_access_profile(
             require_active=False,
         )
 
-    ensure_sso_local_field_update_allowed(
+    ensure_identity_field_update_allowed(
         settings=settings,
         user=user,
         update_data=platform_update,
@@ -142,7 +146,7 @@ async def update_access_profile(
     if is_deactivating:
         orphan_count = await flag_orphaned_items_for_deactivation(db, user=user)
         await acquire_org_chart_lock(db)
-        await clear_manager_references_for_inactive_user(db, user_id=user.id)
+        await clear_manager_references_for_inactive_user(db, user_id=user.id, actor=current_user)
         extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
     elif removes_ciso_stewardship:
         orphan_count = await flag_orphaned_threats_for_ciso_role_loss(db, user=user)

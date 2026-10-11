@@ -1,3 +1,5 @@
+import { useMutationOwner } from '@/hooks/useMutationOwner';
+import type { LinkMutationContinuation } from '@/lib/governedMutationOutcome';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { lookupApi } from '@/services/lookupApi';
@@ -20,8 +22,8 @@ interface UseLinkManagementWorkflowArgs {
     existingLinks: ExistingLinkItem[];
     isOpen: boolean;
     onClose: () => void;
-    onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
-    onUnlink: (targetId: number) => Promise<void>;
+    onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<LinkMutationContinuation>;
+    onUnlink: (targetId: number) => Promise<LinkMutationContinuation>;
     showSearch: boolean;
 }
 
@@ -34,6 +36,7 @@ export function useLinkManagementWorkflow({
     onUnlink,
     showSearch,
 }: UseLinkManagementWorkflowArgs) {
+    const mutationOwner = useMutationOwner(isOpen);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -138,6 +141,9 @@ export function useLinkManagementWorkflow({
         if (!shouldResetLinkSearchState(wasOpenRef.current, isOpen)) return;
         wasOpenRef.current = false;
 
+        setIsLinking(false);
+        setIsUnlinking(null);
+        setUnlinkTargetId(null);
         setSearchQuery(emptyLinkManagementSearchState.searchQuery);
         setSearchResults([]);
         setSelectedTargetId(emptyLinkManagementSearchState.selectedTargetId);
@@ -159,17 +165,20 @@ export function useLinkManagementWorkflow({
 
     const handleLink = async () => {
         if (selectedTargetId === null) return;
+        const isCurrent = mutationOwner.capture();
         try {
             setIsLinking(true);
-            await onLink(selectedTargetId, 'medium', '');
+            const outcome = await onLink(selectedTargetId, 'medium', '');
+            if (!isCurrent() || outcome?.kind === 'superseded') return;
             if (resolveLinkActionOutcome({ action: 'link', ok: true }).shouldClose) {
                 onClose();
             }
         } catch (err) {
+            if (!isCurrent()) return;
             resolveLinkActionOutcome({ action: 'link', ok: false });
             logError('Linking failed.', err);
         } finally {
-            setIsLinking(false);
+            if (isCurrent()) setIsLinking(false);
         }
     };
 
@@ -181,17 +190,20 @@ export function useLinkManagementWorkflow({
     // error inside the dialog; only a successful unlink closes it.
     const handleConfirmUnlink = async () => {
         if (unlinkTargetId === null) return;
+        const isCurrent = mutationOwner.capture();
         try {
             setIsUnlinking(unlinkTargetId);
-            await onUnlink(unlinkTargetId);
+            const outcome = await onUnlink(unlinkTargetId);
+            if (!isCurrent() || outcome?.kind === 'superseded') return;
             resolveLinkActionOutcome({ action: 'unlink', ok: true });
             setUnlinkTargetId(null);
         } catch (err) {
+            if (!isCurrent()) return;
             resolveLinkActionOutcome({ action: 'unlink', ok: false });
             logError('Unlinking failed.', err);
             throw err;
         } finally {
-            setIsUnlinking(null);
+            if (isCurrent()) setIsUnlinking(null);
         }
     };
 

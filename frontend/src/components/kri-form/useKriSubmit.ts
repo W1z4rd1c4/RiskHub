@@ -11,6 +11,7 @@ import { vendorLinkApi } from "@/services/vendorLinkApi";
 import type { KRICreate } from "@/types/kri";
 import { isProcessApprovalQueuedResponse } from "@/types/process";
 
+import { validateKriCreatePrerequisites } from "./kriForm.utils";
 import type { KRIFormVendorContext } from "./kriForm.types";
 import type { KriFormStatePatch } from "./useKriFormState";
 
@@ -90,7 +91,7 @@ export function useKriSubmit({
 
   const finalizeCreate = useCallback(
     async (options: KriCreateOptions = {}) => {
-      if (!validateStep1() || !validateStep2()) return;
+      if (!validateKriCreatePrerequisites(validateStep1, validateStep2, vendorContext, setStatePatch)) return;
 
       // A protected Vendor must not be linked through the direct create
       // payload — the relationship goes through the governed

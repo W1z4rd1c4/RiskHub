@@ -30,7 +30,7 @@ interface VendorLinkedRisksTabProps {
     vendorId: number;
     canCreateRisk: boolean;
     canEdit: boolean;
-    protectedChangeRequiresApproval: boolean;
+    protectedChangeRequiresApproval: boolean | undefined;
     onAddRisk: () => void;
     onNavigateToRisk: (riskId: number) => void;
     onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;

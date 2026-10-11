@@ -1,31 +1,13 @@
 import { apiClient } from './apiClient';
 import {
-    controlTrendSchema,
     dashboardCommitteeSummarySchema,
     dashboardOverviewSchema,
     dashboardQuarterlyComparisonSchema,
     dashboardRiskByCellItemArraySchema,
-    dashboardSummarySchema,
-    departmentMetricsSchema,
-    issueAgingResponseSchema,
-    issueDashboardSummarySchema,
-    issueSeverityBreakdownResponseSchema,
-    kriBreachTrendPointSchema,
-    riskDistributionSchema,
-    riskTrendPointSchema,
     z,
 } from '@/services/api/schemas';
 import type {
-    DashboardSummary,
-    DepartmentMetrics,
-    RiskDistribution,
-    ControlTrend,
     DashboardFilters,
-    RiskTrendPoint,
-    KRIBreachTrendPoint,
-    IssueDashboardSummary,
-    IssueAgingResponse,
-    IssueSeverityBreakdownResponse,
     DashboardOverview,
 } from '../types/dashboard';
 import type { RiskSummary } from '@/types/risk';
@@ -171,70 +153,6 @@ export const dashboardApi = {
         return apiClient.get('/dashboard/risks-by-cell', {
             params,
             schema: dashboardRiskByCellItemArraySchema,
-        });
-    },
-
-    async fetchDashboardSummary(filters?: DashboardFilters): Promise<DashboardSummary> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/summary', { params, schema: dashboardSummarySchema });
-    },
-
-    async fetchDepartmentMetrics(filters?: DashboardFilters): Promise<DepartmentMetrics[]> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/departments', {
-            params,
-            schema: z.array(departmentMetricsSchema),
-        });
-    },
-
-    async fetchRiskDistribution(filters?: DashboardFilters, riskType: 'gross' | 'net' = 'net'): Promise<RiskDistribution> {
-        const params = buildQueryParams(filters);
-        params.risk_type = riskType;
-        return apiClient.get('/dashboard/risk-distribution', {
-            params,
-            schema: riskDistributionSchema,
-        });
-    },
-
-    async fetchControlTrends(filters?: DashboardFilters): Promise<ControlTrend[]> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/control-trends', { params, schema: z.array(controlTrendSchema) });
-    },
-
-    async fetchRiskTrends(filters?: DashboardFilters): Promise<RiskTrendPoint[]> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/risk-trends', { params, schema: z.array(riskTrendPointSchema) });
-    },
-
-    async fetchKriBreachTrends(filters?: DashboardFilters): Promise<KRIBreachTrendPoint[]> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/kri-breach-trends', {
-            params,
-            schema: z.array(kriBreachTrendPointSchema),
-        });
-    },
-
-    async fetchIssuesSummary(filters?: DashboardFilters): Promise<IssueDashboardSummary> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/issues-summary', {
-            params,
-            schema: issueDashboardSummarySchema,
-        });
-    },
-
-    async fetchIssuesAging(filters?: DashboardFilters): Promise<IssueAgingResponse> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/issues-aging', {
-            params,
-            schema: issueAgingResponseSchema,
-        });
-    },
-
-    async fetchIssuesBySeverity(filters?: DashboardFilters): Promise<IssueSeverityBreakdownResponse> {
-        const params = buildQueryParams(filters);
-        return apiClient.get('/dashboard/issues-by-severity', {
-            params,
-            schema: issueSeverityBreakdownResponseSchema,
         });
     },
 

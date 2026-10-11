@@ -379,6 +379,33 @@ capabilities, and unread work calculations remain authoritative and visible.
 The governed-mutation seam adds no due date, SLA, reminder, overdue state,
 automatic decision, or timer-driven escalation.
 
+## Pending Resolver Visibility
+
+Every governed family requires an active independent resolver's current role to
+be present in the immutable submission snapshot. The shared role-membership
+rule lives in `composite_policy.role_visible_in_snapshot`; existing family
+privilege and resource-scope checks remain additional requirements. Strict
+proposal classification precedes visibility, and requester access is separate.
+
+Asset, Vendor, and Threat visibility retains enabled live-policy membership.
+Asset and Vendor select all actual triggering policies from their validated
+immutable identity and require their intersection with the snapshot roles.
+An accountability-only proposal therefore remains discoverable when its
+unrelated protected-edit scenario is disabled. Queue, My Approvals, badge,
+shell-summary, approval detail, and notification list/count/read operations
+consume those same family adapters. Ordinary resource-read access does not
+implicitly expose a pending proposal's diff.
+
+Process and Process-extended retain current-role/snapshot membership plus the
+existing global-authority-or-Process-scope rule, including SQL/object parity.
+They intentionally do not add a current scenario-configuration visibility gate:
+a snapshotted resolver can discover stale-policy work and request bounded
+expiry. Visibility never grants a business decision. Locked decision authority,
+malformed-envelope cleanup, requester cancellation, and terminal-history
+contracts remain separate and unchanged. In particular, the Threat eligibility
+seam used before bounded expiry must not require a fully valid mutation payload;
+its read-side callers perform strict classification before exposing the row.
+
 ## Public Process Tracer Contract
 
 The existing `PATCH /api/v1/processes/{process_id}` accepts an optional
@@ -513,6 +540,26 @@ direct Process edits only after a consistency check confirms no active lock.
 - Authz contract tests bind service enforcement, Process/approval capability
   schemas, frontend gates, and documentation.
 - Timezone tests require UTC-aware proposal, resolution, and lock timestamps.
+
+## Frontend Mutation Outcomes
+
+The frontend `lib/governedMutationOutcome.ts` owns applied, pending and
+rejected interpretation for both approval response envelopes. A queued result
+requires `status=approval_required` and a positive integer approval ID; malformed
+queued envelopes fail rather than being accepted as an immediate save. Pending
+links use the existing approval navigation helper. The detail workflow retains
+its pre-effect and post-await ownership checks, and the four governed forms use
+the same backend-code mapping. Reason-required rejections mark/focus the reason
+field while preserving the draft; pending conflicts are specific localized
+errors and unknown failures retain the generic fallback. Only applied or valid
+queued outcomes accept a dirty draft. Process's submitted routing-signature
+check remains intact.
+
+`services/api/governedReason.ts` alone normalizes proposal `request_reason`:
+trim populated values, remove blank keys from payloads, and omit blank DELETE
+bodies. Legacy Risk/Control/KRI archive query `reason` contracts and defaults
+are separate and unchanged. Outcome interpretation grants no mutation or
+resolution authority and does not redefine advisory protection capabilities.
 
 ## ADR Cross-References
 

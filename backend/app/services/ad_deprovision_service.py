@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.external_identity_policy import require_external_directory
 from app.core.identity_policy import projected_account_active
@@ -119,11 +119,12 @@ class ADDeprovisionService:
         trigger: str,
         sync_status: str,
         deprovision_reason: str,
-        settings: Settings | None = None,
+        settings: Settings,
     ) -> dict[str, Any]:
-        require_external_directory(settings or get_settings())
+        require_external_directory(settings)
         return await cls._deprovision_user(
             db,
+            settings=settings,
             user=user,
             actor=actor,
             trigger=trigger,
@@ -161,6 +162,7 @@ class ADDeprovisionService:
         except DirectoryUserNotFoundError:
             return await cls._deprovision_user(
                 db,
+                settings=settings,
                 user=user,
                 actor=actor,
                 trigger=trigger,
@@ -168,7 +170,7 @@ class ADDeprovisionService:
                 deprovision_reason=cls.DEPROVISION_REASON_MISSING,
             )
         except DirectoryProviderUnavailableError as exc:
-            user = await lock_identity_transition(db, user_id=user.id, actor=actor)
+            user = await lock_identity_transition(db, user_id=user.id, actor=actor, settings=settings)
             user.directory_last_checked_at = now
             user.directory_sync_status = "provider_unavailable"
             db.add(user)
@@ -181,7 +183,7 @@ class ADDeprovisionService:
                 "orphaned_items_flagged": 0,
             }
         except DirectoryProviderError as exc:
-            user = await lock_identity_transition(db, user_id=user.id, actor=actor)
+            user = await lock_identity_transition(db, user_id=user.id, actor=actor, settings=settings)
             user.directory_last_checked_at = now
             user.directory_sync_status = "provider_error"
             db.add(user)
@@ -194,7 +196,7 @@ class ADDeprovisionService:
                 "orphaned_items_flagged": 0,
             }
 
-        user = await lock_identity_transition(db, user_id=user.id, actor=actor)
+        user = await lock_identity_transition(db, user_id=user.id, actor=actor, settings=settings)
         if user.external_id != expected_external_id or remote_user.external_id != expected_external_id:
             return {
                 "user_id": user.id,
@@ -230,6 +232,7 @@ class ADDeprovisionService:
                 }
             return await cls._deprovision_user(
                 db,
+                settings=settings,
                 user=user,
                 actor=actor,
                 trigger=trigger,
@@ -273,6 +276,7 @@ class ADDeprovisionService:
                 entity_id=user.id,
                 entity_name=user.name,
                 description=f"Directory eligibility changed (revoked_sessions={revoked_sessions})",
+                changes={"event_type": "directory_eligibility_changed", "revoke_count": revoked_sessions},
             )
         user.break_glass_expires_at = None
         user.break_glass_reason = None
@@ -297,8 +301,9 @@ class ADDeprovisionService:
         trigger: str,
         sync_status: str,
         deprovision_reason: str,
+        settings: Settings,
     ) -> dict[str, Any]:
-        user = await lock_identity_transition(db, user_id=user.id, actor=actor)
+        user = await lock_identity_transition(db, user_id=user.id, actor=actor, settings=settings)
         authority_changed = bool(user.is_active or user.deprovision_reason != deprovision_reason)
         now = utc_now()
         user.directory_sync_status = sync_status
@@ -308,7 +313,7 @@ class ADDeprovisionService:
         user.is_active = False
         user.directory_last_checked_at = now
         await acquire_org_chart_lock(db)
-        await clear_manager_references_for_inactive_user(db, user_id=user.id)
+        await clear_manager_references_for_inactive_user(db, user_id=user.id, actor=actor)
         db.add(user)
 
         if authority_changed:
@@ -327,6 +332,9 @@ class ADDeprovisionService:
             from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
 
             if not await effective_platform_admin_ids(db):
+                incident_description = (
+                    "Platform administrator unavailable after upstream revocation; operator recovery required"
+                )
                 await log_activity(
                     db=db,
                     actor=actor,
@@ -334,9 +342,9 @@ class ADDeprovisionService:
                     entity_type=ActivityEntityType.USER,
                     entity_id=user.id,
                     entity_name=user.name,
-                    description=(
-                        "Platform administrator unavailable after upstream revocation; " "operator recovery required"
-                    ),
+                    changes={"event_type": "platform_admin_unavailable"},
+                    safe_description=incident_description,
+                    safe_description_siem=incident_description,
                 )
 
         await log_activity(
@@ -350,6 +358,7 @@ class ADDeprovisionService:
                 f"User auto-deactivated due to directory deprovision "
                 f"(reason={deprovision_reason}, trigger={trigger}, revoked_sessions={revoked_sessions})"
             ),
+            changes={"event_type": "directory_deprovisioned", "revoke_count": revoked_sessions},
         )
         return {
             "user_id": user.id,

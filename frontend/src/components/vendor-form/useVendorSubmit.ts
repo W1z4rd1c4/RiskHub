@@ -1,9 +1,10 @@
+import { reasonField } from '@/services/api/governedReason';
+import { governedMutationSuccess, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import type { VendorCreate } from '@/types/vendor';
 import {
-    isProcessApprovalQueuedResponse,
     type ProcessApprovalQueuedResponse,
 } from '@/types/process';
 
@@ -66,9 +67,7 @@ export function useVendorSubmit({
 
         try {
             setIsSubmitting(true);
-            const requestReasonPayload = requestReason.trim()
-                ? { request_reason: requestReason.trim() }
-                : {};
+            const requestReasonPayload = reasonField(requestReason);
             const saved =
                 isEdit && initialData
                     ? await vendorApi.updateVendor(
@@ -82,14 +81,21 @@ export function useVendorSubmit({
                         ...(buildVendorPayload(formData) as VendorCreate),
                         ...requestReasonPayload,
                     });
+            const outcome = governedMutationSuccess(saved);
             onAccepted();
-            if (isProcessApprovalQueuedResponse(saved)) {
-                onApprovalQueued?.(saved);
+            if (outcome.kind === 'pending') {
+                onApprovalQueued?.(outcome.response);
                 return;
             }
-            onSaved(saved);
-        } catch {
-            setError(t('errors.save_failed'));
+            onSaved(outcome.response);
+        } catch (error) {
+            const rejection = governedMutationRejection(error);
+            const message = t(`errors.${rejection.message}`);
+            setError(message);
+            if (rejection.field === 'request_reason') {
+                setRequestReasonError(message);
+                onValidationError?.('request_reason');
+            }
         } finally {
             setIsSubmitting(false);
         }

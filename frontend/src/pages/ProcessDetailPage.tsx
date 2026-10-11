@@ -1,3 +1,4 @@
+import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
 import { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
@@ -33,7 +34,6 @@ import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { ProcessForm } from './processes/ProcessForm';
 import { ProcessVendorLinksSection } from './processes/ProcessVendorLinksSection';
-import { processMutationRequiresApprovalReason } from './processes/processProtectedEdit';
 import {
     getProcessDisplayStatus,
     processDepartmentDisplayLabel,
@@ -128,7 +128,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         try {
             setIsArchiving(true);
             setActionError(null);
-            const result = await processApi.archiveProcess(process.id, requestReason?.trim() ?? '');
+            const result = await processApi.archiveProcess(process.id, requestReason ?? '');
             setIsArchiveDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
                 // D12 / PM-2: stay on the process with the pending notice + toast.
@@ -669,10 +669,11 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 entityLabel={tCommon('labels.process')}
                 message={t('messages.archive_confirm', { processName: process.l1_process })}
                 isLoading={isArchiving}
-                reason={processMutationRequiresApprovalReason(process) ? 'required' : 'optional'}
+                reason={governedReasonRequirement(process) === 'required' ? 'required' : 'optional'}
                 reasonLabel={t('form.request_reason')}
                 reasonPlaceholder={t('form.request_reason_help')}
-                errorText={actionError}
+                confirmDisabled={governedReasonRequirement(process) === 'unavailable'}
+                errorText={actionError ?? (governedReasonRequirement(process) === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)}
             />
             {pendingCancellationDialog}
         </PageContainer>

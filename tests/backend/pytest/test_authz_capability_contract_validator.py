@@ -938,3 +938,48 @@ def test_hook_and_ci_wiring_preserve_contract_gate_inputs() -> None:
     assert 'github.event.before' in workflow
     assert '0000000000000000000000000000000000000000' in workflow
     assert 'AUTHZ_CONTRACT_BASE_REF="$AUTHZ_CONTRACT_BASE_REF" make' in workflow
+
+
+def test_capability_catalog_checks_explicit_string_array_ownership_shapes():
+    validator = _load_validator()
+    catalog = {
+        "surfaces": [
+            {
+                "id": "ownership",
+                "backend": {"path": "owned.py", "class": "Capabilities"},
+                "frontend": {"path": "owned.ts", "schema": "ownedSchema"},
+                "fields": ["can_edit", "owned"],
+                "string_array_fields": ["owned"],
+            }
+        ]
+    }
+    sources = {
+        "owned.py": "class Capabilities:\n    can_edit: bool\n    owned: list[str] = Field(default_factory=list)\n",
+        "owned.ts": (
+            "const ownedSchema = passthroughObject({\n    can_edit: z.boolean(),\n"
+            "    owned: z.array(z.string()).optional(),\n});"
+        ),
+    }
+    assert not validator._validate_capability_catalog(catalog, source_by_path=sources)
+    for path, original, replacements in (
+        ("owned.py", "list[str]", ["list[int]", "bool", "dict[str, bool]", "object"]),
+        (
+            "owned.ts",
+            "z.array(z.string())",
+            [
+                "z.array(z.number())",
+                "z.boolean()",
+                "z.record(z.string(), z.boolean())",
+                "z.any()",
+                "z.array(z.string()).or(z.number())",
+                "z.array(z.string()).nullable()",
+                "z.array(z.string()).transform(() => 1)",
+            ],
+        ),
+    ):
+        for replacement in replacements:
+            mutated = {**sources, path: sources[path].replace(original, replacement)}
+            findings = validator._validate_capability_catalog(catalog, source_by_path=mutated)
+            assert any("string_array" in finding.reason for finding in findings), (path, replacement, findings)
+        missing = {**sources, path: "\n".join(line for line in sources[path].splitlines() if "owned:" not in line)}
+        assert validator._validate_capability_catalog(catalog, source_by_path=missing)

@@ -100,6 +100,7 @@ async def refresh_session(
         db=db,
         user_id=user_id,
         expected_token_version=refresh_row.token_version,
+        settings=settings,
     )
     if locked_user is None:
         return _refresh_unauthorized_response("Session revoked", settings)

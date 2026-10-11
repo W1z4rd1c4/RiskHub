@@ -95,11 +95,11 @@ describe('reportApi exportKRIs', () => {
         await reportApi.exportRisks({
             format: 'csv',
             asOfDate: '2025-01-15',
-            filters: { status: 'active', search: 'Historical', riskType: 'operational', isPriority: true },
+            filters: { lifecycle: 'all', status: 'active', search: 'Historical', riskType: 'operational', isPriority: true },
         });
 
         expect(getBlobMock).toHaveBeenCalledWith(
-            '/reports/risks/export?format=csv&as_of_date=2025-01-15&status=active&search=Historical&risk_type=operational&is_priority=true',
+            '/reports/risks/export?format=csv&as_of_date=2025-01-15&status=active&lifecycle=all&search=Historical&risk_type=operational&is_priority=true',
             { timeoutMs: null },
         );
     });

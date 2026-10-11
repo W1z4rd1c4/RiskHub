@@ -42,6 +42,9 @@ async def get_risks_by_cell(
     db: AsyncSession = Depends(get_db),
     current_user: Any = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
+    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(
+        None, description="Filter by risk level"
+    ),
     risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
     include_archived: bool = Query(False, description="Include archived risks"),
 ):
@@ -52,6 +55,7 @@ async def get_risks_by_cell(
         probability=probability,
         impact=impact,
         department_id=department_id,
+        risk_level=risk_level,
         risk_type=risk_type,
         include_archived=include_archived,
     )
@@ -62,6 +66,9 @@ async def get_risk_trends(
     db: AsyncSession = Depends(get_db),
     current_user: Any = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
+    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(
+        None, description="Filter by risk level"
+    ),
     include_archived: bool = Query(False, description="Include archived risks"),
 ):
     """Get risk creation trends by month (last 12 months)."""
@@ -70,4 +77,5 @@ async def get_risk_trends(
         current_user=current_user,
         department_id=department_id,
         include_archived=include_archived,
+        risk_level=risk_level,
     )

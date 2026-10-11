@@ -1,3 +1,4 @@
+import { buildDashboardDrillthrough } from '@/pages/dashboard/dashboardStats';
 import { useState, useEffect } from 'react';
 import { Clock, ArrowRight, CalendarClock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -16,13 +17,11 @@ import { TabList, TabPanel, type TabItem } from '@/components/ui/tabs';
 type TabType = 'upcoming' | 'overdue';
 
 const STATUS_TABS_ID_PREFIX = 'kri-status';
-// Register destinations of the footer link (route + query, not UI copy).
-const OVERDUE_KRIS_PATH = '/kris?monitoring_status=not_submitted';
-const DUE_SOON_KRIS_PATH = '/kris?timeliness_status=due_soon';
 
 export function KRIStatusWidget() {
     const { t } = useTranslation(['dashboard', 'kris']);
     const departmentId = useDashboardFilterSelector(state => state.filters.departmentId);
+    const links = buildDashboardDrillthrough({ departmentId }).kris;
     const [activeTab, setActiveTab] = useState<TabType>('upcoming');
     const [overdueKRIs, setOverdueKRIs] = useState<OverdueKRI[]>([]);
     const [dueSoonKRIs, setDueSoonKRIs] = useState<DueSoonKRI[]>([]);
@@ -207,7 +206,7 @@ export function KRIStatusWidget() {
                 </TabPanel>
 
                 <Link
-                    to={activeTab === 'overdue' ? OVERDUE_KRIS_PATH : DUE_SOON_KRIS_PATH}
+                    to={activeTab === 'overdue' ? links.overdue : links.dueSoon}
                     className="block w-full border-t border-border bg-tint/[0.03] py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-tint/5 hover:text-foreground focus-ring"
                 >
                     {activeTab === 'overdue' ? t('kri.view_all_overdue') : t('kri.view_all')}

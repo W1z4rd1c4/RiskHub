@@ -1240,6 +1240,7 @@ async def test_risk_manager_seed_grants_full_asset_maintenance(
         assert created.status_code == 201, created.text
         asset_id = created.json()["id"]
         assert created.json()["capabilities"] == {
+            "protected_change_requires_approval": False,
             "can_read": True,
             "can_update": True,
             "can_archive": True,
@@ -1330,6 +1331,7 @@ async def test_employee_reads_assets_but_cannot_maintain_them(
         detail = await client.get(f"/api/v1/assets/{seeded['id']}")
         assert detail.status_code == 200
         assert detail.json()["capabilities"] == {
+            "protected_change_requires_approval": False,
             "can_read": True,
             "can_update": False,
             "can_archive": False,

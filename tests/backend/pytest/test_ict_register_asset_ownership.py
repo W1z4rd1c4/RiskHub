@@ -256,6 +256,7 @@ async def test_asset_owner_and_owning_department_head_get_update_not_archive(
 
         assert detail.status_code == 200, detail.text
         assert detail.json()["capabilities"] == {
+            "protected_change_requires_approval": False,
             "can_read": True,
             "can_update": True,
             "can_archive": False,

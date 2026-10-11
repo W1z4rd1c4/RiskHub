@@ -71,6 +71,7 @@
             "name_required": "Název hrozby je povinný.",
             "steward_required": "Je vyžadován aktivní CISO jako správce hrozby.",
             "request_reason_required": "U této řízené změny hrozby je důvod žádosti povinný.",
+            "pending_change_exists": "Tato Hrozba již má čekající změnu. Před odesláním další změny ji zrušte nebo vyřešte.",
             "save_failed": "Uložení hrozby se nezdařilo. Zkuste to prosím znovu.",
             "fix_fields": "Opravte prosím zvýrazněná pole.",
             "lists_failed": "Některé číselníky se nepodařilo načíst, proto jsou tyto nabídky prázdné. Zkuste je načíst znovu."

@@ -75,6 +75,7 @@ export function RiskRegisterFilterBar({
         ...(filters.is_priority !== null ? [buildFilterChip(t, 'is_priority', t('filters.priority_only'), yesNo(filters.is_priority))] : []),
         ...(filters.has_breach !== null ? [buildFilterChip(t, 'has_breach', labels.has_breach, yesNo(filters.has_breach))] : []),
         ...(filters.critical ? [{ key: 'critical', label: labels.critical }] : []),
+        ...(filters.risk_level ? [buildFilterChip(t, 'risk_level', t('register.filters.risk_level'), t(NET_BAND_LABEL_KEYS[filters.risk_level]))] : []),
         ...(filters.net_band ? [buildFilterChip(t, 'net_band', labels.net_band, t(NET_BAND_LABEL_KEYS[filters.net_band]))] : []),
     ], [filters, labels, riskTypeLabel, t, yesNo]);
     const remove = (key: string) => {
@@ -84,6 +85,7 @@ export function RiskRegisterFilterBar({
         else if (key === 'is_priority') onFilterChange('is_priority', null);
         else if (key === 'has_breach') onFilterChange('has_breach', null);
         else if (key === 'critical') onFilterChange('critical', false);
+        else if (key === 'risk_level') onFilterChange('risk_level', '');
         else if (key === 'net_band') onFilterChange('net_band', '');
         if (key === 'has_breach' || key === 'critical' || key === 'net_band') setActiveKeys((current) => current.filter((item) => item !== key));
     };

@@ -29,7 +29,7 @@ interface VendorLinkedKRIsTabProps {
     vendorId: number;
     canCreateKri: boolean;
     canEdit: boolean;
-    protectedChangeRequiresApproval: boolean;
+    protectedChangeRequiresApproval: boolean | undefined;
     onAddKri: () => void;
     onNavigateToKri: (kriId: number) => void;
     onCollectionStateChange?: (summary: VendorLinkedRegionSummary) => void;

@@ -31,7 +31,7 @@ vi.mock('@/services/assetApi', () => ({
 }));
 
 vi.mock('@/services/processApi', () => ({
-    processApi: { getProcesses: vi.fn().mockResolvedValue({ items: [] }) },
+    processApi: { getProcess: vi.fn(), getProcesses: vi.fn().mockResolvedValue({ items: [] }) },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
@@ -51,7 +51,7 @@ import { processApi } from '@/services/processApi';
 import { AssetLinkSections } from '@/pages/assets/AssetLinkSections';
 import i18n from '@/i18n';
 
-const asset = { id: 1 } as unknown as Asset;
+const asset = { id: 1, capabilities: { protected_change_requires_approval: true } } as unknown as Asset;
 
 function renderSection(assetUnderTest: Asset = asset) {
     const queryClient = new QueryClient({
@@ -282,15 +282,49 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
         expect(mockRemoveProcessLink).not.toHaveBeenCalled();
     });
 
+    it('keeps a denied counterpart unavailable and lets the user close without a mutation', async () => {
+        vi.mocked(processApi.getProcesses).mockResolvedValue({ items: [] } as never);
+        vi.mocked(processApi.getProcess).mockRejectedValueOnce({ status: 403 });
+        renderSection({ ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false } } as Asset);
+        fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
+        const dialog = screen.getByRole('alertdialog');
+        await waitFor(() => expect(processApi.getProcess).toHaveBeenCalledExactlyOnceWith(100));
+        expect(within(dialog).getByRole('button', { name: i18n.t('common:actions.remove_link') })).toBeDisabled();
+        expect(within(dialog).getByText(i18n.t('common:governed_mutation.capability_unavailable'))).toBeInTheDocument();
+        fireEvent.submit(dialog.querySelector('form')!);
+        expect(mockRemoveProcessLink).not.toHaveBeenCalled();
+        fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.cancel') }));
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('requires the displaced primary Process fact even when the new primary and Asset are unprotected', async () => {
+        vi.mocked(assetApi.getProcessLinks).mockResolvedValue([
+            { id: 10, process_id: 100, process_name: 'New primary', is_primary: false },
+            { id: 11, process_id: 900, process_name: 'Displaced primary', is_primary: true },
+        ] as never);
+        vi.mocked(processApi.getProcesses).mockResolvedValue({ items: [
+            { id: 100, capabilities: { protected_change_requires_approval: false } },
+        ] } as never);
+        vi.mocked(processApi.getProcess).mockResolvedValueOnce({ id: 900, capabilities: { protected_change_requires_approval: true } } as never);
+        renderSection({ ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false } } as Asset);
+        fireEvent.click(await screen.findByTestId('asset-process-link-set-primary-100'));
+        const dialog = screen.getByRole('alertdialog');
+        const reason = await within(dialog).findByRole('textbox', { name: /request reason/i });
+        expect(reason).toHaveAttribute('aria-required', 'true');
+        expect(processApi.getProcess).toHaveBeenCalledExactlyOnceWith(900);
+        fireEvent.submit(dialog.querySelector('form')!);
+        expect(assetApi.updateProcessLink).not.toHaveBeenCalled();
+    });
+
     it('confirms a directly applied non-protected link without forcing a discarded reason', async () => {
         (processApi.getProcesses as ReturnType<typeof vi.fn>).mockResolvedValue({
             items: [{
                 id: 100,
                 derived: { cif: 'no' },
-                capabilities: { protected_change_requires_approval: true },
+                capabilities: { protected_change_requires_approval: false },
             }],
         });
-        renderSection();
+        renderSection({ ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false } } as Asset);
 
         fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
         const dialog = screen.getByRole('alertdialog');
@@ -307,10 +341,10 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
             items: [{
                 id: 100,
                 derived: { cif: 'no', resulting_criticality: 'medium' },
-                capabilities: { protected_change_requires_approval: true },
+                capabilities: { protected_change_requires_approval: false },
             }],
         });
-        renderSection({ id: 1, derived: { cif: 'yes' } } as unknown as Asset);
+        renderSection({ id: 1, capabilities: { protected_change_requires_approval: true }, derived: { cif: 'no' } } as unknown as Asset);
 
         fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
 

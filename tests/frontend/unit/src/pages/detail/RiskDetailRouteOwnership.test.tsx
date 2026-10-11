@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,6 +14,7 @@ const getLinkedVendorsMock = vi.fn();
 const getOverdueMock = vi.fn();
 const deleteRiskMock = vi.fn();
 const linkControlMock = vi.fn();
+const linkContinuationRejected = vi.fn();
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -112,7 +113,7 @@ vi.mock('@/components/risks/RiskDetailOverviewTab', () => ({
         {linkedControls.map(({ control }) => <span key={control.name}>linked:{control.name}</span>)}
         <button type="button" onClick={() => setIsLinkDialogOpen(true)}>open-link</button>
         <button type="button" onClick={() => setIsCreateDialogOpen(true)}>open-create</button>
-        <button type="button" onClick={() => void onLinkControl(91, 'high')}>link-control</button>
+        <button type="button" onClick={() => void onLinkControl(91, 'high').catch(linkContinuationRejected)}>link-control</button>
         <button type="button" onClick={onRefreshData}>refresh-risk</button>
         {isLinkDialogOpen ? <span>link-dialog</span> : null}
         {isCreateDialogOpen ? <span>create-dialog</span> : null}
@@ -139,6 +140,23 @@ describe('Risk detail route ownership', () => {
         getRiskMock.mockImplementation((id: number) => Promise.resolve(risk(id)));
         getLinkedVendorsMock.mockResolvedValue([]);
         getOverdueMock.mockResolvedValue([]);
+    });
+
+    it('propagates current backend rejection to the open Link Management continuation', async () => {
+        const failure = new Error('current link rejection');
+        getLinkedControlsMock.mockResolvedValue([linkedControl(1)]);
+        linkControlMock.mockRejectedValueOnce(failure);
+        const router = createMemoryRouter([
+            { path: '/risks/:id', element: <RiskDetailPage /> },
+        ], { initialEntries: ['/risks/1'] });
+        render(<QueryClientProvider client={createTestQueryClient()}><RouterProvider router={router} /></QueryClientProvider>);
+        expect(await screen.findByRole('heading', { name: 'Risk 1' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'open-link' }));
+        fireEvent.click(screen.getByRole('button', { name: 'link-control' }));
+        await waitFor(() => expect(linkContinuationRejected).toHaveBeenCalledExactlyOnceWith(failure));
+        expect(linkControlMock).toHaveBeenCalledExactlyOnceWith(1, { control_id: 91, effectiveness: 'high', notes: undefined });
+        expect(screen.getByText('link-dialog')).toBeInTheDocument();
+        expect(screen.getByText('linked:Control 1')).toBeInTheDocument();
     });
 
     it('never lets late A sidecars, errors, archive navigation, or dialogs affect cached B', async () => {
@@ -191,4 +209,27 @@ describe('Risk detail route ownership', () => {
         expect(screen.queryByText('linked:Control 11')).not.toBeInTheDocument();
         expect(screen.queryByText('Risk register')).not.toBeInTheDocument();
     });
+    it('discards a Control link from an earlier A generation after A to B to A navigation', async () => {
+        const linkA = deferred<ReturnType<typeof linkedControl>>();
+        linkControlMock.mockReturnValueOnce(linkA.promise);
+        getLinkedControlsMock.mockImplementation(async (id: number) => [linkedControl(id)]);
+        const queryClient = createTestQueryClient();
+        const router = createMemoryRouter([
+            { path: '/risks/:id', element: <RiskDetailPage /> },
+        ], { initialEntries: ['/risks/1'] });
+        render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>);
+        await screen.findByRole('heading', { name: 'Risk 1' });
+        await screen.findByText('linked:Control 1');
+        fireEvent.click(screen.getByRole('button', { name: 'link-control' }));
+        expect(linkControlMock).toHaveBeenCalledExactlyOnceWith(1, { control_id: 91, effectiveness: 'high', notes: undefined });
+        await act(async () => router.navigate('/risks/2'));
+        await screen.findByText('linked:Control 2');
+        await act(async () => router.navigate('/risks/1'));
+        await screen.findByText('linked:Control 1');
+        getLinkedControlsMock.mockClear();
+        await act(async () => linkA.resolve(linkedControl(91)));
+        expect(getLinkedControlsMock).not.toHaveBeenCalled();
+        expect(router.state.location.pathname).toBe('/risks/1');
+    });
+
 });

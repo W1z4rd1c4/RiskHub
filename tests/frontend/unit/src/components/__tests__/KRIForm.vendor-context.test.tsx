@@ -139,9 +139,35 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
         consoleErrorSpy.mockRestore();
     });
 
-    it('creates a vendor-context KRI and submits vendor assignment in the create payload', async () => {
+    it('keeps Vendor-context creation unavailable when its advisory capability is absent', async () => {
         render(
             <KRIForm vendorContext={{ vendorId: 12, returnTo: '/vendors/12', vendorName: 'Vendor Twelve' }} />,
+        );
+
+        await screen.findByText('Vendor-linked risk');
+        fireEvent.click(screen.getByRole('button', { name: /Vendor-linked risk/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Next|Další/i }));
+
+        fireEvent.change(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i), {
+            target: { value: 'Vendor KRI Alpha' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/Describe what this KRI measures|Popište, co tento KRI měří/i), {
+            target: { value: 'Tracks a vendor-specific signal.' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }));
+
+        expect(await screen.findByText(i18n.t('common:governed_mutation.capability_unavailable'))).toBeInTheDocument();
+        expect(mockCreateKri).not.toHaveBeenCalled();
+        expect(mockLinkKRI).not.toHaveBeenCalled();
+        expect(mockLinkRisk).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(screen.getByPlaceholderText(/Customer complaint rate|Míra stížností zákazníků/i)).toHaveValue('Vendor KRI Alpha');
+    });
+
+    it('creates a vendor-context KRI and submits vendor assignment in the create payload', async () => {
+        render(
+            <KRIForm vendorContext={{ vendorId: 12, returnTo: '/vendors/12', vendorName: 'Vendor Twelve', protectedChangeRequiresApproval: false }} />,
         );
 
         await screen.findByText('Vendor-linked risk');
@@ -177,7 +203,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
 
     it('submits ensure_parent_risk_vendor_ids when user links a non-linked parent risk before create', async () => {
         render(
-            <KRIForm vendorContext={{ vendorId: 12, returnTo: '/vendors/12', vendorName: 'Vendor Twelve' }} />,
+            <KRIForm vendorContext={{ vendorId: 12, returnTo: '/vendors/12', vendorName: 'Vendor Twelve', protectedChangeRequiresApproval: false }} />,
         );
 
         fireEvent.click(screen.getByRole('button', { name: /All readable risks|Všechna dostupná rizika/i }));

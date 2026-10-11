@@ -97,6 +97,7 @@ describe('VendorDetailPage issue entry', () => {
             dora_relevant: true,
             is_significant_vendor: false,
             capabilities: {
+                protected_change_requires_approval: true,
                 can_archive: true,
                 can_restore: false,
                 can_create_issue: canIssueWrite,
@@ -161,6 +162,7 @@ describe('VendorDetailPage issue entry', () => {
             dora_relevant: true,
             is_significant_vendor: false,
             capabilities: {
+                protected_change_requires_approval: true,
                 can_archive: false,
                 can_restore: true,
                 can_create_issue: true,
@@ -180,6 +182,7 @@ describe('VendorDetailPage issue entry', () => {
         mockGetVendor.mockResolvedValue({
             ...baseVendor,
             capabilities: {
+                protected_change_requires_approval: true,
                 can_archive: false,
                 can_update: false,
                 has_pending_change: true,
@@ -258,7 +261,7 @@ describe('VendorDetailPage issue entry', () => {
             'Failed to archive the vendor. Please try again.',
         );
         expect(reason).toHaveValue('  Exact Vendor rationale  ');
-        expect(mockArchiveVendor).toHaveBeenCalledWith(31, 'Exact Vendor rationale');
+        expect(mockArchiveVendor).toHaveBeenCalledWith(31, '  Exact Vendor rationale  ');
     });
 
     it('shows the persistent pending-approval notice from router state and keeps the list return on Back', async () => {

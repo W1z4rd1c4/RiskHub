@@ -71,6 +71,7 @@
             "name_required": "The threat name is required.",
             "steward_required": "An active CISO Threat Steward is required.",
             "request_reason_required": "A request reason is required for this governed Threat change.",
+            "pending_change_exists": "This Threat already has a pending change. Cancel or resolve it before submitting another.",
             "save_failed": "Saving the threat failed. Please try again.",
             "fix_fields": "Please correct the highlighted fields.",
             "lists_failed": "Some options could not be loaded, so those dropdowns are empty. Retry to reload them."

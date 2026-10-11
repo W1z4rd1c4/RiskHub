@@ -594,12 +594,12 @@ async def live_asset_resolver_approval_ids(
     """Return strict Asset approvals authorized by the shared live predicate."""
     from .fixed_asset_policy import (
         is_live_eligible_asset_resolver,
-        load_fixed_asset_scenario,
+        load_asset_visibility_scenarios,
     )
 
     if approval_ids is not None and not approval_ids:
         return frozenset()
-    scenario = await load_fixed_asset_scenario(db)
+    scenarios = await load_asset_visibility_scenarios(db)
     statement = (
         select(GovernedMutationProposal)
         .join(ApprovalRequest, ApprovalRequest.id == GovernedMutationProposal.approval_request_id)
@@ -614,7 +614,8 @@ async def live_asset_resolver_approval_ids(
     return frozenset(
         proposal.approval_request_id
         for proposal in proposals
-        if valid_asset_governed_envelope(proposal) and is_live_eligible_asset_resolver(current_user, proposal, scenario)
+        if valid_asset_governed_envelope(proposal)
+        and is_live_eligible_asset_resolver(current_user, proposal, scenarios)
     )
 
 

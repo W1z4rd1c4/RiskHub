@@ -614,6 +614,7 @@ describe('ProcessForm governed edit workflow', () => {
             preliminary_criticality: 'low',
             cif_override: null,
             notes: 'Original note',
+            capabilities: { ...protectedProcess.capabilities!, protected_change_requires_approval: false },
             derived: {
                 ...protectedProcess.derived!,
                 cif: 'no',
@@ -711,5 +712,13 @@ describe('ProcessForm governed edit workflow', () => {
         expect(onApprovalQueued).toHaveBeenCalledWith(expect.objectContaining({ approval_id: 42 }));
         expect(onSaved).not.toHaveBeenCalled();
         expect(screen.getByTestId('process-form-submit')).toHaveTextContent('Save');
+    });
+});
+
+
+describe('reason capability authority (#247)', () => {
+    it('uses true capability even when displayed Process classification says no', () => {
+        renderForm({ ...nonProtectedProcess, capabilities: { ...nonProtectedProcess.capabilities!, protected_change_requires_approval: true } });
+        expect(screen.getByTestId('process-form-request-reason')).toHaveAttribute('aria-required', 'true');
     });
 });

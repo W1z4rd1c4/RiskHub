@@ -6,7 +6,7 @@
  * `role="alert"` summary.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
     RouterProvider,
@@ -46,6 +46,7 @@ import { ThreatForm } from '@/pages/threats/ThreatForm';
 import i18n from '@/i18n';
 import { approvalCreatedResponseSchema } from '@/services/api/schemas';
 import type { Threat } from '@/types/threat';
+import { ApiClientError } from '@/services/apiClient';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -498,5 +499,24 @@ describe('ThreatForm — Field migration + validation + submit feedback (#59)', 
         expect(screen.getByRole('alert')).toBeInTheDocument();
 
         await expectNoAxeViolations(container);
+    });
+});
+
+
+describe('Threat governed rejection branch (#246)', () => {
+    it('keeps the draft and focuses the backend-required reason', async () => {
+        mockUpdateThreat.mockRejectedValue(new ApiClientError({ status: 422, code: 'governed_mutation_reason_required', messageKey: 'errors.request_failed' }));
+        const { onSaved, onApprovalQueued } = renderForm(nonProtectedThreat);
+        const notes = screen.getByTestId('threat-form-notes');
+        fireEvent.change(notes, { target: { value: 'Retained review draft' } });
+        fireEvent.click(screen.getByTestId('threat-form-submit'));
+        await waitFor(() => expect(mockUpdateThreat).toHaveBeenCalledTimes(1));
+        const reason = screen.getByTestId('threat-form-request-reason');
+        await waitFor(() => expect(reason).toHaveAttribute('aria-invalid', 'true'));
+        expect(reason).toHaveAccessibleDescription(expect.stringContaining(i18n.t('threats:form.errors.request_reason_required')));
+        await waitFor(() => expect(reason).toHaveFocus());
+        expect(notes).toHaveValue('Retained review draft');
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(onApprovalQueued).not.toHaveBeenCalled();
     });
 });

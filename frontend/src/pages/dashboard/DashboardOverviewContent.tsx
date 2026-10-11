@@ -3,12 +3,14 @@ import type { DashboardOverview, DashboardSummary } from '@/types/dashboard';
 
 import { DashboardRiskSections } from './DashboardRiskSections';
 import { DashboardSummarySections } from './DashboardSummarySections';
-import type { DashboardStat } from './dashboardStats';
+import type { DashboardDrillthrough, DashboardStat } from './dashboardStats';
 
 interface DashboardOverviewContentProps {
+    drillthrough: DashboardDrillthrough;
     breachHistoryTitle: string;
     breachTrends: DashboardOverview['kri_breach_trends'];
     canReadIssues: boolean;
+    canReadDepartments: boolean;
     canUseDepartmentFilter: boolean;
     categoryAnalyticsTitle: string;
     controlExecutionTitle: string;
@@ -50,6 +52,7 @@ export function DashboardOverviewContent(props: DashboardOverviewContentProps) {
                 filterScope={props.filterScope}
             />
             <DashboardSummarySections
+                issueLinks={props.drillthrough.issues}
                 canReadIssues={props.canReadIssues}
                 categoryAnalyticsTitle={props.categoryAnalyticsTitle}
                 issueAging={props.issueAging}
@@ -61,6 +64,7 @@ export function DashboardOverviewContent(props: DashboardOverviewContentProps) {
                 summary={props.summary}
             />
             <DashboardRiskSections
+                canReadDepartments={props.canReadDepartments}
                 breachHistoryTitle={props.breachHistoryTitle}
                 breachTrends={props.breachTrends}
                 canUseDepartmentFilter={props.canUseDepartmentFilter}

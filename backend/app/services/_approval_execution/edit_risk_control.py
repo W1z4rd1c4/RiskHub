@@ -1,5 +1,7 @@
 import logging
+from collections.abc import Mapping
 from datetime import date
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,13 +9,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import activity_logger
 from app.core.audit.control import control_updated
 from app.core.audit.risk import risk_updated
+from app.core.exceptions import ValidationError
 from app.models import ApprovalRequest, ApprovalResourceType, Control, Risk, User
+from app.schemas.risk import RiskStatusEnum
 
 from .constants import EDITABLE_FIELDS
 from .helpers import apply_whitelisted_pending_changes, missing_resource_auto_rejection
 from .results import SideEffectResult
 
 logger = logging.getLogger("app.services.approval_execution_service")
+
+
+def _validate_risk_edit_status(changes: Mapping[str, Any]) -> None:
+    if "status" not in changes:
+        return
+    change = changes["status"]
+    proposed = change.get("new") if isinstance(change, Mapping) else None
+    if not isinstance(proposed, str) or proposed not in {status.value for status in RiskStatusEnum}:
+        raise ValidationError(
+            "This stored Risk edit does not match the current lifecycle contract. "
+            "Cancel or reject it and submit a new request through the appropriate action.",
+            code="risk_edit_status_unsupported",
+        )
 
 
 def _risk_execution_changes(changes: dict) -> dict:
@@ -64,6 +81,7 @@ async def _apply_edit_risk_control(
                 changes=changes,
                 allowed_fields=allowed_fields,
                 owner_field_labels={"owner_id": "Risk owner"},
+                validate_changes=_validate_risk_edit_status,
             )
             if field_changes.stale_result is not None:
                 return field_changes.stale_result

@@ -23,6 +23,7 @@ import {
     EMPTY_RISK_REGISTER_FILTERS,
     parseRiskRegisterFilters,
     RISK_REGISTER_CONFIG,
+    riskSnapshotUnsupportedCriteria,
     serializeRiskRegisterFilters,
     type RiskLifecycleFilter,
     type RiskRegisterFilters,
@@ -102,7 +103,10 @@ export function useRisksPageState(
             department_id: departmentScope?.departmentId,
         };
     }, [currentPage, debouncedSearch, departmentScope?.departmentId, filters, groupValue, semanticFilters, sort, thresholds.critical, viewMode]);
-    const queryIdentity = JSON.stringify(listParams);
+    const configuredRangeIdentity = filters.risk_level || filters.critical
+        ? [thresholds.medium, thresholds.high, thresholds.critical]
+        : null;
+    const queryIdentity = JSON.stringify([listParams, configuredRangeIdentity]);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
@@ -200,32 +204,34 @@ export function useRisksPageState(
         }
         finally { setIsExporting(false); }
     }, [language, listParams]);
+    const unsupportedSnapshotCriteria = riskSnapshotUnsupportedCriteria(filters, groupValue);
+    const snapshotUnavailableReason = unsupportedSnapshotCriteria.length
+        ? t('register.snapshot_unavailable', { criteria: unsupportedSnapshotCriteria.map((key) => t(key)).join(', ') })
+        : undefined;
     const exportRiskSnapshot = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+        if (snapshotUnavailableReason) throw new Error(snapshotUnavailableReason);
         setIsExporting(true);
         try {
             await reportApi.exportRisks({
                 format,
                 asOfDate,
                 filters: {
-                    departmentId: departmentScope?.departmentId,
-                    status: filters.lifecycle === 'archived'
-                        ? 'archived'
-                        : filters.lifecycle === 'all'
-                            ? null
-                            : filters.status || null,
-                    search: debouncedSearch.trim() || null,
-                    riskType: filters.risk_type || null,
-                    isPriority: filters.is_priority,
+                    departmentId: listParams.department_id,
+                    lifecycle: listParams.lifecycle,
+                    status: listParams.status || null,
+                    search: listParams.search || null,
+                    riskType: listParams.risk_type || null,
+                    isPriority: listParams.is_priority ?? null,
                 },
             });
         }
         finally { setIsExporting(false); }
-    }, [debouncedSearch, departmentScope?.departmentId, filters]);
+    }, [listParams, snapshotUnavailableReason]);
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
         errorKey, exportCurrentRisks, exportRiskSnapshot, facets: visibleFacets, fetchRisks, filters, groups, hasLoadedOnce, isAccessDenied,
-        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreRisk, search: urlState.search,
+        snapshotUnavailableReason, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreRisk, search: urlState.search,
         selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
         selectedGroupLabel: selectedGroupLabel(groups, groupValue), selectedGroupValue: groupValue, setCurrentPage,
         sortDirection: sort?.direction ?? null, sortField: sort?.field ?? null,

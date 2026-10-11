@@ -42,7 +42,10 @@ vi.mock('@/services/processApi', () => ({
 }));
 
 vi.mock('@/services/assetApi', () => ({
-    assetApi: { getAssets: vi.fn().mockResolvedValue({ items: [] }) },
+    assetApi: { getAssets: vi.fn().mockResolvedValue({ items: [
+        { id: 11, capabilities: { protected_change_requires_approval: true } },
+        { id: 12, capabilities: { protected_change_requires_approval: true } },
+    ] }) },
 }));
 
 describe('RiskRegisterLinksSection Process impact lock', () => {

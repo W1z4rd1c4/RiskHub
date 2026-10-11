@@ -208,12 +208,14 @@ def can_resolve_process_approval(
     role_name: str | None = None,
 ) -> bool:
     """Canonical Process scenario resolver rule over already loaded state."""
+    from app.services._governed_mutations.composite_policy import role_visible_in_snapshot
+
     active = user.is_active if user_is_active is None else user_is_active
     current_role = role_name if role_name is not None else getattr(getattr(user, "role", None), "name", None)
     return bool(
         active
         and user.id != requester_id
-        and current_role in {str(role) for role in configured_roles}
+        and role_visible_in_snapshot(current_role, configured_roles)
         and (can_resolve_approvals(user) or can_read_process_record(user, process))
     )
 
@@ -381,13 +383,13 @@ async def governed_process_response_policy(
             raise ValueError("Malformed governed Vendor approval envelope")
         from app.services._governed_mutations.fixed_vendor_policy import (
             is_live_eligible_vendor_resolver,
-            load_fixed_vendor_scenario,
+            load_vendor_visibility_scenarios,
         )
 
         resolver = is_live_eligible_vendor_resolver(
             user,
             proposal,
-            await load_fixed_vendor_scenario(db),
+            await load_vendor_visibility_scenarios(db),
         )
         can_access = proposal.requested_by_id == user.id or resolver
         return GovernedProcessResponsePolicy(
@@ -677,13 +679,13 @@ async def can_resolve_scenario_approval(
                 return False
             from app.services._governed_mutations.fixed_vendor_policy import (
                 is_live_eligible_vendor_resolver,
-                load_fixed_vendor_scenario,
+                load_vendor_visibility_scenarios,
             )
 
             return is_live_eligible_vendor_resolver(
                 user,
                 asset_proposal,
-                await load_fixed_vendor_scenario(db),
+                await load_vendor_visibility_scenarios(db),
             )
         from app.services._governed_mutations.asset_mutations import valid_asset_governed_envelope
 

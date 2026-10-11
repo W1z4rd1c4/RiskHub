@@ -1,3 +1,4 @@
+import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
 import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
@@ -125,7 +126,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         try {
             setIsDeleting(true);
             setArchiveError(null);
-            const result = await vendorApi.archiveVendor(vendor.id, requestReason?.trim() ?? '');
+            const result = await vendorApi.archiveVendor(vendor.id, requestReason ?? '');
             setIsDeleteDialogOpen(false);
             if (isProcessApprovalQueuedResponse(result)) {
                 // D12 / PM-2: stay on the vendor with the pending notice + toast.
@@ -389,12 +390,11 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 entityLabel={tCommon('labels.vendor')}
                 message={t('messages.archive_confirm', { vendorName: vendor.name })}
                 isLoading={isDeleting}
-                reason={resolveCapabilityFlag(vendor.capabilities, 'protected_change_requires_approval')
-                    ? 'required'
-                    : 'optional'}
+                reason={governedReasonRequirement(vendor) === 'required' ? 'required' : 'optional'}
                 reasonLabel={t('form.request_reason')}
                 reasonPlaceholder={t('form.request_reason_help')}
-                errorText={archiveError}
+                confirmDisabled={governedReasonRequirement(vendor) === 'unavailable'}
+                errorText={archiveError ?? (governedReasonRequirement(vendor) === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)}
             />
             {pendingCancellationDialog}
         </PageContainer>

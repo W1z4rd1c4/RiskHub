@@ -15,9 +15,10 @@ import type {
     DashboardSummary,
 } from '@/types/dashboard';
 
-import type { DashboardStat } from './dashboardStats';
+import type { DashboardDrillthrough, DashboardStat } from './dashboardStats';
 
 interface DashboardSummarySectionsProps {
+    issueLinks: DashboardDrillthrough['issues'];
     canReadIssues: boolean;
     categoryAnalyticsTitle: string;
     issueAging: DashboardOverview['issue_aging'];
@@ -34,11 +35,8 @@ const STAT_GRID_CLASS = 'grid gap-4 [grid-template-columns:repeat(auto-fit,minma
 
 function StatCard({ stat }: { stat: DashboardStat }) {
     const format = useFormat();
-    return (
-        <Link
-            to={stat.path}
-            className="glass-card interactive-card group flex flex-col justify-between text-left focus-ring"
-        >
+    const content = (
+        <>
             <div className="mb-6 flex items-start justify-between gap-2">
                 <div className={cn(stat.bg, 'rounded-xl p-3')}>
                     <stat.icon aria-hidden="true" className={cn('size-6', stat.color)} />
@@ -50,11 +48,18 @@ function StatCard({ stat }: { stat: DashboardStat }) {
                 <p className="mb-1 text-sm font-bold text-muted-foreground">{stat.title}</p>
                 <p className="font-heading text-4xl font-bold tracking-tight text-foreground">{format.number(stat.value)}</p>
             </div>
-        </Link>
+        </>
     );
+    const className = 'glass-card interactive-card group flex flex-col justify-between text-left focus-ring';
+    if (stat.unavailableReason) return <div aria-disabled="true" className="glass-card flex flex-col justify-between text-left">{content}<p className="mt-3 text-sm text-muted-foreground">{stat.unavailableReason}</p></div>;
+    if (stat.path.startsWith('#')) {
+        return <a href={stat.path} className={className} onClick={() => document.getElementById(stat.path.slice(1))?.focus()}>{content}</a>;
+    }
+    return <Link to={stat.path} className={className}>{content}</Link>;
 }
 
 export function DashboardSummarySections({
+    issueLinks,
     canReadIssues,
     categoryAnalyticsTitle,
     issueAging,
@@ -76,7 +81,7 @@ export function DashboardSummarySections({
             {canReadIssues && issueSummary && issueAging && issueSeverity ? (
                 <div className="grid gap-6 lg:grid-cols-3">
                     <motion.div initial={{ opacity: 1, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">
-                        <IssuesSummaryCard issueSummary={issueSummary} />
+                        <IssuesSummaryCard issueSummary={issueSummary} links={issueLinks} />
                     </motion.div>
 
                     <motion.div initial={{ opacity: 1, y: 16 }} animate={{ opacity: 1, y: 0 }} className="h-full">

@@ -527,8 +527,9 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             process_id: processA!.id,
             significance: 'BCM/DR vazba',
             is_primary: false,
-            request_reason: '',
         });
+
+        expect(firstAddedResponse.request().postDataJSON()).not.toHaveProperty('request_reason');
 
         const processLinks = riskManagerPage.getByTestId('asset-process-links');
         await expect(processLinks.getByText(E2E_PROCESSES.POLICY_ADMIN.l1_process).first()).toBeVisible();
@@ -585,7 +586,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
             const removedResponse = await removed;
             expect(removedResponse.status()).toBe(204);
-            expect(removedResponse.request().postDataJSON()).toMatchObject({ request_reason: '' });
+            expect(removedResponse.request().postData()).toBeNull();
             await expect(riskManagerPage.getByTestId(`asset-process-link-remove-${processId}`)).toHaveCount(0);
         }
         await expect(riskManagerPage.getByText(/No Processes linked yet|Zatím žádné vazby na procesy/)).toBeVisible();
@@ -615,7 +616,7 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             await riskManagerPage.getByRole('option', { name: 'Data', exact: true }).click();
             await riskManagerPage.getByTestId('asset-asset-link-add').click();
             const addDialog = riskManagerPage.getByRole('alertdialog');
-            await addDialog.getByRole('textbox').fill('E2E direct asset dependency addition');
+            await expect(addDialog.getByRole('textbox')).toHaveCount(0);
             const added = riskManagerPage.waitForResponse((response) => (
                 response.request().method() === 'POST'
                 && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/asset-links`
@@ -628,8 +629,8 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
                 dependent_asset_id: asset!.id,
                 supporting_asset_id: supportingAsset!.id,
                 dependency_type: 'Datová',
-                request_reason: 'E2E direct asset dependency addition',
             });
+            expect(addedResponse.request().postDataJSON()).not.toHaveProperty('request_reason');
             await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}(?:\\?.*)?$`));
 
             const assetLinks = riskManagerPage.getByTestId('asset-asset-links');
@@ -641,10 +642,20 @@ test.describe('ICT Register — Assets (Deterministic)', () => {
             await expect(linkRow.getByText(/Depends on|Závisí na/)).toBeVisible();
             await expect(linkRow.getByText('Datová', { exact: true })).toBeVisible();
 
-            await linkRow.locator('[data-testid^="asset-asset-link-remove-"]').click();
+            const removeButton = linkRow.locator('[data-testid^="asset-asset-link-remove-"]');
+            const linkId = (await removeButton.getAttribute('data-testid'))!.replace('asset-asset-link-remove-', '');
+            expect(linkId).toMatch(/^\d+$/);
+            await removeButton.click();
             const removeDialog = riskManagerPage.getByRole('alertdialog');
-            await removeDialog.getByRole('textbox').fill('E2E direct asset dependency removal');
+            await expect(removeDialog.getByRole('textbox')).toHaveCount(0);
+            const removed = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'DELETE'
+                && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/asset-links/${linkId}`
+            ));
             await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
+            const removedResponse = await removed;
+            expect(removedResponse.status()).toBe(204);
+            expect(removedResponse.request().postData()).toBeNull();
             await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${asset!.id}(?:\\?.*)?$`));
             await expect(linkRow).toHaveCount(0);
             dependencyCreated = false;

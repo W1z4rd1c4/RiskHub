@@ -21,6 +21,7 @@ import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness'
 import { clearBootstrapSession } from '@/services/session/coordinator';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { buildKriBreachRiskDestination } from '@/pages/dashboard/dashboardStats';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { RisksPage } from '@/pages/RisksPage';
 import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
@@ -426,6 +427,42 @@ describe('RisksPage archived visibility', () => {
         const uiUser = userEvent.setup();
         await uiUser.click(screen.getByRole('button', { name: 'browser back' }));
         expect(screen.getByTestId('location')).toHaveTextContent('/risks?source=before');
+    });
+
+    it.each([false, true])('renders configured-level chip and blocks dated export in actual Risk page, department=%s', async (department) => {
+        let reports=0;
+        server.use(
+            http.get('*/api/v1/auth/me',()=>HttpResponse.json(makeUser({effective_permissions:['risks:read','reports:read']}))),
+            http.get('*/api/v1/risks',()=>HttpResponse.json({items:[],total:0,offset:0,limit:50,capabilities:{can_export:true}})),
+            http.get('*/api/v1/reports/risks/export',()=>{reports++;return new HttpResponse('unexpected');}),
+        );
+        const query='?filters='+encodeURIComponent(JSON.stringify({risk_level:'high',status:'all'}));
+        if(department) await renderDepartmentRiskJourney('/departments/7'+query+'&tab=risks');
+        else await renderWithRoute('/risks'+query);
+        expect(await screen.findByText('Configured Risk level: High')).toBeVisible();
+        const user=userEvent.setup();
+        await user.click(await screen.findByRole('button',{name:/export/i}));
+        await user.click(screen.getByTestId('export-purpose-point-in-time'));
+        expect(screen.getByText(/Snapshot export cannot apply the configured Risk criterion: High/)).toBeVisible();
+        expect(screen.getByTestId('export-submit-button')).toBeDisabled();
+        await user.click(screen.getByTestId('export-submit-button'));
+        expect(reports).toBe(0);
+        expect(screen.getByTestId('location')).toHaveTextContent('risk_level');
+    });
+
+    it('opens the canonical breached-parent footer in the actual Department Risks view',async()=>{
+        const requests:Record<string,unknown>[]=[];
+        server.use(
+            http.get('*/api/v1/auth/me',()=>HttpResponse.json(makeUser())),
+            http.get('*/api/v1/risks',({request})=>{requests.push(JSON.parse(new URL(request.url).searchParams.get('filters')??'{}'));return HttpResponse.json({items:[],total:0,offset:0,limit:50});}),
+        );
+        const destination=buildKriBreachRiskDestination(7,true)!;
+        await renderDepartmentRiskJourney(destination);
+        await screen.findByTestId('risks-register-shell');
+        expect(requests.at(-1)).toMatchObject({department_id:7,has_breach:true,lifecycle:'active'});
+        expect(requests.at(-1)).not.toHaveProperty('status');
+        expect(screen.getByTestId('location')).toHaveTextContent('/departments/7');
+        expect(screen.getByTestId('location')).toHaveTextContent('tab=risks');
     });
 
 });

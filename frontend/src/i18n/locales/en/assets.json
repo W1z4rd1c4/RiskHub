@@ -95,6 +95,7 @@
         "errors": {
             "name_required": "Asset name is required.",
             "request_reason_required": "A request reason is required for this governed Asset change.",
+            "pending_change_exists": "This Asset already has a pending change. Cancel or resolve it before submitting another.",
             "business_owner_required": "Business Owner is required.",
             "ict_owner_required": "ICT Owner is required.",
             "owning_department_required": "Owning Department is required.",

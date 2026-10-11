@@ -87,7 +87,7 @@ EXPECTED_ENFORCEMENT_COMMAND = (
     "--status-file trivy-frontend-status.json"
 )
 UPLOAD_ARTIFACT_ACTION = (
-    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+    "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 )
 UPLOAD_SARIF_ACTION = (
     "github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
@@ -283,12 +283,12 @@ def _validate_pre_scan_steps(
 ) -> None:
     expected = [
         {
-            "uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+            "uses": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
             "with": {"ref": "${{ github.event.pull_request.head.sha || github.sha }}"},
         },
         {
             "name": "Set up policy validator Python",
-            "uses": "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+            "uses": "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
             "with": {"python-version": "3.13"},
         },
         {
@@ -428,14 +428,14 @@ def _validate_injected_finding_workflow() -> list[str]:
         errors.append("injected-finding step sequence must match exactly")
 
     expected_checkout = {
-        "uses": "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+        "uses": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
         "with": {"ref": "${{ github.event.pull_request.head.sha || github.sha }}"},
     }
     if not steps or steps[0] != expected_checkout:
         errors.append("injected-finding checkout step must match exactly")
     expected_setup = {
         "name": "Set up Python",
-        "uses": "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405",
+        "uses": "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
         "with": {"python-version": "3.13"},
     }
     if len(steps) < 2 or steps[1] != expected_setup:

@@ -638,12 +638,18 @@ async def test_risk_manager_seed_grants_full_process_maintenance(
         process_id = created_response.json()["id"]
         created = await client.get(f"/api/v1/processes/{process_id}")
         assert created.status_code == 200, created.text
+        # This minimal record is currently non-CIF even while the scenario is enabled.
+        assert created.json()["derived"]["cif"] == "no"
+        policy = await db_session.scalar(
+            select(ApprovalScenario).where(ApprovalScenario.key == "protected_process_edit")
+        )
+        assert policy is not None and policy.requires_approval is True
         assert created.json()["capabilities"] == {
             "can_read": True,
             "can_update": True,
             "can_archive": True,
             "can_restore": False,
-            "protected_change_requires_approval": True,
+            "protected_change_requires_approval": False,
             "can_request_change": True,
             "can_cancel_pending_change": False,
             "has_pending_change": False,
@@ -657,6 +663,42 @@ async def test_risk_manager_seed_grants_full_process_maintenance(
 
         assert (await client.delete(f"/api/v1/processes/{process_id}")).status_code == 204
         assert (await client.post(f"/api/v1/processes/{process_id}/restore")).status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("protected", [False, True])
+async def test_process_reason_capability_is_independent_of_maintenance_authority(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_seeded_risk_manager: User,
+    test_user_employee: User,
+    enabled: bool,
+    protected: bool,
+):
+    # The module's disabled setup policy permits either current classification.
+    async with client_factory(user=test_user_seeded_risk_manager) as client:
+        created = await client.post(
+            "/api/v1/processes",
+            json=_minimal_payload(cif_override="yes" if protected else "no"),
+        )
+    assert created.status_code == 201, created.text
+    process_id = created.json()["id"]
+    await _add_protected_process_scenario(db_session, requires_approval=enabled)
+
+    for actor, can_update in ((test_user_seeded_risk_manager, True), (test_user_employee, False)):
+        async with client_factory(user=actor) as client:
+            detail = await client.get(f"/api/v1/processes/{process_id}")
+            listing = await client.get("/api/v1/processes")
+        assert detail.status_code == 200, detail.text
+        assert listing.status_code == 200, listing.text
+        row = next(item for item in listing.json()["items"] if item["id"] == process_id)
+        for projected in (detail.json(), row):
+            assert projected["derived"]["cif"] == ("yes" if protected else "no")
+            assert projected["capabilities"]["protected_change_requires_approval"] is (enabled and protected)
+            assert projected["capabilities"]["can_update"] is can_update
+            assert projected["capabilities"]["can_request_change"] is can_update
+            assert projected["capabilities"]["can_archive"] is can_update
 
 
 @pytest.mark.asyncio
@@ -3876,12 +3918,18 @@ async def test_employee_reads_processes_but_cannot_maintain_them(
 
         detail = await client.get(f"/api/v1/processes/{seeded['id']}")
         assert detail.status_code == 200
+        # This minimal record is currently non-CIF even while the scenario is enabled.
+        assert detail.json()["derived"]["cif"] == "no"
+        policy = await db_session.scalar(
+            select(ApprovalScenario).where(ApprovalScenario.key == "protected_process_edit")
+        )
+        assert policy is not None and policy.requires_approval is True
         assert detail.json()["capabilities"] == {
             "can_read": True,
             "can_update": False,
             "can_archive": False,
             "can_restore": False,
-            "protected_change_requires_approval": True,
+            "protected_change_requires_approval": False,
             "can_request_change": False,
             "can_cancel_pending_change": False,
             "has_pending_change": False,

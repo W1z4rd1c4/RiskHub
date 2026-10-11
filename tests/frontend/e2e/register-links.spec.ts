@@ -170,8 +170,16 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
 
                 await riskManagerPage.getByTestId('asset-vendor-link-add').click();
                 const addDialog = riskManagerPage.getByRole('alertdialog');
-                await addDialog.getByRole('textbox').fill('E2E direct Asset-Vendor link addition');
+                await expect(addDialog.getByRole('textbox')).toHaveCount(0);
+                const added = riskManagerPage.waitForResponse((response) => (
+                    response.request().method() === 'POST'
+                    && new URL(response.url()).pathname === `/api/v1/assets/${assetId}/vendor-links`
+                ));
                 await addDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+                const addedResponse = await added;
+                expect(addedResponse.status()).toBe(201);
+                expect(addedResponse.request().postDataJSON()).toMatchObject({ vendor_id: vendorId, ict_service_code: 'S03' });
+                expect(addedResponse.request().postDataJSON()).not.toHaveProperty('request_reason');
                 await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}(?:\\?.*)?$`));
 
                 const vendorLinks = riskManagerPage.getByTestId('asset-vendor-links');
@@ -186,8 +194,15 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
                 expect(created).toBeDefined();
                 await riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`).click();
                 const removeDialog = riskManagerPage.getByRole('alertdialog');
-                await removeDialog.getByRole('textbox').fill('E2E direct Asset-Vendor link removal');
+                await expect(removeDialog.getByRole('textbox')).toHaveCount(0);
+                const removed = riskManagerPage.waitForResponse((response) => (
+                    response.request().method() === 'DELETE'
+                    && new URL(response.url()).pathname === `/api/v1/assets/${assetId}/vendor-links/${created!.id}`
+                ));
                 await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
+                const removedResponse = await removed;
+                expect(removedResponse.status()).toBe(204);
+                expect(removedResponse.request().postData()).toBeNull();
                 await expect(riskManagerPage).toHaveURL(new RegExp(`/assets/${assetId}(?:\\?.*)?$`));
                 await expect(riskManagerPage.getByTestId(`asset-vendor-link-remove-${created!.id}`)).toHaveCount(0);
                 const remaining = await listAssetVendorLinks(assetId);
@@ -322,8 +337,15 @@ test.describe('ICT Register — Link relations (Deterministic)', () => {
                 // The vendor-end remove calls the register-end DELETE route.
                 await riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`).click();
                 const removeDialog = riskManagerPage.getByRole('alertdialog');
-                await removeDialog.getByRole('textbox').fill('E2E direct Vendor-Asset link removal');
-                await removeDialog.getByRole('button', { name: /Continue|Pokračovat/ }).click();
+                await expect(removeDialog.getByRole('textbox')).toHaveCount(0);
+                const removed = riskManagerPage.waitForResponse((response) => (
+                    response.request().method() === 'DELETE'
+                    && new URL(response.url()).pathname === `/api/v1/assets/${assetId}/vendor-links/${created.id}`
+                ));
+                await removeDialog.getByRole('button', { name: 'Remove link', exact: true }).click();
+                const removedResponse = await removed;
+                expect(removedResponse.status()).toBe(204);
+                expect(removedResponse.request().postData()).toBeNull();
                 await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}(?:\\?.*)?$`));
                 await expect(riskManagerPage.getByTestId(`vendor-asset-link-remove-${created.id}`)).toHaveCount(0);
                 const remaining = await listAssetVendorLinks(assetId);

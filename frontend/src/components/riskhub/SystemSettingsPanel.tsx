@@ -4,7 +4,8 @@ import { Settings2, Save } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
-import { riskHubKeys } from '@/lib/queryKeys';
+import { THRESHOLD_KEYS } from '@/hooks/useRiskHubConfig';
+import { dashboardKeys, riskHubKeys } from '@/lib/queryKeys';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
@@ -172,7 +173,14 @@ export function SystemSettingsPanel() {
 
     const updateMutation = useMutation({
         mutationFn: ({ key, value }: { key: string; value: string }) => riskHubApi.updateConfig(key, value),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: riskHubKeys.globalConfig() }),
+        onSuccess: async (_result, { key }) => {
+            const refreshes = [queryClient.invalidateQueries({ queryKey: riskHubKeys.globalConfig() })];
+            if ((Object.values(THRESHOLD_KEYS) as string[]).includes(key)) {
+                refreshes.push(queryClient.invalidateQueries({ queryKey: riskHubKeys.thresholdsPublic() }));
+                refreshes.push(queryClient.invalidateQueries({ queryKey: dashboardKeys.overviewRoot() }));
+            }
+            await Promise.all(refreshes);
+        },
     });
 
     const handleSave = async (key: string, value: string) => {

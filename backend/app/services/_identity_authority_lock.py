@@ -10,6 +10,7 @@ from __future__ import annotations
 from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings
 from app.core.exceptions import AuthenticationError, NotFoundError
 from app.core.identity_policy import can_authenticate_user
 from app.core.user_query_options import user_selectinload_options
@@ -25,6 +26,7 @@ async def lock_identity_transition(
     db: AsyncSession,
     *,
     user_id: int,
+    settings: Settings,
     actor: User | None = None,
 ) -> User:
     actor_version = actor.token_version if actor is not None else None
@@ -61,7 +63,7 @@ async def lock_identity_transition(
         current_actor = by_id.get(actor.id)
         if (
             current_actor is None
-            or not can_authenticate_user(current_actor)
+            or not can_authenticate_user(current_actor, settings=settings)
             or current_actor.token_version != actor_version
         ):
             raise AuthenticationError("Session revoked; reauthenticate before changing identity")

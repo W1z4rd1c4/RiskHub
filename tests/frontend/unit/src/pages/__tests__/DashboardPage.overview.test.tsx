@@ -6,7 +6,6 @@ import { createTestQueryClient } from '@test/queryClient';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
 const fetchOverviewMock = vi.fn();
-const fetchDashboardSummaryMock = vi.fn();
 const downloadSummaryCsvMock = vi.fn();
 let canViewCommitteeMock = false;
 let readableResourcesMock = new Set(['controls', 'reports', 'risks']);
@@ -48,7 +47,6 @@ vi.mock('@/i18n/hooks', async () => {
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
         fetchOverview: (...args: unknown[]) => fetchOverviewMock(...args),
-        fetchDashboardSummary: (...args: unknown[]) => fetchDashboardSummaryMock(...args),
     },
 }));
 
@@ -164,7 +162,6 @@ describe('DashboardPage overview aggregation', () => {
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
-        expect(fetchDashboardSummaryMock).not.toHaveBeenCalled();
         expect(screen.getByText('title')).toBeInTheDocument();
         expect(screen.getByText('issue summary')).toBeInTheDocument();
         expect(screen.getByText('department filter shown')).toBeInTheDocument();

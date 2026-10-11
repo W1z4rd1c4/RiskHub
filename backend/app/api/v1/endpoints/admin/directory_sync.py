@@ -70,7 +70,7 @@ async def break_glass_enable_directory_user(
     settings: Settings = Depends(get_settings),
 ) -> dict:
     require_external_directory(settings)
-    user = await lock_identity_transition(db, user_id=user_id, actor=admin_user)
+    user = await lock_identity_transition(db, user_id=user_id, actor=admin_user, settings=settings)
     if user.local_suspended:
         raise HTTPException(
             status_code=409, detail="Local suspension must be resolved separately from directory break-glass"
@@ -88,7 +88,7 @@ async def break_glass_enable_directory_user(
     user.break_glass_expires_at = now + payload.expires_delta
     user.break_glass_granted_by_user_id = admin_user.id
     user.is_active = projected_account_active(user, settings=settings)
-    await invalidate_user_sessions(db=db, user=user, reason="directory_break_glass_granted")
+    revoked_count = await invalidate_user_sessions(db=db, user=user, reason="directory_break_glass_granted")
     db.add(user)
 
     await log_activity(
@@ -102,6 +102,7 @@ async def break_glass_enable_directory_user(
             "Break-glass enabled for directory-linked user "
             f"(expires_in_hours={payload.expires_in_hours}, reason={payload.reason.strip()})"
         ),
+        changes={"event_type": "directory_break_glass_granted", "revoke_count": revoked_count},
     )
     await commit_service_transaction(db)
     return {"status": "success", "user_id": user.id}

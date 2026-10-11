@@ -5,6 +5,7 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useTranslation } from '@/i18n/hooks';
 import type { SupportedLanguage } from '@/i18n';
 import { apiClient } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
@@ -18,6 +19,7 @@ import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildControlRegisterListParams,
     CONTROL_REGISTER_CONFIG,
+    controlSnapshotUnsupportedForm,
     parseControlRegisterFilters,
     serializeControlRegisterFilters,
     type ControlLifecycleFilter,
@@ -32,6 +34,7 @@ const groupLabel = (groups: Array<{ value: string; label: string }>, value: stri
 
 export function useControlsPageState(language: SupportedLanguage = 'en') {
     const departmentScope = useDepartmentRegisterScope();
+    const { t } = useTranslation('controls');
     const [searchParams, setSearchParams] = useSearchParams();
     const serializedParams = searchParams.toString();
     const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
@@ -136,7 +139,12 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
         }
         finally { setIsExporting(false); }
     }, [language, listParams]);
+    const unsupportedForm = controlSnapshotUnsupportedForm(filters);
+    const snapshotUnavailableReason = unsupportedForm
+        ? t('register.snapshot_unavailable', { form: t(`control_forms.${unsupportedForm}`) })
+        : undefined;
     const exportControlSnapshot = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+        if (snapshotUnavailableReason) throw new Error(snapshotUnavailableReason);
         setIsExporting(true);
         try {
             await reportApi.exportControls({
@@ -155,12 +163,12 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
             });
         }
         finally { setIsExporting(false); }
-    }, [debouncedSearch, departmentScope?.departmentId, filters]);
+    }, [debouncedSearch, departmentScope?.departmentId, filters, snapshotUnavailableReason]);
 
     return {
         capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
         errorKey, exportControlSnapshot, exportCurrentControls, facets: visibleFacets, fetchControls, filters, groups, hasLoadedOnce, isAccessDenied,
-        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreControl, search: urlState.search,
+        snapshotUnavailableReason, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreControl, search: urlState.search,
         selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
         selectedGroupLabel: groupLabel(groups, selectedGroupValue), selectedGroupValue, setCurrentPage,
         sortDirection: sort?.direction ?? null, sortField: sort?.field ?? null,

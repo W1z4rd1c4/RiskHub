@@ -1,5 +1,7 @@
+import { useOwnedGovernedMutation } from '@/hooks/useOwnedGovernedMutation';
+import { useGovernedReasonRequirement } from '@/hooks/useGovernedReasonRequirement';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Flame, Plus, Server, Unlink, Workflow } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -7,7 +9,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { SearchableEntitySelect } from '@/components/ui/SearchableEntitySelect';
 import { TableErrorState } from '@/components/tables/tableError/TableErrorState';
 import { GovernedMutationReasonDialog } from '@/components/approvals/GovernedMutationReasonDialog';
-import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
+import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFeedback } from '@/hooks/useFeedback';
 import { Button } from '@/components/ui/button';
@@ -21,11 +23,9 @@ import { assetApi } from '@/services/assetApi';
 import { processApi } from '@/services/processApi';
 import { riskRegisterLinksApi, threatApi } from '@/services/threatApi';
 import type { Risk } from '@/types/risk';
-import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { ApiClientError, isForbiddenApiError } from '@/services/apiClient';
 import {
     processBusinessEditBlocked,
-    processMutationRequiresApprovalReason,
 } from '@/pages/processes/processProtectedEdit';
 
 import {
@@ -267,7 +267,7 @@ function LinkBlock({
 }
 
 /** ICT Register link sections on the Risk detail: Threats, Processes, Assets (issue #47). */
-export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterLinksSectionProps) {
+function RiskRegisterLinksSectionContent({ risk, canManageLinks }: RiskRegisterLinksSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
     const queryClient = useQueryClient();
     const feedback = useFeedback();
@@ -379,7 +379,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         await queryClient.invalidateQueries({ queryKey });
     };
 
-    const addThreatLink = useMutation({
+    const addThreatLink = useOwnedGovernedMutation(risk.id, {
         mutationFn: ({ ownerId, threatId }: { ownerId: number; threatId: number }) =>
             riskRegisterLinksApi.addThreatLink(ownerId, threatId),
         onSuccess: (_result, { ownerId }) => {
@@ -390,7 +390,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (!threatLinksLane.unavailableRef.current) handleMutationError(error, ownerId);
         },
     });
-    const removeThreatLink = useMutation({
+    const removeThreatLink = useOwnedGovernedMutation(risk.id, {
         mutationFn: ({ linkId, ownerId }: { linkId: number; ownerId: number }) =>
             riskRegisterLinksApi.removeThreatLink(ownerId, linkId),
         onSuccess: (_result, { ownerId }) => {
@@ -402,14 +402,14 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
         // The failure is shown inside the open removal confirmation.
         onError: (error) => logError('Risk threat link removal failed:', error),
     });
-    const addProcessLink = useMutation({
+    const addProcessLink = useOwnedGovernedMutation(risk.id, {
         mutationFn: ({ ownerId, processId, reason }: { ownerId: number; processId: number; reason: string }) =>
             riskRegisterLinksApi.addProcessLink(ownerId, processId, reason),
-        onSuccess: async (result, { ownerId }) => {
+        onSuccess: async (outcome, { ownerId }) => {
             if (ownerRef.current !== ownerId || processLinksLane.unavailableRef.current) return;
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskProcessLinks(ownerId));
@@ -418,14 +418,14 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (!processLinksLane.unavailableRef.current) handleMutationError(error, ownerId);
         },
     });
-    const removeProcessLink = useMutation({
+    const removeProcessLink = useOwnedGovernedMutation(risk.id, {
         mutationFn: ({ linkId, ownerId, reason }: { linkId: number; ownerId: number; reason: string }) =>
             riskRegisterLinksApi.removeProcessLink(ownerId, linkId, reason),
-        onSuccess: async (result, { ownerId }) => {
+        onSuccess: async (outcome, { ownerId }) => {
             if (ownerRef.current !== ownerId || processLinksLane.unavailableRef.current) return;
             setPendingProcessAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskProcessLinks(ownerId));
@@ -434,14 +434,14 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (!processLinksLane.unavailableRef.current) handleMutationError(error, ownerId);
         },
     });
-    const addAssetLink = useMutation({
+    const addAssetLink = useOwnedGovernedMutation(risk.id, {
         mutationFn: ({ assetId, ownerId, reason }: { assetId: number; ownerId: number; reason: string }) =>
             riskRegisterLinksApi.addAssetLink(ownerId, assetId, reason),
-        onSuccess: async (result, { ownerId }) => {
+        onSuccess: async (outcome, { ownerId }) => {
             if (ownerRef.current !== ownerId || assetLinksLane.unavailableRef.current) return;
             setPendingAssetAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskAssetLinks(ownerId));
@@ -450,14 +450,14 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             if (!assetLinksLane.unavailableRef.current) handleMutationError(error, ownerId);
         },
     });
-    const removeAssetLink = useMutation({
+    const removeAssetLink = useOwnedGovernedMutation(risk.id, {
         mutationFn: ({ linkId, ownerId, reason }: { linkId: number; ownerId: number; reason: string }) =>
             riskRegisterLinksApi.removeAssetLink(ownerId, linkId, reason),
-        onSuccess: async (result, { ownerId }) => {
+        onSuccess: async (outcome, { ownerId }) => {
             if (ownerRef.current !== ownerId || assetLinksLane.unavailableRef.current) return;
             setPendingAssetAction(null);
-            if (isProcessApprovalQueuedResponse(result)) {
-                announceApprovalQueued({ approvalId: approvalIdFromResponse(result) });
+            if (outcome.kind === 'pending') {
+                announceApprovalQueued({ approvalId: outcome.approvalId });
                 return;
             }
             await invalidateOwnedLinks(ownerId, ictRegisterKeys.riskAssetLinks(ownerId));
@@ -476,6 +476,15 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
     const pendingProcess = processOptionsQuery.data?.items.find(
         (candidate) => candidate.id === pendingProcessId,
     );
+    const pendingAssetId = pendingAssetAction?.kind === 'add' ? pendingAssetAction.assetId
+        : assetLinks.find((link) => link.id === pendingAssetAction?.linkId)?.asset_id;
+    const processRequirement = useGovernedReasonRequirement([
+        { kind: 'process', id: pendingProcessId, record: pendingProcess },
+    ], pendingProcessAction !== null && !processLinksProtectedUnavailable);
+    const assetRequirement = useGovernedReasonRequirement([
+        { kind: 'asset', id: pendingAssetId, record: assetOptionsQuery.data?.items.find((row) => row.id === pendingAssetId) },
+    ], pendingAssetAction !== null && !assetLinksProtectedUnavailable);
+
 
     return (
         <div className="glass-card space-y-6" data-testid="risk-register-links-section">
@@ -617,7 +626,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             </LinkLane>
             <GovernedMutationReasonDialog
                 isOpen={pendingProcessAction !== null && !processLinksProtectedUnavailable}
-                reasonRequired={processMutationRequiresApprovalReason(pendingProcess)}
+                reasonRequirement={processRequirement}
                 namespace="processes"
                 kind={pendingProcessAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={
@@ -640,7 +649,7 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             />
             <GovernedMutationReasonDialog
                 isOpen={pendingAssetAction !== null && !assetLinksProtectedUnavailable}
-                reasonRequired
+                reasonRequirement={assetRequirement}
                 namespace="assets"
                 kind={pendingAssetAction?.kind === 'remove' ? 'link_remove' : 'link_add'}
                 isLoading={
@@ -673,4 +682,9 @@ export function RiskRegisterLinksSection({ risk, canManageLinks }: RiskRegisterL
             />
         </div>
     );
+}
+
+/** Owner transitions remount draft state; in-flight effects remain generation-fenced. */
+export function RiskRegisterLinksSection(props: RiskRegisterLinksSectionProps) {
+    return <RiskRegisterLinksSectionContent key={props.risk.id} {...props} />;
 }

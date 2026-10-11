@@ -9,6 +9,7 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SSO = REPO_ROOT / "backend/app/api/v1/endpoints/auth/sso.py"
+LOCAL = REPO_ROOT / "backend/app/api/v1/endpoints/auth/local.py"
 PASSWORD = REPO_ROOT / "backend/app/api/v1/endpoints/auth/password.py"
 DEMO = REPO_ROOT / "backend/app/api/v1/endpoints/auth/demo.py"
 REFRESH = REPO_ROOT / "backend/app/api/v1/endpoints/auth/refresh.py"
@@ -70,6 +71,7 @@ def test_sso_module_uses_auth_session_exchange_boundary() -> None:
     ("path", "function_name"),
     [
         (PASSWORD, "login"),
+        (LOCAL, "mfa_verify"),
         (DEMO, "_build_demo_response"),
         (SSO, "sso_exchange"),
         (REFRESH, "refresh_session"),
@@ -86,3 +88,22 @@ def test_auth_flows_issue_access_tokens_through_shared_response_builder(
     assert _calls_name(endpoint, "_build_token_response")
     assert not _imports_name(tree, module="app.core.security", name="create_access_token")
     assert not _calls_name(endpoint, "create_access_token")
+
+
+def test_native_factor_exchange_keeps_shared_refresh_issuer() -> None:
+    endpoint = _function_def(_tree(LOCAL), "mfa_verify")
+    assert _calls_name(endpoint, "_issue_refresh_session")
+
+
+@pytest.mark.parametrize("mutation", ["direct_token", "missing_shared"])
+def test_seeded_native_exchange_violation_is_detected(monkeypatch, mutation) -> None:
+    source = LOCAL.read_text()
+    if mutation == "direct_token":
+        source = source.replace(
+            "result = _build_token_response(", "create_access_token()\n        result = _build_token_response("
+        )
+    else:
+        source = source.replace("result = _build_token_response(", "result = forbidden_builder(")
+    monkeypatch.setattr(__import__(__name__, fromlist=["_tree"]), "_tree", lambda path: ast.parse(source))
+    with pytest.raises(AssertionError):
+        test_auth_flows_issue_access_tokens_through_shared_response_builder(LOCAL, "mfa_verify")

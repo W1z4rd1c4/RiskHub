@@ -1,3 +1,5 @@
+import { reasonField } from '@/services/api/governedReason';
+import { governedMutationSuccess, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
@@ -13,7 +15,7 @@ import { ictRegisterKeys } from '@/lib/queryKeys';
 import { lookupApi } from '@/services/lookupApi';
 import { threatApi } from '@/services/threatApi';
 import { logError } from '@/services/logger';
-import { isApprovalCreatedResponse, type ApprovalCreatedResponse } from '@/types/approval';
+import { type ApprovalCreatedResponse } from '@/types/approval';
 import type { Threat } from '@/types/threat';
 
 import { FormActions, FormErrorSummary, FormLoadFailedNotice, FormSection } from '../shared/EntityFormChrome';
@@ -66,7 +68,7 @@ function buildThreatFormPayload(fields: FormFields) {
             notes: fields.notes,
         }),
         threat_steward_user_id: Number(fields.threat_steward_user_id),
-        ...(fields.request_reason.trim() ? { request_reason: fields.request_reason.trim() } : {}),
+        ...reasonField(fields.request_reason),
     };
 }
 
@@ -180,15 +182,23 @@ export function ThreatForm({
             const saved = isEdit && initialData
                 ? await threatApi.updateThreat(initialData.id, payload)
                 : await threatApi.createThreat(payload);
+            const outcome = governedMutationSuccess(saved);
             acceptCurrentSnapshot();
-            if (isApprovalCreatedResponse(saved)) {
-                onApprovalQueued?.(saved);
+            if (outcome.kind === 'pending') {
+                onApprovalQueued?.(outcome.response);
             } else {
-                onSaved(saved);
+                onSaved(outcome.response);
             }
         } catch (submitError) {
             logError('Failed to save threat:', submitError);
-            setError(t('form.errors.save_failed'));
+            const rejection = governedMutationRejection(submitError);
+            if (rejection.field === 'request_reason') {
+                setError(null);
+                setFieldErrors((current) => ({ ...current, request_reason: t('form.errors.request_reason_required') }));
+                requestAnimationFrame(() => fieldRefs.current.request_reason?.focus());
+            } else {
+                setError(t(`form.errors.${rejection.message}`));
+            }
         } finally {
             setIsSubmitting(false);
         }

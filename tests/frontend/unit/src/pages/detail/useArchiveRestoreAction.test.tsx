@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
+import { useEntityDetailMutationWorkflow } from '@/pages/detail/useEntityDetailMutationWorkflow';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 
 function ArchiveRestoreHarness({
@@ -20,20 +20,20 @@ function ArchiveRestoreHarness({
     const onRestored = vi.fn(() => {
         window.__detailRestoredCount = (window.__detailRestoredCount ?? 0) + 1;
     });
-    const { isRunning, runArchive, runRestore } = useArchiveRestoreAction({
+    const { isMutating, runEntityMutation } = useEntityDetailMutationWorkflow({
         setMessage,
         toErrorKey: () => 'errorKeys.action_failed',
     });
 
     return (
         <div>
-            <p data-testid="running">{String(isRunning)}</p>
+            <p data-testid="running">{String(isMutating)}</p>
             <button
                 type="button"
-                onClick={() => void runArchive({
-                    archive,
+                onClick={() => void runEntityMutation({
+                    execute: archive,
                     approvalKey: 'approval.submitted',
-                    onImmediate,
+                    onDirectSuccess: onImmediate,
                 }).then((outcome) => {
                     window.__archiveOutcome = outcome.kind;
                 })}
@@ -42,10 +42,10 @@ function ArchiveRestoreHarness({
             </button>
             <button
                 type="button"
-                onClick={() => void runRestore({
-                    restore,
+                onClick={() => void runEntityMutation({
+                    execute: restore,
                     successKey: 'restore.ok',
-                    onRestored,
+                    onDirectSuccess: onRestored,
                 })}
             >
                 restore
@@ -63,7 +63,7 @@ declare global {
     }
 }
 
-describe('useArchiveRestoreAction', () => {
+describe('useEntityDetailMutationWorkflow', () => {
     it('runs immediate archive callbacks for non-approval responses', async () => {
         window.__detailImmediateCount = 0;
         const archive = vi.fn().mockResolvedValue(undefined);

@@ -1,3 +1,4 @@
+import { isApprovalCreatedResponse } from '@/lib/governedMutationOutcome';
 import type { ApprovalCreatedResponse, GovernedDerivedImpact } from './approval';
 import type { CollectionGroup } from './collection';
 
@@ -71,12 +72,8 @@ export interface ProcessPendingCreationRead {
 export function isProcessApprovalQueuedResponse(
     response: unknown,
 ): response is ProcessApprovalQueuedResponse {
-    return typeof response === 'object'
-        && response !== null
-        && 'status' in response
-        && response.status === 'approval_required'
-        && 'proposal_id' in response
-        && 'proposal_version' in response;
+    return isApprovalCreatedResponse(response)
+        && 'proposal_id' in response && 'proposal_version' in response;
 }
 
 export type ProcessCriticalityCode = 'low' | 'medium' | 'high' | 'critical';

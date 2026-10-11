@@ -1,4 +1,9 @@
 {
+  "governed_mutation": {
+      "capability_unavailable": "Požadavky na schválení nejsou dostupné. Před odesláním obnovte záznam.",
+      "request_reason_required": "U této řízené změny je důvod žádosti povinný.",
+      "pending_change_exists": "Změna již čeká na vyřízení. Před odesláním další změny ji zrušte nebo vyřešte."
+  },
   "actions": {
     "save": "Uložit",
     "cancel": "Zrušit",

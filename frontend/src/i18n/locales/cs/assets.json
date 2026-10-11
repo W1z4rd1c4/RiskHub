@@ -95,6 +95,7 @@
         "errors": {
             "name_required": "Název aktiva je povinný.",
             "request_reason_required": "U této řízené změny Aktiva je důvod žádosti povinný.",
+            "pending_change_exists": "Toto Aktivum již má čekající změnu. Před odesláním další změny ji zrušte nebo vyřešte.",
             "business_owner_required": "Business vlastník je povinný.",
             "ict_owner_required": "ICT vlastník je povinný.",
             "owning_department_required": "Vlastnický útvar je povinný.",

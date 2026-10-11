@@ -320,7 +320,7 @@ describe('ProcessDetailPage ownership resolution', () => {
 
         expect(await within(dialog).findByRole('alert')).toHaveTextContent('errors.archive_failed');
         expect(reason).toHaveValue('  Exact Process rationale  ');
-        expect(mocks.archiveProcess).toHaveBeenCalledWith(74, 'Exact Process rationale');
+        expect(mocks.archiveProcess).toHaveBeenCalledWith(74, '  Exact Process rationale  ');
     });
 
     it.each([

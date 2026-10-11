@@ -7,7 +7,7 @@ import { logError } from '@/services/logger';
 import type { Control, ControlRiskLink } from '@/types/control';
 import type { ControlEffectiveness, Risk } from '@/types/risk';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
-import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
+import { useEntityDetailMutationWorkflow } from '@/pages/detail/useEntityDetailMutationWorkflow';
 import { useContentTabQuery } from '@/hooks/useContentTabQuery';
 import { approvalIdFromResponse, useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
@@ -61,7 +61,7 @@ export function useControlDetailWorkflow({
     const announceApprovalQueued = useApprovalQueued();
     // D9 / D12: direct outcomes are toasts; an approval-routed archive keeps the
     // user on the control with the pending notice. Failures stay in the banner.
-    const { runArchive, runRestore } = useArchiveRestoreAction({
+    const { runEntityMutation } = useEntityDetailMutationWorkflow({
         onApprovalQueued: (response) => announceApprovalQueued({ approvalId: approvalIdFromResponse(response) }),
         onSuccessMessage: (message) => feedback.success({ title: translateUiMessage(t, message.key) }),
         setMessage: setApprovalMessage,
@@ -157,11 +157,11 @@ export function useControlDetailWorkflow({
     async function handleArchive(reason?: string): Promise<void> {
         if (!control) return;
         const ownerId = control.id;
-        const outcome = await runArchive({
-            archive: () => controlApi.deleteControl(ownerId, (reason ?? '').trim()),
+        const outcome = await runEntityMutation({
+            execute: () => controlApi.deleteControl(ownerId, (reason ?? '').trim()),
             approvalKey: 'controls:detail.archive_approval_submitted',
             isCurrent: () => detailOwnerRef.current === ownerId,
-            onImmediate: () => {
+            onDirectSuccess: () => {
                 feedback.success({ title: t('outcome.archived', { name: control.name }) });
                 void navigate(returnTo);
             },
@@ -175,11 +175,11 @@ export function useControlDetailWorkflow({
     async function handleRestore(): Promise<void> {
         if (!control) return;
         const ownerId = control.id;
-        await runRestore({
-            restore: () => controlApi.restoreControl(ownerId),
+        await runEntityMutation({
+            execute: () => controlApi.restoreControl(ownerId),
             successKey: 'controls:detail.control_restored',
             isCurrent: () => detailOwnerRef.current === ownerId,
-            onRestored: async () => {
+            onDirectSuccess: async () => {
                 if (detailOwnerRef.current !== ownerId) return;
                 await fetchControl();
                 if (detailOwnerRef.current !== ownerId) return;

@@ -17,6 +17,7 @@ from .filters import (
     _normalize_kri_status,
     _prefilter_department_id_for_as_of,
 )
+from .kri_population import apply_kri_parent_snapshot
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _kri_to_row
@@ -85,6 +86,9 @@ async def _export_kris(
                 rows=current_rows,
                 entity_type=ActivityEntityType.KRI,
                 as_of_date=as_of_date,
+            ),
+            lambda current_rows: apply_kri_parent_snapshot(
+                db, current_rows, current_user=current_user, as_of_date=as_of_date
             ),
             _normalize_kri_status,
             lambda current_rows: _rehydrate_user_names(
