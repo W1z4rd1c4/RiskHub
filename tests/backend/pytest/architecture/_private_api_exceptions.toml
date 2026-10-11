@@ -1,0 +1,13 @@
+# Reviewed leaf dependencies retained while eager package wiring is assessed separately.
+# This is a shrinking exception list, not generated from the repository's imports.
+[[exceptions]]
+caller = "app.services._authorization_capabilities.risks"
+target = "app.services._risk_questionnaires.policy.can_send_questionnaire"
+expires = 2026-12-05
+reason = "Preserve the existing capability projection's narrow policy dependency without eager facade initialization."
+
+[[exceptions]]
+caller = "app.services._authorization_capabilities.controls"
+target = "app.services._control_execution.workflow.control_is_executable"
+expires = 2026-12-05
+reason = "Preserve the existing local capability projection import pending separately reviewed import-cycle cleanup."

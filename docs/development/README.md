@@ -12,6 +12,9 @@ For the stable day-to-day contributor commands, CI gate ownership, and advanced
 target boundary, see
 [`docs/development/CONTRIBUTOR_COMMANDS.md`](./CONTRIBUTOR_COMMANDS.md).
 
+For the bounded private-service caller contract and its executable evidence, see
+[Private API boundary pilot](./private-api-boundary-pilot.md).
+
 ## Canonical Paths
 
 ### Docker onboarding path

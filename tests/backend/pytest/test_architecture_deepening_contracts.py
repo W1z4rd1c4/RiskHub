@@ -114,14 +114,14 @@ def _production_frontend_import_count(export_name: str) -> int:
 
 def test_risk_questionnaire_routes_use_lifecycle_interface() -> None:
     from app.api.v1.endpoints.risk_questionnaires import clarifications, questionnaire
-    from app.services._risk_questionnaires import lifecycle
-
-    assert hasattr(lifecycle, "QuestionnaireLifecycleOutcome")
-    assert hasattr(lifecycle, "QuestionnaireClarificationOutcome")
-    assert hasattr(lifecycle, "QuestionnaireLifecycleOptions")
+    from tests.backend.pytest.architecture._private_api_boundary import assert_sources
 
     questionnaire_source = inspect.getsource(questionnaire)
     clarification_source = inspect.getsource(clarifications)
+    assert_sources(REPO_ROOT, {
+        questionnaire.__name__: questionnaire_source,
+        clarifications.__name__: clarification_source,
+    })
     route_source = questionnaire_source + clarification_source
 
     for lifecycle_function in (
@@ -148,11 +148,12 @@ def test_control_execution_and_link_routes_use_governance_interface() -> None:
     from app.api.v1.endpoints import executions
     from app.api.v1.endpoints.controls import linking as control_linking
     from app.api.v1.endpoints.risks import control_links as risk_control_links
-    from app.services._control_execution import link_governance
+    from tests.backend.pytest.architecture._private_api_boundary import assert_sources
 
-    assert hasattr(link_governance, "ControlExecutionProjection")
-    assert hasattr(link_governance, "ControlRiskLinkOutcome")
-    assert hasattr(link_governance, "ControlRiskAccessDecision")
+    assert_sources(REPO_ROOT, {
+        module.__name__: inspect.getsource(module)
+        for module in (executions, control_linking, risk_control_links)
+    })
 
     route_source = (
         inspect.getsource(executions)
@@ -989,16 +990,20 @@ def test_monitoring_export_rows_are_owned_by_monitoring_status_module() -> None:
 
 
 def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
+    from tests.backend.pytest.architecture._private_api_boundary import endpoint_dependency_violations
+
     services_root = Path(__file__).resolve().parents[3] / "backend" / "app" / "services"
     offenders: list[str] = []
     for path in sorted(services_root.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
-        source = path.read_text()
-        if "app.api.v1.endpoints" in source:
-            offenders.append(str(path.relative_to(services_root)))
-
-    assert offenders == []
+        relative = path.relative_to(services_root).with_suffix("")
+        parts = relative.parts[:-1] if relative.name == "__init__" else relative.parts
+        caller = ".".join(("app", "services", *parts))
+        offenders.extend(endpoint_dependency_violations(
+            path.read_text(), caller, is_package=path.name == "__init__.py"
+        ))
+    assert offenders == [], "\n".join(offenders)
 
 
 def test_dashboard_routes_use_metric_composition_module() -> None:
