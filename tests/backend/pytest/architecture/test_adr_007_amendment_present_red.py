@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -44,7 +46,9 @@ def _classification_rows() -> dict[str, dict[str, str]]:
     for line in table_lines[2:]:
         cells = [cell.strip() for cell in line.strip("|").split("|")]
         row = dict(zip(header, cells, strict=True))
-        rows[row["Package"].strip("`")] = row
+        package = row["Package"].strip("`")
+        assert package not in rows, f"Duplicate ADR package: {package}"
+        rows[package] = row
     return rows
 
 
@@ -63,16 +67,69 @@ def test_amendment_uses_cross_cutting_not_core() -> None:
     assert "Core" not in {row["Category"] for row in rows.values()}
 
 
-def test_amendment_lists_thirteen_workflow_pairs() -> None:
+def _assert_workflow_pair_equality() -> None:
     rows = _classification_rows()
-    assert rows["_orphaned_items"]["Category"] == "Workflow-paired (`_identity_access_lifecycle`)"
-    assert rows["_notification_inbox"]["Category"] == "Workflow-paired (`_identity_access_lifecycle`)"
-    assert rows["_ict_register_lifecycle"]["Category"] == "Workflow-paired (`_vendor_governance`)"
-    assert rows["_local_auth"]["Category"] == "Workflow-paired (`_auth_session_workflow`)"
-    assert WORKFLOW_PAIRS.read_text().count("[[pairs]]") == 13
+    documented = []
+    for package, row in rows.items():
+        category = row["Category"]
+        if not category.startswith("Workflow-paired"):
+            continue
+        match = re.fullmatch(r"Workflow-paired \(`([^`]+)`\)", category)
+        assert match is not None, f"Malformed workflow category: {category}"
+        documented.append((package, match.group(1)))
+    registered = [
+        (pair["left"], pair["right"])
+        for pair in tomllib.loads(WORKFLOW_PAIRS.read_text())["pairs"]
+    ]
+    # ADR sweep coupling is reciprocal (↔), including two Issue table rows.
+    # TOML orientation still controls primary classification in the separate
+    # disjointness lock; equality here checks coupling, not that orientation.
+    documented_pairs = {tuple(sorted(pair)) for pair in documented}
+    registered_pairs = {tuple(sorted(pair)) for pair in registered}
+    assert len(registered) == len(registered_pairs), "Duplicate workflow registry pair"
+    assert len({left for left, _ in registered}) == len(registered), "Duplicate workflow owner"
+    assert documented_pairs == registered_pairs, {
+        "missing_from_registry": documented_pairs - registered_pairs,
+        "missing_from_adr": registered_pairs - documented_pairs,
+    }
+
+
+def test_amendment_workflow_pairs_equal_registry() -> None:
+    _assert_workflow_pair_equality()
+
+
+@pytest.mark.parametrize("mutation", ["substitute", "remove", "add", "duplicate", "reversed_duplicate"])
+def test_workflow_pair_lock_rejects_seeded_registry_violation(tmp_path, monkeypatch, mutation):
+    original = WORKFLOW_PAIRS.read_text()
+    if mutation == "substitute":
+        changed = original.replace('left = "_approval_queue"', 'left = "_wrong_pair"', 1)
+    elif mutation == "remove":
+        changed = original.replace('[[pairs]]\nleft = "_approval_queue"\nright = "_approval_execution"', '', 1)
+    elif mutation == "add":
+        changed = original + '\n[[pairs]]\nleft = "_unexpected"\nright = "_approval_execution"\n'
+    elif mutation == "reversed_duplicate":
+        changed = original + '\n[[pairs]]\nleft = "_approval_execution"\nright = "_approval_queue"\n'
+    else:
+        changed = original + '\n[[pairs]]\nleft = "_approval_queue"\nright = "_approval_execution"\n'
+    assert changed != original
+    target = tmp_path / "workflow_pairs.toml"
+    target.write_text(changed)
+    monkeypatch.setitem(_assert_workflow_pair_equality.__globals__, "WORKFLOW_PAIRS", target)
+    with pytest.raises(AssertionError):
+        _assert_workflow_pair_equality()
 
 
 def test_amendment_cross_references_graph_directory_post_61() -> None:
     row = _classification_rows()["_graph_directory"]
     assert row["Category"] == "Adapter"
     assert row["Enforcement TOML"] == "`_bounded_context_adapters.toml`"
+
+
+def test_workflow_pair_lock_rejects_duplicate_adr_package(tmp_path, monkeypatch):
+    original = ADR_007.read_text()
+    row = next(line for line in original.splitlines() if line.startswith("| `_approval_queue` |"))
+    target = tmp_path / "adr.md"
+    target.write_text(original.replace(row, row + "\n" + row, 1))
+    monkeypatch.setitem(_classification_rows.__globals__, "ADR_007", target)
+    with pytest.raises(AssertionError, match="Duplicate ADR package"):
+        _assert_workflow_pair_equality()
