@@ -197,6 +197,47 @@ export async function installDialogContractApi(
         }]); return;
       case '/api/v1/risks/1/questionnaires/latest-submitted':
         await fulfillJson(route, null); return;
+      // Removing the existing link resolves exact current capability facts for
+      // both records; search/collection pages are not complete inventories.
+      case '/api/v1/assets/1':
+        await fulfillJson(route, {
+          id: 1,
+          name: 'Claims Platform',
+          business_owner_user_id: 1,
+          ict_owner_user_id: 1,
+          owning_department_id: 1,
+          business_owner_orphaned: false,
+          ict_owner_orphaned: false,
+          ownership_status: 'assigned',
+          primary_process_id: 1,
+          is_archived: false,
+          capabilities: {
+            can_read: true, can_update: true, can_archive: true, can_restore: false,
+            protected_change_requires_approval: false, has_pending_change: false,
+            business_edit_blocked: false, can_cancel_pending_change: false,
+          },
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        }); return;
+      case '/api/v1/processes/1':
+        await fulfillJson(route, {
+          id: 1,
+          f_code: 'P-0001',
+          l0_area: 'Insurance',
+          l1_process: 'Claims',
+          process_owner_user_id: 1,
+          owning_department_id: 1,
+          owner_orphaned: false,
+          ownership_status: 'assigned',
+          is_archived: false,
+          capabilities: {
+            can_read: true, can_update: true, can_archive: true, can_restore: false,
+            protected_change_requires_approval: false, can_request_change: true,
+            can_cancel_pending_change: false, has_pending_change: false, business_edit_blocked: false,
+          },
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        }); return;
       case '/api/v1/assets/1/process-links':
         await fulfillJson(route, [{
           id: 1,

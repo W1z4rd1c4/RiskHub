@@ -86,6 +86,7 @@ function pendingAsset() {
             can_update: false,
             can_archive: false,
             can_restore: false,
+            protected_change_requires_approval: false,
             has_pending_change: true,
             business_edit_blocked: true,
             can_cancel_pending_change: true,
