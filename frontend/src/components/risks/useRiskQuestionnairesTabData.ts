@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useFeedback } from '@/hooks/useFeedback';
-import { ApiClientError, apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { apiClient, isSingleRecordUnavailableError } from '@/services/apiClient';
 import { isAbortError } from '@/services/api/requestRuntime';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import type { RiskQuestionnaireDetail, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
@@ -30,10 +30,6 @@ export type LatestSubmittedLoadOutcome =
     | 'denied';
 
 type QuestionnaireListLoadMode = 'authoritative' | 'reconcile';
-
-function isProtectedUnavailableError(error: unknown): boolean {
-    return isForbiddenApiError(error) || error instanceof ApiClientError && error.status === 404;
-}
 
 export function useRiskQuestionnairesTabData({
     canSend,
@@ -123,7 +119,7 @@ export function useRiskQuestionnairesTabData({
                 || latestSubmittedControllerRef.current !== controller
                 || ownerRef.current !== ownerId
             ) return;
-            if (isProtectedUnavailableError(error)) {
+            if (isSingleRecordUnavailableError(error)) {
                 latestSubmittedRef.current = null;
                 setLatestSubmitted(null);
                 setLatestSubmittedOutcome('denied');
@@ -173,7 +169,7 @@ export function useRiskQuestionnairesTabData({
         } catch (error) {
             if (isAbortError(error) || controller.signal.aborted || ownerRef.current !== ownerId) return;
             setErrorKey(apiClient.toUiMessageKey(error));
-            if (isProtectedUnavailableError(error)) {
+            if (isSingleRecordUnavailableError(error)) {
                 if (mode === 'reconcile') {
                     setLoadOutcome('stale-with-error');
                     return;

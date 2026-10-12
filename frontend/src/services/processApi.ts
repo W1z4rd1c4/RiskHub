@@ -127,8 +127,8 @@ export const processApi = {
 
     downloadExport: downloadProcessExport,
 
-    async getProcess(id: number): Promise<Process> {
-        return apiClient.get(`/processes/${id}`, { schema: processSchema });
+    async getProcess(id: number, options?: { signal?: AbortSignal }): Promise<Process> {
+        return apiClient.get(`/processes/${id}`, { ...options, schema: processSchema });
     },
 
     async createProcess(data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {

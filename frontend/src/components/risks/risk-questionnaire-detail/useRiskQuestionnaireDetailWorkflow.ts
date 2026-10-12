@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ApiClientError, apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { apiClient, isSingleRecordUnavailableError } from '@/services/apiClient';
 import { isAbortError } from '@/services/api/requestRuntime';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -22,10 +22,6 @@ import { shouldAutoOpenQuestionnaire } from './questionnaireWorkflowState';
 
 const DEFAULT_COMPARE_MODE = false;
 type QuestionnaireAction = 'save' | 'submit' | 'request-clarification' | 'respond-clarification';
-
-function isProtectedUnavailableError(error: unknown): boolean {
-    return isForbiddenApiError(error) || error instanceof ApiClientError && error.status === 404;
-}
 
 interface UseRiskQuestionnaireDetailWorkflowParams {
     isOpen: boolean;
@@ -160,7 +156,7 @@ export function useRiskQuestionnaireDetailWorkflow({
                             { signal: controller.signal },
                         );
                     } catch (error) {
-                        if (isProtectedUnavailableError(error)) throw error;
+                        if (isSingleRecordUnavailableError(error)) throw error;
                         // best-effort: keep the read-only view if open fails
                     }
                 }
@@ -170,7 +166,7 @@ export function useRiskQuestionnaireDetailWorkflow({
                 setCompareMode(DEFAULT_COMPARE_MODE);
             } catch (error) {
                 if (isAbortError(error) || controller.signal.aborted || questionnaireOwnerRef.current !== questionnaireId) return;
-                if (isProtectedUnavailableError(error)) {
+                if (isSingleRecordUnavailableError(error)) {
                     resetOwnedState();
                 }
                 setErrorKey(apiClient.toUiMessageKey(error));

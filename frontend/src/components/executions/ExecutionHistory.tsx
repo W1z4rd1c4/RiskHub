@@ -19,7 +19,7 @@ import { getExecutionResultMeta } from '@/lib/executionResult';
 import { AccessDeniedState, EmptyState, ErrorState, LoadingState } from '@/components/ui/state';
 import { logError } from '@/services/logger';
 import { isAbortError } from '@/services/api/requestRuntime';
-import { ApiClientError } from '@/services/apiClient';
+import { isSingleRecordUnavailableError } from '@/services/apiClient';
 import {
     resolveCollectionOutcome,
     useCollectionDataState,
@@ -35,10 +35,6 @@ interface ExecutionHistoryProps {
 }
 
 const EXECUTION_QUERY_PARAM = 'execution';
-
-function isProtectedUnavailableError(error: unknown): boolean {
-    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
-}
 
 function parseExecutionId(values: string[]): number | null {
     if (values.length !== 1) {
@@ -155,7 +151,7 @@ export function ExecutionHistory({
                 logError('Error fetching execution history:', err);
                 applyFailure(err, {
                     fallbackErrorKey: 'errors.load_history_failed',
-                    isAccessDenied: isProtectedUnavailableError,
+                    isAccessDenied: isSingleRecordUnavailableError,
                 });
             }
         } finally {

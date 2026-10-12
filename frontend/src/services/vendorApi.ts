@@ -154,8 +154,8 @@ export const vendorApi = {
 
     downloadExport: downloadVendorExport,
 
-    async getVendor(id: number): Promise<Vendor> {
-        return apiClient.get(`/vendors/${id}`, { schema: vendorSchema });
+    async getVendor(id: number, options?: { signal?: AbortSignal }): Promise<Vendor> {
+        return apiClient.get(`/vendors/${id}`, { ...options, schema: vendorSchema });
     },
 
     async createVendor(data: VendorCreate): Promise<Vendor | ProcessApprovalQueuedResponse> {

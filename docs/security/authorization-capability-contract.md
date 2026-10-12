@@ -20,6 +20,14 @@ Native bootstrap (#203) seeds only canonical references and distinct pending Adm
 
 2026-10-11: #258 gives pending resolver snapshot-role membership one shared read-policy owner. Asset and Vendor visibility selects actual validated triggering policies, so unrelated disabled protected-edit configuration does not hide accountability-only work. Process retains snapshot-based scope and stale-policy cleanup visibility; Asset/Vendor/Threat retain their family-specific live-policy gates. Requester access, terminal history, locked decisions, bounded malformed expiry and permission/capability shapes are unchanged.
 
+2026-10-12: #259 consolidates protected single-record read failures in
+`isSingleRecordUnavailableError`: 403 and 404 clear protected detail data and
+present the same unavailable outcome. Register lists retain their forbidden-only
+rule; KRI restore rejection and create-capability classification remain separate.
+Asset, Process, Threat, Vendor detail and Risk/Control edit loaders forward the
+request owner's AbortSignal through the API client. Rendered route tests observe
+the MSW request abort on navigation away. No permission or capability changes.
+
 ## Architecture exception review
 
 2026-10-11: The #254 two-package pilot declares existing Questionnaire and Control-execution service exports and narrower HTTP caller classes in their owning packages. Static import/member checks preserve lifecycle and governed adapter boundaries; two existing service-only leaf dependencies remain explicit, expiring exceptions. Public compatibility exports, runtime permissions, capability values, transaction ownership and mutation behavior are unchanged. This pilot does not complete the remaining classified architecture migration.

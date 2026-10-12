@@ -119,8 +119,8 @@ export const threatApi = {
 
     downloadExport: downloadThreatExport,
 
-    async getThreat(id: number): Promise<Threat> {
-        return apiClient.get(`/threats/${id}`, { schema: threatSchema });
+    async getThreat(id: number, options?: { signal?: AbortSignal }): Promise<Threat> {
+        return apiClient.get(`/threats/${id}`, { ...options, schema: threatSchema });
     },
 
     async createThreat(data: ThreatWritePayload): Promise<Threat> {

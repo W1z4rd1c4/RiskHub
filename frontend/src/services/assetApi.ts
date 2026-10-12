@@ -104,8 +104,8 @@ export const assetApi = {
 
     downloadExport: downloadAssetExport,
 
-    async getAsset(id: number): Promise<Asset> {
-        return apiClient.get(`/assets/${id}`, { schema: assetSchema });
+    async getAsset(id: number, options?: { signal?: AbortSignal }): Promise<Asset> {
+        return apiClient.get(`/assets/${id}`, { ...options, schema: assetSchema });
     },
 
     async createAsset(data: AssetWritePayload): Promise<Asset | ProcessApprovalQueuedResponse> {
