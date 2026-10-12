@@ -73,7 +73,8 @@ For a bounded migration, edit the human-owned inputs first, then repeat
 python3 scripts/tools/refresh_python_dependency_lock.py --upgrade-package ruff --upgrade-package mypy
 ```
 
-The generator constrains all other existing packages to their current exact pins
+The generator installs and constrains all other existing packages to their current
+exact pins, even when the upgraded dependency graph no longer references them,
 and rejects their removal. If a selected release needs a different transitive
 version, review that dependency and explicitly add it to the batch; a resolver
 conflict leaves the generated files untouched. Unknown package names fail closed.
