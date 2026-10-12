@@ -27,7 +27,6 @@ import {
     parseProcessRegisterFilters,
     PROCESS_REGISTER_CONFIG,
     serializeProcessRegisterFilters,
-    type ProcessFilterKey,
     type ProcessRegisterFilters,
 } from './processRegisterConfig';
 
@@ -164,6 +163,5 @@ export function useProcessesPageState(
         selectedGroupLabel: labelsForSelectedGroup(groups, selectedGroupValue),
         clearFilters, exportProcesses, fetchProcesses, restoreProcess,
         pendingCreations: visiblePendingCreations,
-        updateProcessFilter: <K extends ProcessFilterKey>(key: K, value: ProcessRegisterFilters[K]) => updateFilter(key, value),
     };
 }
