@@ -10,6 +10,8 @@ interface RestoreWithFeedbackOptions {
     name?: string | null;
     /** Refreshes the register or detail record after a successful restore. */
     refresh: () => unknown;
+    /** Detail actions stop reporting or refreshing after their record loses ownership. */
+    isCurrent?: () => boolean;
 }
 
 /**
@@ -22,13 +24,15 @@ export function useRestoreWithFeedback() {
     const feedback = useFeedback();
     const { t } = useTranslation('common');
 
-    return useCallback(async ({ name, refresh, restore }: RestoreWithFeedbackOptions): Promise<boolean> => {
+    return useCallback(async ({ name, refresh, restore, isCurrent = () => true }: RestoreWithFeedbackOptions): Promise<boolean> => {
         try {
             await restore();
         } catch (error) {
+            if (!isCurrent()) return false;
             feedback.error({ title: t('outcome.restore_failed'), messageKey: apiClient.toUiMessageKey(error) });
             return false;
         }
+        if (!isCurrent()) return false;
         feedback.success({ title: name ? t('outcome.restored', { name }) : t('outcome.restored_generic') });
         await refresh();
         return true;

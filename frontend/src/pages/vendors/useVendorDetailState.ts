@@ -1,9 +1,7 @@
-import { useCallback, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState } from 'react';
 
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
+import { useProtectedDetailState } from '@/pages/detail/useProtectedDetailState';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 
@@ -14,40 +12,17 @@ interface UseVendorDetailStateOptions {
 }
 
 export function useVendorDetailState({ mode }: UseVendorDetailStateOptions) {
-    const { id } = useParams<{ id: string }>();
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const {
-        isRetrying,
-        loadOutcome,
-        refetch: fetchVendor,
-        resource: vendor,
-        resourceId: vendorId,
-    } = useDetailQuery<Vendor>({
-        enabled: mode !== 'new',
-        entity: 'vendor',
-        rawId: id,
-        load: (vendorId, signal) => vendorApi.getVendor(vendorId, { signal }),
+        isRetrying, loadOutcome, refetch: fetchVendor, resource: vendor, resourceId: vendorId,
+        restoreRecord: restoreVendor, canArchive, canEdit, canRestore,
+    } = useProtectedDetailState<Vendor>({
+        mode, entity: 'vendor',
+        load: (id, signal) => vendorApi.getVendor(id, { signal }),
+        restore: vendorApi.restoreVendor, name: (record) => record.name,
     });
 
-    const restoreWithFeedback = useRestoreWithFeedback();
-    const restoreVendor = useCallback(async () => {
-        if (!vendor) {
-            return;
-        }
-
-        // D9: restore outcomes (success and failure) are toasts.
-        const restored = vendor;
-        await restoreWithFeedback({
-            restore: () => vendorApi.restoreVendor(restored.id),
-            name: restored.name,
-            refresh: () => fetchVendor(),
-        });
-    }, [fetchVendor, restoreWithFeedback, vendor]);
-
-    const canEdit = resolveCapabilityFlag(vendor?.capabilities, 'can_update');
-    const canArchive = resolveCapabilityFlag(vendor?.capabilities, 'can_archive');
-    const canRestore = resolveCapabilityFlag(vendor?.capabilities, 'can_restore');
     const canLinkRisk = resolveCapabilityFlag(vendor?.capabilities, 'can_link_risk');
     const canLinkControl = resolveCapabilityFlag(vendor?.capabilities, 'can_link_control');
     const canLinkKri = resolveCapabilityFlag(vendor?.capabilities, 'can_link_kri');

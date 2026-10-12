@@ -1,9 +1,5 @@
-import { useCallback } from 'react';
-import { useParams } from 'react-router-dom';
 
-import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
+import { useProtectedDetailState } from '@/pages/detail/useProtectedDetailState';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
@@ -14,40 +10,21 @@ interface UseThreatDetailStateOptions {
 }
 
 export function useThreatDetailState({ mode }: UseThreatDetailStateOptions) {
-    const { id } = useParams<{ id: string }>();
 
     const {
-        isRetrying,
-        loadOutcome,
-        refetch: fetchThreat,
-        resource: threat,
-        resourceId: threatId,
+        isRetrying, loadOutcome, refetch: fetchThreat, resource: threat, resourceId: threatId,
+        restoreRecord: restoreThreat, canArchive, canEdit, canRestore,
         setResource: setThreat,
-    } = useDetailQuery<Threat>({
-        enabled: mode !== 'new',
-        entity: 'threat',
-        rawId: id,
-        load: (threatId, signal) => threatApi.getThreat(threatId, { signal }),
+    } = useProtectedDetailState<Threat>({
+        mode, entity: 'threat',
+        load: (id, signal) => threatApi.getThreat(id, { signal }),
+        restore: threatApi.restoreThreat, name: (record) => record.name,
     });
 
-    const restoreWithFeedback = useRestoreWithFeedback();
-    const restoreThreat = useCallback(async () => {
-        if (!threat) {
-            return;
-        }
-        // D9: restore outcomes (success and failure) are toasts.
-        const restored = threat;
-        await restoreWithFeedback({
-            restore: () => threatApi.restoreThreat(restored.id),
-            name: restored.name,
-            refresh: () => fetchThreat(),
-        });
-    }, [fetchThreat, restoreWithFeedback, threat]);
-
     return {
-        canArchive: resolveCapabilityFlag(threat?.capabilities, 'can_archive'),
-        canEdit: resolveCapabilityFlag(threat?.capabilities, 'can_update'),
-        canRestore: resolveCapabilityFlag(threat?.capabilities, 'can_restore'),
+        canArchive,
+        canEdit,
+        canRestore,
         fetchThreat,
         isRetrying,
         loadOutcome,
