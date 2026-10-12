@@ -7,6 +7,10 @@ Small shared helpers for page-level collection state that are reused by list pag
 ## Contents
 
 - `collectionPageState.ts`
+- `useRegisterUrlWorkingSet.ts` - URL writes, page history, normalization, sort
+  validation and debounced search. Its query hook commits the rendered list identity
+  in the layout phase and supplies pagination-free current-view export parameters.
+  Controls and Assets are the initial adapters; domain filters and API calls stay local.
 - `EntityFormChrome.tsx` — chrome of the Asset, Process and Threat forms: `FormSection` (card + `h2`),
   `FormErrorSummary` (`role="alert"`), `FormLoadFailedNotice` (status + retry) and `FormActions`
   (Cancel then submit with a pending state).
