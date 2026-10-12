@@ -249,7 +249,7 @@
           "password": {
             "format": "password",
             "maxLength": 128,
-            "minLength": 1,
+            "minLength": 15,
             "title": "Password",
             "type": "string",
             "writeOnly": true
@@ -717,7 +717,7 @@
           "password": {
             "format": "password",
             "maxLength": 128,
-            "minLength": 1,
+            "minLength": 15,
             "title": "Password",
             "type": "string",
             "writeOnly": true
@@ -919,7 +919,7 @@
               {
                 "format": "password",
                 "maxLength": 128,
-                "minLength": 1,
+                "minLength": 15,
                 "type": "string",
                 "writeOnly": true
               },
@@ -967,7 +967,7 @@
           "password": {
             "format": "password",
             "maxLength": 128,
-            "minLength": 1,
+            "minLength": 15,
             "title": "Password",
             "type": "string",
             "writeOnly": true

@@ -55,7 +55,7 @@ from app.services._issue_register import (
     serialize_issue_summaries_for_actor,
 )
 from app.services.authorization_capabilities import preload_issue_capabilities
-from app.services.issue_visibility_service import unsuppressed_issue_clause
+from app.services.issue_visibility_service import issue_severity_clause, unsuppressed_issue_clause
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
 from .shared import build_facet_options
@@ -301,10 +301,9 @@ async def plan_issue_listing(
         query = query.where(Issue.department_id == department_id)
     if status is not None:
         query = query.where(Issue.status == status.value)
-    if severity_group_filter == "high_critical":
-        query = query.where(Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value)))
-    elif severity is not None:
-        query = query.where(Issue.severity == severity.value)
+    severity_clause = issue_severity_clause(severity, severity_group_filter)
+    if severity_clause is not None:
+        query = query.where(severity_clause)
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
     if exclude_active_exceptions_filter:

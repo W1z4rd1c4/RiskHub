@@ -46,10 +46,12 @@ from app.services._monitoring_status.queries import (
     apply_control_monitoring_status_filter,
     apply_kri_monitoring_status_filter,
 )
-from app.services._register_listings.assets import AssetListCriteria, build_asset_listing
-from app.services._register_listings.processes import ProcessListCriteria, build_process_listing
-from app.services._register_listings.risks import RISK_BANDS
-from app.services._register_listings.vendors import (
+from app.services._register_listings import (
+    RISK_BANDS,
+    AssetListCriteria,
+    ProcessListCriteria,
+    build_asset_listing,
+    build_process_listing,
     can_view_vendor_full_derivation,
     list_vendor_governance,
 )

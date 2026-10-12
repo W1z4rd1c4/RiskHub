@@ -731,10 +731,18 @@ async def test_privileged_recovery_is_rejected_on_web(
     target.local_email_verified_at = utc_now()
     target.local_enrollment_state = "enrolled"
     await db_session.commit()
+    from sqlalchemy import func, select
+
+    from app.models import LocalAuthGrant, RefreshToken
+
+    fields = ("role_id", "access_scope", "department_id", "manager_id", "token_version", "is_active", "local_suspended")
+    before = tuple(getattr(target, field) for field in fields)
     async with client_factory(
         settings=native_context, headers={"Origin": "http://test"}
     ) as client:
         await login_password_only(client, test_user.email, PASSWORD)
+        grants = await db_session.scalar(select(func.count()).select_from(LocalAuthGrant))
+        sessions = await db_session.scalar(select(func.count()).select_from(RefreshToken))
         result = await client.post(
             "/api/v1/auth/local/recent-auth",
             json={
@@ -748,6 +756,10 @@ async def test_privileged_recovery_is_rejected_on_web(
         assert result.status_code == 401, result.text
         await db_session.refresh(target)
         assert not target.local_recovery_pending
+
+        assert tuple(getattr(target, field) for field in fields) == before
+        assert await db_session.scalar(select(func.count()).select_from(LocalAuthGrant)) == grants
+        assert await db_session.scalar(select(func.count()).select_from(RefreshToken)) == sessions
 
 
 @pytest.mark.parametrize("damage", ["missing", "wrong"])

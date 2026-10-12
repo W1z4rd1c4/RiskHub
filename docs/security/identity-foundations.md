@@ -107,10 +107,12 @@ does not commit: callers retain mutation/audit transaction ownership. Display-on
 changes and unchanged access assignments do not create a security transition. Ordinary
 manual resumption cannot bypass directory denial, local enrollment or last-admin rules.
 
-## Reserved local HTTP contracts
+## Local HTTP catalogue and release boundary
 
 The generated [OpenAPI catalogue](./identity-local-auth.openapi.json) is **not the live
-application OpenAPI**. It documents the future local handlers without registering stubs.
+application OpenAPI**. It records the schema contracts, HTTP methods and implementation
+owners; its handler metadata identifies implemented component-verification paths.
+The catalogue does not register handlers or admit native production.
 Requests/responses and frontend types originate in `app.schemas.local_auth`; run:
 
 ```bash
@@ -118,8 +120,8 @@ python -m scripts.export_local_auth_contract
 python -m scripts.export_local_auth_contract --check
 ```
 
-All catalogue actions are POST, exclusively local-profile operations, and use existing
-service-owned transaction boundaries. The catalogue gives path, input/output schema,
+Catalogue actions declare their actual GET or POST method. Native operations use
+existing service-owned transaction boundaries. The catalogue gives path, input/output schema,
 proof/capability requirement, response status and owning implementation issue. A
 password-set enrollment remains anonymous until the selected enrollment policy is met.
 `LOCAL_MFA_POLICY=required` (default) requires factor enrollment; `optional` permits
@@ -129,30 +131,55 @@ password, a factor when enabled or required, and a typed intended operation; the
 version/actor/target/intent bound. Factor recovery for a privileged target is operator-
 controlled under #201, not an admin web override.
 
-The ordinary login final 200 TokenResponse and SSO contract are unchanged by group 1.
-Future `/auth/login` 202 challenges must be handled separately by #199/#205. Public
+Ordinary completed login uses the existing 200 TokenResponse; the SSO contract is
+unchanged. Implemented `/auth/login` 202 challenges are distinct from completed
+sessions and are handled by #199/#205. Public
 reset requests return generic 202 for all syntactically valid accounts. Disabled
 methods use 403 `AUTH_METHOD_DISABLED`; invalid/expired/replayed proof uses generic
 401; authority denial 403; state/last-admin conflict 409; input validation 422;
 throttling 429; unavailable security-state enforcement 503. Existing endpoints retain
 existing details except the explicitly changed strict-version/last-admin decisions.
 
+### New-password wire bounds
+
+`NewPassword` gives enrollment, reset completion, password change and optional
+recovery `new_password` fields one 15–128-code-point wire bound. For requests that
+pass the route's origin/CSRF/security-context admission, malformed new-password
+length returns a redacted 422 before grant/proof lookup or consumption. This
+intentionally precedes the previous invalid-proof 401 outcome for short new values.
+A valid-length value still requires valid authority and the shared runtime password
+policy (including the blocklist). Current/login password verification and intended
+change commitments are separate inputs; their compatibility bounds are unchanged.
+Omitted recovery `new_password` retains the current-password recovery branch.
+
 ## Threat/control ownership
 
-| Threat | Control and owner |
-|---|---|
-| Wrong mode/tenant or mixed replicas | Explicit binding + startup validation (#194); installer/restore integration #204/#207 |
-| Dormant directory password | Production local resolution rejects linked rows (#194/#195); no provider fallback |
-| Old-token resurrection after credential/access change | Shared version/refresh transition and locked issuance (#195) |
-| Sync undoes operator suspension / all admins removed | Independent eligibility + serialized last-platform-admin guard (#196) |
-| Invitation theft, replay, mailbox enumeration | Purpose-limited grants, non-enumerating responses, bounded delivery #198/#200 |
-| Password guessing/KDF exhaustion | Shared offline policy and resource admission #197; shared limits #198/#199 |
-| Partial login mistaken for authentication | Restricted challenge vs final session schemas #193; enforced #199/#205 |
-| Factor/reset takeover and lost-admin lockout | Recent proof and dual-controlled recovery #199–#201 |
-| Secret leakage / key loss | Secret-file keyrings, encrypted factor/delivery state, rotation #198/#199/#201 |
-| Restore resurrects newer-revoked credentials | Signing cutover and current-security-state reconciliation #207 |
-| Browser leaks previous principal state | Existing principal isolation preserved; full journeys #205/#206/#208 |
-| An incomplete custom profile goes live | Non-configurable release-admission guard until #208 |
+Each row names one control owner. Integration of a control is a separate row, not
+an implicit transfer of its authority.
+
+| Threat | Control | Delivery owner |
+|---|---|---|
+| Wrong profile/tenant or mixed replicas | Immutable binding and startup checks | #194 |
+| Incorrect installer profile translation | Canonical profile selection and validation | #204 |
+| Wrong-tenant restore | Restore profile/binding validation | #207 |
+| Dormant directory password | Linked-account local-auth denial, no provider fallback | #194 |
+| Old-token resurrection | Shared version/refresh revocation and locked issuance | #195 |
+| Sync undoes suspension or removes last usable Admin | Independent eligibility and serialized manual availability guard | #196 |
+| Invitation theft/replay/enumeration | Purpose-bound invitation and encrypted retryable delivery | #198 |
+| Password/reset/address takeover | Verified, bounded reset and address workflows | #200 |
+| Password guessing/KDF exhaustion | Offline password policy and bounded KDF admission | #197 |
+| Login CSRF | Native browser origin, CSRF and challenge binding enforcement | #199 |
+| Cross-worker brute force or security-state outage | Shared rate state and fail-closed 503, without weaker fallback | #199 |
+| Partial login mistaken for full authority | Discriminated challenge/session wire contracts | #193 |
+| Partial credential used to issue a session | Locked factor completion and common session issuer | #199 |
+| Action-proof reuse | Single-use recent proof bound to actor/version/action/intent | #199 |
+| Lost-factor/last-Admin takeover | Verified recovery and dual-signature privileged maintenance exception | #201 |
+| Delivery-secret leakage | Dedicated encrypted delivery envelopes and expiry/removal | #198 |
+| Factor-secret leakage | Context-bound encrypted TOTP state | #199 |
+| Key loss or unsafe retirement | Key backup/recovery and checked rotation | #201 |
+| Restore revives revoked authority | Signing cutover and current-security-state reconciliation | #207 |
+| Browser retains prior principal state | Native frontend principal isolation and challenge handling | #205 |
+| Incomplete native production release | Non-configurable admission guard and final release acceptance | #208 |
 
 Trust assumptions: protected host/root administration and secrets, reviewed Entra
 configuration, TLS at the public boundary, and independently accountable human recovery

@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
+from .markdown_validation import validate_review_dates
 from .models import Finding
 
 
@@ -42,6 +43,7 @@ def run_validation(
         findings.append(Finding("missing_capability_catalog", capability_catalog_path.as_posix()))
         return findings
 
+    findings.extend(validate_review_dates(read_text(contract_md_path), read_text(contract_json_path)))
     manifest = load_json(contract_json_path)
     _, sensitive_paths, manifest_findings = validate_manifest(manifest)
     findings.extend(manifest_findings)

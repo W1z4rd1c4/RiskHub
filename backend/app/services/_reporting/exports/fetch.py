@@ -28,7 +28,7 @@ from app.models import (
 from app.models.issue import IssueSeverity, IssueStatus
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import ControlRiskLink
-from app.services.issue_visibility_service import unsuppressed_issue_clause
+from app.services.issue_visibility_service import issue_severity_clause, unsuppressed_issue_clause
 
 from .shared import _safe_int
 
@@ -190,10 +190,9 @@ async def _fetch_issues_for_export(
         query = query.where(Issue.department_id == department_id)
     if status_filter is not None:
         query = query.where(Issue.status == status_filter.value)
-    if severity_group == "high_critical":
-        query = query.where(Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value)))
-    elif severity_filter is not None:
-        query = query.where(Issue.severity == severity_filter.value)
+    severity_clause = issue_severity_clause(severity_filter, severity_group)
+    if severity_clause is not None:
+        query = query.where(severity_clause)
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
     if exclude_active_exceptions:

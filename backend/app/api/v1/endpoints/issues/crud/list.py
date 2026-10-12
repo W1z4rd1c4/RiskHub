@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,14 +11,13 @@ from app.db.session import get_db
 from app.models import User
 from app.models.issue import IssueRemediationStatus, IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
-from app.services._issue_register.linked_context import build_issue_linked_visibility
-from app.services._register_listings.issues import IssueListingCriteria, plan_issue_listing
-from app.services._register_listings.lifecycle import (
+from app.services._register_listings import (
+    IssueListingCriteria,
     execute_register_listing_plan,
     load_register_listing_export_models,
+    plan_issue_listing,
 )
-from app.services._reporting.exports.rows import _issue_to_row
-from app.services._reporting.kri_issue_register_export import render_issue_register_csv
+from app.services._reporting import build_issue_export_rows, render_issue_register_csv
 from app.services.authorization_capabilities import preload_issue_capabilities
 
 router = APIRouter()
@@ -128,18 +127,8 @@ async def export_issues(
         plan=listing_plan,
     )
     now = utc_now()
-    rows: list[dict[str, Any]] = []
-    for offset in range(0, len(models), 100):
-        batch = models[offset : offset + 100]
-        linked_visibility = await build_issue_linked_visibility(db, current_user, batch)
-        rows.extend(
-            _issue_to_row(
-                issue,
-                as_of_dt=now,
-                current_user=current_user,
-                linked_visibility=linked_visibility,
-                overdue_mode="current_register",
-            )
-            for issue in batch
-        )
+    rows = await build_issue_export_rows(
+        db=db, current_user=current_user, models=models,
+        as_of_dt=now, overdue_mode="current_register",
+    )
     return render_issue_register_csv(rows, locale=locale)

@@ -11,6 +11,7 @@ Business/service-layer logic for `_reporting`.
 - `fetch.py`
 - `filters.py`
 - `issues.py`
+- `issue_rows.py` — shared bounded Issue row projection with explicit current/evaluation overdue semantics.
 - `kris.py`
 - `lifecycle.py`
 - `pipeline.py`

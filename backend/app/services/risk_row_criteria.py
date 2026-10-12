@@ -10,7 +10,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.models._archivable import archived_clause
 from app.schemas.risk import RiskStatusEnum
 from app.services._collection_filters import coerce_optional_bool, coerce_optional_enum, coerce_optional_string
-from app.services._register_listings.shared import RegisterLifecycle, resolve_register_lifecycle
+from app.services._register_listings import RegisterLifecycle, resolve_register_lifecycle
 
 RISK_SEARCH_FIELDS = ("risk_id_code", "name", "description", "process")
 

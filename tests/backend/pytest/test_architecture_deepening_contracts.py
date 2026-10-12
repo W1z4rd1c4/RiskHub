@@ -532,14 +532,13 @@ def test_corrective_architecture_gate_rejects_shallow_split_modules() -> None:
         "issue_group_filter(",
     ):
         assert leaked_listing_detail not in issue_route_source
-    issue_planner_source = _function_body_source(
-        "backend/app/services/_register_listings/issues.py",
-        "plan_issue_listing",
-    )
+    from app.services import _register_listings
+
+    issue_planner_source = inspect.getsource(_register_listings.plan_issue_listing)
     assert "**kwargs" not in issue_planner_source
     assert "load_sql_groups" in issue_planner_source
     assert "build_sql_group_filter" in issue_planner_source
-    assert "select(Issue)" in _source("backend/app/services/_register_listings/issues.py")
+    assert "select(Issue)" in inspect.getsource(inspect.getmodule(_register_listings.plan_issue_listing))
 
     for relative_path in (
         "backend/app/services/_auth_session/contracts.py",
@@ -791,22 +790,25 @@ def test_register_list_routes_execute_listing_plans_through_module() -> None:
     assert "execute_collection_listing_with_definition" not in route_source
 
 
+def _declared_listing_planners():
+    from app.services import _register_listings
+
+    return [getattr(_register_listings, "plan_" + entity + "_listing")
+            for entity in ("risk", "control", "kri", "issue", "vendor")]
+
+
+def _operation_path(operation):
+    return str(Path(inspect.getfile(operation)).resolve().relative_to(REPO_ROOT))
+
+
 def test_register_listings_use_entity_definition_modules() -> None:
     from app.api.v1.endpoints.controls.crud import list as control_list
     from app.api.v1.endpoints.issues.crud import list as issue_list
     from app.api.v1.endpoints.kris.crud import list as kri_list
     from app.api.v1.endpoints.risks.crud import list as risk_list
     from app.api.v1.endpoints.vendors import crud as vendor_list
-    from app.services._register_listings import controls, issues, kris, risks, vendors
-
-    for module, planner in (
-        (risks, "plan_risk_listing"),
-        (controls, "plan_control_listing"),
-        (kris, "plan_kri_listing"),
-        (issues, "plan_issue_listing"),
-        (vendors, "plan_vendor_listing"),
-    ):
-        assert hasattr(module, planner)
+    for planner in _declared_listing_planners():
+        assert callable(planner)
 
     route_source = (
         inspect.getsource(risk_list)
@@ -847,13 +849,8 @@ def test_collection_contracts_have_one_canonical_definition() -> None:
 
 
 def test_register_listing_entity_modules_own_planners() -> None:
-    for relative_path, planner_name in (
-        ("backend/app/services/_register_listings/risks.py", "plan_risk_listing"),
-        ("backend/app/services/_register_listings/controls.py", "plan_control_listing"),
-        ("backend/app/services/_register_listings/kris.py", "plan_kri_listing"),
-        ("backend/app/services/_register_listings/issues.py", "plan_issue_listing"),
-        ("backend/app/services/_register_listings/vendors.py", "plan_vendor_listing"),
-    ):
+    for planner in _declared_listing_planners():
+        relative_path, planner_name = _operation_path(planner), planner.__name__
         assert planner_name in _defined_function_names(relative_path)
         assert not _has_varargs_forwarder(relative_path)
         assert "from .lifecycle import RegisterListingPlan, plan_" not in _source(relative_path)
@@ -901,13 +898,8 @@ def test_register_listing_entity_modules_use_public_plan_builder() -> None:
         "backend/app/services/_register_listings/lifecycle.py"
     )
 
-    for relative_path in (
-        "backend/app/services/_register_listings/risks.py",
-        "backend/app/services/_register_listings/controls.py",
-        "backend/app/services/_register_listings/kris.py",
-        "backend/app/services/_register_listings/issues.py",
-        "backend/app/services/_register_listings/vendors.py",
-    ):
+    for planner in _declared_listing_planners():
+        relative_path = _operation_path(planner)
         source = _source(relative_path)
         assert "_plan_register_listing" not in source
         assert "build_register_listing_plan(" in source
@@ -1307,13 +1299,13 @@ def test_approval_queue_lifecycle_delegates_intake_query_projection() -> None:
 
 
 def test_vendor_link_services_use_vendor_governance_modules() -> None:
-    from app.services._register_listings import vendors as vendor_listing
+    from app.services import _register_listings as vendor_listing
     from app.services._vendor_governance import links, reports
     from app.services._vendor_links import workflow
 
     assert hasattr(links, "create_vendor_link")
     assert hasattr(links, "delete_vendor_link")
-    assert hasattr(vendor_listing, "VendorListingGovernance")
+    assert callable(vendor_listing.list_vendor_governance)
     assert hasattr(reports, "annual_report_rows")
 
     service_source = inspect.getsource(workflow)
@@ -1325,7 +1317,9 @@ def test_vendor_routes_are_adapters_over_vendor_governance() -> None:
     assert {
         "list_vendor_governance",
         "build_vendor_collection_capabilities",
-    } <= _defined_function_names("backend/app/services/_register_listings/vendors.py")
+    } <= _defined_function_names(_operation_path(__import__(
+        "app.services._register_listings", fromlist=["list_vendor_governance"]
+    ).list_vendor_governance))
     assert {
         "create_vendor_detail",
         "read_vendor_detail",

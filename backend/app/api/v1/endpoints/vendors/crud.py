@@ -19,10 +19,10 @@ from app.schemas.vendor import (
     VendorTypeEnum,
     VendorUpdate,
 )
+from app.services import _register_listings as vendor_listing
 from app.services._collection_contracts import CollectionQuery
-from app.services._register_listings import vendors as vendor_listing
-from app.services._register_listings.vendors import list_vendor_governance
-from app.services._reporting.vendor_register_export import render_vendor_register_csv
+from app.services._register_listings import list_vendor_governance
+from app.services._reporting import render_vendor_register_csv
 from app.services._vendor_governance.lifecycle import (
     create_vendor_detail,
     read_vendor_detail,

@@ -7,7 +7,7 @@ from app.api import deps
 from app.db.session import get_db
 from app.models import User
 from app.schemas.asset import AssetLookupOption
-from app.services._register_listings.assets import asset_filter_lookups
+from app.services._register_listings import asset_filter_lookups
 
 router = APIRouter()
 

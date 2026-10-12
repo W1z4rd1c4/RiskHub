@@ -38,8 +38,14 @@ def test_kri_and_control_list_endpoints_are_thin_register_listing_adapters() -> 
 
 def test_vendor_listing_orchestration_lives_in_register_listings_module() -> None:
     vendor_crud_source = _read("backend/app/api/v1/endpoints/vendors/crud.py")
-    register_vendor_source = _read("backend/app/services/_register_listings/vendors.py")
+    import inspect
 
-    assert "from app.services._register_listings.vendors import list_vendor_governance" in vendor_crud_source
-    assert "list_vendor_governance" in register_vendor_source
+    from app.api.v1.endpoints.vendors import crud as adapter
+    from app.services import _register_listings
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    operation = _register_listings.list_vendor_governance
+    assert adapter.list_vendor_governance is operation
+    assert violations(vendor_crud_source, adapter.__name__, load_surfaces(ROOT)) == []
+    assert operation.__name__ in inspect.getsource(inspect.getmodule(operation))
     assert not (ROOT / "backend/app/services/_vendor_governance/listing.py").exists()

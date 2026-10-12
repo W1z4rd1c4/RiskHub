@@ -1124,7 +1124,7 @@ def test_contract_validator_locks_frontend_code_scanning_upload(
     original = (
         "      - name: Upload Trivy Frontend Report\n"
         "        if: always()\n"
-        "        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2\n"
+        "        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3\n"
         "        with:\n"
         "          sarif_file: 'trivy-frontend.sarif'\n"
         "          category: 'trivy-frontend'\n"
@@ -1134,12 +1134,12 @@ def test_contract_validator_locks_frontend_code_scanning_upload(
     mutated = original
     if mutation == "echo":
         mutated = mutated.replace(
-            "        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2\n",
+            "        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3\n",
             "        run: echo upload trivy-frontend.sarif\n",
         )
     elif mutation == "action":
         mutated = mutated.replace(
-            "github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+            "github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d",
             "attacker/upload-sarif@0123456789012345678901234567890123456789",
         )
     elif mutation == "sarif-file":
@@ -1187,7 +1187,7 @@ def test_contract_validator_locks_backend_code_scanning_upload(
     original = (
         "      - name: Upload Trivy Backend Report\n"
         "        if: always()\n"
-        "        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2\n"
+        "        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3\n"
         "        with:\n"
         "          sarif_file: 'trivy-backend.sarif'\n"
         "          category: 'trivy-backend'\n"
@@ -1205,7 +1205,7 @@ def test_contract_validator_locks_backend_code_scanning_upload(
         )
     elif mutation == "action":
         mutated = mutated.replace(
-            "github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+            "github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d",
             "attacker/upload-sarif@0123456789012345678901234567890123456789",
         )
     elif mutation == "sarif-file":

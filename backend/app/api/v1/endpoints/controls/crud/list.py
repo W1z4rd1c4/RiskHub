@@ -13,15 +13,13 @@ from app.schemas.control import (
     ControlListResponse,
 )
 from app.services._monitoring_status import ControlMonitoringStatus
-from app.services._register_listings.controls import (
+from app.services._register_listings import (
     ControlListingCriteria,
     build_control_listing_plan,
-)
-from app.services._register_listings.lifecycle import (
     execute_register_listing_export,
     execute_register_listing_plan,
 )
-from app.services._reporting.risk_control_register_export import render_control_register_csv
+from app.services._reporting import render_control_register_csv
 
 router = APIRouter()
 

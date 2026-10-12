@@ -41,7 +41,17 @@ def test_report_excel_endpoints_delegate_report_assembly_to_service(endpoint: Pa
     source = endpoint.read_text()
     modules = _imported_modules(endpoint)
 
-    assert "app.services._reporting.excel" in modules
+    from importlib import import_module
+
+    from app.services import _reporting
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    caller = ".".join(endpoint.relative_to(REPO_ROOT / "backend").with_suffix("").parts)
+    adapter = import_module(caller)
+    operation = "build_audit_trail_export" if endpoint == AUDIT_TRAIL_ENDPOINT else "build_summary_export"
+    assert getattr(adapter, operation) is getattr(_reporting, operation)
+    assert "app.services._reporting" in modules
+    assert violations(source, caller, load_surfaces(REPO_ROOT)) == []
     for forbidden in (
         "select(",
         "selectinload",

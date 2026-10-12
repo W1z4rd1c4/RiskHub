@@ -17,14 +17,14 @@ from app.services._ict_register_lifecycle.threat_lifecycle import (
     read_threat_detail,
     update_threat_detail,
 )
-from app.services._register_listings.lifecycle import build_in_memory_register_response
-from app.services._register_listings.threats import (
+from app.services._register_listings import (
     ThreatListCriteria,
+    build_in_memory_register_response,
     build_threat_listing,
     threat_collection_capabilities,
     threat_criteria_from_filters,
 )
-from app.services._reporting.threat_register_export import render_threat_register_csv
+from app.services._reporting import render_threat_register_csv
 
 router = APIRouter()
 

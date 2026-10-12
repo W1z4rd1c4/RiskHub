@@ -426,3 +426,42 @@ async def test_directory_import_does_not_sync_entra_business_role_when_feature_d
     ).scalar_one()
     assert refreshed_user.entra_business_role == "Old Role"
     assert refreshed_user.entra_business_role_last_synced_at == original_synced_at
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("match", ["external_id", "email"])
+@pytest.mark.parametrize("assigned", [True, False])
+async def test_import_preserves_literal_existing_access_assignments(
+    directory_import_client, db_session, test_user_employee, test_user_cro, monkeypatch, match, assigned
+):
+    from app.models.user import AccessScope
+
+    target = test_user_employee
+    target.external_id = "literal-import-subject" if match == "external_id" else None
+    target.department_id = target.department_id if assigned else None
+    target.manager_id = test_user_cro.id
+    target.access_scope = AccessScope.MANAGER
+    await db_session.commit()
+    original = (target.id, target.role_id, target.department_id, target.manager_id, target.access_scope)
+    departments = (await db_session.execute(select(Department.id).order_by(Department.id))).scalars().all()
+
+    async def remote(self, external_id):
+        assert external_id == "literal-import-subject"
+        return DirectoryUserRead(
+            external_id=external_id, display_name="Upstream updated name", email=target.email,
+            user_principal_name=target.email, department="Must not seed this department",
+            job_title="Updated upstream title", account_enabled=True, source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", remote)
+    for _ in range(2):
+        response = await directory_import_client.post(
+            "/api/v1/directory/users/literal-import-subject/import", json={}
+        )
+        assert response.status_code == 200, response.text
+        await db_session.refresh(target)
+        assert (target.id, target.role_id, target.department_id, target.manager_id, target.access_scope) == original
+        assert target.external_id == "literal-import-subject"
+        assert target.name == "Upstream updated name"
+        assert target.job_title == "Updated upstream title"
+        assert (await db_session.execute(select(Department.id).order_by(Department.id))).scalars().all() == departments

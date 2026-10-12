@@ -491,12 +491,13 @@ def test_additive_migration_backfill_preserves_inactivity_and_user_ids():
         conn.execute(
             text(
                 "CREATE TABLE users (id INTEGER PRIMARY KEY, is_active BOOLEAN NOT NULL, "
-                "external_id TEXT, deprovision_reason TEXT)"
+                "external_id TEXT, deprovision_reason TEXT, hashed_password TEXT, role_id INTEGER)"
             )
         )
         conn.execute(
             text(
-                "INSERT INTO users VALUES (10, true, 'oid-active', NULL), "
+                "INSERT INTO users (id, is_active, external_id, deprovision_reason) "
+                "VALUES (10, true, 'oid-active', NULL), "
                 "(20, false, 'oid-manual', NULL), (30, false, 'oid-auto', 'missing'), "
                 "(40, false, NULL, 'missing')"
             )
@@ -505,8 +506,17 @@ def test_additive_migration_backfill_preserves_inactivity_and_user_ids():
             text("CREATE TABLE ownership (user_id INTEGER REFERENCES users(id))")
         )
         conn.execute(text("INSERT INTO ownership VALUES (20)"))
+        conn.execute(text("UPDATE users SET hashed_password = 'literal-verifier-' || id, role_id = id + 100"))
+        conn.execute(text(
+            "CREATE TABLE audit_reference (actor_id INTEGER REFERENCES users(id), "
+            "target_id INTEGER REFERENCES users(id))"
+        ))
+        conn.execute(text("INSERT INTO audit_reference VALUES (10, 40)"))
+        before = conn.execute(text("SELECT id, hashed_password, role_id FROM users ORDER BY id")).all()
         with Operations.context(MigrationContext.configure(conn)):
             module.upgrade()
+        assert conn.execute(text("SELECT id, hashed_password, role_id FROM users ORDER BY id")).all() == before
+        assert conn.execute(text("SELECT actor_id, target_id FROM audit_reference")).all() == [(10, 40)]
         assert conn.execute(
             text("SELECT id, is_active, local_suspended FROM users ORDER BY id")
         ).all() == [(10, 1, 0), (20, 0, 1), (30, 0, 0), (40, 0, 1)]
@@ -728,3 +738,47 @@ async def test_entra_adoption_rejects_noncanonical_and_ambiguous_subjects(
     assert not (await db_session.execute(select(InstallationIdentity))).scalars().all()
     await db_session.refresh(test_user_employee)
     assert test_user_employee.external_id == alias
+
+
+@pytest.mark.asyncio
+async def test_eligibility_report_real_dispatch_is_read_only(db_session, test_role_employee, monkeypatch):
+    from argparse import Namespace
+    from contextlib import asynccontextmanager
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models import ActivityLog, InstallationIdentity
+    from scripts import identity_installation as cli
+
+    for index, (active, suspended, external, reason) in enumerate([
+        (True, False, "report-active", None), (False, True, "report-manual", None),
+        (False, False, "report-auto", "missing"), (False, True, None, "missing"),
+    ]):
+        db_session.add(User(
+            name=f"Report state {index}", email=f"report-{index}@example.com", role_id=test_role_employee.id,
+            is_active=active, local_suspended=suspended, external_id=external, deprovision_reason=reason,
+            token_version=index + 3, hashed_password=f"unchanged-test-verifier-{index}",
+        ))
+    await db_session.commit()
+    statement = select(User.id, User.role_id, User.hashed_password, User.token_version,
+                       User.is_active, User.local_suspended, User.external_id,
+                       User.deprovision_reason).order_by(User.id)
+    before = (await db_session.execute(statement)).all()
+    assert len(before) == 4
+    settings = identity_settings(debug=False)
+
+    @asynccontextmanager
+    async def owned_session(actual_settings):
+        assert actual_settings is settings
+        yield db_session
+
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli, "session_context", owned_session)
+    assert await cli.run(Namespace(operation="eligibility-report")) == {
+        "status": "read-only", "users": 4, "locally_suspended": 2,
+        "inactive": 3, "inactive_upstream_or_unresolved": 1,
+    }
+    async with async_sessionmaker(db_session.bind, expire_on_commit=False)() as observer:
+        assert (await observer.execute(statement)).all() == before
+        assert not (await observer.execute(select(InstallationIdentity))).scalars().all()
+        assert not (await observer.execute(select(ActivityLog))).scalars().all()

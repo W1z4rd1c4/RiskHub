@@ -144,9 +144,15 @@ def test_tabular_exporters_delegate_rendering_to_shared_pipeline():
 
 
 def test_unified_export_routes_select_builders_from_canonical_exports_interface():
-    routes = getsource(__import__("app.api.v1.endpoints.reports.unified_exports.routes", fromlist=["router"]))
+    from pathlib import Path
 
-    assert "from app.services._reporting.exports import get_export_builder" in routes
+    from app.api.v1.endpoints.reports.unified_exports import routes as adapter
+    from app.services import _reporting
+    from tests.backend.pytest.architecture._private_api_boundary import load_surfaces, violations
+
+    routes = getsource(adapter)
+    assert adapter.get_export_builder is _reporting.get_export_builder
+    assert violations(routes, adapter.__name__, load_surfaces(Path(__file__).resolve().parents[5])) == []
     assert "get_export_builder(" in routes
 
     assert "app.api.v1.endpoints.reports.unified_exports.export_" not in routes
@@ -218,3 +224,57 @@ def test_vendor_export_final_scope_excludes_unassigned_rows_for_scoped_owner():
     )
 
     assert [row["name"] for row in filtered] == ["Owned visible department"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resource", ["risks", "controls", "kris", "issues", "vendors"])
+async def test_public_export_requests_dispatch_and_await_declared_builder(auth_client, monkeypatch, resource):
+    from app.api.v1.endpoints.reports.unified_exports import routes
+    from app.services import _reporting
+
+    assert routes.get_export_builder is _reporting.get_export_builder
+    selected = []
+    invoked = []
+
+    def select_builder(name):
+        selected.append(name)
+        canonical = _reporting.get_export_builder(name)
+
+        async def observed(**kwargs):
+            invoked.append((name, kwargs["current_user"].id, kwargs["export_format"]))
+            return await canonical(**kwargs)
+
+        return observed
+
+    monkeypatch.setattr(routes, "get_export_builder", select_builder)
+    response = await auth_client.get(f"/api/v1/reports/{resource}/export", params={"format": "csv"})
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/csv")
+    assert selected == [resource]
+    assert len(invoked) == 1 and invoked[0][0] == resource and invoked[0][2] == "csv"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("module_name,operation,path", [
+    ("summary_excel", "build_summary_export", "summary"),
+    ("audit_trail_excel", "build_audit_trail_export", "audit-trail"),
+])
+async def test_public_report_assembly_calls_declared_service(auth_client, monkeypatch, module_name, operation, path):
+    from importlib import import_module
+
+    from app.services import _reporting
+
+    adapter = import_module(f"app.api.v1.endpoints.reports.{module_name}")
+    canonical = getattr(_reporting, operation)
+    assert getattr(adapter, operation) is canonical
+    calls = []
+
+    async def observed(**kwargs):
+        calls.append(kwargs)
+        return await canonical(**kwargs)
+
+    monkeypatch.setattr(adapter, operation, observed)
+    response = await auth_client.get(f"/api/v1/reports/{path}/export", params={"format": "csv"})
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/csv")
+    assert len(calls) == 1 and calls[0]["export_format"] == "csv"

@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any, Literal
+from typing import Literal
 
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,11 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime_utils import utc_now
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
-from app.services._issue_register.linked_context import build_issue_linked_visibility
 
 from .fetch import _fetch_issues_for_export
+from .issue_rows import build_issue_export_rows
 from .lifecycle import ReportExportDefinition, render_report_export_definition
-from .rows import _issue_to_row
 from .shared import ExportFormat, _as_of_datetime
 
 
@@ -46,20 +45,13 @@ async def _export_issues(
         exclude_active_exceptions=exclude_active_exceptions,
     )
     as_of_dt = _as_of_datetime(as_of_date)
-    rows: list[dict[str, Any]] = []
-    for offset in range(0, len(models), 100):
-        batch = models[offset : offset + 100]
-        linked_visibility = await build_issue_linked_visibility(db, current_user, batch)
-        rows.extend(
-            _issue_to_row(
-                issue,
-                as_of_dt=as_of_dt,
-                current_user=current_user,
-                linked_visibility=linked_visibility,
-                overdue_mode="evaluation_report",
-            )
-            for issue in batch
-        )
+    rows = await build_issue_export_rows(
+        db=db,
+        current_user=current_user,
+        models=models,
+        as_of_dt=as_of_dt,
+        overdue_mode="evaluation_report",
+    )
 
     if overdue_only:
         rows = [row for row in rows if bool(row.get("is_overdue"))]

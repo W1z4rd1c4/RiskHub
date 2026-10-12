@@ -18,20 +18,14 @@ from app.services._collection_contracts import CollectionSort
 from app.services._monitoring_status import (
     KRIMonitoringStatus,
     KRITimelinessStatus,
-    get_kri_monitoring_config,
 )
-from app.services._monitoring_status.export_rows import apply_kri_monitoring_rows
-from app.services._register_listings.kris import (
+from app.services._register_listings import (
     KRIListingCriteria,
     build_kri_listing_plan,
-    effective_kri_lifecycle,
-)
-from app.services._register_listings.lifecycle import (
     execute_register_listing_plan,
     load_register_listing_export_models,
 )
-from app.services._reporting.exports.rows import _kri_to_row
-from app.services._reporting.kri_issue_register_export import render_kri_register_csv
+from app.services._reporting import build_kri_register_rows, render_kri_register_csv
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -147,10 +141,5 @@ async def export_kris(
         query=criteria.query,
         plan=listing_plan,
     )
-    rows = [
-        {**_kri_to_row(kri), "effective_lifecycle": effective_kri_lifecycle(kri)}
-        for kri in models
-    ]
-    config = await get_kri_monitoring_config(db)
-    rows = apply_kri_monitoring_rows(rows, config=config, as_of_date=utc_now().date())
+    rows = await build_kri_register_rows(db=db, models=models, as_of_date=utc_now().date())
     return render_kri_register_csv(rows, locale=locale)
