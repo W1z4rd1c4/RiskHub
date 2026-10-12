@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
-from app.services._monitoring_status.kris import classify_kri_breach
+from app.services._monitoring_status import classify_kri_breach
 
 from . import clock
 from .logging import logger

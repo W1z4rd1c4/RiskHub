@@ -222,3 +222,175 @@ def test_key_material_is_permission_guarded_and_context_bound(tmp_path):
         keys.decrypt("totp", key_id, cipher, ["installation", "user-b"])
     with pytest.raises(ServiceFailure):
         keys.decrypt("delivery", key_id, cipher, ["installation", "user-a"])
+
+
+@pytest.mark.asyncio
+async def test_committed_invitation_tls_retry_sends_identical_artifact_once(
+    native_context, client_factory, db_session, test_user, test_user_employee, tls_mail_server, monkeypatch
+):
+    from email import policy
+    from email.parser import Parser
+
+    from app.models import LocalAuthGrant, User
+    from app.services._local_auth import delivery
+
+    port, ca_file, messages = tls_mail_server
+    bad = native_context.model_copy(update={"local_smtp_port": port, "local_smtp_security": "tls"})
+    uid = await create_invitation(client_factory, bad, db_session, test_user, test_user_employee.role_id)
+    row, mail = await latest_mail(db_session, bad, user_id=uid, kind="invitation")
+    artifact, cipher, delivery_id = mail["credential"], row.ciphertext, row.id
+    user_ids = (await db_session.execute(select(User.id).order_by(User.id))).scalars().all()
+    monkeypatch.setattr(delivery, "get_settings", lambda: bad)
+    with pytest.raises(RetryableOutboxError):
+        await OUTBOX_EVENT_HANDLERS["local_auth.deliver"](db_session, LocalAuthDeliveryPayload(delivery_id=delivery_id))
+    await db_session.refresh(row)
+    assert row.ciphertext == cipher and not messages
+    assert (await db_session.get(User, uid)).local_enrollment_state == "invited"
+    good = bad.model_copy(update={"local_smtp_ca_file": ca_file})
+    monkeypatch.setattr(delivery, "get_settings", lambda: good)
+    _, retry_mail = await latest_mail(db_session, good, user_id=uid, kind="invitation")
+    assert retry_mail["credential"] == artifact
+    await OUTBOX_EVENT_HANDLERS["local_auth.deliver"](db_session, LocalAuthDeliveryPayload(delivery_id=delivery_id))
+    await db_session.commit()
+    assert len(messages) == 1 and artifact in Parser(policy=policy.default).parsestr(messages[0]).get_content()
+    await db_session.refresh(row)
+    assert row.status == "sent" and row.ciphertext is None
+    grant = await db_session.get(LocalAuthGrant, artifact.split(".")[0], populate_existing=True)
+    assert grant.consumed_at is None and grant.revoked_at is None
+    assert (await db_session.execute(select(User.id).order_by(User.id))).scalars().all() == user_ids
+    await OUTBOX_EVENT_HANDLERS["local_auth.deliver"](db_session, LocalAuthDeliveryPayload(delivery_id=delivery_id))
+    assert len(messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_revoked_invitation_delivery_never_calls_sender(
+    native_context, client_factory, db_session, test_user, test_user_employee, monkeypatch
+):
+    from unittest.mock import Mock
+
+    from app.models import LocalAuthGrant
+    from app.services._local_auth import delivery
+
+    uid = await create_invitation(client_factory, native_context, db_session, test_user, test_user_employee.role_id)
+    row, mail = await latest_mail(db_session, native_context, user_id=uid, kind="invitation")
+    grant = await db_session.get(LocalAuthGrant, mail["credential"].split(".")[0])
+    grant.revoked_at = utc_now()
+    await db_session.commit()
+    sender = Mock(side_effect=AssertionError("Obsolete artifact must never be sent"))
+    monkeypatch.setattr(delivery, "send_smtp", sender)
+    monkeypatch.setattr(delivery, "get_settings", lambda: native_context)
+    await OUTBOX_EVENT_HANDLERS["local_auth.deliver"](db_session, LocalAuthDeliveryPayload(delivery_id=row.id))
+    await db_session.commit()
+    sender.assert_not_called()
+    await db_session.refresh(row)
+    assert row.status == "cancelled" and row.ciphertext is None
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_failed_projection_redaction_and_offline_tls_retry(
+    native_context, client_factory, db_session, async_engine, test_user,
+    test_user_employee, tls_mail_server, monkeypatch, caplog,
+):
+    """Real dispatcher transactions; egress allows only test SMTP and the test DB."""
+    import json
+    import socket
+    from email import policy
+    from email.parser import Parser
+    from pathlib import Path
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models import ActivityLog, LocalAuthGrant, User
+    from app.services._local_auth import delivery
+    from app.services.outbox.dispatcher import dispatch_pending_outbox_events
+
+    port, ca_file, messages = tls_mail_server
+    caplog.set_level("INFO")
+    original_resolve, original_connect = socket.getaddrinfo, socket.socket.connect
+    allowed_dns = {("localhost", port), ("127.0.0.1", port), ("::1", port)}
+    allowed_addresses = {("127.0.0.1", port), ("::1", port)}
+    if async_engine.url.get_backend_name() == "postgresql":
+        db_host, db_port = async_engine.url.host or "localhost", async_engine.url.port or 5432
+        allowed_dns.add((db_host, db_port))
+        allowed_addresses.update(
+            (address[4][0], db_port) for address in original_resolve(db_host, db_port, type=socket.SOCK_STREAM)
+        )
+    blocked = []
+
+    def resolve(host, service, *args, **kwargs):
+        if (host, service) not in allowed_dns:
+            blocked.append(host)
+            raise OSError("Test denies non-loopback egress")
+        return original_resolve(host, service, *args, **kwargs)
+
+    def connect(sock, address):
+        if not isinstance(address, tuple) or address[:2] not in allowed_addresses:
+            blocked.append(str(address))
+            raise OSError("Test denies egress outside SMTP and test DB")
+        return original_connect(sock, address)
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    with pytest.raises(OSError, match="Test denies"):
+        socket.getaddrinfo("login.microsoftonline.com", 443)
+    blocked.clear()
+    bad = native_context.model_copy(update={"local_smtp_port": port, "local_smtp_security": "tls"})
+    uid = await create_invitation(client_factory, bad, db_session, test_user, test_user_employee.role_id)
+    row, mail = await latest_mail(db_session, bad, user_id=uid, kind="invitation")
+    artifact, cipher, did = mail["credential"], row.ciphertext, row.id
+    ids = (await db_session.execute(select(User.id).order_by(User.id))).scalars().all()
+    initial = (await db_session.execute(select(OutboxEvent).where(
+        OutboxEvent.idempotency_key == f"local-auth-mail:{did}"
+    ))).scalar_one()
+    assert initial.status == "pending" and initial.attempt_count == 0 and initial.last_error is None
+    hashes = (await db_session.execute(select(User.hashed_password))).scalars().all()
+    keyring = json.loads(Path(bad.local_auth_keyring_file).read_text())
+    raw_keys = [key for purpose in keyring["purposes"].values() for key in purpose["keys"].values()]
+    await db_session.commit()
+    sessions = async_sessionmaker(async_engine, expire_on_commit=False)
+    monkeypatch.setattr(delivery, "get_settings", lambda: bad)
+    assert await dispatch_pending_outbox_events(sessions) == 0
+    async with sessions() as observer:
+        event = (await observer.execute(select(OutboxEvent).where(
+            OutboxEvent.idempotency_key == f"local-auth-mail:{did}"
+        ))).scalar_one()
+        assert event.status == "pending" and event.attempt_count == 1
+        assert event.last_error == "Local identity delivery unavailable"
+        assert event.payload == {"delivery_id": did}
+        envelope = await observer.get(LocalAuthDelivery, did)
+        assert envelope.ciphertext == cipher and envelope.sent_at is None
+        assert (await observer.get(User, uid)).hashed_password is None
+        event.available_at = utc_now() - timedelta(seconds=1)
+        await observer.commit()
+    await db_session.refresh(test_user)
+    await db_session.refresh(initial)  # request fixture identity map predates dispatcher transaction
+    async with client_factory(current_user=test_user, settings=bad) as client:
+        failed = await client.get(f"/api/v1/users/{uid}/local-auth/status")
+        assert failed.status_code == 200, failed.text
+        assert failed.json()["delivery_status"] == "failed"
+    good = bad.model_copy(update={"local_smtp_ca_file": ca_file})
+    monkeypatch.setattr(delivery, "get_settings", lambda: good)
+    assert await dispatch_pending_outbox_events(sessions) == 1
+    assert len(messages) == 1
+    assert artifact in Parser(policy=policy.default).parsestr(messages[0]).get_content()
+    async with sessions() as observer:
+        event = (await observer.execute(select(OutboxEvent).where(
+            OutboxEvent.idempotency_key == f"local-auth-mail:{did}"
+        ))).scalar_one()
+        assert event.status == "succeeded" and event.attempt_count == 2
+        envelope = await observer.get(LocalAuthDelivery, did)
+        assert envelope.status == "sent" and envelope.ciphertext is None
+        grant = await observer.get(LocalAuthGrant, artifact.split(".")[0])
+        assert grant.consumed_at is None and grant.revoked_at is None
+        assert (await observer.execute(select(User.id).order_by(User.id))).scalars().all() == ids
+        audits = (await observer.execute(select(ActivityLog))).scalars().all()
+        audit_text = repr([(a.description, a.changes) for a in audits])
+    await db_session.refresh(row)  # client_factory reuses this session across requests
+    async with client_factory(current_user=test_user, settings=good) as client:
+        sent = await client.get(f"/api/v1/users/{uid}/local-auth/status")
+        assert sent.status_code == 200 and sent.json()["delivery_status"] == "sent"
+    assert "outbox_event_failed" in caplog.text
+    for secret in (artifact, artifact.split(".")[1], cipher, *raw_keys, *(h for h in hashes if h)):
+        assert secret not in caplog.text + audit_text + failed.text + sent.text + repr(event.payload)
+    assert await dispatch_pending_outbox_events(sessions) == 0
+    assert len(messages) == 1 and blocked == []

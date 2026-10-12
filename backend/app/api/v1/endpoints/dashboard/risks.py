@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.schemas.dashboard import RiskDistributionResponse, RiskTrendPoint
-from app.services._dashboard_metrics.risks import load_risk_distribution, load_risk_trends, load_risks_by_cell
+from app.services._dashboard_metrics import load_risk_distribution, load_risk_trends, load_risks_by_cell
 
 router = APIRouter()
 

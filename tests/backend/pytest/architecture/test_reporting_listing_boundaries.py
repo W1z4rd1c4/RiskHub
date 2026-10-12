@@ -68,13 +68,19 @@ def test_declared_root_exports_resolve_and_unknown_attribute_refuses(package):
         "app.services.risk_row_criteria",
         "app.services._register_listings",
         "app.services._reporting",
+        "app.services._dashboard_metrics",
+        "app.services._monitoring_status",
+        "app.services._quarterly_comparison",
     ],
 )
 def test_cold_import_order_and_mounted_endpoints(first):
     script = (
         f"import importlib; importlib.import_module({first!r}); "
         "from app.main import app; paths=app.openapi()['paths']; "
-        "assert '/api/v1/issues/export' in paths; assert '/api/v1/kris/export' in paths"
+        "assert '/api/v1/issues/export' in paths; assert '/api/v1/kris/export' in paths; "
+        "from app.schemas.control import ControlRead; from app.schemas.kri import KRIResponse; "
+        "from app.schemas.risk import RiskRead; "
+        "assert all(model.model_json_schema() for model in (ControlRead, KRIResponse, RiskRead))"
     )
     result = subprocess.run(
         [sys.executable, "-c", script],

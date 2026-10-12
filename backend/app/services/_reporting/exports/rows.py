@@ -7,8 +7,7 @@ from app.models import Control, Issue, KeyRiskIndicator, Risk, User, Vendor
 from app.models.issue import IssueStatus
 from app.services._issue_register.linked_context import IssueLinkedVisibility
 from app.services._issue_register.serialization import _issue_source_link, _link_display
-from app.services._monitoring_status import build_control_monitoring_facts
-from app.services._monitoring_status.kris import classify_kri_breach
+from app.services._monitoring_status import build_control_monitoring_facts, classify_kri_breach
 from app.services.issue_visibility_service import issue_has_active_approved_exception
 
 from .shared import _enum_value, _joined, _latest_exception

@@ -18,6 +18,18 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-11.
 - `.planning/` - versioned roadmap/state snapshots, phase archives, and codebase maps
 - `scripts/` - operational/dev utilities, including the public installer/orchestrator `scripts/install.sh` plus the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` entrypoints
 
+## Measured inventory
+
+Run `python3 scripts/tools/structure_metrics_guard.py` from the repository root
+for the current Git-index counts in stdout and a JSON evidence artifact. The
+explicit `structure-metric` markers below select the reviewed inventory facts;
+they are not numeric acceptance budgets. Python counts include tracked `*.py`
+files, E2E counts tracked `*.spec.ts` files, and other totals all tracked files.
+Staged additions/deletions affect counts; untracked files and unstaged deletions
+do not change the Git index. Missing, duplicate, unknown or malformed declarations
+fail validation. Any retained numeric inventory claim must still match its
+observed count. Analysis/footer dates remain validated independently.
+
 ## Backend Tree (`backend/`)
 
 ### Entry points and runtime
@@ -26,17 +38,17 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-11.
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 170 Python modules/packages (measured git-tracked `*.py` snapshot; extensively split into subrouters for maintainability)
-- `backend/app/models/` - 38 model modules (measured git-tracked `*.py` snapshot)
-- `backend/app/schemas/` - 35 schema modules (measured git-tracked `*.py` snapshot)
-- `backend/app/services/` - 416 Python modules (measured repository `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_governed_mutations`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
+- `backend/app/api/v1/endpoints/` - Python modules/packages <!-- structure-metric: backend_endpoints_py_modules --> (extensively split into subrouters for maintainability)
+- `backend/app/models/` - model modules <!-- structure-metric: backend_model_modules -->
+- `backend/app/schemas/` - schema modules <!-- structure-metric: backend_schema_modules -->
+- `backend/app/services/` - Python modules <!-- structure-metric: backend_service_modules --> (business services + internal helper packages such as `_approval_queue`, `_governed_mutations`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
 - `backend/app/core/` - configuration facade + segmented settings package, auth, permissions, logging, scheduler
-- `backend/app/middleware/` - 12 Python modules (measured git-tracked `*.py` snapshot; security/logging/language/rate-limit middleware with facade-preserving splits)
+- `backend/app/middleware/` - Python modules <!-- structure-metric: backend_middleware_modules --> (security/logging/language/rate-limit middleware with facade-preserving splits)
 - `backend/app/integrations/` - reserved integration package and vendor-signal package docs; current directory/Graph behavior lives in service-layer adapters
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 570 tracked test files (531 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - tracked test files <!-- structure-metric: tests_backend_pytest_total_files -->; Python files <!-- structure-metric: tests_backend_pytest_python_files -->
 
 ## Frontend Tree (`frontend/`)
 
@@ -45,8 +57,8 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-11.
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 255 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 352 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, control-loading-overlay, the `ui/` design-system primitives, and the `layout/` page and public-frame primitives)
+- `frontend/src/pages/` - tracked files <!-- structure-metric: frontend_pages_files --> (route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/components/` - tracked files <!-- structure-metric: frontend_components_files --> (components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, control-loading-overlay, the `ui/` design-system primitives, and the `layout/` page and public-frame primitives)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -55,7 +67,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-10-11.
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 91 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - E2E specs <!-- structure-metric: tests_frontend_e2e_specs --> (domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 
@@ -80,7 +92,7 @@ in the applicable GitHub Issue, pull request, or Project item.
 - `.github/workflows/python-dev-lock-refresh.yml` - scheduled exact Python resolver refresh PR workflow
 - `docker-compose.yml` - development service topology consumed by `scripts/compose.sh`
 - `scripts/Makefile` - convenience command aliases around `scripts/install.sh`, `scripts/dev.sh`, and `scripts/compose.sh`
-- `scripts/install_lib/` - 14 Python modules (measured git-tracked `*.py` snapshot; installer control-plane helpers split by release input, secrets/scaffolding, lifecycle execution, and summary/verify responsibilities)
+- `scripts/install_lib/` - Python modules <!-- structure-metric: installer_python_modules --> (installer control-plane helpers split by release input, secrets/scaffolding, lifecycle execution, and summary/verify responsibilities)
 
 ## Generated or Heavy Directories (avoid manual edits)
 

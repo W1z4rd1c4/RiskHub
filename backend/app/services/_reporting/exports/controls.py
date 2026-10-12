@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import visible_risk_ids
 from app.models import User
 from app.models.activity_log import ActivityEntityType
-from app.services._monitoring_status import get_control_monitoring_config
-from app.services._monitoring_status.export_rows import apply_control_monitoring_rows
+from app.services._monitoring_status import apply_control_monitoring_rows, get_control_monitoring_config
 from app.services.export_snapshot_service import ExportSnapshotService
 
 from .fetch import _fetch_controls_for_export

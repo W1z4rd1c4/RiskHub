@@ -633,16 +633,51 @@ def test_global_config_routes_use_config_lifecycle() -> None:
         assert route_owned_detail not in route_source
 
 
+
+def _declared_read_model_implementation(package: str, name: str):
+    from importlib import import_module
+
+    root = import_module(package)
+    assert name in root.CALLER_EXPORTS
+    implementation = getattr(root, name)
+    assert implementation.__module__.startswith(package + ".")
+    owner = REPO_ROOT / "backend" / Path(*package.split("."))
+    assert implementation.__name__ == name
+    assert Path(inspect.getfile(implementation)).is_relative_to(owner)
+    assert not any(
+        parameter.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+        for parameter in inspect.signature(implementation).parameters.values()
+    )
+    definitions = [
+        node
+        for path in owner.rglob("*.py")
+        for node in ast.walk(ast.parse(path.read_text()))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name
+    ]
+    assert len(definitions) == 1, f"{name} must have one canonical implementation"
+    assert definitions[0].args.vararg is None and definitions[0].args.kwarg is None
+    return implementation
+
 def test_quarterly_comparison_service_is_composition_facade() -> None:
+    from dataclasses import is_dataclass
+
     from app.services import quarterly_comparison_service
-    from app.services._quarterly_comparison import composition
 
-    assert hasattr(composition, "QuarterMetricComposition")
-    assert hasattr(composition, "SnapshotSourceDecision")
-    assert quarterly_comparison_service.build_quarterly_comparison is composition.build_quarterly_comparison
+    canonical = _declared_read_model_implementation("app.services._quarterly_comparison", "build_quarterly_comparison")
+    assert quarterly_comparison_service.build_quarterly_comparison is canonical
+    for name in ("QuarterMetricComposition", "SnapshotSourceDecision"):
+        model = canonical.__globals__[name]
+        assert is_dataclass(model)
+        assert model.__module__ == canonical.__module__
+        owner = REPO_ROOT / "backend/app/services/_quarterly_comparison"
+        definitions = [
+            node
+            for path in owner.rglob("*.py")
+            for node in ast.walk(ast.parse(path.read_text()))
+            if isinstance(node, ast.ClassDef) and node.name == name
+        ]
+        assert len(definitions) == 1
 
-    facade_source = inspect.getsource(quarterly_comparison_service)
-    assert "async def build_quarterly_comparison" not in facade_source
 
 
 def test_entity_mutation_routes_use_lifecycle_interface() -> None:
@@ -953,32 +988,35 @@ def test_report_export_routes_use_service_export_definitions() -> None:
 
 
 def test_monitoring_export_rows_are_owned_by_monitoring_status_module() -> None:
-    from app.services._monitoring_status import export_rows
+    from app.services import _reporting
 
-    assert hasattr(export_rows, "apply_control_monitoring_rows")
-    assert hasattr(export_rows, "apply_kri_monitoring_rows")
-
-    assert not (REPO_ROOT / "backend/app/services/_reporting/exports/monitoring.py").exists()
-    reporting_export_source = "\n".join(
-        _source(path)
-        for path in (
-            "backend/app/services/_reporting/exports/controls.py",
-            "backend/app/services/_reporting/exports/kris.py",
+    for resource, name in (("controls", "apply_control_monitoring_rows"), ("kris", "apply_kri_monitoring_rows")):
+        canonical = _declared_read_model_implementation("app.services._monitoring_status", name)
+        builder = _reporting.get_export_builder(resource)
+        assert builder.__globals__[name] is canonical
+        # Reporting delegates facts/time to monitoring; it must not own duplicate derivation.
+        tree = ast.parse(inspect.getsource(inspect.getmodule(builder)))
+        forbidden = {
+            "derive_control_monitoring_snapshot",
+            "derive_kri_monitoring_snapshot",
+            "ControlMonitoringFacts",
+            "KRIMonitoringFacts",
+            "_datetime_or_none",
+            "_date_or_none",
+            "_str_or_none",
+            "_int_value",
+            "_float_value",
+        }
+        assert not (
+            {
+                node.name
+                for node in ast.walk(tree)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            }
+            & forbidden
         )
-    )
-    assert "from app.services._monitoring_status.export_rows import" in reporting_export_source
-    for leaked_monitoring_detail in (
-        "derive_control_monitoring_snapshot",
-        "derive_kri_monitoring_snapshot",
-        "ControlMonitoringFacts",
-        "KRIMonitoringFacts",
-        "def _datetime_or_none",
-        "def _date_or_none",
-        "def _str_or_none",
-        "def _int_value",
-        "def _float_value",
-    ):
-        assert leaked_monitoring_detail not in reporting_export_source
+        assert not ({node.id for node in ast.walk(tree) if isinstance(node, ast.Name)} & forbidden)
+
 
 
 def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
@@ -1001,29 +1039,26 @@ def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
 def test_dashboard_routes_use_metric_composition_module() -> None:
     from app.api.v1.endpoints.dashboard import committee, quarterly, summary
 
-    route_source = inspect.getsource(summary) + inspect.getsource(quarterly) + inspect.getsource(committee)
-    for metric_function in (
-        "build_dashboard_summary_metrics",
-        "build_available_periods",
-        "build_committee_summary_metrics",
+    for module, name in (
+        (summary, "build_dashboard_summary_metrics"),
+        (quarterly, "build_available_periods"),
+        (committee, "build_committee_summary_metrics"),
     ):
-        assert metric_function in route_source
+        assert getattr(module, name) is _declared_read_model_implementation("app.services._dashboard_metrics", name)
 
+    # These are policy-ownership bans, independent of implementation file placement.
     assert "select(func.count(Control.id))" not in inspect.getsource(summary)
     assert "QuarterlyMetricSnapshot" not in inspect.getsource(quarterly)
 
 
+
 def test_dashboard_issue_metric_routes_delegate_to_metric_module() -> None:
     from app.api.v1.endpoints.dashboard import issues_metrics
-    from app.services._dashboard_metrics import issues as issue_metrics_module
 
-    for metric_function in (
-        "build_issue_summary_metrics",
-        "build_issue_aging_metrics",
-        "build_issue_severity_metrics",
-    ):
-        assert hasattr(issue_metrics_module, metric_function)
-        assert metric_function in inspect.getsource(issues_metrics)
+    for name in ("build_issue_summary_metrics", "build_issue_aging_metrics", "build_issue_severity_metrics"):
+        assert getattr(issues_metrics, name) is _declared_read_model_implementation(
+            "app.services._dashboard_metrics", name
+        )
 
     route_source = inspect.getsource(issues_metrics)
     for route_owned_metric_detail in (
@@ -1035,6 +1070,7 @@ def test_dashboard_issue_metric_routes_delegate_to_metric_module() -> None:
         "def _issue_age_days",
     ):
         assert route_owned_metric_detail not in route_source
+
 
 
 def test_access_user_rows_consume_workflow_projection_models() -> None:
@@ -1762,15 +1798,20 @@ def test_risk_report_criteria_share_sql_owner_after_replay_and_scope():
 
 
 def test_dashboard_cell_filter_reuses_configured_range_owner():
-    path = "backend/app/services/_dashboard_metrics/risks.py"
-    for function in ["load_risk_distribution", "load_risks_by_cell"]:
-        body = _function_body_source(path, function)
-        assert "get_configured_risk_level_ranges(db)" in body
-        assert "build_risk_level_condition_from_ranges(" in body
-        assert "risk_visibility_clause(db, current_user, department_id=department_id)" in body
-        assert "Risk.live()" in body
-    route = _function_body_source("backend/app/api/v1/endpoints/dashboard/risks.py", "get_risks_by_cell")
-    assert "risk_level=risk_level" in route
+    from app.api.v1.endpoints.dashboard import risks
+    from app.core.permissions import risk_visibility_clause
+    from app.services import risk_levels
+
+    for name in ("load_risk_distribution", "load_risks_by_cell"):
+        canonical = _declared_read_model_implementation("app.services._dashboard_metrics", name)
+        assert getattr(risks, name) is canonical
+        assert canonical.__globals__["get_configured_risk_level_ranges"] is risk_levels.get_configured_risk_level_ranges
+        assert (
+            canonical.__globals__["build_risk_level_condition_from_ranges"]
+            is risk_levels.build_risk_level_condition_from_ranges
+        )
+        assert canonical.__globals__["risk_visibility_clause"] is risk_visibility_clause
+
 
 
 def test_legacy_risk_status_refusal_precedes_effects_after_authority_and_staleness():

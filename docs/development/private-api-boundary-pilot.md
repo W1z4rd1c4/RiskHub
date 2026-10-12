@@ -96,3 +96,48 @@ CSV/denial journeys. Explicit current versus evaluation-date Issue overdue modes
 
 This is a partial #254 migration. Remaining classified packages and non-import
 invariants are not considered satisfied merely by adding caller declarations.
+
+## Read-model tranche (partial #254/#255)
+
+The declared boundary also covers `_dashboard_metrics`, `_monitoring_status` and
+`_quarterly_comparison`. Reviewed named exports replace cross-package leaf
+imports. Monitoring row projections and quarterly composition are service-only;
+existing endpoint metric/query names have explicit endpoint roles. Schema enum
+consumers retain their existing bindings. `classify_kri_breach` remains the
+canonical `kri_populations` function, re-exported without a second implementation.
+Lazy resolution retains literal declaration data and normal unknown-name errors.
+No formula, replay stage, permission condition or transaction behavior changes.
+
+The following lock decisions remain protected while private filename coupling is
+removed:
+
+| Classified lock | Preserved decision and executable evidence |
+|---|---|
+| Dashboard metric composition | Declared canonical Summary, Committee and available-period identity; mounted HTTP call-through and HTTP200 bypass negatives; existing scoped/nondefault-threshold populations |
+| Dashboard Issue metrics | One exception-aware, department/actor-scoped population; canonical call-through; selected-department, severity and active-exception omission mutants fail existing public destination parity; Issues403 versus Overview-null remains intentional |
+| Monitoring export projections | Shared Control/KRI derivation with explicit evaluation dates; one implementation/no forwarders; actual report calls and HTTP200 bypass negatives; different as-of periods/stale windows, replayed facts and current-view semantics remain independently tested |
+| Quarterly compatibility facade | One declared composition owner and unique typed result decisions; unchanged live, stored, missing/partial/incomparable and selected-scope behavior; mounted invocation and bypass proof |
+| Later Dashboard-cell addendum | Both distribution and drilldown retain the same configured net-level policy and Risk visibility owner, including gross coordinates; live-by-default and explicit archive inclusion remain distinct; unchanged public matrix plus range, forwarding, archive, scope and stale-threshold mutants |
+
+The Dashboard-cell lock was added after the original #253 classification and is
+explicitly classified here. Its location coupling is replaceable; its population,
+current configuration, shared policy identity and authority invariants are not.
+The existing cell matrix is byte-preserved. Canonical identity is checked for both
+loaders so independently duplicated but currently equivalent formulas cannot
+satisfy the ownership contract merely by returning the same sample values.
+
+Real internal moves cover each of these package families by changing only root
+binding targets and retaining declaration values, implementation bytes and public
+HTTP assertions. A test clock follows the declared quarterly function's module
+instead of a private filename; it still patches the same clock with the same
+frozen dates. Cold interpreter tests evaluate Pydantic schemas and mounted OpenAPI
+under each reviewed first-import order through the existing single expiring
+call-local subprocess allowance.
+
+The checker rejects supported import/member/alias forms and recognized
+`importlib.import_module`/`builtins.__import__` calls with literal or supported
+stable literal-map targets. Recognized unresolved targets fail closed. It does
+not claim general detection of arbitrary computed Python imports. Existing
+manual exceptions and expirations are unchanged. Remaining #254/#255 families,
+ADR016 lock-order obligations and later replay/refusal/frontend assertions remain
+outside this tranche; #269 documentation-authority changes are also separate.

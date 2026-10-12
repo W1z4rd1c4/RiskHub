@@ -51,7 +51,7 @@ help:
 	@echo "  make verify-startup-scripts - Validate supported dev startup scripts"
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
 	@echo "  make docs-tree-audit - Audit canonical docs-tree topology/link integrity"
-	@echo "  make docs-topology-consistency - Enforce canonical docs topology + structure metrics guard"
+	@echo "  make docs-topology-consistency - Enforce docs topology, declared inventory accuracy and topology dates"
 	@echo "  make verify       - Run fast repository verification checks"
 	@echo "  make security-contract-probe - Run deterministic protocol/contract drift probe harness"
 	@echo "  make security-redis-resilience - Run Redis fail-closed resilience tests"

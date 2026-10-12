@@ -285,6 +285,13 @@ async def test_concurrent_invitation_email_uniqueness_has_one_outbox_side_effect
         .all()
     )
     assert len(deliveries) == 1
+    from app.models import OutboxEvent
+
+    async with maker() as observer:
+        events = (await observer.execute(
+            select(OutboxEvent).where(OutboxEvent.event_type == "local_auth.deliver")
+        )).scalars().all()
+        assert [event.payload for event in events] == [{"delivery_id": deliveries[0].id}]
 
 
 @pytest.mark.parametrize("mfa_policy", ["required", "optional"])
@@ -395,3 +402,83 @@ async def test_native_reset_racing_refresh_cannot_leave_usable_old_authority(
         )
     ).all()
     assert active == []
+
+
+async def test_native_bcrypt_rehash_cannot_overwrite_committed_password_reset(
+    async_engine, db_session, client_factory, native_context, test_user_employee, monkeypatch
+):
+    from pwdlib.hashers.bcrypt import BcryptHasher
+
+    from app.core.security import get_password_hash, verify_password
+    from app.services._local_auth import factors
+
+    require_postgres(async_engine)
+    native_context.local_mfa_policy = "optional"
+    user = test_user_employee
+    user.local_enrollment_state, user.local_email_verified_at = "enrolled", utc_now()
+    user.hashed_password = BcryptHasher(rounds=12).hash(PASSWORD)
+    uid, email, version = user.id, user.email, user.token_version
+    await db_session.commit()
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        await csrf(client)
+        requested = await client.post("/api/v1/auth/local/password/reset/request", json={"email": email})
+        assert requested.status_code == 202
+        _, mail = await latest_mail(db_session, native_context, user_id=uid, kind="reset")
+        cookies = dict(client.cookies)
+    await db_session.rollback()
+    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+
+    async def independent_db():
+        async with maker() as session:
+            yield session
+
+    reached, release = asyncio.Event(), asyncio.Event()
+    upgrades = []
+    real_lock = factors.lock_session_user
+
+    def real_upgrade(password):
+        encoded = get_password_hash(password)
+        upgrades.append(encoded)
+        return encoded
+
+    async def pause_after_verified_work(db, *, user_id):
+        assert user_id == uid and len(upgrades) == 1
+        assert upgrades[0].startswith("$argon2id$") and verify_password(PASSWORD, upgrades[0])
+        reached.set()
+        await asyncio.wait_for(release.wait(), timeout=20)
+        return await real_lock(db, user_id=user_id)
+
+    monkeypatch.setattr(factors, "get_password_hash", real_upgrade)
+    monkeypatch.setattr(factors, "lock_session_user", pause_after_verified_work)
+    changed_password = "Independent committed reset passphrase 842!"
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"},
+                              db_override=independent_db) as client:
+        client.cookies.update(cookies)
+        client.headers["X-CSRF-Token"] = cookies["riskhub_csrf_token"]
+        login = asyncio.create_task(client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD}))
+        try:
+            await asyncio.wait_for(reached.wait(), timeout=20)
+            reset = await client.post("/api/v1/auth/local/password/reset/complete",
+                                      json={"grant": mail["credential"], "password": changed_password})
+            assert reset.status_code == 200, reset.text
+            async with maker() as observer:
+                persisted = await observer.get(User, uid)
+                reset_hash = persisted.hashed_password
+                assert persisted.token_version == version + 1
+                assert verify_password(changed_password, reset_hash) and not verify_password(PASSWORD, reset_hash)
+        finally:
+            release.set()
+        rejected = await asyncio.wait_for(login, timeout=20)
+        assert rejected.status_code == 401 and "access_token" not in rejected.json()
+    async with maker() as observer:
+        persisted = await observer.get(User, uid)
+        assert persisted.hashed_password == reset_hash and persisted.token_version == version + 1
+        assert not (await observer.execute(select(RefreshToken).where(RefreshToken.user_id == uid))).scalars().all()
+    monkeypatch.setattr(factors, "lock_session_user", real_lock)
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"},
+                              db_override=independent_db) as client:
+        await csrf(client)
+        old = await client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
+        assert old.status_code == 401
+        good = await client.post("/api/v1/auth/login", json={"email": email, "password": changed_password})
+        assert good.status_code == 200 and "access_token" in good.json(), good.text

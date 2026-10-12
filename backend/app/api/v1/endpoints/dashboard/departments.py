@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.schemas.dashboard import DepartmentMetrics
-from app.services._dashboard_metrics.departments import load_department_dashboard_metrics
+from app.services._dashboard_metrics import load_department_dashboard_metrics
 
 router = APIRouter()
 

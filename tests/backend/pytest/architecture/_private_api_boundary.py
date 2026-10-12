@@ -29,6 +29,9 @@ PILOT_PACKAGES = (
     "app.services._control_execution",
     "app.services._register_listings",
     "app.services._reporting",
+    "app.services._dashboard_metrics",
+    "app.services._monitoring_status",
+    "app.services._quarterly_comparison",
 )
 
 

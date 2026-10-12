@@ -11,7 +11,7 @@ from app.schemas.dashboard import (
     IssueDashboardSummaryResponse,
     IssueSeverityBreakdownResponse,
 )
-from app.services._dashboard_metrics.issues import (
+from app.services._dashboard_metrics import (
     build_issue_aging_metrics,
     build_issue_dashboard_metrics_bundle,
     build_issue_severity_metrics,

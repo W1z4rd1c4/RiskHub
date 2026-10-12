@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -16,7 +16,6 @@ if str(SCRIPT_DIR) not in sys.path:
 from authz_contract_validator import capability_catalog as capability_catalog_validator  # noqa: E402
 from authz_contract_validator import cli as authz_cli  # noqa: E402
 from authz_contract_validator import contract_manifest  # noqa: E402
-from authz_contract_validator import discovery  # noqa: E402
 from authz_contract_validator import frontend_local_gates  # noqa: E402
 from authz_contract_validator import frontend_routes as frontend_route_validator  # noqa: E402
 from authz_contract_validator import git_inputs as git_input_collector  # noqa: E402
@@ -48,10 +47,6 @@ def _load_json(path: Path) -> Any:
         raise ValueError(f"{path}: invalid JSON: {exc}") from exc
 
 
-def _run_git(*args: str):
-    return git_input_collector.run_git(REPO_ROOT, *args)
-
-
 def _changed_files(base_ref: str) -> list[Path]:
     return git_input_collector.changed_files(REPO_ROOT, base_ref)
 
@@ -73,20 +68,8 @@ _validate_doc_touch = lambda changed_files, sensitive_paths, diff_by_path=None: 
     contract_json=CONTRACT_JSON,
 )
 
-_extract_contract_matrix_rows = markdown_validation.extract_contract_matrix_rows
 _validate_markdown = markdown_validation.validate_markdown
 
-_read_source = lambda path: discovery.read_source(path, REPO_ROOT)
-_discover_authz_paths = lambda: discovery.discover_authz_paths(REPO_ROOT)
-_validate_discovered_authz_paths = lambda contract_paths, sensitive_paths, discoveries=None, allowlist=None: (
-    discovery.validate_discovered_authz_paths(
-        contract_paths,
-        sensitive_paths,
-        discoveries,
-        allowlist,
-        repo_root=REPO_ROOT,
-    )
-)
 
 _validate_frontend_local_gate_classifications = (
     lambda changed_files, diff_by_path=None, classifications=None: (
@@ -101,22 +84,7 @@ _validate_frontend_local_gate_classifications = (
 
 _validate_business_route_nav_context = frontend_route_validator.validate_business_route_nav_context
 
-_read_catalog_source = capability_catalog_validator._read_catalog_source
-_extract_python_class_body = capability_catalog_validator._extract_python_class_body
-_extract_backend_capability_fields = capability_catalog_validator._extract_backend_capability_fields
-_find_matching_closing_brace = capability_catalog_validator._find_matching_closing_brace
-_extract_typescript_schema_body = capability_catalog_validator._extract_typescript_schema_body
-_extract_frontend_capability_fields = capability_catalog_validator._extract_frontend_capability_fields
 _validate_capability_catalog = capability_catalog_validator.validate_capability_catalog
-
-globals()["BACKEND" + "_ENDPOINT_AUTHZ_PATTERN"] = getattr(
-    discovery,
-    "BACKEND" + "_ENDPOINT_AUTHZ_PATTERN",
-)
-globals()["FRONTEND" + "_AUTHZ_TOKEN_PATTERN"] = getattr(
-    contract_manifest,
-    "FRONTEND" + "_AUTHZ_TOKEN_PATTERN",
-)
 
 
 def validate(base_ref: str, skip_doc_touch: bool) -> list[Finding]:
