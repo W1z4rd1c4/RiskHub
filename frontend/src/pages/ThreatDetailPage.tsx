@@ -1,13 +1,11 @@
-import { useCallback, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useProtectedDetailShell } from './detail/useProtectedDetailShell';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
-import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuthz } from '@/authz/useAuthz';
@@ -15,13 +13,10 @@ import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { logError } from '@/services/logger';
-import { approvalsApi } from '@/services/approvalsApi';
 import { threatApi } from '@/services/threatApi';
 import type { Threat } from '@/types/threat';
 
 import { DetailField, DetailFieldList } from './detail/DetailField';
-import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { DetailSection } from './detail/DetailSection';
 import { EditBlockedState } from './detail/EditBlockedState';
 import { EntityDetailHeader } from './detail/EntityDetailHeader';
@@ -33,8 +28,7 @@ import { ThreatRiskLinksSection } from './threats/ThreatRiskLinksSection';
 import { getThreatDisplayStatus, threatCategoryLabel } from './threats/threatsPagePresentation';
 import { getThreatStatusTone } from './threats/threatColumns';
 import { useThreatDetailState, type ThreatDetailMode } from './threats/useThreatDetailState';
-import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
-import { LoadingState } from '@/components/ui/state';
+import { appendRegisterReturnTo } from './shared/registerReturnContext';
 
 interface ThreatDetailPageProps {
     mode?: ThreatDetailMode;
@@ -42,23 +36,10 @@ interface ThreatDetailPageProps {
 
 export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/threats');
-    const threatDetailPath = (threatId: number) => appendRegisterReturnTo(`/threats/${threatId}`, returnTo);
     const authz = useAuthz();
     const { t } = useTranslation('threats');
     const { t: tCommon } = useTranslation('common');
     // D14 / AX-06: every back control names its destination.
-    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
-    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-    const [isArchiving, setIsArchiving] = useState(false);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
-    const [pendingCancellation, setPendingCancellation] = useState<{
-        approvalId: number;
-        targetName: string;
-    } | null>(null);
-    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
 
     const {
         canArchive,
@@ -73,6 +54,14 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         restoreThreat,
     } = useThreatDetailState({ mode });
 
+    const { returnTo, openArchive, loadState, staleWarning, pendingChangePanel, pendingCancellationDialog, archiveDialog } = useProtectedDetailShell({
+        entity: 'threat', namespace: 'threats', resource: threat, resourceId: threatId,
+        targetName: threat?.name ?? '', loadOutcome, isRetrying, refresh: fetchThreat,
+        archive: (id) => threatApi.archiveThreat(id), archiveReason: 'none',
+    });
+    const threatDetailPath = (threatId: number) => appendRegisterReturnTo(`/threats/${threatId}`, returnTo);
+    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
+
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
         load: useCallback(() => threatApi.getThreats({ offset: 0, limit: 1 }), []),
@@ -81,52 +70,6 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
 
     const feedback = useFeedback();
     const announceApprovalQueued = useApprovalQueued();
-
-    // D10 / PG-07: a failed archive keeps the dialog open with the error
-    // inside it (the threat API takes no reason, PM-1).
-    const archiveThreat = async () => {
-        if (!threat) {
-            return;
-        }
-        try {
-            setIsArchiving(true);
-            setActionError(null);
-            await threatApi.archiveThreat(threat.id);
-            setIsArchiveDialogOpen(false);
-            feedback.success({ title: tCommon('outcome.archived', { name: threat.name }) });
-            void navigate(returnTo);
-        } catch (archiveError) {
-            logError('Failed to archive threat:', archiveError);
-            setActionError(t('errors.archive_failed'));
-        } finally {
-            setIsArchiving(false);
-        }
-    };
-
-    const openPendingChangeCancellation = () => {
-        if (!threat?.pending_change?.approval_id) return;
-        setPendingCancellationError(null);
-        setPendingCancellation({
-            approvalId: threat.pending_change.approval_id,
-            targetName: threat.name,
-        });
-    };
-
-    const cancelPendingChange = async () => {
-        if (!pendingCancellation || isCancellingPendingChange) return;
-        try {
-            setIsCancellingPendingChange(true);
-            setPendingCancellationError(null);
-            await approvalsApi.cancel(pendingCancellation.approvalId);
-            setPendingCancellation(null);
-            void fetchThreat();
-        } catch (cancelError) {
-            logError('Failed to cancel pending Threat change:', cancelError);
-            setPendingCancellationError(t('pending_change.cancel_failed'));
-        } finally {
-            setIsCancellingPendingChange(false);
-        }
-    };
 
     if (mode === 'new') {
         // D7 / D14: the page title, back control and breadcrumbs stay in place
@@ -161,49 +104,9 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
         );
     }
 
-    if (loadOutcome === 'loading') {
-        return (
-            <LoadingState layout="page" label={tCommon('loading.generic')} />
-        );
-    }
+    if (loadState || !threat) return loadState;
 
-    if (loadOutcome === 'unavailable' || !threat) {
-        return (
-            <DetailLoadUnavailableState
-                backLabel={t('actions.back_to_register')}
-                isRetrying={isRetrying}
-                onBack={() => navigate(returnTo)}
-                onRetry={threatId === null ? undefined : () => void fetchThreat()}
-            />
-        );
-    }
 
-    const staleWarning = loadOutcome === 'stale-with-error' ? (
-        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchThreat()} />
-    ) : null;
-    const pendingCancellationDialog = (
-        <PendingChangeCancellationDialog
-            isOpen={pendingCancellation !== null}
-            targetName={pendingCancellation?.targetName ?? ''}
-            isLoading={isCancellingPendingChange}
-            errorText={pendingCancellationError}
-            onClose={() => {
-                setPendingCancellation(null);
-                setPendingCancellationError(null);
-            }}
-            onConfirm={() => void cancelPendingChange()}
-        />
-    );
-
-    const pendingChangePanel = threat.pending_change ? (
-        <PendingChangePanel
-            pendingChange={threat.pending_change}
-            namespace="threats"
-            testIdPrefix="threat"
-            cancelling={isCancellingPendingChange}
-            onCancel={openPendingChangeCancellation}
-        />
-    ) : null;
     // SM-05: one ownership banner for pending-governance / legacy / invalid
     // stewardship; only the governance case offers the queue action.
     const stewardshipAlert = (testId?: string) => {
@@ -362,7 +265,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                         {canArchive && (
                             <Button
                                 variant="destructive"
-                                onClick={() => setIsArchiveDialogOpen(true)}
+                                onClick={openArchive}
                                 data-testid="threat-detail-archive"
                             >
                                 <Archive aria-hidden="true" />
@@ -398,19 +301,7 @@ export function ThreatDetailPage({ mode = 'view' }: ThreatDetailPageProps) {
                 onLinksChanged={() => fetchThreat()}
             />
 
-            <ConfirmDialog
-                isOpen={isArchiveDialogOpen}
-                onClose={() => {
-                    setIsArchiveDialogOpen(false);
-                    setActionError(null);
-                }}
-                onConfirm={archiveThreat}
-                intent="archive"
-                entityLabel={tCommon('labels.threat')}
-                message={t('messages.archive_confirm', { threatName: threat.name })}
-                isLoading={isArchiving}
-                errorText={actionError}
-            />
+            {archiveDialog}
             {pendingCancellationDialog}
         </PageContainer>
     );

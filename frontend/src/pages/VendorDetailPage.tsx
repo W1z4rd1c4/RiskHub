@@ -1,21 +1,15 @@
+import { useProtectedDetailShell } from './detail/useProtectedDetailShell';
 import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { useAuthz } from '@/authz/useAuthz';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
-import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
-import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
-import { useFeedback } from '@/hooks/useFeedback';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { approvalsApi } from '@/services/approvalsApi';
 import { vendorApi } from '@/services/vendorApi';
-import { isProcessApprovalQueuedResponse } from '@/types/process';
-import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
 import { EditBlockedState } from './detail/EditBlockedState';
 import { OwnershipGovernanceAlert } from './detail/OwnershipGovernanceAlert';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -25,8 +19,7 @@ import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
-import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
-import { logError } from '@/services/logger';
+import { appendRegisterReturnTo } from './shared/registerReturnContext';
 import { type VendorDetailMode } from './vendors/vendorDetailPresentation';
 import { VendorDetailLoadingState } from './vendors/VendorDetailStates';
 import {
@@ -73,8 +66,6 @@ function VendorOwnershipPendingMessage({ canViewGovernance, onResolve, testId }:
 export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const navigate = useNavigate();
     const location = useLocation();
-    const returnTo = resolveRegisterReturnTo(new URLSearchParams(location.search).get('return_to'), '/vendors');
-    const vendorDetailPath = (vendorId: number) => appendRegisterReturnTo(`/vendors/${vendorId}`, returnTo);
     const { t } = useTranslation('vendors');
     const authz = useAuthz();
 
@@ -100,74 +91,22 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         vendorId,
     } = useVendorDetailState({ mode });
     const { t: tCommon } = useTranslation('common');
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [archiveError, setArchiveError] = useState<string | null>(null);
-    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
-    const [pendingCancellation, setPendingCancellation] = useState<{
-        approvalId: number;
-        targetName: string;
-    } | null>(null);
-    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
-    const feedback = useFeedback();
     const announceApprovalQueued = useApprovalQueued();
     useNormalizeLegacyVendorDetailSearch(location, navigate);
     useVendorDeepLinkScroll(location);
+    const { returnTo, openArchive, loadState, staleWarning, pendingChangePanel, pendingCancellationDialog, archiveDialog } = useProtectedDetailShell({
+        entity: 'vendor', namespace: 'vendors', resource: vendor, resourceId: vendorId,
+        targetName: vendor?.name ?? '', loadOutcome, isRetrying, refresh: fetchVendor,
+        archive: (id, reason) => vendorApi.archiveVendor(id, reason ?? ''), archiveReason: vendor ? governedReasonRequirement(vendor) : 'unavailable',
+        loading: <VendorDetailLoadingState />,
+    });
+    const vendorDetailPath = (vendorId: number) => appendRegisterReturnTo(`/vendors/${vendorId}`, returnTo);
+
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
         load: useCallback(() => vendorApi.getVendors({ offset: 0, limit: 1 }), []),
         logMessage: 'Failed to load vendor create capabilities.',
     });
-
-    const archiveVendor = async (requestReason?: string) => {
-        if (!vendor) {
-            return;
-        }
-        try {
-            setIsDeleting(true);
-            setArchiveError(null);
-            const result = await vendorApi.archiveVendor(vendor.id, requestReason ?? '');
-            setIsDeleteDialogOpen(false);
-            if (isProcessApprovalQueuedResponse(result)) {
-                // D12 / PM-2: stay on the vendor with the pending notice + toast.
-                announceApprovalQueued({ approvalId: result.approval_id });
-                void fetchVendor();
-                return;
-            }
-            feedback.success({ title: tCommon('outcome.archived', { name: vendor.name }) });
-            void navigate(returnTo);
-        } catch (error) {
-            logError('Failed to archive vendor:', error);
-            setArchiveError(t('errors.archive_failed'));
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    const openPendingChangeCancellation = () => {
-        if (!vendor?.pending_change?.approval_id) return;
-        setPendingCancellationError(null);
-        setPendingCancellation({
-            approvalId: vendor.pending_change.approval_id,
-            targetName: vendor.name,
-        });
-    };
-
-    const cancelPendingChange = async () => {
-        if (!pendingCancellation || isCancellingPendingChange) return;
-        try {
-            setIsCancellingPendingChange(true);
-            setPendingCancellationError(null);
-            await approvalsApi.cancel(pendingCancellation.approvalId);
-            setPendingCancellation(null);
-            void fetchVendor();
-        } catch (cancelError) {
-            logError('Failed to cancel pending Vendor change:', cancelError);
-            setPendingCancellationError(t('pending_change.cancel_failed'));
-        } finally {
-            setIsCancellingPendingChange(false);
-        }
-    };
 
     if (mode === 'new') {
         if (createGateState.state !== 'allowed') {
@@ -198,49 +137,8 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         );
     }
 
-    if (loadOutcome === 'loading') {
-        return <VendorDetailLoadingState />;
-    }
+    if (loadState || !vendor) return loadState;
 
-    if (loadOutcome === 'unavailable' || !vendor) {
-        return (
-            <DetailLoadUnavailableState
-                backLabel={t('actions.back_to_register')}
-                isRetrying={isRetrying}
-                onBack={() => navigate(returnTo)}
-                onRetry={vendorId === null ? undefined : () => void fetchVendor()}
-            />
-        );
-    }
-
-    const staleWarning = loadOutcome === 'stale-with-error' ? (
-        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchVendor()} />
-    ) : null;
-    const pendingCancellationDialog = (
-        <PendingChangeCancellationDialog
-            isOpen={pendingCancellation !== null}
-            targetName={pendingCancellation?.targetName ?? ''}
-            isLoading={isCancellingPendingChange}
-            errorText={pendingCancellationError}
-            onClose={() => {
-                setPendingCancellation(null);
-                setPendingCancellationError(null);
-            }}
-            onConfirm={() => void cancelPendingChange()}
-        />
-    );
-    // GAP-D-07 / SM-05: the shared pending-change panel (vendors namespace).
-    const pendingChangePanel = vendor.pending_change ? (
-        <PendingChangePanel
-            pendingChange={vendor.pending_change}
-            namespace="vendors"
-            testIdPrefix="vendor"
-            cancelling={isCancellingPendingChange}
-            onCancel={resolveCapabilityFlag(vendor.pending_change.capabilities, 'can_cancel')
-                ? openPendingChangeCancellation
-                : undefined}
-        />
-    ) : null;
     const resolveOwnershipInGovernance = () => void navigate('/governance?type=vendor');
 
     // D14 / AX-06: edit routes go back to the record and name it.
@@ -344,10 +242,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 canEdit={canEdit}
                 canCreateIssue={canCreateIssue}
                 canRestore={canRestore}
-                onArchive={() => {
-                    setArchiveError(null);
-                    setIsDeleteDialogOpen(true);
-                }}
+                onArchive={openArchive}
                 onBack={() => navigate(returnTo)}
                 registerHref={returnTo}
                 onOpenIssueModal={openIssueModal}
@@ -380,22 +275,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 onCreated={(issue) => navigate(`/issues/${issue.id}`)}
             />
 
-            {/* D10 / PM-1: the vendor API takes a reason; it is required
-                only when the archive is routed through approval. */}
-            <ConfirmDialog
-                isOpen={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                onConfirm={archiveVendor}
-                intent="archive"
-                entityLabel={tCommon('labels.vendor')}
-                message={t('messages.archive_confirm', { vendorName: vendor.name })}
-                isLoading={isDeleting}
-                reason={governedReasonRequirement(vendor) === 'required' ? 'required' : 'optional'}
-                reasonLabel={t('form.request_reason')}
-                reasonPlaceholder={t('form.request_reason_help')}
-                confirmDisabled={governedReasonRequirement(vendor) === 'unavailable'}
-                errorText={archiveError ?? (governedReasonRequirement(vendor) === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)}
-            />
+            {archiveDialog}
             {pendingCancellationDialog}
         </PageContainer>
     );
