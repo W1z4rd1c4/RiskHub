@@ -58,9 +58,26 @@ python3 scripts/tools/refresh_python_dependency_lock.py
 ```
 
 The command creates an isolated virtual environment, fixes pip at 26.2.1, resolves
-`requirements-dev.in`, writes both exact lock surfaces, and updates both
+`requirements-dev.in`, runs `pip check`, writes both exact lock surfaces, and updates both
 entrypoint fingerprints. It contacts the configured package index and should run
 only in a dedicated dependency-refresh change.
+
+For a bounded migration, edit the human-owned inputs first, then repeat
+`--upgrade-package NAME` for each reviewed package allowed to change:
+
+```bash
+python3 scripts/tools/refresh_python_dependency_lock.py --upgrade-package ruff --upgrade-package mypy
+```
+
+The generator constrains all other existing packages to their current exact pins
+and rejects their removal. If a selected release needs a different transitive
+version, review that dependency and explicitly add it to the batch; a resolver
+conflict leaves the generated files untouched. Unknown package names fail closed.
+Review newly introduced transitive packages in the resulting diff as well.
+Use Linux with Python 3.13 for the canonical lock and clean install gates: the
+committed environment includes Linux-only `uvloop`. A Windows compatibility probe
+does not replace this gate. Omitting `--upgrade-package` retains the scheduled
+full-refresh behavior. `--check` can be combined with a bounded selection.
 
 Validate the committed topology, fingerprints, exact package set, parser
 compatibility, terminal newline, and workflow credential contract without

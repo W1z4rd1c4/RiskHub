@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import inspect
-from datetime import UTC, datetime
+from copy import deepcopy
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
 
+import pytest
 from syrupy.assertion import SnapshotAssertion
 from syrupy.extensions.amber import AmberSnapshotExtension
 from syrupy.extensions.single_file import SingleFileSnapshotExtension
@@ -58,6 +61,69 @@ def test_redacting_snapshot_extension_uses_single_concrete_syrupy_leaf(redacting
     assert issubclass(redacting_snapshot_extension, AmberSnapshotExtension)
     assert redacting_snapshot_extension.__bases__ == (AmberSnapshotExtension,)
     assert not issubclass(redacting_snapshot_extension, SingleFileSnapshotExtension)
+
+
+@pytest.mark.parametrize("key", ["id", "trace_id", "request_id", "ip", "email", "created_at", "updated_at"])
+def test_snapshot_serialization_never_leaks_nested_sensitive_values(snapshot, key):
+    secret = f"must-not-appear-{key}"
+    payload = {"rows": [{"nested": ({key: secret, "label": "preserved"},)}]}
+    original = deepcopy(payload)
+
+    serialized = snapshot.extension.serialize(payload)
+
+    assert secret not in serialized
+    assert "<redacted>" in serialized
+    assert "preserved" in serialized
+    assert payload == original
+
+
+def test_snapshot_redaction_keeps_business_fields_and_plain_dates(snapshot):
+    payload = {
+        "candidate_id": "RISK-001",
+        "email_status": "verified",
+        "format": "report",
+        "date": "2026-05-07",
+        "name": "RiskHub",
+    }
+
+    serialized = snapshot.extension.serialize(payload)
+
+    assert "<redacted>" not in serialized
+    for value in payload.values():
+        assert value in serialized
+
+
+def test_snapshot_redacts_dataclasses_nested_in_containers_without_mutating_them(snapshot):
+    @dataclass(frozen=True)
+    class Contact:
+        email: str
+        created_at: datetime
+        label: str
+        birthday: date
+
+    contact = Contact(
+        email="must-not-leak@example.com",
+        created_at=datetime(2026, 5, 7, 12, tzinfo=UTC),
+        label="preserved contact",
+        birthday=date(2000, 1, 2),
+    )
+    payload = {"rows": [(contact,)]}
+    expected = {"rows": [({
+        "email": "<redacted>",
+        "created_at": "<redacted>",
+        "label": contact.label,
+        "birthday": contact.birthday,
+    },)]}
+
+    serialized = snapshot.extension.serialize(payload)
+
+    assert serialized == snapshot.extension.serialize(expected)
+    assert contact.email not in serialized
+    assert "2026" not in serialized
+    assert "preserved contact" in serialized
+    assert contact.birthday == date(2000, 1, 2)
+    assert contact.email == "must-not-leak@example.com"
+    assert contact.created_at == datetime(2026, 5, 7, 12, tzinfo=UTC)
 
 
 def test_frozen_clock_requires_freezegun_without_dead_module_fallback(request):

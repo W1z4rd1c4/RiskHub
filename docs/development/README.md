@@ -242,6 +242,14 @@ python3 scripts/tools/refresh_python_dependency_lock.py
 python3 scripts/tools/validate_python_dependency_lock.py
 ```
 
+For a reviewed migration batch, repeat `--upgrade-package NAME` on the refresh
+command for each direct or transitive package permitted to change. All other
+existing pins are retained, including packages a platform-specific resolver
+would otherwise omit. Resolve conflicts by reviewing the required transitive
+change explicitly, then expanding the batch. The generator runs `pip check`
+before writing either lock. Run canonical generation and clean installs on Linux
+with Python 3.13; Windows probes cannot install the committed Linux-only `uvloop`.
+
 Commit both generated constraint files and the development entrypoint together.
 Do not hand-edit generated locks, and do not merge a lock-only bot update over
 changed input requirements. Keep intentional major-version bounds in the inputs;
