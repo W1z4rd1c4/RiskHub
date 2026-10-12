@@ -1,4 +1,4 @@
-import { useState, useEffect, useId, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useId, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
@@ -38,12 +38,34 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
     const [pendingMutation, setPendingMutation] = useState<number | 'all' | null>(null);
     const [mutationError, setMutationError] = useState<{ target: number | 'all'; message: string } | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const panelId = useId();
     const panelTitleId = useId();
     const pendingMutationRef = useRef<number | 'all' | null>(null);
     const pendingListRetryRef = useRef(false);
     const latestListRequestRef = useRef(0);
+
+    useLayoutEffect(() => {
+        if (!isOpen) return undefined;
+        const fitPanelToViewport = () => {
+            const panel = panelRef.current;
+            if (!panel) return;
+            // Bound the whole panel; only its list may scroll, so both action regions stay reachable.
+            const viewport = window.visualViewport;
+            const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+            panel.style.maxHeight = `${Math.max(0, bottom - panel.getBoundingClientRect().top - 16)}px`;
+        };
+        fitPanelToViewport();
+        window.addEventListener('resize', fitPanelToViewport);
+        window.visualViewport?.addEventListener('resize', fitPanelToViewport);
+        window.visualViewport?.addEventListener('scroll', fitPanelToViewport);
+        return () => {
+            window.removeEventListener('resize', fitPanelToViewport);
+            window.visualViewport?.removeEventListener('resize', fitPanelToViewport);
+            window.visualViewport?.removeEventListener('scroll', fitPanelToViewport);
+        };
+    }, [isOpen]);
 
     const fetchNotifications = useCallback(async () => {
         const requestId = ++latestListRequestRef.current;
@@ -235,14 +257,15 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
             {/* Dropdown Panel */}
             {isOpen && (
                 <div
+                    ref={panelRef}
                     id={panelId}
                     role="dialog"
                     aria-labelledby={panelTitleId}
-                    className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-popover z-50 bg-popover text-popover-foreground border border-border"
+                    className="absolute left-0 mt-2 flex w-80 flex-col rounded-xl overflow-hidden shadow-popover z-50 bg-popover text-popover-foreground border border-border"
                     data-testid="notification-dropdown-panel"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                    <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
                         <h3 id={panelTitleId} className="text-sm font-semibold text-popover-foreground">{t('title')}</h3>
                         <Button
                             variant="ghost"
@@ -256,7 +279,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                     </div>
 
                     {/* Notification List */}
-                    <div className="max-h-[40rem] overflow-y-auto">
+                    <div className="min-h-0 max-h-[40rem] overflow-y-auto overscroll-contain">
                         {outcome.kind === 'initial-loading' && (
                             <LoadingState layout="section" label={tCommon('loading.generic')} className="py-6" />
                         )}
@@ -360,7 +383,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange, isCurre
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                    <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3">
                         {hasFreshCollection && unreadCount > 0 && (
                             <div>
                                 <Button
