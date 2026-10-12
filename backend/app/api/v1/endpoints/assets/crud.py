@@ -18,14 +18,14 @@ from app.services._ict_register_lifecycle.asset_lifecycle import (
     read_asset_detail,
     update_asset_detail,
 )
-from app.services._register_listings.assets import (
+from app.services._register_listings import (
     AssetListCriteria,
     asset_collection_capabilities,
     asset_criteria_from_filters,
     build_asset_listing,
+    build_in_memory_register_response,
 )
-from app.services._register_listings.lifecycle import build_in_memory_register_response
-from app.services._reporting.asset_register_export import render_asset_register_csv
+from app.services._reporting import render_asset_register_csv
 
 router = APIRouter()
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import timedelta
 
 import pyotp
 import pytest
@@ -12,7 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.datetime_utils import utc_now
-from app.models import LocalAuthRecoveryCode, RefreshToken, User
+from app.models import LocalAuthFactor, LocalAuthRecoveryCode, RefreshToken, User
 from tests.backend.pytest.test_identity_foundations_postgres import (
     require_postgres,
     wait_for_lock_waiters,
@@ -39,6 +38,7 @@ async def test_native_one_time_proof_concurrent_consumption(
     test_user,
     test_user_employee,
     operation,
+    monkeypatch,
 ):
     require_postgres(async_engine)
     user_id = await create_invitation(
@@ -60,6 +60,14 @@ async def test_native_one_time_proof_concurrent_consumption(
             bodies = [{"grant": invitation["credential"], "password": PASSWORD}] * 2
         else:
             codes, setup = await enroll(client, invitation["credential"])
+            if operation == "totp":
+                from app.services._local_auth import factors
+
+                captured = utc_now()
+                monkeypatch.setattr(factors, "utc_now", lambda: captured)
+                expected_step = int(captured.timestamp()) // 30 + 1
+                factor = await db_session.get(LocalAuthFactor, user_id)
+                original_generation = factor.generation
             if operation in {"recovery_code", "totp", "mfa_challenge"}:
                 path = "/api/v1/auth/local/mfa/verify"
                 bodies = []
@@ -75,7 +83,7 @@ async def test_native_one_time_proof_concurrent_consumption(
                         if operation == "mfa_challenge"
                         else codes[0]
                         if operation in {"recovery_code", "mfa_challenge"}
-                        else pyotp.parse_uri(setup["provisioning_uri"]).at(utc_now() + timedelta(seconds=30))
+                        else pyotp.parse_uri(setup["provisioning_uri"]).at(expected_step * 30)
                     )
                     bodies.append(
                         {
@@ -149,6 +157,11 @@ async def test_native_one_time_proof_concurrent_consumption(
         .all()
     )
     assert len(active) == (1 if operation in {"recovery_code", "totp", "mfa_challenge"} else 0)
+    if operation == "totp":
+        async with maker() as observer:
+            persisted = await observer.get(LocalAuthFactor, user_id)
+            assert persisted.last_time_step == expected_step
+            assert persisted.generation == original_generation
     if operation == "recovery_code":
         used = (
             (

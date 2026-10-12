@@ -77,3 +77,22 @@ No expectation is rewritten to follow a renamed implementation path.
 Local source/test approval is distinct from future exact-head hosted, PostgreSQL
 and integrated-main acceptance. Issue #254 remains open for the remaining mapped
 assertions and packages.
+
+
+## Reporting and listing tranche (#267, partial #254)
+
+The same table-driven boundary checker now covers `_register_listings` and
+`_reporting`, alongside the original two packages. Fixed literal caller exports,
+roles and facades remain reviewable without executing import discovery. Lazy root
+bindings avoid the Risk criteria/listing initialization cycle. They do not grant
+additional exports or expand exceptions.
+
+Selected private file-placement locks now resolve the declared canonical planner
+or operation and retain uniqueness, no-forwarder, transaction and policy checks.
+Mounted HTTP delegation tests and seeded bypasses supplement those checks. Real
+Issue-planner and KRI-projection moves retain declaration data and unchanged public
+CSV/denial journeys. Explicit current versus evaluation-date Issue overdue modes,
+100-row linked-visibility batches, and historical KRI replay remain distinct.
+
+This is a partial #254 migration. Remaining classified packages and non-import
+invariants are not considered satisfied merely by adding caller declarations.

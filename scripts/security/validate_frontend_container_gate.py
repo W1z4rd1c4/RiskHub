@@ -90,7 +90,7 @@ UPLOAD_ARTIFACT_ACTION = (
     "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 )
 UPLOAD_SARIF_ACTION = (
-    "github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"
+    "github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d"
 )
 EXPECTED_PRODUCTION_ARTIFACT_PATHS = frozenset(
     {

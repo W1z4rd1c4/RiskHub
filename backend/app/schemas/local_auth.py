@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel, SecretSt
 from app.schemas.auth import TokenResponse
 
 UserId = Annotated[int, Field(strict=True, gt=0)]
+NewPassword = Annotated[SecretStr, Field(min_length=15, max_length=128)]
 
 
 class LocalRequest(BaseModel):
@@ -23,7 +24,7 @@ class LocalRequest(BaseModel):
 
 class EnrollmentStartRequest(LocalRequest):
     grant: SecretStr = Field(min_length=1, max_length=1024)
-    password: SecretStr = Field(min_length=1, max_length=128)
+    password: NewPassword
 
 
 class ChallengeRequest(LocalRequest):
@@ -41,7 +42,7 @@ class ResetRequest(LocalRequest):
 
 class ResetCompleteRequest(LocalRequest):
     grant: SecretStr = Field(min_length=1, max_length=1024)
-    password: SecretStr = Field(min_length=1, max_length=128)
+    password: NewPassword
 
 
 class RecentAuthenticationRequest(LocalRequest):
@@ -79,7 +80,7 @@ class RecentAuthenticationRequest(LocalRequest):
 
 class PasswordChangeRequest(LocalRequest):
     recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
-    password: SecretStr = Field(min_length=1, max_length=128)
+    password: NewPassword
 
 
 class EmailChangeRequest(LocalRequest):
@@ -170,7 +171,7 @@ class ReasonRequest(LocalRequest):
 class RecoveryStartRequest(LocalRequest):
     grant: SecretStr = Field(min_length=1, max_length=1024)
     current_password: SecretStr | None = Field(default=None, min_length=1, max_length=128)
-    new_password: SecretStr | None = Field(default=None, min_length=1, max_length=128)
+    new_password: NewPassword | None = None
     verified_email_grant: SecretStr | None = Field(default=None, min_length=1, max_length=1024)
 
 

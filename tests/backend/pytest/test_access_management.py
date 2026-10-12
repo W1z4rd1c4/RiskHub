@@ -740,3 +740,32 @@ async def test_suspension_records_reason_without_mutating_identity_fields(
     assert entry.changes["reason"]["new"] == "[REDACTED]"
     assert "INC-206: confirmed departure" not in entry.description
     assert not hasattr(test_user_employee, "reason")
+
+
+@pytest.mark.asyncio
+async def test_cro_sso_assignment_preserves_directory_identity_and_persists_local_tuple(
+    client_cro_sso, db_session, test_user_employee, test_user_cro
+):
+    target = test_user_employee
+    target.external_id = "literal-directory-subject"
+    target.job_title = "Directory title"
+    target.entra_business_role = "Directory business role"
+    await db_session.commit()
+    identity = (target.id, target.name, target.email, target.external_id,
+                target.job_title, target.entra_business_role, target.role_id)
+    version = target.token_version
+    response = await client_cro_sso.patch(
+        f"/api/v1/access/users/{target.id}",
+        json={"department_id": None, "manager_id": test_user_cro.id, "access_scope": "manager"},
+    )
+    assert response.status_code == 200, response.text
+    await db_session.refresh(target)
+    assert (target.id, target.name, target.email, target.external_id,
+            target.job_title, target.entra_business_role, target.role_id) == identity
+    assert (target.department_id, target.manager_id, target.access_scope) == (
+        None, test_user_cro.id, AccessScope.MANAGER
+    )
+    assert target.token_version == version + 1
+    assert response.json()["department_id"] is None
+    assert response.json()["manager_id"] == test_user_cro.id
+    assert response.json()["access_scope"] == "manager"

@@ -5,7 +5,7 @@ Restore maintenance preserves the installed signing authority and cutover marker
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-10-02
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -591,7 +591,7 @@ oversight surface, not a register-end detail view.
 | `backend/app/services/_riskhub_config/` | Role and department configuration capability metadata. |
 | `backend/app/services/_orphaned_items/workflow.py` | Orphan resolution capabilities and requirements. |
 | `backend/app/services/_issue_register/` | Issue register grouping, linked-context redaction, and grouped count helpers used by issue list HTTP adapters. |
-| `docs/security/capability-catalog.json` | Backend Pydantic and frontend Zod capability field-shape validation for risk, control, KRI, issue, and vendor entities. |
+| `docs/security/capability-catalog.json` | Typed, explicitly opted-in backend Pydantic and frontend Zod capability field-shape validation, including declared booleans, boolean maps and identity string arrays; it is not universal resource coverage or authorization policy. |
 | `backend/app/services/_vendor_links/` | Shared vendor link list/create/delete workflow across risk, control, and KRI target types. |
 | `backend/app/services/_kri_history/intake.py` | KRI value intake routing between direct recording and approval-gated submission. |
 | `backend/app/services/_kri_history/loading.py`, `approval_intake.py`, and `direct_application.py` | KRI value intake loading, approval submission, direct recording, linked-vendor visibility, and response capability projection. |
@@ -939,3 +939,23 @@ review, not automatic normalization. Legacy read serialization/data-integrity
 limitations remain separate; public enums, historical logs and migration history
 are unchanged. Repeated refusal and fresh-session rollback observations pin the
 no-effect contract, alongside stale, unauthorized and canonical positive cases.
+
+
+### Reporting/listing boundary maintenance (#267, partial #254)
+
+Register listing and reporting callers consume the fixed, reviewed declarations
+at their package roots. Lazy root bindings preserve cold import composition;
+implementation locations may move without changing caller authority. Issue
+exports share bounded actor-filtered linked-context row projection, with explicit
+current-register versus evaluation-report overdue modes and evaluation timestamps.
+Current KRI projection remains separate from historical replay. Authorization,
+row grain, final reconstructed-row filtering and CSV semantics are unchanged.
+
+### Capability catalog maintenance (partial #268)
+
+The Markdown contract remains the policy authority. Its explicit review date must
+match the JSON manifest; missing, duplicate or invalid calendar declarations fail
+validation in both CLI modes. The catalog is a typed opt-in field-shape check,
+including declared string-array identity fields and boolean-map fields. An
+interface-only entry proves its declared interface, not exhaustive field coverage.
+Remaining structure/count and broad alias migration work is outside this tranche.

@@ -6,7 +6,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.datetime_utils import coerce_utc, utc_now
-from app.models.issue import Issue, IssueException, IssueExceptionStatus
+from app.models.issue import Issue, IssueException, IssueExceptionStatus, IssueSeverity
 
 
 def issue_has_active_approved_exception(issue: Issue, now: datetime) -> bool:
@@ -29,3 +29,14 @@ def unsuppressed_issue_clause(now: datetime) -> ColumnElement[bool]:
             IssueException.expires_at > utc_now_value,
         )
     )
+
+
+def issue_severity_clause(
+    severity: IssueSeverity | None, severity_group: str | None,
+) -> ColumnElement[bool] | None:
+    """The combined group takes precedence over a single severity in both views."""
+    if severity_group == "high_critical":
+        return Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value))
+    if severity is not None:
+        return Issue.severity == severity.value
+    return None

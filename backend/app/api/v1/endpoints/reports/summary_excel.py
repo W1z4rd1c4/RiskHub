@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
-from app.services._reporting.excel import build_summary_export
+from app.services._reporting import build_summary_export
 
 from ._export_context import build_report_export_context
 from ._streaming import (

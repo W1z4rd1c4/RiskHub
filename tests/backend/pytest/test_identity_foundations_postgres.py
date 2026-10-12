@@ -89,8 +89,17 @@ async def test_concurrent_installation_initialization_has_one_binding(
         finally:
             await gate.commit()
         results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=15)
-    rows = (await db_session.execute(select(InstallationIdentity))).scalars().all()
+    async with maker() as fresh:
+        rows = (await fresh.execute(select(InstallationIdentity))).scalars().all()
+        assert not (await fresh.execute(select(User))).scalars().all()
     assert len(rows) == 1
+    winner = next(index for index, result in enumerate(results) if result != "conflict")
+    assert (rows[0].auth_mode, rows[0].tenant_id, rows[0].contract_version) == (
+        settings[winner].auth_mode, settings[winner].entra_tenant_id, 1
+    )
+    assert rows[0].installation_id == results[winner]
+    assert rows[0].established_at is not None
+    assert rows[0].establishment_source == "postgres-test"
     if conflicting:
         assert results.count("conflict") == 1
     else:

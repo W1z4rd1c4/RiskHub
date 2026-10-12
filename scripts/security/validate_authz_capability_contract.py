@@ -60,18 +60,6 @@ def _changed_file_diffs(base_ref: str) -> dict[Path, str]:
     return git_input_collector.changed_file_diffs(REPO_ROOT, base_ref)
 
 
-_path_exists = lambda rel_path: contract_manifest.path_exists(rel_path, REPO_ROOT)
-_path_is_covered_by_sensitive_paths = contract_manifest.path_is_covered_by_sensitive_paths
-_path_is_covered_by_contract_paths = contract_manifest.path_is_covered_by_contract_paths
-_extract_contract_path_references = lambda action: contract_manifest.extract_contract_path_references(
-    action,
-    REPO_ROOT,
-)
-_extract_contract_paths = lambda actions: contract_manifest.extract_contract_paths(actions, REPO_ROOT)
-_diff_has_frontend_authz_tokens = contract_manifest.diff_has_frontend_authz_tokens
-_is_exact_manifest_path = contract_manifest.is_exact_manifest_path
-_path_is_sensitive = contract_manifest.path_is_sensitive
-_format_manifest_findings = contract_manifest.format_manifest_findings
 _validate_manifest = lambda manifest, *, run_discovery=True: contract_manifest.validate_manifest(
     manifest,
     repo_root=REPO_ROOT,
@@ -85,10 +73,7 @@ _validate_doc_touch = lambda changed_files, sensitive_paths, diff_by_path=None: 
     contract_json=CONTRACT_JSON,
 )
 
-_normalize_markdown_cell = markdown_validation.normalize_markdown_cell
-_split_markdown_row = markdown_validation.split_markdown_row
 _extract_contract_matrix_rows = markdown_validation.extract_contract_matrix_rows
-_parse_markdown_test_paths = markdown_validation.parse_markdown_test_paths
 _validate_markdown = markdown_validation.validate_markdown
 
 _read_source = lambda path: discovery.read_source(path, REPO_ROOT)
@@ -103,13 +88,6 @@ _validate_discovered_authz_paths = lambda contract_paths, sensitive_paths, disco
     )
 )
 
-_diff_has_frontend_local_gate_tokens = frontend_local_gates.diff_has_frontend_local_gate_tokens
-_frontend_local_gate_lines_from_diff = frontend_local_gates.frontend_local_gate_lines_from_diff
-_frontend_local_gate_lines_from_source = lambda path: frontend_local_gates.frontend_local_gate_lines_from_source(
-    path,
-    REPO_ROOT,
-)
-_line_matches_any_pattern = frontend_local_gates.line_matches_any_pattern
 _validate_frontend_local_gate_classifications = (
     lambda changed_files, diff_by_path=None, classifications=None: (
         frontend_local_gates.validate_frontend_local_gate_classifications(
@@ -121,11 +99,6 @@ _validate_frontend_local_gate_classifications = (
     )
 )
 
-_normalize_typescript_expression = frontend_route_validator.normalize_typescript_expression
-_describe_business_nav_authority = frontend_route_validator.describe_business_nav_authority
-_extract_route_objects_from_array = frontend_route_validator.extract_route_objects_from_array
-_extract_single_quoted_field = frontend_route_validator.extract_single_quoted_field
-_extract_is_visible_expression = frontend_route_validator.extract_is_visible_expression
 _validate_business_route_nav_context = frontend_route_validator.validate_business_route_nav_context
 
 _read_catalog_source = capability_catalog_validator._read_catalog_source

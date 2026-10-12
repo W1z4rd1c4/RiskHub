@@ -10,12 +10,13 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import RiskTypeConfig, User
 from app.schemas.risk import RiskListResponse
-from app.services._register_listings.lifecycle import (
+from app.services._register_listings import (
+    RiskListingCriteria,
     execute_register_listing_export,
     execute_register_listing_plan,
+    plan_risk_listing,
 )
-from app.services._register_listings.risks import RiskListingCriteria, plan_risk_listing
-from app.services._reporting.risk_control_register_export import render_risk_register_csv
+from app.services._reporting import render_risk_register_csv
 
 router = APIRouter()
 

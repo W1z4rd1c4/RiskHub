@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+from datetime import date
 from typing import Any
 
 from .contract_manifest import format_manifest_findings
@@ -79,6 +81,65 @@ def parse_markdown_test_paths(value: str) -> set[str]:
     normalized = re.sub(r"<br\s*/?>", "\n", value, flags=re.IGNORECASE)
     normalized = normalized.replace("`", "")
     return {line.strip() for line in normalized.splitlines() if line.strip()}
+
+
+def validate_review_dates(md_text: str, manifest_text: str) -> list[Finding]:
+    """Validate the two explicit review declarations without discarding duplicates."""
+    findings: list[Finding] = []
+    markdown_dates = re.findall(
+        r"^> Last reviewed:[ \t]*(.*?)[ \t]*$", md_text, re.MULTILINE
+    )
+    # Keep top-level object pairs: ordinary decoding would lose duplicate keys.
+    pairs = json.loads(manifest_text, object_pairs_hook=lambda entries: entries)
+    manifest_dates = (
+        [value for key, value in pairs if key == "last_reviewed"]
+        if manifest_text.lstrip().startswith("{")
+        else []
+    )
+    values = {}
+    for source, declarations in (
+        ("markdown", markdown_dates),
+        ("manifest", manifest_dates),
+    ):
+        if len(declarations) != 1:
+            findings.append(
+                Finding(
+                    f"review_date_{source}_declaration",
+                    "expected exactly one review date declaration",
+                )
+            )
+            continue
+        value = declarations[0]
+        if (
+            not isinstance(value, str)
+            or re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is None
+        ):
+            findings.append(
+                Finding(
+                    f"review_date_{source}_invalid",
+                    "expected an ISO YYYY-MM-DD calendar date",
+                )
+            )
+            continue
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            findings.append(
+                Finding(
+                    f"review_date_{source}_invalid",
+                    "expected an ISO YYYY-MM-DD calendar date",
+                )
+            )
+            continue
+        values[source] = value
+    if len(values) == 2 and values["markdown"] != values["manifest"]:
+        findings.append(
+            Finding(
+                "review_date_mismatch",
+                f"markdown={values['markdown']} manifest={values['manifest']}",
+            )
+        )
+    return findings
 
 
 def validate_markdown(md_text: str, actions: list[dict[str, Any]]) -> list[Finding]:

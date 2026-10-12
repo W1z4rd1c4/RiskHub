@@ -9,12 +9,12 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
-from app.services._reporting.exports import get_export_builder
-from app.services._reporting.exports.shared import (
+from app.services._reporting import (
     ControlMonitoringExportStatus,
     KRIExportStatus,
     KRIMonitoringExportStatus,
     KRITimelinessExportStatus,
+    get_export_builder,
 )
 
 from .._export_context import build_report_export_context

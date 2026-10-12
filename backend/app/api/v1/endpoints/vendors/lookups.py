@@ -7,7 +7,7 @@ from app.api import deps
 from app.db.session import get_db
 from app.models import User
 from app.schemas.vendor import VendorLookupOption
-from app.services._register_listings.vendors import vendor_filter_lookups
+from app.services._register_listings import vendor_filter_lookups
 from app.services._vendor_governance.policy import assert_vendor_list_allowed
 
 router = APIRouter()

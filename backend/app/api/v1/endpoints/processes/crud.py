@@ -19,14 +19,14 @@ from app.services._ict_register_lifecycle.lifecycle import (
     update_process_detail,
 )
 from app.services._ict_register_lifecycle.projection import load_visible_pending_process_creations
-from app.services._register_listings.lifecycle import build_in_memory_register_response
-from app.services._register_listings.processes import (
+from app.services._register_listings import (
     ProcessListCriteria,
+    build_in_memory_register_response,
     build_process_listing,
     process_collection_capabilities,
     process_criteria_from_filters,
 )
-from app.services._reporting.process_register_export import render_process_register_csv
+from app.services._reporting import render_process_register_csv
 
 router = APIRouter()
 

@@ -7,7 +7,7 @@ from app.api import deps
 from app.db.session import get_db
 from app.models import User
 from app.schemas.threat import ThreatLookupOption
-from app.services._register_listings.threats import threat_filter_lookups
+from app.services._register_listings import threat_filter_lookups
 
 router = APIRouter()
 

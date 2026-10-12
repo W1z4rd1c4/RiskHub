@@ -1,4 +1,4 @@
-"""Static caller boundaries for the explicitly reviewed two-package pilot."""
+"""Static caller boundaries for the explicitly reviewed private-package declarations."""
 
 from __future__ import annotations
 
@@ -24,7 +24,12 @@ class Surface:
         return "service"
 
 
-PILOT_PACKAGES = ("app.services._risk_questionnaires", "app.services._control_execution")
+PILOT_PACKAGES = (
+    "app.services._risk_questionnaires",
+    "app.services._control_execution",
+    "app.services._register_listings",
+    "app.services._reporting",
+)
 
 
 def load_surfaces(root: Path) -> tuple[Surface, ...]:
