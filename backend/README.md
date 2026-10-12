@@ -31,6 +31,10 @@ cd backend
 python -m pip install -r requirements-dev.txt
 ```
 
+Ruff also targets Python 3.13. The tooling refresh preserves the existing
+E/F/W/I rule selection, path exclusions, per-file ignores, and suppression budget;
+it does not apply automatic fixes or regenerate snapshot expectations.
+
 The dependency files have distinct responsibilities:
 
 - `requirements-dev.in` records human-edited dependency intent and accepted
