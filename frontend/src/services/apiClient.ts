@@ -19,3 +19,8 @@ export const apiClient = new ApiClient(API_URL);
 export function isForbiddenApiError(error: unknown): boolean {
     return error instanceof ApiClientError && error.status === 403;
 }
+
+/** Protected single-record reads hide both missing and inaccessible records. */
+export function isSingleRecordUnavailableError(error: unknown): boolean {
+    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
+}

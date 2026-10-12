@@ -26,9 +26,9 @@ describe('resolveCollectionLoadFailure', () => {
         });
     });
 
-    it('preserves non-403 collection state unless the caller opts into clearing', () => {
+    it.each([404, 500])('preserves %i collection state unless the caller opts into clearing', (status) => {
         const result = resolveCollectionLoadFailure(
-            new ApiClientError({ status: 500, messageKey: 'errors.server' }),
+            new ApiClientError({ status, messageKey: 'errors.server' }),
             { fallbackErrorKey: 'errors.load_failed' }
         );
 

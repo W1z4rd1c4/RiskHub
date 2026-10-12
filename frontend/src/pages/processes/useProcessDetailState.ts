@@ -27,7 +27,7 @@ export function useProcessDetailState({ mode }: UseProcessDetailStateOptions) {
         enabled: mode !== 'new',
         entity: 'process',
         rawId: id,
-        load: (processId) => processApi.getProcess(processId),
+        load: (processId, signal) => processApi.getProcess(processId, { signal }),
     });
 
     const restoreWithFeedback = useRestoreWithFeedback();

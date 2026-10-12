@@ -27,7 +27,7 @@ export function useThreatDetailState({ mode }: UseThreatDetailStateOptions) {
         enabled: mode !== 'new',
         entity: 'threat',
         rawId: id,
-        load: (threatId) => threatApi.getThreat(threatId),
+        load: (threatId, signal) => threatApi.getThreat(threatId, { signal }),
     });
 
     const restoreWithFeedback = useRestoreWithFeedback();
