@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { type SupportedLanguage } from '@/i18n';
 import { apiClient } from '@/services/apiClient';
 import { processApi } from '@/services/processApi';
@@ -22,13 +19,8 @@ import {
     useCollectionDataState,
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
-import {
-    buildRegisterUrlParams,
-    normalizeRegisterUrlParams,
-    parseRegisterUrlState,
-    type RegisterSortState,
-} from '../shared/registerListQuery';
 import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
+import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildProcessRegisterListParams,
@@ -36,40 +28,31 @@ import {
     PROCESS_REGISTER_CONFIG,
     serializeProcessRegisterFilters,
     type ProcessFilterKey,
-    type ProcessLifecycleFilter,
     type ProcessRegisterFilters,
-    type ProcessRegisterView,
 } from './processRegisterConfig';
 
 const PROCESS_VIEWS = PROCESS_REGISTER_CONFIG.views.map(({ value }) => value);
 const PROCESS_SORT_FIELDS: readonly ProcessSortField[] = ['f_code', 'l0_area', 'l1_process', 'owner', 'created_at'];
-
-function validSort(sort: RegisterSortState | null): RegisterSortState | null {
-    return sort && PROCESS_SORT_FIELDS.includes(sort.field as ProcessSortField) ? sort : null;
-}
 
 function labelsForSelectedGroup(groups: Array<{ value: string; label: string }>, value: string | null) {
     if (!value) return null;
     return groups.find((group) => group.value === value)?.label ?? null;
 }
 
+const processUrlOptions = {
+    allowedViews: PROCESS_VIEWS,
+    allowedSortFields: PROCESS_SORT_FIELDS,
+    parseFilters: parseProcessRegisterFilters,
+    serializeFilters: serializeProcessRegisterFilters,
+};
+
 export function useProcessesPageState(
     semanticFilters: ProcessSemanticFilters = {},
     language: SupportedLanguage = 'en',
 ) {
     const departmentScope = useDepartmentRegisterScope();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const serializedParams = searchParams.toString();
-    const urlState = useMemo(() => parseRegisterUrlState(
-        new URLSearchParams(serializedParams),
-        { defaultView: 'all', allowedViews: PROCESS_VIEWS },
-    ), [serializedParams]);
-    const filters = useMemo(() => parseProcessRegisterFilters(urlState.filters), [urlState.filters]);
-    const viewMode = urlState.view as ProcessRegisterView;
-    const sort = validSort(urlState.sort);
-    const selectedGroupValue = urlState.selectedGroupValue;
-    const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const currentPage = urlState.page;
+    const workingSet = useRegisterUrlWorkingSet(processUrlOptions);
+    const { currentPage, debouncedSearch, filters, selectedGroupValue, sort, viewMode, writeUrl } = workingSet;
     const [facets, setFacets] = useState<ProcessFacets>({});
     const [pendingCreations, setPendingCreations] = useState<ProcessPendingCreationRead[]>([]);
     const [isExporting, setIsExporting] = useState(false);
@@ -102,8 +85,7 @@ export function useProcessesPageState(
         view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
-    const queryIdentity = JSON.stringify(listParams);
-    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -141,46 +123,9 @@ export function useProcessesPageState(
     }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
     useEffect(() => {
-        const params = new URLSearchParams(serializedParams);
-        if (!normalizeRegisterUrlParams(params, {
-            allowedSortFields: PROCESS_SORT_FIELDS,
-            allowedViews: PROCESS_VIEWS,
-            canonicalizeFilters: (rawFilters) => serializeProcessRegisterFilters(parseProcessRegisterFilters(rawFilters)),
-            defaultView: 'all',
-        })) return;
-        setSearchParams(params, { replace: true });
-    }, [serializedParams, setSearchParams]);
-
-    useEffect(() => {
         void fetchProcesses();
     }, [fetchProcesses]);
 
-    const writeUrl = useCallback((next: {
-        filters?: ProcessRegisterFilters;
-        group?: string | null;
-        search?: string;
-        sort?: RegisterSortState | null;
-        view?: ProcessRegisterView;
-    }, replace = false) => {
-        const params = buildRegisterUrlParams({
-            filters: serializeProcessRegisterFilters(next.filters ?? filters),
-            page: 1,
-            search: next.search ?? urlState.search,
-            selectedGroupValue: next.group === undefined ? selectedGroupValue : next.group,
-            sort: next.sort === undefined ? sort : next.sort,
-            view: next.view ?? viewMode,
-        }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace });
-    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
-
-    const setCurrentPage = useCallback((page: number) => {
-        const params = new URLSearchParams(serializedParams);
-        if (page > 1) params.set('page', String(page));
-        else params.delete('page');
-        setSearchParams(params);
-    }, [serializedParams, setSearchParams]);
-
-    const updateSearch = useCallback((value: string) => writeUrl({ search: value, group: null }, true), [writeUrl]);
     const updateFilter = useCallback(<K extends keyof ProcessRegisterFilters>(key: K, value: ProcessRegisterFilters[K]) => {
         writeUrl({ filters: { ...filters, [key]: value }, group: null });
     }, [filters, writeUrl]);
@@ -188,12 +133,6 @@ export function useProcessesPageState(
         filters: parseProcessRegisterFilters({}),
         group: null,
     }), [writeUrl]);
-    const updateViewMode = useCallback((view: ProcessRegisterView) => writeUrl({ view, group: null }), [writeUrl]);
-    const selectGroup = useCallback((value: string) => writeUrl({ group: value }), [writeUrl]);
-    const clearSelectedGroup = useCallback(() => writeUrl({ group: null }), [writeUrl]);
-    const updateSort = useCallback((field: ProcessSortField | null, direction: SortDirection) => {
-        writeUrl({ sort: field && direction ? { field, direction } : null });
-    }, [writeUrl]);
 
     // D9 / FB-01: a row restore reports through a toast and never flips the
     // register into its error state.
@@ -211,52 +150,20 @@ export function useProcessesPageState(
     const exportProcesses = useCallback(async () => {
         setIsExporting(true);
         try {
-            await processApi.downloadExport({
-                ...listParams,
-                offset: 0,
-                limit: DEFAULT_LIST_PAGE_SIZE,
-                search: urlState.search.trim() || undefined,
-            }, language);
+            await processApi.downloadExport(getExportParams(), language);
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, urlState.search]);
+    }, [getExportParams, language]);
 
     return {
-        capabilities,
-        clearFilters,
-        clearSelectedGroup,
-        currentPage,
-        errorKey,
-        exportProcesses,
-        facets: visibleFacets,
-        fetchProcesses,
-        filters,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isExporting,
-        isLoading,
-        items,
-        limit: DEFAULT_LIST_PAGE_SIZE,
-        pendingCreations: visiblePendingCreations,
-        restoreProcess,
-        search: urlState.search,
-        selectGroup: (value: string, _label?: string) => selectGroup(value),
+        ...workingSet,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
+        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
+        totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
         selectedGroupLabel: labelsForSelectedGroup(groups, selectedGroupValue),
-        selectedGroupValue,
-        setCurrentPage,
-        sortDirection: sort?.direction ?? null,
-        sortField: (sort?.field as ProcessSortField | undefined) ?? null,
-        statusFilter: filters.lifecycle,
-        totalCount,
-        totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE),
-        updateFilter,
+        clearFilters, exportProcesses, fetchProcesses, restoreProcess,
+        pendingCreations: visiblePendingCreations,
         updateProcessFilter: <K extends ProcessFilterKey>(key: K, value: ProcessRegisterFilters[K]) => updateFilter(key, value),
-        updateSearch,
-        updateSort,
-        updateStatusFilter: (value: ProcessLifecycleFilter) => updateFilter('lifecycle', value),
-        updateViewMode,
-        viewMode,
     };
 }

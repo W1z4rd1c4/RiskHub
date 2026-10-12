@@ -133,7 +133,7 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
 
     return {
         ...workingSet,
-        capabilities, errorKey, facets: visibleFacets, filters, groups, hasLoadedOnce, isAccessDenied,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
         isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
         selectedGroupLabel: groupLabel(groups, selectedGroupValue),

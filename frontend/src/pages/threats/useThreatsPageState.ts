@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { SupportedLanguage } from '@/i18n';
 import { apiClient } from '@/services/apiClient';
 import { threatApi } from '@/services/threatApi';
@@ -14,22 +11,15 @@ import {
     useCollectionDataState,
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
-import {
-    buildRegisterUrlParams,
-    normalizeRegisterUrlParams,
-    parseRegisterUrlState,
-    type RegisterSortState,
-} from '../shared/registerListQuery';
 import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
+import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildThreatRegisterListParams,
     parseThreatRegisterFilters,
     serializeThreatRegisterFilters,
     THREAT_REGISTER_CONFIG,
-    type ThreatLifecycleFilter,
     type ThreatRegisterFilters,
-    type ThreatRegisterView,
 } from './threatRegisterConfig';
 
 const THREAT_VIEWS = THREAT_REGISTER_CONFIG.views.map(({ value }) => value);
@@ -42,26 +32,20 @@ const THREAT_SORT_FIELDS: readonly ThreatSortField[] = [
     'created_at',
 ];
 
-const validSort = (sort: RegisterSortState | null) => (
-    sort && THREAT_SORT_FIELDS.includes(sort.field as ThreatSortField) ? sort : null
-);
 const selectedGroupLabel = (groups: Array<{ value: string; label: string }>, value: string | null) => (
     value ? groups.find((group) => group.value === value)?.label ?? null : null
 );
 
+const threatUrlOptions = {
+    allowedViews: THREAT_VIEWS,
+    allowedSortFields: THREAT_SORT_FIELDS,
+    parseFilters: parseThreatRegisterFilters,
+    serializeFilters: serializeThreatRegisterFilters,
+};
+
 export function useThreatsPageState(language: SupportedLanguage = 'en') {
-    const [searchParams, setSearchParams] = useSearchParams();
-    const serializedParams = searchParams.toString();
-    const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
-        defaultView: 'all',
-        allowedViews: THREAT_VIEWS,
-    }), [serializedParams]);
-    const filters = useMemo(() => parseThreatRegisterFilters(urlState.filters), [urlState.filters]);
-    const viewMode = urlState.view as ThreatRegisterView;
-    const sort = validSort(urlState.sort);
-    const groupValue = urlState.selectedGroupValue;
-    const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const currentPage = urlState.page;
+    const workingSet = useRegisterUrlWorkingSet(threatUrlOptions);
+    const { currentPage, debouncedSearch, filters, selectedGroupValue: groupValue, sort, viewMode, writeUrl } = workingSet;
     const [facets, setFacets] = useState<ThreatFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -87,8 +71,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         view: viewMode,
     }), [currentPage, debouncedSearch, filters, groupValue, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
-    const queryIdentity = JSON.stringify(listParams);
-    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -117,42 +100,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         }
     }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(serializedParams);
-        if (!normalizeRegisterUrlParams(params, {
-            allowedSortFields: THREAT_SORT_FIELDS,
-            allowedViews: THREAT_VIEWS,
-            canonicalizeFilters: (rawFilters) => serializeThreatRegisterFilters(parseThreatRegisterFilters(rawFilters)),
-            defaultView: 'all',
-        })) return;
-        setSearchParams(params, { replace: true });
-    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchThreats(); }, [fetchThreats]);
-
-    const writeUrl = useCallback((next: {
-        filters?: ThreatRegisterFilters;
-        group?: string | null;
-        search?: string;
-        sort?: RegisterSortState | null;
-        view?: ThreatRegisterView;
-    }, replace = false) => {
-        const params = buildRegisterUrlParams({
-            filters: serializeThreatRegisterFilters(next.filters ?? filters),
-            page: 1,
-            search: next.search ?? urlState.search,
-            selectedGroupValue: next.group === undefined ? groupValue : next.group,
-            sort: next.sort === undefined ? sort : next.sort,
-            view: next.view ?? viewMode,
-        }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace });
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
-
-    const setCurrentPage = useCallback((page: number) => {
-        const params = new URLSearchParams(serializedParams);
-        if (page > 1) params.set('page', String(page));
-        else params.delete('page');
-        setSearchParams(params);
-    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof ThreatRegisterFilters>(
         key: K,
@@ -175,52 +123,19 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     const exportThreats = useCallback(async () => {
         setIsExporting(true);
         try {
-            await threatApi.downloadExport({
-                ...listParams,
-                offset: 0,
-                limit: DEFAULT_LIST_PAGE_SIZE,
-                search: urlState.search.trim() || undefined,
-            }, language);
+            await threatApi.downloadExport(getExportParams(), language);
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, urlState.search]);
+    }, [getExportParams, language]);
 
     return {
-        capabilities,
-        clearFilters: () => writeUrl({ filters: parseThreatRegisterFilters({}), group: null }),
-        clearSelectedGroup: () => writeUrl({ group: null }),
-        currentPage,
-        errorKey,
-        exportThreats,
-        facets: visibleFacets,
-        fetchThreats,
-        filters,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isExporting,
-        isLoading,
-        items,
-        limit: DEFAULT_LIST_PAGE_SIZE,
-        restoreThreat,
-        search: urlState.search,
-        selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
+        ...workingSet,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
+        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
+        totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
         selectedGroupLabel: selectedGroupLabel(groups, groupValue),
-        selectedGroupValue: groupValue,
-        setCurrentPage,
-        sortDirection: sort?.direction ?? null,
-        sortField: (sort?.field as ThreatSortField | undefined) ?? null,
-        statusFilter: filters.lifecycle,
-        totalCount,
-        totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE),
-        updateFilter,
-        updateSearch: (value: string) => writeUrl({ search: value, group: null }, true),
-        updateSort: (field: ThreatSortField | null, direction: SortDirection) => (
-            writeUrl({ sort: field && direction ? { field, direction } : null })
-        ),
-        updateStatusFilter: (value: ThreatLifecycleFilter) => updateFilter('lifecycle', value),
-        updateViewMode: (view: ThreatRegisterView) => writeUrl({ view, group: null }),
-        viewMode,
+        exportThreats, fetchThreats, restoreThreat,
+        clearFilters: () => writeUrl({ filters: parseThreatRegisterFilters({}), group: null }),
     };
 }

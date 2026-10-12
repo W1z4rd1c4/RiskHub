@@ -33,7 +33,7 @@ function appendValues(params: URLSearchParams, key: string, values: ReadonlyArra
     values?.forEach((value) => params.append(key, String(value)));
 }
 
-export function buildThreatCollectionQuery(params: ThreatListParams): URLSearchParams {
+export function buildThreatCollectionQuery(params: Omit<ThreatListParams, 'offset' | 'limit'> & { offset?: number; limit?: number }): URLSearchParams {
     const query = new URLSearchParams();
     const set = (key: string, value: string | number | boolean | undefined) => {
         if (value !== undefined && value !== '') query.set(key, String(value));
@@ -76,7 +76,7 @@ export function buildThreatCollectionQuery(params: ThreatListParams): URLSearchP
     return query;
 }
 
-async function downloadThreatExport(params: ThreatListParams, locale: 'en' | 'cs'): Promise<void> {
+async function downloadThreatExport(params: Omit<ThreatListParams, 'offset' | 'limit'>, locale: 'en' | 'cs'): Promise<void> {
     const query = buildThreatCollectionQuery(params);
     query.delete('offset');
     query.delete('limit');

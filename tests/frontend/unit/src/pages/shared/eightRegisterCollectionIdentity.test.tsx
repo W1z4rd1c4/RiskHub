@@ -691,7 +691,7 @@ describe('eight-register collection query identity', () => {
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateStatusFilter('archived'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.updateFilter('lifecycle', 'archived'),
             name: 'filter',
             path: '/risks?source=review',
         },

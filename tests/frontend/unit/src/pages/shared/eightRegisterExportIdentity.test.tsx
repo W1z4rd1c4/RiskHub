@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { AssetsPage } from '@/pages/AssetsPage';
 import { ControlsPage } from '@/pages/ControlsPage';
 import { IssuesPage } from '@/pages/IssuesPage';
@@ -34,7 +35,44 @@ function requestSearch(url: URL | undefined) {
     return url?.searchParams.get('search') ?? JSON.parse(url?.searchParams.get('filters') ?? '{}').search;
 }
 
-describe.each(registers.filter(({ name }) => ['assets', 'controls'].includes(name)))('$name rendered current-view export', ({ name, element }) => {
+describe.each(registers)('$name rendered current-view export', ({ name, element }) => {
+    it('replace-normalizes links, pushes page history and restores Back/Forward network queries', async () => {
+        const requests: URL[] = [];
+        server.use(http.get(`*/api/v1/${name}`, ({ request }) => {
+            requests.push(new URL(request.url));
+            return HttpResponse.json({ items: [], total: 160, offset: 0, limit: 20,
+                facets: {}, groups: [], pending_creations: [],
+                capabilities: { can_create: false, can_export: true, can_view_risk_contexts: true, can_view_vendor_contexts: true },
+            });
+        }));
+        const router = createMemoryRouter([{ path: `/${name}`, element }], {
+            initialEntries: [`/${name}?marker=before`, `/${name}?source=review&view=bogus&sort=unknown:asc&filters=3&group=&page=004&q=`],
+            initialIndex: 1,
+        });
+        render(<QueryClientProvider client={createTestQueryClient()}><AuthProvider><LanguageProvider>
+            <RouterProvider router={router} />
+        </LanguageProvider></AuthProvider></QueryClientProvider>);
+        await waitFor(() => expect(router.state.location.search).toBe('?source=review&page=4'));
+        fireEvent.click(await screen.findByRole('button', { name: 'Next page' }));
+        await waitFor(() => expect(requests.at(-1)?.searchParams.get('offset')).toBe(String(4 * DEFAULT_LIST_PAGE_SIZE)));
+        expect(router.state.location.search).toBe('?source=review&page=5');
+        await act(() => router.navigate(-1));
+        await waitFor(() => expect(requests.at(-1)?.searchParams.get('offset')).toBe(String(3 * DEFAULT_LIST_PAGE_SIZE)));
+        expect(router.state.location.search).toBe('?source=review&page=4');
+        await act(() => router.navigate(1));
+        await waitFor(() => expect(requests.at(-1)?.searchParams.get('offset')).toBe(String(4 * DEFAULT_LIST_PAGE_SIZE)));
+        fireEvent.change(screen.getByTestId(`${name}-search-input`), { target: { value: 'new search' } });
+        await waitFor(() => expect(requestSearch(requests.at(-1))).toBe('new search'));
+        expect(requests.at(-1)?.searchParams.get('offset')).toBe('0');
+        expect(router.state.location.search).not.toContain('page=');
+        expect(router.state.location.search).toContain('source=review');
+        await act(() => router.navigate(-1));
+        expect(router.state.location.search).toBe('?source=review&page=4');
+        await act(() => router.navigate(-1));
+        expect(router.state.location.search).toBe('?marker=before');
+        router.dispose();
+    });
+
     it('exports settled A while B is being typed, then exports B after the debounce', async () => {
         const listRequests: URL[] = [];
         const exportRequests: URL[] = [];
