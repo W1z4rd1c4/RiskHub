@@ -92,7 +92,10 @@ describe.each(registers)('$name rendered current-view export', ({ name, element 
                 return new HttpResponse('name\nExported\n', { headers: { 'Content-Type': 'text/csv' } });
             }),
         );
-        vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:export'), revokeObjectURL: vi.fn() }));
+        vi.stubGlobal('URL', class extends URL {
+            static createObjectURL = vi.fn(() => 'blob:export');
+            static revokeObjectURL = vi.fn();
+        });
         vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
         const router = createMemoryRouter([{ path: `/${name}`, element }], { initialEntries: [`/${name}?q=queryA&source=review`] });
         render(<QueryClientProvider client={createTestQueryClient()}><AuthProvider><LanguageProvider>
