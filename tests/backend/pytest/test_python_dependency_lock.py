@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -43,6 +43,135 @@ def _dependency_lock_module() -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _dependency_refresher_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("riskhub_dependency_refresher", REFRESHER)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_bounded_refresh_retains_every_unselected_pin(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text(
+        "# generated\nruff==0.6.9\nmypy==2.3.1\n"
+        "pydantic==2.13.5\npydantic_core==2.46.5\nSQLAlchemy-Utils==0.41.2\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    assert module._retained_constraints(["RUFF", "sqlalchemy_utils"]) == (
+        "mypy==2.3.1\npydantic==2.13.5\npydantic_core==2.46.5\n"
+    )
+
+
+@pytest.mark.parametrize("selection", [["rufff"], ["ruff>=0.16"], ["not-installed"]])
+def test_bounded_refresh_rejects_unknown_selection(selection, tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("ruff==0.6.9\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    with pytest.raises(ValueError, match="absent from existing lock"):
+        module._retained_constraints(selection)
+
+
+@pytest.mark.parametrize("invalid", ["mypy>=2", "mypy==2.*", "mypy==2; python_version > '3'", "-r other.txt"])
+def test_bounded_refresh_rejects_nonexact_existing_lock(invalid, tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text(f"ruff==0.6.9\n{invalid}\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    with pytest.raises(ValueError, match="non-exact index pin"):
+        module._retained_constraints(["ruff"])
+
+
+def test_bounded_refresh_rejects_duplicate_canonical_names(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("SQLAlchemy-Utils==0.41.2\nsqlalchemy_utils==0.42.1\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    with pytest.raises(ValueError, match="duplicate package: sqlalchemy-utils"):
+        module._retained_constraints(["sqlalchemy-utils"])
+
+
+@pytest.mark.parametrize("resolved", ["pydantic_core==2.49.0\n", "ruff==0.16.10\n"])
+def test_bounded_refresh_rejects_changed_or_missing_retained_dependency(resolved):
+    module = _dependency_refresher_module()
+
+    with pytest.raises(ValueError, match="changed or removed unselected pin: pydantic_core==2.46.5"):
+        module._validate_retained_pins("pydantic_core==2.46.5\n", resolved)
+
+
+def test_bounded_refresh_accepts_canonical_name_equivalence():
+    module = _dependency_refresher_module()
+    module._validate_retained_pins("pydantic_core==2.46.5\n", "pydantic-core==2.46.5\n")
+
+
+def test_bounded_refresh_can_explicitly_select_every_existing_pin(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("ruff==0.6.9\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    retained = module._retained_constraints(["ruff"])
+
+    assert retained == ""
+    module._validate_retained_pins(retained, "ruff==0.16.10\n")
+
+
+def test_bounded_generator_applies_constraints_and_checks_installed_dependencies(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("ruff==0.6.9\npydantic_core==2.46.5\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+    monkeypatch.setattr(module, "sys", SimpleNamespace(executable="python3.13", version_info=(3, 13)))
+    calls = []
+
+    def run(command, *, cwd=None):
+        calls.append(command)
+        if "-r" in command:
+            assert command[command.index("-r") + 1] == str(module.INPUT)
+            retained = Path(command[command.index("-c") + 1]).read_text(encoding="utf-8")
+            assert retained == "pydantic_core==2.46.5\n"
+
+    def freeze(command, **kwargs):
+        assert calls[-1][-3:] == ["-m", "pip", "check"]
+        assert command[-4:] == ["-m", "pip", "freeze", "--all"]
+        return subprocess.CompletedProcess(command, 0, "ruff==0.16.10\npydantic_core==2.46.5\n", "")
+
+    monkeypatch.setattr(module, "_run", run)
+    monkeypatch.setattr(module.subprocess, "run", freeze)
+
+    result = module.generate_lock(upgrade_packages=["ruff"])
+
+    assert result == module.LOCK_HEADER + "pydantic_core==2.46.5\nruff==0.16.10\n"
+    assert calls[0][1:3] == ["-m", "venv"]
+
+
+def test_bounded_resolver_conflict_leaves_all_generated_surfaces_untouched(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    original = {}
+    for attribute in ("INPUT", "DEV_LOCK", "AUDIT_LOCK", "ENTRYPOINT"):
+        path = tmp_path / attribute
+        path.write_bytes(f"original {attribute}\n".encode())
+        monkeypatch.setattr(module, attribute, path)
+        original[path] = path.read_bytes()
+
+    def resolver_conflict(*, upgrade_packages):
+        assert upgrade_packages == ["mypy"]
+        raise subprocess.CalledProcessError(1, ["pip", "install"])
+
+    monkeypatch.setattr(module, "generate_lock", resolver_conflict)
+    with pytest.raises(subprocess.CalledProcessError):
+        module.refresh(check=False, upgrade_packages=["mypy"])
+
+    assert {path: path.read_bytes() for path in original} == original
 
 
 def _temporary_dependency_lock(
