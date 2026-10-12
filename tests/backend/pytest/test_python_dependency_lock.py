@@ -174,6 +174,51 @@ def test_bounded_resolver_conflict_leaves_all_generated_surfaces_untouched(tmp_p
     assert {path: path.read_bytes() for path in original} == original
 
 
+@pytest.mark.parametrize("mode", ["check", "pip-check-failure"])
+def test_bounded_refresh_preserves_all_output_bytes_without_successful_write(mode, tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    original = {}
+    for attribute, content in {
+        "INPUT": "ruff==0.16.10\n",
+        "DEV_LOCK": "ruff==0.6.9\npydantic_core==2.46.5\n",
+        "AUDIT_LOCK": "ruff==0.6.9\npydantic_core==2.46.5\n",
+        "ENTRYPOINT": "original wrapper and digests\n",
+    }.items():
+        path = tmp_path / attribute
+        path.write_bytes(content.encode())
+        monkeypatch.setattr(module, attribute, path)
+        original[path] = path.read_bytes()
+    monkeypatch.setattr(
+        module, "sys", SimpleNamespace(executable="python3.13", version_info=(3, 13), stderr=sys.stderr)
+    )
+    calls = []
+
+    def run(command, *, cwd=None):
+        calls.append(command)
+        if "-r" in command:
+            assert Path(command[command.index("-c") + 1]).read_text() == "pydantic_core==2.46.5\n"
+        if command[-3:] == ["-m", "pip", "check"] and mode == "pip-check-failure":
+            raise subprocess.CalledProcessError(1, command)
+
+    def freeze(command, **kwargs):
+        assert calls[-1][-3:] == ["-m", "pip", "check"]
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "ruff==0.16.10\npydantic_core==2.46.5\n", "")
+
+    monkeypatch.setattr(module, "_run", run)
+    monkeypatch.setattr(module.subprocess, "run", freeze)
+
+    if mode == "check":
+        assert module.refresh(check=True, upgrade_packages=["ruff"]) == 1
+        assert calls[-1][-4:] == ["-m", "pip", "freeze", "--all"]
+    else:
+        with pytest.raises(subprocess.CalledProcessError):
+            module.refresh(check=False, upgrade_packages=["ruff"])
+        assert calls[-1][-3:] == ["-m", "pip", "check"]
+    assert {path: path.read_bytes() for path in original} == original
+
+
 def _temporary_dependency_lock(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -311,19 +356,21 @@ def test_dependency_lock_rejects_refresher_pip_version_regression(
     )
 
 
-def test_dependency_lock_rejects_syrupy_intent_regression(
+@pytest.mark.parametrize("intent", ["4.6.*", "5.0.*", "6.*", "6.1.*", "6.1.0", "6.2.0"])
+def test_dependency_lock_rejects_unreviewed_syrupy_intent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    intent: str,
 ):
     module = _temporary_dependency_lock(
         tmp_path,
         monkeypatch,
         replacements={},
-        syrupy_intent_override="4.6.*",
+        syrupy_intent_override=intent,
     )
 
     assert (
-        "requirements-dev.in must request syrupy==5.0.* exactly"
+        "requirements-dev.in must request syrupy==6.1.1 exactly"
         in module.validate()
     )
 
