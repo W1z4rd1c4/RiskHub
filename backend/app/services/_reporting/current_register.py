@@ -6,8 +6,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import KeyRiskIndicator
-from app.services._monitoring_status import get_kri_monitoring_config
-from app.services._monitoring_status.export_rows import apply_kri_monitoring_rows
+from app.services._monitoring_status import apply_kri_monitoring_rows, get_kri_monitoring_config
 from app.services._register_listings import effective_kri_lifecycle
 
 from .exports.rows import _kri_to_row

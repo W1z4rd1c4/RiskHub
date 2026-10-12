@@ -11,7 +11,7 @@ from app.models import Issue, User
 from app.models.issue import IssueSourceType, IssueStatus
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
-from app.services._monitoring_status.kris import classify_kri_breach
+from app.services._monitoring_status import classify_kri_breach
 
 from .logging import logger
 

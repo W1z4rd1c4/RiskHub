@@ -26,7 +26,7 @@ COLD_COMPOSITION_CHECK = (
     "test_cold_import_order_and_mounted_endpoints",
 )
 COLD_COMPOSITION_REASON = (
-    "Three first-import orders must compose the mounted application in a fresh interpreter; "
+    "Reviewed first-import orders must compose the mounted application in a fresh interpreter; "
     "the already-imported pytest process cannot expose eager package cycles."
 )
 COLD_COMPOSITION_EXPIRES = date(2026, 12, 5)

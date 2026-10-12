@@ -4,12 +4,12 @@ Audit #57 verdict: Reject deletion. This facade is kept as the stable
 backwards-compatible import path for existing quarterly comparison callers.
 """
 
-from app.services._quarterly_comparison.composition import (
+from app.services._quarterly_comparison import (
     PERIOD_METRICS,
     SNAPSHOT_METRICS,
     build_quarterly_comparison,
 )
-from app.services._quarterly_comparison.periods import parse_quarter as _parse_quarter
+from app.services._quarterly_comparison import parse_quarter as _parse_quarter
 
 
 def parse_quarter(quarter_str: str):

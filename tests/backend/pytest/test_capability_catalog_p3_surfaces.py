@@ -27,7 +27,6 @@ def test_item18_catalog_surfaces_are_registered_without_risk_hub() -> None:
     catalog = json.loads(CATALOG.read_text())
     surfaces = {surface["id"]: surface for surface in catalog["surfaces"]}
 
-    assert len(ITEM18_SURFACES) == 11
     assert "risk_hub" not in surfaces
 
     missing = ITEM18_SURFACES - surfaces.keys()

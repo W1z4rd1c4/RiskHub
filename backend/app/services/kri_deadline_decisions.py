@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import NotificationType
-from app.services._monitoring_status.kris import classify_kri_breach
+from app.services._monitoring_status import classify_kri_breach
 
 
 @dataclass(frozen=True)

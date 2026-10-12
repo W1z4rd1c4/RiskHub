@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
 from app.models import User
 from app.models.activity_log import ActivityEntityType
-from app.services._monitoring_status import get_kri_monitoring_config
-from app.services._monitoring_status.export_rows import apply_kri_monitoring_rows
+from app.services._monitoring_status import apply_kri_monitoring_rows, get_kri_monitoring_config
 from app.services.export_snapshot_service import ExportSnapshotService
 
 from .fetch import _apply_kri_history_as_of, _fetch_kris_for_export

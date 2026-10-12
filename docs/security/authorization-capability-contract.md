@@ -10,6 +10,8 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
 
+2026-10-12: The bounded #254/#255 read-model tranche routes Dashboard, monitoring-row and quarterly callers through fixed declared roots. Existing endpoint policy-ownership prohibitions, canonical range and visibility owners, live-by-default/explicit archive behavior, current versus stored/evaluation-time monitoring and replayed quarterly facts remain enforced. Binding-only migration does not change authority, population, transaction or historical reconstruction semantics; remaining classified boundaries are still separate.
+
 Native identity actions use `MeCapabilities.identity` and access-row invitation/reset/recovery/directory capabilities from `backend/app/services/identity_capabilities.py` and `backend/app/schemas/identity.py`. External-directory capability is distinct from local user-directory visibility. Native mode rejects external direct/HTTP work before effects, keeps ordinary jobs/outbox, and labels external health `not_applicable`. Privileged recovery remains offline-required; pending recovery cannot be resumed. Both user-profile and access-profile PATCH adapters reject resumption with `RECOVERY_PENDING` before changing account state or revoking recovery authority. See [directory isolation](identity-directory-isolation.md).
 
 Native bootstrap (#203) seeds only canonical references and distinct pending Admin/CRO Users under the identity lock. Restricted grants use the existing enrollment service; completion permanently closes bootstrap reissue. Reruns preserve role/scope, suspension and credentials. Operator abort revokes unused grants before verified artifact cleanup. See [bootstrap](identity-bootstrap.md).
@@ -959,3 +961,16 @@ validation in both CLI modes. The catalog is a typed opt-in field-shape check,
 including declared string-array identity fields and boolean-map fields. An
 interface-only entry proves its declared interface, not exhaustive field coverage.
 Remaining structure/count and broad alias migration work is outside this tranche.
+
+
+### Capability catalog and validator test ownership (#268)
+
+The catalog's explicit registrations and typed field lists own schema-shape
+coverage. Tests retain reviewed surface opt-ins and exclusions, rather than a
+minimum catalog size or another copy of each field list. Synthetic repositories
+exercise the public validator CLI with real Git base references, preserving
+matrix/path/discovery findings, paired-document sensitivity, local frontend
+classifications, navigation authority, and boolean/map/string-array shape
+failures. Separate integration checks retain actual policy registrations and
+hook/CI wiring. Conservative no-diff sensitivity remains a focused unit contract.
+This does not change Markdown authority or expand catalog opt-ins.

@@ -39,12 +39,10 @@ from app.services._ict_register_reference.parameters import load_ict_workbook_pa
 from app.services._monitoring_status import (
     ControlMonitoringStatus,
     KRIMonitoringStatus,
-    get_control_monitoring_config,
-    get_kri_monitoring_config,
-)
-from app.services._monitoring_status.queries import (
     apply_control_monitoring_status_filter,
     apply_kri_monitoring_status_filter,
+    get_control_monitoring_config,
+    get_kri_monitoring_config,
 )
 from app.services._register_listings import (
     RISK_BANDS,

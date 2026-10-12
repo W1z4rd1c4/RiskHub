@@ -1,6 +1,7 @@
 """ARCH-12 #245 red-first current-view due parity and reminder liveness."""
 
 from datetime import UTC, date, datetime
+from importlib import import_module
 
 import pytest
 
@@ -8,15 +9,16 @@ from app.models import Department
 from app.models.risk import ControlRiskLink
 from app.models.user import AccessScope
 from app.services._kri_history import clock
+from app.services._quarterly_comparison import build_quarterly_comparison
 from tests.backend.pytest.factories import create_test_control, create_test_kri, create_test_risk
 
 
 def freeze(monkeypatch, today):
     now = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
     monkeypatch.setattr(clock, "today", lambda: today)
+    monkeypatch.setattr(import_module(build_quarterly_comparison.__module__), "utc_now", lambda: now, raising=True)
     for module in [
         "app.services._register_listings.kris",
-        "app.services._quarterly_comparison.composition",
         "app.services.kri_deadline_service",
     ]:
         monkeypatch.setattr(f"{module}.utc_now", lambda: now)

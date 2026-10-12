@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.schemas.dashboard import KRIBreachTrendPoint
-from app.services._dashboard_metrics.kris import load_kri_breach_trends
+from app.services._dashboard_metrics import load_kri_breach_trends
 
 router = APIRouter()
 

@@ -18,12 +18,15 @@ from app.db.session import get_db
 from app.models import User
 from app.models.global_config import get_risk_thresholds
 from app.schemas.dashboard import DashboardFilterScope, DashboardOverviewCapabilities, DashboardOverviewResponse
-from app.services._dashboard_metrics import build_dashboard_summary_metrics
-from app.services._dashboard_metrics.controls import load_control_trends
-from app.services._dashboard_metrics.departments import load_department_dashboard_metrics
-from app.services._dashboard_metrics.issues import build_issue_dashboard_metrics_bundle
-from app.services._dashboard_metrics.kris import load_kri_breach_trends
-from app.services._dashboard_metrics.risks import load_risk_distribution, load_risk_trends
+from app.services._dashboard_metrics import (
+    build_dashboard_summary_metrics,
+    build_issue_dashboard_metrics_bundle,
+    load_control_trends,
+    load_department_dashboard_metrics,
+    load_kri_breach_trends,
+    load_risk_distribution,
+    load_risk_trends,
+)
 
 router = APIRouter()
 

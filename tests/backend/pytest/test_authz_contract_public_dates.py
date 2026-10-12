@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import re
 import runpy
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+from tests.backend.pytest._authz_cli_test_support import build_cli_repo
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = Path("scripts/security/validate_authz_capability_contract.py")
@@ -21,141 +22,7 @@ CATALOG = Path("docs/security/capability-catalog.json")
 
 @pytest.fixture(scope="module")
 def cli_repo(tmp_path_factory):
-    """Minimal synthetic repository, executing the unchanged public CLI and validators."""
-    root = tmp_path_factory.mktemp("authz-public-cli")
-    shutil.copytree(
-        ROOT / "scripts/security",
-        root / "scripts/security",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
-    fields = (
-        "id",
-        "surface",
-        "action",
-        "actor_scope",
-        "backend_authority",
-        "service_policy",
-        "response_capability",
-        "frontend_gate",
-        "status",
-        "findings",
-        "tests",
-    )
-    headers = (
-        "ID",
-        "Surface",
-        "Action",
-        "Actor scope",
-        "Backend authority",
-        "Service policy",
-        "Response capability",
-        "Frontend gate",
-        "Status",
-        "Findings",
-        "Tests",
-    )
-    backend = "backend/app/schemas/synthetic.py"
-    frontend = "frontend/src/synthetic.ts"
-    action = dict(
-        zip(
-            fields,
-            (
-                "AUTHZ-SYNTHETIC",
-                "Synthetic",
-                "Read",
-                "Authenticated",
-                backend,
-                "Backend policy",
-                "Typed catalog",
-                frontend,
-                "authoritative",
-                [],
-                ["tests/test_synthetic.py"],
-            ),
-            strict=True,
-        )
-    )
-    manifest = {
-        "version": "1.0",
-        "last_reviewed": "2026-10-02",
-        "last_architecture_refactor_reviewed": "2020-01-01",
-        "sensitive_change_paths": [backend, frontend],
-        "actions": [action],
-    }
-    sections = (
-        "Purpose",
-        "Architecture Principles",
-        "Vocabulary",
-        "Maintenance Rule",
-        "Contract Matrix",
-        "Capability Gap Register",
-        "Evidence Map",
-        "Required Verification",
-        "Out Of Scope",
-    )
-    markdown = "> Last reviewed: 2026-10-02\nUnrelated prose date: 1999-01-01\n"
-    for section in sections:
-        markdown += "\n## " + section + "\n"
-        if section == "Contract Matrix":
-            values = [
-                "None"
-                if field == "findings"
-                else "tests/test_synthetic.py"
-                if field == "tests"
-                else str(action[field])
-                for field in fields
-            ]
-            markdown += (
-                "| "
-                + " | ".join(headers)
-                + " |\n| "
-                + " | ".join("---" for _ in fields)
-                + " |\n"
-            )
-            markdown += "| " + " | ".join(values) + " |\n"
-    catalog = {
-        "surfaces": [
-            {
-                "id": "synthetic",
-                "backend": {"path": backend, "class": "SyntheticCapabilities"},
-                "frontend": {"path": frontend, "schema": "syntheticCapabilitiesSchema"},
-                "fields": ["can_read", "managed_fields"],
-                "string_array_fields": ["managed_fields"],
-            }
-        ]
-    }
-    files = {
-        str(MD): markdown,
-        str(MANIFEST): json.dumps(manifest),
-        str(CATALOG): json.dumps(catalog),
-        backend: ("from pydantic import BaseModel\nclass SyntheticCapabilities(BaseModel):\n"
-                  "    can_read: bool\n    managed_fields: list[str]\n"),
-        frontend: ("export const syntheticCapabilitiesSchema = passthroughObject({\n"
-                   "  can_read: z.boolean(),\n  managed_fields: z.array(z.string()),\n});\n"),
-        "frontend/src/routing/business.tsx": "export const businessRoutes = [];\n",
-        "tests/test_synthetic.py": "def test_contract(): pass\n",
-    }
-    for path, content in files.items():
-        target = root / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content)
-    for args in (
-        ("init", "-q"),
-        ("add", "."),
-        (
-            "-c",
-            "user.name=Test",
-            "-c",
-            "user.email=test@example.invalid",
-            "commit",
-            "-qm",
-            "baseline",
-        ),
-    ):
-        subprocess.run(
-            ["git", *args], cwd=root, check=True, capture_output=True, timeout=30
-        )
-    return root
+    return build_cli_repo(tmp_path_factory.mktemp("authz-public-cli"))
 
 
 @pytest.fixture
@@ -332,3 +199,97 @@ def test_retired_shim_aliases_have_no_repository_callers_and_reject_old_access(
     assert {
         key: value for key, value in sys.modules.items() if key.startswith(prefixes)
     } == saved
+
+
+# Explicitly retired adapter names. Same-name implementation APIs remain supported.
+RETIRED_BRIDGES = (
+    "_run_git", "_extract_contract_matrix_rows", "_read_source",
+    "_discover_authz_paths", "_validate_discovered_authz_paths",
+    "_read_catalog_source", "_extract_python_class_body",
+    "_extract_backend_capability_fields", "_find_matching_closing_brace",
+    "_extract_typescript_schema_body", "_extract_frontend_capability_fields",
+    "BACKEND_ENDPOINT_AUTHZ_PATTERN", "FRONTEND_AUTHZ_TOKEN_PATTERN",
+)
+
+# These hits are canonical implementations, unrelated local helpers or anti-inline
+# assertions. No production caller imports these names from the CLI adapter.
+BRIDGE_REFERENCE_OWNERS = {
+    "_run_git": {
+        "scripts/security/validate_public_repo_hygiene.py",
+        "tests/backend/pytest/test_repo_hygiene_contracts.py",
+    },
+    "_extract_contract_matrix_rows": {"tests/backend/pytest/test_authz_capability_contract_validator.py"},
+    "_read_source": {
+        "scripts/security/authz_contract_validator/capability_catalog.py",
+        "scripts/security/authz_contract_validator/frontend_routes.py",
+    },
+    "_discover_authz_paths": {"tests/backend/pytest/test_authz_capability_contract_validator.py"},
+    "_validate_discovered_authz_paths": set(),
+    **{
+        name: {"scripts/security/authz_contract_validator/capability_catalog.py"}
+        for name in (
+            "_read_catalog_source",
+            "_extract_python_class_body",
+            "_extract_backend_capability_fields",
+            "_find_matching_closing_brace",
+            "_extract_typescript_schema_body",
+        )
+    },
+    "_extract_frontend_capability_fields": {
+        "scripts/security/authz_contract_validator/capability_catalog.py",
+        "tests/frontend/unit/src/services/api/schemas/__tests__/crudCapabilitySchema.parser.test.ts",
+    },
+    "BACKEND_ENDPOINT_AUTHZ_PATTERN": {
+        "scripts/security/authz_contract_validator/discovery.py",
+        "tests/backend/pytest/test_authz_capability_contract_validator.py",
+    },
+    "FRONTEND_AUTHZ_TOKEN_PATTERN": {
+        "scripts/security/authz_contract_validator/contract_manifest.py",
+        "tests/backend/pytest/test_authz_capability_contract_validator.py",
+    },
+}
+
+
+def _unclassified_bridge_references(path, source):
+    if path in {SCRIPT.as_posix(), Path(__file__).relative_to(ROOT).as_posix()}:
+        return set()
+    return {name for name in RETIRED_BRIDGES
+            if re.search(r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])", source)
+            and path not in BRIDGE_REFERENCE_OWNERS[name]}
+
+
+def test_retired_bridges_have_no_unclassified_tracked_text_references():
+    tracked = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, check=True,
+                             capture_output=True, timeout=10).stdout.decode().split("\0")
+    for name in filter(None, tracked):
+        try:
+            source = (ROOT / name).read_text()
+        except UnicodeError:
+            continue  # Binary assets cannot contain Python imports/string consumers.
+        assert not _unclassified_bridge_references(name, source), name
+    for alias in RETIRED_BRIDGES:
+        for path in ("scripts/example.py", "docs/example.md", "frontend/src/example.ts"):
+            assert _unclassified_bridge_references(path, f'getattr(validator, "{alias}")') == {alias}
+
+
+def test_unused_adapter_bridges_are_absent_but_deep_owners_stay_available(monkeypatch):
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    prefixes = ("authz_contract_validator", "authz_contract_manifest")
+    saved = {key: value for key, value in sys.modules.items() if key.startswith(prefixes)}
+    try:
+        for key in saved:
+            del sys.modules[key]
+        module = runpy.run_path(str(ROOT / SCRIPT))
+        assert set(RETIRED_BRIDGES).isdisjoint(module), set(RETIRED_BRIDGES) & module.keys()
+        assert callable(module["validate"]) and callable(module["main"])
+        from authz_contract_validator import capability_catalog, contract_manifest, discovery
+        assert callable(capability_catalog._extract_frontend_capability_fields)
+        assert callable(capability_catalog._extract_backend_capability_fields)
+        assert discovery.BACKEND_ENDPOINT_AUTHZ_PATTERN
+        assert contract_manifest.FRONTEND_AUTHZ_TOKEN_PATTERN
+    finally:
+        for key in list(sys.modules):
+            if key.startswith(prefixes):
+                del sys.modules[key]
+        sys.modules.update(saved)
+    assert {key: value for key, value in sys.modules.items() if key.startswith(prefixes)} == saved

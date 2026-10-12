@@ -52,3 +52,24 @@ negative controls. Only shim aliases with no repository references were retired;
 existing supported/test-used compatibility exports remain. Broader legacy test
 interface migration, catalog-lock restatement removal and structure-count tooling
 remain separate #268 criteria, so this companion does not close the whole issue.
+
+
+## Subsequent compatibility cleanup and retained evidence (#268)
+
+After the public-fixture migration, a full tracked-readable token inventory found
+13 more adapter bridges with no callers. Only those shim bindings are retired;
+the same-name deep catalog, discovery and manifest implementations remain. The
+frontend parser test continues importing its extractor from the deep catalog owner.
+`validate`, `main`, runner-used adapters and the defensive no-diff seam are retained.
+
+Public CLI tests now cover synthetic base-ref findings, paired dates, typed catalog
+failures and the supported entrypoints after retirement. A small lower-level set
+remains intentional: actual policy/sensitive-path registration, canonical import
+identity, adapter ownership, directory authority, defensive no-diff behavior and
+installed hook/CI wiring cannot all be established by synthetic public fixtures.
+Structure inventory markers retain strict coverage, date and malformed/duplicate
+checks, and any retained numeric claims must match measured Git-index facts. These
+markers are observed inventory declarations, not acceptance budgets. Whole-issue
+acceptance must acknowledge these retained implementation-only controls and the
+explicit opt-in string-array criterion correction; it must not claim all tests are
+public-only or change Markdown's documentation authority.

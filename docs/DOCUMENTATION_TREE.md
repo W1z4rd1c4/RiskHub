@@ -170,6 +170,11 @@ python3 scripts/tools/docs_tree_audit.py --scope full
 python3 scripts/tools/structure_metrics_guard.py
 ```
 
+The structure command prints source-derived Git-index counts and writes JSON evidence.
+Explicit numeric claims still fail on drift; inventory declaration coverage and
+valid, coherent topology dates remain blocking checks.
+
+
 ## Reachability Contract
 
 - Canonical leaf documents under `docs/` and `.planning/codebase/` must be reachable through markdown links from at least one root entrypoint (`AGENTS.md`, `docs/README.md`, `.planning/README.md`) within 3 hops.

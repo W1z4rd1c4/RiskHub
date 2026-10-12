@@ -81,6 +81,11 @@ python3 scripts/tools/readme_coverage.py audit
 python3 scripts/tools/structure_metrics_guard.py
 ```
 
+The structure command prints source-derived Git-index counts and writes JSON evidence.
+Explicit numeric claims still fail on drift; inventory declaration coverage and
+valid, coherent topology dates remain blocking checks.
+
+
 Outputs:
 
 - `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.json`
