@@ -324,13 +324,13 @@ async def recent_authentication(
         if assisted:
             from app.services._identity_authority_lock import lock_identity_transition
 
-            from .recovery_policy import require_recoverable, require_recovery_actor
+            from .recovery_policy import require_recovery_actor, require_web_recoverable
 
             target = await lock_identity_transition(db, user_id=data.target_user_id, actor=actor, settings=ctx.settings)
             require_recovery_actor(actor)
             if data.expected_token_version is None:
                 raise invalid_proof()
-            require_recoverable(target, version=data.expected_token_version, web=True)
+            await require_web_recoverable(db, target, actor=actor, version=data.expected_token_version)
         user = await lock_session_user(db, user_id=actor.id)
         if (
             user is None

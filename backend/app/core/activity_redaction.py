@@ -128,6 +128,7 @@ SAFE_CHANGESET_ALLOWLIST_BY_ENTITY = {
         "password_changed",
         "entra_business_role",
         "revoke_count",
+        "artifact_revoke_count",
         "context_changed",
         "failure_code",
         "logout_scope",
@@ -361,6 +362,10 @@ def _redact_value(value: object) -> object:
 
 
 def sanitize_change_field(entity_type: str, field: str, value: object) -> tuple[object, bool]:
+    if entity_type == "user" and _normalize_field_name(field) == "artifact_revoke_count":
+        if type(value) is int and value >= 0:
+            return value, True
+        return _redact_value(value), False
     if _is_redaction_sensitive_field(entity_type, field) or _is_free_text_field(field):
         return _redact_value(value), False
     if _is_safe_field(entity_type, field):

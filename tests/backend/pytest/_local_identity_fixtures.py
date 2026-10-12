@@ -54,3 +54,24 @@ async def native_context(tmp_path, monkeypatch, db_session):
     monkeypatch.setattr(app.state, "redis", redis)
     yield settings
     await redis.aclose()
+
+
+@pytest_asyncio.fixture
+async def credential_account(native_context, client_factory, db_session, test_user, test_user_employee):
+    """An invited password-only account completed through the public enrollment API."""
+    from tests.backend.pytest.test_local_identity import PASSWORD, create_invitation, csrf, latest_mail
+
+    native_context.local_mfa_policy = "optional"
+    uid = await create_invitation(client_factory, native_context, db_session, test_user, test_user_employee.role_id)
+    _, invitation = await latest_mail(db_session, native_context, user_id=uid, kind="invitation")
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        await csrf(client)
+        enrolled = await client.post(
+            "/api/v1/auth/local/enrollment/start",
+            json={
+                "grant": invitation["credential"],
+                "password": PASSWORD,
+            },
+        )
+        assert enrolled.status_code == 202 and enrolled.json()["status"] == "completed", enrolled.text
+    return uid

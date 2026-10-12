@@ -114,6 +114,7 @@ async def audit_local(
     reason: str | None = None,
     evidence: dict | None = None,
     revoke_count: int | None = None,
+    artifact_revoke_count: int | None = None,
 ) -> None:
     await log_activity(
         db=db,
@@ -130,6 +131,8 @@ async def audit_local(
             **({"reason": reason} if reason is not None else {}),
             **(evidence or {}),
             **({"event_type": event, "revoke_count": revoke_count} if revoke_count is not None else {}),
+            **({"event_type": event, "artifact_revoke_count": artifact_revoke_count}
+               if artifact_revoke_count is not None else {}),
         },
     )
 

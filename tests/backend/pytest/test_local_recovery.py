@@ -708,7 +708,11 @@ async def test_privileged_recovery_is_rejected_on_web(
     test_user_cro,
     test_user_employee,
     role_kind,
+    monkeypatch,
 ):
+    from types import SimpleNamespace
+
+    from app.core import activity_logger
     from app.core.datetime_utils import utc_now
     from app.core.security import get_password_hash
     from app.models.user import AccessScope
@@ -733,14 +737,20 @@ async def test_privileged_recovery_is_rejected_on_web(
     await db_session.commit()
     from sqlalchemy import func, select
 
-    from app.models import LocalAuthGrant, RefreshToken
+    from app.models import ActivityLog, LocalAuthGrant, RefreshToken
+
+    emitted = []
+    monkeypatch.setattr(
+        activity_logger, "audit_logger", SimpleNamespace(info=lambda event, **data: emitted.append(data))
+    )
 
     fields = ("role_id", "access_scope", "department_id", "manager_id", "token_version", "is_active", "local_suspended")
     before = tuple(getattr(target, field) for field in fields)
-    async with client_factory(
-        settings=native_context, headers={"Origin": "http://test"}
-    ) as client:
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
         await login_password_only(client, test_user.email, PASSWORD)
+        unused = await recent(
+            client, test_user.id, None, "password_change", intended_password="Private unused passphrase 92!"
+        )
         grants = await db_session.scalar(select(func.count()).select_from(LocalAuthGrant))
         sessions = await db_session.scalar(select(func.count()).select_from(RefreshToken))
         result = await client.post(
@@ -760,6 +770,43 @@ async def test_privileged_recovery_is_rejected_on_web(
         assert tuple(getattr(target, field) for field in fields) == before
         assert await db_session.scalar(select(func.count()).select_from(LocalAuthGrant)) == grants
         assert await db_session.scalar(select(func.count()).select_from(RefreshToken)) == sessions
+        denied = await client.post(
+            f"/api/v1/users/{target.id}/recovery",
+            json={
+                "recent_auth_proof": unused,
+                "expected_token_version": target.token_version,
+                "operation": "factor_recovery",
+                "incident_reference": "Private-incident-200",
+                "verification_method": "Private-verification-evidence",
+                "reason": "Private-sensitive-reason",
+            },
+        )
+        assert denied.status_code == 401, denied.text
+        await db_session.refresh(target)
+        assert tuple(getattr(target, field) for field in fields) == before
+        assert not target.local_recovery_pending
+        proof = await db_session.get(LocalAuthGrant, unused.split(".")[0], populate_existing=True)
+        assert proof.consumed_at is None and proof.revoked_at is None
+        records = list(
+            (
+                await db_session.scalars(
+                    select(ActivityLog).where(ActivityLog.description == "local_privileged_recovery_denied")
+                )
+            ).all()
+        )
+        streamed = [row for row in emitted if row["description"] == "local_privileged_recovery_denied"]
+        assert len(records) == len(streamed) == 2
+        for changes in [*[row.changes for row in records], *[row["changes"] for row in streamed]]:
+            assert changes["event_type"] == "local_privileged_recovery_denied"
+            assert changes["failure_code"] == "offline_recovery_required"
+            for private in [
+                unused,
+                PASSWORD,
+                "Private-incident-200",
+                "Private-verification-evidence",
+                "Private-sensitive-reason",
+            ]:
+                assert private not in str(changes)
 
 
 @pytest.mark.parametrize("damage", ["missing", "wrong"])
