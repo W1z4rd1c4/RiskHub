@@ -145,6 +145,15 @@ unavailable until #208; this is not a second authentication or authorization sys
 
 ## Native recovery — 2026-09-12
 
+2026-10-12 (#200): Credential completion preserves all existing authority, factor,
+purpose, browser and target checks. Its audit reports newly revoked grant rows as
+`artifact_revoke_count`, independently of refresh-row `revoke_count`; the legacy
+session invalidation return contract remains the refresh count. Privileged-target
+web recovery and recent-auth denial now emit an enumerated, nonsecret audit event
+before any proof/factor consumption, without changing the offline-only boundary.
+No role, capability, permission, session admission or production-admission change
+is introduced. See [native credential contracts](identity-local-credentials.md).
+
 Factor replacement and recovery-code regeneration require single-use recent proofs.
 Ordinary assisted recovery requires an active platform admin and a proof bound to
 the target, expected authority version, operation and proposed address. Admin/CRO

@@ -17,7 +17,7 @@ from app.core.security import get_password_hash, verify_password
 from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.schemas.local_auth import CompletedResponse
-from app.services._auth_session_workflow.authority import invalidate_user_sessions, lock_session_user
+from app.services._auth_session_workflow.authority import invalidate_user_authority, lock_session_user
 
 from .artifacts import consume_grant, issue_grant, read_grant, revoke_grants
 from .common import NativeContext, atomic_local_work, audit_local, commit_local, invalid_proof, local_user_ready
@@ -53,12 +53,13 @@ async def request_password_reset(
                 user = await lock_session_user(db, user_id=user.id)
             if user is None or not local_user_ready(user):
                 return
-            await revoke_grants(db, user.id, purpose="reset")
+            superseded = await revoke_grants(db, user.id, purpose="reset")
             grant, raw = await issue_grant(
                 db, ctx, user, "reset", LOCAL_RESET_TTL_SECONDS, context={"email": user.email}
             )
             await enqueue_mail(db, ctx, user, recipient=user.email, kind="reset", grant=grant, credential=raw)
-            await audit_local(db, user, "local_password_reset_requested", actor=actor, reason=reason)
+            await audit_local(db, user, "local_password_reset_requested", actor=actor, reason=reason,
+                              artifact_revoke_count=superseded)
             await commit_local(db, "reset_request")
         else:
             # Comparable bounded cryptographic work without storing an account or
@@ -81,10 +82,10 @@ async def complete_password_reset(
             raise invalid_proof()
         await consume_grant(db, grant)
         user.hashed_password = encoded
-        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_password_reset")
-        await revoke_grants(db, user.id)
+        revoked = await invalidate_user_authority(db=db, user=user, reason="local_password_reset")
         await enqueue_mail(db, ctx, user, recipient=user.email, kind="credentials_changed")
-        await audit_local(db, user, "local_password_reset_completed", revoke_count=revoked_count)
+        await audit_local(db, user, "local_password_reset_completed", revoke_count=revoked.revoke_count,
+                          artifact_revoke_count=revoked.artifact_revoke_count)
         await commit_local(db, "reset_complete")
         return CompletedResponse()
 
@@ -114,10 +115,10 @@ async def change_password(
             await commit_local(db, "password_unchanged")
             return CompletedResponse(reauthentication_required=False)
         user.hashed_password = encoded
-        revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_password_changed")
-        await revoke_grants(db, user.id)
+        revoked = await invalidate_user_authority(db=db, user=user, reason="local_password_changed")
         await enqueue_mail(db, ctx, user, recipient=user.email, kind="credentials_changed")
-        await audit_local(db, user, "local_password_changed", actor=user, revoke_count=revoked_count)
+        await audit_local(db, user, "local_password_changed", actor=user, revoke_count=revoked.revoke_count,
+                          artifact_revoke_count=revoked.artifact_revoke_count)
         await commit_local(db, "password_change")
         return CompletedResponse()
 
@@ -137,13 +138,13 @@ async def request_email_change(
         ):
             raise ConflictError("The requested address is unavailable")
         await consume_grant(db, grant)
-        await revoke_grants(db, user.id, purpose="email")
+        superseded = await revoke_grants(db, user.id, purpose="email")
         email_grant, raw = await issue_grant(
             db, ctx, user, "email", LOCAL_RESET_TTL_SECONDS, context={"email": address, "old_email": user.email}
         )
         await enqueue_mail(db, ctx, user, recipient=address, kind="email", grant=email_grant, credential=raw)
         await enqueue_mail(db, ctx, user, recipient=user.email, kind="email_requested")
-        await audit_local(db, user, "local_email_change_requested", actor=user)
+        await audit_local(db, user, "local_email_change_requested", actor=user, artifact_revoke_count=superseded)
         await commit_local(db, "email_request")
 
 
@@ -173,11 +174,11 @@ async def complete_email_change(
         user.email, user.local_email_verified_at = address, utc_now()
         try:
             await db.flush()
-            revoked_count = await invalidate_user_sessions(db=db, user=user, reason="local_email_changed")
-            await revoke_grants(db, user.id)
+            revoked = await invalidate_user_authority(db=db, user=user, reason="local_email_changed")
             for recipient in (old_address, address):
                 await enqueue_mail(db, ctx, user, recipient=recipient, kind="credentials_changed")
-            await audit_local(db, user, "local_email_changed", actor=user, revoke_count=revoked_count)
+            await audit_local(db, user, "local_email_changed", actor=user, revoke_count=revoked.revoke_count,
+                              artifact_revoke_count=revoked.artifact_revoke_count)
             await commit_local(db, "email_complete")
         except IntegrityError:
             raise ConflictError("The requested address is unavailable") from None

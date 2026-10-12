@@ -8,8 +8,8 @@ from sqlalchemy import select
 
 from app.core import activity_logger
 from app.models import ActivityLog
-from app.services._auth_session_workflow.authority import invalidate_user_sessions
-from tests.backend.pytest import test_identity_restore, test_local_identity, test_local_recovery
+from app.services._auth_session_workflow.authority import invalidate_user_authority, invalidate_user_sessions
+from tests.backend.pytest import test_local_identity, test_local_recovery
 
 MODULES = [
     "_local_auth.enrollment",
@@ -52,8 +52,16 @@ async def test_existing_security_journeys_project_actual_revocation_counts(
         observed.append((kwargs["user"].id, kwargs["reason"], count))
         return count
 
+    async def observe_authority(**kwargs):
+        counts = await invalidate_user_authority(**kwargs)
+        observed.append((kwargs["user"].id, kwargs["reason"], counts.revoke_count))
+        return counts
+
     for module in MODULES:
-        monkeypatch.setattr(importlib.import_module(f"app.services.{module}"), "invalidate_user_sessions", observe)
+        name, observer = ("invalidate_user_authority", observe_authority) if module == "_local_auth.credentials" else (
+            "invalidate_user_sessions", observe
+        )
+        monkeypatch.setattr(importlib.import_module(f"app.services.{module}"), name, observer)
     monkeypatch.setattr(
         activity_logger, "audit_logger", SimpleNamespace(info=lambda event, **data: emitted.append(data))
     )
@@ -73,6 +81,8 @@ async def test_existing_security_journeys_project_actual_revocation_counts(
     elif journey in {"factor_replace", "recovery_codes"}:
         await test_local_recovery.test_factor_management(**common, operation=journey)
     elif journey == "restore_cutover":
+        from tests.backend.pytest import test_identity_restore
+
         await test_identity_restore.test_unknown_security_freshness_quarantines_old_password(
             native_context=native_context, db_session=db_session, test_user_employee=test_user_employee
         )
@@ -171,3 +181,185 @@ async def test_operator_restore_review_projects_count_without_private_review_evi
         assert changes["revoke_count"] == 1
         for private in (review.reason, review.reviewer, review.incident_reference, refresh.jti, settings.secret_key):
             assert private not in str(changes)
+
+
+@pytest.mark.asyncio
+async def test_authority_invalidation_counts_only_rows_changed_and_projects_safe_counts(
+    db_session,
+    test_user,
+    test_user_employee,
+    monkeypatch,
+):
+    from datetime import timedelta
+    from uuid import uuid4
+
+    from app.core.datetime_utils import utc_now
+    from app.models import InstallationIdentity, LocalAuthGrant, RefreshToken
+    from app.services._local_auth.common import audit_local
+
+    binding = InstallationIdentity(auth_mode="password", establishment_source="pytest")
+    db_session.add(binding)
+    await db_session.flush()
+    now = utc_now()
+    grants = [
+        LocalAuthGrant(
+            user_id=test_user.id,
+            installation_id=binding.installation_id,
+            purpose=purpose,
+            secret_hash="private-grant-hash",
+            token_version=test_user.token_version,
+            expires_at=now + timedelta(minutes=5),
+        )
+        for purpose in ["recent", "email", "mfa", "reset", "reset"]
+    ]
+    grants[-2].consumed_at, grants[-1].revoked_at = now, now
+    other = LocalAuthGrant(
+        user_id=test_user_employee.id,
+        installation_id=binding.installation_id,
+        purpose="reset",
+        secret_hash="private-other-hash",
+        token_version=test_user_employee.token_version,
+        expires_at=now + timedelta(minutes=5),
+    )
+    refreshes = [
+        RefreshToken(
+            user_id=test_user.id,
+            jti=uuid4().hex,
+            token_version=test_user.token_version,
+            expires_at=now + timedelta(days=1),
+        )
+        for _ in range(3)
+    ]
+    refreshes[-1].revoked_at = now
+    db_session.add_all([*grants, other, *refreshes])
+    await db_session.commit()
+    emitted = []
+    monkeypatch.setattr(
+        activity_logger, "audit_logger", SimpleNamespace(info=lambda event, **data: emitted.append(data))
+    )
+    counts = await invalidate_user_authority(db=db_session, user=test_user, reason="count_acceptance")
+    assert (counts.revoke_count, counts.artifact_revoke_count) == (2, 3)
+    await audit_local(
+        db_session,
+        test_user,
+        "count_acceptance",
+        revoke_count=counts.revoke_count,
+        artifact_revoke_count=counts.artifact_revoke_count,
+    )
+    await db_session.commit()
+    assert (await db_session.get(LocalAuthGrant, other.id, populate_existing=True)).revoked_at is None
+    records = list(
+        (await db_session.scalars(select(ActivityLog).where(ActivityLog.description == "count_acceptance"))).all()
+    )
+    streamed = [row for row in emitted if row["description"] == "count_acceptance"]
+    assert len(records) == len(streamed) == 1
+    for changes in [records[0].changes, streamed[0]["changes"]]:
+        assert changes["revoke_count"] == 2 and changes["artifact_revoke_count"] == 3
+        for secret in [g.secret_hash for g in grants] + [r.jti for r in refreshes]:
+            assert secret not in str(changes)
+    repeated = await invalidate_user_authority(db=db_session, user=test_user, reason="count_acceptance_repeat")
+    assert (repeated.revoke_count, repeated.artifact_revoke_count) == (0, 0)
+    assert await invalidate_user_sessions(db=db_session, user=test_user, reason="legacy_contract") == 0
+
+
+@pytest.mark.parametrize("value", ["a-secret-value", {"grant": "private"}, True, -1])
+def test_artifact_count_allowlist_never_discloses_non_numeric_values(value):
+    from app.core.activity_redaction import REDACTED_VALUE, sanitize_changes
+
+    result = sanitize_changes("user", {"artifact_revoke_count": value})
+    assert result.changes == {"artifact_revoke_count": REDACTED_VALUE}
+    assert not result.visible_fields
+
+
+@pytest.mark.parametrize("value", [0, 3])
+def test_artifact_count_projection_preserves_nonnegative_integers(value):
+    from app.core.activity_redaction import sanitize_changes
+
+    result = sanitize_changes("user", {"artifact_revoke_count": value})
+    assert result.changes == {"artifact_revoke_count": value}
+    assert result.visible_fields == ("artifact_revoke_count",)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["reset", "password", "email"])
+async def test_credential_audit_counts_actual_pending_artifacts_without_secrets(
+    credential_account,
+    native_context,
+    client_factory,
+    db_session,
+    monkeypatch,
+    operation,
+):
+    from app.models import LocalAuthGrant, RefreshToken
+    from tests.backend.pytest.test_local_credentials import BASE, NEW_EMAIL, NEW_PASSWORD, pending_email, request_reset
+    from tests.backend.pytest.test_local_identity import login_password_only
+    from tests.backend.pytest.test_local_recovery import recent
+
+    uid = credential_account
+    emitted = []
+    monkeypatch.setattr(
+        activity_logger, "audit_logger", SimpleNamespace(info=lambda event, **data: emitted.append(data))
+    )
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        await login_password_only(client, "journey@example.com")
+        reset = await request_reset(client, db_session, native_context, uid)
+        email = await pending_email(client, db_session, native_context, uid)
+        spare = await recent(client, uid, None, "password_change", intended_password="Unused private passphrase 87!")
+        proof = await recent(
+            client,
+            uid,
+            None,
+            "email_change" if operation == "email" else "password_change",
+            **({"intended_email": NEW_EMAIL} if operation == "email" else {"intended_password": NEW_PASSWORD}),
+        )
+        if operation == "reset":
+            path, body, event, consumed = (
+                BASE + "/password/reset/complete",
+                {"grant": reset, "password": NEW_PASSWORD},
+                "local_password_reset_completed",
+                1,
+            )
+        elif operation == "password":
+            path, body, event, consumed = (
+                BASE + "/password/change",
+                {"recent_auth_proof": proof, "password": NEW_PASSWORD},
+                "local_password_changed",
+                1,
+            )
+        else:
+            path, body, event, consumed = (
+                BASE + "/email/confirm",
+                {"grant": email, "recent_auth_proof": proof},
+                "local_email_changed",
+                2,
+            )
+        outstanding = list(
+            (
+                await db_session.scalars(
+                    select(LocalAuthGrant).where(
+                        LocalAuthGrant.user_id == uid,
+                        LocalAuthGrant.revoked_at.is_(None),
+                        LocalAuthGrant.consumed_at.is_(None),
+                    )
+                )
+            ).all()
+        )
+        refreshes = list(
+            (
+                await db_session.scalars(
+                    select(RefreshToken).where(RefreshToken.user_id == uid, RefreshToken.revoked_at.is_(None))
+                )
+            ).all()
+        )
+        expected = len(outstanding) - consumed
+        assert expected >= 2 and len(refreshes) == 1
+        result = await client.post(path, json=body)
+        assert result.status_code == 200, result.text
+        records = list((await db_session.scalars(select(ActivityLog).where(ActivityLog.description == event))).all())
+        streamed = [row for row in emitted if row["description"] == event]
+        assert len(records) == len(streamed) == 1
+        for changes in [records[0].changes, streamed[0]["changes"]]:
+            assert changes["artifact_revoke_count"] == expected
+            assert changes["revoke_count"] == 1
+            for secret in [reset, email, spare, proof, NEW_PASSWORD, NEW_EMAIL, *[g.secret_hash for g in outstanding]]:
+                assert secret not in str(changes)

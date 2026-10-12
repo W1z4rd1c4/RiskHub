@@ -7,6 +7,7 @@ only take User -> refresh rows, so they cannot invert the lifecycle lock order.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import select, update
@@ -44,17 +45,25 @@ async def revoke_user_refresh_tokens(
     return int(getattr(result, "rowcount", 0) or 0)
 
 
-async def invalidate_user_sessions(
+@dataclass(frozen=True)
+class AuthorityInvalidation:
+    """Rows revoked by one authority transition; consumed artifacts are excluded."""
+
+    revoke_count: int
+    artifact_revoke_count: int
+
+
+async def invalidate_user_authority(
     *,
     db: AsyncSession,
     user: User,
     reason: str,
     now: datetime | None = None,
     version_floor: int | None = None,
-) -> int:
+) -> AuthorityInvalidation:
     from app.models.local_auth import LocalAuthGrant
 
-    await db.execute(
+    grants = await db.execute(
         update(LocalAuthGrant)
         .where(
             LocalAuthGrant.user_id == user.id, LocalAuthGrant.consumed_at.is_(None), LocalAuthGrant.revoked_at.is_(None)
@@ -65,4 +74,18 @@ async def invalidate_user_sessions(
     # beyond that floor while retaining the shared revocation boundary.
     user.token_version = max(user.token_version, version_floor if version_floor is not None else 0) + 1
     db.add(user)
-    return await revoke_user_refresh_tokens(db=db, user_id=user.id, reason=reason, now=now)
+    refresh_count = await revoke_user_refresh_tokens(db=db, user_id=user.id, reason=reason, now=now)
+    return AuthorityInvalidation(refresh_count, int(getattr(grants, "rowcount", 0) or 0))
+
+
+async def invalidate_user_sessions(
+    *,
+    db: AsyncSession,
+    user: User,
+    reason: str,
+    now: datetime | None = None,
+    version_floor: int | None = None,
+) -> int:
+    """Preserve the refresh-row count contract for existing session callers."""
+    counts = await invalidate_user_authority(db=db, user=user, reason=reason, now=now, version_floor=version_floor)
+    return counts.revoke_count

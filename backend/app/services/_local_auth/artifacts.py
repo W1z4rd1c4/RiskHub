@@ -161,7 +161,7 @@ async def consume_grant(db: AsyncSession, row: LocalAuthGrant) -> None:
         raise invalid_proof()
 
 
-async def revoke_grants(db: AsyncSession, user_id: int, *, purpose: str | None = None) -> None:
+async def revoke_grants(db: AsyncSession, user_id: int, *, purpose: str | None = None) -> int:
     statement = (
         update(LocalAuthGrant)
         .execution_options(synchronize_session="fetch")
@@ -171,7 +171,8 @@ async def revoke_grants(db: AsyncSession, user_id: int, *, purpose: str | None =
     )
     if purpose:
         statement = statement.where(LocalAuthGrant.purpose == purpose)
-    await db.execute(statement.values(revoked_at=utc_now()))
+    result = await db.execute(statement.values(revoked_at=utc_now()))
+    return int(getattr(result, "rowcount", 0) or 0)
 
 
 async def failed_factor(db: AsyncSession, row: LocalAuthGrant, user: User) -> None:

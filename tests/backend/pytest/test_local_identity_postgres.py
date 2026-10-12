@@ -29,6 +29,121 @@ from tests.backend.pytest.test_local_identity import (
 pytestmark = [pytest.mark.asyncio, pytest.mark.postgres]
 
 
+async def test_overlapping_email_confirmations_preserve_loser_and_case_insensitive_uniqueness(
+    async_engine,
+    native_context,
+    client_factory,
+    db_session,
+    test_user,
+    test_user_employee,
+):
+    from app.models import ActivityLog, LocalAuthDelivery, LocalAuthGrant
+    from tests.backend.pytest.test_local_credentials import BASE, pending_email, snapshot
+    from tests.backend.pytest.test_local_recovery import recent
+
+    require_postgres(async_engine)
+    native_context.local_mfa_policy = "optional"
+    accounts = []
+    for index, address in enumerate(["Collision@Example.com", "collision@example.COM"]):
+        uid = await create_invitation(
+            client_factory,
+            native_context,
+            db_session,
+            test_user,
+            test_user_employee.role_id,
+            email=f"collision-old-{index}@example.com",
+        )
+        _, invitation = await latest_mail(db_session, native_context, user_id=uid, kind="invitation")
+        async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+            await csrf(client)
+            setup = await client.post(
+                BASE + "/enrollment/start", json={"grant": invitation["credential"], "password": PASSWORD}
+            )
+            assert setup.status_code == 202 and setup.json()["status"] == "completed", setup.text
+            access = await login_password_only(client, f"collision-old-{index}@example.com")
+            raw = await pending_email(client, db_session, native_context, uid, address=address)
+            proof = await recent(client, uid, None, "email_change", intended_email=address)
+            assert (await client.get("/api/v1/auth/me")).status_code == 200
+            accounts.append(
+                (
+                    uid,
+                    access,
+                    dict(client.cookies),
+                    {"grant": raw, "recent_auth_proof": proof},
+                    await snapshot(db_session, uid),
+                )
+            )
+    await db_session.rollback()
+    maker = async_sessionmaker(async_engine, expire_on_commit=False)
+    prechecks, connections = set(), set()
+    both_prechecked = asyncio.Event()
+
+    async def independent_db() -> AsyncIterator[AsyncSession]:
+        async with maker() as session:
+            pid = await session.scalar(text("SELECT pg_backend_pid()"))
+            connections.add(pid)
+            execute = session.execute
+
+            async def execute_with_overlap(statement, *args, **kwargs):
+                result = await execute(statement, *args, **kwargs)
+                sql = str(statement)
+                if sql.startswith("SELECT users.id") and "lower(users.email)" in sql and "users.id !=" in sql:
+                    # Execute the real uniqueness precheck on both connections before
+                    # either writes. The database constraint must resolve the collision.
+                    prechecks.add(pid)
+                    if len(prechecks) == 2:
+                        both_prechecked.set()
+                    await asyncio.wait_for(both_prechecked.wait(), timeout=10)
+                return result
+
+            session.execute = execute_with_overlap
+            yield session
+
+    async with client_factory(
+        settings=native_context, headers={"Origin": "http://test"}, db_override=independent_db
+    ) as client:
+        results = await asyncio.wait_for(
+            asyncio.gather(
+                *[
+                    client.post(
+                        BASE + "/email/confirm",
+                        json=body,
+                        cookies=cookies,
+                        headers={"Authorization": "Bearer " + access, "X-CSRF-Token": cookies["riskhub_csrf_token"]},
+                    )
+                    for _, access, cookies, body, _ in accounts
+                ]
+            ),
+            timeout=20,
+        )
+    assert len(connections) == len(prechecks) == 2
+    assert sorted(result.status_code for result in results) == [200, 409], [r.text for r in results]
+    winner = next(i for i, result in enumerate(results) if result.status_code == 200)
+    loser = 1 - winner
+    async with maker() as observer:
+        owners = list((await observer.scalars(select(User).where(User.email == "collision@example.com"))).all())
+        assert len(owners) == 1 and owners[0].id == accounts[winner][0]
+        assert await snapshot(observer, accounts[loser][0]) == accounts[loser][4]
+        winner_after = await snapshot(observer, accounts[winner][0])
+        assert winner_after[0][2] == accounts[winner][4][0][2] + 1
+        for uid, _, _, body, _ in accounts:
+            for raw in body.values():
+                grant = await observer.get(LocalAuthGrant, raw.split(".")[0])
+                assert (grant.consumed_at is not None) is (uid == accounts[winner][0])
+        completed = list(
+            (await observer.scalars(select(ActivityLog).where(ActivityLog.description == "local_email_changed"))).all()
+        )
+        assert [event.entity_id for event in completed] == [accounts[winner][0]]
+        notices = list(
+            (
+                await observer.scalars(
+                    select(LocalAuthDelivery).where(LocalAuthDelivery.user_id == accounts[winner][0])
+                )
+            ).all()
+        )
+        assert len(notices) == len(accounts[winner][4][3]) + 2
+
+
 @pytest.mark.parametrize("operation", ["enrollment", "recovery_code", "totp", "reset", "mfa_challenge"])
 async def test_native_one_time_proof_concurrent_consumption(
     async_engine,

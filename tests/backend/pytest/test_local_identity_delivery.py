@@ -100,6 +100,80 @@ async def tls_mail_server(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["reset", "password", "email"])
+async def test_credential_completion_stays_committed_during_tls_failure_and_notice_retry(
+    credential_account,
+    native_context,
+    client_factory,
+    db_session,
+    tls_mail_server,
+    operation,
+    monkeypatch,
+):
+    from app.services._local_auth import delivery
+    from tests.backend.pytest.test_local_credentials import (
+        BASE,
+        NEW_EMAIL,
+        NEW_PASSWORD,
+        pending_email,
+        request_reset,
+        snapshot,
+    )
+    from tests.backend.pytest.test_local_identity import login_password_only
+    from tests.backend.pytest.test_local_recovery import recent
+
+    uid = credential_account
+    port, ca_file, messages = tls_mail_server
+    native_context.local_smtp_port, native_context.local_smtp_security = port, "tls"
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        await login_password_only(client, "journey@example.com")
+        if operation == "reset":
+            raw = await request_reset(client, db_session, native_context, uid)
+            path, body = BASE + "/password/reset/complete", {"grant": raw, "password": NEW_PASSWORD}
+        elif operation == "password":
+            proof = await recent(client, uid, None, "password_change", intended_password=NEW_PASSWORD)
+            path, body = BASE + "/password/change", {"recent_auth_proof": proof, "password": NEW_PASSWORD}
+        else:
+            raw = await pending_email(client, db_session, native_context, uid)
+            proof = await recent(client, uid, None, "email_change", intended_email=NEW_EMAIL)
+            path, body = BASE + "/email/confirm", {"grant": raw, "recent_auth_proof": proof}
+        before = await snapshot(db_session, uid)
+        result = await client.post(path, json=body)
+        assert result.status_code == 200, result.text
+        committed = await snapshot(db_session, uid)
+        notices = sorted(set(committed[3]) - set(before[3]))
+        assert len(notices) == (2 if operation == "email" else 1)
+        assert messages == []
+        for delivery_id in notices:
+            row = await db_session.get(LocalAuthDelivery, delivery_id)
+            encrypted = row.ciphertext
+            assert row.grant_id is None
+            with pytest.raises(RetryableOutboxError, match="Local identity delivery unavailable"):
+                await deliver_mail(db_session, delivery_id, settings=native_context)
+            await db_session.refresh(row)
+            assert row.status == "pending" and row.ciphertext == encrypted and row.sent_at is None
+        assert await snapshot(db_session, uid) == committed
+        assert messages == []
+        native_context.local_smtp_ca_file = ca_file
+        monkeypatch.setattr(delivery, "get_settings", lambda: native_context)
+        for delivery_id in notices:
+            event = await db_session.scalar(
+                select(OutboxEvent).where(OutboxEvent.idempotency_key == f"local-auth-mail:{delivery_id}")
+            )
+            assert event.payload == {"delivery_id": delivery_id}
+            await OUTBOX_EVENT_HANDLERS["local_auth.deliver"](
+                db_session, LocalAuthDeliveryPayload(delivery_id=delivery_id)
+            )
+            await db_session.commit()
+            row = await db_session.get(LocalAuthDelivery, delivery_id, populate_existing=True)
+            assert row.status == "sent" and row.ciphertext is None and row.sent_at is not None
+            await deliver_mail(db_session, delivery_id, settings=native_context)
+        assert len(messages) == len(notices)
+        for secret in [NEW_PASSWORD, *body.values()]:
+            assert all(secret not in message for message in messages)
+
+
+@pytest.mark.asyncio
 async def test_actual_tls_smtp_registered_handler_and_post_send_secret_removal(
     native_context,
     client_factory,

@@ -2,13 +2,15 @@
 
 import json
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.email import normalize_email
 from app.core.permissions import has_permission, is_platform_admin
 from app.models import User
 from app.models.role import RoleType
 from app.models.user import AccessScope
 
-from .common import invalid_proof
+from .common import audit_local, commit_local, invalid_proof
 
 
 def recovery_intent(operation: str, version: int, email: str | None) -> str:
@@ -41,6 +43,24 @@ def require_recoverable(user: User, *, version: int, web: bool = False) -> None:
         or (web and privileged_recovery_target(user))
     ):
         raise invalid_proof()
+
+
+async def require_web_recoverable(db: AsyncSession, user: User, *, actor: User, version: int) -> None:
+    """Audit the privileged web boundary before consuming any proof or factor."""
+    if privileged_recovery_target(user):
+        from app.models.activity_log import ActivityAction
+
+        await audit_local(
+            db,
+            user,
+            "local_privileged_recovery_denied",
+            actor=actor,
+            action=ActivityAction.FAILED_LOGIN,
+            evidence={"event_type": "local_privileged_recovery_denied", "failure_code": "offline_recovery_required"},
+        )
+        await commit_local(db, "privileged_recovery_denied")
+        raise invalid_proof()
+    require_recoverable(user, version=version, web=True)
 
 
 def require_recovery_actor(user: User) -> None:
