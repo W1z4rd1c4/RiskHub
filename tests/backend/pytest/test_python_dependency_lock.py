@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from zipfile import ZipFile
 
 import pytest
 
@@ -152,6 +153,45 @@ def test_bounded_generator_applies_constraints_and_checks_installed_dependencies
 
     assert result == module.LOCK_HEADER + "pydantic_core==2.46.5\nruff==0.16.10\n"
     assert calls[0][1:3] == ["-m", "venv"]
+
+
+def test_bounded_generator_installs_retained_package_no_longer_reachable_from_inputs(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    for name, version in [("riskhub-selected-probe", "2.0"), ("riskhub-retained-probe", "1.0")]:
+        distribution = name.replace("-", "_")
+        metadata = f"{distribution}-{version}.dist-info"
+        files = {
+            f"{metadata}/METADATA": f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n",
+            f"{metadata}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        }
+        files[f"{metadata}/RECORD"] = "".join(f"{path},,\n" for path in files) + f"{metadata}/RECORD,,\n"
+        with ZipFile(wheels / f"{distribution}-{version}-py3-none-any.whl", "w") as wheel:
+            for path, content in files.items():
+                wheel.writestr(path, content)
+    intent = tmp_path / "requirements.in"
+    intent.write_text("riskhub-selected-probe==2.0\n", encoding="utf-8")
+    lock = tmp_path / "lock.txt"
+    lock.write_text("riskhub-selected-probe==1.0\nriskhub-retained-probe==1.0\n", encoding="utf-8")
+    monkeypatch.setattr(module, "INPUT", intent)
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+    monkeypatch.setenv("PIP_NO_INDEX", "1")
+    monkeypatch.setenv("PIP_FIND_LINKS", wheels.as_uri())
+    run = module._run
+
+    def offline_run(command, *, cwd=None):
+        # Use venv's bundled pip for this offline solver fixture. The production
+        # bootstrap version and command remain covered by the contract tests.
+        if command[-2:] != ["--upgrade", f"pip=={module.PIP_VERSION}"]:
+            run(command, cwd=cwd)
+
+    monkeypatch.setattr(module, "_run", offline_run)
+
+    result = module.generate_lock(upgrade_packages=["riskhub-selected-probe"])
+
+    assert "riskhub-selected-probe==2.0\n" in result
+    assert "riskhub-retained-probe==1.0\n" in result
 
 
 def test_bounded_resolver_conflict_leaves_all_generated_surfaces_untouched(tmp_path, monkeypatch):

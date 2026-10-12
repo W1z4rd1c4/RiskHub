@@ -145,7 +145,9 @@ def generate_lock(*, upgrade_packages: list[str] | None = None) -> str:
         if retained_content is not None:
             retained = Path(temp_dir) / "retained-constraints.txt"
             retained.write_text(retained_content, encoding="utf-8", newline="\n")
-            install_command.extend(["-c", str(retained)])
+            # Constraints alone do not install dependencies that became
+            # unreachable after an upgrade. Preserve their presence as well.
+            install_command.extend(["-c", str(retained), "-r", str(retained)])
         _run(install_command, cwd=BACKEND_ROOT)
         _run([str(venv_python), "-m", "pip", "check"], cwd=BACKEND_ROOT)
         freeze = subprocess.run(
