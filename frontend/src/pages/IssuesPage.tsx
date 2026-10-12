@@ -31,8 +31,7 @@ export function IssuesPage() {
         title={t('title')}
         subtitle={t('page_subtitle')}
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
-        view={state.viewMode}
-        onViewChange={state.updateViewMode}
+        workingSet={state.workingSet}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
         canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
         onCreate={() => void navigate(appendRegisterReturnTo('/issues/new', returnTo))}
@@ -60,23 +59,15 @@ export function IssuesPage() {
             onRowClick: (issue) => void navigate(appendRegisterReturnTo(`/issues/${issue.id}`, returnTo)),
             rowHref: (issue) => appendRegisterReturnTo(`/issues/${issue.id}`, returnTo),
             rowLabel: (issue) => issue.title,
-            sortKey: state.sortField,
-            sortDirection: state.sortDirection,
-            onSort: (key, direction) => state.updateSort(direction ? key : null, direction),
         }}
-        currentPage={state.currentPage}
         totalPages={state.totalPages}
         totalCount={state.totalCount}
         itemsPerPage={state.limit}
-        onPageChange={state.setCurrentPage}
         onRetry={() => void state.fetchIssues()}
         emptyMessage={t('list.empty')}
         grouping={{
             groups: state.groups,
-            onBack: state.clearSelectedGroup,
-            onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel,
-            selectedGroupValue: state.selectedGroupValue,
             hideActive: true,
             groupLabel: (group) => formatIssueGroupLabel(group, {
                 unlinkedVendor: t('fallbacks.unlinked_vendor'),
@@ -87,7 +78,7 @@ export function IssuesPage() {
             }),
         }}
         testIdPrefix="issues"
-        toolbar={<IssuesFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchIssues()} onSearchChange={state.updateSearch} search={state.search} />}
+        toolbar={<IssuesFilterBar facets={state.facets} filters={state.workingSet.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchIssues()} onSearchChange={state.workingSet.updateSearch} search={state.workingSet.search} />}
     />;
 }
 

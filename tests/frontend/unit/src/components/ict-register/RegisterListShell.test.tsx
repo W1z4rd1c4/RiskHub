@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
+import type { RegisterListWorkingSet } from '@/pages/shared/useRegisterUrlWorkingSet';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,6 +15,14 @@ type View = 'all' | 'owner';
 
 const rows: Row[] = [{ id: 1, name: 'Claims' }];
 
+function workingSet(overrides: Partial<RegisterListWorkingSet<View>> = {}): RegisterListWorkingSet<View> {
+    return {
+        currentPage: 1, viewMode: 'all', sortField: null, sortDirection: null, selectedGroupValue: null,
+        setCurrentPage: vi.fn(), updateViewMode: vi.fn(), updateSort: vi.fn(),
+        selectGroup: vi.fn(), clearSelectedGroup: vi.fn(), ...overrides,
+    };
+}
+
 function baseProps() {
     return {
         accessDeniedState: <div>Access denied</div>,
@@ -20,7 +30,6 @@ function baseProps() {
         canExport: true,
         columns: [{ key: 'name', label: 'Name', sortable: true }],
         createLabel: 'New',
-        currentPage: 1,
         emptyMessage: 'No processes',
         exportLabel: 'Export',
         isAccessDenied: false,
@@ -28,14 +37,9 @@ function baseProps() {
         isLoading: false,
         items: rows,
         itemsPerPage: 1,
-        onPageChange: vi.fn(),
         onRetry: vi.fn(),
-        onViewChange: vi.fn(),
         table: {
             keyExtractor: (row: Row) => row.id,
-            sortDirection: null,
-            sortKey: null,
-            onSort: vi.fn(),
         },
         testIdPrefix: 'processes',
         title: 'Processes',
@@ -43,7 +47,7 @@ function baseProps() {
         toolbar: <div>Filters</div>,
         totalCount: 2,
         totalPages: 2,
-        view: 'all' as View,
+        workingSet: workingSet(),
         views: [
             { value: 'all' as const, label: 'All' },
             { value: 'owner' as const, label: 'By owner' },
@@ -51,7 +55,7 @@ function baseProps() {
     };
 }
 
-function renderShell(overrides: Partial<ReturnType<typeof baseProps>> = {}) {
+function renderShell(overrides: Partial<ComponentProps<typeof RegisterListShell<Row, View>>> = {}) {
     const props = { ...baseProps(), ...overrides };
     return render(
         <MemoryRouter>
@@ -66,9 +70,7 @@ describe('RegisterListShell', () => {
         const onSort = vi.fn();
         const onPageChange = vi.fn();
         renderShell({
-            onPageChange,
-            onViewChange,
-            table: { ...baseProps().table, onSort },
+            workingSet: workingSet({ setCurrentPage: onPageChange, updateViewMode: onViewChange, updateSort: onSort }),
         });
 
         expect(screen.getByRole('heading', { name: 'Processes' })).toBeInTheDocument();
@@ -89,16 +91,13 @@ describe('RegisterListShell', () => {
     it('owns the grouping drill-down configuration', () => {
         const onSelectGroup = vi.fn();
         renderShell({
-            view: 'owner',
+            workingSet: workingSet({ viewMode: 'owner', selectGroup: onSelectGroup }),
             items: [],
             totalCount: 1,
             totalPages: 1,
             grouping: {
                 groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
-                onBack: vi.fn(),
-                onSelectGroup,
                 selectedGroupLabel: null,
-                selectedGroupValue: null,
             },
         });
 
@@ -108,17 +107,14 @@ describe('RegisterListShell', () => {
 
     it('renders domain group metadata without duplicating the group shell', () => {
         renderShell({
-            view: 'owner',
+            workingSet: workingSet({ viewMode: 'owner' }),
             items: [],
             totalCount: 1,
             totalPages: 1,
             grouping: {
                 groups: [{ value: 'owner:7', label: 'Alice', count: 1, meta: { role: 'Risk owner' } }],
-                onBack: vi.fn(),
-                onSelectGroup: vi.fn(),
                 renderGroupBody: (group) => <span>{String(group.meta?.role)}</span>,
                 selectedGroupLabel: null,
-                selectedGroupValue: null,
             },
         });
 
@@ -128,13 +124,10 @@ describe('RegisterListShell', () => {
     it('shows the table loading contract while a selected group replaces prior summary groups', () => {
         const grouping = {
             groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
-            onBack: vi.fn(),
-            onSelectGroup: vi.fn(),
             selectedGroupLabel: null,
-            selectedGroupValue: null,
         };
         const { rerender } = renderShell({
-            view: 'owner',
+            workingSet: workingSet({ viewMode: 'owner' }),
             items: [],
             totalCount: 1,
             totalPages: 1,
@@ -146,12 +139,12 @@ describe('RegisterListShell', () => {
             <MemoryRouter>
                 <RegisterListShell<Row, View>
                     {...baseProps()}
-                    view="owner"
+                    workingSet={workingSet({ viewMode: 'owner', selectedGroupValue: 'owner:7' })}
                     items={[]}
                     totalCount={1}
                     totalPages={1}
                     isLoading
-                    grouping={{ ...grouping, selectedGroupLabel: 'Alice', selectedGroupValue: 'owner:7' }}
+                    grouping={{ ...grouping, selectedGroupLabel: 'Alice' }}
                 />
             </MemoryRouter>,
         );
@@ -255,17 +248,14 @@ describe('RegisterListShell', () => {
     it('keeps last-good group cards visible behind one shared retry banner', () => {
         const onRetry = vi.fn();
         renderShell({
-            view: 'owner',
+            workingSet: workingSet({ viewMode: 'owner' }),
             items: [],
             isError: true,
             errorMessage: 'Grouped refresh failed',
             onRetry,
             grouping: {
                 groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
-                onBack: vi.fn(),
-                onSelectGroup: vi.fn(),
                 selectedGroupLabel: null,
-                selectedGroupValue: null,
             },
         });
 
@@ -278,15 +268,12 @@ describe('RegisterListShell', () => {
 
     it('keeps last-good selected-group rows visible behind one shared retry banner', () => {
         renderShell({
-            view: 'owner',
+            workingSet: workingSet({ viewMode: 'owner', selectedGroupValue: 'owner:7' }),
             isError: true,
             errorMessage: 'Selected group refresh failed',
             grouping: {
                 groups: [{ value: 'owner:7', label: 'Alice', count: 1 }],
-                onBack: vi.fn(),
-                onSelectGroup: vi.fn(),
                 selectedGroupLabel: 'Alice',
-                selectedGroupValue: 'owner:7',
             },
         });
 
@@ -298,13 +285,10 @@ describe('RegisterListShell', () => {
     it('distinguishes an initial grouped failure from a successful empty result', () => {
         const grouping = {
             groups: [],
-            onBack: vi.fn(),
-            onSelectGroup: vi.fn(),
             selectedGroupLabel: null,
-            selectedGroupValue: null,
         };
         const { rerender } = renderShell({
-            view: 'owner',
+            workingSet: workingSet({ viewMode: 'owner' }),
             items: [],
             totalCount: 0,
             totalPages: 1,
@@ -321,7 +305,7 @@ describe('RegisterListShell', () => {
             <MemoryRouter>
                 <RegisterListShell<Row, View>
                     {...baseProps()}
-                    view="owner"
+                    workingSet={workingSet({ viewMode: 'owner' })}
                     items={[]}
                     totalCount={0}
                     totalPages={1}

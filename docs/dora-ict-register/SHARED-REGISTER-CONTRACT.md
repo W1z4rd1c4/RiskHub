@@ -23,6 +23,12 @@ The frontend owns one interaction vocabulary:
   Entity hooks provide legacy URL translation and filter codecs; they retain
   capability-driven view resets, committee/department scopes, pending creations,
   fetching, export execution and row actions.
+  Each hook returns this module's `workingSet` as one object. Pages pass it
+  directly to `RegisterListShell`, which reads view, sorting, pagination and
+  group selection from its focused `RegisterListWorkingSet` interface. Entity
+  hooks do not spread or re-export those scalar fields/actions, and pages do
+  not reconstruct them as individual shell props. Filter toolbars read search
+  and parsed filters from the same object; domain filter mutations stay local.
 - `frontend/src/pages/shared/collectionPageState.ts` owns reusable collection
   success/failure/request-order state and the query-identity lifecycle. Entity
   page hooks supply their domain-specific identity inputs, filter types,

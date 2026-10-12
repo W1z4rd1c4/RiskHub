@@ -21,10 +21,10 @@ function Probe({ language = 'en' }: { language?: 'en' | 'cs' }) {
         <button onClick={()=>state.updateFilter('risk_level','')}>Clear level</button>
         <button onClick={()=>state.updateFilter('has_breach',null)}>Clear breach</button>
         <button onClick={()=>state.updateFilter('net_band','')}>Clear net band</button>
-        <button onClick={state.clearSelectedGroup}>Clear group</button>
-        <output data-testid="group">{state.selectedGroupValue}</output>
+        <button onClick={state.workingSet.clearSelectedGroup}>Clear group</button>
+        <output data-testid="group">{state.workingSet.selectedGroupValue}</output>
         <output data-testid="busy">{String(state.isExporting)}</output>
-        <output data-testid="filters">{JSON.stringify(state.filters)}</output>
+        <output data-testid="filters">{JSON.stringify(state.workingSet.filters)}</output>
     </>;
 }
 afterEach(async()=>{ await i18n.changeLanguage('en'); });

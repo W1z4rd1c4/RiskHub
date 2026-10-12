@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { RiskGroupMetaBody } from '@/components/risks/RiskGroupMetaBody';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { useTranslation, useFormat } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { KeyRiskIndicator } from '@/types/kri';
@@ -39,8 +38,7 @@ export function KRIsPage() {
         title={t('title')}
         subtitle={t('page_subtitle')}
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
-        view={state.viewMode}
-        onViewChange={state.updateViewMode}
+        workingSet={state.workingSet}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
         canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
         onCreate={() => void navigate(appendRegisterReturnTo('/kris/new', returnTo))}
@@ -67,25 +65,17 @@ export function KRIsPage() {
             onRowClick: (kri) => void navigate(appendRegisterReturnTo(`/kris/${kri.id}`, returnTo)),
             rowHref: (kri) => appendRegisterReturnTo(`/kris/${kri.id}`, returnTo),
             rowLabel: (kri) => kri.metric_name,
-            sortKey: state.sortField,
-            sortDirection: state.sortDirection,
-            onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection),
         }}
-        currentPage={state.currentPage}
         totalPages={state.totalPages}
         totalCount={state.totalCount}
         itemsPerPage={state.limit}
-        onPageChange={state.setCurrentPage}
         onRetry={() => void state.fetchKris()}
         emptyMessage={t('empty_state.no_kris')}
         grouping={{
             groups: state.groups,
-            onBack: state.clearSelectedGroup,
-            onSelectGroup: state.selectGroup,
             selectedGroupLabel: state.selectedGroupLabel,
-            selectedGroupValue: state.selectedGroupValue,
             // Risk-type groups show the same translated display name as the Risk register.
-            groupLabel: (group) => state.viewMode === 'risk_type' && group.value !== KRI_GROUP_UNKNOWN_RISK_TYPE
+            groupLabel: (group) => state.workingSet.viewMode === 'risk_type' && group.value !== KRI_GROUP_UNKNOWN_RISK_TYPE
                 ? riskTypeLabel(group.value, group.label)
                 : formatKriGroupLabel(group, {
                     unlinkedVendor: t('grouping.unlinked_vendor'),
@@ -95,10 +85,10 @@ export function KRIsPage() {
                     unknownRiskType: t('common:fallbacks.unknown_type'),
                     unknownRisk: t('common:fallbacks.unknown_risk'),
                 }),
-            renderGroupBody: state.viewMode === 'risk' ? (group) => <RiskGroupMetaBody group={group} /> : undefined,
+            renderGroupBody: state.workingSet.viewMode === 'risk' ? (group) => <RiskGroupMetaBody group={group} /> : undefined,
         }}
         testIdPrefix="kris"
-        toolbar={<KriRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchKris()} onSearchChange={state.updateSearch} search={state.search} />}
+        toolbar={<KriRegisterFilterBar facets={state.facets} filters={state.workingSet.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchKris()} onSearchChange={state.workingSet.updateSearch} search={state.workingSet.search} />}
     />;
 }
 

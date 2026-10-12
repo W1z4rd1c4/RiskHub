@@ -150,7 +150,7 @@ describe('Risk and Control lifecycle page state', () => {
             );
 
             await waitFor(() => expect(mocks.getRisks).toHaveBeenCalled());
-            expect(result.current.filters.net_band).toBe(code);
+            expect(result.current.workingSet.filters.net_band).toBe(code);
             expect(mocks.getRisks.mock.calls.at(-1)?.[0]).toMatchObject({ net_band: storedValue });
         },
     );
@@ -173,10 +173,10 @@ describe('Risk and Control lifecycle page state', () => {
         );
 
         // PG-40: the URL value parses to the language-neutral band code.
-        await waitFor(() => expect(result.current.filters.net_band).toBe('critical'));
+        await waitFor(() => expect(result.current.workingSet.filters.net_band).toBe('critical'));
         act(() => result.current.clearFilters());
 
-        await waitFor(() => expect(result.current.filters.net_band).toBe(''));
+        await waitFor(() => expect(result.current.workingSet.filters.net_band).toBe(''));
         await waitFor(() => expect(mocks.getRisks.mock.calls.at(-1)?.[0].net_band).toBeUndefined());
     });
 

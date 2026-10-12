@@ -90,6 +90,13 @@ export function useRegisterUrlWorkingSet<Filters, View extends string>({
     };
 }
 
+/** The shell consumes shared navigation directly; domain filters remain in the entity adapter. */
+export type RegisterListWorkingSet<View extends string> = Pick<
+    ReturnType<typeof useRegisterUrlWorkingSet<unknown, View>>,
+    'currentPage' | 'viewMode' | 'sortField' | 'sortDirection' | 'selectedGroupValue'
+    | 'setCurrentPage' | 'updateViewMode' | 'updateSort' | 'selectGroup' | 'clearSelectedGroup'
+>;
+
 /** Commit the rendered list identity before async continuations; exports use that exact snapshot. */
 export function useCommittedRegisterQuery<Params extends { offset?: number; limit?: number }>(
     listParams: Params,
