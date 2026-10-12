@@ -2,11 +2,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { CollectionGroup } from '@/types/collection';
-import type { ThreatListItem, ThreatSortField } from '@/types/threat';
+import type { ThreatListItem } from '@/types/threat';
 
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
@@ -49,8 +48,7 @@ export function ThreatsPage() {
             title={t('title')}
             subtitle={t('subtitle')}
             views={THREAT_REGISTER_CONFIG.views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
-            view={state.viewMode}
-            onViewChange={state.updateViewMode}
+            workingSet={state.workingSet}
             canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
             canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
             onCreate={() => void navigate(appendRegisterReturnTo('/threats/new', returnTo))}
@@ -81,31 +79,20 @@ export function ThreatsPage() {
                 onRowClick: (threat) => void navigate(appendRegisterReturnTo(`/threats/${threat.id}`, returnTo)),
                 rowHref: (threat) => appendRegisterReturnTo(`/threats/${threat.id}`, returnTo),
                 rowLabel: (threat) => threat.name,
-                sortKey: state.sortField,
-                sortDirection: state.sortDirection,
-                onSort: (key, direction) => state.updateSort(
-                    direction ? key as ThreatSortField : null,
-                    direction as SortDirection,
-                ),
             }}
-            currentPage={state.currentPage}
             totalPages={state.totalPages}
             totalCount={state.totalCount}
             itemsPerPage={state.limit}
-            onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchThreats()}
-            emptyMessage={t(threatsEmptyStateKey(state.search.trim().length > 0))}
+            emptyMessage={t(threatsEmptyStateKey(state.workingSet.search.trim().length > 0))}
             grouping={{
                 groups: state.groups,
-                onBack: state.clearSelectedGroup,
-                onSelectGroup: state.selectGroup,
-                selectedGroupLabel: state.selectedGroupValue
+                selectedGroupLabel: state.workingSet.selectedGroupValue
                     ? presentGroupLabel({
-                        value: state.selectedGroupValue,
-                        label: state.selectedGroupLabel ?? state.selectedGroupValue,
+                        value: state.workingSet.selectedGroupValue,
+                        label: state.selectedGroupLabel ?? state.workingSet.selectedGroupValue,
                     })
                     : null,
-                selectedGroupValue: state.selectedGroupValue,
                 hideActive: true,
                 hideHighlighted: true,
                 groupLabel: presentGroupLabel,
@@ -114,13 +101,13 @@ export function ThreatsPage() {
             toolbar={(
                 <ThreatRegisterFilterBar
                     facets={state.facets}
-                    filters={state.filters}
+                    filters={state.workingSet.filters}
                     isLoading={state.isLoading}
                     onClearAll={state.clearFilters}
                     onFilterChange={state.updateFilter}
                     onRefresh={() => void state.fetchThreats()}
-                    onSearchChange={state.updateSearch}
-                    search={state.search}
+                    onSearchChange={state.workingSet.updateSearch}
+                    search={state.workingSet.search}
                 />
             )}
         />

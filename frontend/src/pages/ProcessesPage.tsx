@@ -5,10 +5,9 @@ import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotic
 import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import type { Process, ProcessSortField } from '@/types/process';
+import type { Process } from '@/types/process';
 import { approvalsApi } from '@/services/approvalsApi';
 import { logError } from '@/services/logger';
 
@@ -67,7 +66,7 @@ export function ProcessesPage() {
         },
         canRestoreProcess: (process: Process) => resolveCapabilityFlag(process.capabilities, 'can_restore'),
     });
-    const emptyMessage = t(processesEmptyStateKey(state.search.trim().length > 0));
+    const emptyMessage = t(processesEmptyStateKey(state.workingSet.search.trim().length > 0));
 
     return (
         <RegisterListShell<Process, ProcessRegisterView>
@@ -76,8 +75,7 @@ export function ProcessesPage() {
             title={t('title')}
             subtitle={t('subtitle')}
             views={PROCESS_REGISTER_CONFIG.views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
-            view={state.viewMode}
-            onViewChange={state.updateViewMode}
+            workingSet={state.workingSet}
             canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
             canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
             onCreate={() => void navigate(appendRegisterReturnTo('/processes/new', returnTo))}
@@ -108,26 +106,15 @@ export function ProcessesPage() {
                 onRowClick: (process) => void navigate(appendRegisterReturnTo(`/processes/${process.id}`, returnTo)),
                 rowHref: (process) => appendRegisterReturnTo(`/processes/${process.id}`, returnTo),
                 rowLabel: (process) => process.l1_process,
-                sortKey: state.sortField,
-                sortDirection: state.sortDirection,
-                onSort: (key, direction) => state.updateSort(
-                    direction ? (key as ProcessSortField) : null,
-                    direction as SortDirection,
-                ),
             }}
-            currentPage={state.currentPage}
             totalPages={state.totalPages}
             totalCount={state.totalCount}
             itemsPerPage={state.limit}
-            onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchProcesses()}
             emptyMessage={emptyMessage}
             grouping={{
                 groups: state.groups,
-                onBack: state.clearSelectedGroup,
-                onSelectGroup: state.selectGroup,
                 selectedGroupLabel: state.selectedGroupLabel,
-                selectedGroupValue: state.selectedGroupValue,
                 hideActive: true,
                 hideHighlighted: true,
                 groupLabel: (group) => {
@@ -157,13 +144,13 @@ export function ProcessesPage() {
                     <SemanticFilterSummary filters={presentedSemanticFilters} onRemove={removeSemanticFilter} />
                     <ProcessRegisterFilterBar
                         facets={state.facets}
-                        filters={state.filters}
+                        filters={state.workingSet.filters}
                         isLoading={state.isLoading}
                         onClearAll={state.clearFilters}
                         onFilterChange={state.updateFilter}
                         onRefresh={() => void state.fetchProcesses()}
-                        onSearchChange={state.updateSearch}
-                        search={state.search}
+                        onSearchChange={state.workingSet.updateSearch}
+                        search={state.workingSet.search}
                     />
                     <PendingChangeCancellationDialog
                         isOpen={pendingCancellation !== null}

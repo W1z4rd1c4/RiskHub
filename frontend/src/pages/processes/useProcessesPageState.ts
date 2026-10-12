@@ -156,7 +156,7 @@ export function useProcessesPageState(
     }, [getExportParams, language]);
 
     return {
-        ...workingSet,
+        workingSet,
         capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
         isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,

@@ -3,11 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { useTranslation, useFormat, translateUiMessage } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { CollectionGroup } from '@/types/collection';
-import type { Vendor, VendorSortField } from '@/types/vendor';
+import type { Vendor } from '@/types/vendor';
 
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { SemanticFilterSummary } from './shared/SemanticFilterSummary';
@@ -58,8 +57,7 @@ export function VendorsPage() {
             title={t('title')}
             subtitle={t('subtitle')}
             views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
-            view={state.viewMode}
-            onViewChange={state.updateViewMode}
+            workingSet={state.workingSet}
             canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')}
             canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
             onCreate={() => void navigate(appendRegisterReturnTo('/vendors/new', returnTo))}
@@ -90,26 +88,15 @@ export function VendorsPage() {
                 onRowClick: (vendor) => void navigate(appendRegisterReturnTo(`/vendors/${vendor.id}`, returnTo)),
                 rowHref: (vendor) => appendRegisterReturnTo(`/vendors/${vendor.id}`, returnTo),
                 rowLabel: (vendor) => vendor.name,
-                sortKey: state.sortField,
-                sortDirection: state.sortDirection,
-                onSort: (key, direction) => state.updateSort(
-                    direction ? key as VendorSortField : null,
-                    direction as SortDirection,
-                ),
             }}
-            currentPage={state.currentPage}
             totalPages={state.totalPages}
             totalCount={state.totalCount}
             itemsPerPage={state.limit}
-            onPageChange={state.setCurrentPage}
             onRetry={() => void state.fetchVendors()}
             emptyMessage={t('empty_state.no_vendors')}
             grouping={{
                 groups: state.groups,
-                onBack: state.clearSelectedGroup,
-                onSelectGroup: state.selectGroup,
                 selectedGroupLabel: state.selectedGroupLabel,
-                selectedGroupValue: state.selectedGroupValue,
                 hideActive: true,
                 hideHighlighted: true,
                 groupLabel: presentGroupLabel,
@@ -124,14 +111,14 @@ export function VendorsPage() {
                     />
                     <VendorRegisterFilterBar
                         facets={state.facets}
-                        filters={state.filters}
+                        filters={state.workingSet.filters}
                         isLifecycleLocked={semanticFilters.committee_scope === true}
                         isLoading={state.isLoading}
                         onClearAll={state.clearFilters}
                         onFilterChange={state.updateFilter}
                         onRefresh={() => void state.fetchVendors()}
-                        onSearchChange={state.updateSearch}
-                        search={state.search}
+                        onSearchChange={state.workingSet.updateSearch}
+                        search={state.workingSet.search}
                     />
                 </div>
             )}

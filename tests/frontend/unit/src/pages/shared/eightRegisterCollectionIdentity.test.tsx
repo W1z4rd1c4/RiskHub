@@ -63,7 +63,7 @@ vi.mock('@/services/vendorApi', () => ({ vendorApi: { getVendors: apiMocks.getVe
 
 interface RegisterCollectionState {
     capabilities: object | null;
-    currentPage: number;
+    workingSet: { currentPage: number; setCurrentPage: (page: number) => void };
     errorKey: string | null;
     facets: object;
     groups: object[];
@@ -74,7 +74,6 @@ interface RegisterCollectionState {
     pendingCreations?: object[];
     refresh: () => Promise<void>;
     restore?: (id: number) => Promise<void>;
-    setCurrentPage: (page: number) => void;
     totalCount: number;
     updateSearch: (value: string) => void;
 }
@@ -229,7 +228,7 @@ function CollectionLayoutProbe({
     return (
         <>
             <output data-testid="collection-row-count">{state.items.length}</output>
-            <button type="button" onClick={() => state.setCurrentPage(2)}>page two</button>
+            <button type="button" onClick={() => state.workingSet.setCurrentPage(2)}>page two</button>
             <button type="button" onClick={() => void state.refresh()}>refresh</button>
         </>
     );
@@ -464,8 +463,8 @@ describe('eight-register collection query identity', () => {
             const queryB = deferred<typeof queryBPage>();
             fetchMock.mockReturnValueOnce(queryB.promise);
 
-            act(() => result.current.setCurrentPage(2));
-            await waitFor(() => expect(result.current.currentPage).toBe(2));
+            act(() => result.current.workingSet.setCurrentPage(2));
+            await waitFor(() => expect(result.current.workingSet.currentPage).toBe(2));
             await waitFor(() => expect(result.current.isLoading).toBe(true));
             await act(async () => {
                 restore.resolve();
@@ -494,7 +493,7 @@ describe('eight-register collection query identity', () => {
             act(() => { restorePromise = result.current.restore?.(1); });
             fetchMock.mockResolvedValueOnce(queryBPage);
 
-            act(() => result.current.setCurrentPage(2));
+            act(() => result.current.workingSet.setCurrentPage(2));
             await waitFor(() => expect((result.current.items[0] as { id?: number } | undefined)?.id).toBe(2));
             await act(async () => {
                 restore.reject(new ApiClientError({ status: 500, messageKey: 'errors.server' }));
@@ -629,7 +628,7 @@ describe('eight-register collection query identity', () => {
                 messageKey: 'errors.server',
             }));
 
-            act(() => result.current.state.setCurrentPage(2));
+            act(() => result.current.state.workingSet.setCurrentPage(2));
 
             await waitFor(() => expect(result.current.state.errorKey).not.toBeNull());
             expect(result.current.location.search).toContain('source=review');
@@ -686,7 +685,7 @@ describe('eight-register collection query identity', () => {
 
     it.each([
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateSearch('claims'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.updateSearch('claims'),
             name: 'search',
             path: '/risks?source=review',
         },
@@ -696,17 +695,17 @@ describe('eight-register collection query identity', () => {
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateSort('name', 'asc'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.updateSort('name', 'asc'),
             name: 'sort',
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateViewMode('department'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.updateViewMode('department'),
             name: 'view',
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.selectGroup('department:7'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.selectGroup('department:7'),
             name: 'group',
             path: '/risks?source=review&view=department',
         },

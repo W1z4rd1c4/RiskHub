@@ -36,6 +36,11 @@ describe('ICT-GOV #83 eight-register frontend contract', () => {
         const stateSource = readFrontendSource(contract.statePath);
 
         expect(pageSource).toContain('RegisterListShell');
+        expect(pageSource).toContain('workingSet={state.workingSet}');
+        for (const scalarProp of ['view={', 'onViewChange={', 'currentPage={', 'onPageChange={']) {
+            expect(pageSource).not.toContain(scalarProp);
+        }
+        expect(stateSource).not.toContain('...workingSet');
         expect(pageSource).toContain(`testIdPrefix="${contract.prefix}"`);
         expect(pageSource).toContain('canCreate={resolveCapabilityFlag');
         expect(pageSource).toContain('canExport={resolveCapabilityFlag');
