@@ -72,8 +72,10 @@ describe('useIssuesPageState normalized Issue filters', () => {
 
         await user.click(screen.getByRole('button', { name: 'export-current' }));
         await waitFor(() => expect(mocks.downloadExport).toHaveBeenCalledWith(expect.objectContaining({
-            offset: 0, severity_group: 'high_critical', include_closed: false,
+            severity_group: 'high_critical', include_closed: false,
         }), 'en'));
         expect(mocks.downloadExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('severity');
+        expect(mocks.downloadExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('offset');
+        expect(mocks.downloadExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('limit');
     });
 });

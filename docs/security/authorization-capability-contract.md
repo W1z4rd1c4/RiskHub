@@ -28,6 +28,12 @@ Asset, Process, Threat, Vendor detail and Risk/Control edit loaders forward the
 request owner's AbortSignal through the API client. Rendered route tests observe
 the MSW request abort on navigation away. No permission or capability changes.
 
+#262/#263 move all eight register URL working sets and layout-phase identity
+commits into the shared module. Current-view exports use the committed list
+snapshot with pagination removed. Domain scope, legacy filters, capability-driven
+view reset, pending creations, historical exports and backend authority are
+unchanged; rendered MSW coverage verifies export debounce and URL history.
+
 ## Architecture exception review
 
 2026-10-11: The #254 two-package pilot declares existing Questionnaire and Control-execution service exports and narrower HTTP caller classes in their owning packages. Static import/member checks preserve lifecycle and governed adapter boundaries; two existing service-only leaf dependencies remain explicit, expiring exceptions. Public compatibility exports, runtime permissions, capability values, transaction ownership and mutation behavior are unchanged. This pilot does not complete the remaining classified architecture migration.

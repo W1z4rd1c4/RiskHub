@@ -15,9 +15,17 @@ The frontend owns one interaction vocabulary:
 - `frontend/src/pages/shared/registerListQuery.ts` parses and serializes search,
   view, sort, filters, and selected group while preserving unrelated browser
   navigation parameters.
+- `frontend/src/pages/shared/useRegisterUrlWorkingSet.ts` owns URL writes,
+  normalization by replace, page-history pushes, sort validation, search debounce,
+  and layout-phase query-identity commits for all eight registers (#262/#263).
+  Its committed list snapshot supplies every current-view export with pagination
+  removed, so typing ahead of the visible debounced search cannot change an export.
+  Entity hooks provide legacy URL translation and filter codecs; they retain
+  capability-driven view resets, committee/department scopes, pending creations,
+  fetching, export execution and row actions.
 - `frontend/src/pages/shared/collectionPageState.ts` owns reusable collection
   success/failure/request-order state and the query-identity lifecycle. Entity
-  page hooks own only their normalized query identity, domain filter types,
+  page hooks supply their domain-specific identity inputs, filter types,
   query mapping, API call, and row actions.
 - Each entity `*RegisterConfig.ts` is the declarative home for its confirmed
   views, filters, grouping keys, sort fields, and normalized list parameters.
@@ -57,7 +65,7 @@ Create/Export visibility, URL-backed search, page reset, and Back/Forward view
 restoration, plus one row-to-detail-to-visible-Back exact working-set
 restoration for each of the eight registers.
 `tests/frontend/unit/src/pages/shared/eightRegisterParity.contract.test.ts`
-locks the shell, URL vocabulary, entity query builder, current export, async
+requires shared URL and identity ownership (and bans local copies), and locks the shell, entity query builder, current export, async
 state, capabilities, pending projection where applicable, and historical-export
 separation. `tests/backend/pytest/architecture/test_ict_gov_11_register_listing_contraction.py`
 locks the normalized endpoint boundary, shared listing lifecycle, stable entity
@@ -75,7 +83,9 @@ by a different query. Successful responses use
 an older fetch from committing after a newer request. The pure seam and all
 eight register integrations are locked by `collectionPageState.test.ts`,
 `eightRegisterCollectionIdentity.test.tsx`, and
-`eightRegisterUrlHistory.test.tsx`.
+`eightRegisterUrlHistory.test.tsx`. The rendered-page MSW suite
+`eightRegisterExportIdentity.test.tsx` verifies all eight current exports before
+and after the 300 ms search debounce using actual list and export requests.
 
 ## Invariants
 

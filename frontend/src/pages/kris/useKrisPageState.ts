@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { SupportedLanguage } from '@/i18n';
 import { apiClient } from '@/services/apiClient';
 import { kriApi } from '@/services/kriApi';
@@ -13,7 +10,8 @@ import type { KRIFacets, KRIListCapabilities, KeyRiskIndicator } from '@/types/k
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
-import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import type { RegisterFilters } from '../shared/registerListQuery';
+import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import { buildKriExportFilters, readKriRouteFilters } from './kriPagePresentation';
 import {
@@ -23,12 +21,10 @@ import {
     parseKriRegisterFilters,
     serializeKriRegisterFilters,
     type KriRegisterFilters,
-    type KriRegisterView,
 } from './kriRegisterConfig';
 
 const KRI_VIEWS = KRI_REGISTER_CONFIG.views.map(({ value }) => value);
 const KRI_SORT_FIELDS = ['metric_name', 'current_value', 'monitoring_status', 'risk_process', 'risk_description'] as const;
-const validSort = (sort: RegisterSortState | null) => sort && KRI_SORT_FIELDS.includes(sort.field as typeof KRI_SORT_FIELDS[number]) ? sort : null;
 const groupLabel = (groups: Array<{ value: string; label: string }>, value: string | null) => value ? groups.find((group) => group.value === value)?.label ?? null : null;
 
 function parseLegacyFilters(params: URLSearchParams): Partial<KriRegisterFilters> {
@@ -40,28 +36,27 @@ function parseLegacyFilters(params: URLSearchParams): Partial<KriRegisterFilters
     };
 }
 
+const kriUrlOptions = {
+    allowedViews: KRI_VIEWS,
+    allowedSortFields: KRI_SORT_FIELDS,
+    parseFilters: parseKriRegisterFilters,
+    serializeFilters: serializeKriRegisterFilters,
+    readFilters: (raw: RegisterFilters, params: URLSearchParams) => Object.keys(raw).length > 0
+        ? parseKriRegisterFilters(raw)
+        : { ...EMPTY_KRI_REGISTER_FILTERS, ...parseLegacyFilters(params) },
+    cleanWriteParams: (params: URLSearchParams) => {
+        ['monitoring_status', 'timeliness_status', 'status'].forEach((key) => params.delete(key));
+    },
+};
+
 export function useKrisPageState(language: SupportedLanguage = 'en') {
     const departmentScope = useDepartmentRegisterScope();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const serializedParams = searchParams.toString();
-    const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
-        defaultView: 'all', allowedViews: KRI_VIEWS,
-    }), [serializedParams]);
-    const filters = useMemo(() => {
-        const parsed = parseKriRegisterFilters(urlState.filters);
-        return Object.keys(urlState.filters).length > 0
-            ? parsed
-            : { ...EMPTY_KRI_REGISTER_FILTERS, ...parseLegacyFilters(new URLSearchParams(serializedParams)) };
-    }, [serializedParams, urlState.filters]);
+    const workingSet = useRegisterUrlWorkingSet(kriUrlOptions);
+    const { currentPage, debouncedSearch, filters, selectedGroupValue, sort, viewMode, writeUrl } = workingSet;
     const effectiveFilters = useMemo(() => ({
         ...filters,
         department_id: departmentScope?.departmentId ?? filters.department_id,
     }), [departmentScope?.departmentId, filters]);
-    const viewMode = urlState.view as KriRegisterView;
-    const sort = validSort(urlState.sort);
-    const selectedGroupValue = urlState.selectedGroupValue;
-    const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const currentPage = urlState.page;
     const [facets, setFacets] = useState<KRIFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -76,8 +71,7 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
         search: debouncedSearch, sort, view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
-    const queryIdentity = JSON.stringify(listParams);
-    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -101,43 +95,7 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
         }
     }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(serializedParams);
-        if (!normalizeRegisterUrlParams(params, {
-            allowedSortFields: KRI_SORT_FIELDS,
-            allowedViews: KRI_VIEWS,
-            canonicalizeFilters: (rawFilters) => serializeKriRegisterFilters(parseKriRegisterFilters(rawFilters)),
-            defaultView: 'all',
-        })) return;
-        setSearchParams(params, { replace: true });
-    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchKris(); }, [fetchKris]);
-
-    const writeUrl = useCallback((next: {
-        filters?: KriRegisterFilters; group?: string | null; search?: string;
-        sort?: RegisterSortState | null; view?: KriRegisterView;
-    }, replace = false) => {
-        const existing = new URLSearchParams(serializedParams);
-        existing.delete('monitoring_status');
-        existing.delete('timeliness_status');
-        existing.delete('status');
-        const params = buildRegisterUrlParams({
-            filters: serializeKriRegisterFilters(next.filters ?? filters),
-            page: 1,
-            search: next.search ?? urlState.search,
-            selectedGroupValue: next.group === undefined ? selectedGroupValue : next.group,
-            sort: next.sort === undefined ? sort : next.sort,
-            view: next.view ?? viewMode,
-        }, existing);
-        setSearchParams(params, { replace });
-    }, [filters, selectedGroupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
-
-    const setCurrentPage = useCallback((page: number) => {
-        const params = new URLSearchParams(serializedParams);
-        if (page > 1) params.set('page', String(page));
-        else params.delete('page');
-        setSearchParams(params);
-    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof KriRegisterFilters>(key: K, value: KriRegisterFilters[K]) => {
         const next = { ...filters, [key]: value };
@@ -163,9 +121,9 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     }, [fetchKris, isQueryCurrent, items, queryIdentity, runRowRestore]);
     const exportCurrentKris = useCallback(async () => {
         setIsExporting(true);
-        try { await kriApi.downloadExport({ ...listParams, offset: 0 }, language); }
+        try { await kriApi.downloadExport(getExportParams(), language); }
         finally { setIsExporting(false); }
-    }, [language, listParams]);
+    }, [getExportParams, language]);
     const exportKriSnapshot = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
         setIsExporting(true);
         try {
@@ -180,15 +138,11 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     }, [debouncedSearch, departmentScope?.departmentId, filters]);
 
     return {
-        capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
-        errorKey, exportCurrentKris, exportKriSnapshot, facets: visibleFacets, fetchKris, filters, groups, hasLoadedOnce,
-        isAccessDenied, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreKri,
-        search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
-        selectedGroupLabel: groupLabel(groups, selectedGroupValue), selectedGroupValue, setCurrentPage,
-        sortDirection: sort?.direction ?? null, sortField: sort?.field ?? null,
+        ...workingSet,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
+        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
-        updateSearch: (value: string) => writeUrl({ search: value, group: null }, true),
-        updateSort: (field: string | null, direction: SortDirection) => writeUrl({ sort: field && direction ? { field, direction } : null }),
-        updateViewMode: (view: KriRegisterView) => writeUrl({ view, group: null }), viewMode,
+        selectedGroupLabel: groupLabel(groups, selectedGroupValue),
+        clearFilters, exportCurrentKris, exportKriSnapshot, fetchKris, restoreKri,
     };
 }

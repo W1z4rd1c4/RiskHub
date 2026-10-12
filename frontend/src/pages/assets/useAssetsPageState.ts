@@ -103,8 +103,6 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
 
     useEffect(() => { void fetchAssets(); }, [fetchAssets]);
 
-
-
     const updateFilter = useCallback(<K extends keyof AssetRegisterFilters>(key: K, value: AssetRegisterFilters[K]) =>
         writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
     // D9 / FB-01: a row restore reports through a toast and never flips the
@@ -127,7 +125,7 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
 
     return {
         ...workingSet,
-        capabilities, errorKey, facets: visibleFacets, filters, groups, hasLoadedOnce, isAccessDenied,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
         isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
         selectedGroupLabel: selectedGroupLabel(groups, groupValue),

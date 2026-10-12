@@ -45,17 +45,13 @@ describe('ICT-GOV #83 eight-register frontend contract', () => {
         // DS-17: the empty message is always the real empty copy, never "Loading data…".
         expect(pageSource).toContain('emptyMessage=');
         expect(pageSource).not.toContain("t('common:loading.data')");
-        if (['Asset', 'Control'].includes(contract.name)) {
-            expect(stateSource).toContain('useRegisterUrlWorkingSet');
-            expect(stateSource).toContain('useCommittedRegisterQuery');
-            expect(stateSource).toContain('downloadExport(getExportParams(), language)');
-            expect(stateSource).not.toContain('parseRegisterUrlState');
-            expect(stateSource).not.toContain('buildRegisterUrlParams');
-            expect(stateSource).not.toContain('useLayoutEffect');
-        } else {
-            expect(stateSource).toContain('parseRegisterUrlState');
-            expect(stateSource).toContain('buildRegisterUrlParams');
+        expect(stateSource).toContain('useRegisterUrlWorkingSet');
+        expect(stateSource).toContain('useCommittedRegisterQuery');
+        expect(stateSource).toContain('downloadExport(getExportParams(), language)');
+        for (const localCopy of ['parseRegisterUrlState', 'buildRegisterUrlParams', 'normalizeRegisterUrlParams', 'useSearchParams', 'useLayoutEffect', 'useDebouncedValue', 'const validSort', 'function validSort']) {
+            expect(stateSource).not.toContain(localCopy);
         }
+        expect(stateSource.slice(stateSource.lastIndexOf('return {'))).not.toContain('statusFilter:');
         expect(stateSource).toContain('useCollectionDataState');
         expect(stateSource).toContain('useLatestRequestGuard');
         expect(stateSource).toContain(contract.listBuilder);
