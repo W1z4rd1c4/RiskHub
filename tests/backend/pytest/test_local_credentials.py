@@ -1,12 +1,13 @@
 """#200: public credential boundaries, retryability and independent-device revocation."""
 
+from copy import deepcopy
 from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
 
 from app.core.datetime_utils import utc_now
-from app.models import LocalAuthDelivery, LocalAuthGrant, RefreshToken, User
+from app.models import LocalAuthDelivery, LocalAuthGrant, OutboxEvent, RefreshToken, User
 from tests.backend.pytest.test_local_identity import (
     PASSWORD,
     csrf,
@@ -94,6 +95,13 @@ async def denied_refresh(client, raw):
     assert "access_token" not in result.json()
 
 
+async def outbox_snapshot(db):
+    rows = (
+        await db.scalars(select(OutboxEvent).order_by(OutboxEvent.id).execution_options(populate_existing=True))
+    ).all()
+    return [tuple(deepcopy(getattr(row, column.name)) for column in OutboxEvent.__table__.columns) for row in rows]
+
+
 @pytest.mark.parametrize("operation", ["reset", "password", "email"])
 async def test_credential_completion_revokes_live_independent_device_and_replay(
     credential_account,
@@ -101,7 +109,10 @@ async def test_credential_completion_revokes_live_independent_device_and_replay(
     client_factory,
     db_session,
     operation,
+    monkeypatch,
 ):
+    from app.services._local_auth import credentials
+
     uid = credential_account
     async with (
         client_factory(settings=native_context, headers={"Origin": "http://test"}) as actor,
@@ -136,17 +147,41 @@ async def test_credential_completion_revokes_live_independent_device_and_replay(
         await denied_refresh(device, live_refresh)
         committed = await snapshot(db_session, uid)
         assert committed[0][2] == before[0][2] + 1
-        # Simulate a discarded success response: resend the exact credential body.
-        await csrf(actor)
-        replay = await actor.post(path, json=body)
-        assert replay.status_code == 401, replay.text
-        assert await snapshot(db_session, uid) == committed
+        # Admit a current session before replaying old artifacts, so an expired
+        # bearer cannot mask the consumed-proof boundary in authenticated routes.
         actor.headers.pop("Authorization", None)
         await login_password_only(
             actor,
             NEW_EMAIL if operation == "email" else "journey@example.com",
             PASSWORD if operation == "email" else NEW_PASSWORD,
         )
+        assert (await actor.get("/api/v1/auth/me")).status_code == 200
+        await csrf(actor)
+        after_login = await snapshot(db_session, uid)
+        queued = await outbox_snapshot(db_session)
+        reached = []
+        read_grant = credentials.read_grant
+        check_recent = credentials.check_recent_proof
+
+        async def observe_grant(db, ctx, raw, purpose, **kwargs):
+            reached.append((purpose, raw))
+            return await read_grant(db, ctx, raw, purpose, **kwargs)
+
+        async def observe_recent(db, ctx, user, **kwargs):
+            reached.append(("recent", kwargs["raw"]))
+            return await check_recent(db, ctx, user, **kwargs)
+
+        monkeypatch.setattr(credentials, "read_grant", observe_grant)
+        monkeypatch.setattr(credentials, "check_recent_proof", observe_recent)
+        replay = await actor.post(path, json=body)
+        assert replay.status_code == 401, replay.text
+        assert replay.json()["detail"]["code"] == "LOCAL_AUTH_INVALID"
+        assert reached == [
+            ("recent", body["recent_auth_proof"]) if operation == "password" else (operation, body["grant"])
+        ]
+        assert await snapshot(db_session, uid) == after_login
+        assert await outbox_snapshot(db_session) == queued
+        assert (await actor.get("/api/v1/auth/me")).status_code == 200
 
 
 @pytest.mark.parametrize(
@@ -238,9 +273,14 @@ async def test_email_confirmation_denial_preserves_retryable_state(
         body = {"grant": raw, "recent_auth_proof": "invalid" if case == "bearer_only" else proof}
         if case == "missing_recent":
             body.pop("recent_auth_proof")
+        admitted = await client.get("/api/v1/auth/me")
+        assert admitted.status_code == (401 if case in {"suspended", "inactive"} else 200), admitted.text
+        assert client.headers["X-CSRF-Token"] == client.cookies.get("riskhub_csrf_token")
         before = await snapshot(db_session, uid)
         result = await client.post(BASE + "/email/confirm", json=body)
-        assert result.status_code in ({422} if case == "missing_recent" else {401, 403}), result.text
+        assert result.status_code == (422 if case == "missing_recent" else 401), result.text
+        if case not in {"missing_recent", "suspended", "inactive"}:
+            assert result.json()["detail"]["code"] == "LOCAL_AUTH_INVALID"
         assert await snapshot(db_session, uid) == before
         # Restore only the fixture's artificial adverse state, then use the same unconsumed valid proof.
         if restore:
@@ -416,7 +456,7 @@ async def test_reset_artifact_denial_is_nonmutating_with_valid_control(
         assert result.status_code == 200, result.text
 
 
-@pytest.mark.parametrize("state", ["enrolled", "inactive", "suspended", "unverified", "invited", "directory", "absent"])
+@pytest.mark.parametrize("state", ["enrolled", "inactive", "suspended", "unverified", "invited", "absent"])
 async def test_reset_request_enumeration_has_identical_response_and_no_authority_change(
     credential_account,
     native_context,
@@ -436,8 +476,6 @@ async def test_reset_request_enumeration_has_identical_response_and_no_authority
             user.local_email_verified_at = None
         elif state == "invited":
             user.local_enrollment_state, user.is_active = "invited", False
-        elif state == "directory":
-            user.external_id = "directory-owned-test-principal"
         await db_session.commit()
         before = await snapshot(db_session, uid)
         response = await client.post(
@@ -453,6 +491,36 @@ async def test_reset_request_enumeration_has_identical_response_and_no_authority
             assert len(after[1]) == len(before[1]) + 1 and len(after[3]) == len(before[3]) + 1
         else:
             assert after == before
+
+
+async def test_reset_with_directory_provenance_fails_closed_without_enumeration(
+    credential_account, native_context, client_factory, db_session
+):
+    uid = credential_account
+    async with client_factory(settings=native_context, headers={"Origin": "http://test"}) as client:
+        await login_password_only(client, "journey@example.com")
+        user = await db_session.get(User, uid)
+        # A directory-bound principal invalidates the entire native installation,
+        # rather than representing an ineligible account in an admitted installation.
+        user.external_id = "directory-owned-test-principal"
+        await db_session.commit()
+        before = await snapshot(db_session, uid)
+        queued = await outbox_snapshot(db_session)
+        replies = []
+        for address in ["journey@example.com", "absent@example.com"]:
+            response = await client.post(BASE + "/password/reset/request", json={"email": address})
+            assert response.status_code == 503, response.text
+            assert response.json()["detail"]["code"] == "LOCAL_SECURITY_UNAVAILABLE"
+            assert response.headers["cache-control"] == "no-store"
+            replies.append(response.json())
+            assert await snapshot(db_session, uid) == before
+            assert await outbox_snapshot(db_session) == queued
+        assert replies[0] == replies[1]
+        await db_session.refresh(user)
+        assert user.external_id == "directory-owned-test-principal"
+        user.external_id = None
+        await db_session.commit()
+        assert await request_reset(client, db_session, native_context, uid)
 
 
 @pytest.mark.parametrize("operation", ["reset", "email"])
