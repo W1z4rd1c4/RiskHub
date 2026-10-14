@@ -164,6 +164,7 @@ jobs:
               assert services[name]["platform"] == "linux/amd64", name
           for name in ["db", "redis", "frontend"]:
               assert "platform" not in services[name], name
+          assert services["backend"]["healthcheck"] == {"start_period": "3m0s"}
           PY
 
       - name: Verify direct ARM build fails before dependency installation

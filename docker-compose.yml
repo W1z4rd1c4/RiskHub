@@ -94,6 +94,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: riskhub-backend
+    healthcheck:
+      # Four emulated workers can import slower than the production image grace.
+      # Inherit the image's probe, interval, timeout and retries unchanged.
+      start_period: 180s
     environment: *backend-environment
     ports:
       - "127.0.0.1:8000:8000"

@@ -43,6 +43,9 @@ steps. On Apple Silicon, enable Docker Desktop's amd64 emulation; these backend
 containers run under emulation while PostgreSQL, Redis and the frontend retain
 the host's native platform. Direct backend image builds must pass
 `--platform linux/amd64`; native ARM backend locks require separate verification.
+The demo API permits 180 seconds of health startup grace for its four workers
+under emulation. It retains the production image's Python HTTP probe, retry and
+timeout settings; the frontend still waits for a successful backend healthcheck.
 
 Deterministic live-verification preference:
 

@@ -356,7 +356,9 @@ def test_dev_compose_bootstrap_uses_dbtasks_target_and_backend_inherits_image_he
     )
 
     backend_block = text.split("  backend:\n", 1)[1].split("  frontend:\n", 1)[0]
-    assert "healthcheck:" not in backend_block
+    compose = yaml.safe_load(text)
+    assert compose["services"]["backend"]["healthcheck"] == {"start_period": "180s"}
+    assert "healthcheck" not in compose["services"]["scheduler"]
     assert (
         'test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]'
         not in backend_block

@@ -65,6 +65,17 @@ services retain native platform selection. Direct backend Docker builds require
 The hosted ARM compatibility job exercises the amd64 locked images and canonical
 demo under emulation. It does not generate or certify native ARM dependency locks.
 
+The first ARM onboarding attempt on source `c5439920` in run
+[38632066277](https://github.com/W1z4rd1c4/RiskHub/actions/runs/38632066277)
+passed both locked image checks, migrations, seeding and the native frontend
+build. Its four-worker API was marked unhealthy about 70 seconds after launch
+(20:37:27 to 20:38:37 UTC), before any application-start completion appeared;
+the single-worker scheduler was healthy. The demo Compose API now overrides only
+health startup grace to 180 seconds and retains the production image's probe,
+timeouts, retries and four workers. This bounded grace must still be verified by
+actual ARM-host demo readiness; the initial logs alone do not prove eventual
+startup. Diagnostics retain timed health state and scheduler logs for that check.
+
 The `Python Runtime Lock` workflow handles the expensive steps in CI:
 
 1. Build the existing production `builder-base` stage, retaining OS security pins
