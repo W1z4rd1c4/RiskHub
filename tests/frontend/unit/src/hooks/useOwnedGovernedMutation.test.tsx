@@ -48,7 +48,7 @@ describe('owned governed mutation continuation contract', () => {
             mutationFn: () => response.promise, onError, onSuccess,
         }), { initialProps: { owner: 1 }, wrapper: wrapper() });
         let pending!: ReturnType<typeof result.current.mutateAsync>;
-        act(() => { pending = result.current.mutateAsync(); });
+        act(() => { pending = result.current.mutateAsync(undefined); });
         if (change === 'return') { rerender({ owner: 2 }); rerender({ owner: 1 }); } else unmount();
         await act(async () => { response.reject(new Error('old rejection')); expect(await pending).toEqual({ kind: 'superseded' }); });
         expect(onError).not.toHaveBeenCalled();
@@ -59,9 +59,9 @@ describe('owned governed mutation continuation contract', () => {
         const onError = vi.fn();
         const onSuccess = vi.fn();
         const { result } = renderHook(() => useOwnedGovernedMutation(1, {
-            mutationFn: async () => { throw failure; }, onError, onSuccess,
+            mutationFn: () => { return Promise.reject(failure); }, onError, onSuccess,
         }), { wrapper: wrapper() });
-        await act(async () => { await expect(result.current.mutateAsync()).rejects.toBe(failure); });
+        await act(async () => { await expect(result.current.mutateAsync(undefined)).rejects.toBe(failure); });
         expect(onError).toHaveBeenCalledExactlyOnceWith(failure, undefined);
         expect(onSuccess).not.toHaveBeenCalled();
     });
@@ -69,10 +69,10 @@ describe('owned governed mutation continuation contract', () => {
         const failure = new Error('refresh failed after commit');
         const onError = vi.fn();
         const { result } = renderHook(() => useOwnedGovernedMutation(1, {
-            mutationFn: async () => ({ id: 5 }),
-            onSuccess: async () => { throw failure; }, onError,
+            mutationFn: () => Promise.resolve(({ id: 5 })),
+            onSuccess: () => { return Promise.reject(failure); }, onError,
         }), { wrapper: wrapper() });
-        await act(async () => { await expect(result.current.mutateAsync()).resolves.toEqual({ kind: 'applied', response: { id: 5 } }); });
+        await act(async () => { await expect(result.current.mutateAsync(undefined)).resolves.toEqual({ kind: 'applied', response: { id: 5 } }); });
         expect(onError).not.toHaveBeenCalled();
         expect(logError).toHaveBeenCalledExactlyOnceWith('Link outcome continuation failed:', failure);
     });
@@ -82,18 +82,18 @@ describe('owned governed mutation continuation contract', () => {
         const afterRefresh = vi.fn();
         const refreshing = vi.fn();
         const { result, rerender } = renderHook(({ owner }) => useOwnedGovernedMutation(owner, {
-            mutationFn: async () => owner === 1 ? { id: 1 } : second.promise,
+            mutationFn: () => Promise.resolve(owner === 1 ? { id: 1 } : second.promise),
             onSuccess: async (_outcome, _variables, isCurrent) => {
                 if (owner === 1) { refreshing(); await refresh.promise; }
                 if (isCurrent()) afterRefresh(owner);
             },
         }), { initialProps: { owner: 1 }, wrapper: wrapper() });
         let old!: ReturnType<typeof result.current.mutateAsync>;
-        act(() => { old = result.current.mutateAsync(); });
+        act(() => { old = result.current.mutateAsync(undefined); });
         await waitFor(() => expect(refreshing).toHaveBeenCalledOnce());
         rerender({ owner: 2 });
         let current!: ReturnType<typeof result.current.mutateAsync>;
-        act(() => { current = result.current.mutateAsync(); });
+        act(() => { current = result.current.mutateAsync(undefined); });
         await waitFor(() => expect(result.current.isPending).toBe(true));
         await act(async () => { refresh.resolve(); expect(await old).toEqual({ kind: 'superseded' }); });
         expect(afterRefresh).not.toHaveBeenCalled();

@@ -1,8 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { normalizeCollectionResponse } from '@/services/collectionApi';
 
 describe('normalizeCollectionResponse', () => {
+    it('accepts legacy pagination while guaranteeing canonical output types', () => {
+        const normalized = normalizeCollectionResponse({ items: [{ id: 1 }], total: 1, skip: 2, size: 5 });
+        expectTypeOf(normalized.offset).toEqualTypeOf<number>();
+        expectTypeOf(normalized.limit).toEqualTypeOf<number>();
+        expectTypeOf(normalized.items).toEqualTypeOf<{ id: number }[]>();
+        expectTypeOf<{ items: []; total: string }>().not.toExtend<Parameters<typeof normalizeCollectionResponse>[0]>();
+        expectTypeOf<{ items: []; total: number; offset: string }>().not.toExtend<Parameters<typeof normalizeCollectionResponse>[0]>();
+        expect(normalized).toMatchObject({ offset: 2, limit: 5 });
+    });
     it('prefers explicit offset over legacy skip and page-size pagination', () => {
         const normalized = normalizeCollectionResponse({
             items: [],

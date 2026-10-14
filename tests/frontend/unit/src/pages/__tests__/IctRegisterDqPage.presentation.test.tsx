@@ -1,3 +1,4 @@
+import type * as MockictRegisterDqApiModule from '@/services/ictRegisterDqApi';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,13 +19,13 @@ import {
 } from '@/pages/ictRegisterDq/dqPresentation';
 import type { IctDqCheck } from '@/types/ictRegisterDq';
 
-const getDataQuality = vi.fn();
-const getViolations = vi.fn();
+const getDataQuality = vi.fn<typeof MockictRegisterDqApiModule.ictRegisterDqApi.getDataQuality>();
+const getViolations = vi.fn<typeof MockictRegisterDqApiModule.ictRegisterDqApi.getViolations>();
 
 vi.mock('@/services/ictRegisterDqApi', () => ({
     ictRegisterDqApi: {
-        getDataQuality: (...args: unknown[]) => getDataQuality(...args),
-        getViolations: (...args: unknown[]) => getViolations(...args),
+        getDataQuality: (...args: Parameters<typeof getDataQuality>) => getDataQuality(...args),
+        getViolations: (...args: Parameters<typeof getViolations>) => getViolations(...args),
     },
 }));
 
@@ -289,8 +290,8 @@ describe('IctRegisterDqPage', () => {
             ],
             finding_count: 1,
         });
-        let resolveFirst: ((value: unknown) => void) | undefined;
-        let resolveSecond: ((value: unknown) => void) | undefined;
+        let resolveFirst: ((value: Awaited<ReturnType<typeof getViolations>>) => void) | undefined;
+        let resolveSecond: ((value: Awaited<ReturnType<typeof getViolations>>) => void) | undefined;
         getViolations
             .mockImplementationOnce(
                 () =>
@@ -332,7 +333,7 @@ describe('IctRegisterDqPage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Go to second page' }));
         await waitFor(() => expect(getViolations).toHaveBeenCalledTimes(2));
 
-        await act(async () => {
+        await act(() => {
             resolveSecond?.({
                 items: [
                     {
@@ -347,10 +348,11 @@ describe('IctRegisterDqPage', () => {
                 offset: 50,
                 limit: 50,
             });
+            return Promise.resolve();
         });
         expect(await screen.findByText('Current second page')).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             resolveFirst?.({
                 items: [
                     {
@@ -365,6 +367,7 @@ describe('IctRegisterDqPage', () => {
                 offset: 0,
                 limit: 50,
             });
+            return Promise.resolve();
         });
         expect(screen.getByText('Current second page')).toBeInTheDocument();
         expect(screen.queryByText('Stale first page')).not.toBeInTheDocument();
@@ -620,8 +623,9 @@ describe('IctRegisterDqPage', () => {
         expect(violationLoading.closest('[role="status"]')).not.toBeNull();
         expect(getViolations).toHaveBeenCalledWith('DQ-16', { offset: 50, limit: 50 });
 
-        await act(async () => {
+        await act(() => {
             rejectFirstRequest?.(new Error('network failure'));
+            return Promise.resolve();
         });
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Violation details could not be loaded.'

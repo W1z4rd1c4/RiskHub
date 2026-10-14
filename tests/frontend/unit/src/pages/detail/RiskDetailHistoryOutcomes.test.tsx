@@ -1,3 +1,5 @@
+const { getHistoryMock } = vi.hoisted(() => ({ getHistoryMock: vi.fn() }));
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,10 +8,9 @@ import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { ApiClientError } from '@/services/apiClient';
 import { renderWithQueryClient as render } from '@test/render';
 
-const getHistoryMock = vi.fn();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return { ...actual, useParams: () => ({ id: '7' }) };
 });
 
@@ -34,7 +35,7 @@ vi.mock('@/services/riskApi', () => ({
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
         getOverdue: vi.fn().mockResolvedValue([]),
-        getHistory: (...args: unknown[]) => getHistoryMock(...args),
+        getHistory: getHistoryMock,
     },
 }));
 

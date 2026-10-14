@@ -48,7 +48,7 @@ describe('Playwright accessibility collection guard', () => {
     expect(() => assertA11ySpecsExecuted(report)).not.toThrow();
 
     const skipped = structuredClone(report);
-    skipped.suites[1]!.specs[0]!.tests[0] = { projectName: 'ci', status: 'skipped', results: [] };
+    skipped.suites[1].specs[0].tests[0] = { projectName: 'ci', status: 'skipped', results: [] };
     expect(() => assertA11ySpecsExecuted(skipped)).toThrow(/skipped or did not pass/i);
   });
 

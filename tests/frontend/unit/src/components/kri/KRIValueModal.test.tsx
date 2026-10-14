@@ -1,3 +1,5 @@
+import type * as HooksModule from '@/i18n/hooks';
+import type * as FormattersModule from '@/i18n/formatters';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -6,18 +8,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import type { KRICapabilities, KeyRiskIndicator } from '@/types/kri';
 
-const recordValueMock = vi.fn();
+const recordValueMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        recordValue: (...args: unknown[]) => recordValueMock(...args),
+        recordValue: recordValueMock,
     },
 }));
 
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof HooksModule>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -25,7 +27,7 @@ vi.mock('@/i18n/hooks', async (importOriginal) => ({
 }));
 
 vi.mock('@/i18n/formatters', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@/i18n/formatters')>()),
+    ...(await importOriginal<typeof FormattersModule>()),
     formatDateValue: (value: string) => value,
 }));
 

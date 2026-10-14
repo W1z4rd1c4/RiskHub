@@ -2,7 +2,8 @@
  * Approvals Page Object Model
  * Handles the Approvals list and interaction operations
  */
-import { Page, Locator, expect } from '@playwright/test';
+import type { Page, Locator} from '@playwright/test';
+import { expect } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
 
 export class ApprovalsPage {

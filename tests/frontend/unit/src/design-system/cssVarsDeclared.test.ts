@@ -61,11 +61,11 @@ function listFiles(dir: string): string[] {
 }
 
 function extractUsedVars(source: string): string[] {
-  return [...source.matchAll(/var\(\s*(--[A-Za-z0-9_-]+)/g)].map((match) => match[1] as string);
+  return [...source.matchAll(/var\(\s*(--[A-Za-z0-9_-]+)/g)].map((match) => match[1]);
 }
 
 function extractDeclaredVars(css: string): string[] {
-  return [...css.matchAll(/(?<![\w-])(--[A-Za-z0-9_-]+)\s*:/g)].map((match) => match[1] as string);
+  return [...css.matchAll(/(?<![\w-])(--[A-Za-z0-9_-]+)\s*:/g)].map((match) => match[1]);
 }
 
 const sourceFiles = listFiles(srcRoot);

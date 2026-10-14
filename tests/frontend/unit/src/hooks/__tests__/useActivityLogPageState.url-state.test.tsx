@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useActivityLogPageState } from '@/hooks/useActivityLogPageState';
 import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
 
-const mockList = vi.fn();
-const mockGetActions = vi.fn();
-const mockGetActors = vi.fn();
-const mockGetDepartments = vi.fn();
-const mockGetRisks = vi.fn();
+const mockList = vi.hoisted(() => vi.fn());
+const mockGetActions = vi.hoisted(() => vi.fn());
+const mockGetActors = vi.hoisted(() => vi.fn());
+const mockGetDepartments = vi.hoisted(() => vi.fn());
+const mockGetRisks = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useDebouncedValue', () => ({
     useDebouncedValue: <T,>(value: T) => value,
@@ -18,21 +18,21 @@ vi.mock('@/hooks/useDebouncedValue', () => ({
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
-        list: (...args: unknown[]) => mockList(...args),
-        getActions: (...args: unknown[]) => mockGetActions(...args),
-        getActors: (...args: unknown[]) => mockGetActors(...args),
+        list: mockList,
+        getActions: mockGetActions,
+        getActors: mockGetActors,
     },
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
+        getDepartments: mockGetDepartments,
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: mockGetRisks,
     },
 }));
 

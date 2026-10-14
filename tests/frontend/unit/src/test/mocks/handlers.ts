@@ -2,6 +2,7 @@
  * MSW handlers for API mocking.
  */
 import { http, HttpResponse } from 'msw';
+import type { AuthUser } from '@/services/authApi';
 
 // Mock data
 const FIXTURE_CREATED_AT = '2025-12-25T10:00:00Z';
@@ -25,7 +26,7 @@ function paginateCollection<T>(items: T[]) {
     };
 }
 
-function buildControlDetail(overrides: Record<string, unknown>) {
+function buildControlDetail<T extends Record<string, unknown>>(overrides: T) {
     return {
         description: 'Validates that access and approvals remain aligned with policy.',
         data_source: null,
@@ -78,14 +79,14 @@ export const mockControlSummaries = mockControls.map((control) => ({
     id: control.id,
     name: control.name,
     description: control.description,
-    department_id: control.department_id as number,
-    department_name: (control.department as { name: string }).name,
+    department_id: control.department_id,
+    department_name: control.department.name,
     frequency: control.frequency,
     risk_level: control.risk_level,
     status: control.status,
     is_archived: control.is_archived,
     control_form: control.control_form,
-    control_owner_name: (control.control_owner as { name: string }).name,
+    control_owner_name: control.control_owner.name,
     risk_type: null,
     risk_id_code: null,
     risk_name: null,
@@ -95,7 +96,7 @@ export const mockControlSummaries = mockControls.map((control) => ({
     linked_vendors: [],
 }));
 
-function buildRiskDetail(overrides: Record<string, unknown>) {
+function buildRiskDetail<T extends Record<string, unknown>>(overrides: T) {
     return {
         risk_id_code: 'RISK-001',
         name: 'Authentication Drift',
@@ -203,7 +204,7 @@ export const mockDashboard = {
     low_risks: 5,
 };
 
-function buildExecutionAuditItem(overrides: Record<string, unknown>) {
+function buildExecutionAuditItem<T extends Record<string, unknown>>(overrides: T) {
     return {
         id: 1,
         control_id: 1,
@@ -244,7 +245,7 @@ export const mockExecutions = [
     }),
 ];
 
-export const mockAuthUser = {
+export const mockAuthUser: AuthUser = {
     id: 99,
     email: 'admin@test.local',
     name: 'Test Admin',

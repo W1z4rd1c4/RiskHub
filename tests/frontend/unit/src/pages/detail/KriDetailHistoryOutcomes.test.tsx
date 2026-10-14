@@ -1,3 +1,6 @@
+import type { kriApi } from '@/services/kriApi';
+const { getHistoryMock } = vi.hoisted(() => ({ getHistoryMock: vi.fn<typeof kriApi.getHistory>() }));
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,10 +9,9 @@ import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ApiClientError } from '@/services/apiClient';
 import { renderWithQueryClient as render } from '@test/render';
 
-const getHistoryMock = vi.fn();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return { ...actual, useParams: () => ({ id: '9' }) };
 });
 
@@ -27,7 +29,7 @@ vi.mock('@/services/kriApi', () => ({
             is_archived: false,
             capabilities: { can_request_history_correction: true },
         }),
-        getHistory: (...args: unknown[]) => getHistoryMock(...args),
+        getHistory: getHistoryMock,
     },
 }));
 vi.mock('@/services/riskApi', () => ({ riskApi: { getRisk: vi.fn() } }));
@@ -82,6 +84,8 @@ const historyResponse = {
         recorded_by_name: null,
     }],
     total: 1,
+    offset: 0,
+    limit: 20,
     capabilities: { can_request_correction: true },
 };
 

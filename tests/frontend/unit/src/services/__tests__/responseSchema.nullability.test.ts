@@ -734,7 +734,7 @@ describe('response schema nullability alignment', () => {
         ['KRI history page-limit pagination', () => kriApi.getHistory(9, { page: 2, limit: 10 }), '/api/v1/kris/9/history', { offset: '10', limit: '10' }],
         ['KRI explicit offset precedence', () => kriApi.getKRIs({ offset: 75, page: 2, size: 50 }), '/api/v1/kris', { offset: '75', limit: '50' }],
     ])('emits canonical offsets for %s', async (_label, request, expectedPath, expectedParams) => {
-        let requestedUrl: URL | null = null;
+        let requestedUrl!: URL;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             requestedUrl = new URL(responseUrl(input));
             if (!requestedUrl.pathname.endsWith(expectedPath)) {

@@ -61,9 +61,11 @@ vi.mock('react-router-dom', () => ({
     useNavigate: () => mockNavigate,
 }));
 
+const fetchRisksByCellMock = vi.spyOn(dashboardApi, 'fetchRisksByCell');
+
 describe('RiskDrilldownModal risk thresholds', () => {
     it('renders the configured high severity and listed score', async () => {
-        vi.mocked(dashboardApi.fetchRisksByCell).mockResolvedValue([
+        fetchRisksByCellMock.mockResolvedValue([
             {
                 id: 7,
                 risk_id_code: 'R-THRESHOLD',

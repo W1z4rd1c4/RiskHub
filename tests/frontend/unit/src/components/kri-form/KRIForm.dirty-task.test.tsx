@@ -228,7 +228,7 @@ describe('KRI create dirty-task protection', () => {
         await user.type(metricName, 'Late mutation');
         expect(metricName).toHaveValue('Changed KRI');
 
-        await act(async () => resolveCreate?.(HttpResponse.json(createdKri, { status: 201 })));
+        await act(() => Promise.resolve(resolveCreate?.(HttpResponse.json(createdKri, { status: 201 }))));
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
     });
 

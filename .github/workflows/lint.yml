@@ -41,6 +41,9 @@ jobs:
 
       - name: Lint centralized frontend tests and harnesses
         id: test-lint
+        # The complete strict test program exceeds Node’s default 2 GiB heap.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
         run: |
           set -euo pipefail
@@ -49,6 +52,9 @@ jobs:
 
       - name: Typecheck centralized frontend tests and harnesses
         id: test-typecheck
+        # The complete strict test program exceeds Node’s default 2 GiB heap.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
         run: |
           set -euo pipefail
@@ -213,6 +219,9 @@ jobs:
       # Every enabled recommended jsx-a11y rule is an error; any finding, non-empty
       # audit evidence, or suppression entry fails (FR-P1-4 · N4–N6).
       - name: Frontend lint (eslint + jsx-a11y strict zero)
+        # This aggregate command also checks the full typed centralized suite.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set -euo pipefail
           npm run lint | tee ../lint-frontend.log

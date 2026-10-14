@@ -9,7 +9,7 @@
 import { readFile } from 'node:fs/promises';
 
 import AxeBuilder from '@axe-core/playwright';
-import type { Page, Request } from '@playwright/test';
+import type { Page, Request, Response } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
 import { E2E_ICT_VENDOR, E2E_VENDORS } from './fixtures/e2e-data';
@@ -151,7 +151,7 @@ async function cleanupVendorRiskLinks(vendorId: number, riskIds: number[]): Prom
     }
 }
 
-async function selectArrayFilter(page: Page, key: string): Promise<Request> {
+async function selectArrayFilter(page: Page, key: string): Promise<Response> {
     await page.getByTestId('vendors-add-filter').selectOption(key);
     const control = page.getByTestId(`vendors-filter-control-${key}`);
     await expect(control).toBeVisible();
@@ -167,7 +167,7 @@ async function selectArrayFilter(page: Page, key: string): Promise<Request> {
     return completedRequest;
 }
 
-async function selectBooleanFilter(page: Page, key: string): Promise<Request> {
+async function selectBooleanFilter(page: Page, key: string): Promise<Response> {
     await page.getByTestId('vendors-add-filter').selectOption(key);
     const request = waitForVendorList(page, (url) => requestFilters(url)[key] === true);
     await page.getByTestId(`vendors-filter-${key}-select`).selectOption('true');

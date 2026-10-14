@@ -1,3 +1,4 @@
+const { getDepartments } = vi.hoisted(() => ({ getDepartments: vi.fn() }));
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,9 +11,8 @@ import { renderWithoutProviders, screen, waitFor } from '@test/render';
  * shared `RefreshButton` — translated name, `aria-busy` while loading, and no
  * duplicate requests while a fetch is in flight.
  */
-const getDepartments = vi.fn();
 vi.mock('@/services/departmentApi', () => ({
-    departmentApi: { getDepartments: (...args: unknown[]) => getDepartments(...args) },
+    departmentApi: { getDepartments: getDepartments },
 }));
 
 function deferred<T>() {

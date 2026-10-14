@@ -1,3 +1,8 @@
+const abortSignalMatcher: unknown = expect.any(AbortSignal);
+import { kriFixture, riskFixture } from './pageFixtures';
+import type * as MockkriApiModule from '@/services/kriApi';
+import type * as MockriskApiModule from '@/services/riskApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,15 +11,15 @@ import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
-const mockGetKRI = vi.fn();
-const mockGetHistory = vi.fn();
-const mockGetRisk = vi.fn();
-const mockUpdateKRI = vi.fn();
-const mockDeleteKRI = vi.fn();
+const mockGetKRI = vi.fn<typeof MockkriApiModule.kriApi.getKRI>();
+const mockGetHistory = vi.fn<typeof MockkriApiModule.kriApi.getHistory>();
+const mockGetRisk = vi.fn<typeof MockriskApiModule.riskApi.getRisk>();
+const mockUpdateKRI = vi.fn<typeof MockkriApiModule.kriApi.updateKRI>();
+const mockDeleteKRI = vi.fn<typeof MockkriApiModule.kriApi.deleteKRI>();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '21' }),
@@ -32,17 +37,17 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getKRI: (...args: unknown[]) => mockGetKRI(...args),
-        getHistory: (...args: unknown[]) => mockGetHistory(...args),
-        updateKRI: (...args: unknown[]) => mockUpdateKRI(...args),
-        deleteKRI: (...args: unknown[]) => mockDeleteKRI(...args),
+        getKRI: (...args: Parameters<typeof mockGetKRI>) => mockGetKRI(...args),
+        getHistory: (...args: Parameters<typeof mockGetHistory>) => mockGetHistory(...args),
+        updateKRI: (...args: Parameters<typeof mockUpdateKRI>) => mockUpdateKRI(...args),
+        deleteKRI: (...args: Parameters<typeof mockDeleteKRI>) => mockDeleteKRI(...args),
         restoreKRI: vi.fn(),
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => mockGetRisk(...args),
+        getRisk: (...args: Parameters<typeof mockGetRisk>) => mockGetRisk(...args),
     },
 }));
 
@@ -111,7 +116,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockSearchParams = new URLSearchParams();
-        mockGetKRI.mockResolvedValue({
+        mockGetKRI.mockResolvedValue(kriFixture({
             id: 21,
             risk_id: 8,
             metric_name: 'Claims Leakage Ratio',
@@ -120,7 +125,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
             lower_limit: 0,
             upper_limit: 10,
             unit: '%',
-            breach_status: 'breach',
+            breach_status: 'above',
             reporting_owner_id: 2,
             is_archived: false,
             last_period_end: '2026-02-01T00:00:00Z',
@@ -137,9 +142,9 @@ describe('KRIDetailPage approval-aware edit flow', () => {
                 can_request_history_correction: true,
                 can_create_issue: false,
             },
-        });
-        mockGetHistory.mockResolvedValue({ items: [], total: 0 });
-        mockGetRisk.mockResolvedValue({ id: 8, name: 'Claims Ops Risk' });
+        }));
+        mockGetHistory.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+        mockGetRisk.mockResolvedValue(riskFixture({ id: 8, name: 'Claims Ops Risk' }));
         mockUpdateKRI.mockResolvedValue({
             status: 'approval_required',
             approval_id: 88,
@@ -161,7 +166,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
                     sort_by: 'period',
                     sort_direction: 'desc',
                 }),
-                { signal: expect.any(AbortSignal) },
+                { signal: abortSignalMatcher },
             );
         });
         fireEvent.click(screen.getByRole('button', { name: /Edit|Upravit/i }));

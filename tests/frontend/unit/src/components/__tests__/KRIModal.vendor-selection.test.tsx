@@ -6,18 +6,18 @@ import { KRIModal } from '@/components/kri/KRIModal';
 import { ApiClientError } from '@/services/apiClient';
 import type { KeyRiskIndicator } from '@/types/kri';
 
-const mockListVisibleUsers = vi.fn();
-const mockGetVendors = vi.fn();
+const mockListVisibleUsers = vi.hoisted(() => vi.fn());
+const mockGetVendors = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        listVisibleUsers: (...args: unknown[]) => mockListVisibleUsers(...args),
+        listVisibleUsers: mockListVisibleUsers,
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendors: (...args: unknown[]) => mockGetVendors(...args),
+        getVendors: mockGetVendors,
     },
 }));
 
@@ -139,7 +139,7 @@ describe('KRIModal vendor selection', () => {
         });
     });
 
-    it('blocks saving while required draft fields are missing', async () => {
+    it('blocks saving while required draft fields are missing', () => {
         const onSave = vi.fn().mockResolvedValue({ kind: 'updated' });
 
         renderModal(

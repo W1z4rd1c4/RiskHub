@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { useState, type SVGProps } from 'react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -7,7 +8,7 @@ import { renderWithoutProviders, screen, within } from '@test/render';
 
 // lucide-react is not resolvable from the external test root; stub icons with
 // the same props contract are enough for these assertions.
-const FileText = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+const FileText = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
 
 /**
  * Audit 2026-09-30 §4.12 / roadmap 1.8 (D8, DS-12, AX-07): one Tabs primitive on
@@ -87,7 +88,7 @@ describe('TabList / TabPanel', () => {
 
     it('moves and activates with arrows, Home and End, skipping disabled tabs', async () => {
         const user = userEvent.setup();
-        const onChange = vi.fn();
+        const onChange = vi.fn<(tab: string) => void>();
         renderWithoutProviders(<Harness onChange={onChange} />);
 
         screen.getByRole('tab', { name: 'Overview' }).focus();

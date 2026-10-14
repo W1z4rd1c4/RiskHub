@@ -180,7 +180,7 @@ describe('DialogShell — focus trap + Esc + restoration (FR-P2c-3 / N10)', () =
                 </DialogShell>,
             );
             option.focus();
-            act(() => vi.advanceTimersByTime(250));
+            act(() => { vi.advanceTimersByTime(250); });
             expect(option).toHaveFocus();
         } finally {
             selectPortal.remove();

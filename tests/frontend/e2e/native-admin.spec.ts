@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { nativeEnroll, nativeLogin } from './setup/native_browser_helpers';
+import { nativeEnroll, nativeLogin, nativeAuthConfigSchema, nativeHandoffSchema } from './setup/native_browser_helpers';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 const root = process.env.NATIVE_E2E_ROOT;
@@ -29,9 +29,9 @@ async function action(page: Page, name: RegExp, complete: RegExp) {
 
 test('native administrator onboarding, lifecycle, recovery and EN/CS desktop accessibility', async ({ page, browser, request }, info) => {
     test.setTimeout(180_000);
-    const config = await (await request.get('/api/v1/auth/config')).json();
+    const config = nativeAuthConfigSchema.parse(await (await request.get('/api/v1/auth/config')).json());
     const required = config.local_mfa_policy === 'required';
-    const handoff = JSON.parse(readFileSync(resolve(root!, 'handoff/admin.json'), 'utf8'));
+    const handoff = nativeHandoffSchema.parse(JSON.parse(readFileSync(resolve(root!, 'handoff/admin.json'), 'utf8')));
     const password = 'Admin browser acceptance passphrase 83!';
     const codes = await nativeEnroll(page, handoff.credential, password, required);
     await nativeLogin(page, 'native-admin@example.com', password, codes[0]);
@@ -55,7 +55,7 @@ test('native administrator onboarding, lifecycle, recovery and EN/CS desktop acc
     await action(page, /resend invitation/i, /New invitation created/);
     execFileSync(python!, [resolve('../tests/frontend/e2e/setup/native_mail_handoff.py'), '--root', root!,
         '--email', 'native-colleague@example.com', '--output-name', 'colleague.json'], { stdio: 'pipe' });
-    const invitation = JSON.parse(readFileSync(resolve(root!, 'handoff/colleague.json'), 'utf8'));
+    const invitation = nativeHandoffSchema.parse(JSON.parse(readFileSync(resolve(root!, 'handoff/colleague.json'), 'utf8')));
     const recipient = await browser.newContext({ baseURL: process.env.FRONTEND_URL });
     try {
         await nativeEnroll(await recipient.newPage(), invitation.credential, 'Recipient-only password 63!', required);
@@ -105,6 +105,9 @@ test('native administrator onboarding, lifecycle, recovery and EN/CS desktop acc
         await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog')).toHaveCount(0);
     }
-    const stored = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, state: history.state }));
+    const stored = await page.evaluate(() => {
+        const state: unknown = history.state;
+        return JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, state });
+    });
     expect([handoff.credential, invitation.credential, password, ...codes].some((secret) => stored.includes(secret))).toBe(false);
 });

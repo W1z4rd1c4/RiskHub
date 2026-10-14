@@ -1,3 +1,5 @@
+import type * as MockictRegisterDqApiModule from '@/services/ictRegisterDqApi';
+import type * as MockvendorReportApiModule from '@/services/vendorReportApi';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,18 +9,18 @@ import { DQ_STATUS_OK } from '@/pages/ictRegisterDq/dqPresentation';
 import i18n from '@/i18n';
 import type { VendorReportCapabilities } from '@/types/vendorReport';
 
-const getDataQuality = vi.fn();
-const getCapabilities = vi.fn();
+const getDataQuality = vi.fn<typeof MockictRegisterDqApiModule.ictRegisterDqApi.getDataQuality>();
+const getCapabilities = vi.fn<typeof MockvendorReportApiModule.vendorReportApi.getCapabilities>();
 
 vi.mock('@/services/ictRegisterDqApi', () => ({
     ictRegisterDqApi: {
-        getDataQuality: (...args: unknown[]) => getDataQuality(...args),
+        getDataQuality: (...args: Parameters<typeof getDataQuality>) => getDataQuality(...args),
     },
 }));
 
 vi.mock('@/services/vendorReportApi', () => ({
     vendorReportApi: {
-        getCapabilities: (...args: unknown[]) => getCapabilities(...args),
+        getCapabilities: (...args: Parameters<typeof getCapabilities>) => getCapabilities(...args),
     },
 }));
 

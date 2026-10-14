@@ -433,7 +433,7 @@ describe('DestinationLauncher', () => {
 
     it('bounds broad results to the viewport and scrolls Arrow navigation into view', async () => {
         const user = userEvent.setup();
-        const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+        const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
         const scrollIntoView = vi.fn();
         Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
             configurable: true,
@@ -458,10 +458,11 @@ describe('DestinationLauncher', () => {
                 expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
             });
         } finally {
-            Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-                configurable: true,
-                value: originalScrollIntoView,
-            });
+            if (originalScrollIntoView) {
+            Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView);
+        } else {
+            Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+        }
         }
     });
 

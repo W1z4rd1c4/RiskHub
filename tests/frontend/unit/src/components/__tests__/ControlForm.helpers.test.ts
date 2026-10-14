@@ -23,14 +23,12 @@ function createRisk(overrides: Partial<RiskSummary> = {}): RiskSummary {
         status: 'active',
         gross_probability: 3,
         gross_impact: 3,
-        net_probability: 2,
-        net_impact: 2,
         gross_score: 9,
         net_score: 4,
-        controls_count: 0,
-        kris_count: 0,
-        created_at: '2026-03-01T00:00:00Z',
-        updated_at: '2026-03-01T00:00:00Z',
+        control_count: 0,
+        kri_count: 0,
+        is_archived: false,
+        is_priority: false,
         ...overrides,
     };
 }

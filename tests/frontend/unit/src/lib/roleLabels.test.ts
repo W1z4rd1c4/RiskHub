@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { getRoleLabel } from '@/lib/roleLabels';
 
-const t = ((key: string, options?: Record<string, unknown>) => i18n.t(key, options)) as SafeTFunction;
+const t = ((key: string, options?: Record<string, unknown>) => i18n.t(key, { defaultValue: key, ...options })) as SafeTFunction;
 
 /** Audit GAP-D-06: role codes render as translated role names, never raw codes. */
 describe('getRoleLabel', () => {

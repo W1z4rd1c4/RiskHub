@@ -91,7 +91,7 @@ function requestFilter(url: URL, key: string): unknown {
 
 test.describe('ICT Register — shared Risk and Control framework (#81)', () => {
     test('Control table keyboard sorting and localized detail link preserve the FR-P3 browser contract', async ({ riskManagerPage }) => {
-        const contract = REGISTERS[1]!;
+        const contract = REGISTERS[1];
         const initialResponsePromise = waitForCollection(riskManagerPage, contract);
 
         await riskManagerPage.goto(`${contract.path}?q=${encodeURIComponent(contract.fixtureName)}`);

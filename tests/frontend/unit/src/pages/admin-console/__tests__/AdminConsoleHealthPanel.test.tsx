@@ -1,17 +1,18 @@
+const { getSystemStatsMock } = vi.hoisted(() => ({ getSystemStatsMock: vi.fn() }));
+import type * as Actualhooks from '@/i18n/hooks';
 import { render, screen } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 
 const refreshHealthMock = vi.fn();
-const getSystemStatsMock = vi.fn();
 let healthData: unknown;
 let schedulerData: unknown;
 let outboxData: unknown;
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key,
         i18n: { language: 'en' },
@@ -34,7 +35,7 @@ vi.mock('@/hooks/useAdaptivePollingQuery', () => ({
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
         getSystemHealth: vi.fn(),
-        getSystemStats: (...args: unknown[]) => getSystemStatsMock(...args),
+        getSystemStats: getSystemStatsMock,
         getSchedulerStatus: vi.fn(),
         getOutboxStatus: vi.fn(),
     },

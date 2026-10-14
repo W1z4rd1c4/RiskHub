@@ -109,6 +109,8 @@ function makeAccessUser(overrides: Partial<AccessUserRead> = {}): AccessUserRead
             can_edit_role: true,
             can_deactivate: true,
             can_revoke_sessions: true,
+            can_change_active_status: true,
+            can_break_glass_enable: false,
         },
         ...overrides,
     };
@@ -132,7 +134,7 @@ describe('AccessEditModal', () => {
     });
 
     it('blocks lifecycle actions during an access write and after its outcome becomes unknown', async () => {
-        applyAuthenticatedSession({ access_token: 'admin-test-token', token_type: 'bearer', user: mockAuthUser });
+        applyAuthenticatedSession({ access_token: 'admin-test-token', token_type: 'bearer', user: { ...mockAuthUser, access_scope: 'global' } });
         server.use(
             http.get('*/api/v1/users/42/local-auth/status', () => HttpResponse.json({ user_id: 42, authority_version: 7,
                 enrollment_state: 'enrolled', local_suspended: false, recovery_pending: false, is_active: true, delivery_status: 'sent' })),
@@ -143,7 +145,7 @@ describe('AccessEditModal', () => {
         const onSaved = vi.fn();
         const onClose = vi.fn();
         render(<AccessEditModal isOpen nativeLifecycle user={makeAccessUser({ capabilities: {
-            ...makeAccessUser().capabilities!, can_request_password_reset: true,
+            ...makeAccessUser().capabilities, can_request_password_reset: true,
         } })} onSaved={onSaved} onClose={onClose} />);
         const user = userEvent.setup();
         const reset = await screen.findByRole('button', { name: /send password reset link/i });
@@ -156,7 +158,8 @@ describe('AccessEditModal', () => {
         await user.click(screen.getByRole('button', { name: /^save/i }));
         expect(screen.getByRole('button', { name: /confirm account action/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /refresh account status/i })).toBeDisabled();
-        await act(async () => { rejectUpdate(new Error('Connection lost after sending request')); });
+        await act(() => { rejectUpdate(new Error('Connection lost after sending request'));     return Promise.resolve();
+        });
         await screen.findByText(/outcome is unknown/i);
         expect(screen.getByRole('button', { name: /confirm account action/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /^save/i })).toBeDisabled();
@@ -179,6 +182,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: true,
                         can_deactivate: true,
                         can_revoke_sessions: true,
+                        can_change_active_status: true,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={onSaved}
@@ -333,6 +338,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: true,
                         can_deactivate: false,
                         can_revoke_sessions: false,
+                        can_change_active_status: false,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={onSaved}
@@ -379,6 +386,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: true,
                         can_deactivate: false,
                         can_revoke_sessions: false,
+                        can_change_active_status: false,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={vi.fn()}
@@ -415,6 +424,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: false,
                         can_deactivate: false,
                         can_revoke_sessions: false,
+                        can_change_active_status: false,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={onSaved}
@@ -429,15 +440,18 @@ describe('AccessEditModal', () => {
         expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
     });
 
-    it('hides editable fields and prevents payload fields when capabilities are missing', async () => {
+    it.each([null, undefined])('hides editable fields and prevents payload fields when capabilities are %s', async (capabilities) => {
         const onClose = vi.fn();
         const onSaved = vi.fn();
+        const user = makeAccessUser();
+        // Exercise malformed server metadata without weakening the valid fixture contract.
+        Reflect.set(user, 'capabilities', capabilities);
 
         render(
             <AccessEditModal
                 isOpen
                 onClose={onClose}
-                user={makeAccessUser({ capabilities: null })}
+                user={user}
                 onSaved={onSaved}
             />
         );

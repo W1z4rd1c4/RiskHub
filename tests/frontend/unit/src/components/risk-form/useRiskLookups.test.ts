@@ -6,22 +6,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskFormIdentityStep } from '@/components/risk-form/RiskFormIdentityStep';
 import { useRiskLookups } from '@/components/risk-form/useRiskLookups';
 import i18n from '@/i18n';
+import type { lookupApi } from '@/services/lookupApi';
 import type { Risk } from '@/types/risk';
+const abortSignalMatcher: unknown = expect.any(AbortSignal);
 
-const getDepartmentsMock = vi.fn();
-const getRiskFiltersMock = vi.fn();
-const getRisksMock = vi.fn();
+
+const getDepartmentsMock = vi.hoisted(() => vi.fn<typeof lookupApi.getDepartments>());
+const getRiskFiltersMock = vi.hoisted(() => vi.fn<typeof lookupApi.getRiskFilters>());
+const getRisksMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getDepartments: (...args: unknown[]) => getDepartmentsMock(...args),
-        getRiskFilters: (...args: unknown[]) => getRiskFiltersMock(...args),
+        getDepartments: getDepartmentsMock,
+        getRiskFilters: getRiskFiltersMock,
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => getRisksMock(...args),
+        getRisks: getRisksMock,
     },
 }));
 
@@ -35,7 +38,7 @@ function LookupBackedIdentityStep() {
     });
 
     return createElement(RiskFormIdentityStep, {
-        t: i18n.t.bind(i18n),
+        t: (key, options) => i18n.t(key, { defaultValue: key, ...(typeof options === 'string' ? { defaultValue: options } : options) }),
         formData,
         fieldErrors: {},
         riskTypes: [],
@@ -50,7 +53,11 @@ function LookupBackedIdentityStep() {
 describe('useRiskLookups', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getDepartmentsMock.mockResolvedValue([{ id: 3, name: 'Operations', code: 'OPS' }]);
+        getDepartmentsMock.mockResolvedValue([{
+            id: 3, name: 'Operations', code: 'OPS',
+            user_count: 0, risk_count: 0, high_risk_count: 0, control_count: 0,
+            kri_count: 0, breaching_kri_count: 0, total_net_score: 0,
+        }]);
         getRiskFiltersMock.mockResolvedValue({
             processes: ['Claims', 'Underwriting'],
             categories: ['Financial', 'Operational'],
@@ -109,8 +116,8 @@ describe('useRiskLookups', () => {
         const { unmount } = renderHook(() => useRiskLookups());
 
         await waitFor(() => {
-            expect(getDepartmentsMock).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
-            expect(getRiskFiltersMock).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
+            expect(getDepartmentsMock).toHaveBeenCalledWith({ signal: abortSignalMatcher });
+            expect(getRiskFiltersMock).toHaveBeenCalledWith({ signal: abortSignalMatcher });
         });
         const signals = [
             getDepartmentsMock.mock.calls[0]?.[0]?.signal,

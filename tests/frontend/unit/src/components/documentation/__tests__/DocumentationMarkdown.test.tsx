@@ -6,7 +6,7 @@ import { DocumentationMarkdown } from '@/components/documentation';
 import { stripDuplicateLeadingTitle } from '@/components/documentation/contentFormatting';
 import type { DocumentationEntry } from '@/services/adminApi';
 
-const originalScrollIntoView = Element.prototype.scrollIntoView;
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
 let scrollIntoViewMock = vi.fn();
 
 const makeDoc = (overrides: Partial<DocumentationEntry> = {}): DocumentationEntry => ({
@@ -33,10 +33,11 @@ describe('DocumentationMarkdown', () => {
     });
 
     afterEach(() => {
-        Object.defineProperty(Element.prototype, 'scrollIntoView', {
-            configurable: true,
-            value: originalScrollIntoView,
-        });
+        if (originalScrollIntoView) {
+            Object.defineProperty(Element.prototype, 'scrollIntoView', originalScrollIntoView);
+        } else {
+            Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+        }
     });
 
     it('renders heading text without making the heading itself a link', () => {

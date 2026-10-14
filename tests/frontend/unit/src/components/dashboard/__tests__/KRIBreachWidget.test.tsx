@@ -2,7 +2,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getBreachesMock = vi.fn();
+const getBreachesMock = vi.hoisted(() => vi.fn());
 let selectedDepartment: number | null = null;
 
 vi.mock('@/i18n/hooks', () => ({
@@ -23,7 +23,7 @@ vi.mock('@/contexts/DashboardFilterContext', () => ({
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getBreaches: (...args: unknown[]) => getBreachesMock(...args),
+        getBreaches: getBreachesMock,
     },
 }));
 
@@ -92,7 +92,7 @@ describe('KRIBreachWidget population count', () => {
         selectedDepartment=2;
         rerender(<MemoryRouter><KRIBreachWidget canReadDepartments canUseDepartmentFilter/></MemoryRouter>);
         expect(screen.queryByRole('link',{name:'kri.view_risk_register'})).not.toBeInTheDocument();
-        await act(async()=>resolveB([{id:2,risk_id:20,metric_name:'B breach',current_value:120,upper_limit:100,unit:'%'}]));
+        await act(()=>Promise.resolve(resolveB([{id:2,risk_id:20,metric_name:'B breach',current_value:120,upper_limit:100,unit:'%'}])));
         await waitFor(()=>expect(screen.getByRole('link',{name:'kri.view_risk_register'})).toHaveAttribute('href',expect.stringContaining('/departments/2')));
     });
 
@@ -106,10 +106,10 @@ describe('KRIBreachWidget population count', () => {
         await screen.findByText('B population');
         selectedDepartment=1;rerender(<MemoryRouter><KRIBreachWidget canReadDepartments canUseDepartmentFilter/></MemoryRouter>);
         expect(resolveA).toHaveLength(2);
-        await act(async()=>resolveA[0](breach('Old A population',10)));
+        await act(()=>Promise.resolve(resolveA[0](breach('Old A population',10))));
         expect(screen.queryByText('Old A population')).not.toBeInTheDocument();
         expect(screen.queryByRole('link',{name:'kri.view_risk_register'})).not.toBeInTheDocument();
-        await act(async()=>resolveA[1](breach('New A population',11)));
+        await act(()=>Promise.resolve(resolveA[1](breach('New A population',11))));
         expect(await screen.findByText('New A population')).toBeVisible();
         expect(screen.getByRole('link',{name:'kri.view_risk_register'})).toHaveAttribute('href',expect.stringContaining('/departments/1'));
         unmount();

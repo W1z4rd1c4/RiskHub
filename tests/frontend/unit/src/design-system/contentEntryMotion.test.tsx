@@ -13,7 +13,7 @@ import type { Risk } from '@/types/risk';
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../frontend');
 const require = createRequire(resolve(frontendRoot, 'package.json'));
-const ts: typeof TypeScript = require('typescript');
+const ts = require('typescript') as typeof TypeScript;
 
 // Mechanical entry-opacity contract, not a substitute for rendered contrast.
 // Geometry, stagger, hover and exit motion remain independently testable.

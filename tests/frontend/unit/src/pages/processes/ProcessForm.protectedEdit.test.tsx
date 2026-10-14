@@ -1,13 +1,16 @@
+import { anything } from '@test/matchers';
+import type * as MockprocessApiModule from '@/services/processApi';
+import type * as MocklookupApiModule from '@/services/lookupApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetClosedLists = vi.fn();
-const mockGetProcessOwners = vi.fn();
-const mockGetProcessDepartments = vi.fn();
-const mockUpdateProcess = vi.fn();
+const mockGetClosedLists = vi.fn<typeof MockprocessApiModule.processApi.getClosedLists>();
+const mockGetProcessOwners = vi.fn<typeof MocklookupApiModule.lookupApi.getProcessOwners>();
+const mockGetProcessDepartments = vi.fn<typeof MocklookupApiModule.lookupApi.getProcessDepartments>();
+const mockUpdateProcess = vi.fn<typeof MockprocessApiModule.processApi.updateProcess>();
 const accountabilityScenario = vi.hoisted(() => ({ enabled: true, error: false, loading: false }));
 
 vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
@@ -20,15 +23,15 @@ vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
-        getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
-        updateProcess: (...args: unknown[]) => mockUpdateProcess(...args),
+        getClosedLists: (...args: Parameters<typeof mockGetClosedLists>) => mockGetClosedLists(...args),
+        updateProcess: (...args: Parameters<typeof mockUpdateProcess>) => mockUpdateProcess(...args),
     },
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
-        getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
+        getProcessOwners: (...args: Parameters<typeof mockGetProcessOwners>) => mockGetProcessOwners(...args),
+        getProcessDepartments: (...args: Parameters<typeof mockGetProcessDepartments>) => mockGetProcessDepartments(...args),
     },
 }));
 
@@ -305,7 +308,7 @@ describe('ProcessForm governed edit workflow', () => {
             expect(screen.getByTestId('process-form-l1-process')).toBeDisabled();
             expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
 
-            await act(async () => resolveUpdate(queued));
+            await act(() => Promise.resolve(resolveUpdate(queued)));
             await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
             expect(router.state.location.search).toBe('?tab=mine&approvalId=98');
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -460,7 +463,7 @@ describe('ProcessForm governed edit workflow', () => {
 
         await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
             89,
-            expect.not.objectContaining({ request_reason: expect.anything() }),
+            expect.not.objectContaining({ request_reason: anything() }),
         ));
         expect(onSaved).toHaveBeenCalled();
     });
@@ -506,7 +509,7 @@ describe('ProcessForm governed edit workflow', () => {
 
         await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
             89,
-            expect.not.objectContaining({ request_reason: expect.anything() }),
+            expect.not.objectContaining({ request_reason: anything() }),
         ));
         expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
             notes: 'Updated without reassignment',
@@ -531,7 +534,7 @@ describe('ProcessForm governed edit workflow', () => {
 
         await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
             84,
-            expect.not.objectContaining({ request_reason: expect.anything() }),
+            expect.not.objectContaining({ request_reason: anything() }),
         ));
         expect(onSaved).toHaveBeenCalled();
     });
@@ -565,7 +568,7 @@ describe('ProcessForm governed edit workflow', () => {
         } else {
             await waitFor(() => expect(mockUpdateProcess).toHaveBeenCalledWith(
                 85,
-                expect.not.objectContaining({ request_reason: expect.anything() }),
+                expect.not.objectContaining({ request_reason: anything() }),
             ));
         }
     });

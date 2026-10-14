@@ -53,7 +53,7 @@ test('sibling suites resolve real dependency declarations and application/test a
   const importer = path.join(repoRoot, 'tests/frontend/unit/src/test/render.tsx');
   for (const name of [
     'react', 'react/jsx-runtime', 'react-dom/client', 'vitest', '@playwright/test',
-    '@testing-library/react', 'msw/node', '@typescript-eslint/parser',
+    '@testing-library/react', 'msw/node', '@typescript-eslint/parser', '@typescript-eslint/utils',
   ]) {
     const resolved = ts.resolveModuleName(name, importer, projects.unit.options, ts.sys).resolvedModule;
     assert.ok(resolved?.resolvedFileName.match(/\.d\.[cm]?ts$/), `${name} must resolve to declarations, not untyped JS`);

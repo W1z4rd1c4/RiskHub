@@ -597,7 +597,7 @@ test.describe('Issue #163 request-owned desktop states', () => {
 test.describe('Issue #227 loading text contrast', () => {
     for (const theme of ['riskhub', 'light', 'dark'] as const) {
         test(`loading labels remain readable at the pulse minimum in ${theme}`, async ({ browser }) => {
-            const { context, page } = await openJourney(browser, JOURNEYS[0]!, theme, 'cro');
+            const { context, page } = await openJourney(browser, JOURNEYS[0], theme, 'cro');
             const pending = deferred();
             try {
                 // Hold the resource requests so the real loading branches stay rendered.

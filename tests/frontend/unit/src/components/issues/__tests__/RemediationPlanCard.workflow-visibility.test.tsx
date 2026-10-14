@@ -6,11 +6,11 @@ import { RemediationPlanCard } from '@/components/issues/RemediationPlanCard';
 import type { Issue } from '@/types/issue';
 import { createTestQueryClient } from '@test/queryClient';
 
-const mockListAssignableOwners = vi.fn();
+const mockListAssignableOwners = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        listAssignableOwners: (...args: unknown[]) => mockListAssignableOwners(...args),
+        listAssignableOwners: mockListAssignableOwners,
         get: vi.fn(),
         assign: vi.fn(),
         startRemediation: vi.fn(),
@@ -39,6 +39,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
         created_at: '2026-02-01T10:00:00Z',
         updated_at: '2026-02-01T10:00:00Z',
         risk_contexts: [],
+        vendor_contexts: [],
         description: 'Desc',
         created_by_id: 2,
         created_by_name: 'Anna Kowalski',
@@ -110,7 +111,7 @@ describe('RemediationPlanCard workflow visibility', () => {
         );
     }
 
-    it('hides mutation actions when issue is closed and keeps summary visible', async () => {
+    it('hides mutation actions when issue is closed and keeps summary visible', () => {
         mockListAssignableOwners.mockResolvedValue([{ id: 2, name: 'Anna Kowalski', role_name: 'CRO', department_name: 'Risk Management' }]);
 
         renderCard(makeIssue({ status: 'closed', closed_at: '2026-02-05T10:00:00Z' }));

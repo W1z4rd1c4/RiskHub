@@ -1,3 +1,4 @@
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,7 +6,7 @@ import { IssueNewPage } from '@/pages/IssueNewPage';
 import { issuesApi } from '@/services/issuesApi';
 
 const mockNavigate = vi.fn();
-const mockListIssues = vi.mocked(issuesApi.list);
+const mockListIssues = vi.spyOn(issuesApi, 'list');
 
 
 vi.mock('@/components/issues/IssueCreateForm', () => ({
@@ -17,7 +18,7 @@ vi.mock('@/components/issues/IssueCreateForm', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,

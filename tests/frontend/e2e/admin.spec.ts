@@ -2,7 +2,9 @@
  * Admin Console E2E Tests
  * Tests the admin-only system monitoring pages
  */
-import { test, expect, Page } from '@playwright/test';
+import { jsonObject } from './helpers/jsonObject';
+import type { Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { loginAsDemoUser, DEMO_ACCOUNTS } from './helpers/login';
 
 async function waitForDataLoad(page: Page) {
@@ -91,7 +93,7 @@ test.describe('Admin Console', () => {
 
                 if (method === 'POST') {
                     const rawBody = route.request().postData() ?? '{}';
-                    postedPayload = JSON.parse(rawBody);
+                    postedPayload = jsonObject(JSON.parse(rawBody));
                     await route.fulfill({
                         status: 200,
                         contentType: 'application/json',

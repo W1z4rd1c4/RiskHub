@@ -1,9 +1,12 @@
+import type * as HooksModule from '@/i18n/hooks';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
+const functionMatcher: unknown = expect.any(Function);
+
 
 const trendChartMock = vi.fn();
 const gaugeMock = vi.fn();
@@ -35,7 +38,7 @@ vi.mock('@/components/ui/MetricGaugeSvg', () => ({
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof HooksModule>()),
     useTranslation: () => ({
         t: (key: string, fallback?: string | { ns?: string }) => typeof fallback === 'string' ? fallback : key,
         i18n: { language: 'en' },
@@ -135,7 +138,7 @@ describe('KRI detail visuals', () => {
 
         expect(screen.getByRole('button', { name: 'history_edit.request_correction' })).toBeInTheDocument();
         expect(timelineMock).toHaveBeenLastCalledWith(expect.objectContaining({
-            onItemAction: expect.any(Function),
+            onItemAction: functionMatcher,
         }));
     });
 

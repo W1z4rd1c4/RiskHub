@@ -1,3 +1,4 @@
+import type * as MockvendorContractApiModule from '@/services/vendorContractApi';
 /**
  * Representative consumer regression for issue #61 (C4): a failed contracts
  * fetch must surface the shared table-error contract (retry affordance), never
@@ -8,11 +9,11 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetContracts = vi.fn();
+const mockGetContracts = vi.fn<typeof MockvendorContractApiModule.vendorContractApi.getContracts>();
 
 vi.mock('@/services/vendorContractApi', () => ({
     vendorContractApi: {
-        getContracts: (...args: unknown[]) => mockGetContracts(...args),
+        getContracts: (...args: Parameters<typeof mockGetContracts>) => mockGetContracts(...args),
         createContract: vi.fn(),
         updateContract: vi.fn(),
         archiveContract: vi.fn(),
@@ -36,7 +37,7 @@ function renderSection() {
     return render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
-                <VendorContractsSection vendorId={1} canManageContracts={false} />
+                <VendorContractsSection vendorId={1} canManageContracts={false} protectedChangeRequiresApproval={false} />
             </MemoryRouter>
         </QueryClientProvider>,
     );
@@ -82,6 +83,9 @@ describe('VendorContractsSection error contract (#61 / C4)', () => {
 function makeArchivedContract() {
     return {
         id: 9,
+        vendor_id: 1,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
         contract_reference: 'ARCHIVED-ONLY',
         arrangement_type: null,
         main_contract: null,
@@ -103,7 +107,7 @@ function renderSectionWithClient() {
     const utils = render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
-                <VendorContractsSection vendorId={1} canManageContracts={false} />
+                <VendorContractsSection vendorId={1} canManageContracts={false} protectedChangeRequiresApproval={false} />
             </MemoryRouter>
         </QueryClientProvider>,
     );

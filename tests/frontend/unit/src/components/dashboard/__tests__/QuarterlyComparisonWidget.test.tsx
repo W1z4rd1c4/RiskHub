@@ -1,18 +1,19 @@
+import type * as FormattersModule from '@/i18n/formatters';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const fetchAvailablePeriodsMock = vi.fn();
-const fetchQuarterlyComparisonMock = vi.fn();
+const fetchAvailablePeriodsMock = vi.hoisted(() => vi.fn());
+const fetchQuarterlyComparisonMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
-        fetchAvailablePeriods: (...args: unknown[]) => fetchAvailablePeriodsMock(...args),
-        fetchQuarterlyComparison: (...args: unknown[]) => fetchQuarterlyComparisonMock(...args),
+        fetchAvailablePeriods: fetchAvailablePeriodsMock,
+        fetchQuarterlyComparison: fetchQuarterlyComparisonMock,
     },
 }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     return {
         useFormat: () => ({
             date: (value: string) => formatters.formatDateValue(value, 'en'),
@@ -123,8 +124,8 @@ describe('QuarterlyComparisonWidget', () => {
 
         await waitFor(() => expect(fetchQuarterlyComparisonMock).toHaveBeenCalledWith('2026-Q2', '2026-Q1'));
 
-        const currentQuarter = screen.getByTestId('quarterly-current-quarter') as HTMLSelectElement;
-        const compareQuarter = screen.getByTestId('quarterly-compare-quarter') as HTMLSelectElement;
+        const currentQuarter = screen.getByTestId('quarterly-current-quarter');
+        const compareQuarter = screen.getByTestId('quarterly-compare-quarter');
         expect(currentQuarter.querySelector('option[value="3"]')).toBeDisabled();
         expect(compareQuarter.querySelector('option[value="2"]')).toBeDisabled();
         expect(screen.getByRole('combobox', { name: 'quarterly.current_quarter' })).toBeInTheDocument();

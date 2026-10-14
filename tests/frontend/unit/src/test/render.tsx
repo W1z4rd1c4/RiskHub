@@ -5,10 +5,10 @@
 // i18n.changeLanguage should reset it to "en" in their own afterAll hook.
 import '@/i18n';
 
-import React, { ReactElement, useState } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import React, { type ReactElement, useState } from 'react';
+import { render, type RenderOptions } from '@testing-library/react';
 import { BrowserRouter, MemoryRouter, type MemoryRouterProps } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { createTestQueryClient } from './queryClient';

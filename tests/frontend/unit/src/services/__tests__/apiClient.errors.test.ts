@@ -50,7 +50,7 @@ describe('apiClient error helpers', () => {
         const controller = new AbortController();
         vi.stubGlobal(
             'fetch',
-            vi.fn().mockImplementation((_input, init) => {
+            vi.fn().mockImplementation((_input, _init) => {
                 controller.abort();
                 return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'));
             }),

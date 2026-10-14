@@ -64,6 +64,7 @@ export function needsPluralForms(value, invariantPatterns = []) {
  * Finds plural-family violations for one locale.
  * @param {string} locale - `cs` or `en`.
  * @param {Record<string, object>} namespaces - `{ [namespace]: localeJson }`.
+ * @param {{ invariantPatterns?: RegExp[], exemptKeys?: Set<string> }} [options] - Allowed invariant patterns and exempt keys.
  * @returns {{ id: string, missing: string[] }[]} sorted by id (`namespace:baseKey`).
  */
 export function findPluralViolations(locale, namespaces, { invariantPatterns = [], exemptKeys = new Set() } = {}) {

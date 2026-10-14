@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
@@ -51,8 +52,8 @@ vi.mock('@/services/assetApi', () => ({
 describe('RiskRegisterLinksSection Process impact lock', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(riskRegisterLinksApi.getThreatLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getThreatLinks').mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([{
             id: 61,
             risk_id: 4,
             process_id: 9,
@@ -61,7 +62,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
         }]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockResolvedValue([]);
     });
 
     it('replaces StrictMode-cancelled initial reads and keeps every lane loading until current data arrives', async () => {
@@ -71,8 +72,8 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             assets: deferred<Awaited<ReturnType<typeof riskRegisterLinksApi.getAssetLinks>>>(),
         };
         let useReplacement = false;
-        const installAbortableRead = <T,>(request: ReturnType<typeof vi.fn>, replacement: Promise<T>) => {
-            request.mockImplementation((_riskId: number, options?: { signal?: AbortSignal }) => {
+        const installAbortableRead = <T,>(request: Mock<(...args: Parameters<typeof riskRegisterLinksApi.getThreatLinks>) => Promise<T>>, replacement: Promise<T>) => {
+            request.mockImplementation((_riskId, options) => {
                 if (useReplacement) return replacement;
                 return new Promise<T>((_resolve, reject) => {
                     options?.signal?.addEventListener('abort', () => {
@@ -81,9 +82,9 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
                 });
             });
         };
-        installAbortableRead(vi.mocked(riskRegisterLinksApi.getThreatLinks), replacements.threats.promise);
-        installAbortableRead(vi.mocked(riskRegisterLinksApi.getProcessLinks), replacements.processes.promise);
-        installAbortableRead(vi.mocked(riskRegisterLinksApi.getAssetLinks), replacements.assets.promise);
+        installAbortableRead(vi.spyOn(riskRegisterLinksApi, 'getThreatLinks'), replacements.threats.promise);
+        installAbortableRead(vi.spyOn(riskRegisterLinksApi, 'getProcessLinks'), replacements.processes.promise);
+        installAbortableRead(vi.spyOn(riskRegisterLinksApi, 'getAssetLinks'), replacements.assets.promise);
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
         });
@@ -100,9 +101,9 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
 
         await waitFor(() => expect(screen.getAllByRole('status')).toHaveLength(3));
         const callsBeforeCurrentCancellation = {
-            threats: vi.mocked(riskRegisterLinksApi.getThreatLinks).mock.calls.length,
-            processes: vi.mocked(riskRegisterLinksApi.getProcessLinks).mock.calls.length,
-            assets: vi.mocked(riskRegisterLinksApi.getAssetLinks).mock.calls.length,
+            threats: vi.spyOn(riskRegisterLinksApi, 'getThreatLinks').mock.calls.length,
+            processes: vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mock.calls.length,
+            assets: vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mock.calls.length,
         };
         useReplacement = true;
         await act(async () => {
@@ -114,19 +115,20 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         });
 
         await waitFor(() => {
-            expect(riskRegisterLinksApi.getThreatLinks).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.threats + 1);
-            expect(riskRegisterLinksApi.getProcessLinks).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.processes + 1);
-            expect(riskRegisterLinksApi.getAssetLinks).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.assets + 1);
+            expect(vi.spyOn(riskRegisterLinksApi, 'getThreatLinks')).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.threats + 1);
+            expect(vi.spyOn(riskRegisterLinksApi, 'getProcessLinks')).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.processes + 1);
+            expect(vi.spyOn(riskRegisterLinksApi, 'getAssetLinks')).toHaveBeenCalledTimes(callsBeforeCurrentCancellation.assets + 1);
         });
         expect(screen.getAllByRole('status')).toHaveLength(3);
         expect(screen.queryByTestId('risk-threat-link-block')).not.toBeInTheDocument();
         expect(screen.queryByTestId('risk-process-link-block')).not.toBeInTheDocument();
         expect(screen.queryByTestId('risk-asset-link-block')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             replacements.threats.resolve([]);
             replacements.processes.resolve([]);
             replacements.assets.resolve([]);
+            return Promise.resolve();
         });
 
         expect(await screen.findByTestId('risk-threat-link-block')).toBeInTheDocument();
@@ -152,8 +154,8 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
     });
 
     it('collects a reason and surfaces a governed Risk-to-Asset unlink approval on the risk', async () => {
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockResolvedValue([{
             id: 71,
             risk_id: 4,
             asset_id: 11,
@@ -161,7 +163,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
         }]);
-        vi.mocked(riskRegisterLinksApi.removeAssetLink).mockResolvedValue({
+        vi.spyOn(riskRegisterLinksApi, 'removeAssetLink').mockResolvedValue({
             status: 'approval_required',
             message: 'Queued',
             approval_id: 187,
@@ -191,7 +193,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: /continue/i }));
 
         await waitFor(() => {
-            expect(riskRegisterLinksApi.removeAssetLink).toHaveBeenCalledWith(
+            expect(vi.spyOn(riskRegisterLinksApi, 'removeAssetLink')).toHaveBeenCalledWith(
                 4,
                 71,
                 'Review protected risk dependency',
@@ -204,8 +206,8 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
     });
 
     it('keeps a rejected Risk link error and rationale inside its open dialog', async () => {
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockResolvedValue([{
             id: 71,
             risk_id: 4,
             asset_id: 11,
@@ -213,7 +215,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
         }]);
-        vi.mocked(riskRegisterLinksApi.removeAssetLink).mockRejectedValueOnce(new Error('rejected'));
+        vi.spyOn(riskRegisterLinksApi, 'removeAssetLink').mockRejectedValueOnce(new Error('rejected'));
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
         });
@@ -244,7 +246,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
     });
 
     it('renders initial lane failures locally without hiding successful siblings', async () => {
-        vi.mocked(riskRegisterLinksApi.getThreatLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getThreatLinks').mockResolvedValue([{
             id: 51,
             risk_id: 4,
             threat_id: 5,
@@ -252,8 +254,8 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
         }]);
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockRejectedValue(new Error('process links unavailable'));
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockRejectedValue(new Error('process links unavailable'));
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockResolvedValue([{
             id: 71,
             risk_id: 4,
             asset_id: 11,
@@ -282,7 +284,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
     });
 
     it('retains stale lane rows with Retry but clears cached protected rows and actions on 403', async () => {
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([{
             id: 61,
             risk_id: 4,
             process_id: 9,
@@ -291,7 +293,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
         }]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockResolvedValue([{
             id: 71,
             risk_id: 4,
             asset_id: 11,
@@ -315,7 +317,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         fireEvent.click(screen.getByTestId('risk-process-link-remove-61'));
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockRejectedValue(new Error('asset refresh failed'));
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockRejectedValue(new Error('asset refresh failed'));
         await act(async () => {
             await queryClient.refetchQueries({ queryKey: ictRegisterKeys.riskAssetLinks(4) });
         });
@@ -323,7 +325,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         expect(screen.getByText('Payments gateway')).toBeInTheDocument();
         expect(within(staleAsset).getByRole('button', { name: /retry/i })).toBeInTheDocument();
 
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockRejectedValue(new ApiClientError({
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockRejectedValue(new ApiClientError({
             status: 403,
             messageKey: 'errorKeys.forbidden',
         }));
@@ -339,8 +341,8 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
     });
 
     it('closes an Asset reason dialog when that lane becomes denied', async () => {
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockResolvedValue([{
             id: 71,
             risk_id: 4,
             asset_id: 11,
@@ -361,7 +363,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         fireEvent.click(await screen.findByTestId('risk-asset-link-remove-71'));
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockRejectedValue(new ApiClientError({
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockRejectedValue(new ApiClientError({
             status: 403,
             messageKey: 'errorKeys.forbidden',
         }));
@@ -374,7 +376,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
     });
 
     it.each([403, 404])('does not retry a protected-unavailable %i lane response', async (status) => {
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockRejectedValue(new ApiClientError({
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockRejectedValue(new ApiClientError({
             status,
             messageKey: status === 403 ? 'errorKeys.forbidden' : 'errorKeys.not_found',
         }));
@@ -391,12 +393,12 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
 
         const denied = await screen.findByTestId('risk-process-link-load-state');
         expect(within(denied).queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
-        expect(riskRegisterLinksApi.getProcessLinks).toHaveBeenCalledTimes(1);
+        expect(vi.spyOn(riskRegisterLinksApi, 'getProcessLinks')).toHaveBeenCalledTimes(1);
         expect(queryClient.getQueryData(ictRegisterKeys.riskProcessLinks(4))).toEqual([]);
     });
 
     it('purges one denied lane so a later 500 cannot re-expose its rows or actions', async () => {
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValueOnce([{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValueOnce([{
             id: 61,
             risk_id: 4,
             process_id: 9,
@@ -417,7 +419,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         );
         expect(await screen.findByText('Settlement')).toBeInTheDocument();
 
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockRejectedValueOnce(new ApiClientError({
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockRejectedValueOnce(new ApiClientError({
             status: 403,
             messageKey: 'errorKeys.forbidden',
         }));
@@ -427,7 +429,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         expect(await screen.findByTestId('risk-process-link-load-state')).toBeInTheDocument();
         expect(queryClient.getQueryData(ictRegisterKeys.riskProcessLinks(4))).toEqual([]);
 
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockRejectedValueOnce(new Error('later failure'));
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockRejectedValueOnce(new Error('later failure'));
         await act(async () => {
             await queryClient.refetchQueries({ queryKey: ictRegisterKeys.riskProcessLinks(4) });
         });
@@ -441,16 +443,16 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
 
     it('does not let a late Risk A approval navigate or leave dialog state on Risk B', async () => {
         const approval = deferred<Awaited<ReturnType<typeof riskRegisterLinksApi.removeAssetLink>>>();
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockImplementation(async (riskId) => [{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockImplementation((riskId) => Promise.resolve([{
             id: riskId === 4 ? 71 : 72,
             risk_id: riskId,
             asset_id: riskId === 4 ? 11 : 12,
             asset_name: riskId === 4 ? 'Risk A asset' : 'Risk B asset',
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
-        }]);
-        vi.mocked(riskRegisterLinksApi.removeAssetLink).mockReturnValueOnce(approval.promise);
+        }]));
+        vi.spyOn(riskRegisterLinksApi, 'removeAssetLink').mockReturnValueOnce(approval.promise);
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
         });
@@ -470,7 +472,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             target: { value: 'Review Risk A' },
         });
         fireEvent.click(within(dialog).getByRole('button', { name: /continue/i }));
-        await waitFor(() => expect(riskRegisterLinksApi.removeAssetLink).toHaveBeenCalledWith(4, 71, 'Review Risk A'));
+        await waitFor(() => expect(vi.spyOn(riskRegisterLinksApi, 'removeAssetLink')).toHaveBeenCalledWith(4, 71, 'Review Risk A'));
 
         view.rerender(
             <QueryClientProvider client={queryClient}>
@@ -482,7 +484,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
         );
         expect(await screen.findByText('Risk B asset')).toBeInTheDocument();
 
-        await act(async () => approval.resolve({
+        await act(() => Promise.resolve(approval.resolve({
             status: 'approval_required',
             message: 'Queued',
             approval_id: 199,
@@ -490,7 +492,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             pending_fields: ['relationship'],
             proposal_id: 'proposal-risk-asset-199',
             proposal_version: 1,
-        }));
+        })));
 
         expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/);
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -499,16 +501,16 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
 
     it('does not show a late Risk A mutation error on Risk B', async () => {
         const failure = deferred<Awaited<ReturnType<typeof riskRegisterLinksApi.removeAssetLink>>>();
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockImplementation(async (riskId) => [{
+        vi.spyOn(riskRegisterLinksApi, 'getProcessLinks').mockResolvedValue([]);
+        vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockImplementation((riskId) => Promise.resolve([{
             id: riskId === 4 ? 71 : 72,
             risk_id: riskId,
             asset_id: riskId === 4 ? 11 : 12,
             asset_name: riskId === 4 ? 'Risk A asset' : 'Risk B asset',
             capabilities: { can_delete: true },
             created_at: '2026-07-17T08:00:00Z',
-        }]);
-        vi.mocked(riskRegisterLinksApi.removeAssetLink).mockReturnValueOnce(failure.promise);
+        }]));
+        vi.spyOn(riskRegisterLinksApi, 'removeAssetLink').mockReturnValueOnce(failure.promise);
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
         });
@@ -534,7 +536,7 @@ describe('RiskRegisterLinksSection Process impact lock', () => {
             </QueryClientProvider>,
         );
         expect(await screen.findByText('Risk B asset')).toBeInTheDocument();
-        await act(async () => failure.reject(new Error('late Risk A failure')));
+        await act(() => Promise.resolve(failure.reject(new Error('late Risk A failure'))));
 
         expect(screen.queryByText('The link could not be changed. Please try again.')).not.toBeInTheDocument();
         expect(screen.getByText('Risk B asset')).toBeInTheDocument();

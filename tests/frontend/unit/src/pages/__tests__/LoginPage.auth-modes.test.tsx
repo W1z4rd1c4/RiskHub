@@ -1,3 +1,4 @@
+import type * as MockentraAuthModule from '@/services/entraAuth';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -21,11 +22,11 @@ import { clearAuthConfigCache } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/session/store';
 
-const logoutRedirectMock = vi.fn();
+const logoutRedirectMock = vi.fn<typeof MockentraAuthModule.entraAuth.logoutRedirect>();
 
 vi.mock('@/services/entraAuth', () => ({
     entraAuth: {
-        logoutRedirect: (...args: unknown[]) => logoutRedirectMock(...args),
+        logoutRedirect: (...args: Parameters<typeof logoutRedirectMock>) => logoutRedirectMock(...args),
     },
 }));
 
@@ -212,19 +213,19 @@ describe('LoginPage auth modes', () => {
                 react: { useSuspense: false },
             });
             const loadLanguages = vi.spyOn(instance, 'loadLanguages');
-            loadLanguages.mockImplementation(((language: string, callback?: (error?: unknown) => void) => {
+            loadLanguages.mockImplementation((language, callback) => {
                 const activation = language === 'cs' ? czechActivation : englishActivation;
                 return activation.promise.then(
                     () => {
-                        callback?.();
-                        return instance.t;
+                        callback?.(undefined, instance.t);
+                        return;
                     },
                     (error: unknown) => {
-                        callback?.(error);
-                        return instance.t;
+                        callback?.(error, instance.t);
+                        return;
                     },
                 );
-            }) as typeof instance.loadLanguages);
+            });
             renderWithQuery(<LoginPage />, '/login', instance);
             // The loading view sits on the same public frame; wait for the SSO view's own switch.
             await screen.findByRole('button', { name: /continue with microsoft/i });
@@ -389,11 +390,11 @@ describe('LoginPage auth modes', () => {
     it('replaces hanging auth-config loading with an unavailable state', async () => {
         vi.useFakeTimers();
         const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = input instanceof Request ? input.url : input.toString();
             if (!url.endsWith('/api/v1/auth/config')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
-            return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
+            return createAbortablePendingResponse(init?.signal ?? undefined);
         });
 
         renderWithQuery(<LoginPage />);
@@ -434,11 +435,11 @@ describe('LoginPage auth modes', () => {
 
         vi.useFakeTimers();
         const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = input instanceof Request ? input.url : input.toString();
             if (!url.endsWith('/api/v1/auth/demo-login')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
-            return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
+            return createAbortablePendingResponse(init?.signal ?? undefined);
         });
 
         fireEvent.click(button);
@@ -501,7 +502,7 @@ describe('LoginPage auth modes', () => {
                 });
             }),
         );
-        await act(async () => {
+        await act(() => {
             setSessionSnapshot((previous) => ({
                 ...previous,
                 token: null,
@@ -511,6 +512,7 @@ describe('LoginPage auth modes', () => {
                 logoutPending: false,
                 logoutErrorKey: 'errorKeys.sso_logout_incomplete',
             }));
+            return Promise.resolve();
         });
 
         const user = userEvent.setup();
@@ -528,7 +530,7 @@ describe('LoginPage auth modes', () => {
                 return HttpResponse.json({ detail: 'unavailable' }, { status: 503 });
             }),
         );
-        await act(async () => {
+        await act(() => {
             setSessionSnapshot((previous) => ({
                 ...previous,
                 token: null,
@@ -538,6 +540,7 @@ describe('LoginPage auth modes', () => {
                 logoutPending: false,
                 logoutErrorKey: 'errorKeys.sso_logout_incomplete',
             }));
+            return Promise.resolve();
         });
 
         const user = userEvent.setup();

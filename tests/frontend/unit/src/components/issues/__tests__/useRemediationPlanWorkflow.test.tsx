@@ -8,20 +8,20 @@ import type { Issue } from '@/types/issue';
 import { toDateTimeLocalInputValue } from '@/utils/dateTimeLocal';
 import { createTestQueryClient } from '@test/queryClient';
 
-const mockListAssignableOwners = vi.fn();
-const mockUpdateProgress = vi.fn();
-const mockClose = vi.fn();
+const mockListAssignableOwners = vi.hoisted(() => vi.fn());
+const mockUpdateProgress = vi.hoisted(() => vi.fn());
+const mockClose = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        listAssignableOwners: (...args: unknown[]) => mockListAssignableOwners(...args),
+        listAssignableOwners: mockListAssignableOwners,
         get: vi.fn(),
         assign: vi.fn(),
         startRemediation: vi.fn(),
-        updateProgress: (...args: unknown[]) => mockUpdateProgress(...args),
+        updateProgress: mockUpdateProgress,
         requestException: vi.fn(),
         approveException: vi.fn(),
-        close: (...args: unknown[]) => mockClose(...args),
+        close: mockClose,
     },
 }));
 
@@ -43,6 +43,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
         created_at: '2026-02-01T10:00:00Z',
         updated_at: '2026-02-01T10:00:00Z',
         risk_contexts: [],
+        vendor_contexts: [],
         description: 'Desc',
         created_by_id: 2,
         created_by_name: 'Anna Kowalski',

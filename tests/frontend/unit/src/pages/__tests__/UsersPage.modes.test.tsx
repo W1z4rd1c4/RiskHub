@@ -1,3 +1,4 @@
+import type * as ActualuserSettingsStorage from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -56,10 +57,10 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 }));
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof ActualuserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
@@ -406,8 +407,8 @@ describe('UsersPage mode selection', () => {
     });
 
     it('submits break-glass enable for eligible directory users', async () => {
-        const breakGlassHandler = vi.fn(async ({ request }) => {
-            const body = await request.json() as { reason: string; expires_in_hours: number };
+        const breakGlassHandler = vi.fn(async ({ request }: { request: Request }) => {
+            const body: unknown = await request.json();
             expect(body).toEqual({ reason: 'Emergency owner handoff', expires_in_hours: 6 });
             return HttpResponse.json({ status: 'success', user_id: 200 });
         });
@@ -648,7 +649,7 @@ describe('UsersPage mode selection', () => {
     });
 
     it('uses backend-provided directory role facets for filter options and requests', async () => {
-        const directoryHandler = vi.fn(({ request }) => {
+        const directoryHandler = vi.fn(({ request }: { request: Request }) => {
             const url = new URL(request.url);
             const selectedRole = url.searchParams.get('role_name');
 
@@ -718,6 +719,7 @@ describe('UsersPage mode selection', () => {
 
         const lastCall = directoryHandler.mock.calls.at(-1)?.[0];
         expect(lastCall).toBeDefined();
+        if (!lastCall) throw new Error('Directory request was not recorded');
         const lastUrl = new URL(lastCall.request.url);
         expect(lastUrl.searchParams.get('role_name')).toBe('viewer');
     });

@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { SVGProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -6,7 +7,7 @@ import { renderWithoutProviders, screen } from '@test/render';
 
 // lucide-react is not resolvable from the external test root; stub icons with
 // the same props contract are enough for these assertions.
-const FileText = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+const FileText = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
 
 /**
  * Audit 2026-09-30 §4.10 / roadmap 1.6 (D5, D7, DS-08): `glass` is the canonical

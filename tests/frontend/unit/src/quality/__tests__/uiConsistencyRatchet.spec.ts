@@ -18,7 +18,11 @@ function pattern(id: string): Pattern {
   return found;
 }
 
-const count = (id: string, source: string, file = 'src/pages/Probe.tsx') => countPattern(pattern(id), file, source);
+const count = (id: string, source: string, file = 'src/pages/Probe.tsx') => {
+  const result: unknown = countPattern(pattern(id), file, source);
+  if (typeof result !== 'number') throw new Error('Pattern counts must be numeric');
+  return result;
+};
 
 describe('ui-consistency-ratchet patterns', () => {
   it('counts text-white with variants but not alpha or derived tokens', () => {
@@ -145,7 +149,7 @@ describe('ui-consistency-ratchet comparison', () => {
       { pattern: 'hex-literal', file: 'src/pages/New.tsx', before: 0, after: 1 },
       { pattern: 'hex-literal', file: 'src/pages/Unlisted.tsx', before: 0, after: 1 },
     ]);
-    expect(result.totals['hex-literal']).toEqual({ before: 1, after: 4 });
+    expect(result.totals).toHaveProperty('hex-literal', { before: 1, after: 4 });
     expect(formatComparison(result).join('\n')).toContain('src/pages/New.tsx  0 -> 1 (+1)');
   });
 

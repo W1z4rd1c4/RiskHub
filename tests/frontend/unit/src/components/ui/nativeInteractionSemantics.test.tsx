@@ -52,7 +52,7 @@ describe('shared native interaction semantics', () => {
           capabilities: { can_restore: true },
           risk_level: 3,
           frequency: 'quarterly',
-        } as never}
+        }}
         onSelect={onSelect}
         onUnarchive={onUnarchive}
       />,
@@ -60,7 +60,7 @@ describe('shared native interaction semantics', () => {
 
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(2);
-    expect(buttons[0]!.contains(buttons[1]!)).toBe(false);
+    expect(buttons[0].contains(buttons[1])).toBe(false);
     expect(container.querySelector('[role="button"]')).toBeNull();
     expect(screen.getByText('Level')).toBeVisible();
     expect(screen.getByText('3/5')).toBeVisible();
@@ -68,7 +68,7 @@ describe('shared native interaction semantics', () => {
     // PG-19: the frequency renders as its translated label, never the raw enum.
     expect(screen.getByText('Quarterly')).toBeVisible();
 
-    await user.click(buttons[1]!);
+    await user.click(buttons[1]);
     expect(onUnarchive).toHaveBeenCalledWith(7);
     expect(onSelect).not.toHaveBeenCalled();
   });

@@ -176,10 +176,11 @@ test.describe('Governed protected Process relationships (#85)', () => {
             await waitForDataLoad(relationshipPage);
             await selectExactOption(relationshipPage, 'asset-process-link-select', processName);
             const assetAddReason = `Approve protected Asset link add ${processName}`;
+            const assetAddTrigger = relationshipPage.getByTestId('asset-process-link-add');
             await submitGovernedDialog(
                 relationshipPage,
                 assetAddReason,
-                () => relationshipPage.getByTestId('asset-process-link-add').click(),
+                () => assetAddTrigger.click(),
                 (response) => response.request().method() === 'POST'
                     && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links`,
             );
@@ -192,10 +193,11 @@ test.describe('Governed protected Process relationships (#85)', () => {
             await expect(relationshipPage.getByTestId('asset-process-links').getByText(processName)).toBeVisible();
 
             const assetUpdateReason = `Approve protected Asset link update ${processName}`;
+            const assetUpdateTrigger = relationshipPage.getByTestId(`asset-process-link-set-primary-${processId}`);
             await submitGovernedDialog(
                 relationshipPage,
                 assetUpdateReason,
-                () => relationshipPage.getByTestId(`asset-process-link-set-primary-${processId}`).click(),
+                () => assetUpdateTrigger.click(),
                 (response) => response.request().method() === 'PATCH'
                     && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links/${processId}`,
             );
@@ -208,10 +210,11 @@ test.describe('Governed protected Process relationships (#85)', () => {
             await expect(relationshipPage.getByTestId(`asset-process-link-primary-${processId}`)).toBeVisible();
 
             const assetRemoveReason = `Approve protected Asset link remove ${processName}`;
+            const assetRemoveTrigger = relationshipPage.getByTestId(`asset-process-link-remove-${processId}`);
             await submitGovernedDialog(
                 relationshipPage,
                 assetRemoveReason,
-                () => relationshipPage.getByTestId(`asset-process-link-remove-${processId}`).click(),
+                () => assetRemoveTrigger.click(),
                 (response) => response.request().method() === 'DELETE'
                     && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}/process-links/${processId}`,
             );
@@ -233,10 +236,11 @@ test.describe('Governed protected Process relationships (#85)', () => {
             await waitForDataLoad(relationshipPage);
             await selectExactOption(relationshipPage, 'vendor-process-link-select', processName);
             const vendorAddReason = `Approve protected Vendor link add ${processName}`;
+            const vendorAddTrigger = relationshipPage.getByTestId('vendor-process-link-add');
             await submitGovernedDialog(
                 relationshipPage,
                 vendorAddReason,
-                () => relationshipPage.getByTestId('vendor-process-link-add').click(),
+                () => vendorAddTrigger.click(),
                 (response) => response.request().method() === 'POST'
                     && new URL(response.url()).pathname === `/api/v1/processes/${processId}/vendor-links`,
             );

@@ -6,6 +6,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import i18n from '@/i18n';
+import type { UiMessageTranslator } from '@/i18n/hooks';
+
+const translate: UiMessageTranslator = (key, options) => i18n.t(key, { defaultValue: key, ...options, ns: 'common' });
 import csCommon from '@/i18n/locales/cs/common.json';
 import enCommon from '@/i18n/locales/en/common.json';
 import { closedListLabel, closedListOptions, TRANSLATED_CLOSED_LISTS } from '@/lib/closedListLabels';
@@ -29,17 +32,17 @@ describe('closed-list display labels', () => {
     });
 
     it('translates codes for English users and keeps the Czech wording in Czech', async () => {
-        const t = i18n.t.bind(i18n);
+        const t = translate;
         expect(closedListLabel(t, 'AnoNe', 'Ano')).toBe('Yes');
         expect(closedListLabel(t, 'TypUjednani', 'Rámcové (master)')).toBe('Master (overarching) arrangement');
         expect(closedListLabel(t, 'RoleDodavatele', 'Zálohuje / obnova')).toBe('Backup / recovery');
 
         await i18n.changeLanguage('cs');
-        expect(closedListLabel(i18n.t.bind(i18n), 'AnoNe', 'Ne')).toBe('Ne');
+        expect(closedListLabel(translate, 'AnoNe', 'Ne')).toBe('Ne');
     });
 
     it('falls back to the raw value for language-neutral or unknown codes', () => {
-        const t = i18n.t.bind(i18n);
+        const t = translate;
         expect(closedListLabel(t, 'MenaList', 'CZK')).toBe('CZK');
         expect(closedListLabel(t, 'SystemEvidence', 'SAP')).toBe('SAP');
         expect(closedListLabel(t, 'AnoNe', 'Možná')).toBe('Možná');
@@ -47,11 +50,11 @@ describe('closed-list display labels', () => {
     });
 
     it('builds options whose values stay the stored workbook codes', () => {
-        const options = closedListOptions(i18n.t.bind(i18n), { AnoNe: ['Ano', 'Ne'], MenaList: ['EUR'] }, 'AnoNe');
+        const options = closedListOptions(translate, { AnoNe: ['Ano', 'Ne'], MenaList: ['EUR'] }, 'AnoNe');
         expect(options).toEqual([
             { value: 'Ano', label: 'Yes' },
             { value: 'Ne', label: 'No' },
         ]);
-        expect(closedListOptions(i18n.t.bind(i18n), {}, 'AnoNe')).toEqual([]);
+        expect(closedListOptions(translate, {}, 'AnoNe')).toEqual([]);
     });
 });

@@ -9,18 +9,18 @@ import { clearCsrfToken, __setCsrfTokenForTests } from '@/services/csrfToken';
 import { __resetExplicitLogoutSuppressionForTests, isExplicitLogoutSuppressed } from '@/services/session/sessionStorage';
 import { clearRefreshSessionHint, __setRefreshSessionHintForTests } from '@/services/session/sessionStorage';
 
-const logoutRedirectMock = vi.fn();
-const clearLocalSettingsMock = vi.fn();
+const logoutRedirectMock = vi.hoisted(() => vi.fn());
+const clearLocalSettingsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/entraAuth', () => ({
     entraAuth: {
-        logoutRedirect: (...args: unknown[]) => logoutRedirectMock(...args),
+        logoutRedirect: logoutRedirectMock,
     },
 }));
 
 vi.mock('@/utils/userSettingsStorage', () => ({
-    syncPreferencesFromServer: vi.fn(async () => ({ theme: 'riskhub', language: 'en' })),
-    clearLocalSettings: () => clearLocalSettingsMock(),
+    syncPreferencesFromServer: vi.fn(() => Promise.resolve(({ theme: 'riskhub', language: 'en' }))),
+    clearLocalSettings: clearLocalSettingsMock,
 }));
 
 function AuthHarness() {
@@ -89,7 +89,7 @@ describe('AuthProvider logout flow', () => {
         setAccessToken('active-token');
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/me')) {
                 return Promise.resolve(new Response(JSON.stringify({
                     id: 1,
@@ -153,7 +153,7 @@ describe('AuthProvider logout flow', () => {
         __setCsrfTokenForTests('existing-csrf-token');
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/me')) {
                 return Promise.resolve(new Response(JSON.stringify({
                     id: 1,
@@ -215,7 +215,7 @@ describe('AuthProvider logout flow', () => {
         logoutRedirectMock.mockRejectedValueOnce(new Error('redirect failed'));
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/me')) {
                 return Promise.resolve(new Response(JSON.stringify({
                     id: 1,

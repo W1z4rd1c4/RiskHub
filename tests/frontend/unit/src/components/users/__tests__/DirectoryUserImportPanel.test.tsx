@@ -3,9 +3,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DirectoryUserImportPanel } from '@/components/users/DirectoryUserImportPanel';
 import adminEn from '@/i18n/locales/en/admin.json';
+const abortSignalMatcher: unknown = expect.any(AbortSignal);
 
-const mockSearchUsers = vi.fn();
-const mockImportUser = vi.fn();
+
+const mockSearchUsers = vi.hoisted(() => vi.fn());
+const mockImportUser = vi.hoisted(() => vi.fn());
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 function deferred<T>() {
@@ -64,8 +66,8 @@ vi.mock('@/i18n/hooks', () => ({
 
 vi.mock('@/services/directoryApi', () => ({
     directoryApi: {
-        searchUsers: (...args: unknown[]) => mockSearchUsers(...args),
-        importUser: (...args: unknown[]) => mockImportUser(...args),
+        searchUsers: mockSearchUsers,
+        importUser: mockImportUser,
     },
 }));
 
@@ -106,7 +108,7 @@ describe('DirectoryUserImportPanel', () => {
 
         await waitFor(() => {
             expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25, {
-                signal: expect.any(AbortSignal),
+                signal: abortSignalMatcher,
             });
         });
 
@@ -141,7 +143,7 @@ describe('DirectoryUserImportPanel', () => {
 
         await waitFor(() => {
             expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25, {
-                signal: expect.any(AbortSignal),
+                signal: abortSignalMatcher,
             });
         });
 
@@ -190,7 +192,7 @@ describe('DirectoryUserImportPanel', () => {
 
         await waitFor(() => {
             expect(mockSearchUsers).toHaveBeenCalledWith('alice', 25, {
-                signal: expect.any(AbortSignal),
+                signal: abortSignalMatcher,
             });
         });
 
@@ -223,10 +225,10 @@ describe('DirectoryUserImportPanel', () => {
 
         fireEvent.change(search, { target: { value: 'bob' } });
         await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(2));
-        await act(async () => bob.resolve([directoryUser('oid-bob', 'Bob Example')]));
+        await act(() => Promise.resolve(bob.resolve([directoryUser('oid-bob', 'Bob Example')])));
         expect(await screen.findByText('Bob Example')).toBeInTheDocument();
 
-        await act(async () => alice.resolve([directoryUser('oid-alice', 'Alice Example')]));
+        await act(() => Promise.resolve(alice.resolve([directoryUser('oid-alice', 'Alice Example')])));
         expect(screen.queryByText('Alice Example')).not.toBeInTheDocument();
         expect(screen.getByText('Bob Example')).toBeInTheDocument();
 
@@ -251,7 +253,7 @@ describe('DirectoryUserImportPanel', () => {
         expect(screen.queryByRole('button', { name: adminEn.users.import })).not.toBeInTheDocument();
         await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(2));
 
-        await act(async () => bob.resolve([directoryUser('oid-bob', 'Bob Example')]));
+        await act(() => Promise.resolve(bob.resolve([directoryUser('oid-bob', 'Bob Example')])));
         fireEvent.click(await screen.findByRole('button', { name: adminEn.users.import }));
         await waitFor(() => expect(mockImportUser).toHaveBeenCalledWith('oid-bob'));
         expect(mockImportUser).not.toHaveBeenCalledWith('oid-alice');
@@ -267,7 +269,7 @@ describe('DirectoryUserImportPanel', () => {
         await waitFor(() => expect(mockSearchUsers).toHaveBeenCalledTimes(1));
 
         fireEvent.change(search, { target: { value: '' } });
-        await act(async () => alice.resolve([directoryUser('oid-alice', 'Alice Example')]));
+        await act(() => Promise.resolve(alice.resolve([directoryUser('oid-alice', 'Alice Example')])));
 
         expect(screen.queryByText('Alice Example')).not.toBeInTheDocument();
         expect(screen.getByText(adminEn.users.directory_search_hint)).toBeInTheDocument();

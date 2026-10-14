@@ -1,3 +1,7 @@
+import { kriFixture, riskFixture } from './pageFixtures';
+import type * as MockkriApiModule from '@/services/kriApi';
+import type * as MockriskApiModule from '@/services/riskApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
@@ -5,14 +9,14 @@ import { ApiClientError } from '@/services/apiClient';
 import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
-const mockGetKRI = vi.fn();
-const mockGetHistory = vi.fn();
-const mockGetRisk = vi.fn();
-const mockDeleteKRI = vi.fn();
+const mockGetKRI = vi.fn<typeof MockkriApiModule.kriApi.getKRI>();
+const mockGetHistory = vi.fn<typeof MockkriApiModule.kriApi.getHistory>();
+const mockGetRisk = vi.fn<typeof MockriskApiModule.riskApi.getRisk>();
+const mockDeleteKRI = vi.fn<typeof MockkriApiModule.kriApi.deleteKRI>();
 let canIssueWrite = true;
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '21' }),
@@ -30,15 +34,15 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getKRI: (...args: unknown[]) => mockGetKRI(...args),
-        getHistory: (...args: unknown[]) => mockGetHistory(...args),
-        deleteKRI: (...args: unknown[]) => mockDeleteKRI(...args),
+        getKRI: (...args: Parameters<typeof mockGetKRI>) => mockGetKRI(...args),
+        getHistory: (...args: Parameters<typeof mockGetHistory>) => mockGetHistory(...args),
+        deleteKRI: (...args: Parameters<typeof mockDeleteKRI>) => mockDeleteKRI(...args),
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => mockGetRisk(...args),
+        getRisk: (...args: Parameters<typeof mockGetRisk>) => mockGetRisk(...args),
     },
 }));
 
@@ -76,7 +80,7 @@ describe('KRIDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
-        mockGetKRI.mockImplementation(async () => ({
+        mockGetKRI.mockImplementation(() => Promise.resolve((kriFixture({
             id: 21,
             risk_id: 8,
             metric_name: 'Claims Leakage Ratio',
@@ -85,7 +89,7 @@ describe('KRIDetailPage issue entry', () => {
             lower_limit: 0,
             upper_limit: 10,
             unit: '%',
-            breach_status: 'breach',
+            breach_status: 'above',
             reporting_owner_id: 2,
             is_archived: false,
             last_period_end: '2026-02-01T00:00:00Z',
@@ -93,9 +97,9 @@ describe('KRIDetailPage issue entry', () => {
                 can_create_issue: canIssueWrite,
                 can_archive_immediately: true,
             },
-        }));
-        mockGetHistory.mockResolvedValue({ items: [], total: 0 });
-        mockGetRisk.mockResolvedValue({ id: 8, name: 'Claims Ops Risk' });
+        }))));
+        mockGetHistory.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+        mockGetRisk.mockResolvedValue(riskFixture({ id: 8, name: 'Claims Ops Risk' }));
         mockDeleteKRI.mockResolvedValue(undefined);
     });
 

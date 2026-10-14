@@ -50,10 +50,26 @@ const riskWithKri: Risk = {
     net_impact: 2,
     net_score: 4,
     status: 'active',
+    is_archived: false,
     is_priority: false,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-02T00:00:00Z',
     capabilities: {
+        can_read: true,
+        can_update: false,
+        can_update_sensitive_fields: false,
+        can_request_update_approval: false,
+        can_archive_immediately: false,
+        can_request_archive_approval: false,
+        can_restore: false,
+        can_send_questionnaire: false,
+        can_view_linked_controls: true,
+        can_view_linked_vendors: true,
+        can_create_issue: false,
+        has_pending_delete_approval: false,
+        has_pending_update_approval: false,
+        requires_privileged_update_approval: false,
+        requires_privileged_delete_approval: false,
         can_create_kri: true,
         can_create_linked_control: true,
         can_link_controls: true,
@@ -87,6 +103,7 @@ const linkedControlsFixture: RiskControlLink[] = [
         control: {
             id: 11,
             name: 'Quarterly access review',
+            is_archived: false,
             frequency: 'monthly',
             risk_level: 2,
             status: 'active',
@@ -104,6 +121,7 @@ const linkedControlsFixture: RiskControlLink[] = [
             frequency: 'quarterly',
             risk_level: 2,
             status: 'draft',
+            is_archived: false,
         },
     },
     {
@@ -135,7 +153,10 @@ const linkedVendorsFixture: Vendor[] = [
         dora_relevant: true,
         is_significant_vendor: false,
         has_alternative_providers: true,
-        status: 'active',
+        is_archived: false,
+        owner_orphaned: false,
+        ownership_status: 'assigned',
+        linked_risks: [],
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
     },
@@ -150,7 +171,10 @@ const linkedVendorsFixture: Vendor[] = [
         dora_relevant: false,
         is_significant_vendor: false,
         has_alternative_providers: true,
-        status: 'active',
+        is_archived: false,
+        owner_orphaned: false,
+        ownership_status: 'assigned',
+        linked_risks: [],
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
     },
@@ -165,7 +189,10 @@ const linkedVendorsFixture: Vendor[] = [
         dora_relevant: false,
         is_significant_vendor: false,
         has_alternative_providers: true,
-        status: 'inactive',
+        is_archived: true,
+        owner_orphaned: false,
+        ownership_status: 'assigned',
+        linked_risks: [],
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
     },
@@ -198,8 +225,8 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
                 getDisplayName={() => 'Operational'}
                 onNavigateToNewKri={onNavigateToNewKri}
                 onNavigateToKri={onNavigateToKri}
-                onLinkControl={vi.fn(async () => undefined)}
-                onUnlinkControl={vi.fn(async () => undefined)}
+                onLinkControl={vi.fn(() => Promise.resolve(undefined))}
+                onUnlinkControl={vi.fn(() => Promise.resolve(undefined))}
                 onOpenCreateControl={vi.fn()}
                 onNavigateToControl={vi.fn()}
                 onNavigateToVendor={vi.fn()}

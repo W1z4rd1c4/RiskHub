@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { ReactElement, SVGProps } from 'react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,10 +12,9 @@ import { renderWithoutProviders, screen } from '@test/render';
  * generically disabled. Row actions never trigger row activation.
  */
 
-// lucide-react is not resolvable from the external test root; a stub icon
-// with the same props contract is enough for these behaviour assertions.
-const Pencil = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
-const Trash2 = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+// A minimal ref-forwarding icon keeps these assertions focused on row behavior.
+const Pencil = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
+const Trash2 = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
 
 function renderInRow(ui: ReactElement, rowHandlers: { onClick?: () => void; onKeyDown?: () => void } = {}) {
     return renderWithoutProviders(

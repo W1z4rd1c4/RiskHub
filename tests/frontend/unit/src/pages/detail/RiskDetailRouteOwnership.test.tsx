@@ -1,3 +1,4 @@
+const { getRiskMock, getLinkedControlsMock, getLinkedVendorsMock, getOverdueMock, deleteRiskMock, linkControlMock } = vi.hoisted(() => ({ getRiskMock: vi.fn(), getLinkedControlsMock: vi.fn(), getLinkedVendorsMock: vi.fn(), getOverdueMock: vi.fn(), deleteRiskMock: vi.fn(), linkControlMock: vi.fn() }));
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -8,12 +9,6 @@ import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { createTestQueryClient } from '@test/queryClient';
 import { renderWithoutProviders as render } from '@test/render';
 
-const getRiskMock = vi.fn();
-const getLinkedControlsMock = vi.fn();
-const getLinkedVendorsMock = vi.fn();
-const getOverdueMock = vi.fn();
-const deleteRiskMock = vi.fn();
-const linkControlMock = vi.fn();
 const linkContinuationRejected = vi.fn();
 
 function deferred<T>() {
@@ -57,19 +52,19 @@ function linkedControl(id: number) {
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => getRiskMock(...args),
-        getLinkedControls: (...args: unknown[]) => getLinkedControlsMock(...args),
-        getLinkedVendors: (...args: unknown[]) => getLinkedVendorsMock(...args),
-        deleteRisk: (...args: unknown[]) => deleteRiskMock(...args),
+        getRisk: getRiskMock,
+        getLinkedControls: getLinkedControlsMock,
+        getLinkedVendors: getLinkedVendorsMock,
+        deleteRisk: deleteRiskMock,
         restoreRisk: vi.fn(),
-        linkControl: (...args: unknown[]) => linkControlMock(...args),
+        linkControl: linkControlMock,
         unlinkControl: vi.fn(),
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getOverdue: (...args: unknown[]) => getOverdueMock(...args),
+        getOverdue: getOverdueMock,
     },
 }));
 
@@ -199,10 +194,11 @@ describe('Risk detail route ownership', () => {
         expect(screen.queryByText('link-dialog')).not.toBeInTheDocument();
         expect(screen.queryByText('create-dialog')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             refreshedA.resolve([linkedControl(11)]);
             linkA.reject(new Error('late A link failure'));
             deleteA.resolve();
+            return Promise.resolve();
         });
 
         expect(router.state.location.pathname).toBe('/risks/2');
@@ -212,7 +208,7 @@ describe('Risk detail route ownership', () => {
     it('discards a Control link from an earlier A generation after A to B to A navigation', async () => {
         const linkA = deferred<ReturnType<typeof linkedControl>>();
         linkControlMock.mockReturnValueOnce(linkA.promise);
-        getLinkedControlsMock.mockImplementation(async (id: number) => [linkedControl(id)]);
+        getLinkedControlsMock.mockImplementation((id: number) => Promise.resolve([linkedControl(id)]));
         const queryClient = createTestQueryClient();
         const router = createMemoryRouter([
             { path: '/risks/:id', element: <RiskDetailPage /> },
@@ -227,7 +223,7 @@ describe('Risk detail route ownership', () => {
         await act(async () => router.navigate('/risks/1'));
         await screen.findByText('linked:Control 1');
         getLinkedControlsMock.mockClear();
-        await act(async () => linkA.resolve(linkedControl(91)));
+        await act(() => Promise.resolve(linkA.resolve(linkedControl(91))));
         expect(getLinkedControlsMock).not.toHaveBeenCalled();
         expect(router.state.location.pathname).toBe('/risks/1');
     });

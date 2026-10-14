@@ -7,7 +7,7 @@ import i18n from '@/i18n';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { renderWithoutProviders, screen } from '@test/render';
 
-const t = ((key: string, options?: Record<string, unknown>) => i18n.t(key, options)) as SafeTFunction;
+const t = ((key: string, options?: Record<string, unknown>) => i18n.t(key, { defaultValue: key, ...options })) as SafeTFunction;
 const departments = [
     { value: '3', label: 'Operations', count: 4, selected: false, disabled: false },
     { value: '4', label: 'Finance', count: 1, selected: false, disabled: false },

@@ -1,3 +1,5 @@
+import type * as MocklookupApiModule from '@/services/lookupApi';
+import type * as MockthreatApiModule from '@/services/threatApi';
 /**
  * FR-P2b-1/2/4/5 (spec N11–N13, findings C1/C5/S11) — ThreatForm migrated to
  * `Field` with native `required` + `noValidate` + per-field validation, plus
@@ -16,9 +18,9 @@ import {
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetThreatStewards = vi.fn();
-const mockCreateThreat = vi.fn();
-const mockUpdateThreat = vi.fn();
+const mockGetThreatStewards = vi.fn<typeof MocklookupApiModule.lookupApi.getThreatStewards>();
+const mockCreateThreat = vi.fn<typeof MockthreatApiModule.threatApi.createThreat>();
+const mockUpdateThreat = vi.fn<typeof MockthreatApiModule.threatApi.updateThreat>();
 const accountabilityScenario = vi.hoisted(() => ({ enabled: true }));
 
 vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
@@ -31,13 +33,13 @@ vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getThreatStewards: (...args: unknown[]) => mockGetThreatStewards(...args),
+        getThreatStewards: (...args: Parameters<typeof mockGetThreatStewards>) => mockGetThreatStewards(...args),
     },
 }));
 vi.mock('@/services/threatApi', () => ({
     threatApi: {
-        createThreat: (...args: unknown[]) => mockCreateThreat(...args),
-        updateThreat: (...args: unknown[]) => mockUpdateThreat(...args),
+        createThreat: (...args: Parameters<typeof mockCreateThreat>) => mockCreateThreat(...args),
+        updateThreat: (...args: Parameters<typeof mockUpdateThreat>) => mockUpdateThreat(...args),
     },
 }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
@@ -325,7 +327,7 @@ describe('ThreatForm — governed Threat Steward edit (#88)', () => {
         expect(router.state.location.pathname).toBe('/threats/88/edit');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-        await act(async () => resolveUpdate(queuedResponse));
+        await act(() => Promise.resolve(resolveUpdate(queuedResponse)));
 
         await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
         expect(router.state.location.search).toBe('?tab=mine&approvalId=88');
@@ -448,7 +450,7 @@ describe('ThreatForm — Field migration + validation + submit feedback (#59)', 
 
     it('submits successfully and reports back through onSaved', async () => {
         const user = userEvent.setup();
-        mockCreateThreat.mockResolvedValue({ id: 9, name: 'Phishing' });
+        mockCreateThreat.mockResolvedValue({ id: 9, name: 'Phishing', stewardship_status: 'assigned', is_archived: false, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' });
         const { onSaved } = renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Phishing');

@@ -18,19 +18,23 @@ import type { Control } from '@/types/control';
 // KeyRiskIndicator type import omitted - not used in current tests
 
 // Mock the API modules
+const riskApi = vi.hoisted(() => ({
+    updateRisk: vi.fn<typeof importedRiskApi.updateRisk>(),
+    createRisk: vi.fn<typeof importedRiskApi.createRisk>(),
+    getRisks: vi.fn<typeof importedRiskApi.getRisks>().mockResolvedValue({ items: [], total: 0, offset: 0, limit: 20 }),
+}));
+
 vi.mock('@/services/riskApi', () => ({
-    riskApi: {
-        updateRisk: vi.fn(),
-        createRisk: vi.fn(),
-        getRisks: vi.fn().mockResolvedValue({ items: [], total: 0 }),
-    },
+    riskApi,
+}));
+
+const controlApi = vi.hoisted(() => ({
+    updateControl: vi.fn<typeof importedControlApi.updateControl>(),
+    createControl: vi.fn<typeof importedControlApi.createControl>(),
 }));
 
 vi.mock('@/services/controlApi', () => ({
-    controlApi: {
-        updateControl: vi.fn(),
-        createControl: vi.fn(),
-    },
+    controlApi,
 }));
 
 vi.mock('@/services/kriApi', () => ({
@@ -40,18 +44,19 @@ vi.mock('@/services/kriApi', () => ({
     },
 }));
 
+const lookupApi = vi.hoisted(() => ({
+    getRiskOwners: vi.fn<typeof importedLookupApi.getRiskOwners>().mockResolvedValue([]),
+    getControlOwners: vi.fn<typeof importedLookupApi.getControlOwners>().mockResolvedValue([]),
+    getDepartments: vi.fn<typeof importedLookupApi.getDepartments>().mockResolvedValue([]),
+    getRiskFilters: vi.fn<typeof importedLookupApi.getRiskFilters>().mockResolvedValue({
+        processes: [],
+        categories: [],
+        subprocesses_by_process: {},
+    }),
+}));
+
 vi.mock('@/services/lookupApi', () => ({
-    lookupApi: {
-        getRiskTypes: vi.fn().mockResolvedValue([]),
-        getRiskOwners: vi.fn().mockResolvedValue([]),
-        getControlOwners: vi.fn().mockResolvedValue([]),
-        getDepartments: vi.fn().mockResolvedValue([]),
-        getRiskFilters: vi.fn().mockResolvedValue({
-            processes: [],
-            categories: [],
-            subprocesses_by_process: {},
-        }),
-    },
+    lookupApi,
 }));
 
 vi.mock('@/services/userApi', () => ({
@@ -77,10 +82,10 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
     }),
 }));
 
-// Import the mocked modules to access them
-import { riskApi } from '@/services/riskApi';
-import { controlApi } from '@/services/controlApi';
-import { lookupApi } from '@/services/lookupApi';
+// Keep each mock signature aligned with its production API.
+import type { riskApi as importedRiskApi } from '@/services/riskApi';
+import type { controlApi as importedControlApi } from '@/services/controlApi';
+import type { lookupApi as importedLookupApi } from '@/services/lookupApi';
 
 async function flushInitialFormEffects() {
     await waitFor(() => {
@@ -95,10 +100,10 @@ async function flushInitialFormEffects() {
         ).toBeGreaterThan(0);
     });
 
-    const usersPromise = vi.mocked(lookupApi.getRiskOwners).mock.results[0]?.value
+    const usersPromise: unknown = vi.mocked(lookupApi.getRiskOwners).mock.results[0]?.value
         ?? vi.mocked(lookupApi.getControlOwners).mock.results[0]?.value;
-    const departmentsPromise = vi.mocked(lookupApi.getDepartments).mock.results[0]?.value;
-    const riskOptionsPromise = vi.mocked(lookupApi.getRiskFilters).mock.results[0]?.value
+    const departmentsPromise: unknown = vi.mocked(lookupApi.getDepartments).mock.results[0]?.value;
+    const riskOptionsPromise: unknown = vi.mocked(lookupApi.getRiskFilters).mock.results[0]?.value
         ?? vi.mocked(riskApi.getRisks).mock.results[0]?.value;
 
     await act(async () => {
@@ -110,18 +115,20 @@ async function flushInitialFormEffects() {
 const createMockRisk = (overrides?: Partial<Risk>): Risk => ({
     id: 1,
     name: 'Test Risk',
+    risk_id_code: 'R-001',
+    is_archived: false,
     description: 'Test description',
     process: 'operations',
     risk_type: 'strategic',
     status: 'active',
     department_id: 1,
     owner_id: 1,
-    probability: 3,
-    impact: 3,
-    risk_score: 9,
+    gross_probability: 3,
+    gross_impact: 3,
+    gross_score: 9,
     net_probability: 2,
     net_impact: 2,
-    net_risk_score: 4,
+    net_score: 4,
     is_priority: false,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
@@ -132,11 +139,13 @@ const createMockControl = (overrides?: Partial<Control>): Control => ({
     id: 1,
     name: 'Test Control',
     description: 'Test description',
-    type: 'preventive',
+    control_form: 'manual',
+    risk_level: 3,
+    is_archived: false,
     frequency: 'monthly',
     status: 'active',
     department_id: 1,
-    owner_id: 1,
+    control_owner_id: 1,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
     ...overrides,
@@ -183,11 +192,7 @@ describe('RiskForm UI - Approval Response Handling', () => {
 
     it('should navigate away when API returns immediate success', async () => {
         // Mock API to return success (no approval_id)
-        vi.mocked(riskApi.updateRisk).mockResolvedValue({
-            id: 1,
-            name: 'Updated Risk',
-            status: 'active',
-        });
+        vi.mocked(riskApi.updateRisk).mockResolvedValue(createMockRisk({ name: 'Updated Risk' }));
 
         const mockRisk = createMockRisk();
 

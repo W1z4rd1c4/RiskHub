@@ -64,9 +64,9 @@ export function measureRenderedContrast(element: Element): RenderedContrastSampl
     // WCAG 2.x uses the rendered sRGB range, including colors converted from
     // wider gamuts. Keep fractional precision while clipping to that range.
     return [
-      Math.max(0, Math.min(255, channels[0]!)),
-      Math.max(0, Math.min(255, channels[1]!)),
-      Math.max(0, Math.min(255, channels[2]!)),
+      Math.max(0, Math.min(255, channels[0])),
+      Math.max(0, Math.min(255, channels[1])),
+      Math.max(0, Math.min(255, channels[2])),
       Math.max(0, Math.min(1, channels[3] ?? 1)),
     ];
   };
@@ -98,7 +98,7 @@ export function measureRenderedContrast(element: Element): RenderedContrastSampl
         ? normalized / 12.92
         : ((normalized + 0.055) / 1.055) ** 2.4;
     });
-    return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
   };
   const foregroundLuminance = luminance(foreground);
   const backgroundLuminance = luminance(background);

@@ -1,3 +1,8 @@
+import { vendorFixture } from './pageFixtures';
+import type * as MockvendorLinkApiModule from '@/services/vendorLinkApi';
+import type * as MockriskApiModule from '@/services/riskApi';
+import type * as MockvendorApiModule from '@/services/vendorApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,13 +11,13 @@ import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { RiskNewPage } from '@/pages/RiskNewPage';
 
 const mockNavigate = vi.fn();
-const mockGetRisks = vi.fn();
-const mockGetVendor = vi.fn();
-const mockLinkRisk = vi.fn();
+const mockGetRisks = vi.fn<typeof MockriskApiModule.riskApi.getRisks>();
+const mockGetVendor = vi.fn<typeof MockvendorApiModule.vendorApi.getVendor>();
+const mockLinkRisk = vi.fn<typeof MockvendorLinkApiModule.vendorLinkApi.linkRisk>();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -22,19 +27,19 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/services/vendorLinkApi', () => ({
     vendorLinkApi: {
-        linkRisk: (...args: unknown[]) => mockLinkRisk(...args),
+        linkRisk: (...args: Parameters<typeof mockLinkRisk>) => mockLinkRisk(...args),
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: (...args: Parameters<typeof mockGetRisks>) => mockGetRisks(...args),
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendor: (...args: unknown[]) => mockGetVendor(...args),
+        getVendor: (...args: Parameters<typeof mockGetVendor>) => mockGetVendor(...args),
     },
 }));
 
@@ -67,12 +72,12 @@ describe('RiskNewPage vendor context', () => {
             limit: 1,
             capabilities: { can_create: true },
         });
-        mockGetVendor.mockResolvedValue({
+        mockGetVendor.mockResolvedValue(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: { can_create_linked_risk: true },
-        });
-        mockLinkRisk.mockResolvedValue(undefined);
+        }));
+        mockLinkRisk.mockResolvedValue({ status: 'linked' });
     });
 
     it('auto-links a new risk to the vendor and returns to vendor detail', async () => {
@@ -106,6 +111,7 @@ describe('RiskNewPage vendor context', () => {
     it('returns to the vendor with a warning when the link queues for approval', async () => {
         mockLinkRisk.mockResolvedValueOnce({
             status: 'approval_required',
+            message: 'Queued for approval', action_type: 'edit', pending_fields: [],
             approval_id: 321,
             proposal_id: 'proposal-321',
             proposal_version: 1,
@@ -122,11 +128,11 @@ describe('RiskNewPage vendor context', () => {
     });
 
     it('hides vendor-context creation when the vendor link capability is false', async () => {
-        mockGetVendor.mockResolvedValueOnce({
+        mockGetVendor.mockResolvedValueOnce(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: { can_create_linked_risk: false },
-        });
+        }));
 
         render(<RiskNewPage />, { wrapper: FeedbackProvider });
 

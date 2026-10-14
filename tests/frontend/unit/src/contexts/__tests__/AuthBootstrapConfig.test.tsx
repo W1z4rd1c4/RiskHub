@@ -21,7 +21,7 @@ import { __resetSessionStoreForTests, getSessionSnapshot } from '@/services/sess
 
 const { getAuthConfigMock, syncPreferencesFromServerMock } = vi.hoisted(() => ({
     getAuthConfigMock: vi.fn(),
-    syncPreferencesFromServerMock: vi.fn(async () => undefined),
+    syncPreferencesFromServerMock: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock('@/services/authConfig', () => ({
@@ -143,8 +143,9 @@ describe('AuthProvider config bootstrap', () => {
         expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
         expect(screen.getByText(/loading/i)).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             resolveConfig(authConfig);
+            return Promise.resolve();
         });
         await waitFor(() => expect(screen.getByText('Protected content')).toBeInTheDocument());
     });
@@ -177,11 +178,12 @@ describe('AuthProvider config bootstrap', () => {
         expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
         expect(screen.getByText(/loading/i)).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             rejectConfig(new AuthRequestError({
                 code: 'AUTH_SERVICE_UNAVAILABLE',
                 message: 'config unavailable',
             }));
+            return Promise.resolve();
         });
 
         await waitFor(() => expect(screen.getByText('Login page')).toBeInTheDocument());

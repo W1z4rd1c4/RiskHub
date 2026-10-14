@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -51,7 +52,7 @@ function baseProps() {
     };
 }
 
-function renderShell(overrides: Partial<ReturnType<typeof baseProps>> = {}) {
+function renderShell(overrides: Partial<ComponentProps<typeof RegisterListShell<Row, View>>> = {}) {
     const props = { ...baseProps(), ...overrides };
     return render(
         <MemoryRouter>

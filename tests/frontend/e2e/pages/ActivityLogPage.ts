@@ -2,7 +2,8 @@
  * Activity Log Page Object Model
  * Handles Activity Log viewing, filtering, and export operations
  */
-import { Page, Locator, expect } from '@playwright/test';
+import type { Page, Locator} from '@playwright/test';
+import { expect } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
 
 const normalizeActivityToken = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, '_');

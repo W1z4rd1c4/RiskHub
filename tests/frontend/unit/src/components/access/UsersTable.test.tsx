@@ -1,3 +1,4 @@
+import type * as FormattersModule from '@/i18n/formatters';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +12,7 @@ import type { AccessUserRead } from '@/types/access';
 import type { UserDirectoryEntry } from '@/types/user';
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -124,7 +125,7 @@ describe('UsersTable', () => {
 
     it('prefers backend active-status capability over local manage-users fallback', () => {
         renderUsersTable({
-            accessUsers: [makeAccessUser({ capabilities: { ...makeAccessUser().capabilities!, can_change_active_status: false } })],
+            accessUsers: [makeAccessUser({ capabilities: { ...makeAccessUser().capabilities, can_change_active_status: false } })],
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();
@@ -137,7 +138,7 @@ describe('UsersTable', () => {
             accessUsers: [
                 makeAccessUser({
                     capabilities: {
-                        ...makeAccessUser().capabilities!,
+                        ...makeAccessUser().capabilities,
                         can_edit_identity: false,
                         can_edit_business_access: false,
                         can_edit_role: true,
@@ -151,29 +152,34 @@ describe('UsersTable', () => {
         expect(onEditAccess).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
     });
 
-    it('hides edit access action when target-row edit capabilities are false or missing', () => {
+    it.each([null, undefined])('hides edit access action when target-row edit capabilities are false or %s', (capabilities) => {
+        const malformedUser = makeAccessUser({ id: 8, email: 'missing@riskhub.test' });
+        // Exercise malformed server metadata without weakening the valid fixture contract.
+        Reflect.set(malformedUser, 'capabilities', capabilities);
         renderUsersTable({
             accessUsers: [
                 makeAccessUser({
                     capabilities: {
-                        ...makeAccessUser().capabilities!,
+                        ...makeAccessUser().capabilities,
                         can_edit_identity: false,
                         can_edit_business_access: false,
                         can_edit_role: false,
                     },
                 }),
-                makeAccessUser({ id: 8, email: 'missing@riskhub.test', capabilities: null }),
+                malformedUser,
             ],
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.edit_access' })).not.toBeInTheDocument();
     });
 
-    it('hides active-status action when lifecycle capability metadata is absent', () => {
+    it.each([null, undefined])('hides active-status action when lifecycle capability metadata is %s', (capabilities) => {
         const onToggleStatus = vi.fn();
+        const malformedUser = makeAccessUser();
+        Reflect.set(malformedUser, 'capabilities', capabilities);
         renderUsersTable({
             onToggleStatus,
-            accessUsers: [makeAccessUser({ capabilities: null })],
+            accessUsers: [malformedUser],
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();
@@ -187,7 +193,7 @@ describe('UsersTable', () => {
             accessUsers: [
                 makeAccessUser({
                     capabilities: {
-                        ...makeAccessUser().capabilities!,
+                        ...makeAccessUser().capabilities,
                         can_break_glass_enable: true,
                     },
                 }),
@@ -204,7 +210,7 @@ describe('UsersTable', () => {
         renderUsersTable({
             canRunDirectoryChecks: true,
             onCheckDirectory,
-            accessUsers: [makeAccessUser({ external_id: 'external-7', capabilities: { ...makeAccessUser().capabilities!, can_check_directory: true } })],
+            accessUsers: [makeAccessUser({ external_id: 'external-7', capabilities: { ...makeAccessUser().capabilities, can_check_directory: true } })],
         });
 
         await userEvent.click(screen.getByRole('button', { name: 'Check AD' }));

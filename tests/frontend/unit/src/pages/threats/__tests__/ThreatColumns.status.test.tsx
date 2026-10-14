@@ -1,3 +1,4 @@
+import { anything } from '@test/matchers';
 import type { ReactElement } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import * as axe from 'axe-core';
@@ -51,7 +52,7 @@ describe('Threat register status cell', () => {
         const restore = screen.getByRole('button', { name: 'Restore Phishing' });
         expect(restore).toBe(screen.getByTestId('threat-restore-9'));
         fireEvent.click(restore);
-        expect(onRestore).toHaveBeenCalledWith(9, expect.anything());
+        expect(onRestore).toHaveBeenCalledWith(9, anything());
 
         const results = await axe.run(container, {
             runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },

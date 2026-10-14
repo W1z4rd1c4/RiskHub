@@ -79,8 +79,9 @@ describe('MainLayout route shell (NAV-01, NAV-04, D14)', () => {
         expect(within(main).getByRole('status')).toHaveTextContent(i18n.t('common:loading.generic'));
         expect(screen.getByRole('navigation', { name: 'Sidebar' })).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             resolveLazyPage?.();
+            return Promise.resolve();
         });
 
         expect(await within(main).findByRole('heading', { level: 1, name: 'Lazy page' })).toBeInTheDocument();

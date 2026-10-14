@@ -1,3 +1,5 @@
+import type * as Parser from '@typescript-eslint/parser';
+import { AST_NODE_TYPES, type TSESTree } from '@typescript-eslint/utils';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -10,7 +12,7 @@ const require = createRequire(import.meta.url);
 const { parseForESLint } = require(path.join(
     repoRoot,
     'frontend/node_modules/@typescript-eslint/parser/dist/index.js',
-)) as typeof import('@typescript-eslint/parser');
+)) as typeof Parser;
 
 function listProductionFiles(dir: string): string[] {
     return readdirSync(dir).flatMap((entry) => {
@@ -26,8 +28,12 @@ function listProductionFiles(dir: string): string[] {
     });
 }
 
-function walk(node: any, visit: (child: any) => void): void {
-    if (!node || typeof node !== 'object') return;
+function isNode(node: unknown): node is TSESTree.Node {
+    return !!node && typeof node === 'object' && 'type' in node && typeof node.type === 'string' && 'range' in node && Array.isArray(node.range);
+}
+
+function walk(node: unknown, visit: (child: TSESTree.Node) => void): void {
+    if (!isNode(node)) return;
     visit(node);
     for (const [key, value] of Object.entries(node)) {
         if (key === 'parent') continue;
@@ -39,17 +45,17 @@ function walk(node: any, visit: (child: any) => void): void {
     }
 }
 
-function capabilityAliases(ast: any): Set<string> {
+function capabilityAliases(ast: TSESTree.Node): Set<string> {
     const aliases = new Set<string>();
     walk(ast, (node) => {
-        if (node.type !== 'VariableDeclarator' || node.id?.type !== 'Identifier') {
+        if (node.type !== AST_NODE_TYPES.VariableDeclarator || node.id?.type !== AST_NODE_TYPES.Identifier) {
             return;
         }
         const init = node.init;
         if (
-            init?.type === 'MemberExpression'
+            init?.type === AST_NODE_TYPES.MemberExpression
             && !init.computed
-            && init.property?.type === 'Identifier'
+            && init.property?.type === AST_NODE_TYPES.Identifier
             && init.property.name === 'capabilities'
         ) {
             aliases.add(node.id.name);
@@ -58,21 +64,21 @@ function capabilityAliases(ast: any): Set<string> {
     return aliases;
 }
 
-function isCapabilitySource(node: any, aliases: Set<string>, source: string): boolean {
-    if (node.type === 'Identifier' && aliases.has(node.name)) {
+function isCapabilitySource(node: TSESTree.Node, aliases: Set<string>, source: string): boolean {
+    if (node.type === AST_NODE_TYPES.Identifier && aliases.has(node.name)) {
         return true;
     }
-    if (node.type === 'Identifier' && /Capabilities$/.test(node.name)) {
+    if (node.type === AST_NODE_TYPES.Identifier && /Capabilities$/.test(node.name)) {
         return true;
     }
     return source.slice(node.range[0], node.range[1]).includes('capabilities');
 }
 
-function directCapabilityReads(source: string, relativePath: string, ast: any): string[] {
+function directCapabilityReads(source: string, relativePath: string, ast: TSESTree.Node): string[] {
     const aliases = capabilityAliases(ast);
     const violations: string[] = [];
     walk(ast, (node) => {
-        if (node.type !== 'MemberExpression' || node.computed || node.property?.type !== 'Identifier') {
+        if (node.type !== AST_NODE_TYPES.MemberExpression || node.computed || node.property?.type !== AST_NODE_TYPES.Identifier) {
             return;
         }
         if (!node.property.name.startsWith('can_')) {

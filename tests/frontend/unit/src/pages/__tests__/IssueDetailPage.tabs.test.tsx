@@ -1,3 +1,8 @@
+const abortSignalMatcher: unknown = expect.any(AbortSignal);
+import { issueFixture } from './pageFixtures';
+import type * as MockissuesApiModule from '@/services/issuesApi';
+import type * as MockactivityLogApiModule from '@/services/activityLogApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, useState } from 'react';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
@@ -8,19 +13,19 @@ import { IssueDetailPage } from '@/pages/IssueDetailPage';
 import { ApiClientError } from '@/services/apiClient';
 import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/session/store';
 
-const mockGetIssue = vi.fn();
-const mockListActivity = vi.fn();
+const mockGetIssue = vi.fn<typeof MockissuesApiModule.issuesApi.get>();
+const mockListActivity = vi.fn<typeof MockactivityLogApiModule.activityLogApi.list>();
 
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        get: (...args: unknown[]) => mockGetIssue(...args),
+        get: (...args: Parameters<typeof mockGetIssue>) => mockGetIssue(...args),
     },
 }));
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
-        list: (...args: unknown[]) => mockListActivity(...args),
+        list: (...args: Parameters<typeof mockListActivity>) => mockListActivity(...args),
     },
 }));
 
@@ -29,7 +34,7 @@ vi.mock('@/components/issues/RemediationPlanCard', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => vi.fn(),
@@ -86,7 +91,7 @@ describe('IssueDetailPage tabs', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         __resetSessionStoreForTests();
-        mockGetIssue.mockResolvedValue({
+        mockGetIssue.mockResolvedValue(issueFixture({
             id: 42,
             title: 'Access Review Gap',
             severity: 'medium',
@@ -145,7 +150,7 @@ describe('IssueDetailPage tabs', () => {
             remediation_plan: null,
             capabilities: issueHistoryCapabilities,
             exceptions: [],
-        });
+        }));
         mockListActivity.mockResolvedValue({
             items: [
                 {
@@ -172,7 +177,7 @@ describe('IssueDetailPage tabs', () => {
         renderIssueDetailPage();
 
         await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
-        expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+        expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: abortSignalMatcher }));
         expect(screen.queryByText('You do not have permission to view issues.')).not.toBeInTheDocument();
     });
 
@@ -221,7 +226,7 @@ describe('IssueDetailPage tabs', () => {
                     skip: 0,
                     limit: 25,
                 },
-                expect.objectContaining({ signal: expect.any(AbortSignal) }),
+                expect.objectContaining({ signal: abortSignalMatcher }),
             )
         );
         expect(await screen.findByText('Issue updated')).toBeInTheDocument();
@@ -241,12 +246,12 @@ describe('IssueDetailPage tabs', () => {
             description: `History entry ${id}`,
             created_at: '2026-02-02T10:00:00Z',
         });
-        mockListActivity.mockImplementation(async (filters: { skip?: number }) => ({
+        mockListActivity.mockImplementation((filters = {}) => Promise.resolve(({
             items: [entry((filters.skip ?? 0) + 1)],
             total: 30,
             skip: filters.skip ?? 0,
             limit: 25,
-        }));
+        })));
         renderIssueDetailPage();
 
         await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
@@ -258,12 +263,12 @@ describe('IssueDetailPage tabs', () => {
         expect(await screen.findByText('History entry 26')).toBeInTheDocument();
         expect(mockListActivity).toHaveBeenLastCalledWith(
             { entity_type: 'issue', entity_id: 42, skip: 25, limit: 25 },
-            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+            expect.objectContaining({ signal: abortSignalMatcher }),
         );
     });
 
     it('does not fetch history when backend capability denies activity history', async () => {
-        mockGetIssue.mockResolvedValueOnce({
+        mockGetIssue.mockResolvedValueOnce(issueFixture({
             id: 42,
             title: 'Access Review Gap',
             severity: 'medium',
@@ -288,7 +293,7 @@ describe('IssueDetailPage tabs', () => {
             remediation_plan: null,
             capabilities: { can_view_activity_history: false },
             exceptions: [],
-        });
+        }));
 
         renderIssueDetailPage();
 
@@ -300,7 +305,7 @@ describe('IssueDetailPage tabs', () => {
     });
 
     it('does not fetch history when backend capability metadata is missing', async () => {
-        mockGetIssue.mockResolvedValueOnce({
+        mockGetIssue.mockResolvedValueOnce(issueFixture({
             id: 42,
             title: 'Access Review Gap',
             severity: 'medium',
@@ -324,7 +329,7 @@ describe('IssueDetailPage tabs', () => {
             links: [],
             remediation_plan: null,
             exceptions: [],
-        });
+        }));
 
         renderIssueDetailPage();
 
@@ -336,7 +341,7 @@ describe('IssueDetailPage tabs', () => {
     });
 
     it('shows unknown linked entity label without exposing numeric IDs', async () => {
-        mockGetIssue.mockResolvedValueOnce({
+        mockGetIssue.mockResolvedValueOnce(issueFixture({
             id: 42,
             title: 'Access Review Gap',
             severity: 'medium',
@@ -372,7 +377,7 @@ describe('IssueDetailPage tabs', () => {
             ],
             remediation_plan: null,
             exceptions: [],
-        });
+        }));
 
         renderIssueDetailPage();
 
@@ -383,7 +388,7 @@ describe('IssueDetailPage tabs', () => {
     it('re-fetches history when the loaded issue is refreshed on the history tab', async () => {
         mockGetIssue.mockReset();
         mockGetIssue
-            .mockResolvedValueOnce({
+            .mockResolvedValueOnce(issueFixture({
                 id: 42,
                 title: 'Access Review Gap',
                 severity: 'medium',
@@ -408,8 +413,8 @@ describe('IssueDetailPage tabs', () => {
                 remediation_plan: null,
                 capabilities: issueHistoryCapabilities,
                 exceptions: [],
-            })
-            .mockResolvedValueOnce({
+            }))
+            .mockResolvedValueOnce(issueFixture({
                 id: 42,
                 title: 'Access Review Gap',
                 severity: 'medium',
@@ -434,7 +439,7 @@ describe('IssueDetailPage tabs', () => {
                 remediation_plan: null,
                 capabilities: issueHistoryCapabilities,
                 exceptions: [],
-            });
+            }));
         mockListActivity.mockReset();
         mockListActivity
             .mockResolvedValueOnce({
@@ -499,7 +504,7 @@ describe('IssueDetailPage tabs', () => {
         renderIssueDetailPage();
 
         await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
-        expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+        expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: abortSignalMatcher }));
         expect(mockListActivity).not.toHaveBeenCalled();
     });
 
@@ -518,7 +523,7 @@ describe('IssueDetailPage tabs', () => {
     it('keeps cached issue data visible when a background refetch fails', async () => {
         mockGetIssue.mockReset();
         mockGetIssue
-            .mockResolvedValueOnce({
+            .mockResolvedValueOnce(issueFixture({
                 id: 42,
                 title: 'Access Review Gap',
                 severity: 'medium',
@@ -542,7 +547,7 @@ describe('IssueDetailPage tabs', () => {
                 links: [],
                 remediation_plan: null,
                 exceptions: [],
-            })
+            }))
             .mockRejectedValue(new Error('temporary upstream failure'));
 
         const rendered = renderIssueDetailPage();
@@ -569,9 +574,9 @@ describe('IssueDetailPage tabs', () => {
         let capturedSignal: AbortSignal | undefined;
         let abortNotified = false;
         mockListActivity.mockImplementationOnce(
-            (_filters: unknown, options?: { signal?: AbortSignal }) =>
+            (_filters, options) =>
                 new Promise((resolve) => {
-                capturedSignal = options?.signal;
+                capturedSignal = options?.signal ?? undefined;
                     options?.signal?.addEventListener(
                         'abort',
                         () => {
@@ -605,7 +610,7 @@ describe('IssueDetailPage tabs', () => {
         setAuthenticatedSession(8, 'Anna Kowalski');
         mockGetIssue.mockReset();
         mockGetIssue
-            .mockResolvedValueOnce({
+            .mockResolvedValueOnce(issueFixture({
                 id: 42,
                 title: 'Access Review Gap',
                 severity: 'medium',
@@ -629,15 +634,16 @@ describe('IssueDetailPage tabs', () => {
                 links: [],
                 remediation_plan: null,
                 exceptions: [],
-            })
+            }))
             .mockRejectedValue(new Error('forbidden'));
 
         renderIssueDetailPage();
 
         await screen.findByRole('heading', { level: 1, name: 'Access Review Gap' });
 
-        await act(async () => {
+        await act(() => {
             setAuthenticatedSession(99, 'External Reviewer');
+            return Promise.resolve();
         });
 
         expect(await screen.findByRole('heading', { name: /record unavailable/i })).toBeInTheDocument();
@@ -649,7 +655,7 @@ describe('IssueDetailPage tabs', () => {
     it('clears cached issue history when the authenticated user changes', async () => {
         setAuthenticatedSession(8, 'Anna Kowalski');
         mockGetIssue.mockReset();
-        mockGetIssue.mockResolvedValue({
+        mockGetIssue.mockResolvedValue(issueFixture({
             id: 42,
             title: 'Access Review Gap',
             severity: 'medium',
@@ -674,7 +680,7 @@ describe('IssueDetailPage tabs', () => {
             remediation_plan: null,
             capabilities: issueHistoryCapabilities,
             exceptions: [],
-        });
+        }));
         mockListActivity.mockReset();
         mockListActivity
             .mockResolvedValueOnce({
@@ -705,8 +711,9 @@ describe('IssueDetailPage tabs', () => {
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
         expect(await screen.findByText('Issue updated')).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             setAuthenticatedSession(99, 'External Reviewer');
+            return Promise.resolve();
         });
 
         await waitFor(() => expect(mockListActivity).toHaveBeenCalledTimes(2));

@@ -1,3 +1,4 @@
+import type { RecentLogEntry } from '@/services/adminApi';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,14 +8,28 @@ import {
     getAuditEventTypes,
 } from '@/pages/admin-console/sections/audit/auditPresentation';
 
+function logEntry(event: string | null): RecentLogEntry {
+    return {
+        timestamp: null,
+        level: null,
+        event,
+        logger_name: null,
+        request_id: null,
+        user_id: null,
+        client_ip: null,
+        feature: null,
+        extra: {},
+    };
+}
+
 describe('auditPresentation', () => {
     it('deduplicates non-empty audit event types', () => {
         expect(getAuditEventTypes([
-            { event: 'risk_create' },
-            { event: 'risk_create' },
-            { event: null },
-            { event: '' },
-            { event: 'risk_update' },
+            logEntry('risk_create'),
+            logEntry('risk_create'),
+            logEntry(null),
+            logEntry(''),
+            logEntry('risk_update'),
         ])).toEqual(['risk_create', 'risk_update']);
     });
 
@@ -36,7 +51,7 @@ describe('auditPresentation', () => {
 
     it('prefers the translation and passes the humanized code as the default (GAP-D-02)', () => {
         const t = (key: string, options?: Record<string, unknown>) =>
-            key === 'audit.events.create' ? 'Created' : String(options?.defaultValue ?? key);
+            key === 'audit.events.create' ? 'Created' : typeof options?.defaultValue === 'string' ? options.defaultValue : key;
 
         expect(formatAuditEvent('create', 'Unknown', t)).toBe('Created');
         expect(formatAuditEvent('some_new_event', 'Unknown', t)).toBe('Some new event');

@@ -1,3 +1,5 @@
+import type * as MockvendorContractApiModule from '@/services/vendorContractApi';
+import type * as MockassetApiModule from '@/services/assetApi';
 /**
  * FR-P2b-1/2/3/5 (findings C1/C4/C5) — the VendorContractsSection *form* block
  * migrated to the accessible `Field` primitive: `noValidate` on the form, every
@@ -12,23 +14,23 @@ import { MemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetContracts = vi.fn();
-const mockGetClosedLists = vi.fn();
-const mockCreateContract = vi.fn();
-const mockArchiveContract = vi.fn();
+const mockGetContracts = vi.fn<typeof MockvendorContractApiModule.vendorContractApi.getContracts>();
+const mockGetClosedLists = vi.fn<typeof MockassetApiModule.assetApi.getClosedLists>();
+const mockCreateContract = vi.fn<typeof MockvendorContractApiModule.vendorContractApi.createContract>();
+const mockArchiveContract = vi.fn<typeof MockvendorContractApiModule.vendorContractApi.archiveContract>();
 
 vi.mock('@/services/vendorContractApi', () => ({
     vendorContractApi: {
-        getContracts: (...args: unknown[]) => mockGetContracts(...args),
-        createContract: (...args: unknown[]) => mockCreateContract(...args),
+        getContracts: (...args: Parameters<typeof mockGetContracts>) => mockGetContracts(...args),
+        createContract: (...args: Parameters<typeof mockCreateContract>) => mockCreateContract(...args),
         updateContract: vi.fn(),
-        archiveContract: (...args: unknown[]) => mockArchiveContract(...args),
+        archiveContract: (...args: Parameters<typeof mockArchiveContract>) => mockArchiveContract(...args),
         restoreContract: vi.fn(),
     },
 }));
 vi.mock('@/services/assetApi', () => ({
     assetApi: {
-        getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
+        getClosedLists: (...args: Parameters<typeof mockGetClosedLists>) => mockGetClosedLists(...args),
     },
 }));
 
@@ -72,7 +74,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     mockGetContracts.mockResolvedValue([]);
     mockGetClosedLists.mockResolvedValue({});
-    mockCreateContract.mockResolvedValue({ id: 1 });
+    mockCreateContract.mockResolvedValue({ id: 1, vendor_id: 1, is_archived: false, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' });
     mockArchiveContract.mockResolvedValue(undefined);
 });
 

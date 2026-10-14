@@ -2,8 +2,8 @@
  * Authentication fixtures for E2E tests
  * Provides pre-authenticated test contexts for different roles
  */
-/* eslint-disable react-hooks/rules-of-hooks */
-import { test as base, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test as base } from '@playwright/test';
 import { loginAsDemoUser, DEMO_ACCOUNTS } from '../helpers/login';
 
 // Extend the base test with authenticated fixtures

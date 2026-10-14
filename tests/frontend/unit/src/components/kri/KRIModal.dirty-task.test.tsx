@@ -8,18 +8,18 @@ import { KRIModal } from '@/components/kri/KRIModal';
 import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
 import type { KeyRiskIndicator } from '@/types/kri';
 
-const mockGetRiskOwners = vi.fn();
-const mockGetVendors = vi.fn();
+const mockGetRiskOwners = vi.hoisted(() => vi.fn());
+const mockGetVendors = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getRiskOwners: (...args: unknown[]) => mockGetRiskOwners(...args),
+        getRiskOwners: mockGetRiskOwners,
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendors: (...args: unknown[]) => mockGetVendors(...args),
+        getVendors: mockGetVendors,
     },
 }));
 
@@ -86,7 +86,7 @@ function KriLifecycleHarness() {
                 kri={kri}
                 isOpen={isOpen}
                 onClose={() => setIsOpen(false)}
-                onSave={async () => ({ kind: 'updated' })}
+                onSave={() => Promise.resolve(({ kind: 'updated' }))}
             />
         </>
     );
@@ -229,7 +229,7 @@ describe('KRI edit modal dirty-task protection', () => {
         requestClose('footer');
         expect(onClose).not.toHaveBeenCalled();
 
-        await act(async () => resolveSave?.({ kind: 'updated' }));
+        await act(() => Promise.resolve(resolveSave?.({ kind: 'updated' })));
         await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     });
 });

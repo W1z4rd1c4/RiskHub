@@ -142,9 +142,9 @@ const factorySpecs = [
             departmentId: 3,
             riskLevel: 'high',
             controlStatus: 'active',
-            controlForm: 'attestation',
+            controlForm: 'manual',
         }),
-        expected: ['dashboardOverview', 3, 'high', 'active', 'attestation'],
+        expected: ['dashboardOverview', 3, 'high', 'active', 'manual'],
     },
     {
         module: 'docsKeys.settingsDocs',
