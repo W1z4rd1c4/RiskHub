@@ -12,6 +12,7 @@
  * acceptance-governance fields round-tripping through the risk form's
  * scoring step.
  */
+import { jsonObject } from './helpers/jsonObject';
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_ICT_REGISTER_RISK, E2E_THREATS } from './fixtures/e2e-data';
 import { getApiBaseUrl, getDemoToken } from './helpers/api-auth';
@@ -227,14 +228,14 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
                 return;
             }
             const response = await route.fetch();
-            const payload = await response.json();
+            const payload = jsonObject(await response.json());
             await route.fulfill({
                 response,
                 json: {
                     ...payload,
                     steward_orphaned: true,
                     stewardship_status: 'pending_governance',
-                    capabilities: { ...payload.capabilities, can_update: false },
+                    capabilities: { ...jsonObject(payload.capabilities ?? {}), can_update: false },
                 },
             });
         });

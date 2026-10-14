@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import './src/i18n';
+import type { server } from '@test/mocks/server';
 
 class StorageMock {
     private store = new Map<string, string>();
@@ -76,13 +77,7 @@ afterEach(async () => {
     await queryClientMod.cleanupTestQueryClients();
 });
 
-let mswServer:
-    | {
-        listen: (options?: unknown) => void;
-        resetHandlers: () => void;
-        close: () => void;
-    }
-    | null = null;
+let mswServer: typeof server | null = null;
 
 beforeAll(async () => {
     // Import MSW server lazily so our localStorage mock is installed first.

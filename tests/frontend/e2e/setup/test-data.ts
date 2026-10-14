@@ -85,7 +85,7 @@ export async function createTestRisk(data: Partial<TestRisk>): Promise<TestRisk>
         throw new Error(`Failed to create test risk: ${response.status} - ${error}`);
     }
 
-    return response.json();
+    return await response.json() as TestRisk;
 }
 
 /**
@@ -115,7 +115,7 @@ export async function createTestControl(data: Partial<TestControl>): Promise<Tes
         throw new Error(`Failed to create test control: ${response.status} - ${error}`);
     }
 
-    return response.json();
+    return await response.json() as TestControl;
 }
 
 /**
@@ -148,7 +148,7 @@ export async function createTestKRI(data: Partial<TestKRI>): Promise<TestKRI> {
         throw new Error(`Failed to create test KRI: ${response.status} - ${error}`);
     }
 
-    return response.json();
+    return await response.json() as TestKRI;
 }
 
 /**
@@ -167,7 +167,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
                     headers: { Authorization: `Bearer ${token}` },
                 });
             } catch (e) {
-                errors.push(`KRI ${id}: ${e}`);
+                errors.push(`KRI ${id}: ${String(e)}`);
             }
         }
     }
@@ -181,7 +181,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
                     headers: { Authorization: `Bearer ${token}` },
                 });
             } catch (e) {
-                errors.push(`Control ${id}: ${e}`);
+                errors.push(`Control ${id}: ${String(e)}`);
             }
         }
     }
@@ -195,7 +195,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
                     headers: { Authorization: `Bearer ${token}` },
                 });
             } catch (e) {
-                errors.push(`Risk ${id}: ${e}`);
+                errors.push(`Risk ${id}: ${String(e)}`);
             }
         }
     }

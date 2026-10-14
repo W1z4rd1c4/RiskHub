@@ -1,4 +1,5 @@
-import { expect, Page, test, type Response } from '@playwright/test';
+import { z } from 'zod';
+import { expect, test, type Page, type Response } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
@@ -43,14 +44,19 @@ function waitForDashboardOverview(page: Page): Promise<Response> {
 async function assertIssueDashboardDataReady(response: Response) {
     expect(response.ok(), 'README dashboard captures require a successful dashboard overview response').toBeTruthy();
 
-    const overview = await response.json();
+    const count = z.union([z.number(), z.string()]).nullish();
+    const overview = z.object({
+        issue_summary: z.object({ open_issues: count }).nullish(),
+        issue_aging: z.object({ buckets: z.array(z.object({ count })).nullish() }).nullish(),
+        issue_severity: z.object({ items: z.array(z.object({ count })).nullish() }).nullish(),
+    }).nullish().parse(await response.json());
     const openIssues = Number(overview?.issue_summary?.open_issues ?? 0);
     const agingTotal = (overview?.issue_aging?.buckets ?? []).reduce(
-        (sum: number, bucket: { count?: number }) => sum + Number(bucket.count ?? 0),
+        (sum, bucket) => sum + Number(bucket.count ?? 0),
         0
     );
     const severityTotal = (overview?.issue_severity?.items ?? []).reduce(
-        (sum: number, item: { count?: number }) => sum + Number(item.count ?? 0),
+        (sum, item) => sum + Number(item.count ?? 0),
         0
     );
 

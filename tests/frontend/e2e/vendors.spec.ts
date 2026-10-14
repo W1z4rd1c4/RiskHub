@@ -344,7 +344,7 @@ test.describe('Vendor Management (Deterministic)', () => {
 
     let vendorOrphanCleanup: (() => Promise<void>) | null = null;
     // afterEach retains a separate teardown budget when the browser test times out.
-    test.afterEach(async ({}, testInfo) => {
+    test.afterEach(async ({ browser: _browser }, testInfo) => {
         if (!vendorOrphanCleanup) return;
         const cleanup = vendorOrphanCleanup;
         vendorOrphanCleanup = null;

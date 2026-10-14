@@ -1,3 +1,4 @@
+import { jsonObject } from './helpers/jsonObject';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.fixture';
@@ -69,7 +70,7 @@ async function selectLanguage(page: Page, language: 'en' | 'cs'): Promise<void> 
             page.waitForResponse((response) => (
                 response.request().method() === 'PUT'
                 && new URL(response.url()).pathname === '/api/v1/preferences'
-                && response.request().postDataJSON().language === language
+                && jsonObject(response.request().postDataJSON()).language === language
             )),
             languageOption.click(),
         ]);

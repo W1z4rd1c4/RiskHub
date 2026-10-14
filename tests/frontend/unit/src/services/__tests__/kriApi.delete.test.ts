@@ -13,7 +13,7 @@ describe('kriApi delete responses', () => {
 
     it('accepts approval-created delete responses', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.includes('/api/v1/kris/21')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -38,7 +38,7 @@ describe('kriApi delete responses', () => {
 
     it('accepts immediate archive responses with no content', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.includes('/api/v1/kris/22')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }

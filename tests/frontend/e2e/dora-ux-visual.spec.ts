@@ -167,9 +167,9 @@ async function normalizeColors(page: Page, colors: string[]): Promise<Rgba[]> {
         // channel precision across formats, preserving alpha independently.
         // The contrast kernel and axe still use their unchanged AA thresholds.
         return [
-            Math.round(Math.max(0, Math.min(1, components[0]!)) * 255),
-            Math.round(Math.max(0, Math.min(1, components[1]!)) * 255),
-            Math.round(Math.max(0, Math.min(1, components[2]!)) * 255),
+            Math.round(Math.max(0, Math.min(1, components[0])) * 255),
+            Math.round(Math.max(0, Math.min(1, components[1])) * 255),
+            Math.round(Math.max(0, Math.min(1, components[2])) * 255),
             Number((components[3] ?? 1).toFixed(6)),
         ];
     }), colors);

@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getBlobMock = vi.fn();
+const { getBlobMock } = vi.hoisted(() => ({ getBlobMock: vi.fn() }));
+
 
 vi.mock('@/services/apiClient', () => ({
     apiClient: {
-        getBlob: (...args: unknown[]) => getBlobMock(...args),
+        getBlob: getBlobMock,
     },
 }));
 
@@ -43,13 +44,13 @@ describe('reportApi exportKRIs', () => {
     });
 
     it('rejects conflicting monitoring and timeliness filters before sending a request', async () => {
+        const filters = { monitoringStatus: 'warning' as const };
+        // Simulate an untyped caller supplying the forbidden combination.
+        Reflect.set(filters, 'timelinessStatus', 'due_soon');
         await expect(reportApi.exportKRIs({
             format: 'csv',
             asOfDate: '2026-03-07',
-            filters: {
-                monitoringStatus: 'warning',
-                timelinessStatus: 'due_soon',
-            },
+            filters,
         })).rejects.toThrow('monitoring_status and timeliness_status cannot be used together');
 
         expect(getBlobMock).not.toHaveBeenCalled();

@@ -1,3 +1,4 @@
+import type { AccountInfo } from '@azure/msal-browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -10,11 +11,11 @@ const {
     clearAuthConfigCacheMock: vi.fn(),
     getAuthConfigMock: vi.fn(),
     msalAppMock: {
-        initialize: vi.fn(async () => {}),
-        loginRedirect: vi.fn(async () => {}),
-        logoutRedirect: vi.fn(async () => {}),
-        handleRedirectPromise: vi.fn(async () => null),
-        getActiveAccount: vi.fn(() => null),
+        initialize: vi.fn(() => { return Promise.resolve(); }),
+        loginRedirect: vi.fn(() => { return Promise.resolve(); }),
+        logoutRedirect: vi.fn(() => { return Promise.resolve(); }),
+        handleRedirectPromise: vi.fn(() => Promise.resolve(null)),
+        getActiveAccount: vi.fn<() => AccountInfo | null>(() => null),
         getAllAccounts: vi.fn(() => []),
         setActiveAccount: vi.fn(),
     },
@@ -95,7 +96,11 @@ describe('entraAuth', () => {
     });
 
     it('passes account and logout hint to MSAL logoutRedirect when available', async () => {
-        const account = {
+        const account: AccountInfo = {
+            homeAccountId: 'home-account',
+            localAccountId: 'local-account',
+            environment: 'login.microsoftonline.com',
+            tenantId: 'tenant-id',
             username: 'admin@riskhub.local',
             idTokenClaims: {
                 login_hint: 'admin@riskhub.local',

@@ -28,7 +28,7 @@ describe('applySessionRefreshPolicy', () => {
     it('returns retry when refresh succeeds', async () => {
         const out = await applySessionRefreshPolicy(
             { pathname: '/api/v1/risks', attempt: 0 },
-            { tryRefresh: async () => 'new-token', clearSession: () => {} },
+            { tryRefresh: () => Promise.resolve('new-token'), clearSession: () => {} },
         );
 
         expect(out).toEqual({ kind: 'retry' });
@@ -40,7 +40,7 @@ describe('applySessionRefreshPolicy', () => {
         await expect(
             applySessionRefreshPolicy(
                 { pathname: '/api/v1/risks', attempt: 0 },
-                { tryRefresh: async () => null, clearSession: clear },
+                { tryRefresh: () => Promise.resolve(null), clearSession: clear },
             ),
         ).rejects.toBeInstanceOf(ApiClientError);
         expect(clear).toHaveBeenCalledOnce();

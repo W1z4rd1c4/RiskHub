@@ -16,7 +16,11 @@ export type IssueRegisterView =
     | 'vendor';
 
 export class IssuesPage {
-    constructor(readonly page: Page) {}
+    readonly page: Page;
+
+    constructor(page: Page) {
+        this.page = page;
+    }
 
     get registerShell(): Locator {
         return this.page.getByTestId('issues-register-shell');

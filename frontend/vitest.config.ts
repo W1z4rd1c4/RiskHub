@@ -2,6 +2,7 @@ import path from 'path';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 
 const testRoot = path.resolve(__dirname, '../tests/frontend/unit');
 const frontendTestRoot = path.resolve(__dirname, '../tests/frontend');
@@ -23,7 +24,7 @@ const forwardedExternalTestImports = new Set([
   'react-i18next',
 ]);
 
-function externalTestPackageResolver() {
+function externalTestPackageResolver(): Plugin {
   return {
     name: 'external-test-package-resolver',
     async resolveId(source: string, importer?: string) {

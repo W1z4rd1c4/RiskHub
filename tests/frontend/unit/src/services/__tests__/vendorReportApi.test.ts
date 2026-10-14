@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getBlobMock = vi.fn();
-const getMock = vi.fn();
+const { getBlobMock, getMock } = vi.hoisted(() => ({ getBlobMock: vi.fn(), getMock: vi.fn() }));
+
 
 vi.mock('@/services/apiClient', () => ({
     apiClient: {
-        get: (...args: unknown[]) => getMock(...args),
-        getBlob: (...args: unknown[]) => getBlobMock(...args),
+        get: getMock,
+        getBlob: getBlobMock,
     },
 }));
 
@@ -36,9 +36,10 @@ describe('vendorReportApi downloads', () => {
 
         await expect(vendorReportApi.getCapabilities()).resolves.toEqual(capabilities);
 
+        const schema: unknown = expect.any(Object);
         expect(getMock).toHaveBeenCalledWith(
             '/vendor-reports/capabilities',
-            expect.objectContaining({ schema: expect.any(Object) }),
+            expect.objectContaining({ schema }),
         );
     });
 

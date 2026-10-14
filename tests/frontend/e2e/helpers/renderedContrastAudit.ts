@@ -29,18 +29,15 @@ export interface RenderedContrastAudit {
   failures: RenderedContrastFailure[];
 }
 
-interface AuditArgs {
-  kernel: string;
-  failureCap: number;
-}
-
 /**
  * In-page auditor. Runs in the browser, so it must stay self-contained; the
  * compositing kernel (`measureRenderedContrast`) is passed in as source so the
  * audit and the targeted `renderedContrast()` probes share one algorithm.
  */
-function auditInPage(root: Element, { kernel, failureCap }: AuditArgs): RenderedContrastAudit {
-  const measure = new Function(`return (${kernel});`)() as (element: Element) => RenderedContrastSample;
+function auditInPage(
+  root: Element,
+  { measure, failureCap }: { measure: (element: Element) => RenderedContrastSample; failureCap: number },
+): RenderedContrastAudit {
   const skippedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'OPTION', 'OPTGROUP', 'TITLE', 'SELECT']);
   const textInputTypes = new Set([
     '', 'text', 'search', 'email', 'number', 'tel', 'url', 'password',
@@ -55,7 +52,7 @@ function auditInPage(root: Element, { kernel, failureCap }: AuditArgs): Rendered
       const normalized = channel / 255;
       return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
     });
-    return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
   };
   const textOf = (element: Element): string => {
     if (element instanceof HTMLTextAreaElement) return element.value.trim();
@@ -126,5 +123,12 @@ function auditInPage(root: Element, { kernel, failureCap }: AuditArgs): Rendered
  * 4.5:1 (3:1 for large text), 3:1 and 1.5:1.
  */
 export async function auditRenderedContrast(scope: Locator, failureCap = 25): Promise<RenderedContrastAudit> {
-  return scope.evaluate(auditInPage, { kernel: measureRenderedContrast.toString(), failureCap });
+  const measure = await scope.evaluateHandle<(element: Element) => RenderedContrastSample, undefined>(
+    `(${measureRenderedContrast.toString()})`,
+  );
+  try {
+    return await scope.evaluate(auditInPage, { measure, failureCap });
+  } finally {
+    await measure.dispose();
+  }
 }

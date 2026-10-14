@@ -25,7 +25,12 @@ print(json.dumps({"fields": fields}))
         cwd: REPO_ROOT,
         encoding: 'utf8',
     });
-    return JSON.parse(out).fields;
+    const parsed: unknown = JSON.parse(out);
+    if (typeof parsed !== 'object' || parsed === null || !('fields' in parsed)
+        || !Array.isArray(parsed.fields) || !parsed.fields.every((field: unknown) => typeof field === 'string')) {
+        throw new Error('Expected capability field names');
+    }
+    return parsed.fields.filter((field: unknown): field is string => typeof field === 'string');
 }
 
 describe('capability_catalog parser still extracts each entity field set', () => {

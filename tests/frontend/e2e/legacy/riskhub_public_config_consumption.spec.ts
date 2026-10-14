@@ -1,4 +1,5 @@
-import { test, expect, Page, Request } from '@playwright/test';
+import type { Page, Request } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from '../helpers/login';
 import { waitForDataLoad } from '../helpers/wait';
 import { E2E_RISKS } from '../fixtures/e2e-data';

@@ -10,7 +10,7 @@ import { buildThreatColumns } from '@/pages/threats/threatColumns';
 import { buildVendorContractColumns } from '@/pages/vendors/vendorContractsPresentation';
 import type { Asset } from '@/types/asset';
 import type { Process } from '@/types/process';
-import type { Threat } from '@/types/threat';
+import type { ThreatListItem } from '@/types/threat';
 import type { VendorContract } from '@/types/vendorContract';
 
 const TS = '2026-07-10T10:00:00Z';
@@ -20,7 +20,7 @@ const TS = '2026-07-10T10:00:00Z';
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string, opts?: Record<string, unknown>) =>
-            opts && 'page' in opts ? `Go to page ${String(opts.page)}` : key,
+            opts && typeof opts.page === 'number' ? `Go to page ${opts.page}` : key,
         i18n: { language: 'en' },
     }),
 }));
@@ -62,7 +62,7 @@ describe('FR-P5-9 — icon/control aria-label sweep (S8 / P5 / P7)', () => {
     });
 
     it('labels the archived-row restore icon button on assets, processes, and threats (S8)', () => {
-        const archivedAsset: Asset = { id: 7, name: 'A', is_archived: true, created_at: TS, updated_at: TS };
+        const archivedAsset: Asset = { id: 7, name: 'A', business_owner_orphaned: false, ict_owner_orphaned: false, ownership_status: 'legacy_unassigned', is_archived: true, created_at: TS, updated_at: TS };
         const assetStatus = buildAssetColumns({
             t: echoT,
             onRestore: () => undefined,
@@ -78,6 +78,8 @@ describe('FR-P5-9 — icon/control aria-label sweep (S8 / P5 / P7)', () => {
             f_code: 'F1',
             l0_area: 'Area',
             l1_process: 'Process',
+            owner_orphaned: false,
+            ownership_status: 'legacy_unassigned',
             is_archived: true,
             created_at: TS,
             updated_at: TS,
@@ -90,7 +92,7 @@ describe('FR-P5-9 — icon/control aria-label sweep (S8 / P5 / P7)', () => {
         render(processStatus?.render?.(archivedProcess, 0) as ReactElement);
         expect(screen.getByTestId('process-restore-8')).toHaveAccessibleName('actions.restore_named');
 
-        const archivedThreat: Threat = { id: 9, name: 'T', is_archived: true, created_at: TS, updated_at: TS };
+        const archivedThreat: ThreatListItem = { id: 9, name: 'T', stewardship_status: 'legacy_unassigned', visible_linked_risk_count: 0, is_archived: true, created_at: TS, updated_at: TS };
         const threatStatus = buildThreatColumns({
             t: echoT,
             onRestore: () => undefined,
