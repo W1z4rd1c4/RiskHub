@@ -16,6 +16,7 @@ from app.core.permissions import (
     risk_visibility_clause,
     vendor_visibility_clause,
 )
+from app.core.sql_uuid import CanonicalUuid4
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -83,11 +84,6 @@ class _JsonBoundedShape(FunctionElement):
     inherit_cache = True
 
 
-class _CanonicalUuid4(FunctionElement):
-    type = Boolean()
-    inherit_cache = True
-
-
 class _JsonFieldArrayEquals(FunctionElement):
     type = Boolean()
     inherit_cache = True
@@ -105,28 +101,6 @@ class _StrictVendorSemanticEnvelope(FunctionElement):
 
     type = Boolean()
     inherit_cache = True
-
-
-@compiles(_CanonicalUuid4, "sqlite")
-def _compile_canonical_uuid4_sqlite(element, compiler, **kw):
-    (value,) = [compiler.process(item, **kw) for item in element.clauses]
-    compact = f"replace({value}, '-', '')"
-    return (
-        f"(length({value}) = 36 AND lower({value}) = {value} "
-        f"AND substr({value}, 9, 1) = '-' AND substr({value}, 14, 1) = '-' "
-        f"AND substr({value}, 15, 1) = '4' AND substr({value}, 19, 1) = '-' "
-        f"AND substr({value}, 20, 1) IN ('8', '9', 'a', 'b') "
-        f"AND substr({value}, 24, 1) = '-' AND {compact} NOT GLOB '*[^0-9a-f]*')"
-    )
-
-
-@compiles(_CanonicalUuid4, "postgresql")
-def _compile_canonical_uuid4_postgresql(element, compiler, **kw):
-    (value,) = [compiler.process(item, **kw) for item in element.clauses]
-    return (
-        f"({value} ~ '^[0-9a-f]{{8}}-[0-9a-f]{{4}}-4[0-9a-f]{{3}}-"
-        "[89ab][0-9a-f]{3}-[0-9a-f]{12}$')"
-    )
 
 
 @compiles(_JsonFieldArrayEquals, "sqlite")
@@ -1473,7 +1447,7 @@ def _strict_vendor_proposal_shape_clause() -> ColumnElement[bool]:
         literal(1),
     )
     return and_(
-        _CanonicalUuid4(GovernedMutationProposal.proposal_id),
+        CanonicalUuid4(GovernedMutationProposal.proposal_id),
         _IdentityTrim(GovernedMutationProposal.primary_resource_name) != "",
         _JsonType(scenario) == "object",
         _JsonObjectLength(scenario) == 3,
@@ -1523,7 +1497,7 @@ def _strict_asset_proposal_shape_clause() -> ColumnElement[bool]:
         literal(1),
     )
     return and_(
-        _CanonicalUuid4(GovernedMutationProposal.proposal_id),
+        CanonicalUuid4(GovernedMutationProposal.proposal_id),
         _JsonType(scenario) == "object",
         _JsonObjectLength(scenario) == 3,
         _JsonFieldText(scenario, literal("key")) == ASSET_SCENARIO_KEY,

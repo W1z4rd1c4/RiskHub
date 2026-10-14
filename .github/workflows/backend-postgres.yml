@@ -85,3 +85,12 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
         run: make -f scripts/Makefile test-postgres-ci
+
+      - name: Run canonical UUID4 and governed Process identity regressions
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
+        run: >-
+          pytest -q --strict-markers --no-cov
+          ../tests/backend/pytest/test_canonical_uuid4_sql.py
+          ../tests/backend/pytest/test_governed_process_identity.py
