@@ -19,6 +19,7 @@ import {
     useCollectionDataState,
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
@@ -76,10 +77,11 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
             ? [canonicalAssetCriticality(semanticFilters.criticality) ?? semanticFilters.criticality]
             : filters.criticality,
     }), [departmentScope, filters, semanticFilters.committee_scope, semanticFilters.criticality]);
-    const listParams = useMemo(() => ({
+    const requestParams = useMemo(() => ({
         ...buildAssetRegisterListParams({ currentPage, filters: effectiveFilters, groupValue, limit: DEFAULT_LIST_PAGE_SIZE, search: debouncedSearch, sort, view: viewMode }),
         has_process_link: semanticFilters.has_process_link,
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, semanticFilters.has_process_link, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);

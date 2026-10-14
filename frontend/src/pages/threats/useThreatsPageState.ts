@@ -20,6 +20,7 @@ import {
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildThreatRegisterListParams,
@@ -76,7 +77,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const runRowRestore = useRestoreWithFeedback();
 
-    const listParams = useMemo(() => buildThreatRegisterListParams({
+    const requestParams = useMemo(() => buildThreatRegisterListParams({
         currentPage,
         filters,
         groupValue,
@@ -85,6 +86,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, filters, groupValue, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);

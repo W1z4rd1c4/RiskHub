@@ -14,6 +14,7 @@ import type { ControlFacets, ControlListCapabilities, ControlSummary } from '@/t
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
@@ -55,13 +56,14 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
     } = useCollectionDataState<ControlSummary, ControlListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const runRowRestore = useRestoreWithFeedback();
-    const listParams = useMemo(() => ({
+    const requestParams = useMemo(() => ({
         ...buildControlRegisterListParams({
             currentPage, filters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
             search: debouncedSearch, sort, view: viewMode,
         }),
         department_id: departmentScope?.departmentId,
     }), [currentPage, debouncedSearch, departmentScope?.departmentId, filters, selectedGroupValue, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);

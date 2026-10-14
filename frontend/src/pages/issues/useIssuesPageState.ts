@@ -13,6 +13,7 @@ import type { IssueFacets, IssueListCapabilities, IssueSummary } from '@/types/i
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { buildIssueExportFilters, parseIssuesPageQueryParams } from './issuesPagePresentation';
 import {
@@ -76,10 +77,11 @@ export function useIssuesPageState(language: SupportedLanguage = 'en') {
     } = useCollectionDataState<IssueSummary, IssueListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
-    const listParams = useMemo(() => buildIssueRegisterListParams({
+    const requestParams = useMemo(() => buildIssueRegisterListParams({
         currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
         search: debouncedSearch, sort, view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);

@@ -13,6 +13,7 @@ import type { KRIFacets, KRIListCapabilities, KeyRiskIndicator } from '@/types/k
 
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import { buildKriExportFilters, readKriRouteFilters } from './kriPagePresentation';
@@ -72,10 +73,11 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const runRowRestore = useRestoreWithFeedback();
 
-    const listParams = useMemo(() => buildKriRegisterListParams({
+    const requestParams = useMemo(() => buildKriRegisterListParams({
         currentPage, filters: effectiveFilters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
         search: debouncedSearch, sort, view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);
