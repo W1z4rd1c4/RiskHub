@@ -8,7 +8,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.audit import threat as audit_threat
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ValidationError
 from app.core.permissions import can_manage_users
 from app.models import (
@@ -23,6 +22,7 @@ from app.models import (
     Threat,
     User,
 )
+from app.services._ict_register_lifecycle.threat_apply import ThreatOrphanCompletion, apply_threat_edit
 from app.services._ict_register_lifecycle.threat_policy import (
     assert_active_ciso_steward,
     assert_threat_update_allowed,
@@ -448,14 +448,14 @@ async def approve_threat_mutation(
         threat,
         {"threat_steward_user_id": proposed_steward.id},
     )
-    threat.threat_steward_user_id = proposed_steward.id
-    threat.threat_steward = proposed_steward
-    threat.governance_version += 1
-    if governed_orphan is not None:
-        governed_orphan.status = "resolved"
-        governed_orphan.resolved_at = utc_now()
-        governed_orphan.resolved_by_id = resolver.id
-        governed_orphan.new_owner_id = proposed_steward.id
+    apply_threat_edit(
+        threat=threat,
+        updates={"threat_steward_user_id": proposed_steward.id},
+        steward=proposed_steward,
+        orphan_completion=(
+            ThreatOrphanCompletion(governed_orphan, resolver.id) if governed_orphan is not None else None
+        ),
+    )
     await audit_threat.threat_updated(
         db,
         actor=resolver,

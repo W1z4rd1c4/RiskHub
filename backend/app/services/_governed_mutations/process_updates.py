@@ -66,12 +66,12 @@ from .process_mutation_policy import (
 from .vendor_impact import process_point_vendor_impacts, vendor_impact_is_protected
 
 
-async def increment_process_downstream_asset_versions(
+async def load_process_downstream_assets_for_update(
     db: AsyncSession,
     *,
     process_id: int,
-) -> None:
-    """Version every Asset whose derivation can change with a direct Process point mutation."""
+) -> list[Asset]:
+    """Lock the existing direct Process point-mutation Asset cascade."""
     assets = list(
         (
             await db.execute(
@@ -83,8 +83,7 @@ async def increment_process_downstream_asset_versions(
             )
         ).scalars()
     )
-    for asset in assets:
-        asset.governance_version += 1
+    return assets
 
 
 async def assert_no_pending_process_mutation(db: AsyncSession, *, process_id: int) -> None:

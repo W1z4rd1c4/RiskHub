@@ -90,10 +90,14 @@ async def create_vendor_link(
     vendor_id: int,
     entity_field: VendorLinkField,
     entity_id: int,
+    *,
+    version_owner: Vendor | None = None,
 ) -> dict[str, str]:
     await ensure_link_absent(db, link_model, vendor_id, entity_field, entity_id)
     db.add(cast(Any, link_model)(vendor_id=vendor_id, **{entity_field: entity_id}))
     await db.flush()
+    if version_owner is not None:
+        version_owner.governance_version += 1
     return {"status": "linked"}
 
 
@@ -103,6 +107,8 @@ async def delete_vendor_link(
     vendor_id: int,
     entity_field: VendorLinkField,
     entity_id: int,
+    *,
+    version_owner: Vendor | None = None,
 ) -> None:
     link = await get_existing_link(db, link_model, vendor_id, entity_field, entity_id)
     if not link:
@@ -110,3 +116,5 @@ async def delete_vendor_link(
 
     await db.delete(link)
     await db.flush()
+    if version_owner is not None:
+        version_owner.governance_version += 1

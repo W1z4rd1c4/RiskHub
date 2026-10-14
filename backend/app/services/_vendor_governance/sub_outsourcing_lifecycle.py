@@ -15,6 +15,7 @@ from app.schemas.vendor_sub_outsourcing import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
+from .apply import apply_vendor_child_archive, apply_vendor_child_create, apply_vendor_child_edit
 from .sub_outsourcing_policy import (
     acquire_sub_outsourcing_chain_lock,
     assert_chain_contract,
@@ -73,10 +74,7 @@ async def create_vendor_sub_outsourcing_detail(
     if queued is not None:
         return queued
 
-    entry = VendorSubOutsourcing(vendor_id=vendor.id, **values)
-    db.add(entry)
-    await db.flush()
-    vendor.governance_version += 1
+    entry = await apply_vendor_child_create(db, vendor=vendor, child_model=VendorSubOutsourcing, values=values)
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_created(db, actor=current_user, entry=entry)
     await commit_service_boundary(db, boundary="vendor_sub_outsourcing_create")
@@ -160,9 +158,7 @@ async def update_vendor_sub_outsourcing_detail(
         return queued
 
     changes = audit_vendor_sub_outsourcing.vendor_sub_outsourcing_update_changes(entry, updates)
-    for field, value in updates.items():
-        setattr(entry, field, value)
-    vendor.governance_version += 1
+    apply_vendor_child_edit(vendor=vendor, child=entry, updates=updates)
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_updated(
         db, actor=current_user, entry=entry, changes=changes
@@ -207,8 +203,7 @@ async def archive_vendor_sub_outsourcing_detail(
     if queued is not None:
         return queued
     changes = audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archive_changes(entry)
-    entry.mark_archived(current_user)
-    vendor.governance_version += 1
+    apply_vendor_child_archive(vendor=vendor, child=entry, actor=current_user)
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_archived(
         db, actor=current_user, entry=entry, changes=changes
@@ -233,8 +228,7 @@ async def restore_vendor_sub_outsourcing_detail(
         db, vendor_id=vendor_id, current_user=current_user
     )
     changes = audit_vendor_sub_outsourcing.vendor_sub_outsourcing_restore_changes(entry)
-    entry.mark_restored(current_user)
-    vendor.governance_version += 1
+    apply_vendor_child_archive(vendor=vendor, child=entry, actor=current_user, restore=True)
 
     await audit_vendor_sub_outsourcing.vendor_sub_outsourcing_restored(
         db, actor=current_user, entry=entry, changes=changes

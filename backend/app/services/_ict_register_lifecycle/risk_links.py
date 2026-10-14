@@ -42,6 +42,7 @@ from app.services._governed_mutations.process_mutations import (
     submit_process_relationship_mutation,
 )
 from app.services._governed_mutations.process_relationships import (
+    apply_process_relationship_state,
     lock_process_relationship_targets,
     process_impact_resource,
 )
@@ -51,6 +52,7 @@ from app.services._governed_mutations.process_updates import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
+from .asset_apply import apply_asset_relationship
 from .asset_policy import assert_asset_readable, can_read_asset_record, load_asset
 from .derivation import process_display_name
 from .policy import load_process
@@ -255,10 +257,11 @@ async def add_risk_process_link(
     if queued is not None:
         return queued
 
-    link = RiskProcessLink(risk_id=risk_id, process_id=payload.process_id)
-    db.add(link)
+    link = await apply_process_relationship_state(
+        db, process=process, relationship_type="risk", action="add", related_id=risk_id, after={},
+    )
+    assert isinstance(link, RiskProcessLink)
     await db.flush()
-    process.governance_version += 1
 
     await audit_risk.risk_link_created(
         db,
@@ -345,9 +348,10 @@ async def remove_risk_process_link(
     )
     if queued is not None:
         return queued
-    await db.delete(link)
+    await apply_process_relationship_state(
+        db, process=process, relationship_type="risk", action="remove", related_id=risk_id, after={}, existing=link,
+    )
     await db.flush()
-    process.governance_version += 1
 
     await audit_risk.risk_link_deleted(
         db,
@@ -493,9 +497,11 @@ async def add_risk_asset_link(
     if existing is not None:
         raise ValidationError("Link already exists")
 
-    asset.governance_version += 1
-    link = RiskAssetLink(risk_id=risk_id, asset_id=payload.asset_id)
-    db.add(link)
+    link = await apply_asset_relationship(
+        db, relationship_type="risk", action="add",
+        values={"risk_id": risk_id, "asset_id": payload.asset_id}, impacted_assets=(asset,),
+    )
+    assert isinstance(link, RiskAssetLink)
     await db.flush()
 
     await audit_risk.risk_link_created(
@@ -573,8 +579,10 @@ async def remove_risk_asset_link(
         if current_link is None:
             raise NotFoundError("Link not found")
         link = current_link
-        asset.governance_version += 1
-    await db.delete(link)
+    await apply_asset_relationship(
+        db, relationship_type="risk", action="remove", values={}, existing=link,
+        impacted_assets=(asset,) if asset is not None else (),
+    )
     await db.flush()
 
     await audit_risk.risk_link_deleted(

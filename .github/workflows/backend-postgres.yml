@@ -94,3 +94,13 @@ jobs:
           pytest -q --strict-markers --no-cov
           ../tests/backend/pytest/test_canonical_uuid4_sql.py
           ../tests/backend/pytest/test_governed_process_identity.py
+
+      - name: Run governed mutation apply HTTP regressions
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
+        run: >-
+          pytest -q --strict-markers --no-cov
+          ../tests/backend/pytest/test_vendor_edit_apply.py
+          ../tests/backend/pytest/test_asset_apply.py
+          ../tests/backend/pytest/test_process_apply.py

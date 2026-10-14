@@ -51,6 +51,66 @@ mutations defined by [ADR-016](../../../../docs/adr/ADR-016-governed-mutation-pr
   unresolved proposal may only expire through its family's authorized bounded
   cleanup; terminal replay cannot create a second audit/outbox suffix.
 
+## Operational application and versions
+
+The Vendor-domain `apply_vendor_edit` step owns Vendor edit fields, their
+governance-version change, and completion of an already-validated orphan. It
+is used by ordinary direct edits, approved replay, and direct orphan repair.
+Authorization, reference validation, locking, stale checks, audits, approval
+terminal transitions, outbox events, and transaction completion remain with
+the existing entry points.
+
+An accepted ordinary or approved Vendor edit advances the Vendor version once.
+Ordinary direct no-op edits return before application. Direct orphan ownership
+repair advances the version only when the owner changes, while a same-owner
+repair still completes the orphan. This distinction is intentional and is not
+a new no-op policy for other mutations.
+
+Vendor create/archive and Contract/Sub-outsourcing application also live in
+`_vendor_governance.apply`; Vendor Risk/Control/KRI relationship writes remain
+in the existing `_vendor_governance.links` owner. Asset operations live in
+`_ict_register_lifecycle.asset_apply`, and Threat edits in `threat_apply`.
+Each accepts validated inputs; create steps may add and flush rows, and
+relationship steps may add/delete junctions. They do not own authorization,
+audit, proposal terminal state, outbox or commit boundaries.
+
+| Vendor, Asset or Threat operation | Version rule |
+| --- | --- |
+| Create Vendor or Asset | The new row starts at version 1. |
+| Vendor archive/restore | Vendor advances once. |
+| Vendor Contract or Sub-outsourcing create/edit/archive/restore | Parent Vendor advances once. A nonempty direct child edit advances even when submitted values match; empty or reason-only edits return before application. |
+| Vendor Risk/Control/KRI link or unlink | A direct or approved Vendor operation advances Vendor once. Raw KRI reconciliation adapters retain their existing absence of a Vendor increment. |
+| Asset edit/archive/restore | Asset advances once. Approved edit/archive also advances each captured downstream Vendor once; ordinary direct edit/archive/restore does not. |
+| Asset relationship | A direct Asset-to-Asset change advances both distinct Assets; Asset-to-Risk or Asset-to-Vendor advances Asset only. Approved replay advances the captured Asset and Vendor rows once. Existing dangling-unlink fallbacks retain their original supplied row set. |
+| Asset orphan repair | Asset advances once even for same-owner repair. Approved reassignment follows the edit cascade and completes every eligible captured or late owner orphan. |
+| Threat edit | An accepted edit advances Threat once; ordinary no-op edits return before application. |
+| Threat orphan repair | Direct repair advances only when stewardship changes and always completes the orphan. Approved reassignment advances once and completes the orphan. |
+
+Asset and Threat orphan completion belongs to their edit apply step, as for
+Vendor. Threat create/archive/restore and legacy Risk/Control/KRI orphan
+workflows retain their separate existing owners; they are outside this governed
+operation extraction.
+
+Process creation, edit and archive state is applied in
+`_ict_register_lifecycle.process_apply`. Process relationships use the existing
+`process_relationships` owner, whose state step is shared by direct endpoints
+and approved replay. Creation assigns the initial version and stable F-code;
+accepted changes advance each supplied impacted row once. Callers discover,
+lock and validate the affected rows before application.
+
+| Process operation | Direct application | Approved replay |
+| --- | --- | --- |
+| Edit or archive | Process and all linked Assets advance once; downstream Vendors retain their versions. | Process and captured impacted Assets and Vendors advance once. |
+| Restore | Process and all linked Assets advance once; downstream Vendors retain their versions. | Restore remains direct. |
+| Risk or Vendor relationship | Process advances once. | Process and captured impacted Assets and Vendors advance once. |
+| Asset relationship, including primary swap | Process, any demoted Process and the linked Asset advance once. | Process, any demoted Process and captured impacted Assets and Vendors advance once. |
+| Direct orphan repair | Process advances once, including same-owner repair, and the orphan completes; no downstream rows advance. | Reassignment is an edit with the approved edit impact set and orphan completion. |
+
+The downstream-Vendor difference between direct and approved Process edits
+is intentional existing behavior. Changing it requires an ADR-016 amendment.
+Ordinary direct Process no-op edits and unchanged relationship updates return
+before application. Existing guards still prevent duplicate approval replay.
+
 ## Boundaries
 
 - Proposal intake and proposal-specific lifecycle behavior belong here.

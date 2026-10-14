@@ -25,6 +25,7 @@ from app.models.vendor import Vendor
 from app.schemas.asset import AssetUpdate
 from app.schemas.vendor import VendorUpdate
 from app.services._asset_owner_lock import lock_asset_for_owner_mutation
+from app.services._ict_register_lifecycle.asset_apply import AssetOrphanCompletion, apply_asset_edit
 from app.services._ict_register_lifecycle.asset_policy import (
     assert_active_asset_department,
     assert_active_asset_owner,
@@ -33,9 +34,12 @@ from app.services._ict_register_lifecycle.policy import (
     assert_active_owning_department,
     assert_active_process_owner,
 )
+from app.services._ict_register_lifecycle.process_apply import ProcessOrphanCompletion, apply_process_edit
+from app.services._ict_register_lifecycle.threat_apply import ThreatOrphanCompletion, apply_threat_edit
 from app.services._ict_register_lifecycle.threat_policy import assert_active_ciso_steward
 from app.services._process_owner_lock import lock_process_for_owner_mutation
 from app.services._threat_stewardship_lock import acquire_threat_steward_identity_locks
+from app.services._vendor_governance import VendorOrphanCompletion, apply_vendor_edit
 from app.services._vendor_owner_lock import lock_vendor_for_owner_mutation
 from app.services.transaction_boundary import commit_service_boundary
 
@@ -428,9 +432,13 @@ async def resolve_orphan(
             threat,
             {"threat_steward_user_id": new_owner_id},
         )
-        if threat.threat_steward_user_id != new_steward.id:
-            threat.governance_version += 1
-        threat.threat_steward = new_steward
+        apply_threat_edit(
+            threat=threat,
+            updates={"threat_steward_user_id": new_steward.id},
+            steward=new_steward,
+            orphan_completion=ThreatOrphanCompletion(orphan, resolved_by_id),
+            version_rule="steward_changed",
+        )
         await log_activity(
             db,
             entity_type=ActivityEntityType.THREAT,
@@ -444,11 +452,11 @@ async def resolve_orphan(
         )
         logger.info("Reassigned threat %s to CISO user %s", threat.id, new_owner_id)
 
-    # Mark orphan as resolved
-    orphan.status = "resolved"
-    orphan.resolved_at = utc_now()
-    orphan.resolved_by_id = resolved_by_id
-    orphan.new_owner_id = new_owner_id
+    if orphan.item_type != "threat":
+        orphan.status = "resolved"
+        orphan.resolved_at = utc_now()
+        orphan.resolved_by_id = resolved_by_id
+        orphan.new_owner_id = new_owner_id
 
     await commit_service_boundary(db, boundary="orphaned_items.resolve")
 
@@ -1074,11 +1082,13 @@ async def _resolve_process_orphan(
             "owning_department_id": target_dept_id,
         },
     )
-    process.process_owner = new_process_owner
-    process.process_owner_user_id = new_owner_id
-    process.owning_department = owning_department
-    process.owning_department_id = target_dept_id
-    process.governance_version += 1
+    apply_process_edit(
+        process=process,
+        updates={"process_owner_user_id": new_owner_id, "owning_department_id": target_dept_id},
+        owner=new_process_owner,
+        department=owning_department,
+        orphan_completion=ProcessOrphanCompletion(orphan, resolved_by_id),
+    )
     resolving_user = await db.get(User, resolved_by_id)
     await log_activity(
         db,
@@ -1092,11 +1102,6 @@ async def _resolve_process_orphan(
         changes=process_changes,
         description=f"Resolved orphaned process via governance workflow #{orphan.id}",
     )
-
-    orphan.status = "resolved"
-    orphan.resolved_at = utc_now()
-    orphan.resolved_by_id = resolved_by_id
-    orphan.new_owner_id = new_owner_id
     await commit_service_boundary(db, boundary="orphaned_items.resolve")
     return orphan
 
@@ -1183,10 +1188,13 @@ async def _resolve_vendor_orphan(
         vendor,
         {"outsourcing_owner_user_id": new_owner_id},
     )
-    if vendor.outsourcing_owner_user_id != new_owner_id:
-        vendor.governance_version += 1
-    vendor.outsourcing_owner = new_owner
-    vendor.outsourcing_owner_user_id = new_owner_id
+    apply_vendor_edit(
+        vendor=vendor,
+        updates={"outsourcing_owner_user_id": new_owner_id},
+        outsourcing_owner=new_owner,
+        orphan_completion=VendorOrphanCompletion(orphan, resolved_by_id),
+        version_rule="owner_changed",
+    )
 
     resolving_user = await db.get(User, resolved_by_id)
     await log_activity(
@@ -1202,10 +1210,6 @@ async def _resolve_vendor_orphan(
         description=f"Resolved orphaned Vendor via governance workflow #{orphan.id}",
     )
 
-    orphan.status = "resolved"
-    orphan.resolved_at = utc_now()
-    orphan.resolved_by_id = resolved_by_id
-    orphan.new_owner_id = new_owner_id
     await commit_service_boundary(db, boundary="orphaned_items.resolve")
     return orphan
 
@@ -1329,15 +1333,14 @@ async def _resolve_asset_orphan(
             "owning_department_id": target_department_id,
         },
     )
-    if orphan.responsibility_role == "business_owner":
-        asset.business_owner = new_owner
-        asset.business_owner_user_id = new_owner_id
-    else:
-        asset.ict_owner = new_owner
-        asset.ict_owner_user_id = new_owner_id
-    asset.owning_department = owning_department
-    asset.owning_department_id = target_department_id
-    asset.governance_version += 1
+    apply_asset_edit(
+        asset=asset,
+        updates={owner_field: new_owner_id, "owning_department_id": target_department_id},
+        business_owner=new_owner if orphan.responsibility_role == "business_owner" else None,
+        ict_owner=new_owner if orphan.responsibility_role == "ict_owner" else None,
+        department=owning_department,
+        orphan_completions=(AssetOrphanCompletion(orphan, resolved_by_id),),
+    )
 
     resolving_user = await db.get(User, resolved_by_id)
     await log_activity(
@@ -1352,10 +1355,5 @@ async def _resolve_asset_orphan(
         changes=changes,
         description=("Resolved orphaned Asset " f"{orphan.responsibility_role} via governance workflow #{orphan.id}"),
     )
-
-    orphan.status = "resolved"
-    orphan.resolved_at = utc_now()
-    orphan.resolved_by_id = resolved_by_id
-    orphan.new_owner_id = new_owner_id
     await commit_service_boundary(db, boundary="orphaned_items.resolve")
     return orphan
