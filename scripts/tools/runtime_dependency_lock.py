@@ -229,6 +229,21 @@ def validate(directory: Path) -> dict:
     return manifest
 
 
+def validate_activation(directory: Path) -> None:
+    """Never regenerate away missing inputs already required by production."""
+    dockerfile = (BACKEND / "Dockerfile").read_text()
+    activated = LOCK_RELATIVE in dockerfile or re.search(
+        r"requirements-(?:runtime|dbtasks|pip)\.lock", dockerfile
+    )
+    if activated and not directory.is_dir():
+        raise ValueError("activated Dockerfile requires committed runtime locks and provenance")
+    if directory.exists():
+        # In CI this runs before generated files are copied into the checkout.
+        # Missing/partial/stale committed provenance must fail, even when a
+        # freshly generated candidate is valid and available for review.
+        validate(directory)
+
+
 def generate(directory: Path) -> None:
     assert_platform()
     manifest = {"schema": 1, "target": TARGET, "image": base_image(), "pip": PIP_VERSION,
@@ -298,7 +313,7 @@ def candidate_dockerfile(directory: Path, output: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["generate", "validate", "verify", "dockerfile"])
+    parser.add_argument("command", choices=["generate", "validate", "verify", "dockerfile", "preflight"])
     parser.add_argument("--lock-dir", type=Path, default=BACKEND / LOCK_RELATIVE)
     parser.add_argument("--output", type=Path, help="candidate Dockerfile destination; never the production Dockerfile")
     args = parser.parse_args()
@@ -308,6 +323,9 @@ def main() -> int:
             generate(directory)
         elif args.command == "verify":
             verify(directory)
+        elif args.command == "preflight":
+            validate_activation(directory)
+            print("Production lock activation contract: valid")
         elif args.command == "validate":
             validate(directory)
             print("Runtime and DB-task lock provenance, hashes and dependency closure: valid")

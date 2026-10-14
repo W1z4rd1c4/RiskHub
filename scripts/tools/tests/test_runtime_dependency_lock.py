@@ -184,6 +184,38 @@ class RuntimeLockTests(unittest.TestCase):
             self.assertIn("--force-reinstall", command)
             self.assertIn("--require-hashes", command)
 
+    def test_activated_dockerfile_cannot_lose_its_lock_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            backend = Path(tmp)
+            for reference in [lock.LOCK_RELATIVE, "requirements-runtime.lock"]:
+                (backend / "Dockerfile").write_text(f"COPY {reference} /app/\n")
+                with patch.object(lock, "BACKEND", backend), self.subTest(reference=reference):
+                    with self.assertRaisesRegex(ValueError, "requires committed runtime locks and provenance"):
+                        lock.validate_activation(backend / lock.LOCK_RELATIVE)
+
+    def test_initial_generation_is_allowed_without_activated_dockerfile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            backend = Path(tmp)
+            (backend / "Dockerfile").write_text("COPY requirements-runtime.txt /app/\n")
+            with patch.object(lock, "BACKEND", backend), patch.object(lock, "validate") as validate:
+                lock.validate_activation(backend / lock.LOCK_RELATIVE)
+                validate.assert_not_called()
+
+    def test_activated_lock_directory_requires_provenance_before_overlay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            backend = Path(tmp)
+            (backend / "Dockerfile").write_text(f"COPY {lock.LOCK_RELATIVE}/requirements-runtime.lock /app/\n")
+            directory = backend / lock.LOCK_RELATIVE
+            directory.mkdir(parents=True)
+            (directory / "requirements-runtime.lock").write_text("# incomplete fixture\n")
+            with patch.object(lock, "BACKEND", backend), self.assertRaises(FileNotFoundError):
+                lock.validate_activation(directory)
+
+    def test_activation_guard_is_before_generated_overlay(self):
+        workflow = (lock.ROOT / ".github/workflows/python-runtime-lock.yml").read_text()
+        self.assertLess(workflow.index("runtime_dependency_lock.py preflight"),
+                        workflow.index('cp "$RUNNER_TEMP/runtime-lock/first/"* "$lock_dir/"'))
+
     def test_bootstrap_requires_the_reviewed_pip_hash(self):
         report = self.report()
         report["install"][0]["download_info"]["archive_info"]["hashes"]["sha256"] = "0" * 64

@@ -65,6 +65,8 @@ jobs:
       - name: Compare committed locks and prepare candidate build context
         run: |
           set -euo pipefail
+          # Check committed inputs before overlaying any generated candidates.
+          python3 scripts/tools/runtime_dependency_lock.py preflight
           lock_dir=backend/locks/cpython313-alpine324-x86_64
           if [ -d "$lock_dir" ]; then
             diff -ru "$lock_dir" "$RUNNER_TEMP/runtime-lock/first"

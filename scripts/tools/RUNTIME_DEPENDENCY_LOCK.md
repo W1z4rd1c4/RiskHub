@@ -82,8 +82,12 @@ CI again against that commit before approval. The workflow compares committed
 locks byte-for-byte against a fresh native resolution after activation and
 requires the committed production Dockerfile to equal the hash-enforced candidate.
 That equality gate prevents a secure rewritten candidate from hiding a hash
-bypass in the real production install flow. Do not
-commit the redundant `second/` directory or verification logs as dependency inputs.
+bypass in the real production install flow. Before generated files are copied
+into the checkout, an activation preflight requires the committed lock directory
+and valid provenance whenever production references a lock. Deleting that directory
+cannot silently return an activated build to initial-generation mode. Candidate
+artifacts from a failed check are available only for diagnosis and reviewed repair.
+Do not commit the redundant `second/` directory or verification logs as dependency inputs.
 Never replace a missing/stale lock with an unlocked resolver fallback.
 
 The cutover only replaces the two builder install blocks. It preserves pinned
