@@ -28,7 +28,7 @@ class TestLogRotationConfig:
 
     def test_configure_logging_uses_defaults_when_none(self):
         """Test that configure_logging uses defaults when not specified."""
-        from app.core.logging import DEFAULT_LOG_ROTATION_SIZE_MB, configure_logging
+        from app.core.logging import configure_logging, get_active_logging_config, get_log_settings
 
         # Configure without specifying rotation (uses defaults)
         configure_logging()
@@ -36,11 +36,37 @@ class TestLogRotationConfig:
         root_logger = logging.getLogger()
         rotating_handlers = [h for h in root_logger.handlers if isinstance(h, logging.handlers.RotatingFileHandler)]
 
-        # Check at least one handler uses defaults
-        if rotating_handlers:
-            handler = rotating_handlers[0]
-            expected_bytes = DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024
-            assert handler.maxBytes == expected_bytes
+        app_handler = next(h for h in rotating_handlers if "app.json.log" in str(h.baseFilename))
+        audit_handler = next(h for h in rotating_handlers if "audit.json.log" in str(h.baseFilename))
+        assert (app_handler.maxBytes, app_handler.backupCount) == (10 * 1024 * 1024, 10)
+        assert (audit_handler.maxBytes, audit_handler.backupCount) == (50 * 1024 * 1024, 30)
+        assert get_log_settings() == (10 * 1024 * 1024, 10, 50 * 1024 * 1024, 30)
+        assert get_active_logging_config()["audit_rotation_size_mb"] == 50
+        assert get_active_logging_config()["audit_retention_count"] == 30
+
+    def test_audit_rotation_keeps_newest_default_backup_count(self, tmp_path):
+        from app.core.logging import DEFAULT_AUDIT_LOG_RETENTION_COUNT
+        from app.core.logging_handlers import build_file_handler
+
+        log_file = tmp_path / "audit.json.log"
+        handler = build_file_handler(
+            log_file=str(log_file),
+            size_bytes=64,  # Small threshold exercises rollover without writing MiB of test data.
+            backup_count=DEFAULT_AUDIT_LOG_RETENTION_COUNT,
+            formatter=logging.Formatter("%(message)s"),
+            audit=True,
+        )
+        messages = [f"entry-{index:02d}: " + "x" * 40 for index in range(35)]
+        try:
+            for message in messages:
+                handler.handle(logging.LogRecord("audit", logging.INFO, __file__, 0, message, (), None))
+        finally:
+            handler.close()
+
+        assert len(list(tmp_path.glob("audit.json.log*"))) == 31
+        assert log_file.read_text().strip() == messages[-1]
+        assert (tmp_path / "audit.json.log.1").read_text().strip() == messages[-2]
+        assert (tmp_path / "audit.json.log.30").read_text().strip() == messages[4]
 
     def test_resolve_logging_config_applies_shared_and_per_handler_overrides(self):
         from app.core.logging import _resolve_logging_config

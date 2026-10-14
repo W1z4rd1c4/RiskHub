@@ -4,6 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import (
+    DEFAULT_AUDIT_LOG_RETENTION_COUNT,
+    DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
+    DEFAULT_LOG_RETENTION_COUNT,
+    DEFAULT_LOG_ROTATION_SIZE_MB,
     configure_logging_from_snapshot,
     get_active_logging_config,
     get_logger,
@@ -28,11 +32,10 @@ async def get_log_config(
     """Get current log rotation settings (separate for app and audit logs)."""
     from app.models.global_config import get_config_int
 
-    # Default values must match logging.py (10MB, 10 files)
-    app_size = await get_config_int(db, "app_log_rotation_size_mb", 10)
-    app_count = await get_config_int(db, "app_log_retention_count", 10)
-    audit_size = await get_config_int(db, "audit_log_rotation_size_mb", 10)
-    audit_count = await get_config_int(db, "audit_log_retention_count", 10)
+    app_size = await get_config_int(db, "app_log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
+    app_count = await get_config_int(db, "app_log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
+    audit_size = await get_config_int(db, "audit_log_rotation_size_mb", DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB)
+    audit_count = await get_config_int(db, "audit_log_retention_count", DEFAULT_AUDIT_LOG_RETENTION_COUNT)
 
     return LogConfig(
         app_log_rotation_size_mb=app_size,
