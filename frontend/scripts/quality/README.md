@@ -8,6 +8,7 @@ Folder for `frontend/scripts/quality` implementation assets.
 
 - `debt-allowlist.json`
 - `debt-budget.mjs`
+- `test-tooling.test.mjs`
 - `ui-consistency-baseline.json`
 - `ui-consistency-ratchet.mjs`
 - `validate-debt-budget-report.mjs`
@@ -17,6 +18,10 @@ Folder for `frontend/scripts/quality` implementation assets.
 - `validate-no-inline-styles.mjs`
 
 ## Notes
+
+- `test-tooling.test.mjs` (`npm run quality:test-tooling`) verifies centralized
+  frontend test discovery, typed lint/module resolution and the coverage
+  denominator/floors without running application suites.
 
 - `validate-font-assets.mjs` runs after production builds and requires every vendored WOFF2
   file to be emitted byte-for-byte, present in the Vite manifest, and referenced by built CSS.

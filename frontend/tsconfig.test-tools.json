@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.test-base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test-tools.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": [
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "../tests/frontend/unit/vitest.config.ts",
+    "../tests/frontend/e2e/playwright.config.ts"
+  ]
+}
