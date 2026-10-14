@@ -46,15 +46,12 @@ from app.services._monitoring_status import (
 )
 from app.services._register_listings import (
     RISK_BANDS,
-    AssetListCriteria,
-    ProcessListCriteria,
-    build_asset_listing,
-    build_process_listing,
     can_view_vendor_full_derivation,
     list_vendor_governance,
 )
 from app.services.kri_populations import live_clause
 
+from ._register_counts import load_department_register_counts
 from ._shared import _assert_department_in_scope
 
 router = APIRouter()
@@ -239,23 +236,12 @@ async def get_department(
         ).scalar()
         or 0
     )
-    process_count = 0
-    critical_process_count = 0
-    cif_process_count = 0
-    if can_read_processes:
-        process_listing = await build_process_listing(
-            db,
-            current_user=current_user,
-            criteria=ProcessListCriteria(
-                department_ids=(department_id,),
-            ),
-        )
-        process_count = len(process_listing.matching_items)
-        critical_process_count = _facet_count(
-            process_listing.facets.get("criticality", []),
-            "critical",
-        )
-        cif_process_count = _facet_count(process_listing.facets.get("cif", []), "yes")
+    register_counts = await load_department_register_counts(
+        db, department_id=department_id, current_user=current_user
+    )
+    process_count = register_counts.process_count
+    critical_process_count = register_counts.critical_process_count
+    cif_process_count = register_counts.cif_process_count
     asset_accountability_gap_count = int(
         (
             await db.execute(
@@ -272,23 +258,9 @@ async def get_department(
         ).scalar()
         or 0
     )
-    asset_count = 0
-    critical_asset_count = 0
-    legacy_asset_count = 0
-    if can_read_assets:
-        asset_listing = await build_asset_listing(
-            db,
-            current_user=current_user,
-            criteria=AssetListCriteria(
-                department_ids=(department_id,),
-            ),
-        )
-        asset_count = len(asset_listing.matching_items)
-        critical_asset_count = _facet_count(
-            asset_listing.facets.get("criticality", []),
-            "critical",
-        )
-        legacy_asset_count = _facet_count(asset_listing.facets.get("legacy", []), "yes")
+    asset_count = register_counts.asset_count
+    critical_asset_count = register_counts.critical_asset_count
+    legacy_asset_count = register_counts.legacy_asset_count
     significant_vendor_count = int(
         (
             await db.execute(
