@@ -33,7 +33,7 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 import asyncio
 import sys
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, AsyncGenerator, AsyncIterator, Callable, Generator
@@ -149,6 +149,10 @@ class RedactingSnapshotExtension(AmberSnapshotExtension):
 
     @classmethod
     def _redact(cls, data: Any) -> Any:
+        # Normalize dataclasses before Amber sees them: Syrupy 6 serializes their
+        # fields natively, while older versions use repr, bypassing dict redaction.
+        if is_dataclass(data) and not isinstance(data, type):
+            return cls._redact({field.name: getattr(data, field.name) for field in fields(data)})
         if isinstance(data, dict):
             return {
                 key: "<redacted>" if cls._should_redact_key(str(key)) else cls._redact(value)

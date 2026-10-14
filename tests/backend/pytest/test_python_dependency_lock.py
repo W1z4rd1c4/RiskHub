@@ -6,9 +6,11 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+from zipfile import ZipFile
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/tools/validate_python_dependency_lock.py"
@@ -19,6 +21,7 @@ PERMISSION_HELPER = (
 ENTRYPOINT = REPO_ROOT / "backend/requirements-dev.txt"
 BACKEND_README = REPO_ROOT / "backend/README.md"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
+POSTGRES_WORKFLOW = REPO_ROOT / ".github/workflows/backend-postgres.yml"
 
 
 def _permission_module() -> ModuleType:
@@ -43,6 +46,219 @@ def _dependency_lock_module() -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _dependency_refresher_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("riskhub_dependency_refresher", REFRESHER)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_bounded_refresh_retains_every_unselected_pin(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text(
+        "# generated\nruff==0.6.9\nmypy==2.3.1\n"
+        "pydantic==2.13.5\npydantic_core==2.46.5\nSQLAlchemy-Utils==0.41.2\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    assert module._retained_constraints(["RUFF", "sqlalchemy_utils"]) == (
+        "mypy==2.3.1\npydantic==2.13.5\npydantic_core==2.46.5\n"
+    )
+
+
+@pytest.mark.parametrize("selection", [["rufff"], ["ruff>=0.16"], ["not-installed"]])
+def test_bounded_refresh_rejects_unknown_selection(selection, tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("ruff==0.6.9\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    with pytest.raises(ValueError, match="absent from existing lock"):
+        module._retained_constraints(selection)
+
+
+@pytest.mark.parametrize("invalid", ["mypy>=2", "mypy==2.*", "mypy==2; python_version > '3'", "-r other.txt"])
+def test_bounded_refresh_rejects_nonexact_existing_lock(invalid, tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text(f"ruff==0.6.9\n{invalid}\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    with pytest.raises(ValueError, match="non-exact index pin"):
+        module._retained_constraints(["ruff"])
+
+
+def test_bounded_refresh_rejects_duplicate_canonical_names(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("SQLAlchemy-Utils==0.41.2\nsqlalchemy_utils==0.42.1\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    with pytest.raises(ValueError, match="duplicate package: sqlalchemy-utils"):
+        module._retained_constraints(["sqlalchemy-utils"])
+
+
+@pytest.mark.parametrize("resolved", ["pydantic_core==2.49.0\n", "ruff==0.16.10\n"])
+def test_bounded_refresh_rejects_changed_or_missing_retained_dependency(resolved):
+    module = _dependency_refresher_module()
+
+    with pytest.raises(ValueError, match="changed or removed unselected pin: pydantic_core==2.46.5"):
+        module._validate_retained_pins("pydantic_core==2.46.5\n", resolved)
+
+
+def test_bounded_refresh_accepts_canonical_name_equivalence():
+    module = _dependency_refresher_module()
+    module._validate_retained_pins("pydantic_core==2.46.5\n", "pydantic-core==2.46.5\n")
+
+
+def test_bounded_refresh_can_explicitly_select_every_existing_pin(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("ruff==0.6.9\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+
+    retained = module._retained_constraints(["ruff"])
+
+    assert retained == ""
+    module._validate_retained_pins(retained, "ruff==0.16.10\n")
+
+
+def test_bounded_generator_applies_constraints_and_checks_installed_dependencies(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    lock = tmp_path / "lock.txt"
+    lock.write_text("ruff==0.6.9\npydantic_core==2.46.5\n", encoding="utf-8")
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+    monkeypatch.setattr(module, "sys", SimpleNamespace(executable="python3.13", version_info=(3, 13)))
+    calls = []
+
+    def run(command, *, cwd=None):
+        calls.append(command)
+        if "-r" in command:
+            assert command[command.index("-r") + 1] == str(module.INPUT)
+            retained = Path(command[command.index("-c") + 1]).read_text(encoding="utf-8")
+            assert retained == "pydantic_core==2.46.5\n"
+
+    def freeze(command, **kwargs):
+        assert calls[-1][-3:] == ["-m", "pip", "check"]
+        assert command[-4:] == ["-m", "pip", "freeze", "--all"]
+        return subprocess.CompletedProcess(command, 0, "ruff==0.16.10\npydantic_core==2.46.5\n", "")
+
+    monkeypatch.setattr(module, "_run", run)
+    monkeypatch.setattr(module.subprocess, "run", freeze)
+
+    result = module.generate_lock(upgrade_packages=["ruff"])
+
+    assert result == module.LOCK_HEADER + "pydantic_core==2.46.5\nruff==0.16.10\n"
+    assert calls[0][1:3] == ["-m", "venv"]
+
+
+def test_bounded_generator_installs_retained_package_no_longer_reachable_from_inputs(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    for name, version in [("riskhub-selected-probe", "2.0"), ("riskhub-retained-probe", "1.0")]:
+        distribution = name.replace("-", "_")
+        metadata = f"{distribution}-{version}.dist-info"
+        files = {
+            f"{metadata}/METADATA": f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n",
+            f"{metadata}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
+        }
+        files[f"{metadata}/RECORD"] = "".join(f"{path},,\n" for path in files) + f"{metadata}/RECORD,,\n"
+        with ZipFile(wheels / f"{distribution}-{version}-py3-none-any.whl", "w") as wheel:
+            for path, content in files.items():
+                wheel.writestr(path, content)
+    intent = tmp_path / "requirements.in"
+    intent.write_text("riskhub-selected-probe==2.0\n", encoding="utf-8")
+    lock = tmp_path / "lock.txt"
+    lock.write_text("riskhub-selected-probe==1.0\nriskhub-retained-probe==1.0\n", encoding="utf-8")
+    monkeypatch.setattr(module, "INPUT", intent)
+    monkeypatch.setattr(module, "DEV_LOCK", lock)
+    monkeypatch.setenv("PIP_NO_INDEX", "1")
+    monkeypatch.setenv("PIP_FIND_LINKS", wheels.as_uri())
+    run = module._run
+
+    def offline_run(command, *, cwd=None):
+        # Use venv's bundled pip for this offline solver fixture. The production
+        # bootstrap version and command remain covered by the contract tests.
+        if command[-2:] != ["--upgrade", f"pip=={module.PIP_VERSION}"]:
+            run(command, cwd=cwd)
+
+    monkeypatch.setattr(module, "_run", offline_run)
+
+    result = module.generate_lock(upgrade_packages=["riskhub-selected-probe"])
+
+    assert "riskhub-selected-probe==2.0\n" in result
+    assert "riskhub-retained-probe==1.0\n" in result
+
+
+def test_bounded_resolver_conflict_leaves_all_generated_surfaces_untouched(tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    original = {}
+    for attribute in ("INPUT", "DEV_LOCK", "AUDIT_LOCK", "ENTRYPOINT"):
+        path = tmp_path / attribute
+        path.write_bytes(f"original {attribute}\n".encode())
+        monkeypatch.setattr(module, attribute, path)
+        original[path] = path.read_bytes()
+
+    def resolver_conflict(*, upgrade_packages):
+        assert upgrade_packages == ["mypy"]
+        raise subprocess.CalledProcessError(1, ["pip", "install"])
+
+    monkeypatch.setattr(module, "generate_lock", resolver_conflict)
+    with pytest.raises(subprocess.CalledProcessError):
+        module.refresh(check=False, upgrade_packages=["mypy"])
+
+    assert {path: path.read_bytes() for path in original} == original
+
+
+@pytest.mark.parametrize("mode", ["check", "pip-check-failure"])
+def test_bounded_refresh_preserves_all_output_bytes_without_successful_write(mode, tmp_path, monkeypatch):
+    module = _dependency_refresher_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    original = {}
+    for attribute, content in {
+        "INPUT": "ruff==0.16.10\n",
+        "DEV_LOCK": "ruff==0.6.9\npydantic_core==2.46.5\n",
+        "AUDIT_LOCK": "ruff==0.6.9\npydantic_core==2.46.5\n",
+        "ENTRYPOINT": "original wrapper and digests\n",
+    }.items():
+        path = tmp_path / attribute
+        path.write_bytes(content.encode())
+        monkeypatch.setattr(module, attribute, path)
+        original[path] = path.read_bytes()
+    monkeypatch.setattr(
+        module, "sys", SimpleNamespace(executable="python3.13", version_info=(3, 13), stderr=sys.stderr)
+    )
+    calls = []
+
+    def run(command, *, cwd=None):
+        calls.append(command)
+        if "-r" in command:
+            assert Path(command[command.index("-c") + 1]).read_text() == "pydantic_core==2.46.5\n"
+        if command[-3:] == ["-m", "pip", "check"] and mode == "pip-check-failure":
+            raise subprocess.CalledProcessError(1, command)
+
+    def freeze(command, **kwargs):
+        assert calls[-1][-3:] == ["-m", "pip", "check"]
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "ruff==0.16.10\npydantic_core==2.46.5\n", "")
+
+    monkeypatch.setattr(module, "_run", run)
+    monkeypatch.setattr(module.subprocess, "run", freeze)
+
+    if mode == "check":
+        assert module.refresh(check=True, upgrade_packages=["ruff"]) == 1
+        assert calls[-1][-4:] == ["-m", "pip", "freeze", "--all"]
+    else:
+        with pytest.raises(subprocess.CalledProcessError):
+            module.refresh(check=False, upgrade_packages=["ruff"])
+        assert calls[-1][-3:] == ["-m", "pip", "check"]
+    assert {path: path.read_bytes() for path in original} == original
 
 
 def _temporary_dependency_lock(
@@ -119,6 +335,46 @@ def test_backend_development_dependency_lock_contract():
     )
 
 
+def test_hosted_postgres_runs_opted_in_tooling_probes_with_exact_source_evidence():
+    workflow = yaml.safe_load(POSTGRES_WORKFLOW.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["postgres-tests"]
+    steps = job["steps"]
+    probe_steps = [
+        step for step in steps
+        if "scripts/tools/probe_python_tooling.py" in step.get("run", "")
+    ]
+    assert len(probe_steps) == 1
+    probe = probe_steps[0]
+    assert probe["env"]["RISKHUB_TOOLING_PROBE_POSTGRES"] == "1"
+    assert (
+        probe["env"]["PGPASSWORD"]
+        == job["services"]["postgres"]["env"]["POSTGRES_PASSWORD"]
+    )
+    assert "TEST_DATABASE_URL" not in probe["env"]
+    assert "--postgresql-user=riskhub" in probe["run"]
+    assert "--junitxml=" in probe["run"]
+    assert probe["run"].index("pip check") < probe["run"].index("python -m pytest")
+    assert "steps.backend-install.outcome == 'success'" in probe["if"]
+    assert probe.get("continue-on-error", False) is False
+    assert job.get("continue-on-error", False) is False
+
+    source = next(step for step in steps if "manifests.sha256" in step.get("run", ""))
+    assert (
+        source["env"]["EXPECTED_SOURCE_SHA"]
+        == "${{ github.event.pull_request.head.sha || github.sha }}"
+    )
+    assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"' in source["run"]
+    for evidence in ("commit.txt", "tree.txt", "versions.json", "pip freeze --all"):
+        assert evidence in source["run"]
+    artifact = next(
+        step for step in steps
+        if step.get("with", {}).get("name", "").startswith("python-tooling-")
+    )
+    assert artifact["if"] == "always()"
+    assert "github.event.pull_request.head.sha || github.sha" in artifact["with"]["name"]
+    assert artifact["with"]["if-no-files-found"] == "error"
+
+
 def test_dependency_lock_rejects_unsafe_pip(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -182,19 +438,21 @@ def test_dependency_lock_rejects_refresher_pip_version_regression(
     )
 
 
-def test_dependency_lock_rejects_syrupy_intent_regression(
+@pytest.mark.parametrize("intent", ["4.6.*", "5.0.*", "6.*", "6.1.*", "6.1.0", "6.2.0"])
+def test_dependency_lock_rejects_unreviewed_syrupy_intent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    intent: str,
 ):
     module = _temporary_dependency_lock(
         tmp_path,
         monkeypatch,
         replacements={},
-        syrupy_intent_override="4.6.*",
+        syrupy_intent_override=intent,
     )
 
     assert (
-        "requirements-dev.in must request syrupy==5.0.* exactly"
+        "requirements-dev.in must request syrupy==6.1.1 exactly"
         in module.validate()
     )
 
