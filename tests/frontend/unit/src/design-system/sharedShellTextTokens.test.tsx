@@ -62,7 +62,7 @@ describe('shared shell text tokens', () => {
             <ConfirmDialog
                 isOpen
                 onClose={vi.fn()}
-                onConfirm={vi.fn(async () => undefined)}
+                onConfirm={vi.fn(() => Promise.resolve(undefined))}
                 intent="archive"
                 entityLabel="Risk"
                 entityName="Vendor outage"

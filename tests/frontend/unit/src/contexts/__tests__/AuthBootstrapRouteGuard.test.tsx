@@ -12,7 +12,7 @@ import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness'
 import { __resetSilentSessionRefreshForTests } from '@/services/session/coordinator';
 
 vi.mock('@/utils/userSettingsStorage', () => ({
-    syncPreferencesFromServer: vi.fn(async () => undefined),
+    syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
     clearLocalSettings: vi.fn(),
 }));
 
@@ -53,7 +53,7 @@ describe('ProtectedRoute bootstrap failure handling', () => {
 
     it('redirects to login with a stable auth error reason when bootstrap times out', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/config')) {
                 return Promise.resolve(new Response(JSON.stringify({
                     auth_mode: 'hybrid_dev',
@@ -110,7 +110,7 @@ describe('ProtectedRoute bootstrap failure handling', () => {
 
     it('keeps the protected shell in loading state while token bootstrap is still resolving', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/config')) {
                 return Promise.resolve(new Response(JSON.stringify({
                     auth_mode: 'hybrid_dev',

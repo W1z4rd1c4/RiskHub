@@ -19,6 +19,8 @@ describe('Vendor type post-status-drop', () => {
             id: 1,
             name: 'X',
             outsourcing_owner_user_id: 1,
+            owner_orphaned: false,
+            ownership_status: 'assigned',
             linked_risks: [],
             vendor_type: 'ict',
             risk_score_1_5: 1,
@@ -32,14 +34,14 @@ describe('Vendor type post-status-drop', () => {
             updated_at: 'now',
         };
         // @ts-expect-error status field must not exist on Vendor
-        const s = v.status;
+        const s: unknown = v.status;
         expect(s).toBeUndefined();
     });
 
     it('VendorListParams has no status query field', () => {
         const p: VendorListParams = {};
         // @ts-expect-error status query removed
-        const s = p.status;
+        const s: unknown = p.status;
         expect(s).toBeUndefined();
     });
 });

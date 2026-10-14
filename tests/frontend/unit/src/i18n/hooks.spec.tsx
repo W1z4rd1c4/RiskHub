@@ -1,3 +1,4 @@
+import type * as ReactI18next from 'react-i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -8,7 +9,7 @@ import { useTranslation } from '@/i18n/hooks';
 const rawT = vi.fn((key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key);
 
 vi.mock('react-i18next', async () => {
-    const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
+    const actual = await vi.importActual<typeof ReactI18next>('react-i18next');
     return {
         ...actual,
         useTranslation: () => ({

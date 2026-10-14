@@ -6,11 +6,11 @@ import { installDialogContractApi } from '../../../e2e/helpers/dialogContractHar
 vi.mock('@playwright/test', () => ({ expect: vi.fn() }));
 
 async function requestFixture(path: string, method = 'GET') {
-    let handler: (route: Route) => Promise<void> = async () => { throw new Error('Route not installed'); };
+    let handler: (route: Route) => Promise<void> = () => { return Promise.reject(new Error('Route not installed')); };
     const unexpected: string[] = [];
-    const page = { route: vi.fn(async (_pattern: string, callback: (route: Route) => Promise<void>) => { handler = callback; }) } as unknown as Page;
+    const page = { route: vi.fn((_pattern: string, callback: (route: Route) => Promise<void>) => { handler = callback;  return Promise.resolve(); }) } as unknown as Page;
     await installDialogContractApi(page, unexpected);
-    const fulfill = vi.fn();
+    const fulfill = vi.fn<(response: { status: number; body: string }) => Promise<void>>().mockResolvedValue(undefined);
     await handler({
         request: () => ({ method: () => method, url: () => `http://localhost${path}` }),
         fulfill,

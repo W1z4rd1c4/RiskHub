@@ -72,7 +72,9 @@ export function normalizeCollectionResponse<
     TCapabilities extends object = CollectionCapabilities,
     TFacets = Record<string, unknown>,
 >(
-    response: CollectionResponseWithFacets<TItem, TCapabilities, TFacets> & LegacyPaginationFields,
+    response: Omit<CollectionResponseWithFacets<TItem, TCapabilities, TFacets>, 'offset' | 'limit'>
+        & Partial<Pick<CollectionResponseWithFacets<TItem, TCapabilities, TFacets>, 'offset' | 'limit'>>
+        & LegacyPaginationFields,
 ): CollectionResponseWithFacets<TItem, TCapabilities, TFacets> {
     return {
         ...response,
@@ -86,7 +88,7 @@ export function normalizeCollectionResponse<
     };
 }
 
-function normalizeCollectionOffset(response: { offset: number } & LegacyPaginationFields): number {
+function normalizeCollectionOffset(response: { offset?: number } & LegacyPaginationFields): number {
     if (typeof response.offset === 'number') {
         return response.offset;
     }
@@ -99,7 +101,7 @@ function normalizeCollectionOffset(response: { offset: number } & LegacyPaginati
     return 0;
 }
 
-function normalizeCollectionLimit(response: { limit: number } & LegacyPaginationFields): number {
+function normalizeCollectionLimit(response: { limit?: number } & LegacyPaginationFields): number {
     if (typeof response.limit === 'number') {
         return response.limit;
     }

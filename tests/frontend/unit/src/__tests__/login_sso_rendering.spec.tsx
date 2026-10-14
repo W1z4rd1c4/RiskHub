@@ -8,13 +8,15 @@ import LoginPage from '@/pages/LoginPage';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
 import { clearAccessToken, getAccessToken } from '@test/accessTokenStoreHarness';
 import { clearAuthConfigCache } from '@/services/authConfig';
-import { entraAuth } from '@/services/entraAuth';
+import type { entraAuth as importedEntraAuth } from '@/services/entraAuth';
+
+const entraAuth = vi.hoisted(() => ({
+    loginRedirect: vi.fn<typeof importedEntraAuth.loginRedirect>(() => { return Promise.resolve(); }),
+    handleRedirect: vi.fn<typeof importedEntraAuth.handleRedirect>(() => Promise.resolve(null)),
+  }));
 
 vi.mock('@/services/entraAuth', () => ({
-  entraAuth: {
-    loginRedirect: vi.fn(async () => {}),
-    handleRedirect: vi.fn(async () => null),
-  },
+  entraAuth,
 }));
 
 function renderLogin(initialEntry = '/login') {
@@ -153,9 +155,20 @@ describe('LoginPage (SSO + demo modes)', () => {
     );
 
     vi.mocked(entraAuth.handleRedirect).mockResolvedValue({
+      authority: 'https://login.microsoftonline.com/tenant-id',
+      uniqueId: 'user-id',
+      tenantId: 'tenant-id',
+      scopes: ['openid'],
+      account: { homeAccountId: 'home-account', localAccountId: 'user-id', environment: 'login.microsoftonline.com', tenantId: 'tenant-id', username: 'test@example.com' },
+      idTokenClaims: {},
+      accessToken: 'access-token',
+      fromCache: false,
+      expiresOn: null,
+      tokenType: 'Bearer',
+      correlationId: 'correlation-id',
       idToken: 'id-token',
       state: 'opaque-state',
-    } as unknown as { idToken: string; state: string });
+    });
 
     renderLogin('/auth/sso/callback');
 

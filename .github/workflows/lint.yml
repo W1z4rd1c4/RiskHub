@@ -41,6 +41,9 @@ jobs:
 
       - name: Lint centralized frontend tests and harnesses
         id: test-lint
+        # The complete strict test program exceeds Node’s default 2 GiB heap.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
         run: |
           set -euo pipefail
@@ -49,6 +52,9 @@ jobs:
 
       - name: Typecheck centralized frontend tests and harnesses
         id: test-typecheck
+        # The complete strict test program exceeds Node’s default 2 GiB heap.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
         run: |
           set -euo pipefail

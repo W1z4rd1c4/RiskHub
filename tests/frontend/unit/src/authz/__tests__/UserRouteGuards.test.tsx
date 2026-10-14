@@ -1,3 +1,4 @@
+import type * as UserSettingsStorage from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -14,19 +15,19 @@ import { UserLifecycleRouteGuard, UsersRouteGuard } from '@/authz/BusinessRouteG
 import { UsersPage } from '@/pages/UsersPage';
 import { UserNewPage } from '@/pages/UserNewPage';
 
-const mockGetAuthConfig = vi.fn();
+const mockGetAuthConfig = vi.hoisted(() => vi.fn());
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof UserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
 
 vi.mock('@/services/authConfig', () => ({
-    getAuthConfig: (...args: unknown[]) => mockGetAuthConfig(...args),
+    getAuthConfig: mockGetAuthConfig,
     clearAuthConfigCache: vi.fn(),
 }));
 

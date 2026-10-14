@@ -13,9 +13,10 @@ function pageForMarkup(markup: string) {
         const locator = {
             first: () => makeLocator(() => query().slice(0, 1)),
             or: (other: Locator) => makeLocator(() => [...query(), ...queries.get(other)!()]),
-            waitFor: async (options: { state: string; timeout: number }) => {
+            waitFor: (options: { state: string; timeout: number }) => {
                 waits(options);
-                if (query().length === 0) throw new Error('No approval cards or empty state');
+                if (query().length === 0) return Promise.reject(new Error('No approval cards or empty state'));
+                return Promise.resolve();
             },
         } as unknown as Locator;
         queries.set(locator, query);
@@ -24,7 +25,7 @@ function pageForMarkup(markup: string) {
     const page = {
         locator: vi.fn((selector: string) => makeLocator(() => Array.from(document.querySelectorAll(selector)))),
         waitForSelector: vi.fn().mockResolvedValue(null),
-    } as unknown as Page;
+    };
     return { page, waits };
 }
 
@@ -39,7 +40,7 @@ describe('ApprovalsPage list readiness', () => {
     ])('accepts %s through one completed locator wait', async (_state, markup) => {
         const { page, waits } = pageForMarkup(markup);
 
-        await new ApprovalsPage(page).waitForApprovalsReady();
+        await new ApprovalsPage(page as unknown as Page).waitForApprovalsReady();
 
         expect(page.locator).toHaveBeenCalledWith('.space-y-4 .glass-card');
         expect(page.locator).toHaveBeenCalledWith('.border-dashed');
@@ -52,7 +53,7 @@ describe('ApprovalsPage list readiness', () => {
     ])('does not treat %s as a ready list', async (_state, markup) => {
         const { page, waits } = pageForMarkup(markup);
 
-        await expect(new ApprovalsPage(page).waitForApprovalsReady(4321))
+        await expect(new ApprovalsPage(page as unknown as Page).waitForApprovalsReady(4321))
             .rejects.toThrow('No approval cards or empty state');
 
         expect(waits).toHaveBeenCalledExactlyOnceWith({ state: 'visible', timeout: 4321 });

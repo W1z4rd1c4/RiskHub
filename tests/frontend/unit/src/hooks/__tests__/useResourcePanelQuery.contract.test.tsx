@@ -12,11 +12,11 @@ interface FakeItem {
 
 const def = {
     queryKey: ['fake', 'list'] as const,
-    list: vi.fn(async () => [{ id: 1, name: 'A' }, { id: 2, name: 'B' }]),
-    create: vi.fn(async (payload: { name: string }) => ({ id: 3, name: payload.name })),
-    update: vi.fn(async (id: number, payload: { name: string }) => ({ id, name: payload.name })),
-    remove: vi.fn(async () => undefined),
-    restore: vi.fn(async (id: number) => ({ id, name: `restored-${id}` })),
+    list: vi.fn(() => Promise.resolve([{ id: 1, name: 'A' }, { id: 2, name: 'B' }])),
+    create: vi.fn((payload: { name: string }) => Promise.resolve(({ id: 3, name: payload.name }))),
+    update: vi.fn((id: number | string, payload: { name: string }) => Promise.resolve(({ id, name: payload.name }))),
+    remove: vi.fn(() => Promise.resolve(undefined)),
+    restore: vi.fn((id: number | string) => Promise.resolve(({ id, name: `restored-${id}` }))),
 };
 
 function wrapper({ children }: { children: ReactNode }) {

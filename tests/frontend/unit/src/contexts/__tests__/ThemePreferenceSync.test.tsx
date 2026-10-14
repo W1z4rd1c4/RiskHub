@@ -5,15 +5,15 @@ import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness'
 import { ProtectedRoute } from '@/App';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
-const getCurrentUserMock = vi.fn();
-const syncPreferencesFromServerMock = vi.fn();
-const clearLocalSettingsMock = vi.fn();
+const getCurrentUserMock = vi.hoisted(() => vi.fn());
+const syncPreferencesFromServerMock = vi.hoisted(() => vi.fn());
+const clearLocalSettingsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/authApi', () => ({
   authApi: {
     login: vi.fn(),
-    getCurrentUser: (...args: unknown[]) => getCurrentUserMock(...args),
-    getAuthConfig: vi.fn(async () => ({
+    getCurrentUser: getCurrentUserMock,
+    getAuthConfig: vi.fn(() => Promise.resolve(({
       auth_mode: 'hybrid_dev',
       demo_login_enabled: true,
       password_login_enabled: true,
@@ -23,13 +23,13 @@ vi.mock('@/services/authApi', () => ({
         provider: 'entra',
         scopes: [],
       },
-    })),
+    }))),
   },
 }));
 
 vi.mock('@/utils/userSettingsStorage', () => ({
-  syncPreferencesFromServer: (...args: unknown[]) => syncPreferencesFromServerMock(...args),
-  clearLocalSettings: (...args: unknown[]) => clearLocalSettingsMock(...args),
+  syncPreferencesFromServer: syncPreferencesFromServerMock,
+  clearLocalSettings: clearLocalSettingsMock,
 }));
 
 function createDeferred<T>() {

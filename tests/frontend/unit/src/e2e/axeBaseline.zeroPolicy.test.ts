@@ -41,13 +41,17 @@ const REQUIRED_LOGICAL_ROUTES = [
   '/admin/docs',
 ] as const;
 
-function validEvidence() {
-  return JSON.stringify({
+function evidenceFixture() {
+  return {
     ci: Object.fromEntries(AXE_BASELINE_THEMES.map((theme) => [
       theme,
-      Object.fromEntries(AXE_BASELINE_ROUTES.map((route) => [route, []])),
+      Object.fromEntries(AXE_BASELINE_ROUTES.map((route) => [route, [] as string[]])),
     ])),
-  });
+  };
+}
+
+function validEvidence() {
+  return JSON.stringify(evidenceFixture());
 }
 
 describe('axe evidence is immutable strict-zero policy', () => {
@@ -64,7 +68,7 @@ describe('axe evidence is immutable strict-zero policy', () => {
   it('pins exactly 27 logical routes per theme and 81 empty evidence cells', () => {
     expect(AXE_BASELINE_ROUTES).toEqual(REQUIRED_LOGICAL_ROUTES);
 
-    const evidence = JSON.parse(validEvidence()) as {
+    const evidence = evidenceFixture() as {
       ci: Record<string, Record<string, unknown[]>>;
     };
     const cells = Object.values(evidence.ci).flatMap((routes) => Object.values(routes));
@@ -80,15 +84,15 @@ describe('axe evidence is immutable strict-zero policy', () => {
     expect(() => validateZeroAxeBaseline('{')).toThrow();
     expect(() => validateZeroAxeBaseline('{}')).toThrow(/ci/);
 
-    const missing = JSON.parse(validEvidence());
+    const missing = evidenceFixture();
     delete missing.ci.riskhub['/controls'];
     expect(() => validateZeroAxeBaseline(JSON.stringify(missing))).toThrow(/controls/);
 
-    const extra = JSON.parse(validEvidence());
+    const extra = evidenceFixture();
     extra.ci.riskhub['/not-a-real-scan'] = [];
     expect(() => validateZeroAxeBaseline(JSON.stringify(extra))).toThrow(/not-a-real-scan/);
 
-    const widened = JSON.parse(validEvidence());
+    const widened = evidenceFixture();
     widened.ci.dark['/risks'] = ['color-contrast||["#hidden"]'];
     expect(() => validateZeroAxeBaseline(JSON.stringify(widened))).toThrow(/zero/);
   });

@@ -54,7 +54,7 @@ describe('useAdaptivePollingQuery', () => {
     });
 
     it('pauses while hidden and refetches immediately when visible again', async () => {
-        const queryFn = async () => ({ value: 1 });
+        const queryFn = () => Promise.resolve(({ value: 1 }));
 
         render(<TestHarness pollMs={20} queryFn={queryFn} />, { wrapper: createWrapper() });
 
@@ -82,11 +82,11 @@ describe('useAdaptivePollingQuery', () => {
 
     it('backs off after errors and resets the interval after a manual refresh', async () => {
         let shouldFail = true;
-        const queryFn = async () => {
+        const queryFn = () => {
             if (shouldFail) {
-                throw new Error('boom');
+                return Promise.reject(new Error('boom'));
             }
-            return { value: 2 };
+            return Promise.resolve({ value: 2 });
         };
 
         render(<TestHarness pollMs={20} queryFn={queryFn} />, { wrapper: createWrapper() });
@@ -101,8 +101,8 @@ describe('useAdaptivePollingQuery', () => {
     });
 
     it('does not double-increment backoff in StrictMode after the first failure', async () => {
-        const queryFn = async () => {
-            throw new Error('boom');
+        const queryFn = () => {
+            return Promise.reject(new Error('boom'));
         };
 
         render(
@@ -116,7 +116,7 @@ describe('useAdaptivePollingQuery', () => {
     });
 
     it('does not overlap requests while a fetch is still running', async () => {
-        let resolveFetch: ((value: { value: number }) => void) | null = null;
+        let resolveFetch!: (value: { value: number }) => void;
         let callCount = 0;
         const queryFn = () => {
             callCount += 1;

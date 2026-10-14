@@ -113,9 +113,10 @@ describe('useDepartmentDetail department ownership', () => {
     expect(result.current.riskTotalPages).toBe(1);
     expect(result.current.isLoading).toBe(true);
 
-    await act(async () => {
+    await act(() => {
       bMetadata.resolve(department(8, 'Beta', 1));
       bRisks.resolve([risk(81, 'Beta Risk')]);
+        return Promise.resolve();
     });
     await waitFor(() => expect(result.current.risks[0]?.name).toBe('Beta Risk'));
   });
@@ -137,9 +138,10 @@ describe('useDepartmentDetail department ownership', () => {
     rerender({ id: 8 });
     await waitFor(() => expect(result.current.risks[0]?.name).toBe('Beta Risk'));
 
-    await act(async () => {
+    await act(() => {
       aMetadata.resolve(department(7, 'Alpha', 205));
       aRisks.resolve([risk(71, 'Alpha Risk')]);
+        return Promise.resolve();
     });
 
     expect(result.current.department?.name).toBe('Beta');
