@@ -1,9 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 
-import { useMutationOwner } from '@/hooks/useMutationOwner';
+import { useSessionMutationOwner } from '@/hooks/useMutationOwner';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { getSessionSnapshot, useSessionSnapshot } from '@/services/session';
 
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import { useDetailQuery } from './useDetailQuery';
@@ -25,19 +24,14 @@ interface ProtectedDetailOptions<T> {
 export function useProtectedDetailState<T extends RestorableRecord>({ mode, entity, load, restore, name }: ProtectedDetailOptions<T>) {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
-    const session = useSessionSnapshot();
     const detail = useDetailQuery({ enabled: mode !== 'new', entity, rawId: id, load });
-    const owner = useMutationOwner(JSON.stringify([session.user?.id, session.token, location.pathname, detail.resourceId]));
-    const pending = useMemo(() => ({ value: false }), [owner.epoch]);
+    const owner = useSessionMutationOwner(JSON.stringify([location.pathname, location.search, location.hash, detail.resourceId]));
+    const pending = useMemo(() => ({ epoch: owner.epoch, value: false }), [owner.epoch]);
     const restoreWithFeedback = useRestoreWithFeedback();
     const { resource, refetch } = detail;
     const restoreRecord = useCallback(async () => {
         if (!resource || pending.value) return;
-        const ownsRoute = owner.capture();
-        const isCurrent = () => {
-            const current = getSessionSnapshot();
-            return ownsRoute() && current.user?.id === session.user?.id && current.token === session.token;
-        };
+        const isCurrent = owner.capture();
         pending.value = true;
         try {
             await restoreWithFeedback({
@@ -46,7 +40,7 @@ export function useProtectedDetailState<T extends RestorableRecord>({ mode, enti
         } finally {
             pending.value = false;
         }
-    }, [name, owner, pending, refetch, resource, restore, restoreWithFeedback, session.token, session.user?.id]);
+    }, [name, owner, pending, refetch, resource, restore, restoreWithFeedback]);
     return {
         ...detail, restoreRecord,
         canArchive: resolveCapabilityFlag(resource?.capabilities, 'can_archive'),

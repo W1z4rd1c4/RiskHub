@@ -1,31 +1,25 @@
 import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
-import { useCallback, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
-import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import { CriticalityClassPill } from '@/components/ict-register/CriticalityClassPill';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
-import { InlineMessage } from '@/components/ui/inline-message';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useAuthz } from '@/authz/useAuthz';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation, useFormat } from '@/i18n/hooks';
-import { approvalsApi } from '@/services/approvalsApi';
-import { logError } from '@/services/logger';
 import { processApi } from '@/services/processApi';
-import { isProcessApprovalQueuedResponse, type Process } from '@/types/process';
+import type { Process } from '@/types/process';
 
 import { DetailField, DetailFieldList } from './detail/DetailField';
-import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { useProtectedDetailShell } from './detail/useProtectedDetailShell';
 import { DetailSection } from './detail/DetailSection';
 import { EditBlockedState } from './detail/EditBlockedState';
 import { EntityDetailHeader } from './detail/EntityDetailHeader';
@@ -46,8 +40,7 @@ import {
 } from './processes/processesPagePresentation';
 import { getProcessStatusTone } from './processes/processColumns';
 import { useProcessDetailState, type ProcessDetailMode } from './processes/useProcessDetailState';
-import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
-import { LoadingState } from '@/components/ui/state';
+import { appendRegisterReturnTo } from './shared/registerReturnContext';
 
 interface ProcessDetailPageProps {
     mode?: ProcessDetailMode;
@@ -80,25 +73,10 @@ function DerivedCheckField({
 
 export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/processes');
-    const processDetailPath = (processId: number) => appendRegisterReturnTo(`/processes/${processId}`, returnTo);
     const authz = useAuthz();
     const { t } = useTranslation('processes');
     const { t: tCommon } = useTranslation('common');
     const format = useFormat();
-    // D14 / AX-06: every back control names its destination.
-    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
-    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-    const [isArchiving, setIsArchiving] = useState(false);
-    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [pendingCancellation, setPendingCancellation] = useState<{
-        approvalId: number;
-        targetName: string;
-    } | null>(null);
-    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
-
     const {
         canArchive,
         canEdit,
@@ -112,6 +90,15 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         setProcess,
     } = useProcessDetailState({ mode });
 
+    const { returnTo, openArchive, loadState, staleWarning, pendingChangePanel, pendingCancellationDialog, archiveDialog } = useProtectedDetailShell({
+        entity: 'process', namespace: 'processes', resource: process, resourceId: processId,
+        targetName: process?.l1_process ?? '', loadOutcome, isRetrying, refresh: fetchProcess,
+        archive: (id, reason) => processApi.archiveProcess(id, reason ?? ''),
+        archiveReason: governedReasonRequirement(process),
+    });
+    const processDetailPath = (processId: number) => appendRegisterReturnTo(`/processes/${processId}`, returnTo);
+    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
+
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
         load: useCallback(() => processApi.getProcesses({ offset: 0, limit: 1 }), []),
@@ -120,56 +107,6 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
 
     const feedback = useFeedback();
     const announceApprovalQueued = useApprovalQueued();
-
-    const archiveProcess = async (requestReason?: string) => {
-        if (!process) {
-            return;
-        }
-        try {
-            setIsArchiving(true);
-            setActionError(null);
-            const result = await processApi.archiveProcess(process.id, requestReason ?? '');
-            setIsArchiveDialogOpen(false);
-            if (isProcessApprovalQueuedResponse(result)) {
-                // D12 / PM-2: stay on the process with the pending notice + toast.
-                announceApprovalQueued({ approvalId: result.approval_id });
-                void fetchProcess();
-                return;
-            }
-            feedback.success({ title: tCommon('outcome.archived', { name: process.l1_process }) });
-            void navigate(returnTo);
-        } catch (archiveError) {
-            logError('Failed to archive process:', archiveError);
-            setActionError(t('errors.archive_failed'));
-        } finally {
-            setIsArchiving(false);
-        }
-    };
-
-    const openPendingChangeCancellation = () => {
-        if (!process?.pending_change) return;
-        setPendingCancellationError(null);
-        setPendingCancellation({
-            approvalId: process.pending_change.approval_id,
-            targetName: process.l1_process,
-        });
-    };
-
-    const cancelPendingChange = async () => {
-        if (!pendingCancellation || isCancellingPendingChange) return;
-        try {
-            setIsCancellingPendingChange(true);
-            setPendingCancellationError(null);
-            await approvalsApi.cancel(pendingCancellation.approvalId);
-            setPendingCancellation(null);
-            void fetchProcess();
-        } catch (cancelError) {
-            logError('Failed to cancel pending Process change:', cancelError);
-            setPendingCancellationError(t('pending_change.cancel_failed'));
-        } finally {
-            setIsCancellingPendingChange(false);
-        }
-    };
 
     if (mode === 'new') {
         // D7 / D14: the page title, back control and breadcrumbs stay in place
@@ -205,39 +142,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         );
     }
 
-    if (loadOutcome === 'loading') {
-        return (
-            <LoadingState layout="page" label={tCommon('loading.generic')} />
-        );
-    }
-
-    if (loadOutcome === 'unavailable' || !process) {
-        return (
-            <DetailLoadUnavailableState
-                backLabel={t('actions.back_to_register')}
-                isRetrying={isRetrying}
-                onBack={() => navigate(returnTo)}
-                onRetry={processId === null ? undefined : () => void fetchProcess()}
-            />
-        );
-    }
-
-    const staleWarning = loadOutcome === 'stale-with-error' ? (
-        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchProcess()} />
-    ) : null;
-    const pendingCancellationDialog = (
-        <PendingChangeCancellationDialog
-            isOpen={pendingCancellation !== null}
-            targetName={pendingCancellation?.targetName ?? ''}
-            isLoading={isCancellingPendingChange}
-            errorText={pendingCancellationError}
-            onClose={() => {
-                setPendingCancellation(null);
-                setPendingCancellationError(null);
-            }}
-            onConfirm={() => void cancelPendingChange()}
-        />
-    );
+    if (loadState || !process) return loadState;
 
     const editBack = {
         label: tCommon('actions.back_to_detail', { name: process.l1_process }),
@@ -248,15 +153,6 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
         { label: process.l1_process, to: processDetailPath(process.id) },
         { label: t('actions.edit') },
     ];
-    const pendingChangePanel = process.pending_change ? (
-        <PendingChangePanel
-            pendingChange={process.pending_change}
-            namespace="processes"
-            testIdPrefix="process"
-            cancelling={isCancellingPendingChange}
-            onCancel={openPendingChangeCancellation}
-        />
-    ) : null;
     // SM-05: one ownership banner for pending-governance / legacy / invalid
     // ownership; only the governance case offers the queue action.
     const ownershipAlert = (testId?: string) => {
@@ -306,7 +202,6 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         reason={process.pending_change ? undefined : t('pending_change.business_edits_blocked')}
                         testId="process-edit-blocked"
                     >
-                        {actionError ? <InlineMessage tone="danger">{actionError}</InlineMessage> : null}
                         {pendingChangePanel}
                     </EditBlockedState>
                     {pendingCancellationDialog}
@@ -406,10 +301,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                         {canArchive && (
                             <Button
                                 variant="destructive"
-                                onClick={() => {
-                                    setActionError(null);
-                                    setIsArchiveDialogOpen(true);
-                                }}
+                                onClick={openArchive}
                                 data-testid="process-detail-archive"
                             >
                                 <Archive aria-hidden="true" />
@@ -656,25 +548,7 @@ export function ProcessDetailPage({ mode = 'view' }: ProcessDetailPageProps) {
                 onLinksChanged={() => fetchProcess()}
             />
 
-            {/* D10 / PM-1: the process API takes a reason; it is required
-                only when the archive is routed through approval. */}
-            <ConfirmDialog
-                isOpen={isArchiveDialogOpen}
-                onClose={() => {
-                    setIsArchiveDialogOpen(false);
-                    setActionError(null);
-                }}
-                onConfirm={archiveProcess}
-                intent="archive"
-                entityLabel={tCommon('labels.process')}
-                message={t('messages.archive_confirm', { processName: process.l1_process })}
-                isLoading={isArchiving}
-                reason={governedReasonRequirement(process) === 'required' ? 'required' : 'optional'}
-                reasonLabel={t('form.request_reason')}
-                reasonPlaceholder={t('form.request_reason_help')}
-                confirmDisabled={governedReasonRequirement(process) === 'unavailable'}
-                errorText={actionError ?? (governedReasonRequirement(process) === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)}
-            />
+            {archiveDialog}
             {pendingCancellationDialog}
         </PageContainer>
     );

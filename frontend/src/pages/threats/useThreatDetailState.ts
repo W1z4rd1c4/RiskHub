@@ -18,7 +18,7 @@ export function useThreatDetailState({ mode }: UseThreatDetailStateOptions) {
     } = useProtectedDetailState<Threat>({
         mode, entity: 'threat',
         load: (id, signal) => threatApi.getThreat(id, { signal }),
-        restore: threatApi.restoreThreat, name: (record) => record.name,
+        restore: (id) => threatApi.restoreThreat(id), name: (record) => record.name,
     });
 
     return {

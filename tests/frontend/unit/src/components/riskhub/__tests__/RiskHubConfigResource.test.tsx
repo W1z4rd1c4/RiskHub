@@ -1,6 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -34,6 +37,7 @@ function renderResourceHarness(
     deleteResource: (id: number) => Promise<void>,
     restoreResource: (id: number) => Promise<void> = () => Promise.resolve(undefined),
 ) {
+    applyBootstrappedSession({ token: 'config-session', user: mockAuthUser });
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -79,7 +83,7 @@ function renderResourceHarness(
     }
 
     const wrapper = ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/riskhub']}>{children}</MemoryRouter></QueryClientProvider>
     );
 
     return render(<Harness />, { wrapper });

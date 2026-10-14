@@ -47,7 +47,6 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
         setIsLoading,
     } = useCollectionDataState<ControlSummary, ControlListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
-    const runRowRestore = useRestoreWithFeedback();
     const requestParams = useMemo(() => ({
         ...buildControlRegisterListParams({
             currentPage, filters, groupValue: selectedGroupValue, limit: DEFAULT_LIST_PAGE_SIZE,
@@ -57,6 +56,7 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
     }), [currentPage, debouncedSearch, departmentScope?.departmentId, filters, selectedGroupValue, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
     const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
+    const runRowRestore = useRestoreWithFeedback(queryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;

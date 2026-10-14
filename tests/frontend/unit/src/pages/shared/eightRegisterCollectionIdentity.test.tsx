@@ -20,6 +20,8 @@ import { useRisksPageState } from '@/pages/risks/useRisksPageState';
 import { useThreatsPageState } from '@/pages/threats/useThreatsPageState';
 import { useVendorsPageState } from '@/pages/vendors/useVendorsPageState';
 import { ApiClientError } from '@/services/apiClient';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { createTestQueryClient } from '@test/queryClient';
 
 interface RegisterRequestParams {
@@ -263,6 +265,7 @@ describe('eight-register collection query identity', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        applyBootstrappedSession({ token: 'register-session', user: mockAuthUser });
         apiMocks.getConfigValue.mockResolvedValue(null);
         for (const register of REGISTERS) register.fetchMock.mockResolvedValue(populatedPage);
         for (const register of RESTORABLE_REGISTERS) register.restoreMock.mockResolvedValue(undefined);

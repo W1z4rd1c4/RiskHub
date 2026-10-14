@@ -77,7 +77,6 @@ export function useVendorsPageState(
         setIsLoading,
     } = useCollectionDataState<Vendor, VendorListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
-    const runRowRestore = useRestoreWithFeedback();
 
     const effectiveFilters = useMemo<VendorRegisterFilters>(() => ({
         ...filters,
@@ -108,6 +107,7 @@ export function useVendorsPageState(
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
     const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
+    const runRowRestore = useRestoreWithFeedback(queryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;

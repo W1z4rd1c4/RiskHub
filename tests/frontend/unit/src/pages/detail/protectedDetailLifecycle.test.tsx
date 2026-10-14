@@ -8,14 +8,20 @@ import { describe, expect, it } from 'vitest';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { AssetDetailPage } from '@/pages/AssetDetailPage';
+import { ProcessDetailPage } from '@/pages/ProcessDetailPage';
 import { ThreatDetailPage } from '@/pages/ThreatDetailPage';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
+import { applyAuthenticatedSession, applyBootstrappedSession, getSessionOwnershipSnapshot, getSessionSnapshot, setLogoutPendingState } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
 
 const cases = [
     { entity: 'threat', collection: 'threats', element: <ThreatDetailPage /> },
     { entity: 'vendor', collection: 'vendors', element: <VendorDetailPage /> },
+    { entity: 'asset', collection: 'assets', element: <AssetDetailPage /> },
+    { entity: 'process', collection: 'processes', element: <ProcessDetailPage /> },
 ] as const;
 
 function record(entity: string, id = 7, archived = false) {
@@ -78,6 +84,7 @@ function cancelledApproval(entity: string, id: number) {
 
 function setup(testCase: typeof cases[number], archived = false, read?: (id: number) => Response | Promise<Response>) {
     const { entity, collection, element } = testCase;
+    applyBootstrappedSession({ token: 'detail-session', user: mockAuthUser });
     server.use(
         http.get(`*/api/v1/${collection}/:id`, ({ params }) => read?.(Number(params.id)) ?? HttpResponse.json(record(entity, Number(params.id), archived))),
         http.get(`*/api/v1/${collection}/:id/*`, () => HttpResponse.json([])),
@@ -91,6 +98,7 @@ function setup(testCase: typeof cases[number], archived = false, read?: (id: num
         { path: `/${collection}/:id`, element },
         { path: `/${collection}`, element: <h1>Register</h1> },
         { path: '/away', element: <h1>Destination</h1> },
+        { path: '/approvals', element: <h1>Approval workbench</h1> },
     ], { initialEntries: [`/${collection}/7`] });
     render(<QueryClientProvider client={client}><AuthProvider><LanguageProvider><FeedbackProvider>
         <RouterProvider router={router} />
@@ -117,23 +125,6 @@ describe.each(cases)('$entity protected detail network lifecycle', (testCase) =>
         await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^archive$/i }));
         await waitFor(() => expect(router.state.location.pathname).toBe(`/${testCase.collection}`));
         expect(screen.getByText('Archived: Record 7')).toBeInTheDocument();
-    });
-
-    it.skipIf(testCase.entity === 'threat')('stays on the detail and links the authoritative queued approval', async () => {
-        const { user, router } = setup(testCase);
-        server.use(http.delete(`*/api/v1/${testCase.collection}/7`, () => HttpResponse.json({
-            status: 'approval_required', message: 'Queued', approval_id: 701, action_type: 'archive',
-            pending_fields: [], proposal_id: 'proposal', proposal_version: 1,
-        }, { status: 202 })));
-        await screen.findByRole('heading', { name: 'Record 7' });
-        await user.click(screen.getByRole('button', { name: /^archive$/i }));
-        await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^archive$/i }));
-        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
-        expect(router.state.location.pathname).toBe(`/${testCase.collection}/7`);
-        const links = screen.getAllByRole('link').filter((link) => link.getAttribute('href')?.includes('approval_id=701'));
-        expect(links.length).toBeGreaterThan(0);
-        expect(links[0]).toHaveAttribute('href', '/approvals?tab=mine&approval_id=701');
-        expect(screen.queryByText('Archived: Record 7')).not.toBeInTheDocument();
     });
 
     it.each([403, 404])('replaces a %i read with the unavailable state', async (status) => {
@@ -208,6 +199,99 @@ describe.each(cases)('$entity protected detail network lifecycle', (testCase) =>
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
+    it('preserves the archive dialog and result through a real 401 silent refresh and retry', async () => {
+        const { router, user } = setup(testCase);
+        let requests = 0;
+        let release!: () => void;
+        const pending = new Promise<void>((resolve) => { release = resolve; });
+        server.use(
+            http.post('*/api/v1/auth/refresh', () => HttpResponse.json({
+                access_token: 'rotated-detail-token', token_type: 'bearer', user: mockAuthUser,
+            })),
+            http.delete(`*/api/v1/${testCase.collection}/7`, async ({ request }) => {
+                requests += 1;
+                if (requests === 1) return HttpResponse.json({ detail: 'Expired' }, { status: 401 });
+                expect(request.headers.get('authorization')).toBe('Bearer rotated-detail-token');
+                await pending;
+                return testCase.entity === 'threat' ? new HttpResponse(null, { status: 204 }) : HttpResponse.json({
+                    status: 'approval_required', message: 'Queued', approval_id: 701, action_type: 'archive',
+                    pending_fields: [], proposal_id: 'proposal', proposal_version: 1,
+                }, { status: 202 });
+            }),
+        );
+        await screen.findByRole('heading', { name: 'Record 7' });
+        const sessionOwner = getSessionOwnershipSnapshot();
+        await user.click(screen.getByRole('button', { name: /^archive$/i }));
+        const reason = within(screen.getByRole('alertdialog')).queryByRole('textbox');
+        if (reason) await user.type(reason, 'Keep this captured reason');
+        await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^archive$/i }));
+        await waitFor(() => expect(requests).toBe(2));
+        expect(getSessionSnapshot().token).toBe('rotated-detail-token');
+        expect(getSessionOwnershipSnapshot()).toEqual(sessionOwner);
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+        if (reason) expect(within(screen.getByRole('alertdialog')).getByRole('textbox')).toHaveValue('Keep this captured reason');
+        await act(async () => { release(); await pending; });
+        if (testCase.entity === 'threat') {
+            await waitFor(() => expect(router.state.location.pathname).toBe('/threats'));
+            expect(screen.getByText('Archived: Record 7')).toBeInTheDocument();
+        } else {
+            expect(await screen.findByTestId('approval-queued-notice-link')).toHaveAttribute('href', '/approvals?tab=mine&approvalId=701');
+        }
+    });
+
+    it('rejects a stale confirmation immediately when a fresh login precedes the next layout', async () => {
+        const { user } = setup(testCase);
+        let archives = 0;
+        server.use(http.delete(`*/api/v1/${testCase.collection}/7`, () => {
+            archives += 1;
+            return new HttpResponse(null, { status: 204 });
+        }));
+        await screen.findByRole('heading', { name: 'Record 7' });
+        await user.click(screen.getByRole('button', { name: /^archive$/i }));
+        const form = screen.getByRole('alertdialog').querySelector('form')!;
+        act(() => {
+            applyAuthenticatedSession({ user: mockAuthUser, access_token: 'fresh-login-before-layout', token_type: 'bearer' });
+            fireEvent.submit(form);
+        });
+        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+        expect(archives).toBe(0);
+    });
+
+    it.each(['same-record return destination', 'record A to B to A', 'fresh login', 'logout'] as const)(
+        'revokes a late archive after %s', async (change) => {
+            let release!: () => void;
+            const pending = new Promise<void>((resolve) => { release = resolve; });
+            let started = false;
+            const { router, user } = setup(testCase);
+            server.use(http.delete(`*/api/v1/${testCase.collection}/7`, async () => {
+                started = true;
+                await pending;
+                return new HttpResponse(null, { status: 204 });
+            }));
+            await screen.findByRole('heading', { name: 'Record 7' });
+            await user.click(screen.getByRole('button', { name: /^archive$/i }));
+            await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^archive$/i }));
+            await waitFor(() => expect(started).toBe(true));
+            if (change === 'same-record return destination') {
+                await act(() => router.navigate(`/${testCase.collection}/7?return_to=${encodeURIComponent(`/${testCase.collection}?page=2`)}`));
+            } else if (change === 'record A to B to A') {
+                await act(() => router.navigate(`/${testCase.collection}/8`));
+                await act(() => router.navigate(`/${testCase.collection}/7`));
+            } else if (change === 'fresh login') {
+                act(() => { applyAuthenticatedSession({ user: mockAuthUser, access_token: 'fresh-login', token_type: 'bearer' }); });
+            } else {
+                act(() => { setLogoutPendingState(true); });
+                act(() => { setLogoutPendingState(false); });
+            }
+            const destination = router.state.location.pathname + router.state.location.search;
+            await act(async () => { release(); await pending; });
+            await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+            expect(router.state.location.pathname + router.state.location.search).toBe(destination);
+            expect(screen.queryByText('Archived: Record 7')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('approval-queued-notice')).not.toBeInTheDocument();
+        },
+    );
+
     it('already reports restore rejection without removing the loaded record', async () => {
         const { user } = setup(testCase, true);
         server.use(http.post(`*/api/v1/${testCase.collection}/7/restore`, () =>
@@ -239,4 +323,28 @@ describe.each(cases)('$entity protected detail network lifecycle', (testCase) =>
         expect(router.state.location.pathname).toBe('/away');
         expect(screen.queryByText(/Record 7.*archived|Archived.*Record 7/i)).not.toBeInTheDocument();
     });
+});
+
+// Threat archive is direct-only; only these three APIs can return approval-required.
+describe.each(cases.filter(({ entity }) => entity !== 'threat'))('$entity approval-queued archive navigation', (testCase) => {
+    it('stays on the detail and links the authoritative queued approval', async () => {
+        const { user, router } = setup(testCase);
+        server.use(http.delete(`*/api/v1/${testCase.collection}/7`, () => HttpResponse.json({
+            status: 'approval_required', message: 'Queued', approval_id: 701, action_type: 'archive',
+            pending_fields: [], proposal_id: 'proposal', proposal_version: 1,
+        }, { status: 202 })));
+        await screen.findByRole('heading', { name: 'Record 7' });
+        await user.click(screen.getByRole('button', { name: /^archive$/i }));
+        await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^archive$/i }));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+        expect(router.state.location.pathname).toBe(`/${testCase.collection}/7`);
+        const approvalLink = await screen.findByTestId('approval-queued-notice-link');
+        expect(approvalLink).toHaveAttribute('href', '/approvals?tab=mine&approvalId=701');
+        expect(router.state.location.state).toMatchObject({ approvalQueued: { approvalId: 701 } });
+        expect(screen.queryByText('Archived: Record 7')).not.toBeInTheDocument();
+        await user.click(approvalLink);
+        await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
+        expect(new URLSearchParams(router.state.location.search).get('approvalId')).toBe('701');
+    });
+
 });

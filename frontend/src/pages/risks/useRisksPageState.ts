@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useFeedback } from '@/hooks/useFeedback';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import type { SupportedLanguage } from '@/i18n';
 import { useTranslation } from '@/i18n/hooks';
@@ -14,6 +13,7 @@ import type { RiskFacets, RiskListCapabilities, RiskSummary } from '@/types/risk
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import type { RiskSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
+import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import type { RegisterFilters } from '../shared/registerListQuery';
 import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
@@ -61,7 +61,6 @@ export function useRisksPageState(
     const departmentScope = useDepartmentRegisterScope();
     const { thresholds } = useRiskThresholds();
     const { t } = useTranslation('risks');
-    const feedback = useFeedback();
     const workingSet = useRegisterUrlWorkingSet(riskUrlOptions);
     const { currentPage, debouncedSearch, filters, selectedGroupValue: groupValue, sort, viewMode, writeUrl } = workingSet;
     const [facets, setFacets] = useState<RiskFacets>({});
@@ -100,6 +99,7 @@ export function useRisksPageState(
         ? [thresholds.medium, thresholds.high, thresholds.critical]
         : null;
     const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity, configuredRangeIdentity);
+    const runRowRestore = useRestoreWithFeedback(queryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -137,20 +137,18 @@ export function useRisksPageState(
         () => writeUrl({ filters: EMPTY_RISK_REGISTER_FILTERS, group: null }),
         [writeUrl],
     );
-    // D9 / FB-01: the outcome of a row restore is a toast. A failure never puts
-    // the register into its error state (the rows stay usable), and the user is
-    // told even when they have already moved to another page of the register.
     const restoreRisk = useCallback(async (riskId: number) => {
         const restoreQueryIdentity = queryIdentity;
-        try {
-            await riskApi.restoreRisk(riskId);
-        } catch (error) {
-            feedback.error({ title: t('messages.restore_failed'), messageKey: apiClient.toUiMessageKey(error) });
-            return;
-        }
-        feedback.success({ title: t('messages.restore_success') });
-        if (isQueryCurrent(restoreQueryIdentity)) await fetchRisks();
-    }, [feedback, fetchRisks, isQueryCurrent, queryIdentity, t]);
+        await runRowRestore({
+            restore: () => riskApi.restoreRisk(riskId),
+            name: items.find((item) => item.id === riskId)?.name,
+            failureTitle: t('messages.restore_failed'),
+            successTitle: t('messages.restore_success'),
+            refresh: async () => {
+                if (isQueryCurrent(restoreQueryIdentity)) await fetchRisks();
+            },
+        });
+    }, [fetchRisks, isQueryCurrent, items, queryIdentity, runRowRestore, t]);
     const exportCurrentRisks = useCallback(async () => {
         setIsExporting(true);
         try {

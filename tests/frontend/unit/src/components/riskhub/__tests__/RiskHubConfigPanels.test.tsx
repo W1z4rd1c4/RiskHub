@@ -4,6 +4,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
@@ -88,7 +91,8 @@ function renderWithQueryClient(ui: ReactElement, queryClient = new QueryClient({
             mutations: { retry: false },
         },
     })) {
-    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    applyBootstrappedSession({ token: 'config-session', user: mockAuthUser });
+    return render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/riskhub']}>{ui}</MemoryRouter></QueryClientProvider>);
 }
 
 describe('Risk Hub config panels', () => {

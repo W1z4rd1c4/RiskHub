@@ -59,7 +59,6 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
         setIsLoading,
     } = useCollectionDataState<ThreatListItem, ThreatListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
-    const runRowRestore = useRestoreWithFeedback();
 
     const requestParams = useMemo(() => buildThreatRegisterListParams({
         currentPage,
@@ -72,6 +71,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     }), [currentPage, debouncedSearch, filters, groupValue, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
     const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
+    const runRowRestore = useRestoreWithFeedback(queryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;

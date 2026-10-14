@@ -18,6 +18,7 @@ import { E2E_ICT_REGISTER_RISK, E2E_THREATS } from './fixtures/e2e-data';
 import { getApiBaseUrl, getDemoToken } from './helpers/api-auth';
 import {
     createThreatViaApi,
+    cleanupWithoutMaskingPrimaryFailure,
     getRiskByCode,
     getRiskViaApi,
     getThreatByName,
@@ -205,6 +206,64 @@ test.describe('ICT Register — Threats (Deterministic)', () => {
         await cisoPage.getByTestId('threat-detail-restore').click();
         await expect(cisoPage.getByTestId('threat-detail-archive')).toBeVisible();
         await expect(cisoPage.getByTestId('threat-detail-edit')).toBeVisible();
+    });
+
+    test('row restore Retry preserves the register and retries the captured Threat against the backend', async ({ riskManagerPage }) => {
+        const name = `E2E-RESTORE-RETRY-${Date.now()}`;
+        const threat = await createThreatViaApi({ name });
+        const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+        let primaryFailure: unknown;
+        try {
+            const archive = await fetch(`${getApiBaseUrl()}/api/v1/threats/${threat.id}`, {
+                method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+            });
+            expect(archive.status).toBe(204);
+            const restorePath = `/api/v1/threats/${threat.id}/restore`;
+            const restoredPaths: string[] = [];
+            await riskManagerPage.route(`**${restorePath}`, async (route) => {
+                restoredPaths.push(new URL(route.request().url()).pathname);
+                if (restoredPaths.length === 1) {
+                    await route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ detail: 'Injected action rejection' }) });
+                } else {
+                    await route.continue();
+                }
+            });
+            const params = new URLSearchParams({ q: name, filters: JSON.stringify({ lifecycle: 'archived' }) });
+            await riskManagerPage.goto(`/threats?${params}`);
+            const register = riskManagerPage.getByTestId('threats-register-shell');
+            const restore = register.getByRole('button', { name: `Restore ${name}` });
+            await expect(restore).toBeVisible();
+            const before = riskManagerPage.url();
+            await restore.click();
+            const retry = riskManagerPage.getByRole('button', { name: 'Retry', exact: true });
+            await expect(retry).toBeVisible();
+            await expect(restore).toBeVisible();
+            await expect(register.getByRole('alert')).toHaveCount(0);
+            await expect(register.getByRole('button', { name: 'Retry', exact: true })).toHaveCount(0);
+            await expect(register.getByRole('button', { name: 'Next page' })).toBeVisible();
+            await expect(riskManagerPage).toHaveURL(before);
+            const restored = riskManagerPage.waitForResponse((response) => (
+                response.request().method() === 'POST' && new URL(response.url()).pathname === restorePath
+            ));
+            await retry.click();
+            expect((await restored).status()).toBe(200);
+            await expect(restore).toHaveCount(0);
+            expect(restoredPaths).toEqual([restorePath, restorePath]);
+            await expect(riskManagerPage).toHaveURL(before);
+        } catch (error) {
+            primaryFailure = error;
+            throw error;
+        } finally {
+            await cleanupWithoutMaskingPrimaryFailure(primaryFailure, async () => {
+                const current = await getThreatByName(name);
+                if (current && !current.is_archived) {
+                    const cleanup = await fetch(`${getApiBaseUrl()}/api/v1/threats/${threat.id}`, {
+                        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+                    });
+                    expect(cleanup.status).toBe(204);
+                }
+            }, test.info());
+        }
     });
 
     test('Risk manager sees Threats in the sidebar and navigates to the register', async ({ riskManagerPage }) => {

@@ -7,11 +7,10 @@ import { PendingChangePanel, type PendingChangePanelData, type PendingChangePane
 import { LoadingState } from '@/components/ui/state';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
-import { useMutationOwner } from '@/hooks/useMutationOwner';
+import { useSessionMutationOwner } from '@/hooks/useMutationOwner';
 import { useTranslation } from '@/i18n/hooks';
 import { executeGovernedMutation, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import { approvalsApi } from '@/services/approvalsApi';
-import { getSessionSnapshot, useSessionSnapshot } from '@/services/session';
 
 import { resolveRegisterReturnTo } from '../shared/registerReturnContext';
 import { DetailLoadUnavailableState, DetailStaleWarning } from './DetailLoadState';
@@ -61,29 +60,22 @@ export function useProtectedDetailShell({
     const navigate = useNavigate();
     const location = useLocation();
     const returnTo = resolveRegisterReturnTo(new URLSearchParams(location.search).get('return_to'), `/${namespace}`);
-    const session = useSessionSnapshot();
-    const owner = useMutationOwner(JSON.stringify([session.user?.id, session.token, location.pathname, resourceId]));
-    const busy = useMemo(() => ({ archive: false, cancellation: false }), [owner.epoch]);
+    const owner = useSessionMutationOwner(JSON.stringify([location.pathname, location.search, location.hash, resourceId]));
+    const busy = useMemo(() => ({ epoch: owner.epoch, archive: false, cancellation: false }), [owner.epoch]);
     const [ownedDialogs, setOwnedDialogs] = useState({ epoch: owner.epoch, value: emptyDialogs });
     const dialogs = ownedDialogs.epoch === owner.epoch ? ownedDialogs.value : emptyDialogs;
     if (ownedDialogs.epoch !== owner.epoch) setOwnedDialogs({ epoch: owner.epoch, value: emptyDialogs });
     const update = (patch: Partial<DialogState>) => setOwnedDialogs((current) => (
         current.epoch === owner.epoch ? { ...current, value: { ...current.value, ...patch } } : current
     ));
-    const capture = () => {
-        const ownsRoute = owner.capture();
-        return () => {
-            const current = getSessionSnapshot();
-            return ownsRoute() && current.user?.id === session.user?.id && current.token === session.token;
-        };
-    };
     const feedback = useFeedback();
     const announceApprovalQueued = useApprovalQueued();
 
     const archiveRecord = async (reason?: string) => {
         if (!dialogs.archive || busy.archive) return;
         const target = dialogs.archive;
-        const isCurrent = capture();
+        const isCurrent = owner.capture();
+        if (!isCurrent()) return;
         busy.archive = true;
         update({ archiving: true, archiveError: null });
         try {
@@ -111,7 +103,8 @@ export function useProtectedDetailShell({
     const cancelPendingChange = async () => {
         if (!dialogs.cancellation || busy.cancellation) return;
         const target = dialogs.cancellation;
-        const isCurrent = capture();
+        const isCurrent = owner.capture();
+        if (!isCurrent()) return;
         busy.cancellation = true;
         update({ cancelling: true, cancellationError: null });
         try {

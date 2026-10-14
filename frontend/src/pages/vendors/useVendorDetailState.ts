@@ -20,7 +20,7 @@ export function useVendorDetailState({ mode }: UseVendorDetailStateOptions) {
     } = useProtectedDetailState<Vendor>({
         mode, entity: 'vendor',
         load: (id, signal) => vendorApi.getVendor(id, { signal }),
-        restore: vendorApi.restoreVendor, name: (record) => record.name,
+        restore: (id) => vendorApi.restoreVendor(id), name: (record) => record.name,
     });
 
     const canLinkRisk = resolveCapabilityFlag(vendor?.capabilities, 'can_link_risk');

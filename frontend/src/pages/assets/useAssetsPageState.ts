@@ -59,7 +59,6 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         setIsLoading,
     } = useCollectionDataState<Asset, AssetListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
-    const runRowRestore = useRestoreWithFeedback();
 
     const effectiveFilters = useMemo<AssetRegisterFilters>(() => ({
         ...filters,
@@ -75,6 +74,7 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, semanticFilters.has_process_link, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
     const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
+    const runRowRestore = useRestoreWithFeedback(queryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
