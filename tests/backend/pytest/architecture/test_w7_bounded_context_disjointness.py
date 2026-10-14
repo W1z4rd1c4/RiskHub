@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from ._allowlist_expiry import assert_not_expired
+from ._registry_policy import load_architecture_registry
 
 pytestmark = pytest.mark.contract
 
@@ -34,8 +34,7 @@ EXPECTED_DISJOINT_COUNT = _baseline_int(EXPECTED_DISJOINT_COUNT_KEY)
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
-    assert_not_expired(path)
-    return tomllib.loads(path.read_text())
+    return load_architecture_registry(path, decision="ADR-007")
 
 
 def _underscored_packages() -> set[str]:

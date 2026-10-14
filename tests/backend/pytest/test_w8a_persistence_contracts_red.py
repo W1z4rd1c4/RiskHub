@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -9,12 +8,16 @@ from sqlalchemy import UniqueConstraint, text
 from app.db.base import Base
 from app.models.risk import ControlRiskLink
 
+from .architecture._registry_policy import load_exception_registry
+
 ROOT = Path(__file__).resolve().parents[3]
 NAMING_ALLOWLIST = ROOT / "tests/backend/pytest/architecture/_naming_allowlist.toml"
 
 
 def test_persistence_naming_allowlist_registry_exists() -> None:
-    data = tomllib.loads(NAMING_ALLOWLIST.read_text())
+    data = load_exception_registry(
+        NAMING_ALLOWLIST, decision="persistence-naming-contract", entries_key="paths"
+    )
     assert data.get("paths", []) == []
 
 
@@ -22,24 +25,24 @@ def test_naming_allowlist_registry_is_present_and_parseable() -> None:
     """Lock the naming-allowlist registry shape so future entries land deliberately.
 
     The file must exist, parse as TOML, and expose a top-level ``paths`` array.
-    Every entry (if any) must be a string referring to an existing path under the
-    repository root, so an exception cannot silently drift away from real code.
+    Every entry (if any) must carry an existing repository path plus owner,
+    rationale and expiry metadata; no exception may silently outlive its review.
     """
 
     assert NAMING_ALLOWLIST.exists(), (
         f"naming allowlist registry missing: {NAMING_ALLOWLIST}"
     )
 
-    data = tomllib.loads(NAMING_ALLOWLIST.read_text())
+    data = load_exception_registry(
+        NAMING_ALLOWLIST, decision="persistence-naming-contract", entries_key="paths"
+    )
 
     assert "paths" in data, "naming allowlist must declare a top-level 'paths' array"
     assert isinstance(data["paths"], list), "naming allowlist 'paths' must be an array"
 
     for entry in data["paths"]:
-        assert isinstance(entry, str), (
-            f"naming allowlist entries must be strings; got {type(entry).__name__}: {entry!r}"
-        )
-        resolved = (ROOT / entry).resolve()
+        assert isinstance(entry.get("path"), str), f"naming exception missing path: {entry!r}"
+        resolved = (ROOT / entry["path"]).resolve()
         assert resolved.exists(), (
             f"naming allowlist entry refers to a missing path: {entry!r}"
         )

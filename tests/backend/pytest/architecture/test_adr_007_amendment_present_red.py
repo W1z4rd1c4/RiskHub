@@ -11,6 +11,7 @@ pytestmark = pytest.mark.contract
 REPO_ROOT = Path(__file__).resolve().parents[4]
 ADR_007 = REPO_ROOT / "docs/adr/ADR-007-bounded-context-taxonomy.md"
 WORKFLOW_PAIRS = REPO_ROOT / "tests/backend/pytest/architecture/_bounded_context_workflow_pairs.toml"
+WRITE_SIDE = REPO_ROOT / "tests/backend/pytest/architecture/_bounded_context_write_side.toml"
 
 
 def _heading_sections() -> dict[tuple[str, ...], list[str]]:
@@ -96,6 +97,17 @@ def _assert_workflow_pair_equality() -> None:
 
 def test_amendment_workflow_pairs_equal_registry() -> None:
     _assert_workflow_pair_equality()
+
+
+def test_write_side_contexts_equal_adr_decision_and_table() -> None:
+    registered = set(tomllib.loads(WRITE_SIDE.read_text())["packages"])
+    documented = {
+        package for package, row in _classification_rows().items()
+        if row["Category"].startswith("Write-side")
+    }
+    decision = "\n".join(_heading_sections()[("ADR-007 Bounded Context Taxonomy", "Decision")])
+    enumerated = set(re.findall(r"`(_[a-z_]+)`", decision))
+    assert registered == documented == enumerated
 
 
 @pytest.mark.parametrize("mutation", ["substitute", "remove", "add", "duplicate", "reversed_duplicate"])

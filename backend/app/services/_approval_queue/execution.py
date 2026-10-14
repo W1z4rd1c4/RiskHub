@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.approval_helpers import create_approval_request_with_audit
 from app.models import ApprovalActionType, ApprovalRequest, ApprovalStatus, User
 from app.schemas.approval_request import ApprovalRequestCreate, ApprovalRequestRead
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
+from app.services.approval_intake import create_approval_request_with_audit
 from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
 from .contracts import ApprovalRequestIntakePlan

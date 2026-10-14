@@ -1,6 +1,6 @@
-# Temporary exceptions for persistence naming-convention locks.
-# The current target is empty; keep this registry present so any future exception
-# carries an explicit rationale and can be removed deliberately.
-expires_at = "2026-11-11"
-
+# Temporary persistence naming exceptions. The current target remains empty.
+# Any future entry requires path, owner, rationale and per-entry expires_at.
+schema_version = 1
+kind = "temporary_exceptions"
+decision = "persistence-naming-contract"
 paths = []

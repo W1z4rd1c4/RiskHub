@@ -33,6 +33,20 @@ policy changes, and their audit rows together.
 
 Outbox transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`: the dispatcher owns the worker transaction scopes and `backend/app/services/outbox/store.py` flushes only. Endpoint commit sites have ratcheted to zero in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`. Remaining service-side raw commits are explicitly tracked in `tests/backend/pytest/architecture/_service_commit_boundary_allowlist.toml` and must move to `commit_service_boundary` with local behavior coverage before removal from that allowlist.
 
+### Approval intake boundary (2026-10-14)
+
+`backend/app/services/approval_intake.py` owns legacy approval creation together
+with its audit and `approval.request_created` outbox event. The named
+`approval_request_intake` boundary commits once, or flushes when an outer
+service explicitly defers it. Flush/audit/enqueue failures roll back the whole
+transaction; completion failures use the canonical boundary rollback/logging.
+Cancellation during final commit or deferred flush also attempts rollback and
+preserves the original cancellation, including when rollback itself fails.
+Only the `ux_approval_pending` integrity failure is translated to a pending
+approval conflict. The core helper retains policy and HTTP response projection,
+with no persistence/commit owner or compatibility re-export. The transaction
+ratchet scans services and this former core escape path.
+
 ## Alternatives Rejected
 
 - Endpoints commit, services flush: rejected because business workflows span multiple service Modules and callers can forget side-effect ordering.

@@ -66,6 +66,8 @@ def test_declared_root_exports_resolve_and_unknown_attribute_refuses(package):
     "first",
     [
         "app.services.risk_row_criteria",
+        "app.services.approval_intake",
+        "app.core.approval_helpers",
         "app.services._register_listings",
         "app.services._reporting",
         "app.services._dashboard_metrics",
