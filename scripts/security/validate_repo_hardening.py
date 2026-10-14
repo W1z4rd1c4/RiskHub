@@ -13,6 +13,7 @@ CHECKS: tuple[tuple[str, Path, re.Pattern[str]], ...] = (
     ("latest image tag", REPO_ROOT / ".github" / "workflows", re.compile(r":latest\b")),
     ("legacy X-XSS-Protection header", REPO_ROOT / "backend" / "app", re.compile(r"\bX-XSS-Protection\b")),
     ("legacy X-XSS-Protection header", REPO_ROOT / "frontend" / "nginx.conf", re.compile(r"\bX-XSS-Protection\b")),
+    ("legacy X-XSS-Protection header", REPO_ROOT / "frontend" / "nginx", re.compile(r"\bX-XSS-Protection\b")),
     ("legacy X-XSS-Protection header", REPO_ROOT / "scripts" / "verify_security_headers.py", re.compile(r"\bX-XSS-Protection\b")),
     ("duplicate sanitizeReturnTo definitions", REPO_ROOT / "frontend" / "src", re.compile(r"\bfunction sanitizeReturnTo\b")),
     ("hardNavigate usage", REPO_ROOT / "frontend" / "src", re.compile(r"\bhardNavigate\b")),
@@ -30,6 +31,11 @@ CHECKS: tuple[tuple[str, Path, re.Pattern[str]], ...] = (
     (
         "production CSP style unsafe-inline",
         REPO_ROOT / "frontend" / "nginx.conf",
+        re.compile(r"style-src [^\n]*'unsafe-inline'"),
+    ),
+    (
+        "production CSP style unsafe-inline",
+        REPO_ROOT / "frontend" / "nginx",
         re.compile(r"style-src [^\n]*'unsafe-inline'"),
     ),
     (

@@ -1,0 +1,55 @@
+name: Frontend nginx Security
+
+on:
+  pull_request:
+    branches: [main, develop, "feat/identity-group-*"]
+    paths:
+      - '.github/workflows/frontend-nginx-security.yml'
+      - 'frontend/Dockerfile'
+      - 'frontend/.dockerignore'
+      - 'frontend/nginx.conf'
+      - 'frontend/nginx/**'
+      - 'scripts/security/verify_frontend_nginx.py'
+  push:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/frontend-nginx-security.yml'
+      - 'frontend/Dockerfile'
+      - 'frontend/.dockerignore'
+      - 'frontend/nginx.conf'
+      - 'frontend/nginx/**'
+      - 'scripts/security/verify_frontend_nginx.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nginx-response-contract:
+    name: Frontend nginx Response Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build production frontend image
+        run: |
+          set -euo pipefail
+          mkdir -p tests/results/frontend/nginx-security
+          docker build -t riskhub-frontend:headers frontend/ 2>&1 | tee tests/results/frontend/nginx-security/build.log
+
+      - name: Verify production nginx config and responses
+        run: |
+          set -euo pipefail
+          python3 scripts/security/verify_frontend_nginx.py --image riskhub-frontend:headers 2>&1 | tee tests/results/frontend/nginx-security/check.log
+
+      - name: Upload nginx response evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-nginx-security
+          path: tests/results/frontend/nginx-security/
+          retention-days: 30
+          if-no-files-found: error

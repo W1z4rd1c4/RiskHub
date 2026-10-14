@@ -276,3 +276,21 @@ def test_identity_stack_gates_preserve_push_and_blocking_semantics():
         assert check["continue_on_error"] is False
         assert check["required_on_protected_main"] is False
         assert check["timeout_minutes"] > 0
+
+
+def test_ci_contract_governs_frontend_nginx_response_workflow():
+    module = _validator_module()
+    payload = _ci_contract()
+    workflow = ".github/workflows/frontend-nginx-security.yml"
+    assert workflow in module.GOVERNED_WORKFLOWS
+    check = next(check for check in payload["checks"] if check["workflow"] == workflow)
+    assert check["job_id"] == "nginx-response-contract"
+    assert check["job_name"] == "Frontend nginx Response Contract"
+    assert check["continue_on_error"] is False
+    assert check["required_on_protected_main"] is False
+    assert check["timeout_minutes"] == 20
+    paths = payload["workflow_contracts"][workflow]["events"]["pull_request"]["paths"]
+    assert "frontend/nginx.conf" in paths
+    assert "frontend/nginx/**" in paths
+    assert "frontend/Dockerfile" in paths
+    assert "scripts/security/verify_frontend_nginx.py" in paths

@@ -142,8 +142,11 @@ def test_compose_full_stack_starts_outbox_scheduler_service():
 def test_frontend_nginx_does_not_upgrade_docker_demo_http_assets():
     nginx_config = (REPO_ROOT / "frontend" / "nginx.conf").read_text(encoding="utf-8")
 
-    assert "Content-Security-Policy" in nginx_config
-    assert "upgrade-insecure-requests" not in nginx_config
+    header_config = (REPO_ROOT / "frontend" / "nginx" / "security-headers.conf").read_text(encoding="utf-8")
+
+    assert "include /etc/nginx/snippets/security-headers.conf;" in nginx_config
+    assert "Content-Security-Policy" in header_config
+    assert "upgrade-insecure-requests" not in nginx_config + header_config
 
 
 def test_prod_compose_artifact_is_absent():
