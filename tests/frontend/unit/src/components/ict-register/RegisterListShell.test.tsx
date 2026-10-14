@@ -1,6 +1,5 @@
 import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ComponentProps } from 'react';
 import type { RegisterListWorkingSet } from '@/pages/shared/useRegisterUrlWorkingSet';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';

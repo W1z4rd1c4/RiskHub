@@ -223,7 +223,8 @@ describe('direct create/edit form capability gates', () => {
 
         renderWithQueryClient(<RiskEditPage />);
 
-        await waitFor(() => expect(mockGetRisk).toHaveBeenCalledWith(10, { signal: expect.any(AbortSignal) }));
+        const expectedSignal: unknown = expect.any(AbortSignal);
+        await waitFor(() => expect(mockGetRisk).toHaveBeenCalledWith(10, { signal: expectedSignal }));
         expect(screen.queryByTestId('risk-form')).not.toBeInTheDocument();
     });
 
