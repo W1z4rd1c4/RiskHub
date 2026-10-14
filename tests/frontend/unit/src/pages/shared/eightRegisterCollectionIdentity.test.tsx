@@ -63,7 +63,11 @@ vi.mock('@/services/vendorApi', () => ({ vendorApi: { getVendors: apiMocks.getVe
 
 interface RegisterCollectionState {
     capabilities: object | null;
-    workingSet: { currentPage: number; setCurrentPage: (page: number) => void };
+    workingSet: {
+        currentPage: number;
+        setCurrentPage: (page: number) => void;
+        updateSearch: (value: string) => void;
+    };
     errorKey: string | null;
     facets: object;
     groups: object[];
@@ -75,7 +79,6 @@ interface RegisterCollectionState {
     refresh: () => Promise<void>;
     restore?: (id: number) => Promise<void>;
     totalCount: number;
-    updateSearch: (value: string) => void;
 }
 
 const EMPTY_RISK_SEMANTIC_FILTERS = {};
@@ -274,7 +277,7 @@ describe('eight-register collection query identity', () => {
 
         const search = 'abcdefghijkl';
         for (let length = 1; length <= search.length; length += 1) {
-            await actAndFlush(() => result.current.updateSearch(search.slice(0, length)));
+            await actAndFlush(() => result.current.workingSet.updateSearch(search.slice(0, length)));
             expect(fetchMock).toHaveBeenCalledTimes(1);
             expect(result.current.refresh).toBe(initialRefresh);
         }
@@ -295,7 +298,7 @@ describe('eight-register collection query identity', () => {
             wrapper: routeWrapper(path),
         });
         await waitFor(() => expect(result.current.state.isLoading).toBe(false));
-        await actAndFlush(() => result.current.state.setCurrentPage(2));
+        await actAndFlush(() => result.current.state.workingSet.setCurrentPage(2));
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
         await act(async () => result.current.navigate(-1));
@@ -306,11 +309,11 @@ describe('eight-register collection query identity', () => {
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
 
         vi.useFakeTimers();
-        await actAndFlush(() => result.current.state.updateSearch('a'));
-        expect(result.current.state.currentPage).toBe(1);
+        await actAndFlush(() => result.current.state.workingSet.updateSearch('a'));
+        expect(result.current.state.workingSet.currentPage).toBe(1);
         expect(fetchMock).toHaveBeenCalledTimes(5);
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(0);
-        await actAndFlush(() => result.current.state.updateSearch('ab'));
+        await actAndFlush(() => result.current.state.workingSet.updateSearch('ab'));
         expect(fetchMock).toHaveBeenCalledTimes(5);
         await act(async () => vi.advanceTimersByTimeAsync(300));
         expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -353,8 +356,8 @@ describe('eight-register collection query identity', () => {
         const oldB = deferred<typeof populatedPage>();
         fetchMock.mockReturnValueOnce(oldA.promise).mockReturnValueOnce(oldB.promise).mockResolvedValueOnce(queryBPage);
         act(() => { void result.current.refresh(); });
-        await actAndFlush(() => result.current.setCurrentPage(2));
-        await actAndFlush(() => result.current.setCurrentPage(1));
+        await actAndFlush(() => result.current.workingSet.setCurrentPage(2));
+        await actAndFlush(() => result.current.workingSet.setCurrentPage(1));
         expect(fetchMock).toHaveBeenCalledTimes(4);
         expect(result.current.items).toEqual([expect.objectContaining({ id: 2 })]);
         await actAndFlush(() => {

@@ -32,7 +32,11 @@ const registers = [
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 function requestSearch(url: URL | undefined) {
-    return url?.searchParams.get('search') ?? JSON.parse(url?.searchParams.get('filters') ?? '{}').search;
+    const search = url?.searchParams.get('search');
+    if (search !== null && search !== undefined) return search;
+    const filters: unknown = JSON.parse(url?.searchParams.get('filters') ?? '{}');
+    if (typeof filters !== 'object' || filters === null || !('search' in filters)) return undefined;
+    return typeof filters.search === 'string' ? filters.search : undefined;
 }
 
 describe.each(registers)('$name rendered current-view export', ({ name, element }) => {
