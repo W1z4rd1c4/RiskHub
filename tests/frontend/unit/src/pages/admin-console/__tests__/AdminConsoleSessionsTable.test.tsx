@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 describe('SessionsTable', () => {
-    it('pluralizes the device count instead of printing "1 devices" (GAP-C-13)', async () => {
+    it('pluralizes the device count instead of printing "1 devices" (GAP-C-13)', () => {
         render(
             <SessionsTable
                 canRevokeSessions
@@ -39,6 +39,7 @@ describe('SessionsTable', () => {
 
         expect(screen.getByText('1 device')).toBeInTheDocument();
         expect(screen.getByText('3 devices')).toBeInTheDocument();
+        return Promise.resolve();
     });
 
     it('uses the Czech plural categories for the device count', async () => {

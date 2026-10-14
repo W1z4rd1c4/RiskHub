@@ -621,7 +621,7 @@ describe('ApprovalsPage workbench continuity', () => {
             const resolutionAlert = await within(dialog).findByRole('alert');
             expect(resolutionAlert).toHaveTextContent(expectedMessage);
             expect(notes).toHaveValue('Reviewed outcome');
-            expect(dialog).toContainElement(document.activeElement);
+            expect(dialog.contains(document.activeElement)).toBe(true);
             expect(resolutionAlert).not.toHaveFocus();
             expect(screen.getAllByRole('alert')).toEqual([resolutionAlert]);
 

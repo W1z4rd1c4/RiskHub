@@ -1,3 +1,4 @@
+const { getControlMock, getLinkedRisksMock, getRiskMock, unlinkRiskMock } = vi.hoisted(() => ({ getControlMock: vi.fn(), getLinkedRisksMock: vi.fn(), getRiskMock: vi.fn(), unlinkRiskMock: vi.fn() }));
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -8,10 +9,6 @@ import { ApiClientError } from '@/services/apiClient';
 import { createTestQueryClient } from '@test/queryClient';
 import { renderWithoutProviders as render } from '@test/render';
 
-const getControlMock = vi.fn();
-const getLinkedRisksMock = vi.fn();
-const getRiskMock = vi.fn();
-const unlinkRiskMock = vi.fn();
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -50,9 +47,9 @@ function link(id: number, name: string) {
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getControl: (...args: unknown[]) => getControlMock(...args),
-        getLinkedRisks: (...args: unknown[]) => getLinkedRisksMock(...args),
-        unlinkRisk: (...args: unknown[]) => unlinkRiskMock(...args),
+        getControl: getControlMock,
+        getLinkedRisks: getLinkedRisksMock,
+        unlinkRisk: unlinkRiskMock,
         linkRisk: vi.fn(),
         deleteControl: vi.fn(),
         restoreControl: vi.fn(),
@@ -61,7 +58,7 @@ vi.mock('@/services/controlApi', () => ({
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => getRiskMock(...args),
+        getRisk: getRiskMock,
     },
 }));
 
@@ -165,9 +162,10 @@ describe('Control detail route ownership', () => {
         expect(screen.queryByText(/^issue:/)).not.toBeInTheDocument();
         expect(screen.queryByText('link-dialog')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             linkedA.resolve([link(1, 'Risk A')]);
             riskA.resolve({ id: 101, name: 'Risk A quick view' });
+            return Promise.resolve();
         });
         expect(screen.queryByText('linked:Risk A')).not.toBeInTheDocument();
         expect(screen.queryByText('quick:Risk A quick view')).not.toBeInTheDocument();
@@ -209,9 +207,10 @@ describe('Control detail route ownership', () => {
         fireEvent.click(screen.getByRole('button', { name: 'open-risk-b' }));
         expect(await screen.findByText('quick:Newest quick Risk')).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             initialLinks.resolve([link(1, 'Stale linked Risk')]);
             riskA.resolve({ id: 101, name: 'Stale quick Risk' });
+            return Promise.resolve();
         });
         expect(screen.queryByText('linked:Stale linked Risk')).not.toBeInTheDocument();
         expect(screen.queryByText('quick:Stale quick Risk')).not.toBeInTheDocument();
@@ -307,7 +306,7 @@ describe('Control detail route ownership', () => {
 
         await act(async () => router.navigate('/controls/2'));
         expect(await screen.findByText('linked:Risk B')).toBeInTheDocument();
-        await act(async () => unlinkA.resolve());
+        await act(() => Promise.resolve(unlinkA.resolve()));
 
         expect(screen.queryByText('linked:Risk A')).not.toBeInTheDocument();
         expect(getLinkedRisksMock.mock.calls.filter(([id]) => id === 1)).toHaveLength(1);

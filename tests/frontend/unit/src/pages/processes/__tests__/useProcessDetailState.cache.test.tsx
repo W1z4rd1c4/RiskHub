@@ -1,3 +1,4 @@
+import type * as MockprocessApiModule from '@/services/processApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
@@ -29,16 +30,21 @@ const originalProcess: Process = {
         can_update: true,
         can_archive: true,
         can_restore: false,
+        protected_change_requires_approval: false,
+        can_request_change: false,
+        can_cancel_pending_change: false,
+        has_pending_change: false,
+        business_edit_blocked: false,
     },
     created_at: '2026-07-15T10:00:00Z',
     updated_at: '2026-07-15T10:00:00Z',
 };
 
-const mockGetProcess = vi.fn();
+const mockGetProcess = vi.fn<typeof MockprocessApiModule.processApi.getProcess>();
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
-        getProcess: (...args: unknown[]) => mockGetProcess(...args),
+        getProcess: (...args: Parameters<typeof mockGetProcess>) => mockGetProcess(...args),
         restoreProcess: vi.fn(),
     },
 }));
@@ -66,7 +72,7 @@ describe('useProcessDetailState edit cache', () => {
     it('replaces the pre-edit detail snapshot with the saved Process', async () => {
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const { result } = renderHook(
-            () => useProcessDetailState({ mode: 'edit', notFoundMessage: 'not found' }),
+            () => useProcessDetailState({ mode: 'edit' }),
             { wrapper: createWrapper(client) },
         );
 

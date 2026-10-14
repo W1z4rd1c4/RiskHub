@@ -53,7 +53,6 @@ describe('approval workbench query contract', () => {
             tab: 'mine',
             query: 'Asset A-17',
             page: 3,
-            approvalId: 85,
         })).toEqual({
             my_requests: true,
             q: 'Asset A-17',

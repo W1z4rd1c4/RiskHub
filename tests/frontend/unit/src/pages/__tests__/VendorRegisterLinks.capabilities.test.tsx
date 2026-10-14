@@ -122,7 +122,7 @@ describe('Vendor register-link backend capability gates', () => {
 
     it('keeps archived visible Vendor links readable and allows row-authorized cleanup', async () => {
         canMock.mockReturnValue(false);
-        vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([
+        vi.mocked(vendorApi).getAssetLinks.mockResolvedValue([
             {
                 id: 41,
                 asset_id: 7,
@@ -133,7 +133,7 @@ describe('Vendor register-link backend capability gates', () => {
                 created_at: '2026-07-15T08:00:00Z',
             },
         ]);
-        vi.mocked(assetApi.removeVendorLink).mockResolvedValue(undefined);
+        vi.spyOn(assetApi, 'removeVendorLink').mockResolvedValue(undefined);
 
         renderSection({
             protected_change_requires_approval: true,
@@ -153,12 +153,12 @@ describe('Vendor register-link backend capability gates', () => {
         fireEvent.click(within(dialog).getByText('assets:link_approval.continue'));
 
         await waitFor(() => {
-            expect(assetApi.removeVendorLink).toHaveBeenCalledWith(7, 41, 'Remove obsolete dependency');
+            expect(vi.spyOn(assetApi, 'removeVendorLink')).toHaveBeenCalledWith(7, 41, 'Remove obsolete dependency');
         });
     });
 
     it('keeps a rejected Vendor-side link error and rationale inside its open dialog', async () => {
-        vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([{
+        vi.mocked(vendorApi).getAssetLinks.mockResolvedValue([{
             id: 44,
             asset_id: 7,
             vendor_id: 4,
@@ -167,7 +167,7 @@ describe('Vendor register-link backend capability gates', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-15T08:00:00Z',
         }]);
-        vi.mocked(assetApi.removeVendorLink).mockRejectedValueOnce(new Error('rejected'));
+        vi.spyOn(assetApi, 'removeVendorLink').mockRejectedValueOnce(new Error('rejected'));
         renderSection({
             protected_change_requires_approval: true,
             can_view_asset_links: true,
@@ -194,7 +194,7 @@ describe('Vendor register-link backend capability gates', () => {
     });
 
     it('surfaces the queued approval returned by a governed Vendor-side Asset unlink on the vendor', async () => {
-        vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([{
+        vi.mocked(vendorApi).getAssetLinks.mockResolvedValue([{
             id: 43,
             asset_id: 9,
             vendor_id: 4,
@@ -203,7 +203,7 @@ describe('Vendor register-link backend capability gates', () => {
             capabilities: { can_delete: true },
             created_at: '2026-07-15T08:00:00Z',
         }]);
-        vi.mocked(assetApi.removeVendorLink).mockResolvedValue({
+        vi.spyOn(assetApi, 'removeVendorLink').mockResolvedValue({
             status: 'approval_required',
             message: 'Queued',
             approval_id: 186,
@@ -235,7 +235,7 @@ describe('Vendor register-link backend capability gates', () => {
 
     it('keeps pending record-owner links readable while honoring mutation denial', async () => {
         canMock.mockReturnValue(false);
-        vi.mocked(vendorApi.getAssetLinks).mockResolvedValue([
+        vi.mocked(vendorApi).getAssetLinks.mockResolvedValue([
             {
                 id: 42,
                 asset_id: 8,
@@ -259,7 +259,7 @@ describe('Vendor register-link backend capability gates', () => {
     });
 
     it('disables Vendor-side Process unlink while the Process impact lock is active', async () => {
-        vi.mocked(vendorApi.getProcessLinks).mockResolvedValue([{
+        vi.mocked(vendorApi).getProcessLinks.mockResolvedValue([{
             id: 51,
             process_id: 9,
             vendor_id: 4,
@@ -285,6 +285,6 @@ describe('Vendor register-link backend capability gates', () => {
         fireEvent.click(remove);
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(screen.getByText('processes:pending_change.link_action_blocked')).toBeInTheDocument();
-        expect(processApi.removeVendorLink).not.toHaveBeenCalled();
+        expect(vi.spyOn(processApi, 'removeVendorLink')).not.toHaveBeenCalled();
     });
 });

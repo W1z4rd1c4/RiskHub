@@ -248,7 +248,7 @@ describe('ApprovalList action gating', () => {
                 onApprove={onApprove}
                 onReject={onReject}
                 onCancel={onCancel}
-                t={t as never}
+                t={t}
             />,
         );
         expect(screen.getByRole('button', { name: 'common:tooltips.view_changes' })).toHaveAttribute('aria-expanded', 'true');

@@ -1,3 +1,4 @@
+import { vendorFixture } from './pageFixtures';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -15,9 +16,7 @@ describe('Vendor detail presentation helpers', () => {
     });
 
     it('grants ownership edit access only to the outsourcing owner', () => {
-        const vendor = {
-            outsourcing_owner_user_id: 7,
-        } as const;
+        const vendor = vendorFixture({ outsourcing_owner_user_id: 7 });
 
         expect(canEditVendorByOwnership(vendor, 7)).toBe(true);
         expect(canEditVendorByOwnership(vendor, 3)).toBe(false);

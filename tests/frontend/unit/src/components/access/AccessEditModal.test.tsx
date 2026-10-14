@@ -182,8 +182,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: true,
                         can_deactivate: true,
                         can_revoke_sessions: true,
-            can_change_active_status: true,
-            can_break_glass_enable: false,
+                        can_change_active_status: true,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={onSaved}
@@ -338,8 +338,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: true,
                         can_deactivate: false,
                         can_revoke_sessions: false,
-            can_change_active_status: false,
-            can_break_glass_enable: false,
+                        can_change_active_status: false,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={onSaved}
@@ -386,8 +386,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: true,
                         can_deactivate: false,
                         can_revoke_sessions: false,
-            can_change_active_status: false,
-            can_break_glass_enable: false,
+                        can_change_active_status: false,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={vi.fn()}
@@ -424,8 +424,8 @@ describe('AccessEditModal', () => {
                         can_edit_role: false,
                         can_deactivate: false,
                         can_revoke_sessions: false,
-            can_change_active_status: false,
-            can_break_glass_enable: false,
+                        can_change_active_status: false,
+                        can_break_glass_enable: false,
                     },
                 })}
                 onSaved={onSaved}
@@ -440,15 +440,18 @@ describe('AccessEditModal', () => {
         expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
     });
 
-    it('hides editable fields and prevents payload fields when capabilities are missing', async () => {
+    it.each([null, undefined])('hides editable fields and prevents payload fields when capabilities are %s', async (capabilities) => {
         const onClose = vi.fn();
         const onSaved = vi.fn();
+        const user = makeAccessUser();
+        // Exercise malformed server metadata without weakening the valid fixture contract.
+        Reflect.set(user, 'capabilities', capabilities);
 
         render(
             <AccessEditModal
                 isOpen
                 onClose={onClose}
-                user={makeAccessUser({ capabilities: undefined })}
+                user={user}
                 onSaved={onSaved}
             />
         );

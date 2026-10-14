@@ -1,3 +1,5 @@
+import type * as MockvendorReportApiModule from '@/services/vendorReportApi';
+import type * as MockdepartmentApiModule from '@/services/departmentApi';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,10 +7,10 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 
 import { VendorReportsPage } from '@/pages/VendorReportsPage';
 
-const getCapabilitiesMock = vi.fn();
-const downloadAnnualMock = vi.fn();
-const downloadDoraRegisterMock = vi.fn();
-const getDepartmentsMock = vi.fn();
+const getCapabilitiesMock = vi.fn<() => ReturnType<typeof MockvendorReportApiModule.vendorReportApi.getCapabilities>>();
+const downloadAnnualMock = vi.fn<typeof MockvendorReportApiModule.vendorReportApi.downloadAnnual>();
+const downloadDoraRegisterMock = vi.fn<typeof MockvendorReportApiModule.vendorReportApi.downloadDoraRegister>();
+const getDepartmentsMock = vi.fn<() => ReturnType<typeof MockdepartmentApiModule.departmentApi.getDepartments>>();
 
 function LocationProbe() {
     const location = useLocation();
@@ -34,8 +36,8 @@ vi.mock('@/i18n/hooks', () => ({
 vi.mock('@/services/vendorReportApi', () => ({
     vendorReportApi: {
         getCapabilities: () => getCapabilitiesMock(),
-        downloadAnnual: (...args: unknown[]) => downloadAnnualMock(...args),
-        downloadDoraRegister: (...args: unknown[]) => downloadDoraRegisterMock(...args),
+        downloadAnnual: (...args: Parameters<typeof downloadAnnualMock>) => downloadAnnualMock(...args),
+        downloadDoraRegister: (...args: Parameters<typeof downloadDoraRegisterMock>) => downloadDoraRegisterMock(...args),
     },
 }));
 
@@ -212,7 +214,7 @@ describe('VendorReportsPage', () => {
 
         expect(annualButton).toBeDisabled();
         expect(doraButton).toBeEnabled();
-        await act(async () => firstDownload.reject(new Error('annual unavailable')));
+        await act(() => Promise.resolve(firstDownload.reject(new Error('annual unavailable'))));
 
         const annualSection = screen.getByText('reports.annual.title').closest('section');
         expect(annualSection).not.toBeNull();
@@ -281,7 +283,7 @@ describe('VendorReportsPage', () => {
 
         expect(doraButton).toBeDisabled();
         expect(annualButton).toBeEnabled();
-        await act(async () => firstDownload.reject(new Error('DORA unavailable')));
+        await act(() => Promise.resolve(firstDownload.reject(new Error('DORA unavailable'))));
 
         const doraSection = screen.getByText('reports.dora.title').closest('section');
         expect(doraSection).not.toBeNull();

@@ -8,7 +8,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
-import { threatApi } from '@/services/threatApi';
+const threatApi = vi.hoisted(() => ({
+        getRiskLinks: vi.fn(),
+        removeRiskLink: vi.fn(),
+        addRiskLink: vi.fn(),
+    }));
 import type { Threat } from '@/types/threat';
 
 /**
@@ -18,11 +22,7 @@ import type { Threat } from '@/types/threat';
  */
 
 vi.mock('@/services/threatApi', () => ({
-    threatApi: {
-        getRiskLinks: vi.fn(),
-        removeRiskLink: vi.fn(),
-        addRiskLink: vi.fn(),
-    },
+    threatApi: threatApi,
 }));
 
 vi.mock('@/services/riskApi', () => ({
@@ -48,11 +48,11 @@ function renderSection() {
 
 describe('ThreatRiskLinksSection load states (GAP-C-11)', () => {
     beforeEach(() => {
-        vi.mocked(threatApi.getRiskLinks).mockReset();
+        vi.mocked(threatApi).getRiskLinks.mockReset();
     });
 
     it('announces the first load instead of claiming there are no links', () => {
-        vi.mocked(threatApi.getRiskLinks).mockReturnValue(new Promise(() => undefined));
+        vi.mocked(threatApi).getRiskLinks.mockReturnValue(new Promise(() => undefined));
         renderSection();
 
         expect(screen.getByTestId('threat-risk-links-loading')).toContainElement(screen.getByRole('status'));
@@ -60,7 +60,7 @@ describe('ThreatRiskLinksSection load states (GAP-C-11)', () => {
     });
 
     it('renders a load failure as an error with retry, never as the empty state', async () => {
-        vi.mocked(threatApi.getRiskLinks)
+        vi.mocked(threatApi).getRiskLinks
             .mockRejectedValueOnce(new Error('network down'))
             .mockResolvedValueOnce([]);
         renderSection();
@@ -72,11 +72,11 @@ describe('ThreatRiskLinksSection load states (GAP-C-11)', () => {
 
         expect(await screen.findByText(EMPTY_COPY)).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-        await waitFor(() => expect(threatApi.getRiskLinks).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(vi.mocked(threatApi).getRiskLinks).toHaveBeenCalledTimes(2));
     });
 
     it('shows the empty state only after a successful empty load', async () => {
-        vi.mocked(threatApi.getRiskLinks).mockResolvedValue([]);
+        vi.mocked(threatApi).getRiskLinks.mockResolvedValue([]);
         renderSection();
 
         const empty = await screen.findByText(EMPTY_COPY);

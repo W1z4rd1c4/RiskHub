@@ -40,7 +40,7 @@ describe('Control shared register contract', () => {
                 sort: null,
                 view: 'all',
             });
-            const criteria = JSON.parse(buildControlCollectionQuery(params).get('filters') ?? '{}');
+            const criteria: unknown = JSON.parse(buildControlCollectionQuery(params).get('filters') ?? '{}');
 
             expect(criteria).toMatchObject({ lifecycle, status: 'inactive', monitoring_status: 'failed' });
             expect(criteria).not.toHaveProperty('include_archived');

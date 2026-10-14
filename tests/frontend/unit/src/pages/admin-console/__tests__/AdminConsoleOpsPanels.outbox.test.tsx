@@ -1,16 +1,14 @@
+const { getSystemHealthMock, getSystemStatsMock, getSchedulerStatusMock, getOutboxStatusMock } = vi.hoisted(() => ({ getSystemHealthMock: vi.fn<() => unknown>(), getSystemStatsMock: vi.fn(), getSchedulerStatusMock: vi.fn<() => unknown>(), getOutboxStatusMock: vi.fn<() => unknown>() }));
+import type * as Actualhooks from '@/i18n/hooks';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 
-const getSystemHealthMock = vi.fn();
-const getSystemStatsMock = vi.fn();
-const getSchedulerStatusMock = vi.fn();
-const getOutboxStatusMock = vi.fn();
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -52,10 +50,10 @@ vi.mock('@/hooks/useAdaptivePollingQuery', () => ({
 
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
-        getSystemHealth: (...args: unknown[]) => getSystemHealthMock(...args),
-        getSystemStats: (...args: unknown[]) => getSystemStatsMock(...args),
-        getSchedulerStatus: (...args: unknown[]) => getSchedulerStatusMock(...args),
-        getOutboxStatus: (...args: unknown[]) => getOutboxStatusMock(...args),
+        getSystemHealth: getSystemHealthMock,
+        getSystemStats: getSystemStatsMock,
+        getSchedulerStatus: getSchedulerStatusMock,
+        getOutboxStatus: getOutboxStatusMock,
     },
 }));
 

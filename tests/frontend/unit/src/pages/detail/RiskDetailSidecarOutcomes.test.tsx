@@ -1,3 +1,5 @@
+const { getRiskMock, getLinkedControlsMock, getLinkedVendorsMock, getOverdueMock } = vi.hoisted(() => ({ getRiskMock: vi.fn(), getLinkedControlsMock: vi.fn(), getLinkedVendorsMock: vi.fn(), getOverdueMock: vi.fn() }));
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,13 +8,9 @@ import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { ApiClientError } from '@/services/apiClient';
 import { renderWithQueryClient as render } from '@test/render';
 
-const getRiskMock = vi.fn();
-const getLinkedControlsMock = vi.fn();
-const getLinkedVendorsMock = vi.fn();
-const getOverdueMock = vi.fn();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '7' }),
@@ -21,15 +19,15 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => getRiskMock(...args),
-        getLinkedControls: (...args: unknown[]) => getLinkedControlsMock(...args),
-        getLinkedVendors: (...args: unknown[]) => getLinkedVendorsMock(...args),
+        getRisk: getRiskMock,
+        getLinkedControls: getLinkedControlsMock,
+        getLinkedVendors: getLinkedVendorsMock,
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getOverdue: (...args: unknown[]) => getOverdueMock(...args),
+        getOverdue: getOverdueMock,
     },
 }));
 
@@ -181,10 +179,11 @@ describe('Risk detail optional sidecar outcomes', () => {
         expect(screen.queryByText('empty-vendors')).not.toBeInTheDocument();
         expect(screen.queryByText('empty-overdue')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             controls.resolve([]);
             vendors.resolve([]);
             overdue.resolve([]);
+            return Promise.resolve();
         });
 
         expect(await screen.findByText('counts:0:0')).toBeInTheDocument();

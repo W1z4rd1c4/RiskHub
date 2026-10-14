@@ -152,7 +152,10 @@ describe('UsersTable', () => {
         expect(onEditAccess).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
     });
 
-    it('hides edit access action when target-row edit capabilities are false or missing', () => {
+    it.each([null, undefined])('hides edit access action when target-row edit capabilities are false or %s', (capabilities) => {
+        const malformedUser = makeAccessUser({ id: 8, email: 'missing@riskhub.test' });
+        // Exercise malformed server metadata without weakening the valid fixture contract.
+        Reflect.set(malformedUser, 'capabilities', capabilities);
         renderUsersTable({
             accessUsers: [
                 makeAccessUser({
@@ -163,18 +166,20 @@ describe('UsersTable', () => {
                         can_edit_role: false,
                     },
                 }),
-                makeAccessUser({ id: 8, email: 'missing@riskhub.test', capabilities: undefined }),
+                malformedUser,
             ],
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.edit_access' })).not.toBeInTheDocument();
     });
 
-    it('hides active-status action when lifecycle capability metadata is absent', () => {
+    it.each([null, undefined])('hides active-status action when lifecycle capability metadata is %s', (capabilities) => {
         const onToggleStatus = vi.fn();
+        const malformedUser = makeAccessUser();
+        Reflect.set(malformedUser, 'capabilities', capabilities);
         renderUsersTable({
             onToggleStatus,
-            accessUsers: [makeAccessUser({ capabilities: undefined })],
+            accessUsers: [malformedUser],
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();

@@ -213,7 +213,7 @@ describe('IssueNewPage unsaved changes', () => {
         expect(router.state.location.pathname).toBe('/issues/new');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-        await act(async () => resolveCreate({ id: 17 }));
+        await act(() => Promise.resolve(resolveCreate({ id: 17 })));
         await waitFor(() => expect(router.state.location.pathname).toBe('/issues/17'));
         expect(visitedLocations).toEqual(['/issues/17?return_to=%2Fissues']);
     });

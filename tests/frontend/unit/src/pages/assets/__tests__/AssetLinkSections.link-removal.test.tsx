@@ -10,28 +10,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Asset } from '@/types/asset';
 
-const mockRemoveProcessLink = vi.fn().mockResolvedValue({});
-const mockRemoveAssetLink = vi.fn().mockResolvedValue({});
+const mockRemoveProcessLink = vi.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({});
+const mockRemoveAssetLink = vi.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({});
 
 vi.mock('@/services/assetApi', () => ({
-    assetApi: {
-        getProcessLinks: vi.fn(),
-        getAssetLinks: vi.fn().mockResolvedValue([]),
-        getVendorLinks: vi.fn().mockResolvedValue([]),
-        getClosedLists: vi.fn().mockResolvedValue({}),
-        getAssets: vi.fn().mockResolvedValue({ items: [] }),
-        addProcessLink: vi.fn(),
-        updateProcessLink: vi.fn(),
-        removeProcessLink: (...args: unknown[]) => mockRemoveProcessLink(...args),
-        addAssetLink: vi.fn(),
-        removeAssetLink: (...args: unknown[]) => mockRemoveAssetLink(...args),
-        addVendorLink: vi.fn(),
-        removeVendorLink: vi.fn(),
-    },
+    assetApi: assetApi,
 }));
 
 vi.mock('@/services/processApi', () => ({
-    processApi: { getProcess: vi.fn(), getProcesses: vi.fn().mockResolvedValue({ items: [] }) },
+    processApi: processApi,
 }));
 
 vi.mock('@/services/vendorApi', () => ({
@@ -46,8 +33,21 @@ vi.mock('@/services/vendorSubOutsourcingApi', () => ({
     vendorSubOutsourcingApi: { getIctServiceTaxonomy: vi.fn().mockResolvedValue([]) },
 }));
 
-import { assetApi } from '@/services/assetApi';
-import { processApi } from '@/services/processApi';
+const assetApi = vi.hoisted(() => ({
+        getProcessLinks: vi.fn(),
+        getAssetLinks: vi.fn().mockResolvedValue([]),
+        getVendorLinks: vi.fn().mockResolvedValue([]),
+        getClosedLists: vi.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({}),
+        getAssets: vi.fn().mockResolvedValue({ items: [] }),
+        addProcessLink: vi.fn(),
+        updateProcessLink: vi.fn(),
+        removeProcessLink: (...args: Parameters<typeof mockRemoveProcessLink>) => mockRemoveProcessLink(...args),
+        addAssetLink: vi.fn(),
+        removeAssetLink: (...args: Parameters<typeof mockRemoveAssetLink>) => mockRemoveAssetLink(...args),
+        addVendorLink: vi.fn(),
+        removeVendorLink: vi.fn(),
+    }));
+const processApi = vi.hoisted(() => ({ getProcess: vi.fn(), getProcesses: vi.fn().mockResolvedValue({ items: [] }) }));
 import { AssetLinkSections } from '@/pages/assets/AssetLinkSections';
 import i18n from '@/i18n';
 
@@ -237,13 +237,13 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
     });
 
     it('keeps a rejected Asset-link addition error and rationale inside the dialog', async () => {
-        vi.mocked(assetApi.getAssets).mockResolvedValue({
+        vi.mocked(assetApi).getAssets.mockResolvedValue({
             items: [{ id: 2, name: 'Payments platform', is_archived: false }],
             total: 1,
             offset: 0,
             limit: 100,
         } as Awaited<ReturnType<typeof assetApi.getAssets>>);
-        vi.mocked(assetApi.addAssetLink).mockRejectedValueOnce(
+        vi.mocked(assetApi).addAssetLink.mockRejectedValueOnce(
             Object.assign(new Error('reason rejected'), { status: 422 }),
         );
         renderSection();
@@ -283,12 +283,12 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
     });
 
     it('keeps a denied counterpart unavailable and lets the user close without a mutation', async () => {
-        vi.mocked(processApi.getProcesses).mockResolvedValue({ items: [] } as never);
-        vi.mocked(processApi.getProcess).mockRejectedValueOnce({ status: 403 });
+        vi.mocked(processApi).getProcesses.mockResolvedValue({ items: [] });
+        vi.mocked(processApi).getProcess.mockRejectedValueOnce({ status: 403 });
         renderSection({ ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false } } as Asset);
         fireEvent.click(await screen.findByTestId('asset-process-link-remove-100'));
         const dialog = screen.getByRole('alertdialog');
-        await waitFor(() => expect(processApi.getProcess).toHaveBeenCalledExactlyOnceWith(100));
+        await waitFor(() => expect(vi.mocked(processApi).getProcess).toHaveBeenCalledExactlyOnceWith(100));
         expect(within(dialog).getByRole('button', { name: i18n.t('common:actions.remove_link') })).toBeDisabled();
         expect(within(dialog).getByText(i18n.t('common:governed_mutation.capability_unavailable'))).toBeInTheDocument();
         fireEvent.submit(dialog.querySelector('form')!);
@@ -298,22 +298,22 @@ describe('AssetLinkSections link removal (FR-P4-8 / P6)', () => {
     });
 
     it('requires the displaced primary Process fact even when the new primary and Asset are unprotected', async () => {
-        vi.mocked(assetApi.getProcessLinks).mockResolvedValue([
+        vi.mocked(assetApi).getProcessLinks.mockResolvedValue([
             { id: 10, process_id: 100, process_name: 'New primary', is_primary: false },
             { id: 11, process_id: 900, process_name: 'Displaced primary', is_primary: true },
         ] as never);
-        vi.mocked(processApi.getProcesses).mockResolvedValue({ items: [
+        vi.mocked(processApi).getProcesses.mockResolvedValue({ items: [
             { id: 100, capabilities: { protected_change_requires_approval: false } },
-        ] } as never);
-        vi.mocked(processApi.getProcess).mockResolvedValueOnce({ id: 900, capabilities: { protected_change_requires_approval: true } } as never);
+        ] });
+        vi.mocked(processApi).getProcess.mockResolvedValueOnce({ id: 900, capabilities: { protected_change_requires_approval: true } });
         renderSection({ ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false } } as Asset);
         fireEvent.click(await screen.findByTestId('asset-process-link-set-primary-100'));
         const dialog = screen.getByRole('alertdialog');
         const reason = await within(dialog).findByRole('textbox', { name: /request reason/i });
         expect(reason).toHaveAttribute('aria-required', 'true');
-        expect(processApi.getProcess).toHaveBeenCalledExactlyOnceWith(900);
+        expect(vi.mocked(processApi).getProcess).toHaveBeenCalledExactlyOnceWith(900);
         fireEvent.submit(dialog.querySelector('form')!);
-        expect(assetApi.updateProcessLink).not.toHaveBeenCalled();
+        expect(vi.mocked(assetApi).updateProcessLink).not.toHaveBeenCalled();
     });
 
     it('confirms a directly applied non-protected link without forcing a discarded reason', async () => {

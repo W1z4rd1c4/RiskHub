@@ -1,3 +1,4 @@
+import { anything } from '@test/matchers';
 import type { ReactElement } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import * as axe from 'axe-core';
@@ -9,7 +10,7 @@ import type { Process } from '@/types/process';
 
 const t = (key: string) => key;
 
-function statusCell(process: Partial<Process>, handlers: { onRestore?: ReturnType<typeof vi.fn>; canRestore?: boolean } = {}) {
+function statusCell(process: Partial<Process>, handlers: { onRestore?: Parameters<typeof buildProcessColumns>[0]['onRestore']; canRestore?: boolean } = {}) {
     const columns = buildProcessColumns({
         t,
         onRestore: handlers.onRestore ?? vi.fn(),
@@ -56,7 +57,7 @@ describe('Process register status cell', () => {
         const restore = screen.getByRole('button', { name: 'Restore Payments' });
         expect(restore).toBe(screen.getByTestId('process-restore-7'));
         fireEvent.click(restore);
-        expect(onRestore).toHaveBeenCalledWith(7, expect.anything());
+        expect(onRestore).toHaveBeenCalledWith(7, anything());
         expect(onRowClick).not.toHaveBeenCalled();
 
         const results = await axe.run(container, {

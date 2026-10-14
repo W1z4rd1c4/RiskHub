@@ -1,3 +1,7 @@
+import { controlFixture } from './pageFixtures';
+import type * as MockcontrolApiModule from '@/services/controlApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
+import type * as Actualhooks from '@/i18n/hooks';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,12 +11,12 @@ import { ControlDetailPage } from '@/pages/ControlDetailPage';
 import { renderWithQueryClient as render } from '@test/render';
 
 const mockNavigate = vi.fn();
-const mockGetControl = vi.fn();
-const mockGetLinkedRisks = vi.fn();
+const mockGetControl = vi.fn<typeof MockcontrolApiModule.controlApi.getControl>();
+const mockGetLinkedRisks = vi.fn<typeof MockcontrolApiModule.controlApi.getLinkedRisks>();
 let historyRenderCount = 0;
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '13' }),
@@ -25,7 +29,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -42,8 +46,8 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getControl: (...args: unknown[]) => mockGetControl(...args),
-        getLinkedRisks: (...args: unknown[]) => mockGetLinkedRisks(...args),
+        getControl: (...args: Parameters<typeof mockGetControl>) => mockGetControl(...args),
+        getLinkedRisks: (...args: Parameters<typeof mockGetLinkedRisks>) => mockGetLinkedRisks(...args),
     },
 }));
 
@@ -85,7 +89,7 @@ describe('ControlDetailPage execution status refresh', () => {
         vi.clearAllMocks();
         historyRenderCount = 0;
         mockGetControl
-            .mockResolvedValueOnce({
+            .mockResolvedValueOnce(controlFixture({
                 id: 13,
                 name: 'Quarterly Access Review',
                 description: 'Ensure privileged access is reviewed.',
@@ -99,8 +103,8 @@ describe('ControlDetailPage execution status refresh', () => {
                     can_log_execution: true,
                     can_create_issue: false,
                 },
-            })
-            .mockResolvedValueOnce({
+            }))
+            .mockResolvedValueOnce(controlFixture({
                 id: 13,
                 name: 'Quarterly Access Review',
                 description: 'Ensure privileged access is reviewed.',
@@ -114,7 +118,7 @@ describe('ControlDetailPage execution status refresh', () => {
                     can_log_execution: true,
                     can_create_issue: false,
                 },
-            });
+            }));
         mockGetLinkedRisks.mockResolvedValue([]);
     });
 

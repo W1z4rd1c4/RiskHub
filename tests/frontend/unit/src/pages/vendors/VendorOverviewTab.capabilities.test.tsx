@@ -1,3 +1,5 @@
+import { vendorFixture } from '../__tests__/pageFixtures';
+import type * as Actualhooks from '@/i18n/hooks';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +15,7 @@ const linkApiMocks = vi.hoisted(() => ({
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         i18n: { language: 'en' },
         t: (key: string) => key,
@@ -49,7 +51,7 @@ function vendorWithLinkedVisibility({
     kris: boolean;
     risks: boolean;
 }): Vendor {
-    return {
+    return vendorFixture({
         id: 42,
         name: 'Capability-scoped Vendor',
         process: 'Claims',
@@ -73,7 +75,7 @@ function vendorWithLinkedVisibility({
             can_view_contracts: false,
             can_view_sub_outsourcing: false,
         },
-    } as Vendor;
+    });
 }
 
 function renderOverview(vendor: Vendor) {

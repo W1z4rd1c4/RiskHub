@@ -13,16 +13,16 @@ import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotic
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import i18n from '@/i18n';
 import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
-import { vendorContractApi } from '@/services/vendorContractApi';
-
-vi.mock('@/services/vendorContractApi', () => ({
-    vendorContractApi: {
+const vendorContractApi = vi.hoisted(() => ({
         getContracts: vi.fn(),
         createContract: vi.fn(),
         updateContract: vi.fn(),
         archiveContract: vi.fn(),
         restoreContract: vi.fn(),
-    },
+    }));
+
+vi.mock('@/services/vendorContractApi', () => ({
+    vendorContractApi: vendorContractApi,
 }));
 
 vi.mock('@/services/assetApi', () => ({
@@ -74,7 +74,7 @@ describe('VendorContractsSection archive confirmation (GAP-C-06)', () => {
     });
 
     it('confirms an unprotected archive with an optional reason before archiving', async () => {
-        vi.mocked(vendorContractApi.archiveContract).mockResolvedValue(undefined as never);
+        vi.mocked(vendorContractApi.archiveContract).mockResolvedValue(undefined);
         renderSection(false);
 
         const rowAction = await screen.findByTestId('vendor-contract-archive-5');
@@ -103,7 +103,7 @@ describe('VendorContractsSection archive confirmation (GAP-C-06)', () => {
             pending_fields: ['is_archived'],
             proposal_id: 'proposal-contract-186',
             proposal_version: 1,
-        } as never);
+        });
         renderSection(true);
 
         fireEvent.click(await screen.findByTestId('vendor-contract-archive-5'));

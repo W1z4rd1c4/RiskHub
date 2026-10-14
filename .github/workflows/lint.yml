@@ -219,6 +219,9 @@ jobs:
       # Every enabled recommended jsx-a11y rule is an error; any finding, non-empty
       # audit evidence, or suppression entry fails (FR-P1-4 · N4–N6).
       - name: Frontend lint (eslint + jsx-a11y strict zero)
+        # This aggregate command also checks the full typed centralized suite.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set -euo pipefail
           npm run lint | tee ../lint-frontend.log

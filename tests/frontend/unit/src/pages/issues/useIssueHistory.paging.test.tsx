@@ -1,3 +1,5 @@
+import { anything } from '@test/matchers';
+import type * as MockactivityLogApiModule from '@/services/activityLogApi';
 import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -7,11 +9,11 @@ import { ISSUE_HISTORY_PAGE_SIZE, useIssueHistory } from '@/pages/issues/issue-d
 import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/session/store';
 import type { Issue } from '@/types/issue';
 
-const mockListActivity = vi.fn();
+const mockListActivity = vi.fn<typeof MockactivityLogApiModule.activityLogApi.list>();
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
-        list: (...args: unknown[]) => mockListActivity(...args),
+        list: (...args: Parameters<typeof mockListActivity>) => mockListActivity(...args),
     },
 }));
 
@@ -22,6 +24,10 @@ function historyEntry(issueId: number, id: number) {
         entity_type: 'issue',
         entity_id: issueId,
         description: `Issue ${issueId} entry ${id}`,
+        entity_name: 'Issue',
+        actor_id: 7,
+        department_id: null,
+        changes: null,
         actor_name: 'Analyst',
         created_at: '2026-10-01T08:00:00Z',
     };
@@ -60,8 +66,9 @@ describe('useIssueHistory paging (GAP-C-11)', () => {
 
     it('never shows the previous issue’s history while the next issue’s first page loads', async () => {
         let releaseIssueTwo: (() => void) | undefined;
-        mockListActivity.mockImplementation((filters: { entity_id: number; skip: number }) => {
-            const page = { items: [historyEntry(filters.entity_id, filters.skip + 1)], total: 60, skip: filters.skip, limit: ISSUE_HISTORY_PAGE_SIZE };
+        mockListActivity.mockImplementation((filters) => {
+            if (filters?.entity_id === undefined) throw new Error('Expected issue filter');
+            const page = { items: [historyEntry(filters.entity_id, (filters.skip ?? 0) + 1)], total: 60, skip: filters.skip ?? 0, limit: ISSUE_HISTORY_PAGE_SIZE };
             if (filters.entity_id === 2) {
                 return new Promise((resolve) => {
                     releaseIssueTwo = () => resolve(page);
@@ -87,7 +94,7 @@ describe('useIssueHistory paging (GAP-C-11)', () => {
         await waitFor(() => expect(result.current.historyItems[0]?.description).toBe('Issue 1 entry 26'));
         expect(mockListActivity).toHaveBeenLastCalledWith(
             expect.objectContaining({ entity_id: 1, skip: ISSUE_HISTORY_PAGE_SIZE, limit: ISSUE_HISTORY_PAGE_SIZE }),
-            expect.anything(),
+            anything(),
         );
 
         rerender({ issueId: 2 });

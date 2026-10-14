@@ -1,3 +1,5 @@
+import type { useDepartmentDetail } from '@/hooks/useDepartmentDetail';
+import type * as Actualformatters from '@/i18n/formatters';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -5,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useDepartmentRegisterScope } from '@/pages/departments/useDepartmentRegisterScope';
 
-const useDepartmentDetailMock = vi.fn();
+type DepartmentOverviewState = Pick<ReturnType<typeof useDepartmentDetail>, 'department' | 'isLoading' | 'isAccessDenied' | 'error' | 'refresh'>;
+const useDepartmentDetailMock = vi.fn<(...args: Parameters<typeof useDepartmentDetail>) => DepartmentOverviewState>();
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
@@ -14,11 +17,11 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 vi.mock('@/hooks/useDepartmentDetail', () => ({
-    useDepartmentDetail: (...args: unknown[]) => useDepartmentDetailMock(...args),
+    useDepartmentDetail: (...args: Parameters<typeof useDepartmentDetail>) => useDepartmentDetailMock(...args),
 }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {

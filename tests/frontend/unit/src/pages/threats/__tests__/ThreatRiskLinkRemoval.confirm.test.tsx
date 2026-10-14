@@ -9,7 +9,25 @@ import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
 import { ApiClientError } from '@/services/apiClient';
-import { riskRegisterLinksApi, threatApi } from '@/services/threatApi';
+const { threatApi, riskRegisterLinksApi } = vi.hoisted(() => ({
+    threatApi: {
+        getRiskLinks: vi.fn(),
+        removeRiskLink: vi.fn(),
+        addRiskLink: vi.fn(),
+        getThreats: vi.fn().mockResolvedValue({ items: [] }),
+    },
+    riskRegisterLinksApi: {
+        getThreatLinks: vi.fn(),
+        getProcessLinks: vi.fn().mockResolvedValue([]),
+        getAssetLinks: vi.fn().mockResolvedValue([]),
+        addThreatLink: vi.fn(),
+        removeThreatLink: vi.fn(),
+        addProcessLink: vi.fn(),
+        removeProcessLink: vi.fn(),
+        addAssetLink: vi.fn(),
+        removeAssetLink: vi.fn(),
+    },
+}));
 import type { Risk } from '@/types/risk';
 import type { Threat } from '@/types/threat';
 
@@ -30,26 +48,7 @@ const link = {
     created_at: '2026-07-17T08:00:00Z',
 };
 
-vi.mock('@/services/threatApi', () => ({
-    threatApi: {
-        getRiskLinks: vi.fn(),
-        removeRiskLink: vi.fn(),
-        addRiskLink: vi.fn(),
-        getThreats: vi.fn().mockResolvedValue({ items: [] }),
-    },
-    riskRegisterLinksApi: {
-        getThreatLinks: vi.fn(),
-        getProcessLinks: vi.fn().mockResolvedValue([]),
-        getAssetLinks: vi.fn().mockResolvedValue([]),
-        addThreatLink: vi.fn(),
-        removeThreatLink: vi.fn(),
-        addProcessLink: vi.fn(),
-        removeProcessLink: vi.fn(),
-        addAssetLink: vi.fn(),
-        removeAssetLink: vi.fn(),
-    },
-}));
-
+vi.mock('@/services/threatApi', () => ({ threatApi, riskRegisterLinksApi }));
 vi.mock('@/services/riskApi', () => ({
     riskApi: { getRisks: vi.fn().mockResolvedValue({ items: [] }) },
 }));
@@ -83,14 +82,14 @@ const SIDES = [
         name: 'Threat page',
         renderSection: () => render(<ThreatRiskLinksSection threat={threat} canManageLinks />, { wrapper }),
         removeButtonTestId: 'threat-risk-link-remove-5',
-        remove: () => vi.mocked(threatApi.removeRiskLink),
+        remove: () => vi.mocked(threatApi).removeRiskLink,
         expectedName: 'R-0004: Authentication Drift',
     },
     {
         name: 'Risk page',
         renderSection: () => render(<RiskRegisterLinksSection risk={risk} canManageLinks />, { wrapper }),
         removeButtonTestId: 'risk-threat-link-remove-5',
-        remove: () => vi.mocked(riskRegisterLinksApi.removeThreatLink),
+        remove: () => vi.mocked(riskRegisterLinksApi).removeThreatLink,
         expectedName: 'Credential Stuffing',
     },
 ] as const;
@@ -98,10 +97,10 @@ const SIDES = [
 describe('Threat ↔ Risk link removal confirmation (GAP-C-01)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(threatApi.getRiskLinks).mockResolvedValue([link]);
-        vi.mocked(riskRegisterLinksApi.getThreatLinks).mockResolvedValue([link]);
-        vi.mocked(riskRegisterLinksApi.getProcessLinks).mockResolvedValue([]);
-        vi.mocked(riskRegisterLinksApi.getAssetLinks).mockResolvedValue([]);
+        vi.mocked(threatApi).getRiskLinks.mockResolvedValue([link]);
+        vi.mocked(riskRegisterLinksApi).getThreatLinks.mockResolvedValue([link]);
+        vi.mocked(riskRegisterLinksApi).getProcessLinks.mockResolvedValue([]);
+        vi.mocked(riskRegisterLinksApi).getAssetLinks.mockResolvedValue([]);
     });
 
     it.each(SIDES)('$name asks for confirmation with the unlink intent before removing', async ({

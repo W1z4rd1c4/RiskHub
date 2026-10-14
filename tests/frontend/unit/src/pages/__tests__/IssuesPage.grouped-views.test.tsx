@@ -1,3 +1,6 @@
+import type { IssueSummary } from '@/types/issue';
+import type * as MockissuesApiModule from '@/services/issuesApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,13 +9,13 @@ import { MemoryRouter } from 'react-router-dom';
 
 import { IssuesPage } from '@/pages/IssuesPage';
 
-const mockList = vi.fn();
+const mockList = vi.fn<typeof MockissuesApiModule.issuesApi.list>();
 const mockNavigate = vi.fn();
 
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        list: (...args: unknown[]) => mockList(...args),
+        list: (...args: Parameters<typeof mockList>) => mockList(...args),
     },
 }));
 
@@ -23,14 +26,14 @@ vi.mock('@/services/reportApi', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
     };
 });
 
-const issues = [
+const issues: IssueSummary[] = [
     {
         id: 101,
         title: 'Multi-risk execution issue',

@@ -12,11 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import i18n from '@/i18n';
 import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
-import { threatApi } from '@/services/threatApi';
-import type { Threat } from '@/types/threat';
-
-vi.mock('@/services/threatApi', () => ({
-    threatApi: {
+const threatApi = vi.hoisted(() => ({
         getRiskLinks: vi.fn().mockResolvedValue([{
             id: 5,
             risk_id: 11,
@@ -26,7 +22,11 @@ vi.mock('@/services/threatApi', () => ({
         }]),
         removeRiskLink: vi.fn().mockResolvedValue(undefined),
         addRiskLink: vi.fn(),
-    },
+    }));
+import type { Threat } from '@/types/threat';
+
+vi.mock('@/services/threatApi', () => ({
+    threatApi: threatApi,
 }));
 vi.mock('@/services/riskApi', () => ({
     riskApi: { getRisks: vi.fn().mockResolvedValue({ items: [] }) },
@@ -74,10 +74,10 @@ describe('ThreatRiskLinksSection labels', () => {
         renderSection();
 
         await user.click(await screen.findByTestId('threat-risk-link-remove-5'));
-        expect(threatApi.removeRiskLink).not.toHaveBeenCalled();
+        expect(vi.mocked(threatApi).removeRiskLink).not.toHaveBeenCalled();
         const dialog = screen.getByRole('alertdialog');
         await user.click(within(dialog).getByRole('button', { name: 'Remove link' }));
-        expect(threatApi.removeRiskLink).toHaveBeenCalledWith(3, 5);
+        expect(vi.mocked(threatApi).removeRiskLink).toHaveBeenCalledWith(3, 5);
     });
 
     it('translates the label in Czech', async () => {

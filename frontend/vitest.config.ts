@@ -19,6 +19,7 @@ const forwardedExternalTestImports = new Set([
   '@playwright/test',
   'axe-core',
   'eslint',
+  '@typescript-eslint/utils',
   'msw',
   'msw/node',
   'react-i18next',

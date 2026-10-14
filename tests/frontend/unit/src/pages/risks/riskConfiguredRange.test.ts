@@ -8,7 +8,7 @@ it('preserves configured range and explicit all-status through the real URL and 
     const url = buildRegisterUrlParams({ filters: serializeRiskRegisterFilters(filters), page: 1, search: '', selectedGroupValue: null, sort: null, view: 'all' });
     const reloaded = parseRiskRegisterFilters(parseRegisterUrlState(url, {defaultView:'all'}).filters);
     const params = buildRiskRegisterListParams({filters: reloaded, criticalMinNetScore: 25, currentPage:1, groupValue:null, limit:50, search:'', sort:null, view:'all'});
-    const wire = JSON.parse(buildRiskCollectionQuery(params).get('filters')!);
+    const wire: unknown = JSON.parse(buildRiskCollectionQuery(params).get('filters')!);
     expect(wire).toMatchObject({risk_level:'high', critical:true, lifecycle:'active'});
     expect(wire).not.toHaveProperty('status');
     expect(wire).not.toHaveProperty('min_net_score');
@@ -32,6 +32,6 @@ it.each(['all','low','medium','high','critical'] as const)('overview %s destinat
 });
 
 it('keeps explicit legacy numeric criteria distinct from the canonical checkbox', () => {
-    const wire=JSON.parse(buildRiskCollectionQuery({critical:true,risk_level:'high',min_net_score:18}).get('filters')!);
+    const wire: unknown = JSON.parse(buildRiskCollectionQuery({critical:true,risk_level:'high',min_net_score:18}).get('filters')!);
     expect(wire).toEqual({critical:true,risk_level:'high',min_net_score:18});
 });
