@@ -3,12 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.core.permissions import can_manage_users
+from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User
 from app.schemas import UserRead
+from app.services._access_workflow import build_access_users_query
 
 router = APIRouter()
 
@@ -20,11 +22,10 @@ async def get_user_subordinates(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get all direct subordinates of a user.
-    Requires: admin/manager access OR self-lookup.
+    Get visible direct subordinates of a user.
+    Requires user-management authority OR self-lookup. Like access rosters,
+    platform-Admin rows are visible only to platform-Admin callers.
     """
-    from app.core.permissions import can_manage_users
-
     # Allow self-lookup or admin/manager access
     if current_user.id != user_id and not can_manage_users(current_user):
         raise HTTPException(
@@ -32,20 +33,13 @@ async def get_user_subordinates(
             detail="Access denied - can only view own subordinates or requires admin access",
         )
 
-    result = await db.execute(
-        select(User)
-        .options(
-            selectinload(User.subordinates).options(
-                selectinload(User.role),
-                selectinload(User.department),
-                selectinload(User.manager),
-            )
-        )
-        .where(User.id == user_id)
-    )
-    user = result.scalar_one_or_none()
-
-    if not user:
+    user_id_result = await db.execute(select(User.id).where(User.id == user_id))
+    if user_id_result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return user.subordinates
+    result = await db.execute(
+        build_access_users_query(current_user)
+        .where(User.manager_id == user_id)
+        .options(*user_selectinload_options())
+    )
+    return result.scalars().all()
