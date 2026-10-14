@@ -112,6 +112,7 @@ export function useThreatsPageState(language: SupportedLanguage = 'en') {
     const restoreThreat = useCallback(async (threatId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: threatId,
             restore: () => threatApi.restoreThreat(threatId),
             name: items.find((item) => item.id === threatId)?.name,
             refresh: async () => {

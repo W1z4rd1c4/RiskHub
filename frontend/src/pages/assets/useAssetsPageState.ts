@@ -112,6 +112,7 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
     const restoreAsset = useCallback(async (assetId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: assetId,
             restore: () => assetApi.restoreAsset(assetId),
             name: items.find((item) => item.id === assetId)?.name,
             refresh: async () => {

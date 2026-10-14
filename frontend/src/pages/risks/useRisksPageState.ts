@@ -140,6 +140,7 @@ export function useRisksPageState(
     const restoreRisk = useCallback(async (riskId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: riskId,
             restore: () => riskApi.restoreRisk(riskId),
             name: items.find((item) => item.id === riskId)?.name,
             failureTitle: t('messages.restore_failed'),

@@ -35,7 +35,7 @@ export function useProtectedDetailState<T extends RestorableRecord>({ mode, enti
         pending.value = true;
         try {
             await restoreWithFeedback({
-                restore: () => restore(resource.id), name: name(resource), refresh: refetch, isCurrent,
+                targetId: resource.id, restore: () => restore(resource.id), name: name(resource), refresh: refetch, isCurrent,
             });
         } finally {
             pending.value = false;

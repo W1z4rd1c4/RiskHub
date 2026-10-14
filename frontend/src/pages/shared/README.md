@@ -17,7 +17,7 @@ Small shared helpers for page-level collection state that are reused by list pag
   `FormErrorSummary` (`role="alert"`), `FormLoadFailedNotice` (status + retry) and `FormActions`
   (Cancel then submit with a pending state).
 - `useRestoreWithFeedback.ts` — restore with toast feedback (D9 / FB-01) for register rows and
-  detail pages; a row failure never flips the register into its error state. Retry repeats the captured record action while its canonical session and committed route/query generation still owns it, keeping rows and pagination visible. All seven registers with restore share the helper; Issues has no restore action.
+  detail pages; a row failure never flips the register into its error state. Retry repeats the captured record action while its canonical session and committed route/query generation still owns it, keeping rows and pagination visible. The optional feedback dismissal callback releases closed, replaced or unmounted action attempts; successful attempts and scoped error toasts are also cleaned up. A newer attempt for the same record dismisses and supersedes its previous failure toast; one record cannot restore twice concurrently, while different records keep independent locks. All seven registers with restore share the helper; Issues has no restore action.
 
 ## Notes
 

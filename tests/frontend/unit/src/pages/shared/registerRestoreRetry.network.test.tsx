@@ -66,23 +66,31 @@ function row(collection: string, archived = true) {
     };
 }
 
-function setup(testCase: typeof registers[number], refreshOnRetry = false) {
+function setup(testCase: typeof registers[number], refreshOnRetry = false, secondTarget = false) {
     applyBootstrappedSession({ token: 'restore-session', user: mockAuthUser });
     let reads = 0;
     const restored: number[] = [];
     let fail = true;
+    const restoredIds = new Set<number>();
+    let pauseSuccess: Promise<void> | null = null;
     server.use(
         http.get(`*/api/v1/${testCase.collection}`, () => {
             reads += 1;
-            return HttpResponse.json({ items: [row(testCase.collection)], total: 80, offset: 20, limit: 20,
+            return HttpResponse.json({ items: [
+                ...(!restoredIds.has(7) ? [row(testCase.collection)] : []),
+                ...(secondTarget && !restoredIds.has(8) ? [{ ...row(testCase.collection), id: 8, name: 'Other record', metric_name: 'Other record', l1_process: 'Other record' }] : []),
+            ], total: 80, offset: 20, limit: 20,
                 facets: {}, groups: [], pending_creations: [],
                 capabilities: { can_create: false, can_export: true, can_view_risk_contexts: true, can_view_vendor_contexts: true },
             });
         }),
-        http.post(`*/api/v1/${testCase.collection}/:id/restore`, ({ params }) => {
+        http.post(`*/api/v1/${testCase.collection}/:id/restore`, async ({ params }) => {
             restored.push(Number(params.id));
             if (refreshOnRetry && restored.length === 2) return HttpResponse.json({ detail: 'Expired' }, { status: 401 });
-            return fail ? HttpResponse.json({ detail: 'Restore rejected' }, { status: 422 }) : HttpResponse.json(row(testCase.collection, false));
+            if (fail) return HttpResponse.json({ detail: 'Restore rejected' }, { status: 422 });
+            if (pauseSuccess) await pauseSuccess;
+            restoredIds.add(Number(params.id));
+            return HttpResponse.json({ ...row(testCase.collection, false), id: Number(params.id) });
         }),
     );
     if (refreshOnRetry) server.use(http.post('*/api/v1/auth/refresh', () => HttpResponse.json({
@@ -94,7 +102,7 @@ function setup(testCase: typeof registers[number], refreshOnRetry = false) {
     render(<QueryClientProvider client={createTestQueryClient()}><AuthProvider><LanguageProvider><FeedbackProvider>
         <RouterProvider router={router} />
     </FeedbackProvider></LanguageProvider></AuthProvider></QueryClientProvider>);
-    return { router, restored, reads: () => reads, succeed: () => { fail = false; } };
+    return { router, restored, reads: () => reads, succeed: () => { fail = false; }, pauseUntil: (pending: Promise<void>) => { pauseSuccess = pending; } };
 }
 
 describe.each(registers)('$collection captured row restore Retry', (testCase) => {
@@ -116,6 +124,56 @@ describe.each(registers)('$collection captured row restore Retry', (testCase) =>
         await waitFor(() => expect(context.restored).toEqual([7, 7]));
         await waitFor(() => expect(context.reads()).toBe(readsAfterFailure + 1));
         expect(context.router.state.location.search).toBe('?page=2&source=restore');
+    });
+
+    it('supersedes a failed toast when a newer row attempt restores the record', async () => {
+        const context = setup(testCase);
+        const restore = await screen.findByRole('button', { name: 'Restore Captured record' });
+        fireEvent.click(restore);
+        const oldRetry = await screen.findByRole('button', { name: 'Retry' });
+        context.succeed();
+        fireEvent.click(restore);
+        await waitFor(() => expect(context.restored).toEqual([7, 7]));
+        await waitFor(() => expect(screen.queryByRole('button', { name: 'Restore Captured record' })).not.toBeInTheDocument());
+        fireEvent.click(oldRetry);
+        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+        expect(context.restored).toEqual([7, 7]);
+        expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    });
+
+    it('blocks overlapping row and old Retry attempts for one record while another record can restore', async () => {
+        const context = setup(testCase, false, true);
+        const restore = await screen.findByRole('button', { name: 'Restore Captured record' });
+        fireEvent.click(restore);
+        const oldRetry = await screen.findByRole('button', { name: 'Retry' });
+        let release!: () => void;
+        const pending = new Promise<void>((resolve) => { release = resolve; });
+        context.pauseUntil(pending);
+        context.succeed();
+        try {
+            act(() => { fireEvent.click(restore); fireEvent.click(oldRetry); });
+            await waitFor(() => expect(context.restored).toEqual([7, 7]));
+            fireEvent.click(screen.getByRole('button', { name: 'Restore Other record' }));
+            await waitFor(() => expect(context.restored).toEqual([7, 7, 8]));
+        } finally {
+            await act(async () => { release(); await pending; });
+        }
+        await waitFor(() => expect(screen.queryByRole('button', { name: 'Restore Captured record' })).not.toBeInTheDocument());
+        expect(context.restored).toEqual([7, 7, 8]);
+    });
+
+    it('revokes a dismissed toast Retry before the next layout can remove its button', async () => {
+        const context = setup(testCase);
+        fireEvent.click(await screen.findByRole('button', { name: 'Restore Captured record' }));
+        const oldRetry = await screen.findByRole('button', { name: 'Retry' });
+        const toast = within(oldRetry.closest('li')!);
+        context.succeed();
+        act(() => {
+            fireEvent.click(toast.getByRole('button', { name: 'Dismiss notification' }));
+            fireEvent.click(oldRetry);
+        });
+        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });
+        expect(context.restored).toEqual([7]);
     });
 
     it('preserves a captured Retry through a real 401 silent refresh and blocks duplicate activation', async () => {

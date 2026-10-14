@@ -160,6 +160,7 @@ export function useVendorsPageState(
     const restoreVendor = useCallback(async (vendorId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: vendorId,
             restore: () => vendorApi.restoreVendor(vendorId),
             name: items.find((item) => item.id === vendorId)?.name,
             refresh: async () => {

@@ -138,6 +138,7 @@ export function useProcessesPageState(
     const restoreProcess = useCallback(async (processId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: processId,
             restore: () => processApi.restoreProcess(processId),
             name: items.find((item) => item.id === processId)?.l1_process,
             refresh: async () => {

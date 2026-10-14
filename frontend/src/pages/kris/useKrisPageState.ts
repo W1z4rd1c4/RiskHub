@@ -114,6 +114,7 @@ export function useKrisPageState(language: SupportedLanguage = 'en') {
     const restoreKri = useCallback(async (kriId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: kriId,
             restore: () => kriApi.restoreKRI(kriId),
             name: items.find((item) => item.id === kriId)?.metric_name,
             refresh: async () => {

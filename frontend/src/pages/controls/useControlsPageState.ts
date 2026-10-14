@@ -91,6 +91,7 @@ export function useControlsPageState(language: SupportedLanguage = 'en') {
     const restoreControl = useCallback(async (controlId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: controlId,
             restore: () => controlApi.restoreControl(controlId),
             name: items.find((item) => item.id === controlId)?.name,
             refresh: async () => {
