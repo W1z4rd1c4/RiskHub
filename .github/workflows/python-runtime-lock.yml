@@ -54,7 +54,7 @@ jobs:
           docker run --rm --platform linux/amd64 \
             -v "$GITHUB_WORKSPACE:/repo:ro" \
             -v "$RUNNER_TEMP/runtime-lock:/out" -w /repo riskhub-lock-resolver sh -euc '
-              python -m pip install --no-cache-dir --only-binary=:all: pip==26.2.1
+              python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r backend/requirements-lock-bootstrap.txt
               python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/first
               python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/second
               diff -ru /out/first /out/second
@@ -68,6 +68,9 @@ jobs:
           lock_dir=backend/locks/cpython313-alpine324-x86_64
           if [ -d "$lock_dir" ]; then
             diff -ru "$lock_dir" "$RUNNER_TEMP/runtime-lock/first"
+            # After activation, test the actual production contract too. A secure
+            # rewritten candidate must not hide a weakened committed Dockerfile.
+            cmp backend/Dockerfile "$RUNNER_TEMP/runtime-lock/Dockerfile.candidate"
           else
             echo '::notice::Initial candidate only: T4 remains open until reviewed locks and Docker cutover are committed.'
           fi

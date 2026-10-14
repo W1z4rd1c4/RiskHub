@@ -1,11 +1,16 @@
 """Offline regression checks; these do not substitute for native Alpine CI."""
 from __future__ import annotations
 
+import hashlib
+import importlib.metadata
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
@@ -60,7 +65,7 @@ class RuntimeLockTests(unittest.TestCase):
         return {"version": "1", "pip_version": lock.PIP_VERSION, "environment": dict(lock.MARKERS), "install": [
             {"metadata": {"name": "pip", "version": lock.PIP_VERSION}, "is_direct": False, "is_yanked": False,
              "download_info": {"url": f"https://files.pythonhosted.org/pip-{lock.PIP_VERSION}-py3-none-any.whl",
-                               "archive_info": {"hashes": {"sha256": "a" * 64}}}}]}
+                               "archive_info": {"hashes": {"sha256": lock.bootstrap_hash()}}}}]}
 
     def test_report_preserves_baseline_and_canonicalizes(self):
         result = lock.normalize_report(self.report(), "pip")
@@ -92,6 +97,7 @@ class RuntimeLockTests(unittest.TestCase):
     def fixture(self, directory):
         lanes = {lane: {"environment": dict(lock.MARKERS), "packages": {"pip": package(lock.PIP_VERSION)}}
                  for lane in ["runtime", "dbtasks", "pip"]}
+        lanes["pip"]["packages"]["pip"]["sha256"] = lock.bootstrap_hash()
         manifest = {"schema": 1, "target": lock.TARGET, "image": lock.base_image(), "pip": lock.PIP_VERSION,
                     "sources": lock.sources(), "generator_sha256": lock.digest(Path(lock.__file__)), "lanes": lanes}
         (directory / "manifest.json").write_text(json.dumps(manifest))
@@ -158,11 +164,61 @@ class RuntimeLockTests(unittest.TestCase):
             lock.candidate_dockerfile(Path(tmp), target)
             content = target.read_text()
             self.assertEqual(content.count("--require-hashes --only-binary=:all:"), 4)
+            self.assertEqual(content.count("--force-reinstall"), 4)
             self.assertEqual(content.count("python -m pip check"), 2)
             self.assertNotIn("-r requirements-runtime.txt", content)
             self.assertNotIn("-r requirements-db.txt", content)
             self.assertNotIn("requirements-dev", content)
             self.assertIn("FROM builder-base AS builder-dbtasks", content)
+
+    def test_verifier_forces_all_hash_checks_even_if_packages_exist(self):
+        manifest = {"lanes": {lane: {"packages": {}} for lane in lock.INPUTS}}
+        inventory = json.dumps([{"name": "pip", "version": lock.PIP_VERSION}])
+        with (patch.object(lock, "assert_platform"), patch.object(lock, "validate", return_value=manifest),
+              patch.object(lock.subprocess, "run"), patch.object(lock.subprocess, "check_output", return_value=inventory),
+              patch.object(lock, "pip_command") as pip, patch("builtins.print")):
+            lock.verify(Path("/synthetic-locks"))
+        installs = [call.args for call in pip.call_args_list if call.args[1] == "install"]
+        self.assertEqual(len(installs), 8)
+        for command in installs:
+            self.assertIn("--force-reinstall", command)
+            self.assertIn("--require-hashes", command)
+
+    def test_bootstrap_requires_the_reviewed_pip_hash(self):
+        report = self.report()
+        report["install"][0]["download_info"]["archive_info"]["hashes"]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "reviewed bootstrap hash"):
+            lock.normalize_report(report, "pip")
+
+    def test_already_installed_pip_still_checks_artifact_hash(self):
+        # Real pip, no network and no install: a metadata-only synthetic wheel is
+        # sufficient to expose the satisfied-requirement hash-validation bypass.
+        version = importlib.metadata.version("pip")
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            wheel = directory / f"pip-{version}-py3-none-any.whl"
+            info = f"pip-{version}.dist-info"
+            with zipfile.ZipFile(wheel, "w") as archive:
+                archive.writestr(f"{info}/METADATA", f"Metadata-Version: 2.1\nName: pip\nVersion: {version}\n")
+                archive.writestr(f"{info}/WHEEL", "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+                archive.writestr(f"{info}/RECORD", "")
+            requirements = directory / "requirements.txt"
+            requirements.write_text(f"pip=={version} --hash=sha256:{'0' * 64}\n")
+            command = [sys.executable, "-m", "pip", "install", "--dry-run", "--no-index", "--no-cache-dir",
+                       "--find-links", str(directory), "--require-hashes", "--only-binary=:all:", "-r", str(requirements)]
+            env = {key: value for key, value in os.environ.items() if not key.startswith("PIP_")}
+            env.update(PIP_CONFIG_FILE=os.devnull, PIP_DISABLE_PIP_VERSION_CHECK="1")
+            bypass = subprocess.run(command, env=env, capture_output=True, text=True, timeout=30)
+            self.assertEqual(bypass.returncode, 0, bypass.stderr)
+            rejected = subprocess.run([*command, "--force-reinstall"], env=env,
+                                      capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("Expected sha256", rejected.stderr)
+            expected = hashlib.sha256(wheel.read_bytes()).hexdigest()
+            requirements.write_text(f"pip=={version} --hash=sha256:{expected}\n")
+            accepted = subprocess.run([*command, "--force-reinstall"], env=env,
+                                      capture_output=True, text=True, timeout=30)
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
 
     def test_wrong_platform_fails_before_resolution(self):
         with patch.object(lock.platform, "python_version", return_value="3.12.14"), patch.object(lock, "pip_command") as pip:

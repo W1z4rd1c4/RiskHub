@@ -35,6 +35,7 @@ LOCK_RELATIVE = "locks/cpython313-alpine324-x86_64"
 TARGET = {"python": "3.13.16", "alpine": "3.24", "machine": "x86_64", "libc": "musl"}
 INPUTS = {"runtime": "requirements-runtime.txt", "dbtasks": "requirements-db.txt"}
 BASELINE = "requirements-dev-constraints.txt"
+BOOTSTRAP = "requirements-lock-bootstrap.txt"
 HASH_RE = re.compile(r"[0-9a-f]{64}")
 MARKERS = {"python_full_version": "3.13.16", "python_version": "3.13", "sys_platform": "linux",
            "implementation_name": "cpython", "implementation_version": "3.13.16",
@@ -98,8 +99,17 @@ def baseline() -> dict[str, str]:
     return result
 
 
+def bootstrap_hash() -> str:
+    lines = [line for line in (BACKEND / BOOTSTRAP).read_text().splitlines()
+             if line and not line.startswith("#")]
+    match = re.fullmatch(r"pip==" + re.escape(PIP_VERSION) + r" --hash=sha256:([0-9a-f]{64})", "\n".join(lines))
+    if match is None:
+        raise ValueError("bootstrap must contain exactly one hashed canonical pip pin")
+    return match.group(1)
+
+
 def sources() -> dict[str, str]:
-    return {name: digest(BACKEND / name) for name in [*INPUTS.values(), BASELINE]}
+    return {name: digest(BACKEND / name) for name in [*INPUTS.values(), BASELINE, BOOTSTRAP]}
 
 
 def pip_command(python: Path | str, *args: str) -> None:
@@ -184,6 +194,8 @@ def normalize_report(report: dict, lane: str) -> dict:
                           "requires_dist": dependencies,
                           "provides_extra": sorted(canonicalize_name(e) for e in metadata.get("provides_extra", []))}
     graph(packages, roots_for(lane, environment), environment)
+    if lane == "pip" and packages["pip"]["sha256"] != bootstrap_hash():
+        raise ValueError("resolved pip artifact differs from the reviewed bootstrap hash")
     return {"environment": environment, "packages": dict(sorted(packages.items()))}
 
 
@@ -206,6 +218,8 @@ def validate(directory: Path) -> dict:
                     or not HASH_RE.fullmatch(package["sha256"]) or not package["wheel"].endswith(".whl")):
                 raise ValueError(f"invalid or changed baseline artifact: {name}")
         extras = graph(packages, roots_for(lane, environment), environment)
+        if lane == "pip" and packages["pip"]["sha256"] != bootstrap_hash():
+            raise ValueError("pip lock must match the reviewed bootstrap hash")
         if (directory / f"requirements-{lane}.lock").read_text() != lock_text(packages, extras):
             raise ValueError(f"non-canonical or tampered {lane} lock")
     runtime = manifest["lanes"]["runtime"]["packages"]
@@ -243,14 +257,16 @@ def verify(directory: Path) -> None:
     assert_platform()
     manifest = validate(directory)
     # Resolve only once; two fresh, cache-free installs must consume identical
-    # reviewed wheel hashes, including the pip bootstrap. No --no-deps bypass.
+    # reviewed wheel hashes, including the pip bootstrap. Force consumption even
+    # when ensurepip/the base image already contains the locked version; pip
+    # otherwise skips artifact hash validation for satisfied requirements.
     for lane in INPUTS:
         for attempt in range(2):
             with tempfile.TemporaryDirectory(prefix=f"riskhub-{lane}-{attempt}-") as tmp:
                 subprocess.run([sys.executable, "-m", "venv", tmp], check=True)
                 python = Path(tmp) / "bin/python"
                 for requirements_file in ["requirements-pip.lock", f"requirements-{lane}.lock"]:
-                    pip_command(python, "install", "--no-cache-dir", "--require-hashes", "--only-binary=:all:",
+                    pip_command(python, "install", "--force-reinstall", "--no-cache-dir", "--require-hashes", "--only-binary=:all:",
                                 "--index-url", "https://pypi.org/simple", "-r", str(directory / requirements_file))
                 pip_command(python, "check")
                 installed = json.loads(subprocess.check_output(
@@ -273,8 +289,8 @@ def candidate_dockerfile(directory: Path, output: Path) -> None:
             f"FROM builder-base AS builder-{lane}\n\n"
             f"COPY {LOCK_RELATIVE}/requirements-pip.lock ./requirements-pip.lock\n"
             f"COPY {LOCK_RELATIVE}/requirements-{lane}.lock ./requirements-{lane}.lock\n"
-            "RUN python -m pip install --no-cache-dir --require-hashes --only-binary=:all: -r requirements-pip.lock && \\\n"
-            f"    python -m pip install --no-cache-dir --user --require-hashes --only-binary=:all: -r requirements-{lane}.lock && \\\n"
+            "RUN python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r requirements-pip.lock && \\\n"
+            f"    python -m pip install --force-reinstall --no-cache-dir --user --require-hashes --only-binary=:all: -r requirements-{lane}.lock && \\\n"
             "    python -m pip check\n\n"
         )
     output.write_text(text[:start] + "".join(blocks) + text[end:])

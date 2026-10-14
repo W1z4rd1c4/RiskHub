@@ -4,8 +4,10 @@
 
 The runtime/DB-task lock workflow is a candidate-generation gate. **T4 remains
 open until its exact generated files and the verified Docker cutover are reviewed
-and committed.** No hashes or platform-resolution results are checked in by this
-preparation change. The production Dockerfile still uses the existing install
+and committed.** No runtime/DB-task hashes or platform-resolution results are
+checked in by this preparation change. The only committed artifact hash is the
+platform-independent pip 26.2.1 resolver wheel, verified against official PyPI
+release metadata; CI must verify its downloaded bytes before executing it. The production Dockerfile still uses the existing install
 flow until that evidence exists; the workflow creates a separate, hash-enforced
 candidate Dockerfile and builds both production targets without publishing them.
 
@@ -29,10 +31,11 @@ Those platforms need their own resolution, artifact hashes, and install evidence
 The `Python Runtime Lock` workflow handles the expensive steps in CI:
 
 1. Build the existing production `builder-base` stage, retaining OS security pins
-2. Resolve runtime, DB tasks, and the pip bootstrap independently, twice
+2. Force-reinstall the resolver from the committed hash-enforced bootstrap pin,
+   then resolve runtime, DB tasks, and the pip bootstrap independently, twice
 3. Require byte-identical canonical locks and provenance across both resolutions
 4. Install each production lane into two clean temporary environments with
-   `--require-hashes --only-binary=:all:` and run `pip check`
+   `--force-reinstall --require-hashes --only-binary=:all:` and run `pip check`
 5. Compare the exact installed package inventory with the expected reachable graph
 6. Build both production targets using a generated candidate Dockerfile that
    mandates hash enforcement, including the pinned pip bootstrap
@@ -60,6 +63,10 @@ and baseline fingerprints, generator fingerprint, Docker image identity, platfor
 markers, exact pins, extras-aware transitive closure, no unreachable dev packages,
 canonical hashes, and the identical runtime subset within the DB-task graph.
 Generation and verification fail before package access on the wrong platform.
+The generated pip lane must match the independently reviewed bootstrap hash.
+All hashed installs force artifact consumption, even when the same version is
+already supplied by ensurepip or the base image; pip otherwise skips hash checks
+for already-satisfied requirements.
 
 ## Reviewing and activating a successful candidate
 
@@ -72,7 +79,10 @@ Copy the artifact's `first/` directory to
 `backend/locks/cpython313-alpine324-x86_64/` and replace `backend/Dockerfile` with
 its `Dockerfile.candidate` in the same reviewed change. Run offline validation and
 CI again against that commit before approval. The workflow compares committed
-locks byte-for-byte against a fresh native resolution after activation. Do not
+locks byte-for-byte against a fresh native resolution after activation and
+requires the committed production Dockerfile to equal the hash-enforced candidate.
+That equality gate prevents a secure rewritten candidate from hiding a hash
+bypass in the real production install flow. Do not
 commit the redundant `second/` directory or verification logs as dependency inputs.
 Never replace a missing/stale lock with an unlocked resolver fallback.
 
@@ -90,8 +100,8 @@ python3 -m unittest discover -s scripts/tools/tests -p test_runtime_dependency_l
 python3 scripts/tools/validate_python_dependency_lock.py
 ```
 
-These tests use synthetic report/hash fixtures only; they prove rejection and
-rendering behavior, not production resolution, artifact availability, or image
+These tests use synthetic report/hash fixtures, including an offline real-pip
+same-version/wrong-hash dry run. They prove rejection and rendering behavior, not production resolution, artifact availability, or image
 compatibility. No local dependency installs, Docker builds, or full suites are
 needed for this preparation change.
 
