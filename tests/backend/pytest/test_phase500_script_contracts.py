@@ -308,13 +308,33 @@ def test_backend_dockerfile_keeps_builder_pip_out_of_runtime_images() -> None:
     )
     assert "COPY --from=builder-runtime" in text
     assert "COPY --from=builder-dbtasks" in text
-    for builder_stage in ("builder-runtime", "builder-dbtasks"):
-        assert (
-            stage_bodies[builder_stage].count(
-                "pip install --no-cache-dir --upgrade pip==26.2.1"
-            )
-            == 1
+    lock_path = "locks/cpython313-alpine324-x86_64"
+    pip_pins = [
+        line
+        for line in (BACKEND_DOCKERFILE.parent / lock_path / "requirements-pip.lock")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line and not line.startswith("#")
+    ]
+    assert len(pip_pins) == 1
+    assert re.fullmatch(r"pip==26\.2\.1 --hash=sha256:[0-9a-f]{64}", pip_pins[0])
+    for builder_stage, lane in (("builder-runtime", "runtime"), ("builder-dbtasks", "dbtasks")):
+        builder_body = stage_bodies[builder_stage]
+        bootstrap_copy = f"COPY {lock_path}/requirements-pip.lock ./requirements-pip.lock"
+        bootstrap_install = (
+            "python -m pip install --force-reinstall --no-cache-dir "
+            "--require-hashes --only-binary=:all: -r requirements-pip.lock"
         )
+        lane_install = (
+            "python -m pip install --force-reinstall --no-cache-dir --user "
+            f"--require-hashes --only-binary=:all: -r requirements-{lane}.lock"
+        )
+        assert builder_body.count(bootstrap_copy) == 1
+        assert builder_body.count(bootstrap_install) == 1
+        assert builder_body.count(lane_install) == 1
+        assert builder_body.index(bootstrap_copy) < builder_body.index(bootstrap_install)
+        assert builder_body.index(bootstrap_install) < builder_body.index(lane_install)
+        assert builder_body.index(lane_install) < builder_body.index("python -m pip check")
     for runtime_stage in ("runtime", "dbtasks"):
         runtime_body = stage_bodies[runtime_stage]
         assert "pip install" not in runtime_body

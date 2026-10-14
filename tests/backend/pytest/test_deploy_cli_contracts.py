@@ -712,8 +712,8 @@ def test_docker_deploy_propagates_bootstrap_failure_before_app_install() -> None
 @pytest.mark.parametrize(
     ("stage", "failure_match", "later_match", "expected_rc"),
     [
-        ("preflight", "", "pull ghcr.io/example/riskhub-backend", 1),
-        ("pull", "pull ghcr.io/example/riskhub-backend", " python -", 73),
+        ("preflight", "", "pull --platform linux/amd64 ghcr.io/example/riskhub-backend", 1),
+        ("pull", "pull --platform linux/amd64 ghcr.io/example/riskhub-backend", " python -", 73),
         ("db_preflight", " python -", "--name riskhub-redis", 73),
         ("identity_compatibility", "scripts.identity_preflight", "--name riskhub-redis", 73),
         ("redis", "--name riskhub-redis", "alembic upgrade head", 73),
