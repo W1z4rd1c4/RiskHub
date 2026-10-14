@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from copy import deepcopy
 
 import pytest
@@ -131,15 +132,14 @@ async def _locks(
     )
 
 
-async def _events(db: AsyncSession, approval_id: int) -> list[str]:
-    return list(
+async def _event_counts(db: AsyncSession, approval_id: int) -> Counter[str]:
+    """Assert event multiplicity without treating random UUID4 ids as a sequence."""
+    return Counter(
         await db.scalars(
-            select(OutboxEvent.event_type)
-            .where(
+            select(OutboxEvent.event_type).where(
                 OutboxEvent.aggregate_type == "approval_request",
                 OutboxEvent.aggregate_id == approval_id,
             )
-            .order_by(OutboxEvent.id)
         )
     )
 
@@ -253,10 +253,9 @@ async def test_asset_point_cascade_policy_matrix(
             lock.released_at is not None and lock.release_reason == "approved"
             for lock in await _locks(db_session, approval_id)
         )
-        assert await _events(db_session, approval_id) == [
-            "approval.request_created",
-            "approval.request_resolved",
-        ]
+        assert await _event_counts(db_session, approval_id) == Counter(
+            {"approval.request_created": 1, "approval.request_resolved": 1}
+        )
         assert (
             await db_session.scalar(
                 select(func.count())
@@ -345,10 +344,9 @@ async def test_mixed_asset_cascade_rechecks_versions_and_current_authority(
         lock.released_at is not None and lock.release_reason == "expired"
         for lock in await _locks(db_session, approval_id)
     )
-    assert await _events(db_session, approval_id) == [
-        "approval.request_created",
-        "approval.request_expired",
-    ]
+    assert await _event_counts(db_session, approval_id) == Counter(
+        {"approval.request_created": 1, "approval.request_expired": 1}
+    )
 
 
 @pytest.mark.asyncio
@@ -516,10 +514,9 @@ async def test_postgres_mixed_asset_cascade_rolls_back_all_effects(
             lock.released_at is not None and lock.release_reason == "approved"
             for lock in await _locks(db_session, approval_id)
         )
-        assert await _events(db_session, approval_id) == [
-            "approval.request_created",
-            "approval.request_resolved",
-        ]
+        assert await _event_counts(db_session, approval_id) == Counter(
+            {"approval.request_created": 1, "approval.request_resolved": 1}
+        )
         assert (
             await db_session.scalar(
                 select(func.count())
@@ -578,7 +575,9 @@ async def test_postgres_mixed_asset_cascade_rolls_back_all_effects(
         assert all(
             lock.released_at is None and lock.release_reason is None for lock in locks
         )
-        assert await _events(verification, approval_id) == ["approval.request_created"]
+        assert await _event_counts(verification, approval_id) == Counter(
+            {"approval.request_created": 1}
+        )
         assert (
             await verification.scalar(
                 select(func.count())
