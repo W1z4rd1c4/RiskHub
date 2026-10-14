@@ -15,7 +15,7 @@ export default defineConfig([
     basePath: path.resolve(import.meta.dirname, ".."),
     files: [
       "tests/frontend/**/*.{ts,tsx}",
-      "frontend/{vitest.config,vitest.setup,playwright.config}.ts",
+      "frontend/{vitest.config,vitest.setup,playwright.config,playwright.notifications.config}.ts",
     ],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     linterOptions: { noInlineConfig: true },
@@ -55,7 +55,7 @@ export default defineConfig([
     name: "riskhub/test-config-environment",
     basePath: path.resolve(import.meta.dirname, ".."),
     files: [
-      "frontend/{vitest,playwright}.config.ts",
+      "frontend/{vitest,playwright,playwright.notifications}.config.ts",
       "tests/frontend/unit/vitest.config.ts",
       "tests/frontend/e2e/playwright.config.ts",
     ],

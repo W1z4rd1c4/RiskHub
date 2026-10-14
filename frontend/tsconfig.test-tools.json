@@ -8,6 +8,7 @@
   "include": [
     "vitest.config.ts",
     "playwright.config.ts",
+    "playwright.notifications.config.ts",
     "../tests/frontend/unit/vitest.config.ts",
     "../tests/frontend/e2e/playwright.config.ts"
   ]

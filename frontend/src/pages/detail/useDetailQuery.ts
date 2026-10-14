@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { DETAIL_QUERY_STALE_TIME_MS, entityDetailQueryKey } from '@/lib/queryKeys/detail';
-import { ApiClientError } from '@/services/apiClient';
+import { isSingleRecordUnavailableError } from '@/services/apiClient';
 import { useSessionSnapshot } from '@/services/session';
 
 interface UseDetailQueryOptions<T> {
@@ -21,10 +21,6 @@ export function parsePositiveRouteId(rawId: string | undefined): number | null {
 
     const parsed = Number(rawId);
     return Number.isSafeInteger(parsed) ? parsed : null;
-}
-
-function isProtectedResourceUnavailable(error: unknown): boolean {
-    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
 }
 
 export function useDetailQuery<T>({
@@ -46,7 +42,7 @@ export function useDetailQuery<T>({
         queryKey: queryKey ?? entityDetailQueryKey(entity, session.user?.id, 0),
         enabled: shouldLoad,
         queryFn: ({ signal }) => load(resourceId as number, signal),
-        retry: (failureCount, error) => !isProtectedResourceUnavailable(error) && failureCount < 1,
+        retry: (failureCount, error) => !isSingleRecordUnavailableError(error) && failureCount < 1,
         staleTime: DETAIL_QUERY_STALE_TIME_MS,
     });
 
@@ -63,7 +59,7 @@ export function useDetailQuery<T>({
         await detailQuery.refetch();
     }, [detailQuery]);
 
-    const mustClearResource = isProtectedResourceUnavailable(detailQuery.error);
+    const mustClearResource = isSingleRecordUnavailableError(detailQuery.error);
     const resource = mustClearResource ? null : detailQuery.data ?? null;
     const hasResource = resource !== null;
 

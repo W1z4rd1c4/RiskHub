@@ -63,7 +63,11 @@ vi.mock('@/services/vendorApi', () => ({ vendorApi: { getVendors: apiMocks.getVe
 
 interface RegisterCollectionState {
     capabilities: object | null;
-    currentPage: number;
+    workingSet: {
+        currentPage: number;
+        setCurrentPage: (page: number) => void;
+        updateSearch: (value: string) => void;
+    };
     errorKey: string | null;
     facets: object;
     groups: object[];
@@ -74,9 +78,7 @@ interface RegisterCollectionState {
     pendingCreations?: object[];
     refresh: () => Promise<void>;
     restore?: (id: number) => Promise<void>;
-    setCurrentPage: (page: number) => void;
     totalCount: number;
-    updateSearch: (value: string) => void;
 }
 
 const EMPTY_RISK_SEMANTIC_FILTERS = {};
@@ -229,7 +231,7 @@ function CollectionLayoutProbe({
     return (
         <>
             <output data-testid="collection-row-count">{state.items.length}</output>
-            <button type="button" onClick={() => state.setCurrentPage(2)}>page two</button>
+            <button type="button" onClick={() => state.workingSet.setCurrentPage(2)}>page two</button>
             <button type="button" onClick={() => void state.refresh()}>refresh</button>
         </>
     );
@@ -275,7 +277,7 @@ describe('eight-register collection query identity', () => {
 
         const search = 'abcdefghijkl';
         for (let length = 1; length <= search.length; length += 1) {
-            await actAndFlush(() => result.current.updateSearch(search.slice(0, length)));
+            await actAndFlush(() => result.current.workingSet.updateSearch(search.slice(0, length)));
             expect(fetchMock).toHaveBeenCalledTimes(1);
             expect(result.current.refresh).toBe(initialRefresh);
         }
@@ -296,7 +298,7 @@ describe('eight-register collection query identity', () => {
             wrapper: routeWrapper(path),
         });
         await waitFor(() => expect(result.current.state.isLoading).toBe(false));
-        await actAndFlush(() => result.current.state.setCurrentPage(2));
+        await actAndFlush(() => result.current.state.workingSet.setCurrentPage(2));
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
         await act(async () => result.current.navigate(-1));
@@ -307,11 +309,11 @@ describe('eight-register collection query identity', () => {
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
 
         vi.useFakeTimers();
-        await actAndFlush(() => result.current.state.updateSearch('a'));
-        expect(result.current.state.currentPage).toBe(1);
+        await actAndFlush(() => result.current.state.workingSet.updateSearch('a'));
+        expect(result.current.state.workingSet.currentPage).toBe(1);
         expect(fetchMock).toHaveBeenCalledTimes(5);
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(0);
-        await actAndFlush(() => result.current.state.updateSearch('ab'));
+        await actAndFlush(() => result.current.state.workingSet.updateSearch('ab'));
         expect(fetchMock).toHaveBeenCalledTimes(5);
         await act(async () => vi.advanceTimersByTimeAsync(300));
         expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -354,8 +356,8 @@ describe('eight-register collection query identity', () => {
         const oldB = deferred<typeof populatedPage>();
         fetchMock.mockReturnValueOnce(oldA.promise).mockReturnValueOnce(oldB.promise).mockResolvedValueOnce(queryBPage);
         act(() => { void result.current.refresh(); });
-        await actAndFlush(() => result.current.setCurrentPage(2));
-        await actAndFlush(() => result.current.setCurrentPage(1));
+        await actAndFlush(() => result.current.workingSet.setCurrentPage(2));
+        await actAndFlush(() => result.current.workingSet.setCurrentPage(1));
         expect(fetchMock).toHaveBeenCalledTimes(4);
         expect(result.current.items).toEqual([expect.objectContaining({ id: 2 })]);
         await actAndFlush(() => {
@@ -464,8 +466,8 @@ describe('eight-register collection query identity', () => {
             const queryB = deferred<typeof queryBPage>();
             fetchMock.mockReturnValueOnce(queryB.promise);
 
-            act(() => result.current.setCurrentPage(2));
-            await waitFor(() => expect(result.current.currentPage).toBe(2));
+            act(() => result.current.workingSet.setCurrentPage(2));
+            await waitFor(() => expect(result.current.workingSet.currentPage).toBe(2));
             await waitFor(() => expect(result.current.isLoading).toBe(true));
             await act(async () => {
                 restore.resolve();
@@ -494,7 +496,7 @@ describe('eight-register collection query identity', () => {
             act(() => { restorePromise = result.current.restore?.(1); });
             fetchMock.mockResolvedValueOnce(queryBPage);
 
-            act(() => result.current.setCurrentPage(2));
+            act(() => result.current.workingSet.setCurrentPage(2));
             await waitFor(() => expect((result.current.items[0] as { id?: number } | undefined)?.id).toBe(2));
             await act(async () => {
                 restore.reject(new ApiClientError({ status: 500, messageKey: 'errors.server' }));
@@ -629,7 +631,7 @@ describe('eight-register collection query identity', () => {
                 messageKey: 'errors.server',
             }));
 
-            act(() => result.current.state.setCurrentPage(2));
+            act(() => result.current.state.workingSet.setCurrentPage(2));
 
             await waitFor(() => expect(result.current.state.errorKey).not.toBeNull());
             expect(result.current.location.search).toContain('source=review');
@@ -686,27 +688,27 @@ describe('eight-register collection query identity', () => {
 
     it.each([
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateSearch('claims'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.updateSearch('claims'),
             name: 'search',
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateStatusFilter('archived'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.updateFilter('lifecycle', 'archived'),
             name: 'filter',
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateSort('name', 'asc'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.updateSort('name', 'asc'),
             name: 'sort',
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.updateViewMode('department'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.updateViewMode('department'),
             name: 'view',
             path: '/risks?source=review',
         },
         {
-            change: (state: ReturnType<typeof useRisksPageState>) => state.selectGroup('department:7'),
+            change: (state: ReturnType<typeof useRisksPageState>) => state.workingSet.selectGroup('department:7'),
             name: 'group',
             path: '/risks?source=review&view=department',
         },

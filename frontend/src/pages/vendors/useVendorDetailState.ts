@@ -27,7 +27,7 @@ export function useVendorDetailState({ mode }: UseVendorDetailStateOptions) {
         enabled: mode !== 'new',
         entity: 'vendor',
         rawId: id,
-        load: (vendorId) => vendorApi.getVendor(vendorId),
+        load: (vendorId, signal) => vendorApi.getVendor(vendorId, { signal }),
     });
 
     const restoreWithFeedback = useRestoreWithFeedback();

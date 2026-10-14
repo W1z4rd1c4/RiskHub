@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { SupportedLanguage } from '@/i18n';
 import { apiClient } from '@/services/apiClient';
 import { assetApi } from '@/services/assetApi';
@@ -20,16 +17,14 @@ import {
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
 import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
-import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     ASSET_REGISTER_CONFIG,
     buildAssetRegisterListParams,
     parseAssetRegisterFilters,
     serializeAssetRegisterFilters,
-    type AssetLifecycleFilter,
     type AssetRegisterFilters,
-    type AssetRegisterView,
 } from './assetRegisterConfig';
 
 const ASSET_VIEWS = ASSET_REGISTER_CONFIG.views.map(({ value }) => value);
@@ -37,23 +32,20 @@ const ASSET_SORT_FIELDS: readonly AssetSortField[] = [
     'name', 'asset_type', 'asset_level', 'business_owner', 'ict_owner', 'department',
     'criticality', 'cif', 'lifecycle_state', 'created_at',
 ];
-const validSort = (sort: RegisterSortState | null) => sort && ASSET_SORT_FIELDS.includes(sort.field as AssetSortField) ? sort : null;
 const selectedGroupLabel = (groups: Array<{ value: string; label: string }>, value: string | null) =>
     value ? groups.find((group) => group.value === value)?.label ?? null : null;
 
+const assetUrlOptions = {
+    allowedViews: ASSET_VIEWS,
+    allowedSortFields: ASSET_SORT_FIELDS,
+    parseFilters: parseAssetRegisterFilters,
+    serializeFilters: serializeAssetRegisterFilters,
+};
+
 export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, language: SupportedLanguage = 'en') {
     const departmentScope = useDepartmentRegisterScope();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const serializedParams = searchParams.toString();
-    const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
-        defaultView: 'all', allowedViews: ASSET_VIEWS,
-    }), [serializedParams]);
-    const filters = useMemo(() => parseAssetRegisterFilters(urlState.filters), [urlState.filters]);
-    const viewMode = urlState.view as AssetRegisterView;
-    const sort = validSort(urlState.sort);
-    const groupValue = urlState.selectedGroupValue;
-    const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const currentPage = urlState.page;
+    const workingSet = useRegisterUrlWorkingSet(assetUrlOptions);
+    const { currentPage, debouncedSearch, filters, selectedGroupValue: groupValue, sort, viewMode, writeUrl } = workingSet;
     const [facets, setFacets] = useState<AssetFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -82,8 +74,7 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         has_process_link: semanticFilters.has_process_link,
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, semanticFilters.has_process_link, sort, viewMode]);
     const listParams = useStableRegisterRequestParams(requestParams);
-    const queryIdentity = JSON.stringify(listParams);
-    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -112,35 +103,7 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
         }
     }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(serializedParams);
-        if (!normalizeRegisterUrlParams(params, {
-            allowedSortFields: ASSET_SORT_FIELDS,
-            allowedViews: ASSET_VIEWS,
-            canonicalizeFilters: (rawFilters) => serializeAssetRegisterFilters(parseAssetRegisterFilters(rawFilters)),
-            defaultView: 'all',
-        })) return;
-        setSearchParams(params, { replace: true });
-    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchAssets(); }, [fetchAssets]);
-
-    const writeUrl = useCallback((next: {
-        filters?: AssetRegisterFilters; group?: string | null; search?: string; sort?: RegisterSortState | null; view?: AssetRegisterView;
-    }, replace = false) => {
-        const params = buildRegisterUrlParams({
-            filters: serializeAssetRegisterFilters(next.filters ?? filters), page: 1, search: next.search ?? urlState.search,
-            selectedGroupValue: next.group === undefined ? groupValue : next.group,
-            sort: next.sort === undefined ? sort : next.sort, view: next.view ?? viewMode,
-        }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace });
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
-
-    const setCurrentPage = useCallback((page: number) => {
-        const params = new URLSearchParams(serializedParams);
-        if (page > 1) params.set('page', String(page));
-        else params.delete('page');
-        setSearchParams(params);
-    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof AssetRegisterFilters>(key: K, value: AssetRegisterFilters[K]) =>
         writeUrl({ filters: { ...filters, [key]: value }, group: null }), [filters, writeUrl]);
@@ -158,23 +121,17 @@ export function useAssetsPageState(semanticFilters: AssetSemanticFilters = {}, l
     }, [fetchAssets, isQueryCurrent, items, queryIdentity, runRowRestore]);
     const exportAssets = useCallback(async () => {
         setIsExporting(true);
-        try { await assetApi.downloadExport({ ...listParams, offset: 0, limit: DEFAULT_LIST_PAGE_SIZE, search: urlState.search.trim() || undefined }, language); }
+        try { await assetApi.downloadExport(getExportParams(), language); }
         finally { setIsExporting(false); }
-    }, [language, listParams, urlState.search]);
+    }, [getExportParams, language]);
 
     return {
-        capabilities, clearFilters: () => writeUrl({ filters: parseAssetRegisterFilters({}), group: null }),
-        clearSelectedGroup: () => writeUrl({ group: null }), currentPage, errorKey, exportAssets, facets: visibleFacets, fetchAssets,
-        filters, groups, hasLoadedOnce, isAccessDenied,
+        workingSet,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
         isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
-        restoreAsset, search: urlState.search, selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
-        selectedGroupLabel: selectedGroupLabel(groups, groupValue), selectedGroupValue: groupValue, setCurrentPage,
-        sortDirection: sort?.direction ?? null, sortField: (sort?.field as AssetSortField | undefined) ?? null,
-        statusFilter: filters.lifecycle, totalCount,
-        totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE),
-        updateFilter, updateSearch: (value: string) => writeUrl({ search: value, group: null }, true),
-        updateSort: (field: AssetSortField | null, direction: SortDirection) => writeUrl({ sort: field && direction ? { field, direction } : null }),
-        updateStatusFilter: (value: AssetLifecycleFilter) => updateFilter('lifecycle', value),
-        updateViewMode: (view: AssetRegisterView) => writeUrl({ view, group: null }), viewMode,
+        totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
+        selectedGroupLabel: selectedGroupLabel(groups, groupValue),
+        exportAssets, fetchAssets, restoreAsset,
+        clearFilters: () => writeUrl({ filters: parseAssetRegisterFilters({}), group: null }),
     };
 }

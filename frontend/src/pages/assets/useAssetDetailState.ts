@@ -27,7 +27,7 @@ export function useAssetDetailState({ mode }: UseAssetDetailStateOptions) {
         enabled: mode !== 'new',
         entity: 'asset',
         rawId: id,
-        load: (assetId) => assetApi.getAsset(assetId),
+        load: (assetId, signal) => assetApi.getAsset(assetId, { signal }),
     });
 
     const restoreWithFeedback = useRestoreWithFeedback();

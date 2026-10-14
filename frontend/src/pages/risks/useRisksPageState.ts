@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import type { SupportedLanguage } from '@/i18n';
@@ -18,7 +15,8 @@ import { useDepartmentRegisterScope } from '../departments/useDepartmentRegister
 import type { RiskSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
 import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
-import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
+import type { RegisterFilters } from '../shared/registerListQuery';
+import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
 import {
     buildRiskRegisterListParams,
     EMPTY_RISK_REGISTER_FILTERS,
@@ -26,9 +24,7 @@ import {
     RISK_REGISTER_CONFIG,
     riskSnapshotUnsupportedCriteria,
     serializeRiskRegisterFilters,
-    type RiskLifecycleFilter,
     type RiskRegisterFilters,
-    type RiskRegisterView,
 } from './riskRegisterConfig';
 import { normalizeRiskSummaries } from './risksPagePresentation';
 
@@ -38,13 +34,25 @@ const RISK_SORT_FIELDS = [
     'gross_score', 'net_score', 'kri_count', 'control_count',
 ] as const;
 
-function validSort(sort: RegisterSortState | null): RegisterSortState | null {
-    return sort && RISK_SORT_FIELDS.includes(sort.field as typeof RISK_SORT_FIELDS[number]) ? sort : null;
-}
-
 function selectedGroupLabel(groups: Array<{ value: string; label: string }>, value: string | null) {
     return value ? groups.find((group) => group.value === value)?.label ?? null : null;
 }
+
+const riskUrlOptions = {
+    allowedViews: RISK_VIEWS,
+    allowedSortFields: RISK_SORT_FIELDS,
+    parseFilters: parseRiskRegisterFilters,
+    serializeFilters: serializeRiskRegisterFilters,
+    readFilters: (raw: RegisterFilters, params: URLSearchParams) => {
+        const parsed = parseRiskRegisterFilters(raw);
+        return {
+            ...parsed,
+            critical: raw.critical === undefined && params.get('critical') === 'true' ? true : parsed.critical,
+            has_breach: raw.has_breach === undefined && params.get('breached') === 'true' ? true : parsed.has_breach,
+        };
+    },
+    cleanWriteParams: (params: URLSearchParams) => { params.delete('critical'); params.delete('breached'); },
+};
 
 export function useRisksPageState(
     semanticFilters: RiskSemanticFilters = {},
@@ -54,25 +62,8 @@ export function useRisksPageState(
     const { thresholds } = useRiskThresholds();
     const { t } = useTranslation('risks');
     const feedback = useFeedback();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const serializedParams = searchParams.toString();
-    const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
-        defaultView: 'all', allowedViews: RISK_VIEWS,
-    }), [serializedParams]);
-    const filters = useMemo(() => {
-        const parsed = parseRiskRegisterFilters(urlState.filters);
-        const legacy = new URLSearchParams(serializedParams);
-        return {
-            ...parsed,
-            critical: urlState.filters.critical === undefined && legacy.get('critical') === 'true' ? true : parsed.critical,
-            has_breach: urlState.filters.has_breach === undefined && legacy.get('breached') === 'true' ? true : parsed.has_breach,
-        };
-    }, [serializedParams, urlState.filters]);
-    const viewMode = urlState.view as RiskRegisterView;
-    const sort = validSort(urlState.sort);
-    const groupValue = urlState.selectedGroupValue;
-    const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const currentPage = urlState.page;
+    const workingSet = useRegisterUrlWorkingSet(riskUrlOptions);
+    const { currentPage, debouncedSearch, filters, selectedGroupValue: groupValue, sort, viewMode, writeUrl } = workingSet;
     const [facets, setFacets] = useState<RiskFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -108,8 +99,7 @@ export function useRisksPageState(
     const configuredRangeIdentity = filters.risk_level || filters.critical
         ? [thresholds.medium, thresholds.high, thresholds.critical]
         : null;
-    const queryIdentity = JSON.stringify([listParams, configuredRangeIdentity]);
-    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity, configuredRangeIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -138,45 +128,7 @@ export function useRisksPageState(
         }
     }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(serializedParams);
-        if (!normalizeRegisterUrlParams(params, {
-            allowedSortFields: RISK_SORT_FIELDS,
-            allowedViews: RISK_VIEWS,
-            canonicalizeFilters: (rawFilters) => serializeRiskRegisterFilters(parseRiskRegisterFilters(rawFilters)),
-            defaultView: 'all',
-        })) return;
-        setSearchParams(params, { replace: true });
-    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchRisks(); }, [fetchRisks]);
-
-    const writeUrl = useCallback((next: {
-        filters?: RiskRegisterFilters;
-        group?: string | null;
-        search?: string;
-        sort?: RegisterSortState | null;
-        view?: RiskRegisterView;
-    }, replace = false) => {
-        const existing = new URLSearchParams(serializedParams);
-        existing.delete('critical');
-        existing.delete('breached');
-        const params = buildRegisterUrlParams({
-            filters: serializeRiskRegisterFilters(next.filters ?? filters),
-            page: 1,
-            search: next.search ?? urlState.search,
-            selectedGroupValue: next.group === undefined ? groupValue : next.group,
-            sort: next.sort === undefined ? sort : next.sort,
-            view: next.view ?? viewMode,
-        }, existing);
-        setSearchParams(params, { replace });
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
-
-    const setCurrentPage = useCallback((page: number) => {
-        const params = new URLSearchParams(serializedParams);
-        if (page > 1) params.set('page', String(page));
-        else params.delete('page');
-        setSearchParams(params);
-    }, [serializedParams, setSearchParams]);
 
     const updateFilter = useCallback(<K extends keyof RiskRegisterFilters>(key: K, value: RiskRegisterFilters[K]) => {
         writeUrl({ filters: { ...filters, [key]: value }, group: null });
@@ -202,10 +154,10 @@ export function useRisksPageState(
     const exportCurrentRisks = useCallback(async () => {
         setIsExporting(true);
         try {
-            await riskApi.downloadExport({ ...listParams, offset: 0 }, language);
+            await riskApi.downloadExport(getExportParams(), language);
         }
         finally { setIsExporting(false); }
-    }, [language, listParams]);
+    }, [getExportParams, language]);
     const unsupportedSnapshotCriteria = riskSnapshotUnsupportedCriteria(filters, groupValue);
     const snapshotUnavailableReason = unsupportedSnapshotCriteria.length
         ? t('register.snapshot_unavailable', { criteria: unsupportedSnapshotCriteria.map((key) => t(key)).join(', ') })
@@ -231,17 +183,11 @@ export function useRisksPageState(
     }, [listParams, snapshotUnavailableReason]);
 
     return {
-        capabilities, clearFilters, clearSelectedGroup: () => writeUrl({ group: null }), currentPage,
-        errorKey, exportCurrentRisks, exportRiskSnapshot, facets: visibleFacets, fetchRisks, filters, groups, hasLoadedOnce, isAccessDenied,
-        snapshotUnavailableReason, isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE, restoreRisk, search: urlState.search,
-        selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
-        selectedGroupLabel: selectedGroupLabel(groups, groupValue), selectedGroupValue: groupValue, setCurrentPage,
-        sortDirection: sort?.direction ?? null, sortField: sort?.field ?? null,
-        statusFilter: filters.lifecycle === 'archived' ? 'archived' : filters.status,
+        workingSet,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
+        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
         totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
-        updateSearch: (value: string) => writeUrl({ search: value, group: null }, true),
-        updateSort: (field: string | null, direction: SortDirection) => writeUrl({ sort: field && direction ? { field, direction } : null }),
-        updateStatusFilter: (value: RiskLifecycleFilter) => updateFilter('lifecycle', value),
-        updateViewMode: (view: RiskRegisterView) => writeUrl({ view, group: null }), viewMode,
+        selectedGroupLabel: selectedGroupLabel(groups, groupValue),
+        clearFilters, exportCurrentRisks, exportRiskSnapshot, fetchRisks, restoreRisk, snapshotUnavailableReason,
     };
 }

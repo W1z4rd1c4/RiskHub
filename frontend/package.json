@@ -11,7 +11,7 @@
     "dev:lan": "vite --host",
     "build": "tsc -b && vite build && npm run quality:login-graph && npm run quality:font-assets",
     "lint": "eslint . && npm run lint:tests && npm run lint:a11y && npm run lint:dialog-inventory",
-    "lint:tests": "cd .. && eslint --config frontend/eslint.tests.config.js tests/frontend frontend/vitest.config.ts frontend/vitest.setup.ts frontend/playwright.config.ts",
+    "lint:tests": "cd .. && eslint --config frontend/eslint.tests.config.js tests/frontend frontend/vitest.config.ts frontend/vitest.setup.ts frontend/playwright.config.ts frontend/playwright.notifications.config.ts",
     "typecheck": "tsc -b --noEmit",
     "typecheck:tests": "tsc -b --noEmit tsconfig.tests.json tsconfig.e2e.json tsconfig.test-tools.json",
     "quality:test-tooling": "node --test scripts/quality/test-tooling.test.mjs",

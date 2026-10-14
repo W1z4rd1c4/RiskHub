@@ -10,7 +10,7 @@ import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useEntityDetailMutationWorkflow } from '@/pages/detail/useEntityDetailMutationWorkflow';
 import { useDetailQuery } from '@/pages/detail/useDetailQuery';
 import { useCollectionDataState } from '@/pages/shared/collectionPageState';
-import { ApiClientError, apiClient } from '@/services/apiClient';
+import { apiClient, isSingleRecordUnavailableError } from '@/services/apiClient';
 import { isAbortError } from '@/services/api/requestRuntime';
 import { kriApi } from '@/services/kriApi';
 import { logError } from '@/services/logger';
@@ -40,13 +40,9 @@ const sidecarFailureOptions = {
     toErrorKey: (error: unknown) => apiClient.toUiMessageKey(error),
 };
 
-function isProtectedUnavailableError(error: unknown): boolean {
-    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
-}
-
 const protectedSidecarFailureOptions = {
     ...sidecarFailureOptions,
-    isAccessDenied: isProtectedUnavailableError,
+    isAccessDenied: isSingleRecordUnavailableError,
 };
 
 export function useRiskDetailState({ rawId, returnTo }: UseRiskDetailStateArgs) {

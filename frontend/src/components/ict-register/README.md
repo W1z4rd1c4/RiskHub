@@ -17,6 +17,9 @@ layout and interaction rhythm, including the table/grouping branch, loading,
 empty, error and access-denied states, pagination, capability-gated page actions,
 and export-dialog lifecycle. Entity pages supply declarative views and filters,
 columns, rows, and domain callbacks; they must not recreate shell orchestration.
+The shell receives one `workingSet` from `useRegisterUrlWorkingSet` for view,
+sort, pagination and group selection. Pages do not forward those as scalar
+props, and entity hooks return the object without spreading its fields.
 The toolbar owns the non-stretching desktop geometry for search, lifecycle
 filters, the native Add-filter selector, refresh, and active-filter removal.
 The shell owns export, create, and view controls. All eight register callers

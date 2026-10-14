@@ -37,8 +37,7 @@ vi.mock('@/services/threatApi', () => ({ threatApi: { getThreats: apiMocks.getTh
 vi.mock('@/services/vendorApi', () => ({ vendorApi: { getVendors: apiMocks.getVendors } }));
 
 interface RegisterRouteState {
-    currentPage: number;
-    setCurrentPage: (page: number) => void;
+    workingSet: { currentPage: number; setCurrentPage: (page: number) => void };
 }
 
 const REGISTERS: ReadonlyArray<{
@@ -108,9 +107,9 @@ describe('eight-register public URL history parity', () => {
             });
 
             await waitFor(() => expect(result.current.location.search).toBe('?source=review&page=4'));
-            expect(result.current.state.currentPage).toBe(4);
+            expect(result.current.state.workingSet.currentPage).toBe(4);
 
-            act(() => result.current.state.setCurrentPage(6));
+            act(() => result.current.state.workingSet.setCurrentPage(6));
             await waitFor(() => expect(result.current.location.search).toBe('?source=review&page=6'));
 
             await act(() => result.current.navigate(-1));

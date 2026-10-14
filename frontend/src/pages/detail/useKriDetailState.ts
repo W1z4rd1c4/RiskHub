@@ -8,7 +8,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { KRI_HISTORY_PAGE_SIZE } from '@/lib/kriHistory';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { ApiClientError, apiClient } from '@/services/apiClient';
+import { ApiClientError, apiClient, isSingleRecordUnavailableError } from '@/services/apiClient';
 import { kriApi } from '@/services/kriApi';
 import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
@@ -27,10 +27,6 @@ export const kriDetailTabs = ['overview', 'history'] as const;
 interface UseKriDetailStateArgs {
     rawId: string | undefined;
     returnTo: string;
-}
-
-function isProtectedUnavailableError(error: unknown): boolean {
-    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
 }
 
 export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
@@ -161,7 +157,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
             ) return;
             applyLinkedRiskFailure(error, {
                 fallbackErrorKey: 'errorKeys.unexpected',
-                isAccessDenied: isProtectedUnavailableError,
+                isAccessDenied: isSingleRecordUnavailableError,
                 toErrorKey: (failure) => apiClient.toUiMessageKey(failure),
             });
         } finally {
@@ -219,7 +215,7 @@ export function useKriDetailState({ rawId, returnTo }: UseKriDetailStateArgs) {
             setHistoryAccessDenied(error instanceof ApiClientError && error.status === 403);
             applyHistoryFailure(error, {
                 fallbackErrorKey: 'errorKeys.unexpected',
-                isAccessDenied: isProtectedUnavailableError,
+                isAccessDenied: isSingleRecordUnavailableError,
                 toErrorKey: (failure) => apiClient.toUiMessageKey(failure),
             });
         } finally {

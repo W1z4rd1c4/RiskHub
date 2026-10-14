@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
-import { apiClient, ApiClientError } from '@/services/apiClient';
+import { apiClient, isSingleRecordUnavailableError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import type { ApprovalRequest } from '@/types/approval';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
@@ -38,10 +38,6 @@ interface ApprovalQueueError {
 
 function approvalQueueIdentity(state: { tab: ApprovalWorkbenchTab; query: string; page: number }): string {
     return `${state.tab}\u0000${state.query}\u0000${state.page}`;
-}
-
-function isUnavailableApprovalError(error: unknown): boolean {
-    return error instanceof ApiClientError && (error.status === 403 || error.status === 404);
 }
 
 export function useApprovalsPageState() {
@@ -317,7 +313,7 @@ export function useApprovalsPageState() {
             if (latestLinkedApprovalRequestRef.current !== requestId) {
                 return;
             }
-            if (isUnavailableApprovalError(error)) {
+            if (isSingleRecordUnavailableError(error)) {
                 const unavailable: CachedLinkedApprovalState = {
                     kind: 'unavailable',
                     approvalId: requestedApprovalId,
