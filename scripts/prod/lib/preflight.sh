@@ -233,7 +233,7 @@ preflight_check_db_connectivity() {
 
   identity_secret_mounts "$backend_env"
   log "Checking external PostgreSQL connectivity (SELECT 1)..."
-  run docker run --rm -i \
+  run docker run --platform linux/amd64 --rm -i \
     --add-host host.docker.internal:host-gateway \
     "${SECRET_MOUNT_ARGS[@]}" \
     -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \

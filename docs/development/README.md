@@ -37,6 +37,13 @@ Behavior:
 
 Open `http://localhost/login` after startup.
 
+The backend, scheduler and bootstrap images use the verified `linux/amd64`
+dependency locks. Docker Compose selects that platform for their build and run
+steps. On Apple Silicon, enable Docker Desktop's amd64 emulation; these backend
+containers run under emulation while PostgreSQL, Redis and the frontend retain
+the host's native platform. Direct backend image builds must pass
+`--platform linux/amd64`; native ARM backend locks require separate verification.
+
 Deterministic live-verification preference:
 
 - Prefer `./scripts/install.sh demo --reset test` when you need seeded browser verification against the Docker-served app at `http://localhost/`.

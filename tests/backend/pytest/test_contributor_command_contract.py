@@ -304,6 +304,9 @@ def test_ci_contract_governs_native_runtime_lock_candidate_workflow():
         "backend/requirements*.txt",
         "backend/locks/**",
         "backend/Dockerfile",
+        "docker-compose.yml",
+        "scripts/deploy/lib/docker.sh",
+        "scripts/prod/**",
         "scripts/tools/runtime_dependency_lock.py",
         "scripts/tools/tests/test_runtime_dependency_lock.py",
         workflow,
@@ -316,8 +319,9 @@ def test_ci_contract_governs_native_runtime_lock_candidate_workflow():
         "workflow_dispatch": {"inputs": []},
     }
     checks = [check for check in payload["checks"] if check["workflow"] == workflow]
-    assert len(checks) == 1
-    check = checks[0]
+    assert len(checks) == 2
+    by_job = {check["job_id"]: check for check in checks}
+    check = by_job["alpine-lock"]
     assert check["job_id"] == "alpine-lock"
     assert check["job_name"] == "Native Alpine runtime lock candidate"
     assert check["owner"] == "Backend/Supply Chain"
@@ -328,6 +332,15 @@ def test_ci_contract_governs_native_runtime_lock_candidate_workflow():
     assert "without activating production or publishing images" in check["purpose"]
     assert "runtime-lock-candidate" in check["triage"]
     assert "T4 remains open" in check["triage"]
+    arm = by_job["arm-host-compatibility"]
+    assert arm["job_name"] == "ARM host amd64 Docker compatibility"
+    assert arm["continue_on_error"] is False
+    assert arm["required_on_protected_main"] is False
+    assert arm["timeout_minutes"] == 30
+    workflow_data = module._load_workflow(REPO_ROOT / workflow)
+    arm_job = workflow_data["jobs"]["arm-host-compatibility"]
+    assert arm_job["runs-on"] == "ubuntu-24.04-arm"
+    assert arm_job["needs"] == ["alpine-lock"]
     assert len(payload["required_on_protected_main"]) == 11
     assert set(payload["required_on_protected_main"]) == module.EXPECTED_REQUIRED_CHECKS
 

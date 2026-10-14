@@ -175,7 +175,7 @@ fi
 confirm_or_die "Run DB bootstrap (RBAC + departments + bootstrap privileged users) against external PostgreSQL?"
 
 docker_common_args=(
-  docker run --rm
+  docker run --platform linux/amd64 --rm
   --add-host host.docker.internal:host-gateway
   "${SECRET_MOUNT_ARGS[@]}"
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
@@ -192,7 +192,7 @@ run "${docker_common_args[@]}" python -m scripts.identity_installation verify
 if [[ "$(envfile_get "$BACKEND_ENV" "AUTH_MODE")" == "password" ]]; then
   handoff_dir="$(dirname "$RUNTIME_DIR")/handoff"
   log "Creating or resuming protected native enrollment handoffs..."
-  run docker run --rm --add-host host.docker.internal:host-gateway \
+  run docker run --platform linux/amd64 --rm --add-host host.docker.internal:host-gateway \
     --network "$NETWORK_NAME" \
     "${SECRET_MOUNT_ARGS[@]}" -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
     -v "${handoff_dir}:${handoff_dir}:rw" --env-file "$BACKEND_ENV" "$backend_db_image" \

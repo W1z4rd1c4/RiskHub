@@ -6,6 +6,12 @@
 # =============================================================================
 FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS builder-base
 
+ARG TARGETPLATFORM
+RUN test "$TARGETPLATFORM" = "linux/amd64" || { \
+    echo 'RiskHub backend locks require --platform linux/amd64; ARM hosts need amd64 emulation.' >&2; \
+    exit 1; \
+    }
+
 WORKDIR /app
 
 # Build deps for cffi/bcrypt/psycopg2 and other native wheels.

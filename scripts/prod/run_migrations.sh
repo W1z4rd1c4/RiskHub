@@ -83,7 +83,7 @@ log "Migration reminder: DB rollbacks are forward-fix/backup-driven (no automati
 confirm_or_die "Run alembic migrations against external PostgreSQL?"
 
 log "Running migrations: alembic upgrade head"
-run docker run --rm \
+run docker run --platform linux/amd64 --rm \
   --add-host host.docker.internal:host-gateway \
   "${SECRET_MOUNT_ARGS[@]}" \
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \

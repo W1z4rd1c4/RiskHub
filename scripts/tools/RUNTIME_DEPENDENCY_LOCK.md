@@ -42,6 +42,10 @@ with pip absent from production. Offline provenance/closure validation and the
 downloaded artifact digest check passed before import. Only the four generated
 `first/` inputs and `Dockerfile.candidate` were imported as dependency/build
 inputs. These generation results do not certify the final activated source tree.
+The subsequent platform repair adds a fail-fast target guard in `builder-base`,
+outside the renderer's install-block replacement. The four generated inputs
+remain byte-identical to the original artifact; final CI must compare the
+guarded production Dockerfile with its freshly rendered candidate.
 
 ## Canonical target and commands
 
@@ -51,6 +55,15 @@ image already used by `backend/Dockerfile`. The current release workflows build
 on amd64 Ubuntu runners without a multi-platform matrix. This lock makes no
 claim about arm64, Windows, macOS, or the separate glibc Linux release bundle.
 Those platforms need their own resolution, artifact hashes, and install evidence.
+
+Public Docker Compose selects `linux/amd64` for bootstrap, backend and scheduler
+build/run operations. Production backend pull/run commands and release builds
+also select it explicitly. ARM hosts, including Apple Silicon Docker Desktop,
+must provide amd64 emulation for this profile; PostgreSQL, Redis and frontend
+services retain native platform selection. Direct backend Docker builds require
+`--platform linux/amd64` and fail before package installation for another target.
+The hosted ARM compatibility job exercises the amd64 locked images and canonical
+demo under emulation. It does not generate or certify native ARM dependency locks.
 
 The `Python Runtime Lock` workflow handles the expensive steps in CI:
 

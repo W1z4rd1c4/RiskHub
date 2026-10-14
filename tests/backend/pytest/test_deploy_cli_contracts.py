@@ -526,9 +526,11 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
         deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert f"docker pull {_image('riskhub-backend')}" in deploy_output
-        assert f"docker pull {_image('riskhub-backend-db')}" in deploy_output
+        assert f"docker pull --platform linux/amd64 {_image('riskhub-backend')}" in deploy_output
+        assert f"docker pull --platform linux/amd64 {_image('riskhub-backend-db')}" in deploy_output
         assert f"docker pull {_image('riskhub-redis')}" in deploy_output
+        assert f"docker pull {_image('riskhub-frontend')}" in deploy_output
+        assert "docker run --platform linux/amd64 --rm --add-host" in deploy_output
         assert "scripts/prod/install_backend.sh" in deploy_output
         assert "scripts/prod/install_redis.sh" in deploy_output
         assert f"--backend-db-image {_image('riskhub-backend-db')}" in deploy_output

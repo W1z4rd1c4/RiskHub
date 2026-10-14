@@ -146,7 +146,7 @@ fi
 log "Installing backend container: $container_name (instance=$instance workers=$workers scheduler=$enable_scheduler)"
 
 docker_run_args=(
-  docker run -d
+  docker run --platform linux/amd64 -d
   --name "$container_name"
   --restart unless-stopped
   --security-opt no-new-privileges
@@ -168,7 +168,7 @@ docker_run_args+=(
 )
 
 run_redacted \
-  "docker run -d --name $container_name ... --env-file $BACKEND_ENV -e ENABLE_SCHEDULER=$enable_scheduler $backend_image uvicorn ... --workers $workers" \
+  "docker run --platform linux/amd64 -d --name $container_name ... --env-file $BACKEND_ENV -e ENABLE_SCHEDULER=$enable_scheduler $backend_image uvicorn ... --workers $workers" \
   "${docker_run_args[@]}"
 
 log "Backend install: OK ($container_name)"

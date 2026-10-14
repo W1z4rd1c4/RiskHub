@@ -6,6 +6,9 @@ on:
       - 'backend/requirements*.txt'
       - 'backend/locks/**'
       - 'backend/Dockerfile'
+      - 'docker-compose.yml'
+      - 'scripts/deploy/lib/docker.sh'
+      - 'scripts/prod/**'
       - 'scripts/tools/runtime_dependency_lock.py'
       - 'scripts/tools/tests/test_runtime_dependency_lock.py'
       - '.github/workflows/python-runtime-lock.yml'
@@ -15,6 +18,9 @@ on:
       - 'backend/requirements*.txt'
       - 'backend/locks/**'
       - 'backend/Dockerfile'
+      - 'docker-compose.yml'
+      - 'scripts/deploy/lib/docker.sh'
+      - 'scripts/prod/**'
       - 'scripts/tools/runtime_dependency_lock.py'
       - 'scripts/tools/tests/test_runtime_dependency_lock.py'
       - '.github/workflows/python-runtime-lock.yml'
@@ -117,5 +123,91 @@ jobs:
         with:
           name: runtime-lock-candidate-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/runtime-lock/
+          if-no-files-found: error
+          retention-days: 30
+
+  arm-host-compatibility:
+    name: ARM host amd64 Docker compatibility
+    runs-on: ubuntu-24.04-arm
+    needs: [alpine-lock]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact source and ARM host
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "$(uname -m)" = aarch64
+          mkdir -p .ci-artifacts/arm-host
+
+      - name: Enable amd64 emulation
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: amd64
+          image: tonistiigi/binfmt:qemu-v10.2.3-68@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          cache-image: false
+
+      - name: Verify backend-only Compose platform selection
+        run: |
+          set -euo pipefail
+          docker compose --profile full config --format json > .ci-artifacts/arm-host/compose.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          services = json.loads(Path(".ci-artifacts/arm-host/compose.json").read_text())["services"]
+          for name in ["bootstrap", "backend", "scheduler"]:
+              assert services[name]["platform"] == "linux/amd64", name
+          for name in ["db", "redis", "frontend"]:
+              assert "platform" not in services[name], name
+          PY
+
+      - name: Verify direct ARM build fails before dependency installation
+        run: |
+          set -euo pipefail
+          if docker build --platform linux/arm64 --target builder-base \
+            -f backend/Dockerfile backend > .ci-artifacts/arm-host/unsupported-target.log 2>&1; then
+            echo '::error::Unsupported native ARM backend build unexpectedly succeeded.'
+            exit 1
+          fi
+          grep -q 'RiskHub backend locks require --platform linux/amd64' .ci-artifacts/arm-host/unsupported-target.log
+
+      - name: Build and verify both locked images under amd64 emulation
+        run: |
+          set -euo pipefail
+          for lane in runtime dbtasks; do
+            docker build --platform linux/amd64 --target "$lane" \
+              -t "riskhub-arm-host-$lane" -f backend/Dockerfile backend
+            docker run --rm --platform linux/amd64 --user riskhub -e HOME=/home/riskhub --entrypoint python \
+              -v "$GITHUB_WORKSPACE/backend/locks/cpython313-alpine324-x86_64/manifest.json:/tmp/lock-manifest.json:ro" \
+              "riskhub-arm-host-$lane" -c '
+          import importlib.metadata as metadata, json, platform, re, sys
+          import argon2, asyncpg, bcrypt, cryptography, greenlet, psutil, pydantic_core, uvloop
+          assert platform.machine() == "x86_64"
+          manifest = json.load(open("/tmp/lock-manifest.json"))
+          expected = {name: value["version"] for name, value in manifest["lanes"][sys.argv[1]]["packages"].items()}
+          actual = {re.sub(r"[-_.]+", "-", d.metadata["Name"]).lower(): d.version for d in metadata.distributions()}
+          assert actual == expected, (actual, expected)
+          if sys.argv[1] == "dbtasks":
+              import psycopg2
+          print("ARM-host amd64 imports and exact production package inventory passed:", sys.argv[1])
+          ' "$lane"
+          done 2>&1 | tee .ci-artifacts/arm-host/image-verification.log
+
+      - name: Verify canonical Docker onboarding on the ARM host
+        uses: ./.github/actions/docker-onboarding-smoke
+        with:
+          artifact-name: arm-host-amd64-onboarding-${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Upload ARM host platform evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: arm-host-amd64-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: .ci-artifacts/arm-host/
           if-no-files-found: error
           retention-days: 30

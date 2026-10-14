@@ -131,9 +131,9 @@ docker_deploy_or_upgrade() {
     docker_preflight "$config_path" "$allow_port_in_use"
 
     log "Pulling backend image: ${DOCKER_BACKEND_IMAGE}"
-    run docker pull "$DOCKER_BACKEND_IMAGE"
+    run docker pull --platform linux/amd64 "$DOCKER_BACKEND_IMAGE"
     log "Pulling backend DB image: ${DOCKER_BACKEND_DB_IMAGE}"
-    run docker pull "$DOCKER_BACKEND_DB_IMAGE"
+    run docker pull --platform linux/amd64 "$DOCKER_BACKEND_DB_IMAGE"
     log "Pulling frontend image: ${DOCKER_FRONTEND_IMAGE}"
     run docker pull "$DOCKER_FRONTEND_IMAGE"
     log "Pulling redis image: ${DOCKER_REDIS_IMAGE}"
@@ -161,7 +161,7 @@ docker_deploy_or_upgrade() {
 
     identity_secret_mounts "$backend_env"
     log "Checking candidate identity, schema and key compatibility before replacing services..."
-    run docker run --rm --add-host host.docker.internal:host-gateway \
+    run docker run --platform linux/amd64 --rm --add-host host.docker.internal:host-gateway \
       "${SECRET_MOUNT_ARGS[@]}" -v "${runtime_dir}/redis_url:${RUNTIME_DIR}/redis_url:ro" \
       --env-file "$backend_env" "$DOCKER_BACKEND_DB_IMAGE" python -m scripts.identity_preflight --restore-contract 1
     if [[ "$action" == "upgrade" ]]; then

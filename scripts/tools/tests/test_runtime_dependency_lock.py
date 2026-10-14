@@ -169,6 +169,48 @@ class RuntimeLockTests(unittest.TestCase):
             self.assertNotIn("-r requirements-db.txt", content)
             self.assertNotIn("requirements-dev", content)
             self.assertIn("FROM builder-base AS builder-dbtasks", content)
+            self.assertIn('RUN test "$TARGETPLATFORM" = "linux/amd64"', content)
+            self.assertLess(content.index("ARG TARGETPLATFORM"), content.index("RUN apk upgrade"))
+
+    def test_builder_platform_guard_rejects_unsupported_targets_before_package_access(self):
+        content = (lock.BACKEND / "Dockerfile").read_text()
+        guard = content.split("ARG TARGETPLATFORM\n", 1)[1].split("\n\n", 1)[0]
+        self.assertTrue(guard.startswith("RUN "))
+        for target in ["linux/amd64", "linux/arm64", "linux/386", ""]:
+            with self.subTest(target=target):
+                result = subprocess.run(["sh", "-c", guard[4:]],
+                                        env={**os.environ, "TARGETPLATFORM": target},
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 0 if target == "linux/amd64" else 1)
+                if target != "linux/amd64":
+                    self.assertIn("locks require --platform linux/amd64", result.stderr)
+
+    def test_production_backend_commands_preserve_the_hashed_platform(self):
+        run_commands = {
+            "scripts/deploy/lib/docker.sh": 1,
+            "scripts/prod/install_backend.sh": 1,
+            "scripts/prod/run_migrations.sh": 1,
+            "scripts/prod/bootstrap_db.sh": 2,
+            "scripts/prod/lib/preflight.sh": 1,
+        }
+        for name, count in run_commands.items():
+            with self.subTest(script=name):
+                commands = [line.strip() for line in (lock.ROOT / name).read_text().splitlines()
+                            if line.strip().startswith(("docker run ", "run docker run "))]
+                self.assertEqual(len(commands), count)
+                for command in commands:
+                    self.assertIn("--platform linux/amd64", command)
+        deploy = (lock.ROOT / "scripts/deploy/lib/docker.sh").read_text()
+        for image in ["DOCKER_BACKEND_IMAGE", "DOCKER_BACKEND_DB_IMAGE"]:
+            self.assertIn(f'run docker pull --platform linux/amd64 "${image}"', deploy)
+        release = (lock.ROOT / ".github/workflows/release.yml").read_text()
+        commands = [line.strip() for line in release.splitlines()
+                    if line.strip().startswith("docker build ") and "-f backend/Dockerfile backend" in line]
+        self.assertEqual(len(commands), 2)
+        for command in commands:
+            self.assertIn("--platform linux/amd64", command)
+        for name in ["scripts/prod/install_frontend.sh", "scripts/prod/install_redis.sh"]:
+            self.assertNotIn("--platform linux/amd64", (lock.ROOT / name).read_text())
 
     def test_verifier_forces_all_hash_checks_even_if_packages_exist(self):
         manifest = {"lanes": {lane: {"packages": {}} for lane in lock.INPUTS}}

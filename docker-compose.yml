@@ -69,6 +69,7 @@ services:
 
   bootstrap:
     profiles: ["full"]
+    platform: linux/amd64
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -88,6 +89,7 @@ services:
 
   backend:
     profiles: ["full"]
+    platform: linux/amd64
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -108,6 +110,7 @@ services:
 
   scheduler:
     profiles: ["full"]
+    platform: linux/amd64
     build:
       context: ./backend
       dockerfile: Dockerfile
