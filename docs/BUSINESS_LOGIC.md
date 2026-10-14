@@ -1312,6 +1312,13 @@ Compatibility behavior:
 
 `GET /api/v1/admin/logs/config` returns canonical fields.
 
+Absent persisted overrides, application files rotate at 10 MiB with 10 backups;
+audit files rotate at 50 MiB with 30 backups. Existing saved overrides remain in
+force. These limits retain file size/count rather than a number of days and do
+not change database activity history. See the operator-owned
+[audit file retention policy](deployment/reference.md#audit-file-retention-policy)
+for disk sizing, multi-process limits, persisted overrides and external archival.
+
 ---
 
 *Document generated from codebase analysis. See individual model files for authoritative definitions.*

@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-09-12
+> **Last Updated**: 2026-10-15
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -120,6 +120,71 @@ Docker network notes:
 - managed docker installs create `riskhub-network` with the configured `DOCKER_NETWORK_SUBNET`
 - deploy preflight fails if an existing `riskhub-network` does not match that subnet
 - broad RFC1918 `TRUSTED_PROXIES` ranges weaken `X-Forwarded-For` trust for rate limiting, refresh-session IP attribution, and request logging
+
+## Audit file retention policy
+
+The installation operator owns audit collection, retention requirements and disk
+capacity. `backend/logs/audit.json.log` contains the redacted audit/security JSON
+stream; its rotated backups are `audit.json.log.1` (newest) through
+`audit.json.log.30` (oldest) by default. Database activity history has a separate
+lifecycle and is unaffected by this policy.
+
+| Stream | Rotation size | Backup count | Nominal local storage, including active file |
+|---|---|---|---|
+| Audit | 50 MiB | 30 | 1,550 MiB (about 1.51 GiB) |
+| Application | 10 MiB | 10 | 110 MiB |
+
+The configuration fields use `mb` in their names, but sizes are binary MiB
+(`1024 * 1024` bytes). Audit defaults previously used 10 MiB and 10 backups;
+the larger defaults provide about fourteen times the local capacity. Rotation is
+triggered by file size, and a rollover discards the oldest backup once the count
+is reached. This provides no minimum or maximum number of retention days. The
+storage estimate is a planning envelope, not a filesystem quota: oversized
+records, concurrent writers, existing files and retained releases need headroom.
+Python's file handler does not coordinate rotation across API workers and the
+scheduler; local files must not be treated as a complete or immutable archive.
+
+Platform administrators override rotation through **Admin Console** or
+`POST /api/v1/admin/logs/config`, supplying all four canonical fields:
+
+```json
+{
+  "app_log_rotation_size_mb": 10,
+  "app_log_retention_count": 10,
+  "audit_log_rotation_size_mb": 50,
+  "audit_log_retention_count": 30
+}
+```
+
+The API accepts each size/count from 1 to 500. Values are persisted in
+`global_config` and take precedence over defaults; an upgrade does not overwrite
+existing operator settings, including a previously saved 10/10 audit setting.
+A successful update applies to the process handling that request. Restart all
+API workers and the scheduler in a maintenance window to load the saved values
+everywhere. `GET /api/v1/admin/logs/config` reports the saved values or defaults.
+Missing, non-integer or nonpositive persisted startup values fall back to the defaults.
+`LOG_DIR`, `APP_LOG_*` and `AUDIT_LOG_*` environment variables are not supported
+overrides.
+
+Operational requirements:
+
+- Forward the audit stream continuously to an access-controlled external
+  collector/archive. Set its time-based retention and any legal hold according
+  to the installation's policy; verify ingestion and restoration before relying
+  on it. The Admin Console's loaded-log export is not an archive of rotated files.
+- Keep the log directory on durable storage. Managed Docker uses
+  `riskhub-backend-logs` at `/app/logs`; demo Compose uses
+  `riskhub_backend_logs`. Linux files live in each release's `backend/logs`, so
+  archive them before removing or replacing a release and include retained
+  releases in capacity planning.
+- Budget at least the combined default 1,660 MiB (about 1.62 GiB) per local file
+  set, plus operational headroom and separate space for container/journal logs.
+  Monitor filesystem free space, audit write failures and collector lag; alert
+  before free capacity is less than the configured local envelope. Increase
+  capacity or reduce collector lag before relying on a larger retention count.
+- Use RiskHub's built-in rollover for live files; avoid a second `logrotate`
+  rule targeting the same files. Archive rotated files before their next eviction
+  if required, and restrict file/archive access to authorized operators.
 
 ## Public Wrapper Commands
 

@@ -70,6 +70,9 @@ class TestTailLogFile:
 
 @pytest.mark.asyncio
 async def test_admin_log_config_get_returns_canonical_shape(auth_client: AsyncClient):
+    from app.models.global_config import clear_config_cache
+
+    clear_config_cache()
     response = await auth_client.get("/api/v1/admin/logs/config")
     assert response.status_code == 200
     data = response.json()
@@ -79,6 +82,13 @@ async def test_admin_log_config_get_returns_canonical_shape(auth_client: AsyncCl
         "audit_log_rotation_size_mb",
         "audit_log_retention_count",
     }
+    assert data == {
+        "app_log_rotation_size_mb": 10,
+        "app_log_retention_count": 10,
+        "audit_log_rotation_size_mb": 50,
+        "audit_log_retention_count": 30,
+    }
+    clear_config_cache()
 
 
 @pytest.mark.asyncio
@@ -240,9 +250,12 @@ async def _load_log_config_values(db_session) -> dict[str, str]:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("audit_size", "audit_count"), [(13, 11), (10, 10)])
 async def test_apply_persisted_log_rotation_config_uses_persisted_values(
     db_session,
     monkeypatch: pytest.MonkeyPatch,
+    audit_size: int,
+    audit_count: int,
 ):
     from app.main import apply_persisted_log_rotation_config
     from app.models.global_config import clear_config_cache
@@ -254,8 +267,8 @@ async def test_apply_persisted_log_rotation_config_uses_persisted_values(
         [
             _make_log_config("app_log_rotation_size_mb", "21"),
             _make_log_config("app_log_retention_count", "17"),
-            _make_log_config("audit_log_rotation_size_mb", "13"),
-            _make_log_config("audit_log_retention_count", "11"),
+            _make_log_config("audit_log_rotation_size_mb", str(audit_size)),
+            _make_log_config("audit_log_retention_count", str(audit_count)),
         ]
     )
     await db_session.commit()
@@ -265,14 +278,14 @@ async def test_apply_persisted_log_rotation_config_uses_persisted_values(
     assert resolved == {
         "app_log_rotation_size_mb": 21,
         "app_log_retention_count": 17,
-        "audit_log_rotation_size_mb": 13,
-        "audit_log_retention_count": 11,
+        "audit_log_rotation_size_mb": audit_size,
+        "audit_log_retention_count": audit_count,
     }
     configure_mock.assert_called_once_with(
         app_rotation_size_mb=21,
         app_retention_count=17,
-        audit_rotation_size_mb=13,
-        audit_retention_count=11,
+        audit_rotation_size_mb=audit_size,
+        audit_retention_count=audit_count,
     )
     clear_config_cache()
 
@@ -442,14 +455,14 @@ async def test_apply_persisted_log_rotation_config_falls_back_to_defaults_for_in
     assert resolved == {
         "app_log_rotation_size_mb": 10,
         "app_log_retention_count": 9,
-        "audit_log_rotation_size_mb": 10,
-        "audit_log_retention_count": 10,
+        "audit_log_rotation_size_mb": 50,
+        "audit_log_retention_count": 30,
     }
     configure_mock.assert_called_once_with(
         app_rotation_size_mb=10,
         app_retention_count=9,
-        audit_rotation_size_mb=10,
-        audit_retention_count=10,
+        audit_rotation_size_mb=50,
+        audit_retention_count=30,
     )
     clear_config_cache()
 

@@ -32,6 +32,8 @@ client_ip_ctx: ContextVar[str | None] = ContextVar("client_ip", default=None)
 # Default log rotation settings.
 DEFAULT_LOG_ROTATION_SIZE_MB = 10
 DEFAULT_LOG_RETENTION_COUNT = 10
+DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB = 50
+DEFAULT_AUDIT_LOG_RETENTION_COUNT = 30
 _DEFAULT_JSON_CONSOLE = os.getenv("DEBUG", "false").lower() != "true"
 _DEFAULT_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 _active_logging_config: dict[str, int | str | bool] = {
@@ -39,8 +41,8 @@ _active_logging_config: dict[str, int | str | bool] = {
     "json_console": _DEFAULT_JSON_CONSOLE,
     "app_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
     "app_retention_count": DEFAULT_LOG_RETENTION_COUNT,
-    "audit_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
-    "audit_retention_count": DEFAULT_LOG_RETENTION_COUNT,
+    "audit_rotation_size_mb": DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
+    "audit_retention_count": DEFAULT_AUDIT_LOG_RETENTION_COUNT,
 }
 
 ResolvedLoggingConfig = logging_config.ResolvedLoggingConfig
@@ -50,8 +52,8 @@ _resolve_logging_config = partial(
     logging_config.resolve_logging_config,
     default_app_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
     default_app_count=DEFAULT_LOG_RETENTION_COUNT,
-    default_audit_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
-    default_audit_count=DEFAULT_LOG_RETENTION_COUNT,
+    default_audit_size_mb=DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
+    default_audit_count=DEFAULT_AUDIT_LOG_RETENTION_COUNT,
 )
 
 
@@ -80,6 +82,8 @@ def get_log_settings() -> tuple[int, int, int, int]:
     return logging_runtime.log_settings(
         rotation_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
         retention_count=DEFAULT_LOG_RETENTION_COUNT,
+        audit_rotation_size_mb=DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
+        audit_retention_count=DEFAULT_AUDIT_LOG_RETENTION_COUNT,
     )
 
 
@@ -122,8 +126,8 @@ def configure_logging(
         log_directory=get_log_directory(),
         default_app_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
         default_app_count=DEFAULT_LOG_RETENTION_COUNT,
-        default_audit_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
-        default_audit_count=DEFAULT_LOG_RETENTION_COUNT,
+        default_audit_size_mb=DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
+        default_audit_count=DEFAULT_AUDIT_LOG_RETENTION_COUNT,
         log_level=log_level,
         json_console=json_console,
         rotation_size_mb=rotation_size_mb,
