@@ -15,6 +15,12 @@ const getDepartmentsMock = vi.hoisted(() => vi.fn<typeof lookupApi.getDepartment
 const getRiskFiltersMock = vi.hoisted(() => vi.fn<typeof lookupApi.getRiskFilters>());
 const getRisksMock = vi.hoisted(() => vi.fn());
 
+const departmentChoices: Awaited<ReturnType<typeof lookupApi.getDepartments>> = [{
+    id: 3, name: 'Operations', code: 'OPS',
+    user_count: 0, risk_count: 0, high_risk_count: 0, control_count: 0,
+    kri_count: 0, breaching_kri_count: 0, total_net_score: 0,
+}];
+
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
         getDepartments: getDepartmentsMock,
@@ -53,11 +59,7 @@ function LookupBackedIdentityStep() {
 describe('useRiskLookups', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getDepartmentsMock.mockResolvedValue([{
-            id: 3, name: 'Operations', code: 'OPS',
-            user_count: 0, risk_count: 0, high_risk_count: 0, control_count: 0,
-            kri_count: 0, breaching_kri_count: 0, total_net_score: 0,
-        }]);
+        getDepartmentsMock.mockResolvedValue(departmentChoices);
         getRiskFiltersMock.mockResolvedValue({
             processes: ['Claims', 'Underwriting'],
             categories: ['Financial', 'Operational'],
@@ -86,7 +88,7 @@ describe('useRiskLookups', () => {
 
         const { result } = renderHook(() => useRiskLookups());
 
-        await waitFor(() => expect(result.current.departments).toEqual([{ id: 3, name: 'Operations', code: 'OPS' }]));
+        await waitFor(() => expect(result.current.departments).toEqual(departmentChoices));
         expect(result.current.existingProcesses).toEqual([]);
         expect(result.current.existingCategories).toEqual([]);
         expect(result.current.subprocessesByProcess).toEqual({});
