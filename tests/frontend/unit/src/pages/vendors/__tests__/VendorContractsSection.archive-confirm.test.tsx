@@ -13,16 +13,19 @@ import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotic
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import i18n from '@/i18n';
 import { VendorContractsSection } from '@/pages/vendors/VendorContractsSection';
+import type { vendorContractApi as actualVendorContractApi } from '@/services/vendorContractApi';
+import type { VendorContract } from '@/types/vendorContract';
+
 const vendorContractApi = vi.hoisted(() => ({
-        getContracts: vi.fn(),
-        createContract: vi.fn(),
-        updateContract: vi.fn(),
-        archiveContract: vi.fn(),
-        restoreContract: vi.fn(),
-    }));
+    getContracts: vi.fn<typeof actualVendorContractApi.getContracts>(),
+    createContract: vi.fn<typeof actualVendorContractApi.createContract>(),
+    updateContract: vi.fn<typeof actualVendorContractApi.updateContract>(),
+    archiveContract: vi.fn<typeof actualVendorContractApi.archiveContract>(),
+    restoreContract: vi.fn<typeof actualVendorContractApi.restoreContract>(),
+}));
 
 vi.mock('@/services/vendorContractApi', () => ({
-    vendorContractApi: vendorContractApi,
+    vendorContractApi,
 }));
 
 vi.mock('@/services/assetApi', () => ({
@@ -45,7 +48,7 @@ const contract = {
     capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false },
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
-};
+} satisfies VendorContract;
 
 function renderSection(protectedChangeRequiresApproval: boolean) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -70,7 +73,7 @@ const archiveLabel = () => i18n.t('vendors:contracts.actions.archive');
 describe('VendorContractsSection archive confirmation (GAP-C-06)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(vendorContractApi.getContracts).mockResolvedValue([contract] as never);
+        vi.mocked(vendorContractApi.getContracts).mockResolvedValue([contract]);
     });
 
     it('confirms an unprotected archive with an optional reason before archiving', async () => {

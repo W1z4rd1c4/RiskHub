@@ -1,3 +1,5 @@
+import type { threatApi as actualThreatApi } from '@/services/threatApi';
+import type { riskApi as actualRiskApi } from '@/services/riskApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,9 +11,9 @@ import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
 const threatApi = vi.hoisted(() => ({
-        getRiskLinks: vi.fn(),
-        removeRiskLink: vi.fn(),
-        addRiskLink: vi.fn(),
+        getRiskLinks: vi.fn<typeof actualThreatApi.getRiskLinks>(),
+        removeRiskLink: vi.fn<typeof actualThreatApi.removeRiskLink>(),
+        addRiskLink: vi.fn<typeof actualThreatApi.addRiskLink>(),
     }));
 import type { Threat } from '@/types/threat';
 
@@ -26,13 +28,20 @@ vi.mock('@/services/threatApi', () => ({
 }));
 
 vi.mock('@/services/riskApi', () => ({
-    riskApi: { getRisks: vi.fn().mockResolvedValue({ items: [] }) },
+    riskApi: { getRisks: vi.fn<typeof actualRiskApi.getRisks>().mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 }) },
 }));
 
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
 
 const EMPTY_COPY = 'No risks are linked to this threat yet.';
-const threat = { id: 3, name: 'Credential Stuffing', is_archived: false } as unknown as Threat;
+const threat: Threat = {
+    id: 3,
+    name: 'Credential Stuffing',
+    stewardship_status: 'assigned',
+    is_archived: false,
+    created_at: '2026-07-17T08:00:00Z',
+    updated_at: '2026-07-17T08:00:00Z',
+};
 
 function renderSection() {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
