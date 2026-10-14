@@ -13,6 +13,7 @@ from sqlalchemy import JSON, Boolean, Integer, String, and_, case, false, func, 
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.functions import FunctionElement
 
+from app.core.sql_uuid import CanonicalUuid4
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -689,11 +690,6 @@ class _JsonFieldDocument(FunctionElement):
     inherit_cache = True
 
 
-class _CanonicalUuid4(FunctionElement):
-    type = Boolean()
-    inherit_cache = True
-
-
 class _JsonPositiveIntegerField(FunctionElement):
     type = Boolean()
     inherit_cache = True
@@ -899,21 +895,6 @@ def _compile_json_field_document_sqlite(element, compiler, **kw):
 def _compile_json_field_document_postgresql(element, compiler, **kw):
     document, field = _compiled_arguments(element, compiler, **kw)
     return f"({document} -> {field})"
-
-
-@compiles(_CanonicalUuid4, "sqlite")
-def _compile_canonical_uuid4_sqlite(element, compiler, **kw):
-    (value,) = _compiled_arguments(element, compiler, **kw)
-    hexdigit = "[0-9a-f]"
-    pattern = hexdigit * 8 + "-" + hexdigit * 4 + "-4" + hexdigit * 3 + "-[89ab]" + hexdigit * 3 + "-" + hexdigit * 12
-    return f"({value} GLOB '{pattern}')"
-
-
-@compiles(_CanonicalUuid4, "postgresql")
-def _compile_canonical_uuid4_postgresql(element, compiler, **kw):
-    (value,) = _compiled_arguments(element, compiler, **kw)
-    pattern = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    return f"({value} ~ '{pattern}')"
 
 
 @compiles(_JsonPositiveIntegerField, "sqlite")
@@ -1419,7 +1400,7 @@ def _strict_sql_identity_predicate():
     before_snapshot = GovernedMutationProposal.before_snapshot
     after_snapshot = GovernedMutationProposal.after_snapshot
     return and_(
-        _CanonicalUuid4(GovernedMutationProposal.proposal_id),
+        CanonicalUuid4(GovernedMutationProposal.proposal_id),
         GovernedMutationProposal.proposal_version == PROPOSAL_VERSION,
         GovernedMutationProposal.schema_version == PROPOSAL_SCHEMA_VERSION,
         GovernedMutationProposal.approval_request_id > 0,

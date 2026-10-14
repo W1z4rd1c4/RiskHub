@@ -16,6 +16,8 @@ Shared backend runtime primitives: settings, logging, security, scheduling, pagi
   - Runtime hardening, request attribution, and production-safety helpers.
 - `datetime_utils.py`, `pagination.py`, `query_filters.py`, `snapshot_service.py`, `ttl_cache.py`
   - Cross-cutting utility modules used by multiple endpoint/service packages.
+- `sql_uuid.py`
+  - Dialect-native canonical UUID4 SQL validation; callers retain their own domain envelopes and JSON rules.
 - `scheduler.py`
   - Background scheduler bootstrap and job execution coordination.
 
