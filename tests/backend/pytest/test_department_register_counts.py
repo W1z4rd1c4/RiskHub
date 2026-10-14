@@ -4,6 +4,10 @@ from dataclasses import asdict
 from datetime import date
 
 import pytest
+from sqlalchemy import event, select
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.orm import selectinload
+
 from app.api.v1.endpoints.departments import _register_counts
 from app.db.seed import seed_ict_workbook_parameter_config
 from app.models import (
@@ -27,9 +31,6 @@ from app.services._register_listings import (
     build_asset_listing,
     build_process_listing,
 )
-from sqlalchemy import event, select
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.orm import selectinload
 
 
 async def _reader(db, department_id, *, domains=("processes", "assets"), role_name="b6_reader"):
