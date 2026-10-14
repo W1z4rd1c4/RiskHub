@@ -1,6 +1,6 @@
 """Access-management policy helpers shared by API and service code."""
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -55,23 +55,32 @@ def resolve_department_access_roster_target(
     return target_department_id
 
 
+def build_access_users_query(current_user: User) -> Select[tuple[User]]:
+    """Apply the shared Admin-row boundary for access and organization rosters.
+
+    This is separate from permissioned generic directory discovery and from
+    purpose-scoped assignment lookups, which retain their own visibility rules.
+    """
+    query = select(User)
+    if not is_platform_admin(current_user):
+        query = query.join(Role).where(Role.name != RoleType.ADMIN)
+    return query
+
+
 def build_department_access_roster_query(
     current_user: User,
     *,
     department_id: int,
 ):
     """Build the exact active roster visible on the Department Users tab."""
-    query = (
-        select(User)
-        .join(Role)
-        .where(
-            User.department_id == department_id,
-            User.is_active.is_(True),
-        )
+    query = build_access_users_query(current_user)
+    if is_platform_admin(current_user):
+        # Retain this roster's matching-Role requirement for every caller.
+        query = query.join(Role)
+    return query.where(
+        User.department_id == department_id,
+        User.is_active.is_(True),
     )
-    if not is_platform_admin(current_user):
-        query = query.where(Role.name != RoleType.ADMIN)
-    return query
 
 
 def access_user_capabilities(
