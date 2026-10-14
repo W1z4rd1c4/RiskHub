@@ -22,16 +22,26 @@ import { useVendorsPageState } from '@/pages/vendors/useVendorsPageState';
 import { ApiClientError } from '@/services/apiClient';
 import { createTestQueryClient } from '@test/queryClient';
 
+interface RegisterRequestParams {
+    search?: string;
+    offset?: number;
+    sort?: { field: string; direction: 'asc' | 'desc' };
+    department_id?: number;
+    department_ids?: number[];
+}
+
+type FetchRegister = (params: RegisterRequestParams) => Promise<typeof populatedPage>;
+
 const apiMocks = vi.hoisted(() => ({
-    getAssets: vi.fn(),
+    getAssets: vi.fn<FetchRegister>(),
     getConfigValue: vi.fn(),
-    getControls: vi.fn(),
-    getIssues: vi.fn(),
-    getKris: vi.fn(),
-    getProcesses: vi.fn(),
-    getRisks: vi.fn(),
-    getThreats: vi.fn(),
-    getVendors: vi.fn(),
+    getControls: vi.fn<FetchRegister>(),
+    getIssues: vi.fn<FetchRegister>(),
+    getKris: vi.fn<FetchRegister>(),
+    getProcesses: vi.fn<FetchRegister>(),
+    getRisks: vi.fn<FetchRegister>(),
+    getThreats: vi.fn<FetchRegister>(),
+    getVendors: vi.fn<FetchRegister>(),
     restoreAsset: vi.fn(),
     restoreControl: vi.fn(),
     restoreKri: vi.fn(),
@@ -116,7 +126,7 @@ function useVendorCollectionState(): RegisterCollectionState {
 }
 
 const REGISTERS: ReadonlyArray<{
-    fetchMock: ReturnType<typeof vi.fn>;
+    fetchMock: typeof apiMocks.getRisks;
     name: string;
     path: string;
     useCollectionState: () => RegisterCollectionState;
@@ -225,6 +235,14 @@ function CollectionLayoutProbe({
     );
 }
 
+async function actAndFlush(update: () => void) {
+    await act(async () => {
+        update();
+        // Flush pending mocked responses as well as the synchronous state update.
+        await Promise.resolve();
+    });
+}
+
 function routeWrapper(path: string) {
     const queryClient = createTestQueryClient();
     return function Wrapper({ children }: { children: ReactNode }) {
@@ -257,7 +275,7 @@ describe('eight-register collection query identity', () => {
 
         const search = 'abcdefghijkl';
         for (let length = 1; length <= search.length; length += 1) {
-            await act(async () => result.current.updateSearch(search.slice(0, length)));
+            await actAndFlush(() => result.current.updateSearch(search.slice(0, length)));
             expect(fetchMock).toHaveBeenCalledTimes(1);
             expect(result.current.refresh).toBe(initialRefresh);
         }
@@ -278,7 +296,7 @@ describe('eight-register collection query identity', () => {
             wrapper: routeWrapper(path),
         });
         await waitFor(() => expect(result.current.state.isLoading).toBe(false));
-        await act(async () => result.current.state.setCurrentPage(2));
+        await actAndFlush(() => result.current.state.setCurrentPage(2));
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
         await act(async () => result.current.navigate(-1));
@@ -289,11 +307,11 @@ describe('eight-register collection query identity', () => {
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
 
         vi.useFakeTimers();
-        await act(async () => result.current.state.updateSearch('a'));
+        await actAndFlush(() => result.current.state.updateSearch('a'));
         expect(result.current.state.currentPage).toBe(1);
         expect(fetchMock).toHaveBeenCalledTimes(5);
         expect(fetchMock.mock.lastCall?.[0].offset).toBe(0);
-        await act(async () => result.current.state.updateSearch('ab'));
+        await actAndFlush(() => result.current.state.updateSearch('ab'));
         expect(fetchMock).toHaveBeenCalledTimes(5);
         await act(async () => vi.advanceTimersByTimeAsync(300));
         expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -336,11 +354,11 @@ describe('eight-register collection query identity', () => {
         const oldB = deferred<typeof populatedPage>();
         fetchMock.mockReturnValueOnce(oldA.promise).mockReturnValueOnce(oldB.promise).mockResolvedValueOnce(queryBPage);
         act(() => { void result.current.refresh(); });
-        await act(async () => result.current.setCurrentPage(2));
-        await act(async () => result.current.setCurrentPage(1));
+        await actAndFlush(() => result.current.setCurrentPage(2));
+        await actAndFlush(() => result.current.setCurrentPage(1));
         expect(fetchMock).toHaveBeenCalledTimes(4);
         expect(result.current.items).toEqual([expect.objectContaining({ id: 2 })]);
-        await act(async () => {
+        await actAndFlush(() => {
             oldA.resolve(populatedPage);
             oldB.reject(new ApiClientError({ status: 403, messageKey: 'errors.forbidden' }));
         });
@@ -369,9 +387,9 @@ describe('eight-register collection query identity', () => {
         await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
         view.rerender(content(2));
         await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-        await act(async () => priorPrincipal.resolve(populatedPage));
+        await actAndFlush(() => priorPrincipal.resolve(populatedPage));
         expect(screen.getByTestId('collection-row-count')).toHaveTextContent('0');
-        await act(async () => currentPrincipal.resolve(queryBPage));
+        await actAndFlush(() => currentPrincipal.resolve(queryBPage));
         expect(snapshots.at(-1)?.items).toEqual([expect.objectContaining(queryBPage.items[0])]);
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
@@ -387,12 +405,12 @@ describe('eight-register collection query identity', () => {
         );
         const view = render(content(7, 'Finance'));
         await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-        await act(async () => view.rerender(content(7, 'Renamed department')));
+        await actAndFlush(() => view.rerender(content(7, 'Renamed department')));
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        await act(async () => view.rerender(content(8, 'Operations')));
+        await actAndFlush(() => view.rerender(content(8, 'Operations')));
         expect(fetchMock).toHaveBeenCalledTimes(2);
         const params = fetchMock.mock.lastCall?.[0];
-        expect(params.department_id ?? params.department_ids).toEqual(params.department_id ? 8 : [8]);
+        expect(params?.department_id ?? params?.department_ids).toEqual(params?.department_id ? 8 : [8]);
     });
 
     it.each(REGISTERS.filter(({ name }) => ['Risk', 'Asset', 'Process', 'Vendor'].includes(name)))('$name refetches changed semantic scope once', async ({ fetchMock, name, path, useCollectionState }) => {
@@ -458,7 +476,7 @@ describe('eight-register collection query identity', () => {
             expect(result.current.items).toEqual([]);
             expect(result.current.errorKey).toBeNull();
             expect(result.current.isLoading).toBe(true);
-            await act(async () => { queryB.resolve(queryBPage); });
+            await actAndFlush(() => { queryB.resolve(queryBPage); });
             await waitFor(() => expect((result.current.items[0] as { id?: number } | undefined)?.id).toBe(2));
             expect(result.current.errorKey).toBeNull();
             expect(result.current.isLoading).toBe(false);
