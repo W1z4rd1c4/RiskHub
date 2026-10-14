@@ -127,8 +127,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const close = useCallback((id?: string) => {
-        notifyDismissal(id);
         setItems((current) => current.map((item) => (id === undefined || item.id === id ? { ...item, open: false } : item)));
+        notifyDismissal(id);
     }, [notifyDismissal]);
 
     // Every closed toast is unmounted after its exit animation.
@@ -142,7 +142,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     const show = useCallback((tone: FeedbackTone, options: FeedbackOptions, description?: string) => {
         sequence.current += 1;
         const id = options.id ?? `feedback-${sequence.current}`;
-        notifyDismissal(id);
+        const previousDismissal = dismissalCallbacks.current.get(id);
+        dismissalCallbacks.current.delete(id);
         if (options.onDismiss) dismissalCallbacks.current.set(id, options.onDismiss);
         const pendingRemoval = removalTimers.current.get(id);
         if (pendingRemoval !== undefined) {
@@ -159,8 +160,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             open: true,
         };
         setItems((current) => capOpenItems([...current.filter((existing) => existing.id !== id), item]));
+        previousDismissal?.();
         return id;
-    }, [notifyDismissal, t]);
+    }, [t]);
 
     const api = useMemo<FeedbackApi>(() => ({
         success: (options = {}) => show('success', options),
