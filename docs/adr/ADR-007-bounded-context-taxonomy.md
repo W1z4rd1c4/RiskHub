@@ -10,7 +10,7 @@ RiskHub architecture work touches many workflow packages. Broad sweeps across al
 
 ## Decision
 
-Architecture sweeps use seven bounded contexts: `_riskhub_config`, `_identity_access_lifecycle`, `_vendor_governance`, `_register_listings`, `_approval_execution`, `_entity_mutation_lifecycle`, and `_kri_history`. Each context owns its exception, transaction, listing, and audit cleanup for its files before the next context begins. See Amendment 1 (below) for secondary categories applied to remaining packages.
+Architecture sweeps use nine write-side bounded contexts: `_riskhub_config`, `_identity_access_lifecycle`, `_vendor_governance`, `_register_listings`, `_approval_execution`, `_entity_mutation_lifecycle`, `_kri_history`, `_governed_mutations`, and `_identity_restore`. Each context owns its exception, transaction, listing, and audit cleanup for its files before the next context begins. See Amendment 1 (below) for secondary categories applied to remaining packages.
 
 ## Alternatives Rejected
 
@@ -40,11 +40,11 @@ Accepted
 
 ### Context
 
-ADR-007 names seven write-side bounded contexts but the codebase carries 31 underscore-prefixed packages plus the `_monitoring_response.py` file entry under `backend/app/services/`, totaling 32 classified entries. The unnamed remainder falls into four coherent shapes: read-shape projections, workflow-paired companions, adapter contexts that translate external systems, and a small set of cross-cutting modules that supply policy primitives to every other context. Without an explicit secondary taxonomy, reviewers read the seven-context list as exhaustive and misclassify new packages.
+ADR-007 originally named seven write-side bounded contexts. The current enumeration includes `_governed_mutations` (ADR-016) and `_identity_restore` (ADR-018); the executable taxonomy classifies all underscore-prefixed service packages plus the `_monitoring_response.py` file entry. The unnamed remainder falls into four coherent shapes: read-shape projections, workflow-paired companions, adapter contexts that translate external systems, and a small set of cross-cutting modules that supply policy primitives to every other context. Without an explicit secondary taxonomy, reviewers read the seven-context list as exhaustive and misclassify new packages.
 
 ### Decision
 
-ADR-007's taxonomy is extended with three secondary categories (read-shape, workflow-paired, adapter) and one cross-cutting category. The seven-context list at ADR-007 §Decision remains the canonical write-side enumeration. Each package has a PRIMARY classification and may additionally appear as the right-half of a workflow pair when paired with another context; the disjointness lock permits this many-to-one membership for workflow-pair right-halves. Each allowlist must be atomic: entries are written as a single contiguous list per TOML file and may not span multiple lists.
+ADR-007's taxonomy is extended with three secondary categories (read-shape, workflow-paired, adapter) and one cross-cutting category. The nine-context list at ADR-007 §Decision remains the canonical write-side enumeration. Each package has a PRIMARY classification and may additionally appear as the right-half of a workflow pair when paired with another context; the disjointness lock permits this many-to-one membership for workflow-pair right-halves. Each allowlist must be atomic: entries are written as a single contiguous list per TOML file and may not span multiple lists.
 
 1. **Read-shape contexts** project pre-existing rows. They inherit transaction rules from the underlying write-side context and may not commit. Read-shape contexts are not separate sweep units. Examples: `_register_listings` (dual-classed, also write-side), `_monitoring_status`, `_dashboard_metrics`, `_quarterly_comparison`, `_reporting`, `_org_chart`. The single-file `backend/app/services/_monitoring_response.py` is the read-shape complement of `_monitoring_status` and is registered in the read-shape allowlist as a file, not a package.
 
@@ -68,7 +68,7 @@ ADR-007's taxonomy is extended with three secondary categories (read-shape, work
 
 ### Classification Table
 
-The full classification covers the 31 underscore-prefixed packages plus the `_monitoring_response.py` file entry. Workflow-pair right-halves carry their PRIMARY classification where applicable; their workflow-pair membership is recorded separately in `_bounded_context_workflow_pairs.toml`.
+The full classification covers the registered underscore-prefixed packages plus the `_monitoring_response.py` file entry. Workflow-pair right-halves carry their PRIMARY classification where applicable; their workflow-pair membership is recorded separately in `_bounded_context_workflow_pairs.toml`.
 
 | Package | Category | Rationale | Enforcement TOML |
 |---|---|---|---|
@@ -79,11 +79,14 @@ The full classification covers the 31 underscore-prefixed packages plus the `_mo
 | `_approval_execution` | Write-side | ADR-007 §Decision context #5 | `_bounded_context_write_side.toml` |
 | `_entity_mutation_lifecycle` | Write-side | ADR-007 §Decision context #6 | `_bounded_context_write_side.toml` |
 | `_kri_history` | Write-side | ADR-007 §Decision context #7 | `_bounded_context_write_side.toml` |
+| `_governed_mutations` | Write-side | ADR-016 immutable proposals and atomic resolution | `_bounded_context_write_side.toml` |
+| `_identity_restore` | Write-side | ADR-018 installation restore/reconciliation | `_bounded_context_write_side.toml` |
 | `_monitoring_status` | Read-shape | Status projection, no commits | `_bounded_context_read_shape.toml` |
 | `_dashboard_metrics` | Read-shape | Dashboard metric projection | `_bounded_context_read_shape.toml` |
 | `_quarterly_comparison` | Read-shape | Quarterly metric projection | `_bounded_context_read_shape.toml` |
 | `_reporting` | Read-shape | Reporting export projection | `_bounded_context_read_shape.toml` |
 | `_org_chart` | Read-shape | Org-chart traversal | `_bounded_context_read_shape.toml` |
+| `_ict_register_reference` | Read-shape | Workbook constants and seeded register reference data | `_bounded_context_read_shape.toml` |
 | `_monitoring_response.py` | Read-shape (file entry) | File-level read-shape complement of `_monitoring_status` | `_bounded_context_read_shape.toml` |
 | `_approval_queue` | Workflow-paired (`_approval_execution`) | Queue side of approval | `_bounded_context_workflow_pairs.toml` |
 | `_issue_register` | Workflow-paired (`_issue_workflow`) | Register side | `_bounded_context_workflow_pairs.toml` |
@@ -109,7 +112,7 @@ The full classification covers the 31 underscore-prefixed packages plus the `_mo
 
 ### Alternatives Rejected
 
-- Expand the seven-context list to all service packages: rejected because it loses sweep meaning and produces separate atomicity tests for what are really seven transaction-owning contexts plus secondary roles.
+- Expand the write-side list to all service packages: rejected because it loses sweep meaning and conflates transaction-owning contexts with secondary roles.
 - Document elsewhere (`CONVENTIONS.md`, `AGENTS.md`): rejected because Loop 3 review showed reviewers read ADR-007 as exhaustive when classifying new packages.
 - Merge workflow-paired contexts into a single context per pair: rejected because the splits reflect real read-vs-write boundaries (queue vs execution, register vs workflow, links vs governance).
 - Three categories without `Cross-cutting`: rejected because `_authorization_capabilities` and `_config` would be force-fit into adapter or read-shape, neither of which captures their cross-cutting policy role; the lock would either fire on day 1 or accept silent miscategorization.
@@ -118,16 +121,16 @@ The full classification covers the 31 underscore-prefixed packages plus the `_mo
 
 ### Migration Impact
 
-Five TOMLs under `tests/backend/pytest/architecture/` enforce the taxonomy: `_bounded_context_write_side.toml`, `_bounded_context_read_shape.toml`, `_bounded_context_workflow_pairs.toml`, `_bounded_context_adapters.toml`, and `_bounded_context_cross_cutting.toml`. Existing per-context boundary tests (`test_w4_bc_a_riskhub_config_boundaries_red.py` through `test_w4_bc_g_kri_history_boundaries_red.py`) continue to operate on the seven canonical write-side contexts. Adapter contexts and cross-cutting contexts gain new exception-ban exemption holders; existing adapters did not raise `HTTPException` at adapter boundaries because they were not previously in scope of the per-context ban. `_graph_directory` was created by finding #61 when the four `graph_directory_*.py` modules moved into that package.
+Five TOMLs under `tests/backend/pytest/architecture/` enforce the taxonomy: `_bounded_context_write_side.toml`, `_bounded_context_read_shape.toml`, `_bounded_context_workflow_pairs.toml`, `_bounded_context_adapters.toml`, and `_bounded_context_cross_cutting.toml`. Existing per-context boundary tests (`test_w4_bc_a_riskhub_config_boundaries_red.py` through `test_w4_bc_g_kri_history_boundaries_red.py`) continue to operate on the original seven write-side contexts; governed-mutation and identity-restore contracts cover the two added owners. Adapter contexts and cross-cutting contexts gain new exception-ban exemption holders; existing adapters did not raise `HTTPException` at adapter boundaries because they were not previously in scope of the per-context ban. `_graph_directory` was created by finding #61 when the four `graph_directory_*.py` modules moved into that package.
 
 ### Rollback Strategy
 
-Rollback of this amendment removes this text. The TOMLs and the disjointness lock are owned by the #74a taxonomy census and remain valid for the seven-context core plus secondary classifications.
+Rollback of this amendment removes this text. The TOMLs and the disjointness lock are owned by the #74a taxonomy census and remain valid for the current write-side owners plus secondary classifications.
 
 ### Invariant Tests
 
 - `tests/backend/pytest/architecture/test_w7_bounded_context_disjointness.py` validates that every underscore-prefixed package under `backend/app/services/` (excluding `__pycache__`) has a PRIMARY classification in an allowlist, with the documented exception of `_register_listings` which is dual-classed (write-side and read-shape) for sweep-order reasons. Workflow-pair right-halves additionally appear in the workflow-pair allowlist; the lock permits this many-to-one membership only for documented pairs. New packages must be classified at introduction; the lock fails on unclassified packages.
-- `_bounded_context_write_side.toml` enumerates the seven canonical contexts.
+- `_bounded_context_write_side.toml` enumerates the nine canonical write-side contexts, with exact ADR/table parity.
 - `_bounded_context_read_shape.toml` enumerates read-shape secondaries plus the `_monitoring_response.py` file entry.
 - `_bounded_context_workflow_pairs.toml` enumerates ordered pairs `(left, right)` and records sweep coupling.
 - `_bounded_context_adapters.toml` enumerates adapter packages and binds adapter exception translation back to ADR-003.
@@ -147,3 +150,16 @@ classifies the package; all disjointness and endpoint-commit locks remain intact
 Cross-context invalidation acquires User then grant/factor/refresh state inside one
 caller-owned transaction. See `docs/security/identity-local-credentials.md` for the
 native context's exact lock order, expiry and recovery boundaries.
+
+## Registry lifetime policy (2026-10-14)
+
+The five taxonomy TOMLs are permanent architecture declarations, identified by
+`schema_version = 1`, `kind = "architecture"` and `decision = "ADR-007"`.
+Accepted classification does not expire on a calendar date. Consumers still
+validate package coverage, disjointness, documented pairs and ADR parity.
+Temporary debt is a different registry policy: each exception must name its
+owner, rationale and inclusive `expires_at`; an empty exception list has no
+expiry. A consumer selects the policy, so changing TOML metadata alone cannot
+convert a temporary exception into a permanent declaration. The scoped archive
+owners and forward-only migrations under ADR-005 likewise remain durable;
+endpoint commits remain prohibited under ADR-002.

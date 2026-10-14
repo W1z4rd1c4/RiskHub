@@ -18,6 +18,7 @@ Folder for `backend/app/services` implementation assets.
 - `account_lockout_service.py`
 - `ad_deprovision_service.py`
 - `approval_execution_service.py`
+- `approval_intake.py`
 - `directory_provider_service.py`
 - `export_snapshot_service.py`
 - `issue_deadline_service.py`
@@ -26,3 +27,7 @@ Folder for `backend/app/services` implementation assets.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+`approval_intake.py` owns creation of legacy approval requests with their audit
+and outbox records. Its named service boundary supports deferred composition;
+`core/approval_helpers.py` retains routing policy and response projection only.

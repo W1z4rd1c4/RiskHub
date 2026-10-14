@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.approval_helpers import create_approval_request_with_audit
 from app.models import (
     ActivityLog,
     ApprovalActionType,
@@ -16,6 +15,7 @@ from app.models import (
 )
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.approval_execution_service import cancel_request_workflow, reject_request_workflow
+from app.services.approval_intake import create_approval_request_with_audit
 
 
 async def _activity_for(

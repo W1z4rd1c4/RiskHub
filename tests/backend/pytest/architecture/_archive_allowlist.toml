@@ -1,6 +1,8 @@
-# Temporary exceptions for the Archivable invariant lock.
-# Keep this list shrinking; each entry must name why direct archive-state access is still unavoidable.
-expires_at = "2026-11-11"
+# Permanent archive-state owners under ADR-005, pinned exactly by the consumer.
+# These schema/ORM owners are architecture declarations, not temporary debt.
+schema_version = 1
+kind = "architecture"
+decision = "ADR-005"
 
 [[paths]]
 path = "backend/app/models/_archivable.py"

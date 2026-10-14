@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.approval_helpers import (
     build_approval_queued_response,
     check_control_requires_privileged_approval,
-    create_approval_request_with_audit,
     get_kri_edit_approval_metadata,
     get_primary_approver_for_control,
     get_risk_edit_approval_metadata,
@@ -29,6 +28,7 @@ from app.models import (
 )
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
+from app.services.approval_intake import create_approval_request_with_audit
 from app.services.approval_scenario_policy import (
     apply_approval_scenario_snapshot,
     approval_privilege_tier,

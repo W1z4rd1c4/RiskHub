@@ -33,7 +33,7 @@ def test_core_security_no_longer_raises_raw_http_exception_for_mock_auth() -> No
 
 
 def test_approval_pending_uniqueness_conflict_uses_domain_exception() -> None:
-    source = (ROOT / "backend/app/core/approval_helpers.py").read_text()
+    source = (ROOT / "backend/app/services/approval_intake.py").read_text()
     assert "ConflictError" in source
     assert "raise HTTPException(" not in source
     assert issubclass(ConflictError, Exception)

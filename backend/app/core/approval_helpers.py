@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk
-from app.services.outbox import OutboxService
-
-if TYPE_CHECKING:
-    from app.models import ApprovalRequest, User
 
 
 def build_approval_queued_response(
@@ -235,66 +231,3 @@ async def get_control_delete_approval_metadata(
     primary_approver_id = await get_primary_approver_for_control(db, control.id, requester_id=requester_id)
     requires_privileged = await check_control_requires_privileged_approval(db, control.id)
     return primary_approver_id, requires_privileged
-
-
-async def create_approval_request_with_audit(
-    db: AsyncSession,
-    *,
-    approval: "ApprovalRequest",
-    actor: "User",
-    department_id: Optional[int],
-    on_duplicate_detail: str = "An approval request is already pending for this action.",
-) -> "ApprovalRequest":
-    """
-    Create an approval request with audit logging and commit.
-
-    This is a focused helper that consolidates the repeated boilerplate for
-    creating approval requests:
-    1. Add and flush the approval request
-    2. Log the APPROVAL/CREATE activity
-    3. Commit the transaction
-    4. Handle IntegrityError for the ux_approval_pending unique constraint
-
-    Args:
-        db: Database session
-        approval: The ApprovalRequest to persist (already populated)
-        actor: The user creating the request (for activity log)
-        department_id: Department ID for activity log scoping
-        on_duplicate_detail: Error message if unique constraint is violated
-
-    Returns:
-        The persisted ApprovalRequest with ID populated
-
-    Raises:
-        ConflictError: If a pending approval already exists (unique constraint violation)
-    """
-    from sqlalchemy.exc import IntegrityError
-
-    from app.core.audit.approval import approval_created
-    from app.core.exceptions import ConflictError
-
-    try:
-        db.add(approval)
-        await db.flush()
-
-        await approval_created(
-            db,
-            actor=actor,
-            approval=approval,
-            department_id=department_id,
-        )
-        await OutboxService.enqueue(
-            db,
-            event_type="approval.request_created",
-            aggregate_type="approval_request",
-            aggregate_id=approval.id,
-            idempotency_key=f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
-            payload={"approval_id": approval.id},
-        )
-        await db.commit()
-        return approval
-    except IntegrityError as e:
-        await db.rollback()
-        if "ux_approval_pending" in str(e).lower():
-            raise ConflictError(on_duplicate_detail) from e
-        raise
