@@ -8,7 +8,6 @@ from app.core.permissions import has_permission, is_high_risk_for_approval_async
 from app.models import ApprovalRequest, Department, User
 from tests.backend.pytest.factories import create_test_risk
 
-
 EDIT_CASES = [
     pytest.param({"net_probability": 1, "net_impact": 1}, id="score-decrease"),
     pytest.param({"status": "emerging"}, id="active-to-emerging"),
