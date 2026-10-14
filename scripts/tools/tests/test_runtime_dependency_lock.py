@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.metadata
 import importlib.util
 import json
 import os
@@ -223,11 +222,23 @@ class RuntimeLockTests(unittest.TestCase):
             lock.normalize_report(report, "pip")
 
     def test_already_installed_pip_still_checks_artifact_hash(self):
-        # Real pip, no network and no install: a metadata-only synthetic wheel is
-        # sufficient to expose the satisfied-requirement hash-validation bypass.
-        version = importlib.metadata.version("pip")
+        # Use ensurepip's offline seed in a disposable venv, never the runner's
+        # possibly externally managed Python. The synthetic wheel is dry-run
+        # only; no network access or global package changes are needed.
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
+            environment = directory / "venv"
+            subprocess.run([sys.executable, "-I", "-m", "venv", str(environment)],
+                           check=True, capture_output=True, text=True, timeout=30)
+            python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+            details = json.loads(subprocess.check_output(
+                [str(python), "-I", "-c",
+                 "import importlib.metadata, json, sys; "
+                 "print(json.dumps([sys.prefix, sys.base_prefix, importlib.metadata.version('pip')]))"],
+                text=True, timeout=30))
+            self.assertEqual(Path(details[0]).resolve(), environment.resolve())
+            self.assertNotEqual(details[0], details[1])
+            version = details[2]
             wheel = directory / f"pip-{version}-py3-none-any.whl"
             info = f"pip-{version}.dist-info"
             with zipfile.ZipFile(wheel, "w") as archive:
@@ -236,7 +247,7 @@ class RuntimeLockTests(unittest.TestCase):
                 archive.writestr(f"{info}/RECORD", "")
             requirements = directory / "requirements.txt"
             requirements.write_text(f"pip=={version} --hash=sha256:{'0' * 64}\n")
-            command = [sys.executable, "-m", "pip", "install", "--dry-run", "--no-index", "--no-cache-dir",
+            command = [str(python), "-I", "-m", "pip", "install", "--dry-run", "--no-index", "--no-cache-dir",
                        "--find-links", str(directory), "--require-hashes", "--only-binary=:all:", "-r", str(requirements)]
             env = {key: value for key, value in os.environ.items() if not key.startswith("PIP_")}
             env.update(PIP_CONFIG_FILE=os.devnull, PIP_DISABLE_PIP_VERSION_CHECK="1")
