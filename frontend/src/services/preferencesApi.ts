@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { userPreferencesSchema } from '@/services/api/schemas';
+import { userPreferencesSchema } from '@/services/api/schemas/entities/preferences';
 
 export interface UserPreferences {
     theme: 'light' | 'dark' | 'riskhub';

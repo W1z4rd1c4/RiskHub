@@ -28,6 +28,7 @@ import {
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildProcessRegisterListParams,
@@ -91,7 +92,7 @@ export function useProcessesPageState(
         cif: semanticFilters.cif === true ? true : filters.cif,
     }), [departmentScope, filters, semanticFilters.cif]);
 
-    const listParams = useMemo(() => buildProcessRegisterListParams({
+    const requestParams = useMemo(() => buildProcessRegisterListParams({
         currentPage,
         filters: effectiveFilters,
         groupValue: selectedGroupValue,
@@ -100,6 +101,7 @@ export function useProcessesPageState(
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, selectedGroupValue, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);

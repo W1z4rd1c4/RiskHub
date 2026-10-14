@@ -1,10 +1,16 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { useLayoutEffect, type ReactNode } from 'react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PrincipalQueryBoundary } from '@/contexts/PrincipalQueryBoundary';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
+import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
+import { riskHubKeys } from '@/lib/queryKeys';
+import { parseAssetSemanticFilters, parseProcessSemanticFilters, parseRiskSemanticFilters, parseVendorSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
+import { useIctRegisterSemanticPageState } from '@/pages/shared/useIctRegisterPageState';
 import { useAssetsPageState } from '@/pages/assets/useAssetsPageState';
 import { useControlsPageState } from '@/pages/controls/useControlsPageState';
 import { useIssuesPageState } from '@/pages/issues/useIssuesPageState';
@@ -60,12 +66,14 @@ interface RegisterCollectionState {
     restore?: (id: number) => Promise<void>;
     setCurrentPage: (page: number) => void;
     totalCount: number;
+    updateSearch: (value: string) => void;
 }
 
 const EMPTY_RISK_SEMANTIC_FILTERS = {};
 
 function useRiskCollectionState(): RegisterCollectionState {
-    const state = useRisksPageState(EMPTY_RISK_SEMANTIC_FILTERS);
+    const { semanticFilters } = useIctRegisterSemanticPageState(parseRiskSemanticFilters);
+    const state = useRisksPageState(semanticFilters);
     return { ...state, refresh: state.fetchRisks, restore: state.restoreRisk };
 }
 
@@ -85,12 +93,14 @@ function useIssueCollectionState(): RegisterCollectionState {
 }
 
 function useProcessCollectionState(): RegisterCollectionState {
-    const state = useProcessesPageState();
+    const { semanticFilters } = useIctRegisterSemanticPageState(parseProcessSemanticFilters);
+    const state = useProcessesPageState(semanticFilters);
     return { ...state, refresh: state.fetchProcesses, restore: state.restoreProcess };
 }
 
 function useAssetCollectionState(): RegisterCollectionState {
-    const state = useAssetsPageState();
+    const { semanticFilters } = useIctRegisterSemanticPageState(parseAssetSemanticFilters);
+    const state = useAssetsPageState(semanticFilters);
     return { ...state, refresh: state.fetchAssets, restore: state.restoreAsset };
 }
 
@@ -100,7 +110,8 @@ function useThreatCollectionState(): RegisterCollectionState {
 }
 
 function useVendorCollectionState(): RegisterCollectionState {
-    const state = useVendorsPageState();
+    const { semanticFilters } = useIctRegisterSemanticPageState(parseVendorSemanticFilters);
+    const state = useVendorsPageState(semanticFilters);
     return { ...state, refresh: state.fetchVendors, restore: state.restoreVendor };
 }
 
@@ -219,7 +230,7 @@ function routeWrapper(path: string) {
     return function Wrapper({ children }: { children: ReactNode }) {
         return (
             <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={[`${path}?source=review`]}>
+                <MemoryRouter initialEntries={[`${path}${path.includes('?') ? '&' : '?'}source=review`]}>
                     <FeedbackProvider>{children}</FeedbackProvider>
                 </MemoryRouter>
             </QueryClientProvider>
@@ -228,11 +239,200 @@ function routeWrapper(path: string) {
 }
 
 describe('eight-register collection query identity', () => {
+    afterEach(() => vi.useRealTimers());
+
     beforeEach(() => {
         vi.clearAllMocks();
         apiMocks.getConfigValue.mockResolvedValue(null);
         for (const register of REGISTERS) register.fetchMock.mockResolvedValue(populatedPage);
         for (const register of RESTORABLE_REGISTERS) register.restoreMock.mockResolvedValue(undefined);
+    });
+
+    it.each(REGISTERS)('$name sends only the final debounced search request', async ({ fetchMock, path, useCollectionState }) => {
+        const { result } = renderHook(useCollectionState, { wrapper: routeWrapper(path) });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const initialRefresh = result.current.refresh;
+        vi.useFakeTimers();
+
+        const search = 'abcdefghijkl';
+        for (let length = 1; length <= search.length; length += 1) {
+            await act(async () => result.current.updateSearch(search.slice(0, length)));
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(result.current.refresh).toBe(initialRefresh);
+        }
+        await act(async () => vi.advanceTimersByTimeAsync(299));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        await act(async () => vi.advanceTimersByTimeAsync(1));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.lastCall?.[0].search).toBe(search);
+        expect(result.current.items).toHaveLength(1);
+
+        await act(async () => result.current.refresh());
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(fetchMock.mock.lastCall?.[0].search).toBe(search);
+    });
+
+    it.each(REGISTERS)('$name resets page once while typing and keeps Back/Forward live', async ({ fetchMock, path, useCollectionState }) => {
+        const { result } = renderHook(() => ({ state: useCollectionState(), navigate: useNavigate() }), {
+            wrapper: routeWrapper(path),
+        });
+        await waitFor(() => expect(result.current.state.isLoading).toBe(false));
+        await act(async () => result.current.state.setCurrentPage(2));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
+        await act(async () => result.current.navigate(-1));
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(fetchMock.mock.lastCall?.[0].offset).toBe(0);
+        await act(async () => result.current.navigate(1));
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(fetchMock.mock.lastCall?.[0].offset).toBe(DEFAULT_LIST_PAGE_SIZE);
+
+        vi.useFakeTimers();
+        await act(async () => result.current.state.updateSearch('a'));
+        expect(result.current.state.currentPage).toBe(1);
+        expect(fetchMock).toHaveBeenCalledTimes(5);
+        expect(fetchMock.mock.lastCall?.[0].offset).toBe(0);
+        await act(async () => result.current.state.updateSearch('ab'));
+        expect(fetchMock).toHaveBeenCalledTimes(5);
+        await act(async () => vi.advanceTimersByTimeAsync(300));
+        expect(fetchMock).toHaveBeenCalledTimes(6);
+        expect(fetchMock.mock.lastCall?.[0]).toEqual(expect.objectContaining({ offset: 0, search: 'ab' }));
+    });
+
+    it.each(REGISTERS)('$name ignores unrelated URL changes but refreshes identical requests explicitly', async ({ fetchMock, path, useCollectionState }) => {
+        const { result } = renderHook(() => ({ state: useCollectionState(), navigate: useNavigate() }), {
+            wrapper: routeWrapper(path),
+        });
+        await waitFor(() => expect(result.current.state.isLoading).toBe(false));
+        await act(async () => result.current.navigate(`${path}?source=other&filters={}`));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        await act(async () => result.current.state.refresh());
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.calls[0][0]).toEqual(fetchMock.mock.calls[1][0]);
+    });
+
+    it.each(REGISTERS)('$name fetches changed sort criteria once and ignores recreated equivalent sort objects', async ({ fetchMock, name, path, useCollectionState }) => {
+        const sortFields: Record<string, string> = { KRI: 'metric_name', Issue: 'title', Process: 'l1_process' };
+        const sortField = sortFields[name] ?? 'name';
+        const { result } = renderHook(() => ({ state: useCollectionState(), navigate: useNavigate() }), {
+            wrapper: routeWrapper(path),
+        });
+        await waitFor(() => expect(result.current.state.isLoading).toBe(false));
+        await act(async () => result.current.navigate(`${path}?sort=${sortField}:asc`));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.lastCall?.[0].sort).toEqual({ field: sortField, direction: 'asc' });
+        await act(async () => result.current.navigate(`${path}?sort=${sortField}:asc&source=other`));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        await act(async () => result.current.navigate(`${path}?sort=${sortField}:desc`));
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(fetchMock.mock.lastCall?.[0].sort).toEqual({ field: sortField, direction: 'desc' });
+    });
+
+    it.each(REGISTERS)('$name ignores superseded success and denial after A to B to A navigation', async ({ fetchMock, path, useCollectionState }) => {
+        const { result } = renderHook(useCollectionState, { wrapper: routeWrapper(path) });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        const oldA = deferred<typeof populatedPage>();
+        const oldB = deferred<typeof populatedPage>();
+        fetchMock.mockReturnValueOnce(oldA.promise).mockReturnValueOnce(oldB.promise).mockResolvedValueOnce(queryBPage);
+        act(() => { void result.current.refresh(); });
+        await act(async () => result.current.setCurrentPage(2));
+        await act(async () => result.current.setCurrentPage(1));
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(result.current.items).toEqual([expect.objectContaining({ id: 2 })]);
+        await act(async () => {
+            oldA.resolve(populatedPage);
+            oldB.reject(new ApiClientError({ status: 403, messageKey: 'errors.forbidden' }));
+        });
+        expect(result.current.items).toEqual([expect.objectContaining({ id: 2 })]);
+        expect(result.current.isAccessDenied).toBe(false);
+        expect(result.current.errorKey).toBeNull();
+        expect(result.current.isLoading).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it.each(REGISTERS)('$name isolates the same request across principal remounts and late responses', async ({ fetchMock, path, useCollectionState }) => {
+        const priorPrincipal = deferred<typeof populatedPage>();
+        const currentPrincipal = deferred<typeof populatedPage>();
+        fetchMock.mockReturnValueOnce(priorPrincipal.promise).mockReturnValueOnce(currentPrincipal.promise);
+        const snapshots: CollectionLayoutSnapshot[] = [];
+        const content = (principalId: number) => (
+            <PrincipalQueryBoundary principalId={principalId}>
+                <MemoryRouter initialEntries={[path]}>
+                    <FeedbackProvider>
+                        <CollectionLayoutProbe useCollectionState={useCollectionState} onLayout={(snapshot) => snapshots.push(snapshot)} />
+                    </FeedbackProvider>
+                </MemoryRouter>
+            </PrincipalQueryBoundary>
+        );
+        const view = render(content(1));
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        view.rerender(content(2));
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await act(async () => priorPrincipal.resolve(populatedPage));
+        expect(screen.getByTestId('collection-row-count')).toHaveTextContent('0');
+        await act(async () => currentPrincipal.resolve(queryBPage));
+        expect(snapshots.at(-1)?.items).toEqual([expect.objectContaining(queryBPage.items[0])]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(REGISTERS.filter(({ name }) => name !== 'Threat'))('$name responds only to effective department scope changes', async ({ fetchMock, path, useCollectionState }) => {
+        const Wrapper = routeWrapper(path);
+        const content = (departmentId: number, departmentName: string) => (
+            <Wrapper>
+                <DepartmentRegisterScopeProvider value={{ departmentId, departmentName }}>
+                    <CollectionLayoutProbe useCollectionState={useCollectionState} onLayout={() => undefined} />
+                </DepartmentRegisterScopeProvider>
+            </Wrapper>
+        );
+        const view = render(content(7, 'Finance'));
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        await act(async () => view.rerender(content(7, 'Renamed department')));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        await act(async () => view.rerender(content(8, 'Operations')));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const params = fetchMock.mock.lastCall?.[0];
+        expect(params.department_id ?? params.department_ids).toEqual(params.department_id ? 8 : [8]);
+    });
+
+    it.each(REGISTERS.filter(({ name }) => ['Risk', 'Asset', 'Process', 'Vendor'].includes(name)))('$name refetches changed semantic scope once', async ({ fetchMock, name, path, useCollectionState }) => {
+        const scopes: Record<string, { query: string; expected: object }> = {
+            Risk: { query: 'ict_linked=true&committee_scope=true', expected: { ict_linked: true, lifecycle: 'all' } },
+            Asset: { query: 'has_process_link=true&committee_scope=true', expected: { has_process_link: true, lifecycle: ['active', 'archived'] } },
+            Process: { query: 'cif=true', expected: { cif: true } },
+            Vendor: { query: 'has_roi_contract=true&committee_scope=true', expected: { has_roi_contract: true, lifecycle: ['active', 'archived'] } },
+        };
+        const scope = scopes[name];
+        const { result } = renderHook(() => ({ state: useCollectionState(), navigate: useNavigate() }), {
+            wrapper: routeWrapper(path),
+        });
+        await waitFor(() => expect(result.current.state.isLoading).toBe(false));
+        await act(async () => result.current.navigate(`${path}?${scope.query}`));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.lastCall?.[0]).toEqual(expect.objectContaining(scope.expected));
+        await act(async () => result.current.navigate(`${path}?source=other&${scope.query}`));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([false, true])('Risk preserves threshold-context refresh semantics (filtered: %s)', async (filtered) => {
+        const queryClient = createTestQueryClient();
+        queryClient.setQueryData(riskHubKeys.thresholdsPublic(), { critical: 16, high: 10, medium: 5 });
+        const path = filtered ? '/risks?filters={"critical":true}' : '/risks';
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={[path]}><FeedbackProvider>{children}</FeedbackProvider></MemoryRouter>
+            </QueryClientProvider>
+        );
+        const { result } = renderHook(useRiskCollectionState, { wrapper });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(apiMocks.getRisks).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            queryClient.setQueryData(riskHubKeys.thresholdsPublic(), { critical: 17, high: 11, medium: 6 });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        await waitFor(() => expect(apiMocks.getRisks).toHaveBeenCalledTimes(filtered ? 2 : 1));
+        // Thresholds own the classified response even though the request stays critical=true.
+        if (filtered) expect(apiMocks.getRisks.mock.calls[1][0]).toEqual(apiMocks.getRisks.mock.calls[0][0]);
     });
 
     it.each(RESTORABLE_REGISTERS)(
@@ -299,6 +499,7 @@ describe('eight-register collection query identity', () => {
 
             await act(async () => { await result.current.restore?.(1); });
 
+            expect(fetchMock).toHaveBeenCalledTimes(2);
             expect((result.current.items[0] as { id?: number } | undefined)?.id).toBe(3);
             expect(result.current.errorKey).toBeNull();
         },

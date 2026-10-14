@@ -17,6 +17,7 @@ import type { RiskFacets, RiskListCapabilities, RiskSummary } from '@/types/risk
 import { useDepartmentRegisterScope } from '../departments/useDepartmentRegisterScope';
 import type { RiskSemanticFilters } from '../shared/ictRegisterSemanticFilters';
 import { getTotalPages, useCollectionDataState, useLatestRequestGuard } from '../shared/collectionPageState';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { buildRegisterUrlParams, normalizeRegisterUrlParams, parseRegisterUrlState, type RegisterSortState } from '../shared/registerListQuery';
 import {
     buildRiskRegisterListParams,
@@ -80,7 +81,7 @@ export function useRisksPageState(
     } = useCollectionDataState<RiskSummary, RiskListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
 
-    const listParams = useMemo(() => {
+    const requestParams = useMemo(() => {
         const { committee_scope: committeeScope, ...rawApiSemanticFilters } = semanticFilters;
         const apiSemanticFilters = Object.fromEntries(
             Object.entries(rawApiSemanticFilters).filter(([, value]) => value !== undefined),
@@ -103,6 +104,7 @@ export function useRisksPageState(
             department_id: departmentScope?.departmentId,
         };
     }, [currentPage, debouncedSearch, departmentScope?.departmentId, filters, groupValue, semanticFilters, sort, thresholds.critical, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const configuredRangeIdentity = filters.risk_level || filters.critical
         ? [thresholds.medium, thresholds.high, thresholds.critical]
         : null;
