@@ -40,7 +40,15 @@ The `Python Runtime Lock` workflow handles the expensive steps in CI:
 6. Build both production targets using a generated candidate Dockerfile that
    mandates hash enforcement, including the pinned pip bootstrap
 7. Check native imports and exact production inventories, including pip removal
-8. Upload candidate files, source commit, resolver image ID, run URL, and logs
+8. Upload candidate files, verified source commit/tree, event commit/name,
+   resolver image ID, run URL, and logs
+
+Pull-request runs explicitly check out and verify the PR head SHA before any
+candidate work. The artifact name uses that same SHA; provenance records the
+event SHA separately because a pull-request event normally identifies GitHub's
+synthetic merge commit. Before this workflow exists on the default branch, use
+the PR's `opened` or `synchronize` trigger to generate candidates;
+[`workflow_dispatch` requires the workflow file on the default branch](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
 
 There is no source-distribution fallback. Missing compatible wheels, resolver
 conflicts, newly introduced packages, changed retained pins, mismatched hashes,

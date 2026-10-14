@@ -215,6 +215,16 @@ class RuntimeLockTests(unittest.TestCase):
         self.assertLess(workflow.index("runtime_dependency_lock.py preflight"),
                         workflow.index('cp "$RUNNER_TEMP/runtime-lock/first/"* "$lock_dir/"'))
 
+    def test_workflow_verifies_and_names_the_exact_candidate_source(self):
+        workflow = (lock.ROOT / ".github/workflows/python-runtime-lock.yml").read_text()
+        source = "${{ github.event.pull_request.head.sha || github.sha }}"
+        self.assertIn(f"ref: {source}", workflow)
+        self.assertIn(f"EXPECTED_SOURCE_SHA: {source}", workflow)
+        self.assertIn('test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"', workflow)
+        self.assertIn(f"name: runtime-lock-candidate-{source}", workflow)
+        self.assertLess(workflow.index("Verify exact candidate source checkout"),
+                        workflow.index("Build the production resolver platform"))
+
     def test_bootstrap_requires_the_reviewed_pip_hash(self):
         report = self.report()
         report["install"][0]["download_info"]["archive_info"]["hashes"]["sha256"] = "0" * 64
