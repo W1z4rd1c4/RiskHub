@@ -523,7 +523,7 @@ async def submit_asset_edit_if_required(
                 ],
                 "vendors": vendor_rows,
             }
-            if VENDOR_SCENARIO_KEY in triggered_scenarios
+            if impacted_vendors
             else {"before": current_impact, "after": proposed_impact}
         ),
         proposed_changes={
@@ -711,7 +711,7 @@ async def submit_asset_archive_if_required(
                 ],
                 "vendors": vendor_rows,
             }
-            if len(triggered_scenarios) > 1
+            if impacted_vendors
             else {"before": current_impact, "after": current_impact}
         ),
         proposed_changes={

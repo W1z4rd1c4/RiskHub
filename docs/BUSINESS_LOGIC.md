@@ -625,6 +625,12 @@ recovery path never grants ordinary Asset readers approval authority.
 Restore remains direct. The Settings API exposes the threshold, covered actions,
 and disabled self-approval as a fixed read-only policy definition.
 
+Queued Asset edits and archives retain every captured downstream Vendor tier
+snapshot, base version and impact lock even when Vendor approval is disabled.
+Only actual enabled approval triggers determine resolver policy. Approval applies
+the Asset and captured Vendor version advances atomically; incomplete legacy
+cascade envelopes expire without changing business state.
+
 All proposal JSON is bounded and total-validated before actor identifiers are
 collected or any actor/resource row is locked. Deep, oversized, wrong-shaped,
 or non-string approver-role data therefore cannot select lock targets or cause
