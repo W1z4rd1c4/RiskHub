@@ -530,7 +530,7 @@ async def add_process_vendor_link(
 
     link = await apply_process_relationship_state(
         db, process=process, relationship_type="vendor", action="add",
-        related_id=payload.vendor_id, after=operation["after"],
+        related_id=payload.vendor_id, after=after,
     )
     assert isinstance(link, ProcessVendorLink)
     await db.flush()

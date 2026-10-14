@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, Literal, TypeVar, cast
 
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -982,8 +982,12 @@ async def approve_vendor_mutation(
             )
         entity_id = operation.get("entity_id")
         entity_name = operation.get("entity_name")
-        _, _, resource, action = proposal.mutation_kind.split(".")
-        if not isinstance(entity_id, int) or not isinstance(entity_name, str):
+        _, _, resource, raw_action = proposal.mutation_kind.split(".")
+        if (
+            not isinstance(entity_id, int)
+            or not isinstance(entity_name, str)
+            or raw_action not in {"add", "remove"}
+        ):
             return await _expire(
                 db,
                 approval=approval,
@@ -993,6 +997,7 @@ async def approve_vendor_mutation(
                 reason="Governed Vendor relationship payload is stale",
                 department_id=vendor.department_id,
             )
+        link_action: Literal["add", "remove"] = "add" if raw_action == "add" else "remove"
         from app.services._vendor_governance.links import get_existing_link
         from app.services._vendor_links import apply_vendor_target_relationship_no_commit
         from app.services._vendor_links.workflow import (
@@ -1011,7 +1016,7 @@ async def approve_vendor_mutation(
                 current_user=requester,
                 target=target,
                 entity_id=entity_id,
-                require_live=action == "add",
+                require_live=link_action == "add",
             )
         except (ConflictError, HTTPException):
             return await _expire(
@@ -1040,8 +1045,8 @@ async def approve_vendor_mutation(
             target.entity_field,
             entity_id,
         )
-        if (action == "add" and existing is not None) or (
-            action == "remove" and existing is None
+        if (link_action == "add" and existing is not None) or (
+            link_action == "remove" and existing is None
         ):
             return await _expire(
                 db,
@@ -1059,7 +1064,7 @@ async def approve_vendor_mutation(
             audit_actor=resolver,
             kind=link_kind,
             entity_id=entity_id,
-            action=action,
+            action=link_action,
         )
         await finalize_governed_terminal_transition(
             db,
