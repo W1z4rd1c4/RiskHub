@@ -10,6 +10,7 @@ from types import ModuleType, SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO_ROOT / "scripts/tools/validate_python_dependency_lock.py"
@@ -20,6 +21,7 @@ PERMISSION_HELPER = (
 ENTRYPOINT = REPO_ROOT / "backend/requirements-dev.txt"
 BACKEND_README = REPO_ROOT / "backend/README.md"
 REFRESH_WORKFLOW = REPO_ROOT / ".github/workflows/python-dev-lock-refresh.yml"
+POSTGRES_WORKFLOW = REPO_ROOT / ".github/workflows/backend-postgres.yml"
 
 
 def _permission_module() -> ModuleType:
@@ -331,6 +333,46 @@ def test_backend_development_dependency_lock_contract():
         cwd=REPO_ROOT,
         check=True,
     )
+
+
+def test_hosted_postgres_runs_opted_in_tooling_probes_with_exact_source_evidence():
+    workflow = yaml.safe_load(POSTGRES_WORKFLOW.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["postgres-tests"]
+    steps = job["steps"]
+    probe_steps = [
+        step for step in steps
+        if "scripts/tools/probe_python_tooling.py" in step.get("run", "")
+    ]
+    assert len(probe_steps) == 1
+    probe = probe_steps[0]
+    assert probe["env"]["RISKHUB_TOOLING_PROBE_POSTGRES"] == "1"
+    assert (
+        probe["env"]["PGPASSWORD"]
+        == job["services"]["postgres"]["env"]["POSTGRES_PASSWORD"]
+    )
+    assert "TEST_DATABASE_URL" not in probe["env"]
+    assert "--postgresql-user=riskhub" in probe["run"]
+    assert "--junitxml=" in probe["run"]
+    assert probe["run"].index("pip check") < probe["run"].index("python -m pytest")
+    assert "steps.backend-install.outcome == 'success'" in probe["if"]
+    assert probe.get("continue-on-error", False) is False
+    assert job.get("continue-on-error", False) is False
+
+    source = next(step for step in steps if "manifests.sha256" in step.get("run", ""))
+    assert (
+        source["env"]["EXPECTED_SOURCE_SHA"]
+        == "${{ github.event.pull_request.head.sha || github.sha }}"
+    )
+    assert 'test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"' in source["run"]
+    for evidence in ("commit.txt", "tree.txt", "versions.json", "pip freeze --all"):
+        assert evidence in source["run"]
+    artifact = next(
+        step for step in steps
+        if step.get("with", {}).get("name", "").startswith("python-tooling-")
+    )
+    assert artifact["if"] == "always()"
+    assert "github.event.pull_request.head.sha || github.sha" in artifact["with"]["name"]
+    assert artifact["with"]["if-no-files-found"] == "error"
 
 
 def test_dependency_lock_rejects_unsafe_pip(

@@ -36,6 +36,12 @@ cases are reported as skipped; that is not PostgreSQL compatibility evidence.
 The probe does not replace the application's migration/snapshot tests or full
 backend suites. Save its stdout alongside the tested commit and installed versions.
 
+The hosted `Backend Postgres Regression` job runs these four cases against its
+disposable PostgreSQL service after the application regressions. Its
+`python-tooling-<commit>` artifact records the checked-out commit/tree, manifest
+digests, Python/platform and package versions, installed pins, `pip check`, and
+probe stdout/JUnit results. A skipped PostgreSQL case is not acceptance evidence.
+
 ## Notes
 
 Legacy PDF helper scripts were retired from tracked source because they were broken placeholder utilities, not part of the supported toolchain.

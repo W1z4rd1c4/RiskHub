@@ -253,9 +253,11 @@ with Python 3.13; Windows probes cannot install the committed Linux-only `uvloop
 Commit both generated constraint files and the development entrypoint together.
 Do not hand-edit generated locks, and do not merge a lock-only bot update over
 changed input requirements. Keep intentional major-version bounds in the inputs;
-protobuf 6 and filelock 3 are retained pending #224. The existing known-safe
-FastAPI pin and dependency-audit exceptions remain governed by the security
-contracts.
+protobuf 6 remains retained pending #224. The reviewed test/tooling baseline pins
+Ruff 0.16.10, Mypy 2.4.0, Syrupy 6.1.1, pytest-postgresql 9.1.1 and Filelock 4.1.1;
+these changes retain every unselected development/audit pin. The existing
+known-safe FastAPI pin and dependency-audit exceptions remain governed by the
+security contracts.
 
 Action updates must retain verified immutable upstream SHAs and their version
 comments. When the reviewed SARIF upload action changes, update its exact identity
