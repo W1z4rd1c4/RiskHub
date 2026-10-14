@@ -6,6 +6,8 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 import { ApiClientError } from '@/services/apiClient';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
@@ -78,6 +80,7 @@ vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
 
 describe('VendorDetailPage issue entry', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'vendor-detail-test', user: { ...mockAuthUser, id: 2 } });
         vi.clearAllMocks();
         canIssueWrite = true;
         mockLocation = { pathname: '/vendors/31', search: '', hash: '', state: null };

@@ -8,6 +8,8 @@ import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Threat } from '@/types/threat';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 const mocks = vi.hoisted(() => ({
     canEdit: true,
@@ -152,6 +154,7 @@ function renderPage(mode: 'view' | 'edit') {
 
 describe('ThreatDetailPage orphan stewardship resolution', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'threat-detail-test', user: mockAuthUser });
         vi.clearAllMocks();
         mocks.canEdit = true;
         mocks.canViewGovernance = true;

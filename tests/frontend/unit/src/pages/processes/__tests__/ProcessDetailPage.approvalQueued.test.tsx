@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import type { Process } from '@/types/process';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 /**
  * FB-01 (Process divergence) / D12 / PM-2: an approval-routed Process edit or
@@ -102,6 +104,7 @@ function renderAt(path: string, mode: 'view' | 'edit') {
 
 describe('ProcessDetailPage approval-queued rule', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'process-archive-test', user: mockAuthUser });
         vi.clearAllMocks();
         mocks.process = processFixture();
     });

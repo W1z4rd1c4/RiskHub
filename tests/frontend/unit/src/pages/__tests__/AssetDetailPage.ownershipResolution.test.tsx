@@ -9,6 +9,8 @@ import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Asset } from '@/types/asset';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 const mocks = vi.hoisted(() => ({
     asset: null as Asset | null,
@@ -38,7 +40,7 @@ vi.mock('@/i18n/hooks', async () => {
             t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
                 if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
                 if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
-                return key;
+                return key.replace(/^assets:/, '');
             },
             i18n: { language: 'cs' },
         }),
@@ -209,6 +211,7 @@ function renderPage(mode: 'view' | 'edit') {
 
 describe('AssetDetailPage ownership resolution', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'asset-detail-test', user: mockAuthUser });
         mocks.asset = pendingAsset();
         mocks.canEdit = true;
         mocks.canViewGovernance = true;

@@ -1,5 +1,7 @@
 # Authorization Capability Contract
 
+Protected-detail cancellation reads backend `can_cancel` through `resolveCapabilityFlag`, matching the pending-change panel's strict true-only predicate. Canonical authenticated session ownership remains required before submission; backend mutation authority and capability shapes are unchanged.
+
 Restore maintenance preserves the installed signing authority and cutover marker owner/group permissions, including managed root:service 0440 files. Backup evidence remains owner-only; unsafe links, writable ancestry and broader secret access fail closed.
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)

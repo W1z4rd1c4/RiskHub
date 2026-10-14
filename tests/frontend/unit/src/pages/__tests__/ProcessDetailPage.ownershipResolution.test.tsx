@@ -8,6 +8,8 @@ import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Process } from '@/types/process';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 const mocks = vi.hoisted(() => ({
     cancelApproval: vi.fn<typeof MockapprovalsApiModule.approvalsApi.cancel>(),
@@ -182,6 +184,7 @@ function renderPage(mode: 'view' | 'edit') {
 
 describe('ProcessDetailPage ownership resolution', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'process-detail-test', user: mockAuthUser });
         mocks.canEdit = true;
         mocks.canViewGovernance = true;
         mocks.language = 'en';

@@ -14,7 +14,7 @@ import { AssetDetailPage } from '@/pages/AssetDetailPage';
 import { ProcessDetailPage } from '@/pages/ProcessDetailPage';
 import { ThreatDetailPage } from '@/pages/ThreatDetailPage';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
-import { applyAuthenticatedSession, applyBootstrappedSession, getSessionOwnershipSnapshot, getSessionSnapshot, setLogoutPendingState } from '@/services/session';
+import { applyAuthenticatedSession, applyBootstrappedSession, clearAuthenticatedSession, getSessionOwnershipSnapshot, getSessionSnapshot, setLogoutPendingState } from '@/services/session';
 import { mockAuthUser } from '@test/mocks/handlers';
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
@@ -261,7 +261,7 @@ describe.each(cases)('$entity protected detail network lifecycle', (testCase) =>
         }
     });
 
-    it('rejects a stale confirmation immediately when a fresh login precedes the next layout', async () => {
+    it.each(['fresh login', 'anonymous session'] as const)('rejects a stale confirmation immediately when a %s precedes the next layout', async (change) => {
         const { user } = setup(testCase);
         let archives = 0;
         server.use(http.delete(`*/api/v1/${testCase.collection}/7`, () => {
@@ -272,7 +272,11 @@ describe.each(cases)('$entity protected detail network lifecycle', (testCase) =>
         await user.click(screen.getByRole('button', { name: /^archive$/i }));
         const form = screen.getByRole('alertdialog').querySelector('form')!;
         act(() => {
-            applyAuthenticatedSession({ user: mockAuthUser, access_token: 'fresh-login-before-layout', token_type: 'bearer' });
+            if (change === 'fresh login') {
+                applyAuthenticatedSession({ user: mockAuthUser, access_token: 'fresh-login-before-layout', token_type: 'bearer' });
+            } else {
+                clearAuthenticatedSession();
+            }
             fireEvent.submit(form);
         });
         await act(async () => { await new Promise((resolve) => setTimeout(resolve, 60)); });

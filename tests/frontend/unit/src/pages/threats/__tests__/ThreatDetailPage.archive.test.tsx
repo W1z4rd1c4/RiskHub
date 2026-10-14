@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import type { Threat } from '@/types/threat';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 /**
  * PG-07 / SM-04 / D10 / PM-1: the Threat archive is an `archive` intent
@@ -80,6 +82,7 @@ function renderPage() {
 
 describe('ThreatDetailPage archive confirmation', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'threat-archive-test', user: mockAuthUser });
         vi.clearAllMocks();
     });
 

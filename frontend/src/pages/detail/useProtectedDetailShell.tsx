@@ -9,6 +9,7 @@ import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useSessionMutationOwner } from '@/hooks/useMutationOwner';
 import { useTranslation, type SafeTFunction } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { executeGovernedMutation, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import { approvalsApi } from '@/services/approvalsApi';
 
@@ -175,7 +176,7 @@ export function useProtectedDetailShell({
         pendingChangePanel: pending ? (
             <PendingChangePanel pendingChange={pending} namespace={namespace} testIdPrefix={entity}
                 cancelling={dialogs.cancelling}
-                onCancel={pending.capabilities.can_cancel && pending.approval_id !== null ? () => {
+                onCancel={resolveCapabilityFlag(pending.capabilities, 'can_cancel') && pending.approval_id !== null ? () => {
                     update({ cancellation: { id: pending.approval_id as number, name: targetName }, cancellationError: null });
                 } : undefined} />
         ) : null,
