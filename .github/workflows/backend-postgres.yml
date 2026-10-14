@@ -104,3 +104,4 @@ jobs:
           ../tests/backend/pytest/test_vendor_edit_apply.py
           ../tests/backend/pytest/test_asset_apply.py
           ../tests/backend/pytest/test_process_apply.py
+          ../tests/backend/pytest/test_governed_asset_mixed_policy.py
