@@ -355,8 +355,10 @@ async def test_mixed_asset_cascade_strictly_rejects_incomplete_or_mismatched_imp
     client_factory,
     db_session: AsyncSession,
     test_user_cro: User,
+    test_user_risk_manager: User,
     action: str,
 ) -> None:
+    assert test_user_risk_manager.id != test_user_cro.id
     asset, vendor = await _linked_asset(db_session, test_user_cro)
     submitted = await _submit(client_factory, test_user_cro, asset.id, action)
     assert submitted.status_code == 202, submitted.text
