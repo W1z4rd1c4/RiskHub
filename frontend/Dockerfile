@@ -47,6 +47,7 @@ RUN apk upgrade --no-cache && \
 
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx/security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 # Copy built static files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
