@@ -1,14 +1,15 @@
+const { getTechnicalLogsMock } = vi.hoisted(() => ({ getTechnicalLogsMock: vi.fn() }));
+import type * as Actualhooks from '@/i18n/hooks';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LogsPanel } from '@/pages/admin-console/sections/AdminConsoleOpsPanels';
 import { renderWithQueryClient } from '@test/utils';
 
-const getTechnicalLogsMock = vi.fn();
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -44,7 +45,7 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
-        getTechnicalLogs: (...args: unknown[]) => getTechnicalLogsMock(...args),
+        getTechnicalLogs: getTechnicalLogsMock,
     },
 }));
 

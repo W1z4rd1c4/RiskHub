@@ -1,14 +1,15 @@
-import { act, fireEvent, render, screen, waitFor, within, type ReactElement } from '@testing-library/react';
+import type * as FormattersModule from '@/i18n/formatters';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import * as axe from 'axe-core';
-import { Profiler, Suspense, startTransition, useState } from 'react';
+import { Profiler, Suspense, startTransition, use, useState, type ReactElement } from 'react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getExecutionsMock = vi.fn();
+const getExecutionsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -34,7 +35,7 @@ vi.mock('@/i18n/hooks', async () => {
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getExecutions: (...args: unknown[]) => getExecutionsMock(...args),
+        getExecutions: getExecutionsMock,
     },
 }));
 
@@ -64,6 +65,8 @@ vi.mock('@/services/logger', () => ({
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ApiClientError } from '@/services/apiClient';
 import type { ControlExecution } from '@/types/execution';
+const abortSignalMatcher: unknown = expect.any(AbortSignal);
+
 
 function LocationProbe() {
     const location = useLocation();
@@ -153,7 +156,7 @@ describe('ExecutionHistory', () => {
 
         function BlockingControlBSibling({ controlId }: { controlId: number }) {
             if (controlId === 2 && isControlBRenderBlocked) {
-                throw controlBRender;
+                use(controlBRender);
             }
             return null;
         }
@@ -192,10 +195,13 @@ describe('ExecutionHistory', () => {
             { container: host },
         );
         await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledWith(1, {
-            signal: expect.any(AbortSignal),
+            signal: abortSignalMatcher,
         }));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Show control B' }));
+        await act(() => {
+            fireEvent.click(screen.getByRole('button', { name: 'Show control B' }));
+            return Promise.resolve();
+        });
         expect(screen.getByTestId('current-control')).toHaveTextContent('1');
         expect(getExecutionsMock).toHaveBeenCalledTimes(1);
 
@@ -205,6 +211,7 @@ describe('ExecutionHistory', () => {
                 control_id: 1,
                 result: 'passed',
                 executed_at: '2026-03-07T10:00:00Z',
+                executed_by_id: 1,
                 executed_by: { id: 1, name: 'Control A executor' },
                 created_at: '2026-03-07T10:00:00Z',
             }]);
@@ -218,7 +225,7 @@ describe('ExecutionHistory', () => {
             await controlBRender;
         });
         await waitFor(() => expect(getExecutionsMock).toHaveBeenCalledWith(2, {
-            signal: expect.any(AbortSignal),
+            signal: abortSignalMatcher,
         }));
         expect(crossControlCommits).not.toContain(true);
         expect(screen.queryByText('Control A executor')).not.toBeInTheDocument();
@@ -264,7 +271,7 @@ describe('ExecutionHistory', () => {
         expect(disclosure).toHaveAttribute('aria-expanded', 'true');
         expect(getExecutionsMock).toHaveBeenCalledTimes(1);
 
-        const reloadUrl = screen.getByTestId('location').textContent!;
+        const reloadUrl = screen.getByTestId('location').textContent;
         firstRender.unmount();
         renderExecutionHistory(<ExecutionHistory controlId={1} />, [reloadUrl]);
 
@@ -411,7 +418,7 @@ describe('ExecutionHistory', () => {
                 executed_at: '2026-03-07T10:00:00Z',
                 executed_by: { id: 1, name: 'Anna Kowalski' },
                 created_at: '2026-03-07T10:00:00Z',
-            } as any,
+            },
         ]);
 
         renderExecutionHistory(<ExecutionHistory controlId={1} />);
@@ -559,8 +566,9 @@ describe('ExecutionHistory', () => {
         fireEvent.click(retryButton);
         expect(getExecutionsMock).toHaveBeenCalledTimes(2);
 
-        await act(async () => {
+        await act(() => {
             releaseRetry([]);
+            return Promise.resolve();
         });
         await screen.findByText('empty_state.no_executions');
     });

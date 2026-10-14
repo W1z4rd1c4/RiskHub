@@ -4,8 +4,8 @@ import i18n from '@/i18n';
 
 // The unit-test i18n singleton bundles every locale, so a fixed translator per language
 // exercises the real en/cs resources without changing the global language.
-const cs = i18n.getFixedT('cs');
-const en = i18n.getFixedT('en');
+const cs = i18n.getFixedT('cs', ['common', 'controls', 'risks', 'admin', 'ictRegisterDq']);
+const en = i18n.getFixedT('en', ['common', 'controls', 'risks', 'admin', 'ictRegisterDq']);
 
 describe('locale plural families (GAP-B-14)', () => {
   it('selects Czech one/few/many/other forms by grammatical number', () => {

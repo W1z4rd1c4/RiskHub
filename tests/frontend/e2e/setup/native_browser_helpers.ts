@@ -1,5 +1,14 @@
 import { createHmac } from 'node:crypto';
 import { expect, type Page } from '@playwright/test';
+import { z } from 'zod';
+
+export const nativeAuthConfigSchema = z.object({
+    identity: z.object({ mode: z.string().optional() }).optional(),
+    password_login_enabled: z.boolean().optional(),
+    local_mfa_policy: z.enum(['required', 'optional']).optional(),
+});
+
+export const nativeHandoffSchema = z.object({ credential: z.string().min(1) });
 
 export function nativeTotp(secret: string): string {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

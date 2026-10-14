@@ -108,7 +108,7 @@ function firstNumericIdFromArrayPayload(payload: unknown): string | null {
 
 async function firstIdFromApi(page: Page, authToken: string, routePath: string): Promise<string | null> {
     const headers = { Authorization: `Bearer ${authToken}` };
-    const getJson = async (apiPath: string): Promise<unknown | null> => {
+    const getJson = async (apiPath: string): Promise<unknown> => {
         const resp = await page.request.get(apiUrlForPage(page, apiPath), { headers });
         if (!resp.ok()) return null;
         return await resp.json().catch(() => null);
@@ -207,7 +207,7 @@ test.describe('Polish Audit (page-by-page)', () => {
                         current.pageErrors.push(err instanceof Error ? err.message : String(err));
                     });
 
-                    page.on('response', async (resp) => {
+                    page.on('response', (resp) => {
                         if (!current) return;
 
                         const url = resp.url();

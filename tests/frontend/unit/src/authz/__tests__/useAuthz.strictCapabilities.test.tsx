@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MeCapabilities } from '@/services/authApi';
 import { setStrictCapabilitiesEnabled } from '@/services/capabilityFlags';
 
-const mockUseAuth = vi.fn();
+const mockUseAuth = vi.hoisted(() => vi.fn());
 
 vi.mock('@/contexts/AuthContext', () => ({
-    useAuth: () => mockUseAuth(),
+    useAuth: mockUseAuth,
 }));
 
 import { useAuthz } from '@/authz/useAuthz';

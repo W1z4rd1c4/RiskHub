@@ -1,3 +1,5 @@
+import { controlFixture } from './pageFixtures';
+import type * as MockcontrolApiModule from '@/services/controlApi';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -13,16 +15,16 @@ import { ControlDetailPage } from '@/pages/ControlDetailPage';
 import { createTestQueryClient } from '@test/queryClient';
 import { renderWithoutProviders as render } from '@test/render';
 
-const getControlMock = vi.fn();
-const getExecutionsMock = vi.fn();
-const getLinkedRisksMock = vi.fn();
+const getControlMock = vi.fn<typeof MockcontrolApiModule.controlApi.getControl>();
+const getExecutionsMock = vi.fn<typeof MockcontrolApiModule.controlApi.getExecutions>();
+const getLinkedRisksMock = vi.fn<typeof MockcontrolApiModule.controlApi.getLinkedRisks>();
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
         deleteControl: vi.fn(),
-        getControl: (...args: unknown[]) => getControlMock(...args),
-        getExecutions: (...args: unknown[]) => getExecutionsMock(...args),
-        getLinkedRisks: (...args: unknown[]) => getLinkedRisksMock(...args),
+        getControl: (...args: Parameters<typeof getControlMock>) => getControlMock(...args),
+        getExecutions: (...args: Parameters<typeof getExecutionsMock>) => getExecutionsMock(...args),
+        getLinkedRisks: (...args: Parameters<typeof getLinkedRisksMock>) => getLinkedRisksMock(...args),
         linkRisk: vi.fn(),
         restoreControl: vi.fn(),
         unlinkRisk: vi.fn(),
@@ -102,21 +104,21 @@ async function expectStayForSidebarAndBack(
 describe('ControlDetailPage contextual issue dirty guards', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getControlMock.mockResolvedValue({
+        getControlMock.mockResolvedValue(controlFixture({
             id: 13,
             name: 'Quarterly Access Review',
             description: 'Ensure privileged access is reviewed.',
             status: 'active',
             risk_level: 3,
             frequency: 'monthly',
-            control_form: 'preventive',
+            control_form: 'manual',
             control_owner_id: 2,
             monitoring_status: 'passed',
             capabilities: {
                 can_create_issue: true,
                 can_log_execution: true,
             },
-        });
+        }));
         getLinkedRisksMock.mockResolvedValue([]);
         getExecutionsMock.mockResolvedValue([{
             id: 81,
@@ -124,6 +126,7 @@ describe('ControlDetailPage contextual issue dirty guards', () => {
             result: 'failed',
             findings: 'Privileged access evidence is incomplete.',
             executed_at: '2026-08-28T08:00:00Z',
+            executed_by_id: 2,
             executed_by: { id: 2, name: 'Anna Kowalski' },
             created_at: '2026-08-28T08:00:00Z',
         }]);

@@ -1,3 +1,6 @@
+import { approvalFixture } from './pageFixtures';
+import type * as MockprocessApiModule from '@/services/processApi';
+import type * as MockapprovalsApiModule from '@/services/approvalsApi';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -7,11 +10,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Process } from '@/types/process';
 
 const mocks = vi.hoisted(() => ({
-    cancelApproval: vi.fn(),
-    archiveProcess: vi.fn(),
+    cancelApproval: vi.fn<typeof MockapprovalsApiModule.approvalsApi.cancel>(),
+    archiveProcess: vi.fn<typeof MockprocessApiModule.processApi.archiveProcess>(),
     canEdit: true,
     canViewGovernance: true,
-    language: 'en' as 'en' | 'cs',
+    language: 'en',
     process: null as Process | null,
     fetchProcess: vi.fn(),
     ownershipTranslations: {
@@ -30,7 +33,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
-        archiveProcess: (...args: unknown[]) => mocks.archiveProcess(...args),
+        archiveProcess: (...args: Parameters<typeof mocks.archiveProcess>) => mocks.archiveProcess(...args),
         getProcesses: vi.fn(),
     },
 }));
@@ -43,7 +46,7 @@ vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string, options?: { targetName?: string }) => {
             if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
-            const translations = mocks.ownershipTranslations[mocks.language] as Record<string, string>;
+            const translations: Record<string, string> = mocks.language === 'cs' ? mocks.ownershipTranslations.cs : mocks.ownershipTranslations.en;
             return translations[key] ?? key;
         },
         i18n: { language: mocks.language },
@@ -72,7 +75,7 @@ vi.mock('@/pages/processes/useProcessDetailState', () => ({
 
 vi.mock('@/services/approvalsApi', () => ({
     approvalsApi: {
-        cancel: (...args: unknown[]) => mocks.cancelApproval(...args),
+        cancel: (...args: Parameters<typeof mocks.cancelApproval>) => mocks.cancelApproval(...args),
     },
 }));
 
@@ -96,7 +99,7 @@ import { ProcessDetailPage } from '@/pages/ProcessDetailPage';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
-function orphanedProcess(): Process {
+function orphanedProcess(): Process & { capabilities: NonNullable<Process['capabilities']> } {
     return {
         id: 74,
         f_code: 'F74',
@@ -119,6 +122,11 @@ function orphanedProcess(): Process {
             can_update: true,
             can_archive: true,
             can_restore: false,
+            protected_change_requires_approval: false,
+            can_request_change: false,
+            can_cancel_pending_change: false,
+            has_pending_change: false,
+            business_edit_blocked: false,
         },
         created_at: '2026-07-15T10:00:00Z',
         updated_at: '2026-07-15T10:00:00Z',
@@ -135,6 +143,8 @@ function governedPendingProcess(): Process {
             can_update: false,
             can_archive: false,
             can_restore: false,
+            protected_change_requires_approval: false,
+            can_request_change: false,
             has_pending_change: true,
             business_edit_blocked: true,
             can_cancel_pending_change: true,
@@ -176,7 +186,7 @@ describe('ProcessDetailPage ownership resolution', () => {
         mocks.canViewGovernance = true;
         mocks.language = 'en';
         mocks.process = orphanedProcess();
-        mocks.cancelApproval.mockResolvedValue({ status: 'cancelled' });
+        mocks.cancelApproval.mockResolvedValue(approvalFixture({ status: 'cancelled' }));
         mocks.fetchProcess.mockResolvedValue(undefined);
         mocks.archiveProcess.mockResolvedValue(undefined);
     });

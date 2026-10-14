@@ -28,12 +28,12 @@ async function resolveFrontendSrcRoot(): Promise<string> {
 
 async function collectFiles(root: string): Promise<string[]> {
     const entries = await readdir(root, { withFileTypes: true });
-    const files = await Promise.all(entries.map(async (entry) => {
+    const files = await Promise.all(entries.map((entry) => {
         const entryPath = path.join(root, entry.name);
         if (entry.isDirectory()) {
-            return collectFiles(entryPath);
+            return Promise.resolve(collectFiles(entryPath));
         }
-        return [entryPath];
+        return Promise.resolve([entryPath]);
     }));
     return files.flat();
 }

@@ -1,3 +1,4 @@
+import { jsonObject } from './helpers/jsonObject';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -140,7 +141,7 @@ function writeIncompleteBaseline(matrixKey: string, counts: Record<string, numbe
   const matrix = { ...(readIncompleteBaseline()?.matrix ?? {}), [matrixKey]: counts };
   const sorted = Object.fromEntries(Object.keys(matrix).sort().map((key) => [
     key,
-    Object.fromEntries(Object.entries(matrix[key]!).sort(([left], [right]) => left.localeCompare(right))),
+    Object.fromEntries(Object.entries(matrix[key]).sort(([left], [right]) => left.localeCompare(right))),
   ]));
   const baseline: IncompleteBaseline = {
     description: 'Unresolved axe incomplete color-contrast nodes per theme@viewport and route (measured below AA, '
@@ -467,7 +468,7 @@ test.describe('UX-24 audited theme matrix', () => {
         return response.request().method() === 'GET'
           && url.pathname.replace(/\/$/, '') === '/api/v1/controls'
           && url.searchParams.get('limit') === '20'
-          && JSON.parse(url.searchParams.get('filters') ?? '{}').lifecycle === 'active';
+          && jsonObject(JSON.parse(url.searchParams.get('filters') ?? '{}')).lifecycle === 'active';
       });
       await page.getByRole('button', { name: /link existing/i }).first().click();
       expect((await suggestionsResponse).status()).toBe(200);
@@ -564,7 +565,7 @@ test.describe('UX-24 audited theme matrix', () => {
           expect(testInfo.config.workers, 'UPDATE_CONTRAST_BASELINE must run with --workers=1').toBe(1);
           const previous = readIncompleteBaseline()?.matrix[matrixKey] ?? {};
           const raised = Object.entries(counts)
-            .filter(([route, count]) => previous[route] !== undefined && count > previous[route]!)
+            .filter(([route, count]) => previous[route] !== undefined && count > previous[route])
             .map(([route, count]) => `${route} ${previous[route]} -> ${count}`);
           if (!FORCE_CONTRAST_BASELINE) {
             expect(raised, `${matrixKey}: UPDATE_CONTRAST_BASELINE=1 only lowers counts; use =force for a reviewed increase`)

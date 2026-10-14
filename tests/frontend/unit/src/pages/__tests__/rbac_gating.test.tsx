@@ -1,3 +1,4 @@
+import type * as ActualuserSettingsStorage from '@/utils/userSettingsStorage';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -22,10 +23,10 @@ import { UsersPage } from '@/pages/UsersPage';
 import { DepartmentsPage } from '@/pages/DepartmentsPage';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof ActualuserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });

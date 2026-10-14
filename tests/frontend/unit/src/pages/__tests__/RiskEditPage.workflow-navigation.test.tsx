@@ -72,6 +72,8 @@ describe('RiskEditPage workflow navigation', () => {
         vi.spyOn(lookupApi, 'getDepartments').mockResolvedValue([{
             id: 2,
             name: 'Operations',
+            code: 'OPS', user_count: 0, risk_count: 0, high_risk_count: 0,
+            control_count: 0, kri_count: 0, breaching_kri_count: 0, total_net_score: 0,
         }]);
         vi.spyOn(riskHubApi, 'getPublicRiskTypes').mockResolvedValue([{
             code: 'operational',
@@ -80,7 +82,7 @@ describe('RiskEditPage workflow navigation', () => {
             icon: null,
             sort_order: 1,
         }]);
-        vi.spyOn(riskHubApi, 'getConfigValue').mockResolvedValue({ value: 10 });
+        vi.spyOn(riskHubApi, 'getConfigValue').mockResolvedValue({ key: 'risk_threshold', value: 10, value_type: 'number' });
     });
 
     it('returns an immediately saved edit to detail with the validated list working set', async () => {
@@ -98,9 +100,11 @@ describe('RiskEditPage workflow navigation', () => {
 
     it('returns an approval-queued edit to the risk with the pending notice and the validated list working set (D12)', async () => {
         const returnTo = '/risks?q=payments&page=4#group-heading';
-        vi.mocked(riskApi.updateRisk).mockResolvedValueOnce({
+        vi.mocked(riskApi).updateRisk.mockResolvedValueOnce({
             status: 'approval_required',
             approval_id: 88,
+            action_type: 'edit',
+            pending_fields: [],
             message: 'Queued for approval',
         });
         renderRiskEdit(returnTo);

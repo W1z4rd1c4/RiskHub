@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 
-const logExecutionMock = vi.fn();
+const logExecutionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        logExecution: (...args: unknown[]) => logExecutionMock(...args),
+        logExecution: logExecutionMock,
     },
 }));
 

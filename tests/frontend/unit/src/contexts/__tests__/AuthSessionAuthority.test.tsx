@@ -8,7 +8,7 @@ import { clearBootstrapSession } from '@/services/session/coordinator';
 import { __resetSessionStoreForTests } from '@/services/session/store';
 
 vi.mock('@/utils/userSettingsStorage', () => ({
-    syncPreferencesFromServer: vi.fn(async () => undefined),
+    syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
     clearLocalSettings: vi.fn(),
 }));
 

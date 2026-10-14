@@ -73,7 +73,7 @@ describe('Pagination', () => {
     });
 
     it('renders a named nav with the current page marked and tokenised buttons', async () => {
-        const onPageChange = vi.fn();
+        const onPageChange = vi.fn<(page: number) => void>();
         const user = userEvent.setup();
         render(
             <Pagination currentPage={2} totalPages={3} totalItems={25} itemsPerPage={10} onPageChange={onPageChange} />
@@ -148,7 +148,7 @@ describe('Pagination', () => {
     });
 
     it('pages mode blocks previous/next and disables other pages while a page loads', async () => {
-        const onPageChange = vi.fn();
+        const onPageChange = vi.fn<(page: number) => void>();
         const user = userEvent.setup();
         render(
             <Pagination currentPage={2} totalPages={3} itemsPerPage={10} onPageChange={onPageChange} isLoading />

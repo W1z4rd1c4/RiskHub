@@ -1,3 +1,4 @@
+const { getKri, restoreKri, getHistory } = vi.hoisted(() => ({ getKri: vi.fn(), restoreKri: vi.fn(), getHistory: vi.fn() }));
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
@@ -10,13 +11,10 @@ import { applyAuthenticatedSession, applyBootstrappedSession, getSessionOwnershi
 import { assertRequestSessionOwnershipCurrent } from '@/services/api/sessionRefreshPolicy';
 import type { AuthUser } from '@/services/authApi';
 
-const getKri = vi.fn();
-const restoreKri = vi.fn();
-const getHistory = vi.fn();
 vi.mock('@/services/kriApi', () => ({ kriApi: {
-    getKRI: (...args: unknown[]) => getKri(...args),
-    restoreKRI: (...args: unknown[]) => restoreKri(...args),
-    getHistory: (...args: unknown[]) => getHistory(...args),
+    getKRI: getKri,
+    restoreKRI: restoreKri,
+    getHistory: getHistory,
 } }));
 vi.mock('@/components/kris/KRIDetailOverviewTab', () => ({ KRIDetailOverviewTab: () => null }));
 vi.mock('@/components/history', () => ({ HistoryTrendChart: () => null, HistoryComparisonPanel: () => null, HistoryTimeline: () => null }));
@@ -62,7 +60,7 @@ describe('KRI restore outcomes', () => {
         expect(restoreKri).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('button', { name: 'Restoring…' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Restoring…' })).toHaveAttribute('aria-busy', 'true');
-        await act(async () => request.reject(new ApiClientError({ status: 422, messageKey: 'errorKeys.validation' })));
+        await act(() => Promise.resolve(request.reject(new ApiClientError({ status: 422, messageKey: 'errorKeys.validation' }))));
         expect(screen.getByRole('alert')).toHaveTextContent('Restore was rejected');
         expect(screen.getByRole('heading', { name: 'Liquidity 1' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Retry restore' }));
@@ -143,13 +141,14 @@ describe('KRI restore outcomes', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Unarchive' }));
         await act(async () => router.navigate('/kris/2'));
         expect(await screen.findByRole('heading', { name: 'Liquidity 2' })).toBeInTheDocument();
-        await act(async () => {
+        await act(() => {
             if (completion === 'resolve') request.resolve(record(1, false));
             else request.reject(new Error('late A failure'));
+            return Promise.resolve();
         });
         expect(screen.getByRole('button', { name: 'Unarchive' })).toBeEnabled();
         expect(screen.queryByText(/KRI restored|outcome is unknown/)).not.toBeInTheDocument();
-        expect(getKri.mock.calls.map(([id]) => id)).toEqual([1, 2]);
+        expect(getKri.mock.calls.map(([id]): unknown => id)).toEqual([1, 2]);
     });
 
     it('invalidates an in-flight callback on same-record session loss and reauthentication', async () => {
@@ -160,7 +159,7 @@ describe('KRI restore outcomes', () => {
         act(() => setSessionSnapshot(previous => ({ ...previous, bootstrapStatus: 'anonymous', token: null })));
         expect(screen.queryByRole('button', { name: /Unarchive|Restoring/ })).not.toBeInTheDocument();
         act(() => setSessionSnapshot(previous => ({ ...previous, bootstrapStatus: 'authenticated', token: 'new-session' })));
-        await act(async () => request.resolve(record(1, false)));
+        await act(() => Promise.resolve(request.resolve(record(1, false))));
         expect(screen.queryByText('KRI restored.')).not.toBeInTheDocument();
     });
 
@@ -175,7 +174,7 @@ describe('KRI restore outcomes', () => {
         expect(screen.queryByRole('heading', { name: 'Liquidity 1' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Unarchive' })).not.toBeInTheDocument();
         getKri.mockResolvedValue(record());
-        fireEvent.click(screen.getByRole('button', { name: 'Retry', exact: true }));
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         await screen.findByRole('heading', { name: 'Liquidity 1' });
         fireEvent.click(screen.getByRole('button', { name: 'Refresh record' }));
         await screen.findByText(/refreshed record is still archived/);
@@ -190,7 +189,7 @@ describe('KRI restore outcomes', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Unarchive' }));
         act(() => setSessionSnapshot(previous => ({ ...previous, user: { id: 8 } as AuthUser, token: 'session-8' })));
         await waitFor(() => expect(getKri).toHaveBeenCalledTimes(2));
-        await act(async () => request.resolve(record(1, false)));
+        await act(() => Promise.resolve(request.resolve(record(1, false))));
         expect(screen.queryByText('KRI restored.')).not.toBeInTheDocument();
         // The principal change also refetches the record; wait for that reload
         // instead of racing it (flaked under full-suite load).
@@ -208,10 +207,10 @@ describe('KRI restore outcomes', () => {
         });
         start();
         fireEvent.click(await screen.findByRole('button', { name: 'Unarchive' }));
-        act(() => applyAuthenticatedSession({
+        await act(() => applyAuthenticatedSession({
             access_token: token, token_type: 'bearer', user: getSessionSnapshot().user!,
         }));
-        await act(async () => request.resolve(record(1, false)));
+        await act(() => Promise.resolve(request.resolve(record(1, false))));
         expect(screen.queryByText(/KRI restored|not authorized/)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Unarchive' })).toBeEnabled();
         expect(restoreKri).toHaveBeenCalledTimes(1);
@@ -229,7 +228,7 @@ describe('KRI restore outcomes', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Unarchive' }));
         act(() => applyBootstrappedSession({ token: 'refreshed-token', user: getSessionSnapshot().user! }));
         expect(screen.getByRole('button', { name: 'Restoring…' })).toBeDisabled();
-        await act(async () => request.resolve(record(1, false)));
+        await act(() => Promise.resolve(request.resolve(record(1, false))));
         expect(await screen.findByRole('status')).toHaveTextContent('KRI restored');
         expect(restoreKri).toHaveBeenCalledTimes(1);
     });

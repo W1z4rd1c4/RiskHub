@@ -41,7 +41,7 @@ describe('principal-owned preference synchronization', () => {
     it('aborts User A work and never starts queued User A intent after User B takes ownership', async () => {
         const activeWrite = deferred<UserPreferences>();
         let activeSignal: AbortSignal | undefined;
-        vi.spyOn(preferencesApi, 'update').mockImplementation((
+        const updateSpy = vi.spyOn(preferencesApi, 'update').mockImplementation((
             _preferences,
             options?: { signal?: AbortSignal },
         ) => {
@@ -53,15 +53,15 @@ describe('principal-owned preference synchronization', () => {
 
         await user.click(screen.getByTestId('theme-dark'));
         await user.click(screen.getByTestId('theme-light'));
-        expect(preferencesApi.update).toHaveBeenCalledTimes(1);
+        expect(updateSpy).toHaveBeenCalledTimes(1);
 
         view.rerender(<PreferencesView principalId={2} />);
 
         expect(activeSignal).toBeInstanceOf(AbortSignal);
         expect(activeSignal?.aborted).toBe(true);
-        await act(async () => activeWrite.reject(new DOMException('cancelled', 'AbortError')));
+        await act(() => Promise.resolve(activeWrite.reject(new DOMException('cancelled', 'AbortError'))));
         await Promise.resolve();
-        expect(preferencesApi.update).toHaveBeenCalledTimes(1);
+        expect(updateSpy).toHaveBeenCalledTimes(1);
         expect(screen.queryByText('Unsynced')).not.toBeInTheDocument();
     });
 
@@ -70,7 +70,7 @@ describe('principal-owned preference synchronization', () => {
         const writeA = deferred<UserPreferences>();
         const writeB = deferred<UserPreferences>();
         vi.spyOn(preferencesApi, 'get').mockReturnValueOnce(hydration.promise);
-        vi.spyOn(preferencesApi, 'update')
+        const updateSpy = vi.spyOn(preferencesApi, 'update')
             .mockReturnValueOnce(writeA.promise)
             .mockReturnValueOnce(writeB.promise);
         const user = userEvent.setup();
@@ -79,16 +79,16 @@ describe('principal-owned preference synchronization', () => {
         await user.click(screen.getByTestId('theme-dark'));
         const hydrationPromise = syncPreferencesFromServer();
         await user.click(screen.getByTestId('theme-light'));
-        expect(preferencesApi.update).toHaveBeenCalledTimes(1);
+        expect(updateSpy).toHaveBeenCalledTimes(1);
 
         hydration.resolve({ theme: 'riskhub', language: 'en' });
         await hydrationPromise;
         expect(screen.getByRole('radio', { name: /light/i })).toBeChecked();
         expect(localStorage.getItem('riskhub-theme')).toBe('light');
 
-        await act(async () => writeA.resolve({ theme: 'dark', language: 'en' }));
-        await waitFor(() => expect(preferencesApi.update).toHaveBeenCalledTimes(2));
-        await act(async () => writeB.resolve({ theme: 'light', language: 'en' }));
+        await act(() => Promise.resolve(writeA.resolve({ theme: 'dark', language: 'en' })));
+        await waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(2));
+        await act(() => Promise.resolve(writeB.resolve({ theme: 'light', language: 'en' })));
 
         expect(await screen.findByText('Saved')).toBeInTheDocument();
         expect(screen.getByRole('radio', { name: /light/i })).toBeChecked();

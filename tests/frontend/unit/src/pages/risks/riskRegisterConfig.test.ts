@@ -72,7 +72,7 @@ describe('Risk shared register contract', () => {
                 sort: null,
                 view: 'all',
             });
-            const criteria = JSON.parse(buildRiskCollectionQuery(params).get('filters') ?? '{}');
+            const criteria: unknown = JSON.parse(buildRiskCollectionQuery(params).get('filters') ?? '{}');
 
             expect(criteria).toMatchObject({ lifecycle, status: 'emerging' });
             expect(criteria).not.toHaveProperty('include_archived');

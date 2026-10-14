@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { ApprovalWorkbenchQueryState } from '@/pages/approvals/approvalWorkbenchQuery';
 import {
     buildApprovalPageParams,
     parseApprovalWorkbenchQuery,
@@ -49,12 +50,13 @@ describe('approval workbench query contract', () => {
     });
 
     it('builds the server page from the normalized tab, search, and page', () => {
-        expect(buildApprovalPageParams({
+        const state: ApprovalWorkbenchQueryState = {
             tab: 'mine',
             query: 'Asset A-17',
             page: 3,
             approvalId: 85,
-        })).toEqual({
+        };
+        expect(buildApprovalPageParams(state)).toEqual({
             my_requests: true,
             q: 'Asset A-17',
             skip: 200,

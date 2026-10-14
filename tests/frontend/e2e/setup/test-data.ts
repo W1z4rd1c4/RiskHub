@@ -6,6 +6,8 @@
  * helper-driven demo-login token acquisition for API setup work.
  */
 
+import { z } from 'zod';
+
 import { E2E_APPROVALS, E2E_REQUIRED_FIXTURES, E2E_SENSITIVE_APPROVALS } from '../fixtures/e2e-data';
 import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 
@@ -42,6 +44,45 @@ interface TestKRI {
     upper_threshold?: number;
 }
 
+// Request fixture names predate the current API. Keep response types separate:
+// validate the server fields without renaming values, normalizing nulls, or
+// dropping additional metadata from the original response.
+const testRiskResponseSchema = z.looseObject({
+    id: z.number(),
+    name: z.string(),
+    description: z.string(),
+    category: z.string().nullable().optional(),
+    department_id: z.number().nullable().optional(),
+    owner_id: z.number().nullable().optional(),
+    gross_probability: z.number(),
+    gross_impact: z.number(),
+    net_probability: z.number(),
+    net_impact: z.number(),
+});
+const testControlResponseSchema = z.looseObject({
+    id: z.number(),
+    name: z.string(),
+    description: z.string(),
+    department_id: z.number().nullable().optional(),
+    control_owner_id: z.number().nullable().optional(),
+});
+const testKriResponseSchema = z.looseObject({
+    id: z.number(),
+    metric_name: z.string(),
+    description: z.string(),
+    risk_id: z.number(),
+    reporting_owner_id: z.number().nullable().optional(),
+    unit: z.string(),
+    frequency: z.string(),
+    current_value: z.number(),
+    lower_limit: z.number(),
+    upper_limit: z.number(),
+});
+
+type CreatedTestRisk = z.infer<typeof testRiskResponseSchema>;
+type CreatedTestControl = z.infer<typeof testControlResponseSchema>;
+type CreatedTestKRI = z.infer<typeof testKriResponseSchema>;
+
 interface CleanupIds {
     risks?: number[];
     controls?: number[];
@@ -58,7 +99,7 @@ async function getAdminToken(): Promise<string> {
 /**
  * Create a test risk via API
  */
-export async function createTestRisk(data: Partial<TestRisk>): Promise<TestRisk> {
+export async function createTestRisk(data: Partial<TestRisk>): Promise<CreatedTestRisk> {
     const token = await getAdminToken();
 
     const riskData: TestRisk = {
@@ -85,13 +126,13 @@ export async function createTestRisk(data: Partial<TestRisk>): Promise<TestRisk>
         throw new Error(`Failed to create test risk: ${response.status} - ${error}`);
     }
 
-    return response.json();
+    return testRiskResponseSchema.parse(await response.json());
 }
 
 /**
  * Create a test control via API
  */
-export async function createTestControl(data: Partial<TestControl>): Promise<TestControl> {
+export async function createTestControl(data: Partial<TestControl>): Promise<CreatedTestControl> {
     const token = await getAdminToken();
 
     const controlData: TestControl = {
@@ -115,13 +156,13 @@ export async function createTestControl(data: Partial<TestControl>): Promise<Tes
         throw new Error(`Failed to create test control: ${response.status} - ${error}`);
     }
 
-    return response.json();
+    return testControlResponseSchema.parse(await response.json());
 }
 
 /**
  * Create a test KRI via API
  */
-export async function createTestKRI(data: Partial<TestKRI>): Promise<TestKRI> {
+export async function createTestKRI(data: Partial<TestKRI>): Promise<CreatedTestKRI> {
     const token = await getAdminToken();
 
     const kriData: TestKRI = {
@@ -148,7 +189,7 @@ export async function createTestKRI(data: Partial<TestKRI>): Promise<TestKRI> {
         throw new Error(`Failed to create test KRI: ${response.status} - ${error}`);
     }
 
-    return response.json();
+    return testKriResponseSchema.parse(await response.json());
 }
 
 /**
@@ -167,7 +208,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
                     headers: { Authorization: `Bearer ${token}` },
                 });
             } catch (e) {
-                errors.push(`KRI ${id}: ${e}`);
+                errors.push(`KRI ${id}: ${String(e)}`);
             }
         }
     }
@@ -181,7 +222,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
                     headers: { Authorization: `Bearer ${token}` },
                 });
             } catch (e) {
-                errors.push(`Control ${id}: ${e}`);
+                errors.push(`Control ${id}: ${String(e)}`);
             }
         }
     }
@@ -195,7 +236,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
                     headers: { Authorization: `Bearer ${token}` },
                 });
             } catch (e) {
-                errors.push(`Risk ${id}: ${e}`);
+                errors.push(`Risk ${id}: ${String(e)}`);
             }
         }
     }

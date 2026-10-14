@@ -33,7 +33,7 @@ test.describe('Control Management (Deterministic)', () => {
         expect(response.headers()['content-type']).toContain('text/csv');
         const downloadPath = await download.path();
         expect(downloadPath).not.toBeNull();
-        const [header] = (await readFile(downloadPath!, 'utf8')).split(/\r?\n/, 1);
+        const [header] = (await readFile(downloadPath, 'utf8')).split(/\r?\n/, 1);
         expect(header).toBe([
             'Name', 'Description', 'Department', 'Owner', 'Frequency', 'Form', 'Risk Level', 'Status',
             'Monitoring Status', 'Latest Execution Result', 'Latest Executed At', 'Days Since Last Execution',

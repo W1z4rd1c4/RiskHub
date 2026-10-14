@@ -1,3 +1,7 @@
+import { riskFixture } from './pageFixtures';
+import type * as MockriskApiModule from '@/services/riskApi';
+import type * as MockkriApiModule from '@/services/kriApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
@@ -6,18 +10,18 @@ import { renderInRouter as render } from '@test/render';
 import { createTestQueryClient } from '@test/queryClient';
 
 const mockNavigate = vi.fn();
-const mockGetRisk = vi.fn();
-const mockGetLinkedControls = vi.fn();
-const mockGetLinkedVendors = vi.fn();
-const mockGetOverdue = vi.fn();
-const mockLinkControl = vi.fn();
+const mockGetRisk = vi.fn<typeof MockriskApiModule.riskApi.getRisk>();
+const mockGetLinkedControls = vi.fn<typeof MockriskApiModule.riskApi.getLinkedControls>();
+const mockGetLinkedVendors = vi.fn<typeof MockriskApiModule.riskApi.getLinkedVendors>();
+const mockGetOverdue = vi.fn<typeof MockkriApiModule.kriApi.getOverdue>();
+const mockLinkControl = vi.fn<typeof MockriskApiModule.riskApi.linkControl>();
 const mockLinkContinuationRejected = vi.fn();
-const mockDeleteRisk = vi.fn();
+const mockDeleteRisk = vi.fn<typeof MockriskApiModule.riskApi.deleteRisk>();
 let canIssueWrite = true;
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '7' }),
@@ -35,17 +39,17 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => mockGetRisk(...args),
-        getLinkedControls: (...args: unknown[]) => mockGetLinkedControls(...args),
-        getLinkedVendors: (...args: unknown[]) => mockGetLinkedVendors(...args),
-        linkControl: (...args: unknown[]) => mockLinkControl(...args),
-        deleteRisk: (...args: unknown[]) => mockDeleteRisk(...args),
+        getRisk: (...args: Parameters<typeof mockGetRisk>) => mockGetRisk(...args),
+        getLinkedControls: (...args: Parameters<typeof mockGetLinkedControls>) => mockGetLinkedControls(...args),
+        getLinkedVendors: (...args: Parameters<typeof mockGetLinkedVendors>) => mockGetLinkedVendors(...args),
+        linkControl: (...args: Parameters<typeof mockLinkControl>) => mockLinkControl(...args),
+        deleteRisk: (...args: Parameters<typeof mockDeleteRisk>) => mockDeleteRisk(...args),
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getOverdue: (...args: unknown[]) => mockGetOverdue(...args),
+        getOverdue: (...args: Parameters<typeof mockGetOverdue>) => mockGetOverdue(...args),
     },
 }));
 
@@ -107,7 +111,7 @@ describe('RiskDetailPage issue entry', () => {
         vi.clearAllMocks();
         canIssueWrite = true;
         mockSearchParams = new URLSearchParams();
-        mockGetRisk.mockImplementation(async () => ({
+        mockGetRisk.mockImplementation(() => Promise.resolve((riskFixture({
             id: 7,
             name: 'Liquidity Risk',
             status: 'active',
@@ -120,11 +124,11 @@ describe('RiskDetailPage issue entry', () => {
                 can_update: true,
                 can_archive_immediately: true,
             },
-        }));
+        }))));
         mockGetLinkedControls.mockResolvedValue([]);
         mockGetLinkedVendors.mockResolvedValue([]);
         mockGetOverdue.mockResolvedValue([]);
-        mockLinkControl.mockResolvedValue({});
+        mockLinkControl.mockResolvedValue({ id: 1, control_id: 1, risk_id: 10, effectiveness: 'high', created_at: '2026-07-15T10:00:00Z' });
         mockDeleteRisk.mockResolvedValue(undefined);
     });
 
@@ -150,7 +154,7 @@ describe('RiskDetailPage issue entry', () => {
     });
 
     it('renders archived-normalized risks as archived in the detail header', async () => {
-        mockGetRisk.mockResolvedValueOnce({
+        mockGetRisk.mockResolvedValueOnce(riskFixture({
             id: 7,
             name: 'Archived Liquidity Risk',
             status: 'active',
@@ -163,7 +167,7 @@ describe('RiskDetailPage issue entry', () => {
                 can_create_issue: true,
                 can_restore: true,
             },
-        });
+        }));
 
         render(<RiskDetailPage />);
 

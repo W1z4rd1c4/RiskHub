@@ -73,7 +73,7 @@ describe('DORA E2E coverage contract', () => {
 
   it('rejects empty and duplicate requirement IDs', () => {
     const emptyId = validManifest();
-    emptyId.requirements[0]!.id = ' ';
+    emptyId.requirements[0].id = ' ';
     expect(() => validateDoraCoverageContract({
       manifest: emptyId,
       collectionOutput: '',
@@ -81,7 +81,7 @@ describe('DORA E2E coverage contract', () => {
     })).toThrow(/requirement id/i);
 
     const duplicateId = validManifest();
-    duplicateId.requirements[1]!.id = duplicateId.requirements[0]!.id;
+    duplicateId.requirements[1].id = duplicateId.requirements[0].id;
     expect(() => validateDoraCoverageContract({
       manifest: duplicateId,
       collectionOutput: '',
@@ -91,7 +91,7 @@ describe('DORA E2E coverage contract', () => {
 
   it('requires evidence and rejects duplicate evidence only within one requirement', () => {
     const emptyEvidence = validManifest();
-    emptyEvidence.requirements[0]!.evidence = [];
+    emptyEvidence.requirements[0].evidence = [];
     expect(() => validateDoraCoverageContract({
       manifest: emptyEvidence,
       collectionOutput: '',
@@ -99,7 +99,7 @@ describe('DORA E2E coverage contract', () => {
     })).toThrow(/DORA-PROCESS.*evidence/i);
 
     const duplicateEvidence = validManifest();
-    duplicateEvidence.requirements[0]!.evidence.push({ ...duplicateEvidence.requirements[0]!.evidence[0]! });
+    duplicateEvidence.requirements[0].evidence.push({ ...duplicateEvidence.requirements[0].evidence[0] });
     expect(() => validateDoraCoverageContract({
       manifest: duplicateEvidence,
       collectionOutput: '',
@@ -107,7 +107,7 @@ describe('DORA E2E coverage contract', () => {
     })).toThrow(/DORA-PROCESS.*duplicate evidence/i);
 
     const sharedEvidence = validManifest();
-    sharedEvidence.requirements[1]!.evidence = [{ ...sharedEvidence.requirements[0]!.evidence[0]! }];
+    sharedEvidence.requirements[1].evidence = [{ ...sharedEvidence.requirements[0].evidence[0] }];
     expect(() => validateDoraCoverageContract({
       manifest: sharedEvidence,
       collectionOutput: ciLine(firstSpec, 'Process register is covered'),
@@ -122,7 +122,7 @@ describe('DORA E2E coverage contract', () => {
     ['not a spec', 'tests/frontend/e2e/process.ts'],
   ])('rejects %s evidence paths', (_label, spec) => {
     const manifest = validManifest();
-    manifest.requirements[0]!.evidence[0]!.spec = spec;
+    manifest.requirements[0].evidence[0].spec = spec;
     expect(() => validateDoraCoverageContract({ manifest, collectionOutput: '', sources: validSources() }))
       .toThrow(/unsafe.*spec path/i);
   });

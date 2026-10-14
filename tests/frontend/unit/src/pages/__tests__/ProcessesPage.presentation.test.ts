@@ -261,7 +261,7 @@ describe('Processes page presentation helpers', () => {
             owning_department: null,
             ownership_status: 'assigned',
         });
-        const translate = (key: string) => String(i18n.t(key));
+        const translate = (key: string) => i18n.t(key, { defaultValue: key });
 
         expect(processOwnerDisplayLabel(translate, missing)).toBe(owner);
         expect(processDepartmentDisplayLabel(translate, missing)).toBe(department);

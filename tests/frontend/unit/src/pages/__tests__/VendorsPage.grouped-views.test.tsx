@@ -1,3 +1,5 @@
+import type * as MockvendorApiModule from '@/services/vendorApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,8 +10,8 @@ import { VendorsPage } from '@/pages/VendorsPage';
 import { ApiClientError } from '@/services/apiClient';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
-const mockGetVendors = vi.fn();
-const mockDownloadExport = vi.fn();
+const mockGetVendors = vi.fn<typeof MockvendorApiModule.vendorApi.getVendors>();
+const mockDownloadExport = vi.fn<typeof MockvendorApiModule.vendorApi.downloadExport>();
 const mockNavigate = vi.fn();
 let hasRiskRead = true;
 let vendorCollectionCapabilities: Record<string, boolean> | undefined;
@@ -41,6 +43,8 @@ const vendors: Vendor[] = [
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
+        owner_orphaned: false,
+        ownership_status: 'assigned',
         is_archived: false,
         created_at: '2026-03-01T00:00:00Z',
         updated_at: '2026-03-01T00:00:00Z',
@@ -68,6 +72,8 @@ const vendors: Vendor[] = [
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
+        owner_orphaned: false,
+        ownership_status: 'assigned',
         is_archived: false,
         created_at: '2026-03-01T00:00:00Z',
         updated_at: '2026-03-01T00:00:00Z',
@@ -95,6 +101,8 @@ const vendors: Vendor[] = [
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
+        owner_orphaned: false,
+        ownership_status: 'assigned',
         is_archived: false,
         created_at: '2026-03-01T00:00:00Z',
         updated_at: '2026-03-01T00:00:00Z',
@@ -170,8 +178,8 @@ function buildVendorGroups(items: Vendor[], groupBy: string) {
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        downloadExport: (...args: unknown[]) => mockDownloadExport(...args),
-        getVendors: (...args: unknown[]) => mockGetVendors(...args),
+        downloadExport: (...args: Parameters<typeof mockDownloadExport>) => mockDownloadExport(...args),
+        getVendors: (...args: Parameters<typeof mockGetVendors>) => mockGetVendors(...args),
         restoreVendor: vi.fn(),
     },
 }));
@@ -188,7 +196,7 @@ vi.mock('@/services/reportApi', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,

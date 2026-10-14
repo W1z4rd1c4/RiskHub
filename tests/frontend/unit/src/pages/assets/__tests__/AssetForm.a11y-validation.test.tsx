@@ -1,3 +1,7 @@
+import { assetFixture } from '../../__tests__/pageFixtures';
+import { anything } from '@test/matchers';
+import type * as MockassetApiModule from '@/services/assetApi';
+import type * as MocklookupApiModule from '@/services/lookupApi';
 /**
  * FR-P2b-1/2/3/5 (spec N11–N13, findings C1/C4/C5) — AssetForm migrated to the
  * accessible `Field` primitive with the locked validation model: native
@@ -13,11 +17,11 @@ import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-do
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetClosedLists = vi.fn();
-const mockCreateAsset = vi.fn();
-const mockUpdateAsset = vi.fn();
-const mockGetAssetOwners = vi.fn();
-const mockGetAssetDepartments = vi.fn();
+const mockGetClosedLists = vi.fn<typeof MockassetApiModule.assetApi.getClosedLists>();
+const mockCreateAsset = vi.fn<typeof MockassetApiModule.assetApi.createAsset>();
+const mockUpdateAsset = vi.fn<typeof MockassetApiModule.assetApi.updateAsset>();
+const mockGetAssetOwners = vi.fn<typeof MocklookupApiModule.lookupApi.getAssetOwners>();
+const mockGetAssetDepartments = vi.fn<typeof MocklookupApiModule.lookupApi.getAssetDepartments>();
 const accountabilityScenario = vi.hoisted(() => ({
     enabled: true,
     error: false,
@@ -40,16 +44,16 @@ vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
 
 vi.mock('@/services/assetApi', () => ({
     assetApi: {
-        getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
-        createAsset: (...args: unknown[]) => mockCreateAsset(...args),
-        updateAsset: (...args: unknown[]) => mockUpdateAsset(...args),
+        getClosedLists: (...args: Parameters<typeof mockGetClosedLists>) => mockGetClosedLists(...args),
+        createAsset: (...args: Parameters<typeof mockCreateAsset>) => mockCreateAsset(...args),
+        updateAsset: (...args: Parameters<typeof mockUpdateAsset>) => mockUpdateAsset(...args),
     },
 }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getAssetOwners: (...args: unknown[]) => mockGetAssetOwners(...args),
-        getAssetDepartments: (...args: unknown[]) => mockGetAssetDepartments(...args),
+        getAssetOwners: (...args: Parameters<typeof mockGetAssetOwners>) => mockGetAssetOwners(...args),
+        getAssetDepartments: (...args: Parameters<typeof mockGetAssetDepartments>) => mockGetAssetDepartments(...args),
     },
 }));
 
@@ -179,7 +183,7 @@ describe('AssetForm — Field migration + validation (#59)', () => {
 
     it('submits successfully once the required field is filled', async () => {
         const user = userEvent.setup();
-        mockCreateAsset.mockResolvedValue({ id: 7, name: 'Payroll DB' });
+        mockCreateAsset.mockResolvedValue(assetFixture({ id: 7, name: 'Payroll DB' }));
         const { onSaved } = await renderForm();
 
         await user.type(screen.getByRole('textbox', { name: nameLabel() }), 'Payroll DB');
@@ -265,7 +269,7 @@ describe('AssetForm — ownership acceptance (#75)', () => {
     });
 
     it('keeps the Business Owner Department when ICT Owner changes and submits the selected ownership', async () => {
-        mockCreateAsset.mockResolvedValue({ id: 75, name: 'Cross-department service' });
+        mockCreateAsset.mockResolvedValue(assetFixture({ id: 75, name: 'Cross-department service' }));
         await renderForm();
         fireEvent.change(screen.getByRole('textbox', { name: nameLabel() }), {
             target: { value: 'Cross-department service' },
@@ -292,7 +296,7 @@ describe('AssetForm — ownership acceptance (#75)', () => {
     });
 
     it('preserves a manually selected Department across Business Owner changes', async () => {
-        mockCreateAsset.mockResolvedValue({ id: 76, name: 'Manual-department service' });
+        mockCreateAsset.mockResolvedValue(assetFixture({ id: 76, name: 'Manual-department service' }));
         await renderForm();
         fireEvent.change(screen.getByRole('textbox', { name: nameLabel() }), {
             target: { value: 'Manual-department service' },
@@ -568,7 +572,7 @@ describe('AssetForm — governed accountability edits (#88)', () => {
             expect(screen.getByTestId('asset-form-name')).toBeDisabled();
             expect(screen.getByRole('button', { name: i18n.t('assets:actions.cancel') })).toBeDisabled();
 
-            await act(async () => resolveUpdate(queued));
+            await act(() => Promise.resolve(resolveUpdate(queued)));
             await waitFor(() => expect(router.state.location.pathname).toBe('/approvals'));
             expect(router.state.location.search).toBe('?tab=mine&approvalId=99');
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -685,7 +689,7 @@ describe('AssetForm — governed accountability edits (#88)', () => {
 
         await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledWith(
             88,
-            expect.not.objectContaining({ request_reason: expect.anything() }),
+            expect.not.objectContaining({ request_reason: anything() }),
         ));
         expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
             notes: 'Updated without reassignment',
@@ -698,7 +702,7 @@ describe('AssetForm — governed accountability edits (#88)', () => {
         accountabilityScenario.protectedAssetEnabled = false;
         const user = userEvent.setup();
         mockUpdateAsset.mockResolvedValue({ ...protectedAsset, business_owner_user_id: 33 });
-        const { onSaved } = await renderForm({ ...protectedAsset, capabilities: { ...protectedAsset.capabilities, protected_change_requires_approval: false } });
+        const { onSaved } = await renderForm({ ...protectedAsset, capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false, ...protectedAsset.capabilities, protected_change_requires_approval: false } });
 
         await user.click(screen.getByTestId('asset-form-business-owner'));
         await user.click(await screen.findByRole('option', { name: /Casey Owner.*Finance/ }));
@@ -707,7 +711,7 @@ describe('AssetForm — governed accountability edits (#88)', () => {
 
         await waitFor(() => expect(mockUpdateAsset).toHaveBeenCalledWith(
             88,
-            expect.not.objectContaining({ request_reason: expect.anything() }),
+            expect.not.objectContaining({ request_reason: anything() }),
         ));
         expect(onSaved).toHaveBeenCalled();
     });
@@ -743,7 +747,7 @@ describe('governed backend rejection (#246)', () => {
             status: 422, code: 'governed_mutation_reason_required', messageKey: 'errors.request_failed',
         }));
         // The read snapshot predates policy activation; the backend now requires a reason.
-        const initial = { ...protectedAsset, capabilities: { ...protectedAsset.capabilities, protected_change_requires_approval: false } } as Asset;
+        const initial = { ...protectedAsset, capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false, ...protectedAsset.capabilities, protected_change_requires_approval: false } } as Asset;
         const { onSaved, onApprovalQueued } = await renderForm(initial);
         const name = screen.getByRole('textbox', { name: nameLabel() });
         fireEvent.change(name, { target: { value: 'Protected draft retained' } });

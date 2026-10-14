@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getBlobMock = vi.fn();
+const { getBlobMock } = vi.hoisted(() => ({ getBlobMock: vi.fn() }));
+
 
 vi.mock('@/services/apiClient', () => ({
     apiClient: {
-        getBlob: (...args: unknown[]) => getBlobMock(...args),
+        getBlob: getBlobMock,
     },
 }));
 
@@ -12,7 +13,8 @@ import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 
 function requestedUrl(): URL {
-    const [path] = getBlobMock.mock.calls.at(-1) ?? [];
+    const path: unknown = getBlobMock.mock.calls.at(-1)?.[0];
+    if (typeof path !== 'string') throw new Error('Expected export URL');
     return new URL(String(path), 'http://riskhub.test');
 }
 

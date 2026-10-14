@@ -14,8 +14,8 @@ import {
     meCapabilitiesSchema,
     ssoStartResponseSchema,
     tokenResponseSchema,
-    voidSchema,
-} from '@/services/api/schemas';
+} from '@/services/api/schemas/auth';
+import { voidSchema } from '@/services/api/schemas/common';
 import {
     extractErrorCode,
     parseBodyWithSchema,

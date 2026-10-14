@@ -1,3 +1,4 @@
+import type * as TestModule0 from '@/i18n/hooks';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +7,7 @@ import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuesti
 import { RiskAssessmentSection } from '@/components/risks/detail-overview/RiskAssessmentSection';
 import { ApiClientError } from '@/services/apiClient';
 import type { Risk, RiskCapabilities } from '@/types/risk';
-import type { RiskQuestionnaireDetail, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
+import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 import enRisks from '@/i18n/locales/en/risks.json';
 import csRisks from '@/i18n/locales/cs/risks.json';
 
@@ -23,7 +24,7 @@ const tMock = (key: string) => {
 };
 
 vi.mock('@/i18n/hooks', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/i18n/hooks')>();
+    const actual = await importOriginal<typeof TestModule0>();
     const formatters = await import('@/i18n/formatters');
     return {
         ...actual,
@@ -104,6 +105,9 @@ vi.mock('@/services/riskQuestionnairesApi', () => ({
 
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 
+const anyAbortSignal: unknown = expect.any(AbortSignal);
+type RiskQuestionnaireListItem = Awaited<ReturnType<typeof riskQuestionnairesApi.listForRisk>>[number];
+
 function makeCapabilities(overrides: Partial<RiskCapabilities> = {}): RiskCapabilities {
     return {
         can_read: true,
@@ -113,6 +117,7 @@ function makeCapabilities(overrides: Partial<RiskCapabilities> = {}): RiskCapabi
         can_archive_immediately: false,
         can_request_archive_approval: false,
         can_restore: false,
+        can_send_questionnaire: false,
         can_create_kri: false,
         can_create_linked_control: false,
         can_link_controls: false,
@@ -145,6 +150,7 @@ function makeRisk(overrides: Partial<Risk> = {}): Risk {
         net_impact: 2,
         net_score: 4,
         status: 'active',
+        is_archived: false,
         is_priority: false,
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-01T00:00:00Z',
@@ -189,9 +195,9 @@ describe('RiskDetailQuestionnairesTab', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         currentLanguage = 'en';
-        (riskQuestionnairesApi.listForRisk as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(submittedDetail(31));
-        (riskQuestionnairesApi.sendForRisk as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({});
+        vi.mocked(riskQuestionnairesApi.listForRisk).mockResolvedValue([]);
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(submittedDetail(31));
+        vi.mocked(riskQuestionnairesApi.sendForRisk).mockResolvedValue(questionnaire(31));
     });
 
     it('hides send when backend risk capability is missing', async () => {
@@ -199,7 +205,7 @@ describe('RiskDetailQuestionnairesTab', () => {
 
         await waitFor(() => {
             expect(riskQuestionnairesApi.listForRisk).toHaveBeenCalledWith(10, {
-                signal: expect.any(AbortSignal),
+                signal: anyAbortSignal,
             });
         });
         expect(screen.queryByRole('button', { name: 'risks:questionnaires.send' })).not.toBeInTheDocument();
@@ -216,7 +222,7 @@ describe('RiskDetailQuestionnairesTab', () => {
 
         await waitFor(() => {
             expect(riskQuestionnairesApi.sendForRisk).toHaveBeenCalledWith(10, {
-                signal: expect.any(AbortSignal),
+                signal: anyAbortSignal,
             });
         });
     });
@@ -238,7 +244,7 @@ describe('RiskDetailQuestionnairesTab', () => {
     });
 
     it('keeps "an open questionnaire already exists" on the tab as a warning status message (GAP-D-09)', async () => {
-        (riskQuestionnairesApi.sendForRisk as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+        vi.mocked(riskQuestionnairesApi.sendForRisk).mockRejectedValue(
             new Error('An open questionnaire already exists for this risk'),
         );
         render(
@@ -267,7 +273,7 @@ describe('RiskDetailQuestionnairesTab', () => {
     });
 
     it('renders the open questionnaire status as a translated badge, never the raw code (PG-03)', async () => {
-        (riskQuestionnairesApi.listForRisk as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+        vi.mocked(riskQuestionnairesApi.listForRisk).mockResolvedValue([
             questionnaire(41, 10, { status: 'in_progress', due_at: '2999-01-01T00:00:00Z' }),
         ]);
         render(<RiskDetailQuestionnairesTab risk={makeRisk()} />);
@@ -277,7 +283,7 @@ describe('RiskDetailQuestionnairesTab', () => {
         expect(screen.queryByText('in_progress')).not.toBeInTheDocument();
     });
 
-    it('renders distinct score and questionnaire headings in English and Czech', async () => {
+    it('renders distinct score and questionnaire headings in English and Czech', () => {
         expect(enRisks.scores_heading).toBe('Gross and net Risk scores');
         expect(enRisks.questionnaires.title).toBe('Assessment questionnaires');
         expect(csRisks.scores_heading).toBe('Hrubé a čisté skóre rizika');

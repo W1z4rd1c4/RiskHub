@@ -2,7 +2,8 @@
  * Wait helper functions for E2E tests
  * Provides reusable wait utilities for common UI states
  */
-import { Page, expect } from '@playwright/test';
+import type { Page} from '@playwright/test';
+import { expect } from '@playwright/test';
 
 /**
  * Wait for data loading (skeleton/pulse animations) to complete

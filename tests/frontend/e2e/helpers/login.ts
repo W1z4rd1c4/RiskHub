@@ -2,7 +2,7 @@
  * Login helper functions for E2E tests
  * Provides reusable login utilities for the demo account picker
  */
-import { Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { waitForPreferencesHydration } from './waitForPreferencesHydration';
 
 export interface LoginOptions {

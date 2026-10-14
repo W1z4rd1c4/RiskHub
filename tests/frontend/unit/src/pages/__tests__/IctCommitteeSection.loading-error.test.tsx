@@ -1,3 +1,4 @@
+import type * as MockictRegisterCommitteeApiModule from '@/services/ictRegisterCommitteeApi';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -14,11 +15,11 @@ import type { IctCommittee } from '@/types/ictRegisterCommittee';
 // These tests pin the explicit aria-busy loading branch and the localized error +
 // retry branch so a failed fetch is never rendered as an empty / zero screen.
 
-const getCommittee = vi.fn();
+const getCommittee = vi.fn<typeof MockictRegisterCommitteeApiModule.ictRegisterCommitteeApi.getCommittee>();
 
 vi.mock('@/services/ictRegisterCommitteeApi', () => ({
     ictRegisterCommitteeApi: {
-        getCommittee: (...args: unknown[]) => getCommittee(...args),
+        getCommittee: (...args: Parameters<typeof getCommittee>) => getCommittee(...args),
     },
 }));
 

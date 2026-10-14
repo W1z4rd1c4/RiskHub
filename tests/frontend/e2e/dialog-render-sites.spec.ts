@@ -239,7 +239,7 @@ function parentDriver(siteId: string): RenderSiteDriver {
   return {
     mode: 'parent',
     arrange: (page, site) => arrangeDialogContractSite(page, site.id),
-    opener: dialogContractOpeners[siteId]!,
+    opener: dialogContractOpeners[siteId],
     ownerSentinel: (page, site) => page.locator(`[data-testid="dialog-owner-ready"][data-render-site="${site.id}"]`),
     activate: dialogContractActivation(siteId),
     ready: siteId === 'confirm.pending-change-cancellation'
@@ -366,7 +366,7 @@ Object.assign(drivers, {
   }, (page) => page.getByRole('button', { name: /revoke/i }).first(), undefined, adminSectionHandoffFailures),
 });
 
-async function assertFocusInside(page: Page, surface: Locator) {
+async function assertFocusInside(surface: Locator) {
   await expect.poll(async () => surface.evaluate((node) => node.contains(document.activeElement))).toBe(true);
 }
 
@@ -388,7 +388,7 @@ async function getVisibleFocusableControls(surface: Locator): Promise<Locator[]>
 }
 
 test.describe('validated application dialog render sites', () => {
-  test('driver registry exactly covers the machine inventory', async () => {
+  test('driver registry exactly covers the machine inventory', () => {
     expect(Object.keys(drivers).sort()).toEqual(contract.applicationRenderSites.map((site) => site.id).sort());
   });
 
@@ -486,11 +486,11 @@ test.describe('validated application dialog render sites', () => {
         return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
       });
       expect(accessibleName.length).toBeGreaterThan(0);
-      await assertFocusInside(page, surface);
+      await assertFocusInside(surface);
 
       let visibleFocusable = await getVisibleFocusableControls(surface);
       expect(visibleFocusable.length, 'dialog must expose at least one tabbable control').toBeGreaterThan(0);
-      let firstFocusable = visibleFocusable[0]!;
+      let firstFocusable = visibleFocusable[0];
       let lastFocusable = visibleFocusable.at(-1)!;
 
       await lastFocusable.focus();

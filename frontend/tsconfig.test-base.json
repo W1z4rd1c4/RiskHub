@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@test/*": ["../tests/frontend/unit/src/test/*"],
+      "@typescript-eslint/parser": ["./node_modules/@typescript-eslint/parser/dist/index.d.ts"],
+      "*": ["./node_modules/@types/*", "./node_modules/*"]
+    }
+  },
+  "include": [],
+  "exclude": ["../tests/frontend/**/node_modules/**"]
+}

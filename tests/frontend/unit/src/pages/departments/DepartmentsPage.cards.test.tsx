@@ -1,3 +1,4 @@
+const { getDepartments } = vi.hoisted(() => ({ getDepartments: vi.fn() }));
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { LucideIcon } from 'lucide-react';
@@ -12,9 +13,8 @@ import { renderWithoutProviders, screen, within } from '@test/render';
  * Departments list (3f): each department is one native button (name, code, counts), its
  * status counts are `Badge`s, and its metric icons come from the shared entity-icon map (NAV-03).
  */
-const getDepartments = vi.fn();
 vi.mock('@/services/departmentApi', () => ({
-    departmentApi: { getDepartments: (...args: unknown[]) => getDepartments(...args) },
+    departmentApi: { getDepartments: getDepartments },
 }));
 
 const department = {

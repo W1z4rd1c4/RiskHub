@@ -1,3 +1,7 @@
+import type * as MockauthConfigModule from '@/services/authConfig';
+import type * as MockaccessApiModule from '@/services/accessApi';
+import type * as MockuserDirectoryApiModule from '@/services/userDirectoryApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -6,9 +10,9 @@ import { UsersPage } from '@/pages/UsersPage';
 import type { AuthConfigResponse } from '@/services/authApi';
 
 const mockNavigate = vi.fn();
-const mockGetAuthConfig = vi.fn();
-const mockListAccessUsers = vi.fn();
-const mockListDirectoryUsers = vi.fn();
+const mockGetAuthConfig = vi.fn<typeof MockauthConfigModule.getAuthConfig>();
+const mockListAccessUsers = vi.fn<typeof MockaccessApiModule.accessApi.listAccessUsers>();
+const mockListDirectoryUsers = vi.fn<typeof MockuserDirectoryApiModule.userDirectoryApi.listDirectoryUsers>();
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -56,13 +60,13 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 vi.mock('@/services/authConfig', () => ({
-    getAuthConfig: (...args: unknown[]) => mockGetAuthConfig(...args),
+    getAuthConfig: (...args: Parameters<typeof mockGetAuthConfig>) => mockGetAuthConfig(...args),
     clearAuthConfigCache: vi.fn(),
 }));
 
 vi.mock('@/services/accessApi', () => ({
     accessApi: {
-        listAccessUsers: (...args: unknown[]) => mockListAccessUsers(...args),
+        listAccessUsers: (...args: Parameters<typeof mockListAccessUsers>) => mockListAccessUsers(...args),
         listDepartmentAccessUsers: vi.fn().mockResolvedValue([]),
     },
 }));
@@ -83,7 +87,7 @@ vi.mock('@/services/userApi', () => ({
 
 vi.mock('@/services/userDirectoryApi', () => ({
     userDirectoryApi: {
-        listDirectoryUsers: (...args: unknown[]) => mockListDirectoryUsers(...args),
+        listDirectoryUsers: (...args: Parameters<typeof mockListDirectoryUsers>) => mockListDirectoryUsers(...args),
     },
 }));
 
@@ -110,7 +114,7 @@ vi.mock('@/components/users/ADUserPicker', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -122,6 +126,7 @@ describe('UsersPage SSO add CTA', () => {
         auth_mode: 'microsoft_sso',
         demo_login_enabled: false,
         password_login_enabled: false,
+        strict_capabilities: true,
         sso: {
             enabled: true,
             provider: 'entra',

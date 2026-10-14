@@ -113,10 +113,10 @@ describe('eight-register public URL history parity', () => {
             act(() => result.current.state.setCurrentPage(6));
             await waitFor(() => expect(result.current.location.search).toBe('?source=review&page=6'));
 
-            act(() => result.current.navigate(-1));
+            await act(() => result.current.navigate(-1));
             await waitFor(() => expect(result.current.location.search).toBe('?source=review&page=4'));
 
-            act(() => result.current.navigate(-1));
+            await act(() => result.current.navigate(-1));
             await waitFor(() => expect(result.current.location.search).toBe('?marker=before'));
         },
     );

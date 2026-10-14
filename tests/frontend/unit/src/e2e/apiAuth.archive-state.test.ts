@@ -19,19 +19,19 @@ describe('E2E API archive-state helpers', () => {
     });
 
     it('verifies archived risks through is_archived after archive mutation', async () => {
-        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-            const url = String(input);
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/config')) {
-                return jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' });
+                return Promise.resolve(jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' }));
             }
             if (url.endsWith('/api/v1/auth/demo-login') && init?.method === 'POST') {
-                return jsonResponse({ access_token: 'demo-token' });
+                return Promise.resolve(jsonResponse({ access_token: 'demo-token' }));
             }
             if (url.includes('/api/v1/risks?')) {
                 const archived = fetchMock.mock.calls.some(([calledUrl, calledInit]) =>
-                    String(calledUrl).includes('/api/v1/risks/77?') && calledInit?.method === 'DELETE',
+                    (calledUrl instanceof Request ? calledUrl.url : calledUrl.toString()).includes('/api/v1/risks/77?') && calledInit?.method === 'DELETE',
                 );
-                return jsonResponse({
+                return Promise.resolve(jsonResponse({
                     items: [
                         {
                             id: 77,
@@ -40,31 +40,31 @@ describe('E2E API archive-state helpers', () => {
                             is_archived: archived,
                         },
                     ],
-                });
+                }));
             }
             if (url.includes('/api/v1/risks/77?') && init?.method === 'DELETE') {
-                return emptyResponse();
+                return Promise.resolve(emptyResponse());
             }
-            throw new Error(`Unexpected fetch call: ${url}`);
+            return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
         });
 
         await expect(ensureRiskStatus('R-E2E-ARCHIVE', 'archived')).resolves.toBe(77);
     });
 
     it('verifies archived controls through is_archived after archive mutation', async () => {
-        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-            const url = String(input);
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/config')) {
-                return jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' });
+                return Promise.resolve(jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' }));
             }
             if (url.endsWith('/api/v1/auth/demo-login') && init?.method === 'POST') {
-                return jsonResponse({ access_token: 'demo-token' });
+                return Promise.resolve(jsonResponse({ access_token: 'demo-token' }));
             }
             if (url.includes('/api/v1/controls?')) {
                 const archived = fetchMock.mock.calls.some(([calledUrl, calledInit]) =>
-                    String(calledUrl).includes('/api/v1/controls/88?') && calledInit?.method === 'DELETE',
+                    (calledUrl instanceof Request ? calledUrl.url : calledUrl.toString()).includes('/api/v1/controls/88?') && calledInit?.method === 'DELETE',
                 );
-                return jsonResponse({
+                return Promise.resolve(jsonResponse({
                     items: [
                         {
                             id: 88,
@@ -73,28 +73,28 @@ describe('E2E API archive-state helpers', () => {
                             is_archived: archived,
                         },
                     ],
-                });
+                }));
             }
             if (url.includes('/api/v1/controls/88?') && init?.method === 'DELETE') {
-                return emptyResponse();
+                return Promise.resolve(emptyResponse());
             }
-            throw new Error(`Unexpected fetch call: ${url}`);
+            return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
         });
 
         await expect(ensureControlStatus('E2E Archive Control', 'archived')).resolves.toBe(88);
     });
 
     it('treats archived vendors as archived without issuing a duplicate archive request', async () => {
-        vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-            const url = String(input);
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/config')) {
-                return jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' });
+                return Promise.resolve(jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' }));
             }
             if (url.endsWith('/api/v1/auth/demo-login') && init?.method === 'POST') {
-                return jsonResponse({ access_token: 'demo-token' });
+                return Promise.resolve(jsonResponse({ access_token: 'demo-token' }));
             }
             if (url.includes('/api/v1/vendors?')) {
-                return jsonResponse({
+                return Promise.resolve(jsonResponse({
                     items: [
                         {
                             id: 99,
@@ -102,12 +102,12 @@ describe('E2E API archive-state helpers', () => {
                             is_archived: true,
                         },
                     ],
-                });
+                }));
             }
             if (url.includes('/api/v1/vendors/99') && init?.method === 'DELETE') {
-                throw new Error('Archived vendor should not be archived again');
+                return Promise.reject(new Error('Archived vendor should not be archived again'));
             }
-            throw new Error(`Unexpected fetch call: ${url}`);
+            return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
         });
 
         await expect(ensureVendorArchived('V-E2E-ARCHIVED', true)).resolves.toBe(99);

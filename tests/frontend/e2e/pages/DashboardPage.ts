@@ -2,7 +2,8 @@
  * Dashboard Page Object Model
  * Handles main dashboard and navigation interactions
  */
-import { Page, Locator, expect } from '@playwright/test';
+import type { Page, Locator} from '@playwright/test';
+import { expect } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
 
 export class DashboardPage {

@@ -16,8 +16,14 @@ describe('Department alternate evidence exports', () => {
         expect(exportStart).toBeGreaterThan(-1);
         const callback = source.slice(exportStart, exportStart + 1_500);
         if (_name === 'Risk') {
-            const planner = source.slice(source.indexOf('const listParams'), source.indexOf('const configuredRangeIdentity'));
+            const plannerStart = source.indexOf('const requestParams');
+            const stableParamsStart = source.indexOf('const listParams');
+            expect(plannerStart).toBeGreaterThan(-1);
+            expect(stableParamsStart).toBeGreaterThan(plannerStart);
+            const planner = source.slice(plannerStart, stableParamsStart);
             expect(planner).toContain('...apiSemanticFilters,\n            department_id: departmentScope?.departmentId,');
+            const stableParams = source.slice(stableParamsStart, source.indexOf('const configuredRangeIdentity'));
+            expect(stableParams).toContain('const listParams = useStableRegisterRequestParams(requestParams);');
             expect(callback).toContain('departmentId: listParams.department_id');
         } else {
             expect(callback).toContain('departmentId: departmentScope?.departmentId');

@@ -1,3 +1,4 @@
+import type * as FormattersModule from '@/i18n/formatters';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +7,7 @@ import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSectio
 import { dashboardApi, type DashboardCommitteeSummary } from '@/services/dashboardApi';
 
 vi.mock('@/i18n/hooks', async () => {
-    const { formatRelativeDateValue } = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const { formatRelativeDateValue } = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     return {
         useFormat: () => ({ relative: (value: string) => formatRelativeDateValue(value, 'en') }),
         useTranslation: () => ({
@@ -113,6 +114,8 @@ function populatedSummary(): DashboardCommitteeSummary {
     };
 }
 
+const fetchCommitteeSummaryMock = vi.spyOn(dashboardApi, 'fetchCommitteeSummary');
+
 describe('RiskCommitteeSection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -120,16 +123,16 @@ describe('RiskCommitteeSection', () => {
     });
 
     it('shows the quarterly widget while committee summary is loading', () => {
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockReturnValue(new Promise(() => undefined));
+        fetchCommitteeSummaryMock.mockReturnValue(new Promise(() => undefined));
 
         renderSection();
 
         expect(screen.getByText('quarterly comparison')).toBeInTheDocument();
-        expect(dashboardApi.fetchCommitteeSummary).toHaveBeenCalledTimes(1);
+        expect(fetchCommitteeSummaryMock).toHaveBeenCalledTimes(1);
     });
 
     it('uses configured critical and Vendor score criteria rather than workbook or ignored legacy parameters', async () => {
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(populatedSummary());
+        fetchCommitteeSummaryMock.mockResolvedValue(populatedSummary());
         renderSection();
         await screen.findByText('Solvency Stress');
         const risk = new URL(screen.getByRole('link', { name: 'risk_committee.view_all_critical_risks' }).getAttribute('href')!, 'https://riskhub.test');
@@ -140,7 +143,7 @@ describe('RiskCommitteeSection', () => {
     });
 
     it('emits Vendor score filters consumed by the register rather than repeated legacy parameters', async () => {
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(populatedSummary());
+        fetchCommitteeSummaryMock.mockResolvedValue(populatedSummary());
         renderSection();
         await screen.findByText('Solvency Stress');
         const vendor = new URL(screen.getByRole('link', { name: 'risk_committee.view_all_high_risk_vendors' }).getAttribute('href')!, 'https://riskhub.test');
@@ -148,7 +151,7 @@ describe('RiskCommitteeSection', () => {
     });
 
     it('renders a committee summary load error without hiding quarterly comparison', async () => {
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockRejectedValue(new Error('boom'));
+        fetchCommitteeSummaryMock.mockRejectedValue(new Error('boom'));
 
         renderSection();
 
@@ -157,7 +160,7 @@ describe('RiskCommitteeSection', () => {
     });
 
     it('renders empty-state messages for each committee section', async () => {
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(emptySummary);
+        fetchCommitteeSummaryMock.mockResolvedValue(emptySummary);
 
         renderSection();
 
@@ -169,7 +172,7 @@ describe('RiskCommitteeSection', () => {
 
     it('renders populated committee cards and navigates to the vendor schedule target', async () => {
         vi.setSystemTime(new Date('2026-04-26T12:00:00Z'));
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(populatedSummary());
+        fetchCommitteeSummaryMock.mockResolvedValue(populatedSummary());
 
         renderSection();
 
@@ -209,7 +212,7 @@ describe('RiskCommitteeSection', () => {
     });
 
     it('does not present a permission-hidden vendor population as zero', async () => {
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue({
+        fetchCommitteeSummaryMock.mockResolvedValue({
             ...emptySummary,
             critical_vendors_total: null,
             can_view_vendors: false,
@@ -224,7 +227,7 @@ describe('RiskCommitteeSection', () => {
     it('renders committee scores from configured data', async () => {
         const summary = populatedSummary();
         summary.critical_risks[0].net_score = 15;
-        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(summary);
+        fetchCommitteeSummaryMock.mockResolvedValue(summary);
 
         renderSection();
 

@@ -73,12 +73,13 @@ function moveToStep(name: string) {
     fireEvent.click(screen.getByRole('button', { name }));
 }
 
-async function submitChangedControl() {
+function submitChangedControl() {
     fireEvent.change(screen.getByDisplayValue('Baseline control'), {
         target: { value: 'Changed control' },
     });
     moveToStep('Link Risk');
     fireEvent.click(screen.getByRole('button', { name: 'Edit Control' }));
+    return Promise.resolve();
 }
 
 describe('ControlForm dirty-task protection', () => {
@@ -230,8 +231,9 @@ describe('ControlForm dirty-task protection', () => {
         await user.type(notes, 'Late mutation');
         expect(notes).toHaveValue('Submitted link notes');
 
-        await act(async () => {
+        await act(() => {
             resolveSave?.(HttpResponse.json({ ...initialControl, name: 'Changed control' }));
+            return Promise.resolve();
         });
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
     });

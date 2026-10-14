@@ -26,7 +26,7 @@ describe('jsx-a11y strict-zero evidence policy', () => {
     ['non-zero declared count', JSON.stringify({ count: 1, entries: [] })],
     ['a baseline exception', JSON.stringify({ count: 1, entries: [{ rule: 'jsx-a11y/alt-text' }] })],
   ])('rejects %s', (_label, source) => {
-    expect(() => parseEmptyBaseline(source)).toThrow();
+    expect(() => { parseEmptyBaseline(source); }).toThrow();
   });
 
   it.each([
@@ -34,7 +34,7 @@ describe('jsx-a11y strict-zero evidence policy', () => {
     ['an array', '[]'],
     ['one suppression entry', JSON.stringify({ 'src/Foo.tsx': { 'jsx-a11y/alt-text': { count: 1 } } })],
   ])('rejects %s in the ESLint suppression file', (_label, source) => {
-    expect(() => parseEmptySuppressions(source)).toThrow();
+    expect(() => { parseEmptySuppressions(source); }).toThrow();
   });
 
   it('fails for every enabled-rule finding even with empty evidence files', () => {

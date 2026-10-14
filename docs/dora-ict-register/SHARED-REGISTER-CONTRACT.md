@@ -77,6 +77,19 @@ eight register integrations are locked by `collectionPageState.test.ts`,
 `eightRegisterCollectionIdentity.test.tsx`, and
 `eightRegisterUrlHistory.test.tsx`.
 
+Automatic list requests depend on the canonical value of the built request
+parameters through `useStableRegisterRequestParams`, not URL-parser object
+references. Typing on page one sends no unchanged request before the 300 ms
+search debounce; changing the page or other effective criteria still requests
+that working set immediately. Explicit refresh and successful same-query row
+restores always request again. This per-mount memo is not a response cache;
+principal remounts retain their existing isolation. Risk additionally retains
+its threshold-context identity for configured risk-range filters.
+Asset, Process, Threat, and Vendor remote lookup effects likewise compare the
+ordered selected-ID values. Unrelated register URL changes must neither restart
+their requests nor discard an in-flight result. Selection/search changes and
+unmounts retain each effect's existing stale-completion cleanup.
+
 ## Invariants
 
 1. Authorization is applied before facets, counts, groups, lookups, and export.

@@ -1,3 +1,5 @@
+import type { threatApi as actualThreatApi } from '@/services/threatApi';
+import type { riskApi as actualRiskApi } from '@/services/riskApi';
 /**
  * AX-04 / AX-01 / audit §4.8: the Threat risk-link picker is labelled (not placeholder-only) and the
  * remove action names the linked risk. Removal still needs confirmation (GAP-C-01).
@@ -12,28 +14,37 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import i18n from '@/i18n';
 import { ThreatRiskLinksSection } from '@/pages/threats/ThreatRiskLinksSection';
-import { threatApi } from '@/services/threatApi';
-import type { Threat } from '@/types/threat';
-
-vi.mock('@/services/threatApi', () => ({
-    threatApi: {
-        getRiskLinks: vi.fn().mockResolvedValue([{
+const threatApi = vi.hoisted(() => ({
+        getRiskLinks: vi.fn<typeof actualThreatApi.getRiskLinks>().mockResolvedValue([{
             id: 5,
+            threat_id: 3,
+            created_at: '2026-07-17T08:00:00Z',
             risk_id: 11,
             risk_id_code: 'R-11',
             risk_name: 'Data leak',
             capabilities: { can_delete: true },
         }]),
-        removeRiskLink: vi.fn().mockResolvedValue(undefined),
-        addRiskLink: vi.fn(),
-    },
+        removeRiskLink: vi.fn<typeof actualThreatApi.removeRiskLink>().mockResolvedValue(undefined),
+        addRiskLink: vi.fn<typeof actualThreatApi.addRiskLink>(),
+    }));
+import type { Threat } from '@/types/threat';
+
+vi.mock('@/services/threatApi', () => ({
+    threatApi: threatApi,
 }));
 vi.mock('@/services/riskApi', () => ({
-    riskApi: { getRisks: vi.fn().mockResolvedValue({ items: [] }) },
+    riskApi: { getRisks: vi.fn<typeof actualRiskApi.getRisks>().mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 }) },
 }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
 
-const threat = { id: 3, name: 'Credential Stuffing', is_archived: false } as unknown as Threat;
+const threat: Threat = {
+    id: 3,
+    name: 'Credential Stuffing',
+    stewardship_status: 'assigned',
+    is_archived: false,
+    created_at: '2026-07-17T08:00:00Z',
+    updated_at: '2026-07-17T08:00:00Z',
+};
 
 function renderSection(canManageLinks = true) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -74,10 +85,10 @@ describe('ThreatRiskLinksSection labels', () => {
         renderSection();
 
         await user.click(await screen.findByTestId('threat-risk-link-remove-5'));
-        expect(threatApi.removeRiskLink).not.toHaveBeenCalled();
+        expect(vi.mocked(threatApi).removeRiskLink).not.toHaveBeenCalled();
         const dialog = screen.getByRole('alertdialog');
         await user.click(within(dialog).getByRole('button', { name: 'Remove link' }));
-        expect(threatApi.removeRiskLink).toHaveBeenCalledWith(3, 5);
+        expect(vi.mocked(threatApi).removeRiskLink).toHaveBeenCalledWith(3, 5);
     });
 
     it('translates the label in Czech', async () => {

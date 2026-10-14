@@ -2,7 +2,7 @@
  * Dashboard E2E Tests
  * Uses demo account picker for login
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { loginAsDemoUser } from './helpers/login';
 
 async function waitForDataLoad(page: Page) {

@@ -15,7 +15,7 @@ describe('notificationsApi response validation', () => {
 
     it('accepts issue notifications with nullable metadata', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/notifications')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -59,7 +59,7 @@ describe('notificationsApi response validation', () => {
 
     it('accepts unread count payloads from the dedicated count endpoint', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/notifications/unread/count')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -75,7 +75,7 @@ describe('notificationsApi response validation', () => {
 
     it('keeps unread_count validation for mark-as-read responses', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/notifications/41/read')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }

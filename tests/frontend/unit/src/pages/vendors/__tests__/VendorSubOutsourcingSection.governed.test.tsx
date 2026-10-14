@@ -168,7 +168,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     subOutsourcingApiMocks.getEntries.mockResolvedValue([ACTIVE_ENTRY, ARCHIVED_ENTRY]);
     subOutsourcingApiMocks.getIctServiceTaxonomy.mockResolvedValue([]);
-    vi.mocked(vendorContractApi.getContracts).mockResolvedValue([CONTRACT]);
+    vi.mocked(vendorContractApi).getContracts.mockResolvedValue([CONTRACT]);
 });
 
 /** Ticket #101 matrix: {create, edit, archive} governed sub-outsourcing UX. */

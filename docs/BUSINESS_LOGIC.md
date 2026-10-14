@@ -113,6 +113,7 @@ Access-management read/list behavior and write behavior are intentionally differ
 |---------|----------------|-------|
 | `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint. Platform Admin users are returned only to platform Admin callers; all non-Admin callers receive a business-user-only list. |
 | `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint. Platform Admin users are excluded for non-Admin callers even when they share a department. |
+| `GET /api/v1/users/{id}/subordinates` | Self-lookup OR GLOBAL scope with `users:write` | Direct-report organization roster. Like Access rosters, only platform Admin callers receive Admin rows. Self-lookup remains available without `users:read`; ordinary direct reports retain cross-department and inactive visibility. This does not restrict the separately permissioned generic directory or assignment lookups. |
 | `GET /api/v1/access/roles` | GLOBAL-scope users | Role option endpoint. The `admin` role is returned only to platform Admin callers. |
 | `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. CRO owns business-access fields (`department_id`, `manager_id`, `access_scope`) and non-admin `role_id` assignment for non-Admin users, including department assignment. Admin owns platform identity/lifecycle fields (`name`, `email`, authentication/local-account lifecycle) and Admin-role assignment only. Non-Admin callers cannot target platform Admin users; unavailable Admin targets are concealed with not-found behavior. Validation failures reject the whole patch. |
 
@@ -702,6 +703,22 @@ authority from that role.
 | **Risk** | `owner_id`, `department_id`, `category`, `is_priority` | Any change requires approval |
 | **Control** | `control_owner_id`, `department_id` | Any change requires approval |
 | **KRI** | (none - inherits from linked Risk) | Value changes may require approval; vendor-link changes are included in the KRI edit approval payload for non-privileged users |
+
+### 6.1.1 Ordinary Risk-Owner Updates
+
+The assigned Risk owner may update that Risk without `risks:write`; other callers
+need write permission and applicable scope. Existing archive and pending-deletion
+locks still apply. For a nonpriority Risk, changing probability/impact (including a
+score decrease), `active`/`emerging` status, or acceptance approver/justification/date
+alone is an ordinary direct edit. A high net score alone does not trigger a
+Risk-edit approval: it determines privileged escalation only once an existing
+sensitive-field or priority-edit trigger has created an approval requirement.
+
+Acceptance fields record business metadata; they do not prove an approval or
+transition the Risk into an accepted state. The API accepts only `active` and
+`emerging` status, so `status=accepted` returns 422 without changing the Risk.
+These are the existing business rules, retained after the October 2026 audit;
+this clarification adds no new governance requirement.
 
 ### 6.2 Priority Risk Edit Rule
 

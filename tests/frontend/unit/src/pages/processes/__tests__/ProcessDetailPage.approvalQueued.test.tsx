@@ -1,3 +1,4 @@
+import type * as MockprocessApiModule from '@/services/processApi';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +15,7 @@ import type { Process } from '@/types/process';
  */
 
 const mocks = vi.hoisted(() => ({
-    archiveProcess: vi.fn(),
+    archiveProcess: vi.fn<typeof MockprocessApiModule.processApi.archiveProcess>(),
     fetchProcess: vi.fn(),
     process: null as Process | null,
 }));
@@ -25,7 +26,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
-        archiveProcess: (...args: unknown[]) => mocks.archiveProcess(...args),
+        archiveProcess: (...args: Parameters<typeof mocks.archiveProcess>) => mocks.archiveProcess(...args),
         getProcesses: vi.fn().mockResolvedValue({ items: [] }),
     },
 }));

@@ -1,3 +1,5 @@
+const numberMatcher: unknown = expect.any(Number);
+import type * as ActualuserSettingsStorage from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -25,9 +27,9 @@ const makeDoc = (overrides: Partial<Record<string, unknown>> = {}) => ({
     ...overrides,
 });
 
-const originalScrollIntoView = Element.prototype.scrollIntoView;
+const originalScrollIntoView: unknown = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')?.value;
 let scrollIntoViewMock = vi.fn();
-const originalScrollTo = HTMLElement.prototype.scrollTo;
+const originalScrollTo: unknown = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo')?.value;
 let scrollToMock = vi.fn();
 
 const docsPayload = {
@@ -90,10 +92,10 @@ const tocDocsPayload = {
 };
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof ActualuserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
@@ -223,7 +225,7 @@ describe('DocumentationPage', () => {
 
         await uiUser.click(await screen.findByRole('link', { name: 'Where To Find It' }));
 
-        expect(scrollToMock).toHaveBeenCalledWith({ top: expect.any(Number), left: 0, behavior: 'smooth' });
+        expect(scrollToMock).toHaveBeenCalledWith({ top: numberMatcher, left: 0, behavior: 'smooth' });
         expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
     });
 

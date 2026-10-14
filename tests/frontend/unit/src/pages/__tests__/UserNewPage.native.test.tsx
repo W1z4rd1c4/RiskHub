@@ -22,7 +22,13 @@ const config = {
 function renderCreate(canInvite: boolean) {
     applyAuthenticatedSession({ access_token: 'native-admin-component-token', token_type: 'bearer', user: {
         ...mockAuthUser, role: canInvite ? 'admin' : 'cro', access_scope: 'global',
-        me_capabilities: { ...mockAuthUser.me_capabilities, identity: {
+        me_capabilities: {
+            can_view_user_directory: false, can_view_access_users: true, can_view_department_access_users: false,
+            can_view_users_route: true, can_view_approvals: false, can_manage_access: false, can_view_department_access: false,
+            can_view_admin_console: false, can_view_riskhub: false, can_view_governance: false, can_view_activity_log: false,
+            can_view_committee: false, can_view_users_page: true, is_second_line: false, can_read_risks: false,
+            can_read_controls: false, can_read_vendors: false, can_read_departments: false, resource_permissions: {},
+            ...mockAuthUser.me_capabilities, identity: {
             can_invite_users: canInvite, can_manage_own_credentials: true,
             can_import_directory_users: false, can_check_directory_users: false,
         } },
@@ -91,7 +97,7 @@ describe('native account creation', () => {
         await user.clear(search);
         await user.type(search, 'b');
         await screen.findByRole('option', { name: /Current manager B/ });
-        await act(async () => completeA?.());
+        await act(() => Promise.resolve(completeA?.()));
         expect(signalA?.aborted).toBe(true);
         expect(screen.queryByRole('option', { name: /Stale manager A/ })).not.toBeInTheDocument();
     });

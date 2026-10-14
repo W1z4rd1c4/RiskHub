@@ -1,3 +1,5 @@
+import type { riskApi as importedRiskApi } from '@/services/riskApi';
+import type { controlApi as importedControlApi } from '@/services/controlApi';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -8,10 +10,10 @@ import { useRisksPageState } from '@/pages/risks/useRisksPageState';
 import { parseRiskSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
 
 const mocks = vi.hoisted(() => ({
-    downloadControlExport: vi.fn(),
-    downloadRiskExport: vi.fn(),
-    getControls: vi.fn(),
-    getRisks: vi.fn(),
+    downloadControlExport: vi.fn<typeof importedControlApi.downloadExport>(),
+    downloadRiskExport: vi.fn<typeof importedRiskApi.downloadExport>(),
+    getControls: vi.fn<typeof importedControlApi.getControls>(),
+    getRisks: vi.fn<typeof importedRiskApi.getRisks>(),
 }));
 
 const emptyPage = {

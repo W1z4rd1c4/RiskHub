@@ -12,7 +12,7 @@ afterEach(()=>window.history.replaceState({},'', '/'));
 
 it('opens the existing exact Department population without discarding Dashboard filters',async()=>{
     window.history.replaceState({},'', '/?departmentId=17&riskLevel=high&controlForm=manual');
-    const filters={departmentId:17,riskLevel:'high' as const,controlStatus:null,controlForm:'manual'};
+    const filters={departmentId:17,riskLevel:'high' as const,controlStatus:null,controlForm:'manual' as const};
     const metrics=[{department_id:17,department_name:'Risk populated',risk_count:1,control_count:0},{department_id:18,department_name:'Control populated',risk_count:0,control_count:2},{department_id:19,department_name:'Zero population',risk_count:0,control_count:0}].map(row=>({...row,high_risk_count:0,audited_control_count:0,breaching_kri_count:0,total_kri_count:0,compliance_rate:0}));
     const stats=buildDashboardStats({filters,canReadControls:false,canReadIssues:false,canReadVendors:false,departmentMetrics:metrics,issueSummary:null,summary:null,t:key=>key});
     render(<><DashboardSummarySections issueLinks={buildDashboardDrillthrough(filters).issues} canReadIssues={false} categoryAnalyticsTitle="Analytics" issueAging={null} issueAgingTitle="Age" issueSeverity={null} issueSeverityTitle="Severity" issueSummary={null} stats={stats} summary={null}/><DashboardRiskSections canUseDepartmentFilter={false} departmentMetrics={metrics} departmentVisibilityTitle="Counted departments" breachHistoryTitle="Breach history" breachTrends={[]} controlExecutionTitle="Executions" grossDistribution={null} grossMatrixTitle="Gross" historicalTitle="History" netDistribution={null} netMatrixTitle="Net" noExecutionHistoryLabel="None" onGrossCellClick={()=>undefined} onNetCellClick={()=>undefined} onRiskModalClose={()=>undefined} riskCreationTitle="Created" riskModal={{isOpen:false,impact:0,probability:0,riskType:'gross'}} riskTrends={[]} trends={[]}/></>);
@@ -28,7 +28,7 @@ it('opens the existing exact Department population without discarding Dashboard 
 });
 
 it.each([false,true])('projects selected Risk and Control destinations from Department shell authority %s',canReadDepartments=>{
-    const filters={departmentId:17,riskLevel:'high' as const,controlStatus:null,controlForm:'manual'};
+    const filters={departmentId:17,riskLevel:'high' as const,controlStatus:null,controlForm:'manual' as const};
     const stats=buildDashboardStats({filters,canReadDepartments,canReadControls:true,canReadIssues:false,canReadVendors:false,departmentMetrics:[],issueSummary:null,summary:null,t:key=>key});
     render(<DashboardSummarySections issueLinks={buildDashboardDrillthrough(filters).issues} canReadIssues={false} categoryAnalyticsTitle="Analytics" issueAging={null} issueAgingTitle="Age" issueSeverity={null} issueSeverityTitle="Severity" issueSummary={null} stats={stats} summary={null}/>);
     for(const title of ['stats.total_controls','stats.critical_risks','stats.avg_risk_score']) {

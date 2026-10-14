@@ -1,3 +1,4 @@
+import { runInNewContext } from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -9,7 +10,7 @@ const fixtureFunction = source.slice(source.indexOf('function pendingAsset()'), 
 describe('issue161 recoverable Asset response fixture', () => {
     it('passes the production read schema with advisory state independent from the pending lock', () => {
         // Evaluate only the checked-in, pure object factory, not the browser suite.
-        const fixture = new Function('TARGET_NAME', 'APPROVAL_ID', `return (${fixtureFunction})();`)('Customer account platform', 916);
+        const fixture: unknown = runInNewContext(`(${fixtureFunction})();`, { TARGET_NAME: 'Customer account platform', APPROVAL_ID: 916 });
         const parsed = assetSchema.parse(fixture);
         expect(parsed.name).toBe('Customer account platform');
         expect(parsed.capabilities).toMatchObject({

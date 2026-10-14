@@ -1,3 +1,4 @@
+const { getKriMock, getHistoryMock, getRiskMock, requestHistoryEditMock, deleteKriMock } = vi.hoisted(() => ({ getKriMock: vi.fn(), getHistoryMock: vi.fn(), getRiskMock: vi.fn(), requestHistoryEditMock: vi.fn(), deleteKriMock: vi.fn() }));
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -8,11 +9,6 @@ import { ApiClientError } from '@/services/apiClient';
 import { createTestQueryClient } from '@test/queryClient';
 import { renderWithoutProviders as render } from '@test/render';
 
-const getKriMock = vi.fn();
-const getHistoryMock = vi.fn();
-const getRiskMock = vi.fn();
-const requestHistoryEditMock = vi.fn();
-const deleteKriMock = vi.fn();
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -43,18 +39,18 @@ function kri(id: number) {
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getKRI: (...args: unknown[]) => getKriMock(...args),
-        getHistory: (...args: unknown[]) => getHistoryMock(...args),
+        getKRI: getKriMock,
+        getHistory: getHistoryMock,
         updateKRI: vi.fn(),
-        deleteKRI: (...args: unknown[]) => deleteKriMock(...args),
+        deleteKRI: deleteKriMock,
         restoreKRI: vi.fn(),
-        requestHistoryEdit: (...args: unknown[]) => requestHistoryEditMock(...args),
+        requestHistoryEdit: requestHistoryEditMock,
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisk: (...args: unknown[]) => getRiskMock(...args),
+        getRisk: getRiskMock,
     },
 }));
 
@@ -142,7 +138,7 @@ describe('KRI detail route ownership', () => {
 
         await act(async () => router.navigate('/kris/2'));
         expect(await screen.findByRole('heading', { name: 'KRI 2' })).toBeInTheDocument();
-        await act(async () => deletion.resolve());
+        await act(() => Promise.resolve(deletion.resolve()));
 
         expect(router.state.location.pathname).toBe('/kris/2');
         expect(screen.queryByText('KRI register')).not.toBeInTheDocument();
@@ -184,9 +180,10 @@ describe('KRI detail route ownership', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'history:202' }));
         expect(screen.getByRole('heading', { name: /Request correction/i })).toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             historyA.resolve({ items: [{ id: 101 }], total: 1 });
             riskA.resolve({ id: 10, name: 'Risk A' });
+            return Promise.resolve();
         });
         expect(screen.queryByRole('button', { name: 'history:101' })).not.toBeInTheDocument();
         expect(screen.queryByText('linked:Risk A')).not.toBeInTheDocument();

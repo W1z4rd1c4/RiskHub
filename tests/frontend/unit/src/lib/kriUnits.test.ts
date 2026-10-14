@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { formatKriUnit, formatKriUnitName } from '@/lib/kriUnits';
 
-const t = ((key: string, options?: Record<string, unknown>) => i18n.t(key, options)) as SafeTFunction;
+const t = ((key: string, options?: Record<string, unknown>) => i18n.t(key, { defaultValue: key, ...options })) as SafeTFunction;
 
 /** Audit GAP-D-03: KRI unit codes are translated for display; the stored code is unchanged. */
 describe('kriUnits', () => {

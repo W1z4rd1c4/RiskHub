@@ -1,8 +1,9 @@
+import type * as HooksModule from '@/i18n/hooks';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof HooksModule>()),
     useTranslation: () => ({ t: (key: string) => key }),
 }));
 
@@ -42,10 +43,10 @@ describe('NotificationSettings governed approval preferences', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(notificationsApi.getPreferences).mockResolvedValue(preferences);
-        vi.mocked(notificationsApi.updatePreferences).mockImplementation(async (update) => ({
+        vi.mocked(notificationsApi.updatePreferences).mockImplementation((update) => Promise.resolve(({
             ...preferences,
             ...update,
-        }));
+        })));
     });
 
     it('renders two accessible default-on switches and persists them independently', async () => {

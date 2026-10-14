@@ -2,7 +2,7 @@ import * as axe from 'axe-core';
 import { http, HttpResponse } from 'msw';
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { act, cleanup, render, renderWithoutProviders, screen, userEvent, waitFor, within } from '@test/render';
 import { server } from '@test/mocks/server';
@@ -71,15 +71,14 @@ import type { OrphanedItem } from '@/types/orphanedItem';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
-let canvasContextSpy: ReturnType<typeof vi.spyOn>;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+let canvasContextSpy: MockInstance<HTMLCanvasElement['getContext']>;
+let consoleErrorSpy: MockInstance<(...args: unknown[]) => void>;
+let consoleWarnSpy: MockInstance<(...args: unknown[]) => void>;
 
 beforeAll(() => {
-    canvasContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function getContext() {
-        const canvas = this;
+    canvasContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function getContext(this: HTMLCanvasElement) {
         return {
-            canvas,
+            canvas: this,
             clearRect: () => {},
             fillText: () => {},
             getImageData: (_x: number, _y: number, width: number, height: number) => {
@@ -187,7 +186,7 @@ async function assertOpenDialogContract(
         && !element.closest('[aria-hidden="true"]')
     ));
     expect(focusable.length, 'dialog must expose at least one tabbable control').toBeGreaterThan(0);
-    const firstFocusable = focusable[0]!;
+    const firstFocusable = focusable[0];
     const lastFocusable = focusable.at(-1)!;
 
     lastFocusable.focus();
@@ -391,6 +390,7 @@ const orphanFixture: OrphanedItem = {
     previous_owner_email: 'jo@example.test',
     orphaned_at: '2026-02-01T00:00:00Z',
     status: 'pending',
+    request_reason_required: false,
     capabilities: {
         can_resolve: true,
         can_view_detail: true,
@@ -686,7 +686,7 @@ describe('Dialog interaction matrix — accessible-name fixed (C5a)', () => {
                     kri={kriFixture}
                     isOpen
                     onClose={onClose}
-                    onSave={async () => ({ kind: 'updated' })}
+                    onSave={() => Promise.resolve(({ kind: 'updated' }))}
                 />
             ),
             async (surface) => {

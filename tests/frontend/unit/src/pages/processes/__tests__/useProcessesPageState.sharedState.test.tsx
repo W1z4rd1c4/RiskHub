@@ -25,9 +25,9 @@ const pendingCreation = {
     requested_by_name: 'Requester',
     reason: 'Add the payments process',
     proposed: {},
-    derived: { cif: 'No' },
+    derived: { cif: 'no' },
     capabilities: { can_view_diff: true, can_cancel: true, is_requester: true, can_resolve: false },
-} as ProcessPendingCreationRead;
+} satisfies ProcessPendingCreationRead;
 
 const page = (id: number, name: string, pending = [] as ProcessPendingCreationRead[]): ProcessListResponse => ({
     items: [process(id, name)],
@@ -188,9 +188,9 @@ describe('useProcessesPageState shared collection state', () => {
         await waitFor(() => expect(result.current.location.search).toContain('page=4'));
         expect(result.current.location.search).toContain('source=audit');
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.state.currentPage).toBe(2));
-        act(() => result.current.navigate(1));
+        await act(() => result.current.navigate(1));
         await waitFor(() => expect(result.current.state.currentPage).toBe(4));
     });
 
@@ -211,7 +211,7 @@ describe('useProcessesPageState shared collection state', () => {
         await waitFor(() => expect(result.current.location.search).toBe('?source=audit'));
         expect(result.current.state.currentPage).toBe(1);
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.location.search).toBe('?marker=before'));
     });
 
@@ -235,7 +235,7 @@ describe('useProcessesPageState shared collection state', () => {
         await waitFor(() => expect(result.current.location.search).toContain('filters='));
         expect(result.current.location.search).not.toContain('page=');
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.location.search).toContain('page=3'));
     });
 
@@ -258,7 +258,7 @@ describe('useProcessesPageState shared collection state', () => {
         act(() => result.current.state.updateSearch('payments'));
         await waitFor(() => expect(result.current.location.search).toBe('?source=audit&q=payments'));
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.location.search).toBe('?marker=before'));
     });
 });

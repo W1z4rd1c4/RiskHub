@@ -28,6 +28,7 @@ import {
     parseRegisterUrlState,
     type RegisterSortState,
 } from '../shared/registerListQuery';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildVendorRegisterListParams,
@@ -112,7 +113,7 @@ export function useVendorsPageState(
         semanticFilters.tier,
     ]);
 
-    const listParams = useMemo(() => buildVendorRegisterListParams({
+    const requestParams = useMemo(() => buildVendorRegisterListParams({
         currentPage,
         filters: effectiveFilters,
         groupValue,
@@ -121,6 +122,7 @@ export function useVendorsPageState(
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, sort, viewMode]);
+    const listParams = useStableRegisterRequestParams(requestParams);
     const queryIdentity = JSON.stringify(listParams);
     useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
     const queryState = forQuery(queryIdentity);

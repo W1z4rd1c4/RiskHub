@@ -1,3 +1,4 @@
+import type * as TestModule0 from '@/i18n/hooks';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -13,7 +14,7 @@ const tMock = (_key: string, fallback?: string | Record<string, unknown>) => (
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof TestModule0>()),
     useTranslation: () => ({
         t: tMock,
         i18n: { language: 'en' },
@@ -24,14 +25,14 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
     useTotalAssetsValue: () => ({ totalAssets: 1_000_000 }),
 }));
 
-const mockUseAuth = vi.fn();
+const mockUseAuth = vi.hoisted(() => vi.fn());
 vi.mock('@/contexts/AuthContext', () => ({
-    useAuth: () => mockUseAuth(),
+    useAuth: mockUseAuth,
 }));
 
-const mockUseAuthz = vi.fn();
+const mockUseAuthz = vi.hoisted(() => vi.fn());
 vi.mock('@/authz/useAuthz', () => ({
-    useAuthz: () => mockUseAuthz(),
+    useAuthz: mockUseAuthz,
 }));
 
 vi.mock('@/services/riskQuestionnairesApi', () => ({
@@ -47,6 +48,8 @@ vi.mock('@/services/riskQuestionnairesApi', () => ({
 }));
 
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
+
+const anyAbortSignal: unknown = expect.any(AbortSignal);
 
 const baseRisk: Risk = {
     id: 10,
@@ -64,6 +67,7 @@ const baseRisk: Risk = {
     net_impact: 2,
     net_score: 4,
     status: 'active',
+    is_archived: false,
     is_priority: false,
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
@@ -115,12 +119,12 @@ describe('RiskQuestionnaireDetail open flow', () => {
         vi.resetAllMocks();
         mockUseAuth.mockReturnValue({ user: { id: 1, department_id: 1 } });
         mockUseAuthz.mockReturnValue({ isDepartmentHead: false, canRequestRiskClarification: false });
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire());
-        (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire());
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue({
             ...sentQuestionnaire(),
             status: 'in_progress',
         });
-        (riskQuestionnairesApi.listClarifications as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+        vi.mocked(riskQuestionnairesApi.listClarifications).mockResolvedValue([]);
     });
 
     it('calls open() when questionnaire is sent and user can submit', async () => {
@@ -137,14 +141,14 @@ describe('RiskQuestionnaireDetail open flow', () => {
             expect(riskQuestionnairesApi.open).toHaveBeenCalledWith(
                 123,
                 { includePrevious: false },
-                { signal: expect.any(AbortSignal) },
+                { signal: anyAbortSignal },
             );
         });
     });
 
     it('does not call open() when backend capability denies submit', async () => {
         mockUseAuth.mockReturnValue({ user: { id: 999, department_id: 2 } });
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
             capabilities: {
                 can_open: false,
                 can_save_draft: false,
@@ -172,7 +176,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
     });
 
     it('uses backend capabilities to suppress automatic open', async () => {
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue({
             ...sentQuestionnaire(),
             capabilities: {
                 can_open: false,
@@ -202,11 +206,11 @@ describe('RiskQuestionnaireDetail open flow', () => {
 
     it('applies the authoritative saved draft without a correctness reload', async () => {
         const onChanged = vi.fn();
-        (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
             status: 'in_progress',
             answers: completeAnswers,
         }));
-        (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.saveDraft).mockResolvedValue(sentQuestionnaire({
             status: 'in_progress',
             answers: { ...completeAnswers, 'risk_assessment.q2_new_triggers': 'Updated draft' },
         }));
@@ -227,7 +231,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
             expect(riskQuestionnairesApi.saveDraft).toHaveBeenCalledWith(
                 123,
                 completeAnswers,
-                { signal: expect.any(AbortSignal) },
+                { signal: anyAbortSignal },
             );
         });
         expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
@@ -236,11 +240,11 @@ describe('RiskQuestionnaireDetail open flow', () => {
     });
 
     it('aborts an owned questionnaire action when the detail unmounts', async () => {
-        (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
             status: 'in_progress',
             answers: completeAnswers,
         }));
-        (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>)
+        vi.mocked(riskQuestionnairesApi.saveDraft)
             .mockReturnValue(new Promise(() => undefined));
         const view = render(
             <RiskQuestionnaireDetail
@@ -252,7 +256,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         );
 
         await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.actions.save' }));
-        const signal = (riskQuestionnairesApi.saveDraft as unknown as ReturnType<typeof vi.fn>)
+        const signal = vi.mocked(riskQuestionnairesApi.saveDraft)
             .mock.calls[0]?.[2]?.signal as AbortSignal;
         expect(signal).toBeInstanceOf(AbortSignal);
 
@@ -262,7 +266,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
     });
 
     it('clears Risk A detail and actions while Risk B is loading during an owned save', async () => {
-        const save = deferred<{ id: number }>();
+        const save = deferred<RiskQuestionnaireDetailType>();
         const riskB = deferred<RiskQuestionnaireDetailType>();
         const onChanged = vi.fn();
         vi.mocked(riskQuestionnairesApi.get).mockImplementation((id) => (
@@ -286,7 +290,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'risks:questionnaire.actions.save' }));
         const saveSignal = vi.mocked(riskQuestionnairesApi.saveDraft).mock.calls[0]?.[2]?.signal as AbortSignal;
 
-        await act(async () => view.rerender(
+        await act(() => Promise.resolve(view.rerender(
             <RiskQuestionnaireDetail
                 isOpen
                 onClose={() => {}}
@@ -294,14 +298,14 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 risk={baseRisk}
                 onChanged={onChanged}
             />,
-        ));
+        )));
 
         expect(saveSignal.aborted).toBe(true);
         expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'common:actions.submit' })).not.toBeInTheDocument();
 
-        await act(async () => save.resolve({ id: 123 }));
+        await act(() => Promise.resolve(save.resolve(sentQuestionnaire({ status: 'in_progress' }))));
         expect(onChanged).not.toHaveBeenCalled();
     });
 
@@ -324,7 +328,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await waitFor(() => expect(riskQuestionnairesApi.get).toHaveBeenCalledWith(
             124,
             { includePrevious: false },
-            { signal: expect.any(AbortSignal) },
+            { signal: anyAbortSignal },
         ));
         expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
@@ -345,7 +349,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await waitFor(() => expect(riskQuestionnairesApi.open).toHaveBeenCalledWith(
             123,
             { includePrevious: false },
-            { signal: expect.any(AbortSignal) },
+            { signal: anyAbortSignal },
         ));
         expect(screen.queryByTestId('risk-questionnaire-ready')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'risks:questionnaire.actions.save' })).not.toBeInTheDocument();
@@ -428,11 +432,11 @@ describe('RiskQuestionnaireDetail open flow', () => {
 
     it('applies the authoritative submitted questionnaire without a correctness reload', async () => {
         const onChanged = vi.fn();
-        (riskQuestionnairesApi.open as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.open).mockResolvedValue(sentQuestionnaire({
             status: 'in_progress',
             answers: completeAnswers,
         }));
-        (riskQuestionnairesApi.submit as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.submit).mockResolvedValue(sentQuestionnaire({
             status: 'submitted',
             answers: completeAnswers,
             submitted_at: '2025-01-03T00:00:00Z',
@@ -461,7 +465,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
             expect(riskQuestionnairesApi.submit).toHaveBeenCalledWith(
                 123,
                 completeAnswers,
-                { signal: expect.any(AbortSignal) },
+                { signal: anyAbortSignal },
             );
             expect(onChanged).toHaveBeenCalledTimes(1);
         });
@@ -556,7 +560,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
     );
 
     it('clears a superseded save pending flag when clarification takes ownership', async () => {
-        const saveDraft = new Promise<{ id: number }>(() => undefined);
+        const saveDraft = new Promise<RiskQuestionnaireDetailType>(() => undefined);
         vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
             status: 'submitted',
             answers: completeAnswers,
@@ -594,7 +598,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
     });
 
     it('loads previous submission in compare mode and marks changed answers', async () => {
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>)
+        vi.mocked(riskQuestionnairesApi.get)
             .mockResolvedValueOnce(sentQuestionnaire({
                 status: 'submitted',
                 answers: {
@@ -635,7 +639,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
             expect(riskQuestionnairesApi.get).toHaveBeenLastCalledWith(
                 123,
                 { includePrevious: true },
-                { signal: expect.any(AbortSignal) },
+                { signal: anyAbortSignal },
             );
         });
         expect(await screen.findByText('risks:questionnaire.changed')).toBeInTheDocument();
@@ -643,7 +647,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
     });
 
     it('applies a created clarification without detail or list correctness reloads', async () => {
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
             status: 'submitted',
             answers: completeAnswers,
             capabilities: {
@@ -654,7 +658,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 can_respond_to_clarifications: false,
             },
         }));
-        (riskQuestionnairesApi.createClarification as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        vi.mocked(riskQuestionnairesApi.createClarification).mockResolvedValue({
             id: 1,
             questionnaire_id: 123,
             section_key: 'questionnaire.sections.risk_changes',
@@ -685,7 +689,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 section_key: 'questionnaire.sections.risk_changes',
                 request_message: 'Please clarify',
                 question_keys: ['risk_assessment.q1_description_changed'],
-            }, { signal: expect.any(AbortSignal) });
+            }, { signal: anyAbortSignal });
         });
         expect(riskQuestionnairesApi.listClarifications).toHaveBeenCalledTimes(1);
         expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
@@ -728,7 +732,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
         await waitFor(() => expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1));
 
-        await act(async () => initialList.resolve([]));
+        await act(() => Promise.resolve(initialList.resolve([])));
 
         expect(await screen.findByText('Authoritative clarification')).toBeInTheDocument();
     });
@@ -768,7 +772,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await userEvent.click(screen.getByRole('button', { name: 'common:actions.submit' }));
         await waitFor(() => expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1));
 
-        await act(async () => initialList.reject(new Error('late initial read failed')));
+        await act(() => Promise.resolve(initialList.reject(new Error('late initial read failed'))));
 
         expect(await screen.findByText('Authoritative clarification')).toBeInTheDocument();
     });
@@ -803,18 +807,18 @@ describe('RiskQuestionnaireDetail open flow', () => {
         expect(riskQuestionnairesApi.createClarification).toHaveBeenCalledTimes(1);
         expect(submit).toBeDisabled();
 
-        await act(async () => create.resolve({
+        await act(() => Promise.resolve(create.resolve({
             id: 2,
             questionnaire_id: 123,
             section_key: 'questionnaire.sections.risk_changes',
             request_message: 'Please clarify once',
             requested_by_user_id: 2,
             requested_at: '2025-01-02T00:00:00Z',
-        }));
+        })));
     });
 
     it('applies a clarification response without detail or list correctness reloads', async () => {
-        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+        vi.mocked(riskQuestionnairesApi.get).mockResolvedValue(sentQuestionnaire({
             status: 'submitted',
             answers: completeAnswers,
             capabilities: {
@@ -825,7 +829,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 can_respond_to_clarifications: true,
             },
         }));
-        (riskQuestionnairesApi.listClarifications as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+        vi.mocked(riskQuestionnairesApi.listClarifications).mockResolvedValue([
             {
                 id: 44,
                 questionnaire_id: 123,
@@ -837,7 +841,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
                 response_message: null,
             },
         ]);
-        (riskQuestionnairesApi.respondClarification as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+        vi.mocked(riskQuestionnairesApi.respondClarification).mockResolvedValue({
             id: 44,
             questionnaire_id: 123,
             section_key: 'questionnaire.sections.risk_changes',
@@ -867,7 +871,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         await waitFor(() => {
             expect(riskQuestionnairesApi.respondClarification).toHaveBeenCalledWith(123, 44, {
                 response_message: 'Response text',
-            }, { signal: expect.any(AbortSignal) });
+            }, { signal: anyAbortSignal });
         });
         expect(riskQuestionnairesApi.listClarifications).toHaveBeenCalledTimes(1);
         expect(riskQuestionnairesApi.get).toHaveBeenCalledTimes(1);
@@ -912,7 +916,7 @@ describe('RiskQuestionnaireDetail open flow', () => {
         expect(riskQuestionnairesApi.respondClarification).toHaveBeenCalledTimes(1);
         expect(submit).toBeDisabled();
 
-        await act(async () => response.resolve({
+        await act(() => Promise.resolve(response.resolve({
             id: 44,
             questionnaire_id: 123,
             section_key: 'questionnaire.sections.risk_changes',
@@ -922,6 +926,6 @@ describe('RiskQuestionnaireDetail open flow', () => {
             response_message: 'Respond once',
             responded_by_user_id: 1,
             responded_at: '2025-01-03T00:00:00Z',
-        }));
+        })));
     });
 });

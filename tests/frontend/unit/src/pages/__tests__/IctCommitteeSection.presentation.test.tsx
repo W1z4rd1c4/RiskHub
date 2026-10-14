@@ -1,3 +1,5 @@
+import type * as MockictRegisterCommitteeApiModule from '@/services/ictRegisterCommitteeApi';
+import type * as Actualreact from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -8,10 +10,10 @@ import { IctCommitteeSection } from '@/components/dashboard/IctCommitteeSection'
 import i18n from '@/i18n';
 import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterCommittee';
 
-const getCommittee = vi.fn();
+const getCommittee = vi.fn<typeof MockictRegisterCommitteeApiModule.ictRegisterCommitteeApi.getCommittee>();
 
 vi.mock('@/../node_modules/recharts/lib/index.js', async () => {
-    const React = await vi.importActual<typeof import('react')>('react');
+    const React = await vi.importActual<typeof Actualreact>('react');
     const ChartDataContext = React.createContext<Array<Record<string, unknown>>>([]);
     const passthrough = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
 
@@ -48,7 +50,7 @@ vi.mock('@/../node_modules/recharts/lib/index.js', async () => {
 
 vi.mock('@/services/ictRegisterCommitteeApi', () => ({
     ictRegisterCommitteeApi: {
-        getCommittee: (...args: unknown[]) => getCommittee(...args),
+        getCommittee: (...args: Parameters<typeof getCommittee>) => getCommittee(...args),
     },
 }));
 

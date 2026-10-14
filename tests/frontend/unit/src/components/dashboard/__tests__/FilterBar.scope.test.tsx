@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
-const getDepartmentsMock = vi.fn();
+const getDepartmentsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -17,7 +17,7 @@ vi.mock('@/i18n/hooks', () => ({
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getDepartments: (...args: unknown[]) => getDepartmentsMock(...args),
+        getDepartments: getDepartmentsMock,
     },
 }));
 

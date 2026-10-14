@@ -3,10 +3,10 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getBreachesMock = vi.fn();
-const getOverdueMock = vi.fn();
-const getDueSoonMock = vi.fn();
-const getDepartmentsMock = vi.fn();
+const getBreachesMock = vi.hoisted(() => vi.fn());
+const getOverdueMock = vi.hoisted(() => vi.fn());
+const getDueSoonMock = vi.hoisted(() => vi.fn());
+const getDepartmentsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/i18n/hooks', () => {
     const t = (key: string, fallback?: unknown) => {
@@ -49,15 +49,15 @@ vi.mock('@/contexts/DashboardFilterContext', () => {
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getBreaches: (...args: unknown[]) => getBreachesMock(...args),
-        getOverdue: (...args: unknown[]) => getOverdueMock(...args),
-        getDueSoon: (...args: unknown[]) => getDueSoonMock(...args),
+        getBreaches: getBreachesMock,
+        getOverdue: getOverdueMock,
+        getDueSoon: getDueSoonMock,
     },
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getDepartments: (...args: unknown[]) => getDepartmentsMock(...args),
+        getDepartments: getDepartmentsMock,
     },
 }));
 

@@ -71,6 +71,7 @@ GOVERNED_WORKFLOWS = {
     ".github/workflows/lint.yml",
     ".github/workflows/maintenance-governance.yml",
     ".github/workflows/python-dev-lock-refresh.yml",
+    ".github/workflows/python-runtime-lock.yml",
     ".github/workflows/release-parity-fast.yml",
     ".github/workflows/release-parity-pr.yml",
     ".github/workflows/release.yml",

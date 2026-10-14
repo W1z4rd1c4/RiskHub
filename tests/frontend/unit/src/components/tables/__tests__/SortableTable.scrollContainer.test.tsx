@@ -37,17 +37,17 @@ describe('SortableTable horizontal viewport', () => {
 
         const viewport = screen.getByRole('region', { name: 'Scrollable data table' });
         setWidths(viewport, 500, 500);
-        act(() => window.dispatchEvent(new Event('resize')));
+        act(() => { window.dispatchEvent(new Event('resize')); });
         expect(viewport).toHaveAttribute('tabindex', '-1');
         expect(screen.queryByText('More columns to the right')).not.toBeInTheDocument();
 
         setWidths(viewport, 500, 900);
-        act(() => window.dispatchEvent(new Event('resize')));
+        act(() => { window.dispatchEvent(new Event('resize')); });
         expect(viewport).toHaveAttribute('tabindex', '0');
         expect(screen.getByText('More columns to the right')).toBeVisible();
 
         setWidths(viewport, 500, 500);
-        act(() => window.dispatchEvent(new Event('resize')));
+        act(() => { window.dispatchEvent(new Event('resize')); });
         expect(viewport).toHaveAttribute('tabindex', '-1');
         expect(screen.queryByText('More columns to the right')).not.toBeInTheDocument();
     });
@@ -62,7 +62,7 @@ describe('SortableTable horizontal viewport', () => {
 
         const viewport = screen.getByRole('region', { name: 'Scrollable data table' });
         setWidths(viewport, 400, 900);
-        act(() => window.dispatchEvent(new Event('resize')));
+        act(() => { window.dispatchEvent(new Event('resize')); });
         viewport.focus();
 
         await user.keyboard('{ArrowRight}');
@@ -82,7 +82,7 @@ describe('SortableTable horizontal viewport', () => {
 
         const viewport = screen.getByRole('region', { name: 'Posuvná datová tabulka' });
         setWidths(viewport, 400, 900);
-        act(() => window.dispatchEvent(new Event('resize')));
+        act(() => { window.dispatchEvent(new Event('resize')); });
         expect(screen.getByText('Další sloupce vpravo')).toBeVisible();
     });
 });

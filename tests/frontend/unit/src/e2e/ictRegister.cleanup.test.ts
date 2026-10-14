@@ -16,49 +16,49 @@ describe('governed Process E2E cleanup', () => {
 
   it('attempts the fixture cleanup when an additional approval scenario cannot be read', async () => {
     let scenarioReads = 0;
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      const url = String(input);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = (input instanceof Request ? input.url : input.toString());
       if (url.endsWith('/api/v1/auth/config')) {
-        return jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' });
+        return Promise.resolve(jsonResponse({ demo_login_enabled: true, auth_mode: 'hybrid_dev' }));
       }
       if (url.includes('/api/v1/auth/demo-login') && init?.method === 'POST') {
-        return jsonResponse({ access_token: 'demo-token' });
+        return Promise.resolve(jsonResponse({ access_token: 'demo-token' }));
       }
       if (url.includes('/api/v1/approvals?')) {
-        return jsonResponse({ items: [] });
+        return Promise.resolve(jsonResponse({ items: [] }));
       }
       if (url.endsWith('/api/v1/riskhub/approval-scenarios')) {
         scenarioReads += 1;
         if (scenarioReads === 2) {
-          return jsonResponse({ detail: 'scenario read failed' }, 500);
+          return Promise.resolve(jsonResponse({ detail: 'scenario read failed' }, 500));
         }
-        return jsonResponse([{
+        return Promise.resolve(jsonResponse([{
           key: 'protected_process_edit',
           requires_approval: false,
           approver_roles: ['admin'],
-        }]);
+        }]));
       }
       if (url.includes('/api/v1/processes?')) {
-        return jsonResponse({
+        return Promise.resolve(jsonResponse({
           items: [{
             id: 42,
             f_code: 'F-E2E-CLEANUP',
             l1_process: 'E2E cleanup Process',
             is_archived: false,
           }],
-        });
+        }));
       }
       if (
         url.endsWith('/api/v1/processes/42/risk-links')
         || url.endsWith('/api/v1/processes/42/asset-links')
         || url.endsWith('/api/v1/processes/42/vendor-links')
       ) {
-        return jsonResponse([]);
+        return Promise.resolve(jsonResponse([]));
       }
       if (url.endsWith('/api/v1/processes/42') && init?.method === 'DELETE') {
-        return jsonResponse({ detail: 'archive failed' }, 500);
+        return Promise.resolve(jsonResponse({ detail: 'archive failed' }, 500));
       }
-      throw new Error(`Unexpected fetch call: ${url}`);
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
     });
 
     await expect(cleanupGovernedProcessFixture({

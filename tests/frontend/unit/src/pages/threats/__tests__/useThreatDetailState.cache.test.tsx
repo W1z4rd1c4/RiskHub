@@ -1,3 +1,4 @@
+import type * as MockthreatApiModule from '@/services/threatApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
@@ -30,11 +31,11 @@ const originalThreat: Threat = {
     updated_at: '2026-07-15T10:00:00Z',
 };
 
-const mockGetThreat = vi.fn();
+const mockGetThreat = vi.fn<typeof MockthreatApiModule.threatApi.getThreat>();
 
 vi.mock('@/services/threatApi', () => ({
     threatApi: {
-        getThreat: (...args: unknown[]) => mockGetThreat(...args),
+        getThreat: (...args: Parameters<typeof mockGetThreat>) => mockGetThreat(...args),
         restoreThreat: vi.fn(),
     },
 }));
@@ -64,7 +65,7 @@ describe('useThreatDetailState edit cache', () => {
             defaultOptions: { queries: { retry: false } },
         });
         const { result } = renderHook(
-            () => useThreatDetailState({ mode: 'edit', notFoundMessage: 'not found' }),
+            () => useThreatDetailState({ mode: 'edit' }),
             { wrapper: createWrapper(client) },
         );
 

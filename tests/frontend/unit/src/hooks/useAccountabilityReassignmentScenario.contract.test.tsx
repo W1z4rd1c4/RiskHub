@@ -27,7 +27,7 @@ describe('accountability reassignment scenario API contract', () => {
         setApiRuntimeOrigin('https://riskhub.example.test');
 
         const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = new URL(String(input));
+            const url = new URL((input instanceof Request ? input.url : input.toString()));
             const method = init?.method ?? 'GET';
             const authorization = new Headers(init?.headers).get('Authorization');
 
@@ -39,7 +39,7 @@ describe('accountability reassignment scenario API contract', () => {
                     display_name: 'Accountability reassignment',
                     description: 'Protected accountability changes',
                     requires_approval: true,
-                    approver_roles: ['CRO'],
+                    approver_roles: ['cro'],
                     fixed_policy: true,
                     fixed_policy_definition: {
                         threshold: 'accountable_user_or_owning_department_change',
@@ -77,7 +77,7 @@ describe('accountability reassignment scenario API contract', () => {
         });
         await expect(riskHubApi.updateApprovalScenario('accountability_reassignment', {
             requires_approval: false,
-            approver_roles: ['CRO'],
+            approver_roles: ['cro'],
         })).rejects.toMatchObject({ status: 403 });
         expect(fetchSpy).toHaveBeenCalledTimes(2);
     });

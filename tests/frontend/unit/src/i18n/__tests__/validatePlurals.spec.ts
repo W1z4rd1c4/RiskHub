@@ -11,13 +11,17 @@ import {
   needsPluralForms,
 } from '../../../../../../frontend/scripts/i18n/validate-plurals.mjs';
 
-const invariantPatterns = compileInvariantPatterns({
+const compiledPatterns: unknown = compileInvariantPatterns({
   invariantValuePatterns: [
     { pattern: '\\{\\{count\\}\\}\\s*%', reason: 'percentage' },
     { pattern: ':\\s*\\{\\{count\\}\\}[).\\s]*$', reason: 'label: value' },
     { pattern: '\\(\\{\\{count\\}\\}\\)', reason: 'tally' },
   ],
 });
+if (!Array.isArray(compiledPatterns) || !compiledPatterns.every((pattern): pattern is RegExp => pattern instanceof RegExp)) {
+  throw new Error('Plural invariants must compile into regular expressions');
+}
+const invariantPatterns: RegExp[] = compiledPatterns;
 
 describe('validate-plurals', () => {
   it('requires cs _one/_few/_other and en _one/_other for {{count}} strings', () => {
@@ -81,7 +85,7 @@ describe('validate-plurals', () => {
   });
 
   it('rejects allowlist patterns without a reason', () => {
-    expect(() => compileInvariantPatterns({ invariantValuePatterns: [{ pattern: '%' }] })).toThrow(/reason/);
+    expect(() => { compileInvariantPatterns({ invariantValuePatterns: [{ pattern: '%' }] }); }).toThrow(/reason/);
   });
 
   describe('zero tolerance (no baseline)', () => {

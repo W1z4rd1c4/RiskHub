@@ -16,6 +16,7 @@ import type { Asset, AssetDerived } from '@/types/asset';
 
 function sampleAssetDerived(overrides: Partial<AssetDerived> = {}): AssetDerived {
     return {
+        is_complete: true,
         ciaa_value: 5,
         primary_process_name: 'Sjednání pojištění – Online',
         primary_process_criticality: 'critical',

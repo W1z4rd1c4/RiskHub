@@ -1,0 +1,110 @@
+name: Python Runtime Lock
+
+on:
+  pull_request:
+    paths:
+      - 'backend/requirements*.txt'
+      - 'backend/locks/**'
+      - 'backend/Dockerfile'
+      - 'scripts/tools/runtime_dependency_lock.py'
+      - 'scripts/tools/tests/test_runtime_dependency_lock.py'
+      - '.github/workflows/python-runtime-lock.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/requirements*.txt'
+      - 'backend/locks/**'
+      - 'backend/Dockerfile'
+      - 'scripts/tools/runtime_dependency_lock.py'
+      - 'scripts/tools/tests/test_runtime_dependency_lock.py'
+      - '.github/workflows/python-runtime-lock.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  alpine-lock:
+    name: Native Alpine runtime lock candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Run offline lock regression checks
+        run: python3 -m unittest discover -s scripts/tools/tests -p test_runtime_dependency_lock.py -v
+
+      - name: Build the production resolver platform
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/runtime-lock"
+          docker build --platform linux/amd64 --target builder-base \
+            -t riskhub-lock-resolver -f backend/Dockerfile backend
+          {
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo "workflow_run=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            docker image inspect riskhub-lock-resolver --format 'resolver_image={{.Id}}'
+          } > "$RUNNER_TEMP/runtime-lock/ci-provenance.txt"
+
+      - name: Generate twice and verify two clean installs per lane
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/amd64 \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$RUNNER_TEMP/runtime-lock:/out" -w /repo riskhub-lock-resolver sh -euc '
+              python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r backend/requirements-lock-bootstrap.txt
+              python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/first
+              python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/second
+              diff -ru /out/first /out/second
+              python scripts/tools/runtime_dependency_lock.py verify --lock-dir /out/first
+              python scripts/tools/runtime_dependency_lock.py dockerfile --lock-dir /out/first --output /out/Dockerfile.candidate
+            ' 2>&1 | tee "$RUNNER_TEMP/runtime-lock/verification.log"
+
+      - name: Compare committed locks and prepare candidate build context
+        run: |
+          set -euo pipefail
+          # Check committed inputs before overlaying any generated candidates.
+          python3 scripts/tools/runtime_dependency_lock.py preflight
+          lock_dir=backend/locks/cpython313-alpine324-x86_64
+          if [ -d "$lock_dir" ]; then
+            diff -ru "$lock_dir" "$RUNNER_TEMP/runtime-lock/first"
+            # After activation, test the actual production contract too. A secure
+            # rewritten candidate must not hide a weakened committed Dockerfile.
+            cmp backend/Dockerfile "$RUNNER_TEMP/runtime-lock/Dockerfile.candidate"
+          else
+            echo '::notice::Initial candidate only: T4 remains open until reviewed locks and Docker cutover are committed.'
+          fi
+          mkdir -p "$lock_dir"
+          cp "$RUNNER_TEMP/runtime-lock/first/"* "$lock_dir/"
+
+      - name: Build both hash-enforced production candidates
+        run: |
+          set -euo pipefail
+          for lane in runtime dbtasks; do
+            docker build --platform linux/amd64 --target "$lane" \
+              -t "riskhub-locked-$lane" -f "$RUNNER_TEMP/runtime-lock/Dockerfile.candidate" backend
+            docker run --rm --platform linux/amd64 --user riskhub -e HOME=/home/riskhub --entrypoint python \
+              -v "$RUNNER_TEMP/runtime-lock/first/manifest.json:/tmp/lock-manifest.json:ro" \
+              "riskhub-locked-$lane" -c '
+          import importlib.metadata as metadata, json, re, sys
+          import argon2, asyncpg, bcrypt, cryptography, greenlet, psutil, pydantic_core, uvloop
+          manifest = json.load(open("/tmp/lock-manifest.json"))
+          expected = {name: value["version"] for name, value in manifest["lanes"][sys.argv[1]]["packages"].items()}
+          actual = {re.sub(r"[-_.]+", "-", d.metadata["Name"]).lower(): d.version for d in metadata.distributions()}
+          assert actual == expected, (actual, expected)
+          if sys.argv[1] == "dbtasks":
+              import psycopg2
+          print("Native import and exact production package inventory passed:", sys.argv[1])
+          ' "$lane"
+          done 2>&1 | tee "$RUNNER_TEMP/runtime-lock/image-verification.log"
+
+      - name: Upload exact candidate and verification evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-lock-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/runtime-lock/
+          if-no-files-found: error
+          retention-days: 30

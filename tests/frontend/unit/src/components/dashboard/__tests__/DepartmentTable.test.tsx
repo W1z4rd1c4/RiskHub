@@ -1,3 +1,4 @@
+import type * as ReactRouterDomModule from 'react-router-dom';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -5,7 +6,7 @@ import { DashboardFilterProvider, useDashboardFilters } from '@/contexts/Dashboa
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable';
 import type { DepartmentMetrics } from '@/types/dashboard';
 
-const mockNavigate = vi.fn();
+const mockNavigate = vi.fn<(destination: string) => void>();
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -31,7 +32,7 @@ vi.mock('@/i18n/hooks', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof ReactRouterDomModule>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 // The flat ESM config (default export = the resolved config array, plus the pure
 // severity-promotion helper as a named export). It carries no type declarations;
 // this test only inspects the RESOLVED runtime rule severities and the helper.
-// eslint-disable-next-line import/extensions -- flat ESM config sibling of the app
 import eslintConfig, { promoteJsxA11yWarnToError } from '../../../../../frontend/eslint.config.js';
 
 /**
@@ -62,7 +61,7 @@ describe('eslint.config.js — resolved jsx-a11y rule severities', () => {
     const entry = rules['jsx-a11y/control-has-associated-label'];
     expect(Array.isArray(entry)).toBe(true); // shipped as ["off", { ...options }]
     expect(severityOf(entry)).toBe('off');
-    expect((entry as unknown[])[1]).toMatchObject({ ignoreElements: expect.any(Array) });
+    expect((entry as unknown[])[1]).toHaveProperty('ignoreElements', expect.any(Array));
   });
 
   it('keeps the modern labeling rule label-has-associated-control at its shipped error', () => {

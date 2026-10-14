@@ -55,6 +55,9 @@ describe('ControlEditPage workflow navigation', () => {
                 process: 'Payments',
                 category: 'Operations',
                 description: 'Payment processing may stop.',
+                risk_type: 'operational',
+                gross_probability: 3,
+                gross_impact: 3,
                 gross_score: 9,
                 net_score: 4,
                 status: 'active',
@@ -107,7 +110,7 @@ describe('ControlEditPage workflow navigation', () => {
             messageKey: 'errorKeys.server',
             rawMessage: 'Payment reconciliation must not leak from the server response',
         });
-        vi.mocked(controlApi.getControl)
+        vi.spyOn(controlApi, 'getControl')
             .mockRejectedValueOnce(failure)
             .mockRejectedValueOnce(failure)
             .mockResolvedValueOnce(control);
@@ -136,7 +139,7 @@ describe('ControlEditPage workflow navigation', () => {
 
     it('returns from a failed edit load to the exact safe register working set', async () => {
         const returnTo = '/controls?q=payments&page=3#group-heading';
-        vi.mocked(controlApi.getControl).mockRejectedValueOnce(
+        vi.spyOn(controlApi, 'getControl').mockRejectedValueOnce(
             new ApiClientError({ status: 404, messageKey: 'errorKeys.not_found' }),
         );
         const router = createMemoryRouter([
@@ -170,7 +173,7 @@ describe('ControlEditPage workflow navigation', () => {
         );
 
         await screen.findByRole('heading', { name: /record unavailable/i });
-        expect(controlApi.getControl).not.toHaveBeenCalled();
+        expect(vi.spyOn(controlApi, 'getControl')).not.toHaveBeenCalled();
         expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('button', { name: 'Back to Catalog' }));

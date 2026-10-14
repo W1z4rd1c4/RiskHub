@@ -6,6 +6,10 @@ import type { VendorPendingChangeRead } from '@/types/vendor';
 
 const safePendingChange: VendorPendingChangeRead = {
     approval_id: 87,
+    proposal_id: 'proposal-87',
+    proposal_version: 1,
+    status: 'pending',
+    generic_label: 'protected_vendor_change',
     mutation_kind: 'vendor.edit',
     reason: 'Critical service scope changed',
     requested_by_name: 'Alice Requester',

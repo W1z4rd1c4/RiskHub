@@ -1,3 +1,4 @@
+import type * as ActualuserSettingsStorage from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,10 +17,10 @@ import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentR
 import { ControlsPage } from '@/pages/ControlsPage';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof ActualuserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
@@ -226,7 +227,7 @@ describe('ControlsPage archived visibility', () => {
         expect(screen.queryByText('Failed Control')).not.toBeInTheDocument();
     });
     it.each([false,true])('retains form and locked Department scope through real page URL cleanup (department=%s)',async department=>{
-        const criteria:Record<string,unknown>[]=[];let reports=0;
+        const criteria:unknown[]=[];let reports=0;
         server.use(
             http.get('*/api/v1/auth/me',()=>HttpResponse.json(makeUser({effective_permissions:['controls:read','reports:read']}))),
             http.get('*/api/v1/controls',({request})=>{criteria.push(JSON.parse(new URL(request.url).searchParams.get('filters')??'{}'));return HttpResponse.json({items:[],total:0,offset:0,limit:50,capabilities:{can_export:true}});}),

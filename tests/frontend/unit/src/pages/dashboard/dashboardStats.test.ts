@@ -26,7 +26,7 @@ describe('dashboardStats', () => {
         const stats = buildDashboardStats(options);
         const issues = stats.find((stat) => stat.title === 'issues.summary.open_issues')!;
         const url = new URL(issues.path, 'https://riskhub.test');
-        const filters = JSON.parse(url.searchParams.get('filters') ?? '{}');
+        const filters: unknown = JSON.parse(url.searchParams.get('filters') ?? '{}');
         expect(filters).toEqual({ include_closed: false, exclude_active_exceptions: true, ...(departmentId ? { department_id: departmentId } : {}) });
         expect(url.searchParams.has('riskLevel')).toBe(false);
         const vendors = new URL(stats.find((stat) => stat.title === 'stats.vendors')!.path, url);
@@ -34,7 +34,7 @@ describe('dashboardStats', () => {
     });
 
     it.each([null, 17])('round-trips every released destination through its actual register and request adapters, department=%s', (departmentId) => {
-        const activeFilters = { departmentId, riskLevel: 'high' as const, controlStatus: 'draft', controlForm: 'manual' };
+        const activeFilters = { departmentId, riskLevel: 'high' as const, controlStatus: 'draft' as const, controlForm: 'manual' as const };
         const links = buildDashboardDrillthrough(activeFilters);
         const department = departmentId === null ? {} : { department_id: departmentId };
         const cases = [
@@ -57,7 +57,7 @@ describe('dashboardStats', () => {
             else if (route === '/kris') wire = buildKriCollectionQuery(buildKriRegisterListParams({ ...listState, filters: parseKriRegisterFilters(parsed.filters) }));
             else if (route === '/vendors') wire = buildVendorCollectionQuery(buildVendorRegisterListParams({ ...listState, filters: parseVendorRegisterFilters(parsed.filters) }));
             else wire = buildRiskCollectionQuery(buildRiskRegisterListParams({ ...listState, criticalMinNetScore: 20, filters: parseRiskRegisterFilters(parsed.filters) }));
-            const actual = wire.has('filters') ? JSON.parse(wire.get('filters')!) : Object.fromEntries(wire);
+            const actual: unknown = wire.has('filters') ? JSON.parse(wire.get('filters')!) : Object.fromEntries(wire);
             if (route === '/risks') {
                 expect(actual).toMatchObject({ critical: true, status: 'active', lifecycle: 'active' });
                 expect(actual).not.toHaveProperty('net_band');
@@ -77,9 +77,9 @@ describe('dashboardStats', () => {
             canReadIssues: true,
             canReadVendors: true,
             departmentMetrics: [
-                { department_id: 1, department_name: 'Ops', risk_count: 0, control_count: 0 },
-                { department_id: 2, department_name: 'IT', risk_count: 1, control_count: 0 },
-                { department_id: 3, department_name: 'Fin', risk_count: 0, control_count: 2 },
+                { high_risk_count: 0, audited_control_count: 0, breaching_kri_count: 0, total_kri_count: 0, compliance_rate: 0, department_id: 1, department_name: 'Ops', risk_count: 0, control_count: 0 },
+                { high_risk_count: 0, audited_control_count: 0, breaching_kri_count: 0, total_kri_count: 0, compliance_rate: 0, department_id: 2, department_name: 'IT', risk_count: 1, control_count: 0 },
+                { high_risk_count: 0, audited_control_count: 0, breaching_kri_count: 0, total_kri_count: 0, compliance_rate: 0, department_id: 3, department_name: 'Fin', risk_count: 0, control_count: 2 },
             ],
             issueSummary: {
                 open_issues: 4,

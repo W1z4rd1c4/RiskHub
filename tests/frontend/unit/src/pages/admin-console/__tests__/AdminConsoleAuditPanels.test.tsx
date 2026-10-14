@@ -1,3 +1,5 @@
+import type * as ActualI18nHooks from '@/i18n/hooks';
+const { getAuditLogsMock, getCapabilitiesMock, getLogConfigMock, updateLogConfigMock, getLookupUsersMock } = vi.hoisted(() => ({ getAuditLogsMock: vi.fn(), getCapabilitiesMock: vi.fn(), getLogConfigMock: vi.fn(), updateLogConfigMock: vi.fn(), getLookupUsersMock: vi.fn() }));
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HTMLAttributes, ReactNode } from 'react';
@@ -6,12 +8,9 @@ import { renderWithQueryClient } from '@test/utils';
 
 import { ApiClientError } from '@/services/apiClient';
 
-const getAuditLogsMock = vi.fn();
-const getCapabilitiesMock = vi.fn();
-const getLogConfigMock = vi.fn();
-const updateLogConfigMock = vi.fn();
-const getLookupUsersMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
+const writeClipboardMock = vi.fn<Clipboard['writeText']>();
+const createObjectURLMock = vi.fn<typeof URL.createObjectURL>();
 let latestQueryClient: ReturnType<typeof createTestQueryClient> | null = null;
 
 vi.mock('framer-motion', () => ({
@@ -23,7 +22,7 @@ vi.mock('framer-motion', () => ({
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof ActualI18nHooks>()),
     useTranslation: () => ({
         t: (key: string, options?: { count?: number }) => (options?.count ? `${key}: ${options.count}` : key),
         i18n: { language: 'en' },
@@ -65,16 +64,16 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
-        getAuditLogs: (...args: unknown[]) => getAuditLogsMock(...args),
-        getCapabilities: (...args: unknown[]) => getCapabilitiesMock(...args),
-        getLogConfig: (...args: unknown[]) => getLogConfigMock(...args),
-        updateLogConfig: (...args: unknown[]) => updateLogConfigMock(...args),
+        getAuditLogs: getAuditLogsMock,
+        getCapabilities: getCapabilitiesMock,
+        getLogConfig: getLogConfigMock,
+        updateLogConfig: updateLogConfigMock,
     },
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getUsers: (...args: unknown[]) => getLookupUsersMock(...args),
+        getUsers: getLookupUsersMock,
     },
 }));
 
@@ -87,7 +86,7 @@ function createAuditQueryClient() {
     queryClient.invalidateQueries = ((...args: Parameters<typeof queryClient.invalidateQueries>) => {
         invalidateQueriesMock(...args);
         return originalInvalidate(...args);
-    }) as typeof queryClient.invalidateQueries;
+    });
 
     return queryClient;
 }
@@ -154,11 +153,11 @@ describe('AuditLogsPanel', () => {
         ]);
         Object.defineProperty(URL, 'createObjectURL', {
             configurable: true,
-            value: vi.fn(() => 'blob:audit-export'),
+            value: createObjectURLMock.mockReturnValue('blob:audit-export'),
         });
         Object.defineProperty(navigator, 'clipboard', {
             configurable: true,
-            value: { writeText: vi.fn().mockResolvedValue(undefined) },
+            value: { writeText: writeClipboardMock.mockResolvedValue(undefined) },
         });
     });
 
@@ -344,7 +343,7 @@ describe('AuditLogsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'audit.details_modal.copy' }));
 
         await waitFor(() => {
-            expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('"changed": true'));
+            expect(writeClipboardMock).toHaveBeenCalledWith(expect.stringContaining('"changed": true'));
         });
         expect(await screen.findByRole('button', { name: 'audit.details_modal.copied' })).toBeInTheDocument();
     });
@@ -363,7 +362,7 @@ describe('AuditLogsPanel', () => {
     });
 
     it('renders a retryable error state, not an empty feed, when the audit logs fail to load (GAP-C-11)', async () => {
-        getAuditLogsMock.mockRejectedValue(new ApiClientError('boom', 500));
+        getAuditLogsMock.mockRejectedValue(new ApiClientError({ status: 500, messageKey: 'errorKeys.server', rawMessage: 'boom' }));
         renderAuditLogsPanel();
 
         const alert = await screen.findByRole('alert');
@@ -476,7 +475,7 @@ describe('AuditLogsPanel', () => {
         fireEvent.click(refreshButton);
 
         await waitFor(() => expect(getAuditLogsMock).toHaveBeenCalledTimes(callsBeforeRefresh + 2));
-        expect(getAuditLogsMock.mock.calls.slice(-2).map(([params]) => params)).toEqual([
+        expect(getAuditLogsMock.mock.calls.slice(-2).map(([params]): unknown => params)).toEqual([
             { lines: 100, event_type: 'user_update' },
             { lines: 100, event_type: undefined },
         ]);
@@ -511,9 +510,9 @@ describe('AuditLogsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
         fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
 
-        expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
-        expect(URL.createObjectURL).toHaveBeenNthCalledWith(1, expect.any(Blob));
-        expect(URL.createObjectURL).toHaveBeenNthCalledWith(2, expect.any(Blob));
+        expect(createObjectURLMock).toHaveBeenCalledTimes(2);
+        expect(createObjectURLMock).toHaveBeenNthCalledWith(1, expect.any(Blob));
+        expect(createObjectURLMock).toHaveBeenNthCalledWith(2, expect.any(Blob));
         expect(clickMock).toHaveBeenCalledTimes(2);
         expect(getAuditLogsMock).toHaveBeenCalledTimes(2);
         clickMock.mockRestore();
@@ -533,7 +532,7 @@ describe('AuditLogsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
         fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
 
-        expect(URL.createObjectURL).not.toHaveBeenCalled();
+        expect(createObjectURLMock).not.toHaveBeenCalled();
         expect(clickMock).not.toHaveBeenCalled();
         clickMock.mockRestore();
     });

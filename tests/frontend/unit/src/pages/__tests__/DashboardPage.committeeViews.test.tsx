@@ -1,3 +1,6 @@
+import type * as MockreportApiModule from '@/services/reportApi';
+import type * as MockdashboardApiModule from '@/services/dashboardApi';
+import type * as Actualformatters from '@/i18n/formatters';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -12,11 +15,11 @@ import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 // committee section; browser back/forward moves between tabs; and the ICT tab
 // is independent of the overview request (never blocked by its loading/error).
 
-const fetchOverviewMock = vi.fn();
-const downloadSummaryCsvMock = vi.fn();
+const fetchOverviewMock = vi.fn<typeof MockdashboardApiModule.dashboardApi.fetchOverview>();
+const downloadSummaryCsvMock = vi.fn<typeof MockreportApiModule.reportApi.downloadSummaryCsv>();
 
 vi.mock('@/services/reportApi', () => ({
-    reportApi: { downloadSummaryCsv: (...args: unknown[]) => downloadSummaryCsvMock(...args) },
+    reportApi: { downloadSummaryCsv: (...args: Parameters<typeof downloadSummaryCsvMock>) => downloadSummaryCsvMock(...args) },
 }));
 let canViewCommitteeMock = false;
 let canViewIctCommitteeMock = false;
@@ -30,7 +33,7 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -56,7 +59,7 @@ vi.mock('@/i18n/hooks', async () => {
 
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
-        fetchOverview: (...args: unknown[]) => fetchOverviewMock(...args),
+        fetchOverview: (...args: Parameters<typeof fetchOverviewMock>) => fetchOverviewMock(...args),
     },
 }));
 
@@ -116,6 +119,7 @@ const MINIMAL_OVERVIEW = {
         risks_by_status: {},
         critical_risks_count: 0,
         average_net_risk_score: 0,
+        risk_thresholds: { critical: 15, high: 10, medium: 5 },
     },
     department_metrics: [],
     gross_distribution: { distribution: [] },
@@ -126,6 +130,7 @@ const MINIMAL_OVERVIEW = {
     issue_summary: null,
     issue_aging: null,
     issue_severity: null,
+    filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
     generated_at: '2026-07-12T10:00:00Z',
     capabilities: {
         can_read: true,
@@ -292,7 +297,7 @@ describe('Overview summary export ownership (#178)', () => {
         fireEvent.click(screen.getByRole('button', { name: '__change_filters__' }));
         expect(await screen.findByRole('button', { name: 'actions.export_overview_csv' })).toBeDisabled();
         fireEvent.click(screen.getByRole('tab', { name: 'views.risk_committee' }));
-        await act(async () => rejectExport(new Error('export unavailable')));
+        await act(() => Promise.resolve(rejectExport(new Error('export unavailable'))));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'actions.retry' })).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('tab', { name: 'views.overview' }));

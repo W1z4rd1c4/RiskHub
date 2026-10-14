@@ -1,15 +1,17 @@
+import type * as MockissuesApiModule from '@/services/issuesApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 
-const mockList = vi.fn();
+const mockList = vi.fn<typeof MockissuesApiModule.issuesApi.list>();
 const mockNavigate = vi.fn();
 
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        list: (...args: unknown[]) => mockList(...args),
+        list: (...args: Parameters<typeof mockList>) => mockList(...args),
     },
 }));
 
@@ -20,7 +22,7 @@ vi.mock('@/services/reportApi', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -51,6 +53,7 @@ describe('IssuesPage table navigation', () => {
                     created_at: '2026-01-02T09:00:00Z',
                     updated_at: '2026-01-02T09:00:00Z',
                     risk_contexts: [],
+                    vendor_contexts: [],
                 },
             ],
             total: 1,

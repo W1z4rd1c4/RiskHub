@@ -1,3 +1,9 @@
+import type * as MockauthConfigModule from '@/services/authConfig';
+import type * as MockuserApiModule from '@/services/userApi';
+import type * as MockuserDirectoryApiModule from '@/services/userDirectoryApi';
+import type * as MockaccessApiModule from '@/services/accessApi';
+import type * as MockdepartmentApiModule from '@/services/departmentApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderInRouter as render } from '@test/render';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
@@ -7,11 +13,11 @@ import type { AuthConfigResponse } from '@/services/authApi';
 import adminEn from '@/i18n/locales/en/admin.json';
 
 const mockNavigate = vi.fn();
-const mockGetAuthConfig = vi.fn();
-const mockListDirectoryUsers = vi.fn();
-const mockCreateUser = vi.fn();
-const mockListAccessRoles = vi.fn();
-const mockGetDepartments = vi.fn();
+const mockGetAuthConfig = vi.fn<typeof MockauthConfigModule.getAuthConfig>();
+const mockListDirectoryUsers = vi.fn<typeof MockuserDirectoryApiModule.userDirectoryApi.listDirectoryUsers>();
+const mockCreateUser = vi.fn<typeof MockuserApiModule.userApi.createUser>();
+const mockListAccessRoles = vi.fn<typeof MockaccessApiModule.accessApi.listAccessRoles>();
+const mockGetDepartments = vi.fn<typeof MockdepartmentApiModule.departmentApi.getDepartments>();
 
 function resolveAdminTranslation(key: string): string | undefined {
     return key.split('.').reduce<unknown>((current, part) => {
@@ -35,31 +41,31 @@ vi.mock('@/i18n/hooks', () => ({
 }));
 
 vi.mock('@/services/authConfig', () => ({
-    getAuthConfig: (...args: unknown[]) => mockGetAuthConfig(...args),
+    getAuthConfig: (...args: Parameters<typeof mockGetAuthConfig>) => mockGetAuthConfig(...args),
     clearAuthConfigCache: vi.fn(),
 }));
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        createUser: (...args: unknown[]) => mockCreateUser(...args),
+        createUser: (...args: Parameters<typeof mockCreateUser>) => mockCreateUser(...args),
     },
 }));
 
 vi.mock('@/services/userDirectoryApi', () => ({
     userDirectoryApi: {
-        listDirectoryUsers: (...args: unknown[]) => mockListDirectoryUsers(...args),
+        listDirectoryUsers: (...args: Parameters<typeof mockListDirectoryUsers>) => mockListDirectoryUsers(...args),
     },
 }));
 
 vi.mock('@/services/accessApi', () => ({
     accessApi: {
-        listAccessRoles: (...args: unknown[]) => mockListAccessRoles(...args),
+        listAccessRoles: (...args: Parameters<typeof mockListAccessRoles>) => mockListAccessRoles(...args),
     },
 }));
 
 vi.mock('@/services/departmentApi', () => ({
     departmentApi: {
-        getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
+        getDepartments: (...args: Parameters<typeof mockGetDepartments>) => mockGetDepartments(...args),
     },
 }));
 
@@ -94,7 +100,7 @@ vi.mock('@/components/users/DirectoryUserImportPanel', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -106,6 +112,7 @@ describe('UserNewPage SSO mode', () => {
         auth_mode: 'microsoft_sso',
         demo_login_enabled: false,
         password_login_enabled: false,
+        strict_capabilities: true,
         sso: {
             enabled: true,
             provider: 'entra',
@@ -125,7 +132,7 @@ describe('UserNewPage SSO mode', () => {
         mockCreateUser.mockReset();
         mockListAccessRoles.mockReset();
         mockGetDepartments.mockReset();
-        mockCreateUser.mockResolvedValue({});
+        mockCreateUser.mockResolvedValue({ id: 1, name: 'New user', email: 'new@example.test', is_active: true, role: { id: 1, name: 'employee', display_name: 'Employee', description: null }, department_id: null, manager_id: null, manager_name: null, created_at: '2026-07-15T10:00:00Z', updated_at: '2026-07-15T10:00:00Z' });
         mockListAccessRoles.mockResolvedValue([]);
         mockGetDepartments.mockResolvedValue([]);
         mockListDirectoryUsers.mockResolvedValue({
@@ -224,7 +231,7 @@ describe('UserNewPage SSO mode', () => {
             { id: 1, name: 'admin', display_name: 'Admin', description: null, permissions: [] },
             { id: 2, name: 'control_owner', display_name: 'Control Owner', description: null, permissions: [] },
         ]);
-        mockGetDepartments.mockResolvedValue([{ id: 9, name: 'Operations' }]);
+        mockGetDepartments.mockResolvedValue([{ id: 9, name: 'Operations', code: 'OPS', user_count: 0, risk_count: 0, high_risk_count: 0, control_count: 0, kri_count: 0, breaching_kri_count: 0, total_net_score: 0 }]);
 
         render(<UserNewPage />);
 

@@ -64,7 +64,7 @@ describe('useEntityDetailMutationWorkflow', () => {
 
         const presentation = buildDetailMutationPresentation({
             approvalsLabel: 'Approvals',
-            message: window.__entityMutationMessage,
+            message: window.__entityMutationMessage ?? { key: '' },
             onNavigateApprovals: () => undefined,
             pendingText: 'View',
         });
