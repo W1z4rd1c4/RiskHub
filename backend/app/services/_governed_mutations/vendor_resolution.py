@@ -16,7 +16,6 @@ from sqlalchemy.orm.attributes import set_committed_value
 from app.core.audit import vendor as audit_vendor
 from app.core.audit import vendor_contract as audit_vendor_contract
 from app.core.audit import vendor_sub_outsourcing as audit_vendor_sub_outsourcing
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -47,6 +46,7 @@ from app.schemas.vendor_sub_outsourcing import (
 from app.services._ict_register_reference.parameters import (
     load_ict_workbook_parameter_set_for_update,
 )
+from app.services._vendor_governance import VendorOrphanCompletion, apply_vendor_edit
 from app.services._vendor_governance.policy import (
     assert_vendor_archive_allowed,
     assert_vendor_create_allowed,
@@ -864,14 +864,15 @@ async def approve_vendor_mutation(
                 department_id=vendor.department_id,
             )
         changes = audit_vendor.vendor_update_changes(vendor, updates)
-        for field, value in updates.items():
-            setattr(vendor, field, value.value if hasattr(value, "value") else value)
-        vendor.governance_version += 1
-        if governed_orphan is not None:
-            governed_orphan.status = "resolved"
-            governed_orphan.resolved_at = utc_now()
-            governed_orphan.resolved_by_id = resolver.id
-            governed_orphan.new_owner_id = int(updates["outsourcing_owner_user_id"])
+        apply_vendor_edit(
+            vendor=vendor,
+            updates=updates,
+            orphan_completion=(
+                VendorOrphanCompletion(governed_orphan, resolver.id)
+                if governed_orphan is not None
+                else None
+            ),
+        )
         await audit_vendor.vendor_updated(
             db,
             actor=resolver,

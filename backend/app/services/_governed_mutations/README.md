@@ -51,6 +51,21 @@ mutations defined by [ADR-016](../../../../docs/adr/ADR-016-governed-mutation-pr
   unresolved proposal may only expire through its family's authorized bounded
   cleanup; terminal replay cannot create a second audit/outbox suffix.
 
+## Operational application and versions
+
+The Vendor-domain `apply_vendor_edit` step owns Vendor edit fields, their
+governance-version change, and completion of an already-validated orphan. It
+is used by ordinary direct edits, approved replay, and direct orphan repair.
+Authorization, reference validation, locking, stale checks, audits, approval
+terminal transitions, outbox events, and transaction completion remain with
+the existing entry points.
+
+An accepted ordinary or approved Vendor edit advances the Vendor version once.
+Ordinary direct no-op edits return before application. Direct orphan ownership
+repair advances the version only when the owner changes, while a same-owner
+repair still completes the orphan. This distinction is intentional and is not
+a new no-op policy for other mutations.
+
 ## Boundaries
 
 - Proposal intake and proposal-specific lifecycle behavior belong here.

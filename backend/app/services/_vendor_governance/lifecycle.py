@@ -10,6 +10,7 @@ from app.models import User, Vendor
 from app.schemas.vendor import VendorCreate, VendorRead, VendorUpdate
 from app.services.transaction_boundary import commit_service_boundary
 
+from .apply import apply_vendor_edit
 from .policy import (
     assert_vendor_archive_allowed,
     assert_vendor_create_allowed,
@@ -123,11 +124,7 @@ async def update_vendor_detail(
     if queued is not None:
         return queued
     changes = audit_vendor.vendor_update_changes(vendor, updates)
-    for field, value in updates.items():
-        if hasattr(value, "value"):
-            value = value.value
-        setattr(vendor, field, value)
-    vendor.governance_version += 1
+    apply_vendor_edit(vendor=vendor, updates=updates)
 
     await audit_vendor.vendor_updated(
         db,
