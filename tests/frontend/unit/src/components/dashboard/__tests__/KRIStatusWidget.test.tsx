@@ -3,8 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const getOverdueMock = vi.fn();
-const getDueSoonMock = vi.fn();
+const getOverdueMock = vi.hoisted(() => vi.fn());
+const getDueSoonMock = vi.hoisted(() => vi.fn());
 const dashboardScope = vi.hoisted(() => ({ departmentId: null as number | null }));
 
 vi.mock('@/i18n/hooks', () => {
@@ -36,8 +36,8 @@ vi.mock('@/contexts/DashboardFilterContext', () => ({
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getOverdue: (...args: unknown[]) => getOverdueMock(...args),
-        getDueSoon: (...args: unknown[]) => getDueSoonMock(...args),
+        getOverdue: getOverdueMock,
+        getDueSoon: getDueSoonMock,
     },
 }));
 

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Profiler, Suspense, startTransition, useState } from 'react';
+import { Profiler, Suspense, startTransition, use, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { describe, expect, it, vi } from 'vitest';
@@ -43,11 +43,11 @@ interface FakeItem {
 
 const adapter: VendorLinkedEntitiesAdapter<FakeItem> = {
     errorLogPrefix: 'test:',
-    fetch: vi.fn(async () => []),
+    fetch: vi.fn(() => Promise.resolve([])),
     isArchived: (item) => item.is_archived,
-    link: vi.fn(async () => undefined),
+    link: vi.fn(() => Promise.resolve(undefined)),
     toExistingLink: (item) => ({ display_name: item.name, id: item.id, effectiveness: 'linked' }),
-    unlink: vi.fn(async () => undefined),
+    unlink: vi.fn(() => Promise.resolve(undefined)),
 };
 
 function fakeTab(currentAdapter: VendorLinkedEntitiesAdapter<FakeItem>, vendorId = 7) {
@@ -131,10 +131,10 @@ describe('VendorLinkedEntitiesTab', () => {
         const seenOptions: Array<{ id: number; archived: boolean }> = [];
         const mixedAdapter: VendorLinkedEntitiesAdapter<FakeItem> = {
             ...adapter,
-            fetch: vi.fn(async () => [
+            fetch: vi.fn(() => Promise.resolve([
                 { id: 1, name: 'Active item', is_archived: false },
                 { id: 2, name: 'Archived item', is_archived: true },
-            ]),
+            ])),
         };
         render(
             <MemoryRouter>
@@ -210,7 +210,7 @@ describe('VendorLinkedEntitiesTab', () => {
 
         function BlockingVendorBSibling({ vendorId }: { vendorId: number }) {
             if (vendorId === 8 && isVendorBRenderBlocked) {
-                throw vendorBRender;
+                use(vendorBRender);
             }
             return null;
         }
@@ -245,7 +245,10 @@ describe('VendorLinkedEntitiesTab', () => {
         render(<TransitionHarness />, { container: host });
         await waitFor(() => expect(identityAdapter.fetch).toHaveBeenCalledWith(7));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Show vendor B' }));
+        await act(() => {
+            fireEvent.click(screen.getByRole('button', { name: 'Show vendor B' }));
+            return Promise.resolve();
+        });
         expect(screen.getByTestId('current-vendor')).toHaveTextContent('7');
         expect(identityAdapter.fetch).toHaveBeenCalledTimes(1);
 
@@ -274,9 +277,7 @@ describe('VendorLinkedEntitiesTab', () => {
     it('announces a rejected governed mutation INSIDE the open reason dialog, then on the page banner after close (#100 P2)', async () => {
         const rejectingAdapter: VendorLinkedEntitiesAdapter<FakeItem> = {
             ...adapter,
-            link: vi.fn(async () => {
-                throw Object.assign(new Error('reason required'), { status: 422 });
-            }),
+            link: vi.fn(() => Promise.reject(Object.assign(new Error('reason required'), { status: 422 }))),
         };
 
         render(
@@ -356,8 +357,9 @@ describe('VendorLinkedEntitiesTab', () => {
         fireEvent.click(retryButton);
         expect(failingAdapter.fetch).toHaveBeenCalledTimes(2);
 
-        await act(async () => {
+        await act(() => {
             releaseRetry([]);
+            return Promise.resolve();
         });
 
         await screen.findByText('links.fake.empty');
@@ -416,11 +418,11 @@ describe('VendorLinkedEntitiesTab', () => {
         });
         const identityAdapter: VendorLinkedEntitiesAdapter<FakeItem> = {
             ...adapter,
-            fetch: vi.fn(async (vendorId: number) => [{
+            fetch: vi.fn((vendorId: number) => Promise.resolve([{
                 id: vendorId,
                 name: `Vendor ${vendorId} linked item`,
                 is_archived: false,
-            }]),
+            }])),
             link: vi.fn(() => mutation),
         };
 
@@ -433,8 +435,9 @@ describe('VendorLinkedEntitiesTab', () => {
         view.rerender(fakeTab(identityAdapter, 8));
         await screen.findByText('Vendor 8 linked item');
 
-        await act(async () => {
+        await act(() => {
             releaseMutation();
+            return Promise.resolve();
         });
 
         await waitFor(() => expect(identityAdapter.fetch).toHaveBeenCalledTimes(2));

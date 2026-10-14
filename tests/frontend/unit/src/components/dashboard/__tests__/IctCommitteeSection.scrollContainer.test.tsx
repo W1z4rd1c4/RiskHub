@@ -8,11 +8,11 @@ import i18n from '@/i18n';
 import type { IctCommittee } from '@/types/ictRegisterCommittee';
 import { AuthProviderWithReady } from '@test/authBootstrap';
 
-const getCommittee = vi.fn();
+const getCommittee = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/ictRegisterCommitteeApi', () => ({
     ictRegisterCommitteeApi: {
-        getCommittee: (...args: unknown[]) => getCommittee(...args),
+        getCommittee: getCommittee,
     },
 }));
 

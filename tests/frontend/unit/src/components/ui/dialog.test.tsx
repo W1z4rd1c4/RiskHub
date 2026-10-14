@@ -56,7 +56,7 @@ function V2Dialog({
 
 async function openDialog(ui: ReactNode) {
     const user = userEvent.setup();
-    renderWithoutProviders(ui);
+    renderWithoutProviders(<>{ui}</>);
     const launch = screen.getByRole('button', { name: 'launch' });
     launch.focus();
     await user.click(launch);

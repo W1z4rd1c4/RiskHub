@@ -6,7 +6,6 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
-import type { ControlFormLocationState } from '@/components/control-form/useControlFormWorkflow';
 import { renderWithoutProviders as render } from '@test/render';
 import { server } from '@test/mocks/server';
 
@@ -35,7 +34,7 @@ function DialogHarness({
     onSuccess,
 }: {
     onClose: () => void;
-    onSuccess?: (controlId: number, locationState?: ControlFormLocationState) => void;
+    onSuccess?: (controlId: number, acceptNavigation?: () => void) => void;
 }) {
     const [isOpen, setIsOpen] = useState(true);
     const close = () => {
@@ -49,8 +48,8 @@ function DialogHarness({
             <ControlCreateDialog
                 isOpen={isOpen}
                 onClose={close}
-                onSuccess={(controlId, locationState) => {
-                    onSuccess?.(controlId, locationState);
+                onSuccess={(controlId, acceptNavigation) => {
+                    onSuccess?.(controlId, acceptNavigation);
                     close();
                 }}
             />
@@ -63,7 +62,7 @@ function renderDialog({
     onSuccess,
 }: {
     onClose?: () => void;
-    onSuccess?: (controlId: number, locationState?: ControlFormLocationState) => void;
+    onSuccess?: (controlId: number, acceptNavigation?: () => void) => void;
 } = {}) {
     const router = createMemoryRouter([{
         path: '/',
@@ -205,8 +204,9 @@ describe('ControlCreateDialog dirty-task exits', () => {
         expect(onClose).not.toHaveBeenCalled();
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             resolveCreate?.(HttpResponse.json(createdControl, { status: 201 }));
+            return Promise.resolve();
         });
         expect(await screen.findByText('Dialog closed')).toBeInTheDocument();
         expect(onSuccess).toHaveBeenCalledTimes(1);

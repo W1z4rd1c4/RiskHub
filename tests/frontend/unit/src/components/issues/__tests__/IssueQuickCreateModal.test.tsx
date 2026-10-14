@@ -5,11 +5,11 @@ import { RouterProvider, createMemoryRouter, useNavigate } from 'react-router-do
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 
-const createContextualMock = vi.fn();
+const createContextualMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        createContextual: (...args: unknown[]) => createContextualMock(...args),
+        createContextual: createContextualMock,
     },
 }));
 
@@ -312,8 +312,9 @@ describe('IssueQuickCreateModal', () => {
         expect(onClose).not.toHaveBeenCalled();
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             resolveCreate({ id: 77, title: 'Created issue' });
+            return Promise.resolve();
         });
         expect(onCreated).toHaveBeenCalledWith({ id: 77, title: 'Created issue' });
         expect(onClose).toHaveBeenCalledTimes(1);

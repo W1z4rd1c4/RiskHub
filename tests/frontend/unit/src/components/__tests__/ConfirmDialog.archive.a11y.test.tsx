@@ -36,7 +36,7 @@ function renderArchiveDialog(overrides: Partial<ArchiveDialogProps> = {}) {
     const props = {
         isOpen: true,
         onClose: vi.fn(),
-        onConfirm: vi.fn(async () => undefined),
+        onConfirm: vi.fn(() => Promise.resolve(undefined)),
         ...overrides,
     };
 
@@ -58,7 +58,7 @@ function ControlledArchiveDialog({ onClose }: { onClose: () => void }) {
                     setIsOpen(false);
                     onClose();
                 }}
-                onConfirm={vi.fn(async () => undefined)}
+                onConfirm={vi.fn(() => Promise.resolve(undefined))}
             />
         </>
     );

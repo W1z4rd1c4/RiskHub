@@ -1,3 +1,4 @@
+import type * as HooksModule from '@/i18n/hooks';
 import { StrictMode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -5,19 +6,19 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@test/queryClient';
 
-const mockUseAuth = vi.fn();
+const mockUseAuth = vi.hoisted(() => vi.fn());
 vi.mock('@/contexts/AuthContext', () => ({
-    useAuth: () => mockUseAuth(),
+    useAuth: mockUseAuth,
 }));
 
-const mockUseAuthz = vi.fn();
+const mockUseAuthz = vi.hoisted(() => vi.fn());
 vi.mock('@/authz/useAuthz', () => ({
-    useAuthz: () => mockUseAuthz(),
+    useAuthz: mockUseAuthz,
 }));
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof HooksModule>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -28,10 +29,10 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
     NotificationBell: () => null,
 }));
 
-const getShellSummary = vi.fn();
+const getShellSummary = vi.hoisted(() => vi.fn());
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        getShellSummary: (options?: { signal?: AbortSignal }) => getShellSummary(options),
+        getShellSummary,
     },
 }));
 

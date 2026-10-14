@@ -1,3 +1,4 @@
+import type * as TestModule0 from '@/i18n/hooks';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -17,7 +18,7 @@ vi.mock('@/services/riskApi', () => ({
     }) },
 }));
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof TestModule0>()),
     useTranslation: () => ({ t: (key: string, options?: { name?: string }) => options?.name ? `${key}:${options.name}` : key }),
 }));
 
@@ -30,23 +31,26 @@ it('retains the real panel, hook and client chain to the mounted POST batch-send
     // Observe the real client edge without replacing its implementation.
     const batchSend = vi.spyOn(riskHubApi, 'batchSendQuestionnaires');
     const posts: Array<{ method: string; path: string; body: unknown }> = [];
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const path = new URL(String(input), 'http://localhost').pathname;
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(input instanceof Request ? input.url : input, 'http://localhost').pathname;
         const method = init?.method ?? 'GET';
         if (path === '/api/v1/riskhub/capabilities' && method === 'GET') {
-            return new Response(JSON.stringify({
+            return Promise.resolve(new Response(JSON.stringify({
                 risk_types: { can_create: true }, departments: { can_create: true }, roles: { can_create: true },
                 approval_scenarios: { can_update: true }, system_settings: { can_update: true },
                 questionnaires: { can_batch_send: true },
-            }), { headers: { 'Content-Type': 'application/json' } });
+            }), { headers: { 'Content-Type': 'application/json' } }));
         }
-        if (method === 'POST') posts.push({ method, path, body: JSON.parse(String(init?.body)) });
+        if (method === 'POST') {
+            if (typeof init?.body !== 'string') throw new Error('Expected a JSON request body');
+            posts.push({ method, path, body: JSON.parse(init.body) });
+        }
         if (path !== '/api/v1/riskhub/questionnaires/batch-send' || method !== 'POST') {
-            return new Response(JSON.stringify({ detail: 'unexpected test request' }), { status: 404 });
+            return Promise.resolve(new Response(JSON.stringify({ detail: 'unexpected test request' }), { status: 404 }));
         }
-        return new Response(JSON.stringify({ created_count: 1, skipped_no_owner: [], skipped_open_exists: [], errors: [] }), {
+        return Promise.resolve(new Response(JSON.stringify({ created_count: 1, skipped_no_owner: [], skipped_open_exists: [], errors: [] }), {
             headers: { 'Content-Type': 'application/json' },
-        });
+        }));
     });
     vi.stubGlobal('fetch', fetchMock);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });

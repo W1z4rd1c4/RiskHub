@@ -10,7 +10,7 @@ type RouteDef = {
     element: ReactElement;
 };
 
-function ThrowingChild() {
+function ThrowingChild(): never {
     throw new Error('route crashed');
 }
 

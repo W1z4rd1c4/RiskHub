@@ -1,3 +1,4 @@
+import type * as UserSettingsStorageModule from '@/utils/userSettingsStorage';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,8 +17,8 @@ import { resources as czechResources } from '@/i18n/locales/cs';
 import { resources as englishResources } from '@/i18n/locales/en';
 
 const { saveThemeMock, saveLanguageMock } = vi.hoisted(() => ({
-    saveThemeMock: vi.fn(),
-    saveLanguageMock: vi.fn(),
+    saveThemeMock: vi.fn<(theme: string) => Promise<void>>(),
+    saveLanguageMock: vi.fn<(language: string) => Promise<void>>(),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -25,7 +26,7 @@ vi.mock('@/contexts/AuthContext', () => ({
 }));
 
 vi.mock('@/utils/userSettingsStorage', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/utils/userSettingsStorage')>();
+    const actual = await importOriginal<typeof UserSettingsStorageModule>();
     return {
         ...actual,
         saveThemeToServer: (theme: string) => {
@@ -83,11 +84,11 @@ describe('account preference synchronization', () => {
         expect(saveThemeMock).toHaveBeenNthCalledWith(1, 'dark');
         expect(screen.getByText('Saving')).toBeInTheDocument();
 
-        await act(async () => first.resolve());
+        await act(() => Promise.resolve(first.resolve()));
         await waitFor(() => expect(saveThemeMock).toHaveBeenNthCalledWith(2, 'light'));
         expect(screen.queryByText('Saved')).not.toBeInTheDocument();
 
-        await act(async () => second.resolve());
+        await act(() => Promise.resolve(second.resolve()));
         expect(await screen.findByText('Saved')).toBeInTheDocument();
         expect(screen.getByRole('radio', { name: /light/i })).toBeChecked();
     });
@@ -169,7 +170,7 @@ describe('account preference synchronization', () => {
         const instance = i18n.createInstance();
         await instance
             .use(createDynamicLocaleBackend(createRetryableLocaleLoader({
-                en: async () => ({ resources: englishResources }),
+                en: () => Promise.resolve({ resources: englishResources }),
                 cs: importCzech,
             })))
             .init({
@@ -197,7 +198,7 @@ describe('account preference synchronization', () => {
         expect(screen.getByTestId('language-cs')).not.toBeChecked();
         expect(saveLanguageMock).not.toHaveBeenCalled();
 
-        await act(async () => loaded.resolve());
+        await act(() => Promise.resolve(loaded.resolve()));
 
         expect(await screen.findByText('Uloženo')).toBeInTheDocument();
         expect(screen.getByTestId('language-cs')).toBeChecked();
@@ -300,9 +301,9 @@ describe('account preference synchronization', () => {
         expect(saveLanguageMock).toHaveBeenCalledTimes(1);
         expect(saveLanguageMock).toHaveBeenNthCalledWith(1, 'cs');
 
-        await act(async () => first.resolve());
+        await act(() => Promise.resolve(first.resolve()));
         await waitFor(() => expect(saveLanguageMock).toHaveBeenNthCalledWith(2, 'en'));
-        await act(async () => second.reject(new Error('offline')));
+        await act(() => Promise.resolve(second.reject(new Error('offline'))));
         expect(await screen.findByText('Unsynced')).toBeInTheDocument();
 
         view.rerender(<LanguageProvider>{null}</LanguageProvider>);

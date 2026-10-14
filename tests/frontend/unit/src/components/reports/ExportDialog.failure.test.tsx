@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ExportDialog } from '@/components/reports/ExportDialog';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import { render, screen, userEvent, waitFor } from '@test/render';
 
 describe('ExportDialog failure handling', () => {
@@ -50,7 +50,7 @@ describe('ExportDialog failure handling', () => {
 
     it('defaults a dual-purpose dialog to current-view export without a date field', async () => {
         const onCurrentViewSubmit = vi.fn().mockResolvedValue(undefined);
-        const onSubmit = vi.fn().mockResolvedValue(undefined);
+        const onSubmit = vi.fn<(payload: ExportDialogSubmitPayload) => Promise<void>>().mockResolvedValue(undefined);
 
         render(
             <ExportDialog
@@ -71,7 +71,7 @@ describe('ExportDialog failure handling', () => {
 
     it('requires an explicit point-in-time choice before submitting the selected date', async () => {
         const onCurrentViewSubmit = vi.fn().mockResolvedValue(undefined);
-        const onSubmit = vi.fn().mockResolvedValue(undefined);
+        const onSubmit = vi.fn<(payload: ExportDialogSubmitPayload) => Promise<void>>().mockResolvedValue(undefined);
 
         render(
             <ExportDialog
@@ -116,8 +116,8 @@ describe('ExportDialog failure handling', () => {
             <ExportDialog
                 isOpen
                 onClose={() => undefined}
-                onCurrentViewSubmit={async () => undefined}
-                onSubmit={async () => undefined}
+                onCurrentViewSubmit={() => Promise.resolve(undefined)}
+                onSubmit={() => Promise.resolve(undefined)}
             />,
         );
         await userEvent.click(screen.getByTestId('export-purpose-point-in-time'));
@@ -126,8 +126,8 @@ describe('ExportDialog failure handling', () => {
             <ExportDialog
                 isOpen
                 onClose={() => undefined}
-                onCurrentViewSubmit={async () => undefined}
-                onSubmit={async () => undefined}
+                onCurrentViewSubmit={() => Promise.resolve(undefined)}
+                onSubmit={() => Promise.resolve(undefined)}
             />,
         );
 
@@ -137,7 +137,7 @@ describe('ExportDialog failure handling', () => {
 
     it('keeps the dialog open and announces a rejected download', async () => {
         const onClose = vi.fn();
-        const onSubmit = vi.fn().mockRejectedValue(new Error('download failed'));
+        const onSubmit = vi.fn<(payload: ExportDialogSubmitPayload) => Promise<void>>().mockRejectedValue(new Error('download failed'));
 
         render(<ExportDialog isOpen onClose={onClose} onSubmit={onSubmit} dataTestId="failed-export-dialog" />);
         await userEvent.click(screen.getByTestId('export-submit-button'));
@@ -150,7 +150,7 @@ describe('ExportDialog failure handling', () => {
     });
 
     it('clears the announced error before a retry succeeds', async () => {
-        const onSubmit = vi.fn()
+        const onSubmit = vi.fn<(payload: ExportDialogSubmitPayload) => Promise<void>>()
             .mockRejectedValueOnce(new Error('download failed'))
             .mockResolvedValueOnce(undefined);
 

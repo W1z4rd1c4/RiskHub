@@ -32,7 +32,7 @@ type TestItem = {
 
 function renderResourceHarness(
     deleteResource: (id: number) => Promise<void>,
-    restoreResource: (id: number) => Promise<void> = async () => undefined,
+    restoreResource: (id: number) => Promise<void> = () => Promise.resolve(undefined),
 ) {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -44,10 +44,10 @@ function renderResourceHarness(
     function Harness() {
         const resource = useRiskHubConfigResource<TestItem, TestItem, TestItem>({
             queryKey: ['testResource'],
-            load: async () => [{ id: 7, name: 'Retained item' }],
-            create: async (item) => item,
-            update: async (_id, item) => item,
-            delete: deleteResource,
+            load: () => Promise.resolve([{ id: 7, name: 'Retained item' }]),
+            create: (item) => Promise.resolve(item),
+            update: (_id, item) => Promise.resolve(item),
+            delete: (id) => deleteResource(Number(id)),
             restore: (id) => restoreResource(Number(id)),
             itemId: (item) => item.id,
             itemName: (item) => item.name,

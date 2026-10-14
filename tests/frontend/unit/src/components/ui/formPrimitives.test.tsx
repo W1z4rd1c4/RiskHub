@@ -1,3 +1,4 @@
+import { forwardRef, type SVGProps } from 'react';
 import * as axe from 'axe-core';
 import { describe, it, expect } from 'vitest';
 
@@ -68,10 +69,8 @@ describe('Input', () => {
     });
 });
 
-/** Stand-in for a lucide icon (the test tree cannot import lucide-react). */
-function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
-    return <svg {...props} />;
-}
+/** Minimal ref-forwarding icon for the input layout assertions. */
+const SearchIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
 
 describe('Input sizes (cva)', () => {
     it('keeps the 40px default and offers the 32px compact size with a leading icon', () => {

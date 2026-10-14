@@ -1,10 +1,11 @@
+import type * as FormattersModule from '@/i18n/formatters';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const translation = vi.hoisted(() => ({ namespaces: [] as unknown[] }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     return {
         useTranslation: (ns?: unknown) => {
             translation.namespaces.push(ns);
@@ -92,7 +93,7 @@ function processPendingChange(canViewDiff: boolean, canCancel: boolean): Process
             after: { cif: 'yes', criticality_class: 'critical' },
         },
         capabilities: { can_view_diff: canViewDiff, can_cancel: canCancel },
-    } as ProcessPendingChangeRead;
+    };
 }
 
 function threatPendingChange(canViewDiff: boolean, canCancel: boolean): ThreatPendingChangeRead {
@@ -111,7 +112,7 @@ function threatPendingChange(canViewDiff: boolean, canCancel: boolean): ThreatPe
         derived_impact: {},
         impacted_resources: [],
         capabilities: { can_view_diff: canViewDiff, can_cancel: canCancel },
-    } as ThreatPendingChangeRead;
+    };
 }
 
 describe('PendingChangePanel (shared by Asset, Process, Threat)', () => {
@@ -246,7 +247,7 @@ describe('PendingChangePanel (shared by Asset, Process, Threat)', () => {
 describe('PendingChangePanel locale coverage', () => {
     // The panel reads `<namespace>:pending_change.<key>` through a module-bound `t`, which the
     // static usage validator cannot follow, so this keeps all four namespaces complete in en + cs.
-    it.each(['assets', 'processes', 'threats', 'vendors'])('%s provides every pending_change string in en and cs', (namespace) => {
+    it.each(['assets', 'processes', 'threats', 'vendors'] as const)('%s provides every pending_change string in en and cs', (namespace) => {
         for (const language of ['en', 'cs']) {
             const t = i18n.getFixedT(language, namespace);
             for (const key of PENDING_CHANGE_PANEL_KEYS) {

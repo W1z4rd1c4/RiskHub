@@ -161,7 +161,7 @@ describe('dashboard Czech plural families', () => {
         ['dashboard:kri.upcoming_count', 1, '1 nadcházející'],
         ['ictRegisterCommittee:roi.row_count', 2, '2 řádky'],
         ['ictRegisterCommittee:roi.row_count', 1, '1 řádek'],
-    ])('%s with count %d reads "%s"', (key, count, expected) => {
+    ] as const)('%s with count %d reads "%s"', (key, count, expected) => {
         expect(i18n.t(key, { count, lng: 'cs' })).toBe(expected);
     });
 });

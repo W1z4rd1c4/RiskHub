@@ -11,14 +11,17 @@ import { processApprovalQueuedResponseSchema } from '@/services/api/schemas';
 import type { Vendor } from '@/types/vendor';
 import { ApiClientError } from '@/services/apiClient';
 import i18n from '@/i18n';
+import type { Namespace } from '@/i18n/types';
+const anythingMatcher: unknown = expect.anything();
+
 
 const realTranslation = vi.hoisted(() => ({ locale: null as string | null }));
 
-const getVendorOwnersMock = vi.fn();
-const getVendorDepartmentsMock = vi.fn();
-const getVendorsMock = vi.fn();
-const createVendorMock = vi.fn();
-const updateVendorMock = vi.fn();
+const getVendorOwnersMock = vi.hoisted(() => vi.fn());
+const getVendorDepartmentsMock = vi.hoisted(() => vi.fn());
+const getVendorsMock = vi.hoisted(() => vi.fn());
+const createVendorMock = vi.hoisted(() => vi.fn());
+const updateVendorMock = vi.hoisted(() => vi.fn());
 const accountabilityScenario = vi.hoisted(() => ({
     enabled: true,
     error: false,
@@ -66,9 +69,9 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
 }
 
 vi.mock('@/i18n/hooks', () => ({
-    useTranslation: (namespace?: string) => ({
+    useTranslation: (namespace?: Namespace) => ({
         t: (key: string, options?: string | { defaultValue?: string }) => {
-            if (realTranslation.locale) return i18n.t(key, { ns: namespace, lng: realTranslation.locale, ...(typeof options === 'object' ? options : {}) });
+            if (realTranslation.locale) return i18n.t(key, { ns: namespace, lng: realTranslation.locale, defaultValue: key, ...(typeof options === 'object' ? options : {}) });
             if (typeof options === 'string') return options;
             return options?.defaultValue ?? key;
         },
@@ -81,16 +84,16 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getVendorOwners: (...args: unknown[]) => getVendorOwnersMock(...args),
-        getVendorDepartments: (...args: unknown[]) => getVendorDepartmentsMock(...args),
+        getVendorOwners: getVendorOwnersMock,
+        getVendorDepartments: getVendorDepartmentsMock,
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendors: (...args: unknown[]) => getVendorsMock(...args),
-        createVendor: (...args: unknown[]) => createVendorMock(...args),
-        updateVendor: (...args: unknown[]) => updateVendorMock(...args),
+        getVendors: getVendorsMock,
+        createVendor: createVendorMock,
+        updateVendor: updateVendorMock,
     },
 }));
 
@@ -544,7 +547,7 @@ describe('VendorForm', () => {
             expect(name).toBeDisabled();
             expect(screen.getByRole('button', { name: 'actions.cancel' })).toBeDisabled();
 
-            await act(async () => resolveUpdate({ ...nonProtectedVendor, name: 'Updated Vendor' }));
+            await act(() => Promise.resolve(resolveUpdate({ ...nonProtectedVendor, name: 'Updated Vendor' })));
             await waitFor(() => expect(router.state.location.pathname).toBe('/vendors/42'));
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         });
@@ -657,6 +660,7 @@ describe('VendorForm', () => {
         it('requires approval when protected Vendor governance is enabled but accountability governance is disabled', async () => {
             accountabilityScenario.enabled = false;
             accountabilityScenario.protectedVendorEnabled = true;
+            if (!protectedVendor.capabilities) throw new Error('Protected vendor fixture requires capabilities');
             renderWithQueryClient(
                 <VendorForm initialData={{ ...protectedVendor, capabilities: { ...protectedVendor.capabilities, protected_change_requires_approval: true } }} isEdit onSaved={vi.fn()} />,
             );
@@ -707,8 +711,8 @@ describe('VendorForm', () => {
                 expect(updateVendorMock).toHaveBeenCalledWith(
                     42,
                     expect.not.objectContaining({
-                        outsourcing_owner_user_id: expect.anything(),
-                        request_reason: expect.anything(),
+                        outsourcing_owner_user_id: anythingMatcher,
+                        request_reason: anythingMatcher,
                     }),
                 ),
             );
@@ -736,7 +740,7 @@ describe('VendorForm', () => {
 
             await waitFor(() => expect(updateVendorMock).toHaveBeenCalledWith(
                 42,
-                expect.not.objectContaining({ request_reason: expect.anything() }),
+                expect.not.objectContaining({ request_reason: anythingMatcher }),
             ));
             expect(onSaved).toHaveBeenCalled();
         });

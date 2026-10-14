@@ -6,14 +6,14 @@ import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 
 type LinkMode = ComponentProps<typeof LinkManagementDialog>['mode'];
 
-const mockGetDepartments = vi.fn();
-const mockGetRiskFilters = vi.fn();
-const mockGetRisks = vi.fn();
-const mockRestoreRisk = vi.fn();
-const mockGetControls = vi.fn();
-const mockRestoreControl = vi.fn();
-const mockGetKRIs = vi.fn();
-const mockRestoreKRI = vi.fn();
+const mockGetDepartments = vi.hoisted(() => vi.fn());
+const mockGetRiskFilters = vi.hoisted(() => vi.fn());
+const mockGetRisks = vi.hoisted(() => vi.fn());
+const mockRestoreRisk = vi.hoisted(() => vi.fn());
+const mockGetControls = vi.hoisted(() => vi.fn());
+const mockRestoreControl = vi.hoisted(() => vi.fn());
+const mockGetKRIs = vi.hoisted(() => vi.fn());
+const mockRestoreKRI = vi.hoisted(() => vi.fn());
 
 vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -61,29 +61,29 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
-        getRiskFilters: (...args: unknown[]) => mockGetRiskFilters(...args),
+        getDepartments: mockGetDepartments,
+        getRiskFilters: mockGetRiskFilters,
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
-        restoreRisk: (...args: unknown[]) => mockRestoreRisk(...args),
+        getRisks: mockGetRisks,
+        restoreRisk: mockRestoreRisk,
     },
 }));
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getControls: (...args: unknown[]) => mockGetControls(...args),
-        restoreControl: (...args: unknown[]) => mockRestoreControl(...args),
+        getControls: mockGetControls,
+        restoreControl: mockRestoreControl,
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getKRIs: (...args: unknown[]) => mockGetKRIs(...args),
-        restoreKRI: (...args: unknown[]) => mockRestoreKRI(...args),
+        getKRIs: mockGetKRIs,
+        restoreKRI: mockRestoreKRI,
     },
 }));
 
@@ -150,8 +150,8 @@ function defaultProps(overrides?: Partial<ComponentProps<typeof LinkManagementDi
     return {
         mode: 'risk-to-control' as LinkMode,
         existingLinks: [],
-        onLink: vi.fn(async () => undefined),
-        onUnlink: vi.fn(async () => undefined),
+        onLink: vi.fn(() => Promise.resolve(undefined)),
+        onUnlink: vi.fn(() => Promise.resolve(undefined)),
         isOpen: true,
         onClose: vi.fn(),
         ...overrides,
@@ -165,9 +165,10 @@ async function flushPromises() {
 }
 
 async function advanceDebounce() {
-    await act(async () => {
+    await act(() => {
         vi.advanceTimersByTime(300);
-    });
+        return Promise.resolve();
+        });
     await flushPromises();
 }
 
@@ -314,7 +315,7 @@ describe('LinkManagementDialog', () => {
     });
 
     it('links the selected target with default metadata and closes on success', async () => {
-        const onLink = vi.fn(async () => undefined);
+        const onLink = vi.fn(() => Promise.resolve(undefined));
         const onClose = vi.fn();
         mockGetControls.mockResolvedValue(collection([controlResult(202, 'Visible control result')]));
 
@@ -330,7 +331,7 @@ describe('LinkManagementDialog', () => {
     });
 
     it('retains the current selection and dialog when the parent link rejects', async () => {
-        const onLink = vi.fn(async () => { throw new Error('current link rejection'); });
+        const onLink = vi.fn(() => Promise.reject(new Error('current link rejection')));
         const onClose = vi.fn();
         mockGetControls.mockResolvedValue(collection([controlResult(202, 'Visible control result')]));
         render(<LinkManagementDialog {...defaultProps({ onLink, onClose })} />);
@@ -373,7 +374,7 @@ describe('LinkManagementDialog', () => {
     });
 
     it('confirms unlink before calling the parent unlink handler', async () => {
-        const onUnlink = vi.fn(async () => undefined);
+        const onUnlink = vi.fn(() => Promise.resolve(undefined));
         render(<LinkManagementDialog
             {...defaultProps({
                 existingLinks: [{ id: 4, control_id: 204, display_name: 'Existing control', effectiveness: 'medium' }],
@@ -397,7 +398,7 @@ describe('LinkManagementDialog', () => {
     });
 
     it('keeps a failed unlink inside the open confirmation (D10)', async () => {
-        const onUnlink = vi.fn(async () => { throw new Error('unlink failed'); });
+        const onUnlink = vi.fn(() => Promise.reject(new Error('unlink failed')));
         render(<LinkManagementDialog
             {...defaultProps({
                 existingLinks: [{ id: 4, control_id: 204, display_name: 'Existing control', effectiveness: 'medium' }],

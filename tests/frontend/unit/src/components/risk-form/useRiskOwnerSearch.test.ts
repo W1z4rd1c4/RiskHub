@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { useRiskOwnerSearch } from '@/components/risk-form/useRiskOwnerSearch';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
+const abortSignalMatcher: unknown = expect.any(AbortSignal);
+
 
 function deferred() {
     let resolve!: (users: UserLookupItem[]) => void;
@@ -24,10 +26,10 @@ describe('owner search request ownership', () => {
         expect(lookup.mock.calls[0][1]?.signal?.aborted).toBe(true);
         await waitFor(() => expect(lookup).toHaveBeenCalledTimes(2));
         const owner = { id: 20, name: 'Latest owner', email: 'latest@example.com' };
-        await act(async () => latest.resolve([owner]));
-        await act(async () => old.resolve([{ id: 10, name: 'Stale owner', email: 'stale@example.com' }]));
+        await act(() => Promise.resolve(latest.resolve([owner])));
+        await act(() => Promise.resolve(old.resolve([{ id: 10, name: 'Stale owner', email: 'stale@example.com' }])));
         expect(result.current.users).toEqual([owner]);
-        expect(lookup).toHaveBeenLastCalledWith({ limit: 50, q: 'latest', department_id: 2 }, { signal: expect.any(AbortSignal) });
+        expect(lookup).toHaveBeenLastCalledWith({ limit: 50, q: 'latest', department_id: 2 }, { signal: abortSignalMatcher });
         unmount();
         expect(lookup.mock.calls[1][1]?.signal?.aborted).toBe(true);
         lookup.mockRestore();

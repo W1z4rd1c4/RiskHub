@@ -1,3 +1,4 @@
+import type * as TestModule0 from '@/i18n/hooks';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
@@ -8,7 +9,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `translateUiMessage` stays real; only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof TestModule0>()),
     useTranslation: () => ({
         t: (key: string, options?: { name?: string }) => (options?.name ? `${key}:${options.name}` : key),
     }),
@@ -41,10 +42,10 @@ vi.mock('@/services/departmentApi', () => ({
     },
 }));
 
-const mockGetRisks = vi.fn();
+const mockGetRisks = vi.hoisted(() => vi.fn());
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: mockGetRisks,
     },
 }));
 
@@ -269,7 +270,7 @@ describe('RiskQuestionnairesPanel', () => {
     });
 
     it('renders a first-load failure as an error with retry, never as "no risks" (GAP-C-11)', async () => {
-        const loaded = await mockGetRisks.getMockImplementation()?.();
+        const loaded: unknown = await mockGetRisks.getMockImplementation()?.();
         mockGetRisks.mockReset();
         mockGetRisks.mockRejectedValueOnce(new Error('offline')).mockResolvedValue(
             loaded ?? { items: [], total: 0 },

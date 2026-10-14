@@ -7,18 +7,18 @@ import { approvalCreatedResponseSchema } from '@/services/api/schemas';
 import { ApiClientError } from '@/services/apiClient';
 import type { OrphanedItem } from '@/types/orphanedItem';
 
-const mockGetLinkedRisks = vi.fn();
-const mockGetDepartments = vi.fn();
-const mockResolveOrphan = vi.fn();
-const mockGetRisks = vi.fn();
-const mockListUsers = vi.fn();
-const mockGetProcessOwners = vi.fn();
-const mockGetProcessDepartments = vi.fn();
-const mockGetAssetOwners = vi.fn();
-const mockGetAssetDepartments = vi.fn();
-const mockGetVendorOwners = vi.fn();
-const mockGetThreatStewards = vi.fn();
-const mockLogError = vi.fn();
+const mockGetLinkedRisks = vi.hoisted(() => vi.fn());
+const mockGetDepartments = vi.hoisted(() => vi.fn());
+const mockResolveOrphan = vi.hoisted(() => vi.fn());
+const mockGetRisks = vi.hoisted(() => vi.fn());
+const mockListUsers = vi.hoisted(() => vi.fn());
+const mockGetProcessOwners = vi.hoisted(() => vi.fn());
+const mockGetProcessDepartments = vi.hoisted(() => vi.fn());
+const mockGetAssetOwners = vi.hoisted(() => vi.fn());
+const mockGetAssetDepartments = vi.hoisted(() => vi.fn());
+const mockGetVendorOwners = vi.hoisted(() => vi.fn());
+const mockGetThreatStewards = vi.hoisted(() => vi.fn());
+const mockLogError = vi.hoisted(() => vi.fn());
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -32,46 +32,46 @@ function deferred<T>() {
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getLinkedRisks: (...args: unknown[]) => mockGetLinkedRisks(...args),
+        getLinkedRisks: mockGetLinkedRisks,
     },
 }));
 
 vi.mock('@/services/departmentApi', () => ({
     departmentApi: {
-        getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
+        getDepartments: mockGetDepartments,
     },
 }));
 
 vi.mock('@/services/orphanedItemsApi', () => ({
     orphanedItemsApi: {
-        resolveOrphan: (...args: unknown[]) => mockResolveOrphan(...args),
+        resolveOrphan: mockResolveOrphan,
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: mockGetRisks,
     },
 }));
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        listUsers: (...args: unknown[]) => mockListUsers(...args),
+        listUsers: mockListUsers,
     },
 }));
 
 vi.mock('@/services/logger', () => ({
-    logError: (...args: unknown[]) => mockLogError(...args),
+    logError: mockLogError,
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
-        getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
-        getAssetOwners: (...args: unknown[]) => mockGetAssetOwners(...args),
-        getAssetDepartments: (...args: unknown[]) => mockGetAssetDepartments(...args),
-        getVendorOwners: (...args: unknown[]) => mockGetVendorOwners(...args),
-        getThreatStewards: (...args: unknown[]) => mockGetThreatStewards(...args),
+        getProcessOwners: mockGetProcessOwners,
+        getProcessDepartments: mockGetProcessDepartments,
+        getAssetOwners: mockGetAssetOwners,
+        getAssetDepartments: mockGetAssetDepartments,
+        getVendorOwners: mockGetVendorOwners,
+        getThreatStewards: mockGetThreatStewards,
     },
 }));
 
@@ -869,7 +869,7 @@ describe('ResolveOrphanModal', () => {
         const { container } = await openModal(orphan({
             item_type: 'threat',
             item_name: 'Ransomware',
-            responsibility_role: 'threat_steward',
+            responsibility_role: null,
             request_reason_required: true,
             capabilities: {
                 can_resolve: true,
@@ -929,7 +929,7 @@ describe('ResolveOrphanModal', () => {
         const { onClose, onResolved } = await openModal(orphan({
             item_type: 'threat',
             item_name: 'Direct Threat resolution',
-            responsibility_role: 'threat_steward',
+            responsibility_role: null,
             request_reason_required: false,
             capabilities: {
                 can_resolve: true,

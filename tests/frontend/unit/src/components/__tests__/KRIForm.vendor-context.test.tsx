@@ -1,3 +1,4 @@
+import type * as ReactRouterDomModule from 'react-router-dom';
 import { fireEvent, render as rtlRender, screen, waitFor, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
@@ -9,16 +10,16 @@ import i18n from '@/i18n';
 import { ApiClientError } from '@/services/apiClient';
 
 const mockNavigate = vi.fn();
-const mockGetRisks = vi.fn();
-const mockGetLinkedRisks = vi.fn();
-const mockLinkRisk = vi.fn();
-const mockLinkKRI = vi.fn();
-const mockListVisibleUsers = vi.fn();
-const mockGetVendors = vi.fn();
-const mockCreateKri = vi.fn();
+const mockGetRisks = vi.hoisted(() => vi.fn());
+const mockGetLinkedRisks = vi.hoisted(() => vi.fn());
+const mockLinkRisk = vi.hoisted(() => vi.fn());
+const mockLinkKRI = vi.hoisted(() => vi.fn());
+const mockListVisibleUsers = vi.hoisted(() => vi.fn());
+const mockGetVendors = vi.hoisted(() => vi.fn());
+const mockCreateKri = vi.hoisted(() => vi.fn());
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof ReactRouterDomModule>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -27,34 +28,34 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: mockGetRisks,
         getRisk: vi.fn(),
     },
 }));
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        listVisibleUsers: (...args: unknown[]) => mockListVisibleUsers(...args),
+        listVisibleUsers: mockListVisibleUsers,
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendors: (...args: unknown[]) => mockGetVendors(...args),
+        getVendors: mockGetVendors,
     },
 }));
 
 vi.mock('@/services/vendorLinkApi', () => ({
     vendorLinkApi: {
-        getLinkedRisks: (...args: unknown[]) => mockGetLinkedRisks(...args),
-        linkRisk: (...args: unknown[]) => mockLinkRisk(...args),
-        linkKRI: (...args: unknown[]) => mockLinkKRI(...args),
+        getLinkedRisks: mockGetLinkedRisks,
+        linkRisk: mockLinkRisk,
+        linkKRI: mockLinkKRI,
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        createKRI: (...args: unknown[]) => mockCreateKri(...args),
+        createKRI: mockCreateKri,
         updateKRI: vi.fn(),
     },
 }));

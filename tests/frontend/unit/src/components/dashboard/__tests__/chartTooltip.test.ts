@@ -11,6 +11,14 @@ const theme: ChartTheme = {
     axisTickFill: '#94a3b8',
     activeDotFill: '#0F172A',
     cursorStroke: '#334155',
+    legendText: '#94a3b8',
+    series: {
+        primary: '#2563eb', secondary: '#7c3aed', tertiary: '#0d9488',
+        warning: '#d97706', danger: '#dc2626', success: '#16a34a', neutral: '#64748b',
+    },
+    threshold: { min: '#d97706', max: '#dc2626' },
+    severity: { low: '#16a34a', medium: '#d97706', high: '#ea580c', critical: '#dc2626', fallback: '#64748b' },
+    breakdown: { status: {}, form: {}, frequency: {} },
 };
 
 describe('getChartTooltipProps', () => {

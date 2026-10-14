@@ -1,3 +1,4 @@
+import type * as HooksModule from '@/i18n/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { existsSync } from 'node:fs';
@@ -47,7 +48,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof HooksModule>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },

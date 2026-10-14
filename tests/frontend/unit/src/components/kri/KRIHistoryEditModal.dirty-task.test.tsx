@@ -5,11 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
 import type { KRIHistoryEntry } from '@/types/kri';
 
-const requestHistoryEditMock = vi.fn();
+const requestHistoryEditMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        requestHistoryEdit: (...args: unknown[]) => requestHistoryEditMock(...args),
+        requestHistoryEdit: requestHistoryEditMock,
     },
 }));
 
