@@ -33,6 +33,13 @@ from app.services._register_listings import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_config_cache():
+    clear_config_cache()
+    yield
+    clear_config_cache()
+
+
 async def _reader(db, department_id, *, domains=("processes", "assets"), role_name="b6_reader"):
     role = Role(name=role_name, display_name="B6 reader")
     permissions = [Permission(resource=resource, action="read") for resource in ("departments", *domains)]
