@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import i18n from '@/i18n';
+import { resources } from '@/i18n/allResources';
 import { AssetDetailPage } from '@/pages/AssetDetailPage';
 import { ProcessDetailPage } from '@/pages/ProcessDetailPage';
 import { ThreatDetailPage } from '@/pages/ThreatDetailPage';
@@ -125,6 +127,26 @@ describe.each(cases)('$entity protected detail network lifecycle', (testCase) =>
         await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /^archive$/i }));
         await waitFor(() => expect(router.state.location.pathname).toBe(`/${testCase.collection}`));
         expect(screen.getByText('Archived: Record 7')).toBeInTheDocument();
+    });
+
+    it('keeps the captured archive name and entity-specific action feedback when changing to Czech', async () => {
+        const { user } = setup(testCase);
+        server.use(http.delete(`*/api/v1/${testCase.collection}/7`, () => HttpResponse.json({ detail: 'Unavailable' }, { status: 500 })));
+        await screen.findByRole('heading', { name: 'Record 7' });
+        await user.click(screen.getByRole('button', { name: /^archive$/i }));
+        try {
+            await act(async () => { await i18n.changeLanguage('cs'); });
+            const copy = resources.cs[testCase.collection];
+            const dialog = within(screen.getByRole('alertdialog'));
+            expect(screen.getByRole('alertdialog')).toHaveTextContent(copy.messages.archive_confirm.replace(/{{(?:asset|process|threat|vendor)Name}}/g, 'Record 7'));
+            if (testCase.entity !== 'threat') {
+                expect(dialog.getByRole('textbox', { name: `${copy.form.request_reason}${resources.cs.common.labels.optional}` })).toHaveAttribute('placeholder', copy.form.request_reason_help);
+            }
+            await user.click(dialog.getByRole('button', { name: /^Archivovat$/i }));
+            expect(await dialog.findByRole('alert')).toHaveTextContent(copy.errors.archive_failed);
+        } finally {
+            await act(async () => { await i18n.changeLanguage('en'); });
+        }
     });
 
     it.each([403, 404])('replaces a %i read with the unavailable state', async (status) => {

@@ -8,7 +8,7 @@ import { LoadingState } from '@/components/ui/state';
 import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useSessionMutationOwner } from '@/hooks/useMutationOwner';
-import { useTranslation } from '@/i18n/hooks';
+import { useTranslation, type SafeTFunction } from '@/i18n/hooks';
 import { executeGovernedMutation, governedMutationRejection } from '@/lib/governedMutationOutcome';
 import { approvalsApi } from '@/services/approvalsApi';
 
@@ -50,6 +50,44 @@ const emptyDialogs: DialogState = {
     archiving: false, cancelling: false,
 };
 
+/** Literal namespace-qualified keys keep every adapter visible to the locale validator. */
+function protectedDetailMessages(t: SafeTFunction, namespace: PendingChangePanelNamespace, targetName: string) {
+    switch (namespace) {
+        case 'assets': return {
+            archiveFailed: t('assets:errors.archive_failed'),
+            cancellationFailed: t('assets:pending_change.cancel_failed'),
+            backToRegister: t('assets:actions.back_to_register'),
+            archiveConfirmation: t('assets:messages.archive_confirm', { assetName: targetName }),
+            reasonLabel: t('assets:form.request_reason'),
+            reasonHelp: t('assets:form.request_reason_help'),
+        };
+        case 'processes': return {
+            archiveFailed: t('processes:errors.archive_failed'),
+            cancellationFailed: t('processes:pending_change.cancel_failed'),
+            backToRegister: t('processes:actions.back_to_register'),
+            archiveConfirmation: t('processes:messages.archive_confirm', { processName: targetName }),
+            reasonLabel: t('processes:form.request_reason'),
+            reasonHelp: t('processes:form.request_reason_help'),
+        };
+        case 'threats': return {
+            archiveFailed: t('threats:errors.archive_failed'),
+            cancellationFailed: t('threats:pending_change.cancel_failed'),
+            backToRegister: t('threats:actions.back_to_register'),
+            archiveConfirmation: t('threats:messages.archive_confirm', { threatName: targetName }),
+            reasonLabel: t('threats:form.request_reason'),
+            reasonHelp: t('threats:form.request_reason_help'),
+        };
+        case 'vendors': return {
+            archiveFailed: t('vendors:errors.archive_failed'),
+            cancellationFailed: t('vendors:pending_change.cancel_failed'),
+            backToRegister: t('vendors:actions.back_to_register'),
+            archiveConfirmation: t('vendors:messages.archive_confirm', { vendorName: targetName }),
+            reasonLabel: t('vendors:form.request_reason'),
+            reasonHelp: t('vendors:form.request_reason_help'),
+        };
+    }
+}
+
 /** Presentation of backend outcomes; permissions and reason policy stay in adapters. */
 export function useProtectedDetailShell({
     entity, namespace, resource, resourceId, targetName, loadOutcome, isRetrying,
@@ -68,6 +106,7 @@ export function useProtectedDetailShell({
     const update = (patch: Partial<DialogState>) => setOwnedDialogs((current) => (
         current.epoch === owner.epoch ? { ...current, value: { ...current.value, ...patch } } : current
     ));
+    const messages = protectedDetailMessages(t, namespace, dialogs.archive?.name ?? '');
     const feedback = useFeedback();
     const announceApprovalQueued = useApprovalQueued();
 
@@ -93,7 +132,7 @@ export function useProtectedDetailShell({
             if (!isCurrent()) return;
             const rejection = governedMutationRejection(error);
             update({ archiveError: rejection.message === 'save_failed'
-                ? t('errors.archive_failed') : tCommon(`governed_mutation.${rejection.message}`) });
+                ? messages.archiveFailed : tCommon(`governed_mutation.${rejection.message}`) });
         } finally {
             busy.archive = false;
             if (isCurrent()) update({ archiving: false });
@@ -113,7 +152,7 @@ export function useProtectedDetailShell({
             update({ cancellation: null });
             void refresh();
         } catch {
-            if (isCurrent()) update({ cancellationError: t('pending_change.cancel_failed') });
+            if (isCurrent()) update({ cancellationError: messages.cancellationFailed });
         } finally {
             busy.cancellation = false;
             if (isCurrent()) update({ cancelling: false });
@@ -128,7 +167,7 @@ export function useProtectedDetailShell({
         },
         loadState: loadOutcome === 'loading' ? (loading ?? <LoadingState layout="page" label={tCommon('loading.generic')} />)
             : loadOutcome === 'unavailable' || (loadOutcome !== 'disabled' && !resource) ? (
-                <DetailLoadUnavailableState backLabel={t('actions.back_to_register')} isRetrying={isRetrying}
+                <DetailLoadUnavailableState backLabel={messages.backToRegister} isRetrying={isRetrying}
                     onBack={() => navigate(returnTo)} onRetry={resourceId === null ? undefined : () => void refresh()} />
             ) : null,
         staleWarning: loadOutcome === 'stale-with-error'
@@ -149,10 +188,10 @@ export function useProtectedDetailShell({
         archiveDialog: (
             <ConfirmDialog isOpen={dialogs.archive !== null} intent="archive"
                 entityLabel={tCommon(`labels.${entity}`)}
-                message={t('messages.archive_confirm', { [`${entity}Name`]: dialogs.archive?.name ?? '' })}
+                message={messages.archiveConfirmation}
                 onClose={() => update({ archive: null, archiveError: null })} onConfirm={archiveRecord}
                 isLoading={dialogs.archiving} reason={archiveReason === 'unavailable' ? 'optional' : archiveReason}
-                reasonLabel={t('form.request_reason')} reasonPlaceholder={t('form.request_reason_help')}
+                reasonLabel={messages.reasonLabel} reasonPlaceholder={messages.reasonHelp}
                 confirmDisabled={archiveReason === 'unavailable'}
                 errorText={dialogs.archiveError ?? (archiveReason === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)} />
         ),
