@@ -2,14 +2,14 @@
 
 ## Status and scope
 
-The runtime/DB-task lock workflow is a candidate-generation gate. **T4 remains
-open until its exact generated files and the verified Docker cutover are reviewed
-and committed.** No runtime/DB-task hashes or platform-resolution results are
-checked in by this preparation change. The only committed artifact hash is the
-platform-independent pip 26.2.1 resolver wheel, verified against official PyPI
-release metadata; CI must verify its downloaded bytes before executing it. The production Dockerfile still uses the existing install
-flow until that evidence exists; the workflow creates a separate, hash-enforced
-candidate Dockerfile and builds both production targets without publishing them.
+The production Dockerfile consumes the committed native runtime/DB-task locks
+with forced, wheel-only, hash-enforced installs. These inputs and the Docker
+cutover come from the successful hosted native run recorded below. **T4 delivery
+remains pending independent review and final activated-head CI**, including a
+fresh native comparison, startup and both production image security checks.
+The workflow continues to generate and verify candidates without publishing them.
+The platform-independent pip 26.2.1 resolver wheel remains pinned to its reviewed
+official-PyPI hash, and CI verifies its downloaded bytes before executing it.
 
 This work deliberately leaves the human-owned requirements, development lock,
 audit mirror, development refresh generator, and open draft #291 unchanged.
@@ -18,6 +18,30 @@ security pins constrain every candidate, including protobuf 6.33.6 and bcrypt
 4.1.3. A newly required package absent from the baseline fails for explicit review.
 The development lock is passed only as constraints; test/security tools are never
 installed into the runtime graph.
+
+## Imported candidate provenance
+
+- Source commit: `9d00a84a96c63c69bbfa7d9523377e196e536d75`
+- Source tree: `62faa3f2614d9ad986c8048ad2aee7b84c103d5f`
+- Successful native run: [38629308859](https://github.com/W1z4rd1c4/RiskHub/actions/runs/38629308859)
+- Artifact: [11925072378](https://github.com/W1z4rd1c4/RiskHub/actions/runs/38629308859/artifacts/11925072378),
+  `runtime-lock-candidate-9d00a84a96c63c69bbfa7d9523377e196e536d75`
+- Artifact ZIP SHA256, matched to GitHub's recorded digest:
+  `45a6ee9c8ba92f83ac42a9c4a9a92a2bf4d58e4a9b3b1dd3b7b5c946a678b79c`
+- Generator SHA256:
+  `c10aba93d4bd57e9a5cfa6b42c3c87bc4ebf4b3d706fef4dfe2151e7d2fae155`
+- Resolver image ID:
+  `sha256:5a655e3c7b09cc8de7ff31e8517cdef8e63f1d333d2eff266ee30cbd6900811c`
+
+Both resolutions produced byte-identical manifests and locks. The runtime lane
+contains 61 packages; DB tasks contain the identical runtime graph plus
+`psycopg2-binary` (62 packages). The separate pip bootstrap contains one package
+and matches the reviewed hash. Both lanes passed two clean forced hash installs,
+`pip check`, candidate image builds, native imports and exact package inventories
+with pip absent from production. Offline provenance/closure validation and the
+downloaded artifact digest check passed before import. Only the four generated
+`first/` inputs and `Dockerfile.candidate` were imported as dependency/build
+inputs. These generation results do not certify the final activated source tree.
 
 ## Canonical target and commands
 
@@ -89,6 +113,8 @@ its `Dockerfile.candidate` in the same reviewed change. Run offline validation a
 CI again against that commit before approval. The workflow compares committed
 locks byte-for-byte against a fresh native resolution after activation and
 requires the committed production Dockerfile to equal the hash-enforced candidate.
+Only the authored directory `README.md` is excluded from that comparison; all
+four generated inputs and any other unexpected files remain checked.
 That equality gate prevents a secure rewritten candidate from hiding a hash
 bypass in the real production install flow. Before generated files are copied
 into the checkout, an activation preflight requires the committed lock directory
@@ -110,12 +136,13 @@ still change independently and require the existing vulnerability/image checks.
 ```sh
 python3 -m unittest discover -s scripts/tools/tests -p test_runtime_dependency_lock.py -v
 python3 scripts/tools/validate_python_dependency_lock.py
+python3 scripts/tools/runtime_dependency_lock.py validate
+python3 scripts/tools/runtime_dependency_lock.py preflight
 ```
 
 These tests use synthetic report/hash fixtures, including an offline real-pip
 same-version/wrong-hash dry run. They prove rejection and rendering behavior, not production resolution, artifact availability, or image
-compatibility. No local dependency installs, Docker builds, or full suites are
-needed for this preparation change.
+compatibility. Dependency installs, Docker builds and full suites run in hosted CI.
 
 References: [pip installation reports](https://pip.pypa.io/en/stable/reference/installation-report/)
 and [hash-enforced wheel-only installs](https://pip.pypa.io/en/stable/topics/secure-installs/).

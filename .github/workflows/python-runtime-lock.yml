@@ -78,7 +78,9 @@ jobs:
           python3 scripts/tools/runtime_dependency_lock.py preflight
           lock_dir=backend/locks/cpython313-alpine324-x86_64
           if [ -d "$lock_dir" ]; then
-            diff -ru "$lock_dir" "$RUNNER_TEMP/runtime-lock/first"
+            # The directory README is authored documentation, never a lock input.
+            # Every generated input and any other unexpected file stays checked.
+            diff -ru --exclude=README.md "$lock_dir" "$RUNNER_TEMP/runtime-lock/first"
             # After activation, test the actual production contract too. A secure
             # rewritten candidate must not hide a weakened committed Dockerfile.
             cmp backend/Dockerfile "$RUNNER_TEMP/runtime-lock/Dockerfile.candidate"

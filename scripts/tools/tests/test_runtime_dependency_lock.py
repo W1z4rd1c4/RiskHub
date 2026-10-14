@@ -225,6 +225,43 @@ class RuntimeLockTests(unittest.TestCase):
         self.assertLess(workflow.index("Verify exact candidate source checkout"),
                         workflow.index("Build the production resolver platform"))
 
+    def test_committed_lock_comparison_excludes_only_directory_readme(self):
+        workflow = (lock.ROOT / ".github/workflows/python-runtime-lock.yml").read_text()
+        comparison = next(line.strip() for line in workflow.splitlines()
+                          if line.strip().startswith("diff -ru ") and '"$lock_dir"' in line)
+        self.assertEqual(comparison,
+                         'diff -ru --exclude=README.md "$lock_dir" "$RUNNER_TEMP/runtime-lock/first"')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            committed = root / "committed"
+            generated = root / "runtime-lock/first"
+            committed.mkdir()
+            generated.mkdir(parents=True)
+            inputs = ["manifest.json", "requirements-runtime.lock",
+                      "requirements-dbtasks.lock", "requirements-pip.lock"]
+            for name in inputs:
+                (committed / name).write_text(name)
+                (generated / name).write_text(name)
+            (committed / "README.md").write_text("Directory documentation only")
+            env = {**os.environ, "lock_dir": str(committed), "RUNNER_TEMP": str(root)}
+
+            def compare():
+                return subprocess.run(["sh", "-c", comparison], env=env,
+                                      capture_output=True, text=True, timeout=10)
+
+            result = compare()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for name in inputs:
+                with self.subTest(input=name):
+                    (committed / name).write_text("changed")
+                    self.assertNotEqual(compare().returncode, 0)
+                    (committed / name).write_text(name)
+            for name in ["unexpected.lock", "unexpected.txt"]:
+                with self.subTest(unexpected=name):
+                    (committed / name).write_text("unexpected input")
+                    self.assertNotEqual(compare().returncode, 0)
+                    (committed / name).unlink()
+
     def test_bootstrap_requires_the_reviewed_pip_hash(self):
         report = self.report()
         report["install"][0]["download_info"]["archive_info"]["hashes"]["sha256"] = "0" * 64
