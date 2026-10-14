@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import Boolean, String, bindparam, literal, select, text
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.sql_uuid import CanonicalUuid4
 from app.models import (
     ApprovalActionType,
@@ -28,9 +32,6 @@ from app.services.notification_visibility import (
     _strict_asset_proposal_shape_clause,
     _strict_vendor_proposal_shape_clause,
 )
-from sqlalchemy import Boolean, String, bindparam, literal, select, text
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 VALID_UUID = "12345678-1234-4234-8234-123456789abc"
 MISPLACED_HYPHEN_UUID = "-2345678-1234-4234-8234-123456789abc"
