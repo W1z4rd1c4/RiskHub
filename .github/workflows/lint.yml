@@ -28,12 +28,79 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
+        id: frontend-install
         run: npm ci
         working-directory: frontend
 
-      - name: Run frontend Vitest coverage gate
-        run: npm run test:coverage
+      # Run each new gate independently after installation so the first CI run
+      # exposes all existing test debt without suppressions or a fabricated baseline.
+      - name: Verify frontend test tooling scope
+        if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
+        run: npm run quality:test-tooling
         working-directory: frontend
+
+      - name: Lint centralized frontend tests and harnesses
+        id: test-lint
+        if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          npm run lint:tests 2>&1 | tee ../lint-frontend-tests.log
+        working-directory: frontend
+
+      - name: Typecheck centralized frontend tests and harnesses
+        id: test-typecheck
+        if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          npm run typecheck:tests 2>&1 | tee ../lint-frontend-test-types.log
+        working-directory: frontend
+
+      - name: Run frontend Vitest coverage gate
+        id: test-coverage
+        if: ${{ !cancelled() && steps.frontend-install.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          npm run test:coverage 2>&1 | tee ../frontend-coverage.log
+        working-directory: frontend
+
+      - name: Summarize frontend test evidence
+        if: always()
+        env:
+          TEST_LINT_OUTCOME: ${{ steps.test-lint.outcome }}
+          TEST_TYPES_OUTCOME: ${{ steps.test-typecheck.outcome }}
+          TEST_COVERAGE_OUTCOME: ${{ steps.test-coverage.outcome }}
+        run: |
+          node --input-type=module <<'JS' >> "$GITHUB_STEP_SUMMARY"
+          import fs from 'node:fs';
+          console.log('## Frontend test quality');
+          console.log(`- Centralized test lint: ${process.env.TEST_LINT_OUTCOME}`);
+          console.log(`- Centralized test types: ${process.env.TEST_TYPES_OUTCOME}`);
+          console.log(`- Full-source coverage gate: ${process.env.TEST_COVERAGE_OUTCOME}`);
+          const file = 'tests/results/frontend/unit/coverage/coverage-summary.json';
+          if (fs.existsSync(file)) {
+            const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+            console.log(`- Executable source files in coverage report: ${Object.keys(report).filter(key => key !== 'total').length}`);
+            for (const metric of ['statements', 'branches', 'functions', 'lines']) {
+              const value = report.total[metric];
+              console.log(`- ${metric}: ${value.covered}/${value.total} (${value.pct}%)`);
+            }
+            console.log('Observed CI measurements only. A failing run is not an accepted baseline; floors remain 57/47/47/58.');
+          } else {
+            console.log('- Coverage report unavailable; no baseline measurement was established.');
+          }
+          JS
+
+      - name: Upload frontend test quality evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: frontend-test-quality-evidence
+          path: |
+            lint-frontend-tests.log
+            lint-frontend-test-types.log
+            frontend-coverage.log
+            tests/results/frontend/unit/coverage/
+          retention-days: 30
 
   pr-merge-result-build:
     name: PR Merge Result Build
@@ -142,7 +209,7 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      # `npm run lint` = `eslint .` followed by the ADR-013 strict-zero validator.
+      # `npm run lint` includes app + centralized tests, then ADR-013 strict zero.
       # Every enabled recommended jsx-a11y rule is an error; any finding, non-empty
       # audit evidence, or suppression entry fails (FR-P1-4 · N4–N6).
       - name: Frontend lint (eslint + jsx-a11y strict zero)
@@ -161,7 +228,7 @@ jobs:
       - name: Frontend typecheck
         run: |
           set -euo pipefail
-          npx tsc --noEmit | tee ../lint-frontend-typecheck.log
+          npm run typecheck | tee ../lint-frontend-typecheck.log
         working-directory: frontend
 
       - name: Frontend build

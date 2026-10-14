@@ -56,8 +56,12 @@ export default defineConfig({
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
+      // Count unimported executable source too. Declarations and test support
+      // are not shipped behavior; runtime schemas and entrypoints remain in scope.
+      include: ['src/**/*.{ts,tsx}'],
       reporter: ['text', 'json', 'json-summary', 'html'],
-      exclude: ['node_modules/', 'src/test/'],
+      exclude: ['src/**/*.d.ts', 'src/test/**', 'src/**/__tests__/**', 'src/**/*.{test,spec}.{ts,tsx}'],
+      reportOnFailure: true,
       reportsDirectory: path.resolve(__dirname, '../tests/results/frontend/unit/coverage'),
       thresholds: {
         statements: 57,
