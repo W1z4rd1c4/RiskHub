@@ -2,9 +2,12 @@ import type * as TestModule0 from '@/services/riskHubApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RolesPanel } from '@/components/riskhub/RolesPanel';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 const mockCreateRole = vi.hoisted(() => vi.fn());
 const mockDeleteRole = vi.hoisted(() => vi.fn());
@@ -84,6 +87,7 @@ const roles = [
 ];
 
 function renderRolesPanel() {
+    applyBootstrappedSession({ token: 'config-session', user: mockAuthUser });
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -91,7 +95,9 @@ function renderRolesPanel() {
         },
     });
     const wrapper = ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={['/risk-hub?tab=roles']}>{children}</MemoryRouter>
+        </QueryClientProvider>
     );
     return render(<RolesPanel />, { wrapper });
 }
