@@ -1,5 +1,7 @@
 # ADR-007 cross-cutting policy/config packages.
-expires_at = "2026-11-11"
+schema_version = 1
+kind = "architecture"
+decision = "ADR-007"
 packages = [
     "_authorization_capabilities",
     "_config",

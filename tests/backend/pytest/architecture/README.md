@@ -43,3 +43,24 @@ Next review: **2026-12-05** (90 days); owner: RiskHub Maintainer.
 - Retained the 27 capability exports as the current public API compatibility
   surface. The ordered export contract remains exact; the schema test now also
   enforces expiry. This renewal changes neither exports nor capability decisions.
+
+### Registry lifetime policy — 2026-10-14
+
+The five `_bounded_context_*` files are ADR-007 architecture declarations. The
+four exact `_archive_allowlist.toml` paths are permanent ADR-005 schema/ORM
+owners and forward-only migrations. Their consumers pin the policy and scope;
+no calendar expiry applies to these accepted decisions.
+
+`_endpoint_commit_allowlist.toml` and `_naming_allowlist.toml` are empty temporary
+exception registries. Each future exception table requires an owner, rationale,
+and per-entry `expires_at` (valid through that calendar day). Top-level expiry
+is rejected. Both current zero-exception invariants remain enforced; metadata
+alone cannot authorize new exceptions. Naming entries additionally require a
+repository `path` under the persistence naming contract in
+`test_w8a_persistence_contracts_red.py`.
+
+`_registry_policy.py` validates the explicitly selected policy and schema.
+`test_registry_policy.py` freezes day-before/day-of/day-after behavior and
+checks that missing metadata or policy substitution cannot disable debt expiry.
+Other registries retain their existing policies; this change does not renew
+capability/auth exceptions or silently forgive remaining raw service commits.

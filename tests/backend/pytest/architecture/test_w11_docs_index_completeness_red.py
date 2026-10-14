@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ._allowlist_expiry import assert_not_expired
+from ._registry_policy import load_exception_registry
 
 pytestmark = pytest.mark.contract
 
@@ -13,7 +13,11 @@ ROOT = Path(__file__).resolve().parents[4]
 
 
 def test_review_closure_documentation_index_records_accepted_paths_and_decisions() -> None:
-    assert_not_expired(ROOT / "tests/backend/pytest/architecture/_naming_allowlist.toml")
+    load_exception_registry(
+        ROOT / "tests/backend/pytest/architecture/_naming_allowlist.toml",
+        decision="persistence-naming-contract",
+        entries_key="paths",
+    )
     docs = "\n".join(
         [
             (ROOT / "docs/README.md").read_text(),

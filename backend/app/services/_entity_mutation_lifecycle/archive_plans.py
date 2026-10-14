@@ -12,7 +12,6 @@ from sqlalchemy.orm import joinedload
 
 from app.core.approval_helpers import (
     build_approval_queued_response,
-    create_approval_request_with_audit,
     get_control_delete_approval_metadata,
     get_primary_approver_for_risk,
     get_risk_delete_approval_metadata,
@@ -37,6 +36,7 @@ from app.services._authorization_capabilities import require_capability
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
 from app.services._entity_mutation_lifecycle.policy import assert_no_existing_pending_delete_request
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
+from app.services.approval_intake import create_approval_request_with_audit
 from app.services.approval_scenario_policy import (
     apply_approval_scenario_snapshot,
     approval_privilege_tier,

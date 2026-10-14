@@ -8,7 +8,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.core.approval_helpers import create_approval_request_with_audit
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import (
     ApprovalActionType,
@@ -29,6 +28,7 @@ from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
 from app.services._kri_history.service import KRIHistoryService
+from app.services.approval_intake import create_approval_request_with_audit
 from app.services.notification_service import NotificationService
 from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError

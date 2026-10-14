@@ -1,2 +1,6 @@
-expires_at = "2026-11-11"
+# ADR-002 has ratcheted endpoint commits to zero; a superseding ADR is required
+# before adding an exception. Empty registries do not carry calendar expiry.
+schema_version = 1
+kind = "temporary_exceptions"
+decision = "ADR-002"
 allowlist = []

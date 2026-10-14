@@ -1,9 +1,8 @@
-import tomllib
 from pathlib import Path
 
 import pytest
 
-from ._allowlist_expiry import assert_not_expired
+from ._registry_policy import load_architecture_registry
 
 pytestmark = pytest.mark.contract
 
@@ -13,16 +12,34 @@ ARCHIVE_ALLOWLIST = ROOT / "tests/backend/pytest/architecture/_archive_allowlist
 
 
 def _archive_allowlist_paths() -> set[str]:
-    assert_not_expired(ARCHIVE_ALLOWLIST)
-    data = tomllib.loads(ARCHIVE_ALLOWLIST.read_text())
+    data = load_architecture_registry(ARCHIVE_ALLOWLIST, decision="ADR-005")
+    for entry in data["paths"]:
+        assert entry.get("rationale"), f"archive owner needs rationale: {entry!r}"
     return {entry["path"] for entry in data.get("paths", [])}
 
 
 def test_archive_allowlist_registry_is_present_and_scoped():
     paths = _archive_allowlist_paths()
 
-    assert "backend/app/models/_archivable.py" in paths
+    assert paths == {
+        "backend/app/models/_archivable.py",
+        "backend/app/models/key_risk_indicator.py",
+        "backend/alembic/versions/g2h3i4j5k6l7_add_archivable_columns.py",
+        "backend/alembic/versions/h3i4j5k6l7m8_unify_archive_state.py",
+    }
     assert all(path.startswith(("backend/app/", "backend/alembic/versions/")) for path in paths)
+
+
+def test_archive_owner_registry_cannot_admit_new_permanent_exemptions(tmp_path, monkeypatch):
+    target = tmp_path / "archive.toml"
+    target.write_text(ARCHIVE_ALLOWLIST.read_text() + '''
+[[paths]]
+path = "backend/app/services/unreviewed_archive.py"
+rationale = "Temporary debt cannot be disguised as an accepted schema owner"
+''')
+    monkeypatch.setitem(globals(), "ARCHIVE_ALLOWLIST", target)
+    with pytest.raises(AssertionError):
+        test_archive_allowlist_registry_is_present_and_scoped()
 
 
 def test_register_listings_use_archivable_clause_for_default_archive_filters():

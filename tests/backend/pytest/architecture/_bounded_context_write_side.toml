@@ -1,5 +1,7 @@
 # ADR-007 primary write-side contexts.
-expires_at = "2026-11-11"
+schema_version = 1
+kind = "architecture"
+decision = "ADR-007"
 packages = [
     "_riskhub_config",
     "_identity_access_lifecycle",

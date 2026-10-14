@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_helpers import (
     build_approval_queued_response,
-    create_approval_request_with_audit,
     get_kri_edit_approval_metadata,
     get_primary_approver_for_risk,
 )
@@ -22,6 +21,7 @@ from app.models import (
 from app.models.kri_history import KRIValueHistory
 from app.schemas.kri import KRIHistoryEdit, KRIRecordValue
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
+from app.services.approval_intake import create_approval_request_with_audit
 from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
 from .recording import DuplicateKRIPeriodError
