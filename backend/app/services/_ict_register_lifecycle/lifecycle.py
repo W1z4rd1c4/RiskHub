@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from uuid import uuid4
-
 from fastapi.responses import JSONResponse
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +16,7 @@ from app.services._governed_mutations import (
     submit_process_mutation_if_required,
 )
 from app.services._governed_mutations.process_updates import (
-    increment_process_downstream_asset_versions,
+    load_process_downstream_assets_for_update,
 )
 from app.services._ict_register_reference.parameters import load_ict_workbook_parameter_set
 from app.services.transaction_boundary import commit_service_boundary
@@ -26,8 +24,6 @@ from app.services.transaction_boundary import commit_service_boundary
 from .derivation import ANO, derive_ict_register
 from .derivation_inputs import load_ict_register_graph
 from .lifecycle_adapters import (
-    apply_archive_lifecycle,
-    apply_update_lifecycle,
     extract_updates,
     load_register_page,
 )
@@ -42,6 +38,7 @@ from .policy import (
     load_process,
     process_visibility_clause,
 )
+from .process_apply import apply_process_archive, apply_process_create, apply_process_edit
 from .projection import serialize_process_detail_with_derived, serialize_process_list
 
 _SORT_COLUMNS = {
@@ -76,20 +73,12 @@ async def create_process_detail(
     if queued is not None:
         return queued
 
-    # Insert with a transaction-unique placeholder; the id is unknown until
-    # the flush assigns it, and the column is NOT NULL.
-    process = Process(
-        **payload.model_dump(exclude={"request_reason"}),
-        f_code=f"pending-{uuid4().hex[:12]}",
+    process = await apply_process_create(
+        db,
+        values=payload.model_dump(exclude={"request_reason"}),
+        owner=owner,
+        department=department,
     )
-    process.process_owner = owner
-    process.owning_department = department
-    db.add(process)
-    await db.flush()
-    # Stable RoI F-code, assigned once at creation and never reassigned.
-    # Keyed to the row id so archived rows keep their code forever and the
-    # sequence never reuses a freed number.
-    process.f_code = f"F{process.id}"
 
     await audit_process.process_created(db, actor=current_user, process=process)
     await commit_service_boundary(db, boundary="ict_register_process_create")
@@ -177,21 +166,18 @@ async def update_process_detail(
     if queued is not None:
         return queued
 
-    if new_owner is not None:
-        process.process_owner = new_owner
-    if new_department is not None:
-        process.owning_department = new_department
-    process.governance_version += 1
-    await increment_process_downstream_asset_versions(db, process_id=process.id)
-
-    await apply_update_lifecycle(
-        db=db,
-        entity=process,
+    downstream_assets = await load_process_downstream_assets_for_update(db, process_id=process.id)
+    # Keep the old values captured before relationship assignments can autoflush.
+    apply_process_edit(
+        process=process,
         updates=updates,
-        changes_factory=audit_process.process_update_changes,
-        audit=lambda changes: audit_process.process_updated(db, actor=current_user, process=process, changes=changes),
-        boundary="ict_register_process_update",
+        owner=new_owner,
+        department=new_department,
+        downstream_assets=downstream_assets,
     )
+    await audit_process.process_updated(db, actor=current_user, process=process, changes=changed_fields)
+    await commit_service_boundary(db, boundary="ict_register_process_update")
+    await db.refresh(process)
     refreshed = await load_process(db, process.id)
     assert refreshed is not None
     return await serialize_process_detail_with_derived(db, refreshed, current_user=current_user)
@@ -219,16 +205,11 @@ async def archive_process_detail(
     )
     if queued is not None:
         return queued
-    process.governance_version += 1
-    await increment_process_downstream_asset_versions(db, process_id=process.id)
-    await apply_archive_lifecycle(
-        db=db,
-        entity=process,
-        current_user=current_user,
-        changes_factory=audit_process.process_archive_changes,
-        audit=lambda changes: audit_process.process_archived(db, actor=current_user, process=process, changes=changes),
-        boundary="ict_register_process_archive",
-    )
+    downstream_assets = await load_process_downstream_assets_for_update(db, process_id=process.id)
+    changes = audit_process.process_archive_changes(process)
+    apply_process_archive(process=process, actor=current_user, downstream_assets=downstream_assets)
+    await audit_process.process_archived(db, actor=current_user, process=process, changes=changes)
+    await commit_service_boundary(db, boundary="ict_register_process_archive")
     return None
 
 
@@ -245,18 +226,12 @@ async def restore_process_detail(
         restore=True,
     )
     await assert_no_pending_process_mutation(db, process_id=process.id)
-    process.governance_version += 1
-    await increment_process_downstream_asset_versions(db, process_id=process.id)
-    await apply_archive_lifecycle(
-        db=db,
-        entity=process,
-        current_user=current_user,
-        changes_factory=audit_process.process_restore_changes,
-        audit=lambda changes: audit_process.process_restored(db, actor=current_user, process=process, changes=changes),
-        boundary="ict_register_process_restore",
-        restore=True,
-        refresh=True,
-    )
+    downstream_assets = await load_process_downstream_assets_for_update(db, process_id=process.id)
+    changes = audit_process.process_restore_changes(process)
+    apply_process_archive(process=process, actor=current_user, downstream_assets=downstream_assets, restore=True)
+    await audit_process.process_restored(db, actor=current_user, process=process, changes=changes)
+    await commit_service_boundary(db, boundary="ict_register_process_restore")
+    await db.refresh(process)
     restored = await load_process(db, process.id)
     assert restored is not None
     return await serialize_process_detail_with_derived(db, restored, current_user=current_user)

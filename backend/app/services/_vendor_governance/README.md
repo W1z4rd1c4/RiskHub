@@ -37,10 +37,11 @@ recursion relies on. Authorization reuses the `vendor_contracts` resource
 
 ## Notes
 
-`apply.py` is the state-only Vendor edit application owner shared by direct
+`apply.py` owns Vendor and child creation, edit and archive state shared by direct
 mutation, approved replay and orphan repair. It accepts already-validated
-inputs and owns no authorization, queries, audit, outbox or transaction
-boundary. The canonical version rules live in the
+inputs and owns no authorization, audit, outbox or transaction boundary.
+`links.py` retains junction validation and owns relationship writes and their
+aggregate version effect. The canonical version rules live in the
 [governed mutation application contract](../_governed_mutations/README.md#operational-application-and-versions).
 
 Keep this README updated when responsibilities or structure in this folder change.

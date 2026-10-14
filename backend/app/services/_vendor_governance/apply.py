@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TypeVar
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
-from app.models import OrphanedItem, User, Vendor
+from app.models import OrphanedItem, User, Vendor, VendorContract, VendorSubOutsourcing
+
+VendorChildT = TypeVar("VendorChildT", VendorContract, VendorSubOutsourcing)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,3 +52,50 @@ def apply_vendor_edit(
         orphan.resolved_at = utc_now()
         orphan.resolved_by_id = orphan_completion.resolved_by_id
         orphan.new_owner_id = vendor.outsourcing_owner_user_id
+
+
+async def apply_vendor_create(db: AsyncSession, *, values: Mapping[str, object]) -> Vendor:
+    vendor = Vendor(**values)
+    db.add(vendor)
+    await db.flush()
+    return vendor
+
+
+def apply_vendor_archive(*, vendor: Vendor, actor: User, restore: bool = False) -> None:
+    if restore:
+        vendor.mark_restored(actor)
+    else:
+        vendor.mark_archived(actor)
+    vendor.governance_version += 1
+
+
+async def apply_vendor_child_create(
+    db: AsyncSession,
+    *,
+    vendor: Vendor,
+    child_model: type[VendorChildT],
+    values: Mapping[str, object],
+) -> VendorChildT:
+    child = child_model(vendor_id=vendor.id, **values)
+    db.add(child)
+    await db.flush()
+    vendor.governance_version += 1
+    return child
+
+
+def apply_vendor_child_edit(
+    *, vendor: Vendor, child: VendorContract | VendorSubOutsourcing, updates: Mapping[str, object]
+) -> None:
+    for field, value in updates.items():
+        setattr(child, field, value)
+    vendor.governance_version += 1
+
+
+def apply_vendor_child_archive(
+    *, vendor: Vendor, child: VendorContract | VendorSubOutsourcing, actor: User, restore: bool = False
+) -> None:
+    if restore:
+        child.mark_restored(actor)
+    else:
+        child.mark_archived(actor)
+    vendor.governance_version += 1

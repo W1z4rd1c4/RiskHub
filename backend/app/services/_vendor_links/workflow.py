@@ -371,8 +371,8 @@ async def link_vendor_target(
             vendor=vendor,
             entity_name=entity_name,
             log_activity_func=log_activity_func,
+            advance_version=True,
         )
-        vendor.governance_version += 1
         await commit_service_boundary(db, boundary=f"vendor_link.{kind}.create")
         return result
     except Exception:
@@ -426,8 +426,12 @@ async def _link_vendor_target_prepared_no_commit(
     vendor: Vendor,
     entity_name: str,
     log_activity_func: AuditLogActivity = log_activity,
+    advance_version: bool = False,
 ) -> dict[str, str]:
-    result = await create_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
+    result = await create_vendor_link(
+        db, target.link_model, vendor_id, target.entity_field, entity_id,
+        version_owner=vendor if advance_version else None,
+    )
     await vendor_link_created(
         db,
         actor=current_user,
@@ -482,8 +486,8 @@ async def unlink_vendor_target(
             vendor=vendor,
             entity_name=entity_name,
             log_activity_func=log_activity_func,
+            advance_version=True,
         )
-        vendor.governance_version += 1
         await db.commit()
         return None
     except Exception:
@@ -533,8 +537,12 @@ async def _unlink_vendor_target_prepared_no_commit(
     vendor: Vendor,
     entity_name: str,
     log_activity_func: AuditLogActivity = log_activity,
+    advance_version: bool = False,
 ) -> None:
-    await delete_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
+    await delete_vendor_link(
+        db, target.link_model, vendor_id, target.entity_field, entity_id,
+        version_owner=vendor if advance_version else None,
+    )
     await vendor_link_deleted(
         db,
         actor=current_user,
@@ -542,4 +550,42 @@ async def _unlink_vendor_target_prepared_no_commit(
         link_kind=kind,
         target_label=entity_name,
         log_activity_func=log_activity_func,
+    )
+
+
+async def apply_vendor_target_relationship_no_commit(
+    db: AsyncSession,
+    *,
+    vendor_id: int,
+    current_user: User,
+    audit_actor: User,
+    kind: VendorLinkKind,
+    entity_id: int,
+    action: Literal["add", "remove"],
+) -> None:
+    """Replay a versioned Vendor relationship through its existing state owner.
+
+    The raw link/unlink no-commit adapters used by KRI reconciliation remain
+    version-neutral. Direct and approved aggregate mutations advance inside
+    the same create/delete state method, after its existing flush succeeds.
+    """
+    target, vendor, entity_name = await _prepare_vendor_link_mutation(
+        db,
+        vendor_id=vendor_id,
+        current_user=current_user,
+        kind=kind,
+        entity_id=entity_id,
+        require_live_target=action == "add",
+    )
+    apply = _link_vendor_target_prepared_no_commit if action == "add" else _unlink_vendor_target_prepared_no_commit
+    await apply(
+        db,
+        vendor_id=vendor_id,
+        current_user=audit_actor,
+        kind=kind,
+        entity_id=entity_id,
+        target=target,
+        vendor=vendor,
+        entity_name=entity_name,
+        advance_version=True,
     )

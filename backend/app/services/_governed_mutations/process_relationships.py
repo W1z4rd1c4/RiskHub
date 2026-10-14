@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -485,12 +486,67 @@ def _vendor_link_snapshot(link: ProcessVendorLink) -> dict[str, Any]:
     }
 
 
+async def apply_process_relationship_state(
+    db: AsyncSession,
+    *,
+    process: Process,
+    relationship_type: RelationshipType,
+    action: RelationshipAction,
+    related_id: int,
+    after: Mapping[str, object],
+    existing: RiskProcessLink | ProcessAssetLink | ProcessVendorLink | None = None,
+    other_processes: Iterable[Process] = (),
+    downstream_assets: Iterable[Asset] = (),
+    downstream_vendors: Iterable[Vendor] = (),
+) -> RiskProcessLink | ProcessAssetLink | ProcessVendorLink | None:
+    """Apply already-validated relationship rows and their exact version set.
+
+    Both direct endpoints and approved replay use this state owner. Callers
+    retain authorization, link-state validation, audit, flush error handling,
+    outbox and transaction ownership. SQL demotion precedes promotion so the
+    at-most-one-primary constraint remains valid throughout a primary swap.
+    """
+    if relationship_type == "asset" and action in {"add", "update"} and after.get("is_primary") is True:
+        await db.execute(
+            update(ProcessAssetLink)
+            .where(ProcessAssetLink.asset_id == related_id, ProcessAssetLink.is_primary.is_(True))
+            .values(is_primary=False)
+        )
+    link: RiskProcessLink | ProcessAssetLink | ProcessVendorLink | None
+    if action == "add":
+        if relationship_type == "risk":
+            link = RiskProcessLink(risk_id=related_id, process_id=process.id)
+        elif relationship_type == "asset":
+            link = ProcessAssetLink(asset_id=related_id, process_id=process.id, **after)
+        else:
+            link = ProcessVendorLink(vendor_id=related_id, process_id=process.id, **after)
+        db.add(link)
+    elif action == "update":
+        assert existing is not None
+        link = existing
+        for field, value in after.items():
+            setattr(link, field, value)
+    else:
+        assert existing is not None
+        await db.delete(existing)
+        link = None
+    for impacted in {row.id: row for row in (process, *other_processes)}.values():
+        impacted.governance_version += 1
+    for asset in {row.id: row for row in downstream_assets}.values():
+        asset.governance_version += 1
+    for vendor in {row.id: row for row in downstream_vendors}.values():
+        vendor.governance_version += 1
+    return link
+
+
 async def apply_process_relationship_operation(
     db: AsyncSession,
     *,
     process: Process,
     operation: object,
     current_user: User,
+    downstream_assets: Iterable[Asset] = (),
+    downstream_vendors: Iterable[Vendor] = (),
 ) -> dict[str, dict[str, object]]:
     """Apply one already-authorized immutable relationship operation.
 
@@ -512,6 +568,8 @@ async def apply_process_relationship_operation(
     if process.is_archived and action != "remove":
         raise ConflictError("Cannot mutate relationships of an archived Process")
 
+    demoted_process = None
+    demoted_process_version_before = None
     existing: RiskProcessLink | ProcessAssetLink | ProcessVendorLink | None
     if relationship_type == "risk":
         risk = (await db.execute(select(Risk).where(Risk.id == related_id).with_for_update())).scalar_one_or_none()
@@ -530,11 +588,9 @@ async def apply_process_relationship_operation(
         if action == "add":
             if existing is not None:
                 raise ConflictError("Risk-Process link state changed while approval was pending")
-            db.add(RiskProcessLink(risk_id=related_id, process_id=process.id))
         else:
             if existing is None or existing.id != link_id:
                 raise ConflictError("Risk-Process link state changed while approval was pending")
-            await db.delete(existing)
 
     elif relationship_type == "asset":
         asset = (await db.execute(select(Asset).where(Asset.id == related_id).with_for_update())).scalar_one_or_none()
@@ -578,28 +634,8 @@ async def apply_process_relationship_operation(
         if action == "add":
             if existing is not None:
                 raise ConflictError("Process-Asset link state changed while approval was pending")
-            if after.get("is_primary") is True:
-                await db.execute(
-                    update(ProcessAssetLink)
-                    .where(ProcessAssetLink.asset_id == related_id, ProcessAssetLink.is_primary.is_(True))
-                    .values(is_primary=False)
-                )
-            db.add(ProcessAssetLink(asset_id=related_id, process_id=process.id, **after))
-        elif action == "update":
-            if existing is None or existing.id != link_id or _asset_link_snapshot(existing) != before:
-                raise ConflictError("Process-Asset link state changed while approval was pending")
-            if after.get("is_primary") is True:
-                await db.execute(
-                    update(ProcessAssetLink)
-                    .where(ProcessAssetLink.asset_id == related_id, ProcessAssetLink.is_primary.is_(True))
-                    .values(is_primary=False)
-                )
-            for field, value in after.items():
-                setattr(existing, field, value)
-        else:
-            if existing is None or existing.id != link_id or _asset_link_snapshot(existing) != before:
-                raise ConflictError("Process-Asset link state changed while approval was pending")
-            await db.delete(existing)
+        elif existing is None or existing.id != link_id or _asset_link_snapshot(existing) != before:
+            raise ConflictError("Process-Asset link state changed while approval was pending")
 
     else:
         vendor = (
@@ -620,16 +656,22 @@ async def apply_process_relationship_operation(
         if action == "add":
             if existing is not None:
                 raise ConflictError("Process-Vendor link state changed while approval was pending")
-            db.add(ProcessVendorLink(process_id=process.id, vendor_id=related_id, **after))
         else:
             if existing is None or existing.id != link_id or _vendor_link_snapshot(existing) != before:
                 raise ConflictError("Process-Vendor link state changed while approval was pending")
-            await db.delete(existing)
 
-    process.governance_version += 1
-    if relationship_type == "asset" and demoted_process_id is not None:
-        assert demoted_process is not None
-        demoted_process.governance_version += 1
+    await apply_process_relationship_state(
+        db,
+        process=process,
+        relationship_type=data["relationship_type"],
+        action=data["action"],
+        related_id=related_id,
+        after=after,
+        existing=existing,
+        other_processes=(demoted_process,) if demoted_process is not None else (),
+        downstream_assets=downstream_assets,
+        downstream_vendors=downstream_vendors,
+    )
     await db.flush()
     if relationship_type == "risk":
         assert risk is not None
@@ -741,6 +783,7 @@ async def apply_process_relationship_operation(
 
 __all__ = [
     "apply_process_relationship_operation",
+    "apply_process_relationship_state",
     "lock_process_relationship_authorization_rows",
     "lock_process_relationship_targets",
     "process_impact_resource",

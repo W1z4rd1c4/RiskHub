@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import log_activity
 from app.core.audit import vendor as audit_vendor
 from app.core.exceptions import NotFoundError
-from app.models import User, Vendor
+from app.models import User
 from app.schemas.vendor import VendorCreate, VendorRead, VendorUpdate
 from app.services.transaction_boundary import commit_service_boundary
 
-from .apply import apply_vendor_edit
+from .apply import apply_vendor_archive, apply_vendor_create, apply_vendor_edit
 from .policy import (
     assert_vendor_archive_allowed,
     assert_vendor_create_allowed,
@@ -50,9 +50,7 @@ async def create_vendor_detail(
     if queued is not None:
         return queued
 
-    vendor = Vendor(**payload.model_dump(exclude={"request_reason"}))
-    db.add(vendor)
-    await db.flush()
+    vendor = await apply_vendor_create(db, values=payload.model_dump(exclude={"request_reason"}))
 
     await audit_vendor.vendor_created(
         db,
@@ -163,8 +161,7 @@ async def archive_vendor_detail(
     if queued is not None:
         return queued
     changes = audit_vendor.vendor_archive_changes(vendor)
-    vendor.mark_archived(current_user)
-    vendor.governance_version += 1
+    apply_vendor_archive(vendor=vendor, actor=current_user)
 
     await audit_vendor.vendor_archived(
         db,
@@ -185,8 +182,7 @@ async def restore_vendor_detail(
 ) -> VendorRead:
     vendor = await assert_vendor_restore_allowed(db, vendor_id=vendor_id, current_user=current_user)
     changes = audit_vendor.vendor_restore_changes(vendor)
-    vendor.mark_restored(current_user)
-    vendor.governance_version += 1
+    apply_vendor_archive(vendor=vendor, actor=current_user, restore=True)
     await audit_vendor.vendor_restored(
         db,
         actor=current_user,

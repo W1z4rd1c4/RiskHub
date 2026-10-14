@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any, cast
-from uuid import uuid4
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError as PydanticValidationError
@@ -13,7 +12,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.audit import process as audit_process
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from app.core.permissions import has_permission
 from app.models import (
@@ -36,6 +34,7 @@ from app.services._ict_register_lifecycle.policy import (
     can_read_process_record,
     process_owner_eligibility_error,
 )
+from app.services._ict_register_lifecycle.process_apply import apply_process_archive, apply_process_create
 from app.services._ict_register_lifecycle.projection import load_governed_process_derived_blocks
 from app.services._ict_register_reference.parameters import IctWorkbookParameterSet
 from app.services._process_owner_lock import acquire_process_owner_identity_locks
@@ -553,15 +552,12 @@ async def approve_extended_process_mutation(
             )
         if stale is None:
             assert payload is not None and owner is not None and department is not None
-            process = Process(
-                **payload.model_dump(exclude={"request_reason"}),
-                f_code=f"pending-{uuid4().hex[:12]}",
+            process = await apply_process_create(
+                db,
+                values=payload.model_dump(exclude={"request_reason"}),
+                owner=owner,
+                department=department,
             )
-            process.process_owner = owner
-            process.owning_department = department
-            db.add(process)
-            await db.flush()
-            process.f_code = f"F{process.id}"
             await audit_process.process_created(db, actor=resolver, process=process)
             department_id = process.owning_department_id
     elif identity.mutation_kind == PROCESS_ARCHIVE_KIND:
@@ -644,14 +640,12 @@ async def approve_extended_process_mutation(
                 stale = "Downstream Vendors are no longer protected by the current policy"
         if stale is None:
             assert primary is not None
-            primary.is_archived = True
-            primary.archived_at = utc_now()
-            primary.archived_by_id = resolver.id
-            primary.governance_version += 1
-            for asset in point_assets:
-                asset.governance_version += 1
-            for vendor in point_vendors:
-                vendor.governance_version += 1
+            apply_process_archive(
+                process=primary,
+                actor=resolver,
+                downstream_assets=point_assets,
+                downstream_vendors=point_vendors,
+            )
             await audit_process.process_archived(db, actor=resolver, process=primary, changes=changes)
     elif identity.mutation_kind.startswith(PROCESS_RELATIONSHIP_PREFIX):
         assert relationship_snapshot is not None
@@ -756,12 +750,13 @@ async def approve_extended_process_mutation(
                         db, process=primary, operation=proposal.proposed_changes["operation"], requester=requester
                     )
                     changes = await apply_process_relationship_operation(
-                        db, process=primary, operation=proposal.proposed_changes["operation"], current_user=resolver
+                        db,
+                        process=primary,
+                        operation=proposal.proposed_changes["operation"],
+                        current_user=resolver,
+                        downstream_assets=locked_composite_assets.values(),
+                        downstream_vendors=point_vendors,
                     )
-                    for impacted_asset in locked_composite_assets.values():
-                        impacted_asset.governance_version += 1
-                    for impacted_vendor in point_vendors:
-                        impacted_vendor.governance_version += 1
                 except (AuthorizationError, ConflictError, NotFoundError, ValidationError) as exc:
                     stale = str(exc)
     else:  # pragma: no cover - the strict parser makes this unreachable

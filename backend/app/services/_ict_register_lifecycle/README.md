@@ -17,6 +17,14 @@ lifecycle joins in a later slice (#47).
   `policy.py` / `asset_policy.py` assert authorization and archive semantics
   (ADR-005); `projection.py` / `asset_projection.py` serialize Read schemas
   with ADR-001 per-row capabilities from `_authorization_capabilities`.
+- **Operational application**: `process_apply.py` and `asset_apply.py` own
+  validated creation, edit, archive and orphan-completion state; `threat_apply.py`
+  owns Threat edits and stewardship orphan completion. The existing
+  `_governed_mutations.process_relationships` state step owns Process junction
+  writes. Direct endpoints and approved replay use these owners while retaining
+  their authorization, locking, audit and transaction responsibilities. Version
+  and cascade rules live in the
+  [governed application contract](../_governed_mutations/README.md#operational-application-and-versions).
 - **Link relations** (issue #43): `asset_links.py` owns the Process<->Asset
   (sheet 05: significance, SPOF, note) and Asset<->Asset (sheet 06:
   directional dependency type, SPOF, note) junctions — unique pairs,

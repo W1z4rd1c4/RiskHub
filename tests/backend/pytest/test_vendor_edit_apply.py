@@ -16,6 +16,10 @@ from app.models import (
     OrphanedItem,
     User,
     Vendor,
+    VendorContract,
+    VendorKRILink,
+    VendorRiskLink,
+    VendorSubOutsourcing,
 )
 from app.models.outbox_event import OutboxEvent
 
@@ -338,3 +342,109 @@ async def test_denied_vendor_edit_actor_cannot_apply_or_complete_evidence(
         approval = await db_session.get(ApprovalRequest, approval_id)
         assert approval is not None
         assert approval.status == ApprovalStatus.PENDING
+
+
+async def _finish_vendor_operation(client_factory, response, approver: User, vendor: Vendor, db: AsyncSession) -> None:
+    if response.status_code == 202:
+        before_version = vendor.governance_version
+        async with client_factory(user=approver) as client:
+            approved = await client.post(
+                f"/api/v1/approvals/{response.json()['approval_id']}/approve",
+                json={"resolution_notes": "Apply the reviewed Vendor operation"},
+            )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "approved"
+        await db.refresh(vendor)
+        assert vendor.governance_version == before_version + 1
+    else:
+        assert response.status_code in {200, 201, 204}, response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resource", ["contract", "sub_outsourcing"])
+@pytest.mark.parametrize("approved", [False, True], ids=["direct", "approved"])
+async def test_vendor_child_operations_advance_aggregate_once(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_risk_manager: User,
+    resource: str,
+    approved: bool,
+) -> None:
+    vendor, _ = await _vendor_case(db_session, owner=test_user_cro, governed=approved)
+    if resource == "contract":
+        path = f"/api/v1/vendors/{vendor.id}/contracts"
+        payload = {"contract_reference": "Apply child contract", "request_reason": "Create reviewed Contract"}
+        model = VendorContract
+    else:
+        contract = VendorContract(vendor_id=vendor.id, contract_reference="Apply chain Contract")
+        db_session.add(contract)
+        await db_session.commit()
+        path = f"/api/v1/vendors/{vendor.id}/sub-outsourcing"
+        payload = {
+            "contract_id": contract.id, "sub_provider_name": "Apply child provider",
+            "request_reason": "Create reviewed Sub-outsourcing",
+        }
+        model = VendorSubOutsourcing
+    async with client_factory(user=test_user_cro) as client:
+        created = await client.post(path, json=payload)
+    await _finish_vendor_operation(client_factory, created, test_user_risk_manager, vendor, db_session)
+    await db_session.refresh(vendor)
+    assert vendor.governance_version == 8
+    child = await db_session.scalar(select(model).where(model.vendor_id == vendor.id))
+    assert child is not None
+    async with client_factory(user=test_user_cro) as client:
+        edited = await client.patch(
+            f"{path}/{child.id}", json={"note": "After", "request_reason": "Edit reviewed child"},
+        )
+    await _finish_vendor_operation(client_factory, edited, test_user_risk_manager, vendor, db_session)
+    await db_session.refresh(vendor)
+    await db_session.refresh(child)
+    assert vendor.governance_version == 9
+    assert child.note == "After"
+    if not approved:
+        async with client_factory(user=test_user_cro) as client:
+            unchanged = await client.patch(f"{path}/{child.id}", json={"note": "After"})
+            reason_only = await client.patch(f"{path}/{child.id}", json={"request_reason": "No business fields"})
+        assert unchanged.status_code == reason_only.status_code == 200
+        await db_session.refresh(vendor)
+        assert vendor.governance_version == 10
+    expected = vendor.governance_version + 1
+    async with client_factory(user=test_user_cro) as client:
+        archived = await client.request(
+            "DELETE", f"{path}/{child.id}", json={"request_reason": "Archive reviewed child"},
+        )
+    await _finish_vendor_operation(client_factory, archived, test_user_risk_manager, vendor, db_session)
+    await db_session.refresh(vendor)
+    await db_session.refresh(child)
+    assert vendor.governance_version == expected
+    assert child.is_archived is True
+
+
+@pytest.mark.asyncio
+async def test_kri_vendor_reconciliation_keeps_vendor_version_unchanged(
+    client_factory,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_risk,
+) -> None:
+    vendor, _ = await _vendor_case(db_session, owner=test_user_cro)
+    vendor_id = vendor.id
+    async with client_factory(user=test_user_cro) as client:
+        created = await client.post("/api/v1/kris", json={
+            "risk_id": test_risk.id, "metric_name": "Apply raw adapter KRI", "description": "Version-neutral links",
+            "unit": "%", "current_value": 50.0, "lower_limit": 0.0, "upper_limit": 100.0,
+            "linked_vendor_ids": [vendor_id], "ensure_parent_risk_vendor_ids": [vendor_id],
+        })
+    assert created.status_code == 201, created.text
+    kri_id = created.json()["id"]
+    await db_session.refresh(vendor)
+    assert vendor.governance_version == 7
+    assert await db_session.scalar(select(VendorRiskLink.id).where(VendorRiskLink.vendor_id == vendor_id)) is not None
+    assert await db_session.scalar(select(VendorKRILink.id).where(VendorKRILink.vendor_id == vendor_id)) is not None
+    async with client_factory(user=test_user_cro) as client:
+        removed = await client.put(f"/api/v1/kris/{kri_id}", json={"linked_vendor_ids": []})
+    assert removed.status_code == 200, removed.text
+    await db_session.refresh(vendor)
+    assert vendor.governance_version == 7
+    assert await db_session.scalar(select(VendorKRILink.id).where(VendorKRILink.vendor_id == vendor_id)) is None

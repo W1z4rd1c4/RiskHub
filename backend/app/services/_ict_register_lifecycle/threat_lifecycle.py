@@ -17,6 +17,7 @@ from .lifecycle_adapters import (
     extract_updates,
     load_register_page,
 )
+from .threat_apply import apply_threat_edit
 from .threat_policy import (
     assert_active_ciso_steward,
     assert_threat_archive_allowed,
@@ -196,11 +197,7 @@ async def update_threat_detail(
             return queued
 
     changes = audit_threat.threat_update_changes(threat, updates)
-    for field, value in updates.items():
-        setattr(threat, field, value)
-    if new_steward is not None:
-        threat.threat_steward = new_steward
-    threat.governance_version += 1
+    apply_threat_edit(threat=threat, updates=updates, steward=new_steward)
     await audit_threat.threat_updated(
         db,
         actor=current_user,
