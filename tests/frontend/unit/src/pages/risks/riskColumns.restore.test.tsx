@@ -24,7 +24,7 @@ function renderActions(risk: Partial<RiskSummary>, handleRestoreRisk = vi.fn(), 
         <table>
             <tbody>
                 <tr onClick={onRowClick}>
-                    <td>{actions.render(risk as RiskSummary)}</td>
+                    <td>{actions.render(risk as RiskSummary, 0)}</td>
                 </tr>
             </tbody>
         </table>,

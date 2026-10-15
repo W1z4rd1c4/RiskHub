@@ -64,9 +64,9 @@ describe('SsoCallbackPage', () => {
         (entraAuth.handleRedirect as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ idToken: 'id-token' });
 
         server.use(
-            http.post('*/api/v1/auth/sso/exchange', async () => {
+            http.post('*/api/v1/auth/sso/exchange', () => {
                 exchangeCalls += 1;
-                return HttpResponse.json({ detail: 'should not be called' }, { status: 500 });
+                return Promise.resolve(HttpResponse.json({ detail: 'should not be called' }, { status: 500 }));
             }),
         );
 
@@ -92,12 +92,12 @@ describe('SsoCallbackPage', () => {
         });
 
         server.use(
-            http.post('*/api/v1/auth/sso/exchange', async () => (
+            http.post('*/api/v1/auth/sso/exchange', () => Promise.resolve((
                 HttpResponse.json(
                     { detail: 'Email domain not allowed', code: 'email_domain_not_allowed' },
                     { status: 403 },
                 )
-            )),
+            ))),
         );
 
         render(

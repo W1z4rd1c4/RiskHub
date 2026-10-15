@@ -21,7 +21,7 @@ export function RiskEditPage() {
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/risks');
     const detailPath = appendRegisterReturnTo(`/risks/${id}`, returnTo);
     const { t } = useTranslation(['risks', 'common']);
-    const loadRisk = useCallback((riskId: number) => riskApi.getRisk(riskId), []);
+    const loadRisk = useCallback((riskId: number, signal?: AbortSignal) => riskApi.getRisk(riskId, { signal }), []);
     const {
         isRetrying,
         loadOutcome,

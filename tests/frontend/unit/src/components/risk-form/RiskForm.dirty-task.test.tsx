@@ -60,7 +60,7 @@ function RiskFormHarness({
                 onSuccess={async (_riskId, acceptNavigation) => {
                     if (successGate) await successGate;
                     acceptNavigation?.();
-                    navigate('/done');
+                    await navigate('/done');
                 }}
             />
         </>
@@ -84,12 +84,13 @@ function renderRiskForm(data = initialRisk, isEdit = true, successGate?: Promise
 
 const renderRiskEdit = () => renderRiskForm();
 
-async function submitChangedRisk() {
+function submitChangedRisk() {
     fireEvent.change(screen.getByDisplayValue('Baseline risk'), {
         target: { value: 'Changed risk' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Risk Assessment' }));
     fireEvent.click(screen.getByTestId('risk-form-submit-button'));
+    return Promise.resolve();
 }
 
 describe('RiskForm dirty-task protection', () => {
@@ -208,12 +209,13 @@ describe('RiskForm dirty-task protection', () => {
         await user.type(approver, 'Late mutation');
         expect(approver).toHaveValue('Submitted approver');
 
-        await act(async () => {
+        await act(() => {
             resolveSave?.(HttpResponse.json({
                 ...initialRisk,
                 name: 'Changed risk',
                 acceptance_approver: 'Submitted approver',
             }));
+            return Promise.resolve();
         });
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
     });
@@ -238,7 +240,7 @@ describe('RiskForm dirty-task protection', () => {
         expect(router.state.location.pathname).toBe('/edit');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
-        await act(async () => releaseSuccess());
+        await act(() => Promise.resolve(releaseSuccess()));
         expect(await screen.findByText('Destination reached')).toBeInTheDocument();
     });
 
@@ -269,7 +271,7 @@ describe('RiskForm dirty-task protection', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 
         shouldFail = true;
-        await act(() => router.navigate('/edit'));
+        await act(() => Promise.resolve(router.navigate('/edit')));
         await screen.findByDisplayValue('Baseline risk');
         await submitChangedRisk();
         expect(await screen.findByText(/Server error/i)).toBeInTheDocument();

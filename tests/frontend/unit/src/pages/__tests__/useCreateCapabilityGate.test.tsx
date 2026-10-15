@@ -40,7 +40,7 @@ describe('capability read outcomes', () => {
         expect(load).toHaveBeenCalledTimes(2);
         act(() => result.current.retry());
         expect(load).toHaveBeenCalledTimes(2);
-        await act(async () => pending.reject(new Error('still offline')));
+        await act(() => Promise.resolve(pending.reject(new Error('still offline'))));
         expect(result.current.state).toBe('error');
         act(() => result.current.retry());
         await waitFor(() => expect(result.current.state).toBe('allowed'));
@@ -53,10 +53,10 @@ describe('capability read outcomes', () => {
         const secondLoad = () => second.promise;
         const { result, rerender } = renderHook(({ load }) => useCreateCapabilityGate({ ...options, load }), { initialProps: { load: firstLoad } });
         rerender({ load: secondLoad });
-        await act(async () => outcome === 'success' ? first.resolve(allowed) : first.reject(new Error('old')));
+        await act(() => Promise.resolve(outcome === 'success' ? first.resolve(allowed) : first.reject(new Error('old'))));
         expect(result.current.state).toBe('loading');
         expect(result.current.data).toBeUndefined();
-        await act(async () => second.resolve(denied));
+        await act(() => Promise.resolve(second.resolve(denied)));
         expect(result.current.state).toBe('denied');
     });
     it('does not render an old allowed decision for a changed or reenabled gate', async () => {

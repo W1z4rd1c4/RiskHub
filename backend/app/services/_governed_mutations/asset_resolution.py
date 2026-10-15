@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ValidationError
 from app.core.permissions import (
     can_read_risk_id,
@@ -30,6 +29,13 @@ from app.models import (
     Vendor,
 )
 from app.schemas.asset import AssetCreate, AssetUpdate
+from app.services._ict_register_lifecycle.asset_apply import (
+    AssetOrphanCompletion,
+    apply_asset_archive,
+    apply_asset_create,
+    apply_asset_edit,
+    apply_asset_relationship,
+)
 from app.services._ict_register_lifecycle.asset_policy import (
     can_read_asset_record,
     can_update_asset_record,
@@ -264,29 +270,19 @@ async def approve_asset_mutation(
             values = operation.get("after") if action == "add" else operation.get("before")
             if not isinstance(values, dict):
                 raise ValidationError("Governed Asset link payload is stale")
-            if relationship_type == "asset" and action == "add":
-                db.add(AssetAssetLink(**values))
-            elif relationship_type == "asset" and action == "remove":
-                link = await db.get(AssetAssetLink, values.get("id"))
-                if link is None:
+            existing_link: AssetAssetLink | AssetVendorLink | RiskAssetLink | None = None
+            if relationship_type == "asset" and action == "remove":
+                existing_link = await db.get(AssetAssetLink, values.get("id"))
+                if existing_link is None:
                     raise ValidationError("Governed Asset link payload is stale")
-                await db.delete(link)
-            elif relationship_type == "vendor" and action == "add":
-                db.add(AssetVendorLink(**values))
             elif relationship_type == "vendor" and action == "remove":
-                vendor_link = await db.get(AssetVendorLink, values.get("id"))
-                if vendor_link is None:
+                existing_link = await db.get(AssetVendorLink, values.get("id"))
+                if existing_link is None:
                     raise ValidationError("Governed Asset link payload is stale")
-                await db.delete(vendor_link)
             elif relationship_type == "risk" and action == "add":
                 if risk is None:
                     raise ValidationError("Governed Asset link payload is stale")
-                db.add(
-                    RiskAssetLink(
-                        risk_id=risk.id,
-                        asset_id=assets[proposal.primary_resource_id].id,
-                    )
-                )
+                values = {"risk_id": risk.id, "asset_id": assets[proposal.primary_resource_id].id}
             elif relationship_type == "risk" and action == "remove":
                 link_id = values.get("id")
                 risk_link = (
@@ -299,13 +295,13 @@ async def approve_asset_mutation(
                     or risk_link.asset_id != assets[proposal.primary_resource_id].id
                 ):
                     raise ValidationError("Governed Asset link payload is stale")
-                await db.delete(risk_link)
-            else:
+                existing_link = risk_link
+            elif relationship_type not in {"asset", "vendor"} or action != "add":
                 raise ValidationError("Unsupported governed Asset link operation")
-            for item in assets.values():
-                item.governance_version += 1
-            for impacted_vendor in vendors.values():
-                impacted_vendor.governance_version += 1
+            await apply_asset_relationship(
+                db, relationship_type=relationship_type, action=action, values=values,
+                existing=existing_link, impacted_assets=assets.values(), impacted_vendors=vendors.values(),
+            )
             await finalize_governed_terminal_transition(
                 db,
                 approval=approval,
@@ -575,18 +571,12 @@ async def approve_asset_mutation(
                         resolution_notes="Protected Asset derivation changed after submission",
                     )
                 else:
-                    for field, value in proposed_updates.items():
-                        setattr(asset, field, value)
-                    asset.governance_version += 1
-                    for vendor in vendors.values():
-                        vendor.governance_version += 1
-                    for orphan in governed_orphans:
-                        orphan.status = "resolved"
-                        orphan.resolved_at = utc_now()
-                        orphan.resolved_by_id = current_user.id
-                        orphan.new_owner_id = proposed_updates[
-                            f"{orphan.responsibility_role}_user_id"
-                        ]
+                    apply_asset_edit(
+                        asset=asset, updates=proposed_updates, downstream_vendors=vendors.values(),
+                        orphan_completions=(
+                            AssetOrphanCompletion(orphan, current_user.id) for orphan in governed_orphans
+                        ),
+                    )
                     await finalize_governed_terminal_transition(
                         db,
                         approval=approval,
@@ -709,12 +699,7 @@ async def approve_asset_mutation(
                     resolution_notes="Protected Asset derivation changed after submission",
                 )
             else:
-                asset.is_archived = True
-                asset.archived_at = utc_now()
-                asset.archived_by_id = current_user.id
-                asset.governance_version += 1
-                for vendor in vendors.values():
-                    vendor.governance_version += 1
+                apply_asset_archive(asset=asset, actor=current_user, downstream_vendors=vendors.values())
                 await finalize_governed_terminal_transition(
                     db,
                     approval=approval,
@@ -802,9 +787,7 @@ async def approve_asset_mutation(
             resolution_notes="Protected Asset derivation changed after submission",
         )
     else:
-        asset = Asset(**payload.model_dump(exclude={"request_reason"}))
-        db.add(asset)
-        await db.flush()
+        asset = await apply_asset_create(db, values=payload.model_dump(exclude={"request_reason"}))
         await finalize_governed_terminal_transition(
             db,
             approval=approval,

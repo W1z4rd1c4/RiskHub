@@ -106,9 +106,9 @@ describe('useThreatsPageState shared collection state', () => {
             location: useLocation(),
             state: useThreatsPageState(),
         }), { wrapper: urlWrapper });
-        await waitFor(() => expect(result.current.state.viewMode).toBe('linked_risk'));
-        expect(result.current.state.search).toBe('weakness');
-        expect(result.current.state.selectedGroupValue).toBe('risk:7');
+        await waitFor(() => expect(result.current.state.workingSet.viewMode).toBe('linked_risk'));
+        expect(result.current.state.workingSet.search).toBe('weakness');
+        expect(result.current.state.workingSet.selectedGroupValue).toBe('risk:7');
 
         act(() => {
             result.current.state.updateFilter('categories', ['integrity']);

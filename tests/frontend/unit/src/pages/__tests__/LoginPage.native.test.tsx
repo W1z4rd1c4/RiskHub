@@ -108,7 +108,7 @@ describe('Native login authority', () => {
         expect(getSessionSnapshot().user).toBeNull();
         expect(getSessionSnapshot().token).toBeNull();
         expect(screen.queryByText('Protected workspace')).not.toBeInTheDocument();
-        await act(async () => finishFactor());
+        await act(() => Promise.resolve(finishFactor()));
     });
 
 
@@ -156,7 +156,7 @@ describe('Native login authority', () => {
         await user.click(screen.getByRole('button', { name: /^verify$/i }));
         await waitFor(() => expect(requested).toBe(true));
         await user.click(screen.getByRole('button', { name: /^cancel$/i }));
-        await act(async () => finish());
+        await act(() => Promise.resolve(finish()));
         expect(getSessionSnapshot().token).toBeNull();
         expect(screen.queryByText('Protected workspace')).not.toBeInTheDocument();
         expect(screen.getByLabelText(/^password/i)).toHaveValue('');

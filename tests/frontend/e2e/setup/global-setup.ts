@@ -5,7 +5,7 @@
  * Called once per test run via playwright.config.ts globalSetup.
  */
 
-import { FullConfig } from '@playwright/test';
+import type { FullConfig } from '@playwright/test';
 import { verifyDeterministicE2EData } from './test-data';
 
 async function globalSetup(config: FullConfig): Promise<void> {

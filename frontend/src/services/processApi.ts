@@ -27,7 +27,7 @@ function appendValues(params: URLSearchParams, key: string, values: ReadonlyArra
     values?.forEach((value) => params.append(key, String(value)));
 }
 
-export function buildProcessCollectionQuery(params: ProcessListParams): URLSearchParams {
+export function buildProcessCollectionQuery(params: Omit<ProcessListParams, 'offset' | 'limit'> & { offset?: number; limit?: number }): URLSearchParams {
     const query = new URLSearchParams();
     const set = (key: string, value: string | number | boolean | undefined) => {
         if (value !== undefined && value !== '') query.set(key, String(value));
@@ -84,7 +84,7 @@ export function buildProcessCollectionQuery(params: ProcessListParams): URLSearc
     return query;
 }
 
-async function downloadProcessExport(params: ProcessListParams, locale: 'en' | 'cs'): Promise<void> {
+async function downloadProcessExport(params: Omit<ProcessListParams, 'offset' | 'limit'>, locale: 'en' | 'cs'): Promise<void> {
     const query = buildProcessCollectionQuery(params);
     query.delete('offset');
     query.delete('limit');
@@ -127,8 +127,8 @@ export const processApi = {
 
     downloadExport: downloadProcessExport,
 
-    async getProcess(id: number): Promise<Process> {
-        return apiClient.get(`/processes/${id}`, { schema: processSchema });
+    async getProcess(id: number, options?: { signal?: AbortSignal }): Promise<Process> {
+        return apiClient.get(`/processes/${id}`, { ...options, schema: processSchema });
     },
 
     async createProcess(data: ProcessWritePayload): Promise<Process | ProcessApprovalQueuedResponse> {

@@ -32,3 +32,5 @@ Keep this README updated when responsibilities or structure in this folder chang
 - `lookup.py` keeps `/users/lookup` as the generic picker; `/users/lookup/{risk,control,vendor}-owners` and `/users/lookup/threat-stewards` are purpose-scoped assignment surfaces, while `/users/roles` is now an Admin-only lifecycle helper.
 - `crud.py` and `detail.py` remain user-lifecycle/admin-detail surfaces and should not absorb directory responsibilities.
 - Active access-management role selection belongs to `/access/roles`, not to the lifecycle helpers in this package.
+
+- `org.py` preserves self/global-user-management lookup authority and filters returned direct reports through the shared Access-roster Admin-row boundary; generic directory discovery retains its separate contract.

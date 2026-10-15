@@ -1,30 +1,34 @@
+import type * as TestModule0 from '@/services/riskHubApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RolesPanel } from '@/components/riskhub/RolesPanel';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
-const mockCreateRole = vi.fn();
-const mockDeleteRole = vi.fn();
-const mockGetPermissions = vi.fn();
-const mockGetCapabilities = vi.fn();
-const mockGetRoles = vi.fn();
-const mockRestoreRole = vi.fn();
-const mockUpdateRole = vi.fn();
+const mockCreateRole = vi.hoisted(() => vi.fn());
+const mockDeleteRole = vi.hoisted(() => vi.fn());
+const mockGetPermissions = vi.hoisted(() => vi.fn());
+const mockGetCapabilities = vi.hoisted(() => vi.fn());
+const mockGetRoles = vi.hoisted(() => vi.fn());
+const mockRestoreRole = vi.hoisted(() => vi.fn());
+const mockUpdateRole = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/riskHubApi', async () => {
-    const actual = await vi.importActual<typeof import('@/services/riskHubApi')>('@/services/riskHubApi');
+    const actual = await vi.importActual<typeof TestModule0>('@/services/riskHubApi');
     return {
         ...actual,
         riskHubApi: {
-            createRole: (...args: unknown[]) => mockCreateRole(...args),
-            deleteRole: (...args: unknown[]) => mockDeleteRole(...args),
-            getCapabilities: (...args: unknown[]) => mockGetCapabilities(...args),
-            getPermissions: (...args: unknown[]) => mockGetPermissions(...args),
-            getRoles: (...args: unknown[]) => mockGetRoles(...args),
-            restoreRole: (...args: unknown[]) => mockRestoreRole(...args),
-            updateRole: (...args: unknown[]) => mockUpdateRole(...args),
+            createRole: mockCreateRole,
+            deleteRole: mockDeleteRole,
+            getCapabilities: mockGetCapabilities,
+            getPermissions: mockGetPermissions,
+            getRoles: mockGetRoles,
+            restoreRole: mockRestoreRole,
+            updateRole: mockUpdateRole,
         },
     };
 });
@@ -83,6 +87,7 @@ const roles = [
 ];
 
 function renderRolesPanel() {
+    applyBootstrappedSession({ token: 'config-session', user: mockAuthUser });
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -90,7 +95,9 @@ function renderRolesPanel() {
         },
     });
     const wrapper = ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={['/risk-hub?tab=roles']}>{children}</MemoryRouter>
+        </QueryClientProvider>
     );
     return render(<RolesPanel />, { wrapper });
 }

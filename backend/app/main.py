@@ -16,6 +16,8 @@ from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import DomainError, domain_error_handler
 from app.core.logging import (
+    DEFAULT_AUDIT_LOG_RETENTION_COUNT,
+    DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
     DEFAULT_LOG_RETENTION_COUNT,
     DEFAULT_LOG_ROTATION_SIZE_MB,
     get_logger,
@@ -154,8 +156,8 @@ async def apply_persisted_log_rotation_config(db: AsyncSession) -> dict[str, int
     defaults = {
         "app_log_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
         "app_log_retention_count": DEFAULT_LOG_RETENTION_COUNT,
-        "audit_log_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
-        "audit_log_retention_count": DEFAULT_LOG_RETENTION_COUNT,
+        "audit_log_rotation_size_mb": DEFAULT_AUDIT_LOG_ROTATION_SIZE_MB,
+        "audit_log_retention_count": DEFAULT_AUDIT_LOG_RETENTION_COUNT,
     }
     result = await db.execute(
         select(GlobalConfig.key, GlobalConfig.value).where(GlobalConfig.key.in_(LOG_ROTATION_CONFIG_KEYS))

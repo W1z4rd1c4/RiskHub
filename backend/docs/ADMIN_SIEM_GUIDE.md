@@ -46,16 +46,26 @@ Every line is a valid JSON object with the following fields:
 
 ## Log Rotation Configuration
 
-Rotation settings are configured via the Admin Console (Risk Hub > Settings > Log Configuration).
+Rotation settings are configured via the Admin Console or
+`POST /api/v1/admin/logs/config`. The canonical
+[audit file retention policy](../../docs/deployment/reference.md#audit-file-retention-policy)
+defines disk sizing, override behavior and external archival requirements.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `log_rotation_size_mb` | 10 | Max size per log file before rotation (MB) |
-| `log_retention_count` | 10 | Number of backup files to keep |
+| `app_log_rotation_size_mb` | 10 | Application file rotation size (MiB) |
+| `app_log_retention_count` | 10 | Number of application backup files |
+| `audit_log_rotation_size_mb` | 50 | Audit file rotation size (MiB) |
+| `audit_log_retention_count` | 30 | Number of audit backup files |
+
+Size/count retention does not guarantee a number of days. Preserve any required
+time window in the external SIEM/archive; database activity history is separate.
 
 **When changes apply:**
-- Settings are applied **on backend restart**
-- The lifespan handler reads config from database and reconfigures handlers
+
+- Saved settings apply immediately to the backend process handling the request.
+- Restart all API workers and the scheduler to load saved settings everywhere.
+- Startup reads persisted overrides; missing, non-integer or nonpositive values use the defaults.
 - Rotated files are named `*.json.log.1`, `*.json.log.2`, etc.
 
 ## Integration Examples
@@ -128,5 +138,5 @@ The script checks:
 |-------|----------|
 | Empty audit log | Check `backend/logs/` exists and is writable |
 | Missing user_id | User was not authenticated for that request |
-| Rotation not working | Restart backend after changing config |
+| Rotation differs between workers | Restart all API workers and the scheduler after saving config |
 | Audit entries in app log | Check NonAuditFilter is configured |

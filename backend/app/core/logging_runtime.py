@@ -20,9 +20,19 @@ def default_active_logging_config(*, log_level: str, json_console: bool, rotatio
     }
 
 
-def log_settings(*, rotation_size_mb: int, retention_count: int) -> tuple[int, int, int, int]:
-    default_bytes = rotation_size_mb * 1024 * 1024
-    return default_bytes, retention_count, default_bytes, retention_count
+def log_settings(
+    *,
+    rotation_size_mb: int,
+    retention_count: int,
+    audit_rotation_size_mb: int,
+    audit_retention_count: int,
+) -> tuple[int, int, int, int]:
+    return (
+        rotation_size_mb * 1024 * 1024,
+        retention_count,
+        audit_rotation_size_mb * 1024 * 1024,
+        audit_retention_count,
+    )
 
 
 def configure_logging_runtime(

@@ -144,6 +144,7 @@ test.describe('Governed protected Asset workflow (#86)', () => {
     test('rowless creation, immutable edit, and archive activate only after approval', async ({
         riskManagerPage,
         croPage,
+        employeePage,
     }) => {
         test.setTimeout(240_000);
         const assetName = `E2E-GOV-ASSET-${Date.now()}`;
@@ -195,6 +196,29 @@ test.describe('Governed protected Asset workflow (#86)', () => {
         const pending = riskManagerPage.getByTestId('asset-pending-change');
         await expect(pending).toBeVisible();
         await expect(pending.getByTestId('asset-pending-change-diff')).toContainText('Proposed protected Asset notes');
+        // The shell renders only the pending authority supplied for this actor.
+        const employeeRead = employeePage.waitForResponse((response) => (
+            response.request().method() === 'GET'
+            && new URL(response.url()).pathname === `/api/v1/assets/${asset!.id}`
+        ));
+        await employeePage.goto(`/assets/${asset!.id}`);
+        const employeeResponse = await employeeRead;
+        expect(employeeResponse.status()).toBe(200);
+        const employeeAsset = await employeeResponse.json() as {
+            pending_change: { capabilities: { can_cancel: boolean; can_view_diff: boolean } };
+        };
+        expect(employeeAsset.pending_change.capabilities).toEqual({ can_cancel: false, can_view_diff: false });
+        const restrictedPending = employeePage.getByTestId('asset-pending-change');
+        await expect(restrictedPending).toBeVisible();
+        await expect(restrictedPending.getByTestId('asset-pending-change-diff')).toHaveCount(0);
+        await expect(restrictedPending.getByRole('button', { name: /Cancel/i })).toHaveCount(0);
+        await expect(restrictedPending).not.toContainText('Proposed protected Asset notes');
+        await pending.getByRole('button', { name: /Cancel/i }).click();
+        const cancellation = riskManagerPage.getByRole('alertdialog');
+        await expect(cancellation).toContainText(assetName);
+        await cancellation.getByRole('button', { name: /^(Cancel|Zrušit)$/ }).click();
+        await expect(pending).toBeVisible();
+
         const analysis = await new AxeBuilder({ page: riskManagerPage })
             .withTags([...WCAG_TAGS])
             .include('[data-testid="asset-pending-change"]')

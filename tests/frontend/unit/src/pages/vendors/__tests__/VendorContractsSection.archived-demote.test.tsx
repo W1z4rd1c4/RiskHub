@@ -1,3 +1,4 @@
+import type * as MockvendorContractApiModule from '@/services/vendorContractApi';
 /**
  * FR-P4-6 (S9 demote): archived contracts are demoted into a
  * separated section (the VendorLinkedEntitiesTab convention) rather than
@@ -9,11 +10,11 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetContracts = vi.fn();
+const mockGetContracts = vi.fn<typeof MockvendorContractApiModule.vendorContractApi.getContracts>();
 
 vi.mock('@/services/vendorContractApi', () => ({
     vendorContractApi: {
-        getContracts: (...args: unknown[]) => mockGetContracts(...args),
+        getContracts: (...args: Parameters<typeof mockGetContracts>) => mockGetContracts(...args),
         createContract: vi.fn(),
         updateContract: vi.fn(),
         archiveContract: vi.fn(),
@@ -33,6 +34,9 @@ import i18n from '@/i18n';
 function makeContract(overrides: Record<string, unknown>) {
     return {
         id: 1,
+        vendor_id: 1,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
         contract_reference: 'SML',
         arrangement_type: null,
         main_contract: null,
@@ -55,7 +59,7 @@ function renderSection() {
     return render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
-                <VendorContractsSection vendorId={1} canManageContracts={false} />
+                <VendorContractsSection vendorId={1} canManageContracts={false} protectedChangeRequiresApproval={false} />
             </MemoryRouter>
         </QueryClientProvider>,
     );

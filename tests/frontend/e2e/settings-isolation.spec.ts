@@ -6,7 +6,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { loginAsDemoUser, logout, DEMO_ACCOUNTS } from './helpers/login';
 
 async function waitForPreferencesSave(page: Page): Promise<void> {
-    return page.waitForResponse((resp) =>
+    await page.waitForResponse((resp) =>
         resp.url().includes('/preferences')
         && resp.request().method() === 'PUT'
         && resp.status() === 200

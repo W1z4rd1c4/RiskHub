@@ -1,14 +1,11 @@
 import { governedReasonRequirement } from '@/lib/governedReasonRequirement';
-import { useCallback, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
 
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalQueuedNotice } from '@/components/approvals/ApprovalQueuedNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { PendingChangeCancellationDialog } from '@/components/approvals/PendingChangeCancellationDialog';
-import { PendingChangePanel } from '@/components/approvals/PendingChangePanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CardTitle } from '@/components/ui/card';
@@ -18,15 +15,12 @@ import { useApprovalQueued } from '@/hooks/useApprovalQueued';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTranslation, useFormat } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { logError } from '@/services/logger';
 import { assetApi } from '@/services/assetApi';
-import { approvalsApi } from '@/services/approvalsApi';
 import type { Asset } from '@/types/asset';
-import { isProcessApprovalQueuedResponse } from '@/types/process';
 import { EntityDetailHeader } from '@/pages/detail/EntityDetailHeader';
 
 import { DetailField, DetailFieldList } from './detail/DetailField';
-import { DetailLoadUnavailableState, DetailStaleWarning } from './detail/DetailLoadState';
+import { useProtectedDetailShell } from './detail/useProtectedDetailShell';
 import { DetailSection } from './detail/DetailSection';
 import { EditBlockedState } from './detail/EditBlockedState';
 import { OwnershipGovernanceAlert } from './detail/OwnershipGovernanceAlert';
@@ -46,8 +40,7 @@ import {
 } from './assets/assetsPagePresentation';
 import { getAssetStatusTone } from './assets/assetColumns';
 import { useAssetDetailState, type AssetDetailMode } from './assets/useAssetDetailState';
-import { appendRegisterReturnTo, resolveRegisterReturnTo } from './shared/registerReturnContext';
-import { LoadingState } from '@/components/ui/state';
+import { appendRegisterReturnTo } from './shared/registerReturnContext';
 
 
 
@@ -57,25 +50,10 @@ interface AssetDetailPageProps {
 
 export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/assets');
-    const assetDetailPath = (assetId: number) => appendRegisterReturnTo(`/assets/${assetId}`, returnTo);
     const { t } = useTranslation('assets');
     const { t: tCommon } = useTranslation('common');
     const format = useFormat();
-    // D14 / AX-06: every back control names its destination.
-    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
     const authz = useAuthz();
-    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-    const [isArchiving, setIsArchiving] = useState(false);
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [isCancellingPendingChange, setIsCancellingPendingChange] = useState(false);
-    const [pendingCancellation, setPendingCancellation] = useState<{
-        approvalId: number;
-        targetName: string;
-    } | null>(null);
-    const [pendingCancellationError, setPendingCancellationError] = useState<string | null>(null);
-
     const {
         asset,
         canArchive,
@@ -89,6 +67,15 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         setAsset,
     } = useAssetDetailState({ mode });
 
+    const { returnTo, openArchive, loadState, staleWarning, pendingChangePanel, pendingCancellationDialog, archiveDialog } = useProtectedDetailShell({
+        entity: 'asset', namespace: 'assets', resource: asset, resourceId: assetId,
+        targetName: asset?.name ?? '', loadOutcome, isRetrying, refresh: fetchAsset,
+        archive: (id, reason) => assetApi.archiveAsset(id, reason ?? ''),
+        archiveReason: governedReasonRequirement(asset),
+    });
+    const assetDetailPath = (assetId: number) => appendRegisterReturnTo(`/assets/${assetId}`, returnTo);
+    const backToRegister = { label: t('actions.back_to_register'), onClick: () => void navigate(returnTo) };
+
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',
         load: useCallback(() => assetApi.getAssets({ offset: 0, limit: 1 }), []),
@@ -97,56 +84,6 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
 
     const feedback = useFeedback();
     const announceApprovalQueued = useApprovalQueued();
-
-    const archiveAsset = async (requestReason?: string) => {
-        if (!asset) {
-            return;
-        }
-        try {
-            setIsArchiving(true);
-            setActionError(null);
-            const result = await assetApi.archiveAsset(asset.id, requestReason ?? '');
-            setIsArchiveDialogOpen(false);
-            if (isProcessApprovalQueuedResponse(result)) {
-                // D12 / PM-2: stay on the asset with the pending notice + toast.
-                announceApprovalQueued({ approvalId: result.approval_id });
-                void fetchAsset();
-                return;
-            }
-            feedback.success({ title: tCommon('outcome.archived', { name: asset.name }) });
-            void navigate(returnTo);
-        } catch (archiveError) {
-            logError('Failed to archive asset:', archiveError);
-            setActionError(t('errors.archive_failed'));
-        } finally {
-            setIsArchiving(false);
-        }
-    };
-
-    const openPendingChangeCancellation = () => {
-        if (!asset?.pending_change?.approval_id) return;
-        setPendingCancellationError(null);
-        setPendingCancellation({
-            approvalId: asset.pending_change.approval_id,
-            targetName: asset.name,
-        });
-    };
-
-    const cancelPendingChange = async () => {
-        if (!pendingCancellation || isCancellingPendingChange) return;
-        try {
-            setIsCancellingPendingChange(true);
-            setPendingCancellationError(null);
-            await approvalsApi.cancel(pendingCancellation.approvalId);
-            setPendingCancellation(null);
-            void fetchAsset();
-        } catch (cancelError) {
-            logError('Failed to cancel pending Asset change:', cancelError);
-            setPendingCancellationError(t('pending_change.cancel_failed'));
-        } finally {
-            setIsCancellingPendingChange(false);
-        }
-    };
 
     if (mode === 'new') {
         // D7 / D14: the page title, back control and breadcrumbs stay in place
@@ -182,49 +119,8 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
         );
     }
 
-    if (loadOutcome === 'loading') {
-        return (
-            <LoadingState layout="page" label={tCommon('loading.generic')} />
-        );
-    }
+    if (loadState || !asset) return loadState;
 
-    if (loadOutcome === 'unavailable' || !asset) {
-        return (
-            <DetailLoadUnavailableState
-                backLabel={t('actions.back_to_register')}
-                isRetrying={isRetrying}
-                onBack={() => navigate(returnTo)}
-                onRetry={assetId === null ? undefined : () => void fetchAsset()}
-            />
-        );
-    }
-
-    const staleWarning = loadOutcome === 'stale-with-error' ? (
-        <DetailStaleWarning isRetrying={isRetrying} onRetry={() => void fetchAsset()} />
-    ) : null;
-    const pendingCancellationDialog = (
-        <PendingChangeCancellationDialog
-            isOpen={pendingCancellation !== null}
-            targetName={pendingCancellation?.targetName ?? ''}
-            isLoading={isCancellingPendingChange}
-            errorText={pendingCancellationError}
-            onClose={() => {
-                setPendingCancellation(null);
-                setPendingCancellationError(null);
-            }}
-            onConfirm={() => void cancelPendingChange()}
-        />
-    );
-
-    const pendingChangePanel = asset.pending_change ? (
-        <PendingChangePanel
-            pendingChange={asset.pending_change}
-            namespace="assets"
-            testIdPrefix="asset"
-            cancelling={isCancellingPendingChange}
-            onCancel={openPendingChangeCancellation}
-        />
-    ) : null;
     // SM-05: the ownership banner; the governance action is offered only to
     // users who can open the Governance queue.
     const ownershipAlert = (testId?: string) => (
@@ -367,10 +263,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                         {canArchive && !resolveCapabilityFlag(asset.capabilities, 'business_edit_blocked') && (
                             <Button
                                 variant="destructive"
-                                onClick={() => {
-                                    setActionError(null);
-                                    setIsArchiveDialogOpen(true);
-                                }}
+                                onClick={openArchive}
                                 data-testid="asset-detail-archive"
                             >
                                 <Archive aria-hidden="true" />
@@ -618,26 +511,7 @@ export function AssetDetailPage({ mode = 'view' }: AssetDetailPageProps) {
                 onLinksChanged={() => fetchAsset()}
             />
 
-            {/* D10 / PM-1: archive errors stay in the dialog; the reason is
-                required when the archive can be routed through approval
-                (a protected asset, or unknown protection). */}
-            <ConfirmDialog
-                isOpen={isArchiveDialogOpen}
-                onClose={() => {
-                    setIsArchiveDialogOpen(false);
-                    setActionError(null);
-                }}
-                onConfirm={archiveAsset}
-                intent="archive"
-                entityLabel={tCommon('labels.asset')}
-                message={t('messages.archive_confirm', { assetName: asset.name })}
-                isLoading={isArchiving}
-                reason={governedReasonRequirement(asset) === 'required' ? 'required' : 'optional'}
-                reasonLabel={t('form.request_reason')}
-                reasonPlaceholder={t('form.request_reason_help')}
-                confirmDisabled={governedReasonRequirement(asset) === 'unavailable'}
-                errorText={actionError ?? (governedReasonRequirement(asset) === 'unavailable' ? tCommon('governed_mutation.capability_unavailable') : null)}
-            />
+            {archiveDialog}
             {pendingCancellationDialog}
         </PageContainer>
     );

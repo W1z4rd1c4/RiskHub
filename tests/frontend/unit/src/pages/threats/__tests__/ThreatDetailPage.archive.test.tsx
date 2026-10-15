@@ -1,3 +1,4 @@
+import type * as MockthreatApiModule from '@/services/threatApi';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import type { Threat } from '@/types/threat';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 /**
  * PG-07 / SM-04 / D10 / PM-1: the Threat archive is an `archive` intent
@@ -13,7 +16,7 @@ import type { Threat } from '@/types/threat';
  */
 
 const mocks = vi.hoisted(() => ({
-    archiveThreat: vi.fn(),
+    archiveThreat: vi.fn<typeof MockthreatApiModule.threatApi.archiveThreat>(),
     fetchThreat: vi.fn(),
 }));
 
@@ -23,7 +26,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/services/threatApi', () => ({
     threatApi: {
-        archiveThreat: (...args: unknown[]) => mocks.archiveThreat(...args),
+        archiveThreat: (...args: Parameters<typeof mocks.archiveThreat>) => mocks.archiveThreat(...args),
         getThreats: vi.fn().mockResolvedValue({ items: [] }),
     },
 }));
@@ -41,7 +44,7 @@ const threat: Threat = {
     capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false },
     created_at: '2026-07-15T10:00:00Z',
     updated_at: '2026-07-15T10:00:00Z',
-} as Threat;
+};
 
 vi.mock('@/pages/threats/useThreatDetailState', () => ({
     useThreatDetailState: () => ({
@@ -79,6 +82,7 @@ function renderPage() {
 
 describe('ThreatDetailPage archive confirmation', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'threat-archive-test', user: mockAuthUser });
         vi.clearAllMocks();
     });
 

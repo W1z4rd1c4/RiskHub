@@ -2,7 +2,8 @@
  * KRIs Page Object Model
  * Handles Key Risk Indicator list and interaction operations
  */
-import { expect, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
 import { matchesCollectionResponse } from './collectionResponse';
 
@@ -197,10 +198,11 @@ export class KRIsPage {
         await expect(this.exportDialog).toBeVisible();
     }
 
-    async chooseExportFormat(format: 'csv'): Promise<void> {
+    chooseExportFormat(format: 'csv'): Promise<void> {
         if (format !== 'csv') {
-            throw new Error('Only CSV export is supported');
+            return Promise.reject(new Error('Only CSV export is supported'));
         }
+        return Promise.resolve();
     }
 
     async chooseCurrentViewExport(): Promise<void> {

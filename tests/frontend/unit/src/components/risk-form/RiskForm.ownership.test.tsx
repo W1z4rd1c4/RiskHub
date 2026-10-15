@@ -49,9 +49,9 @@ describe('Risk owner assignment search', () => {
         const user = userEvent.setup();
         openOwnership();
         expect(screen.getByText('Existing Owner')).toBeVisible();
-        await user.click(await screen.findByRole('button', { name: 'Manager', exact: true }));
-        expect(screen.getByRole('button', { name: 'Manager', exact: true })).toHaveAttribute('aria-pressed', 'true');
-        await user.click(screen.getByRole('button', { name: 'All', exact: true }));
+        await user.click(await screen.findByRole('button', { name: 'Manager' }));
+        expect(screen.getByRole('button', { name: 'Manager' })).toHaveAttribute('aria-pressed', 'true');
+        await user.click(screen.getByRole('button', { name: 'All' }));
         await user.type(screen.getByRole('textbox', { name: /^Risk Owner/ }), 'Alice');
         await user.keyboard('{Enter}');
         expect(update).not.toHaveBeenCalled();
@@ -128,13 +128,13 @@ describe('Risk owner assignment search', () => {
         }));
         const user = userEvent.setup();
         openOwnership();
-        await user.click(await screen.findByRole('button', { name: 'Manager', exact: true }));
+        await user.click(await screen.findByRole('button', { name: 'Manager' }));
         const search = screen.getByRole('textbox', { name: /^Risk Owner/ });
         await user.type(search, 'Alice');
         expect(await screen.findByText('No matching owners in this result set. Refine the search or choose All roles.')).toBeVisible();
         expect(screen.queryByText('No users found')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Clear owner Existing Owner' })).toBeVisible();
-        await user.click(screen.getByRole('button', { name: 'All', exact: true }));
+        await user.click(screen.getByRole('button', { name: 'All' }));
         expect(screen.getByRole('button', { name: /Alice Owner\s*Employee/ })).toBeVisible();
         await user.clear(search);
         await user.type(search, 'Nobody');

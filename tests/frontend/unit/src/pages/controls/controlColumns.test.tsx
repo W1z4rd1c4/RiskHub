@@ -24,7 +24,7 @@ describe('buildControlColumns', () => {
             control_form: 'manual',
         };
 
-        render(<>{frequencyColumn?.render?.(control)}</>);
+        render(<>{frequencyColumn?.render?.(control, 0)}</>);
 
         expect(screen.getByText('semi-annually')).toBeInTheDocument();
         // GAP-D-01: the literal `controls:frequencies.*` key (semi-annually has one now).

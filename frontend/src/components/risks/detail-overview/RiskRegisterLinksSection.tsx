@@ -23,7 +23,7 @@ import { assetApi } from '@/services/assetApi';
 import { processApi } from '@/services/processApi';
 import { riskRegisterLinksApi, threatApi } from '@/services/threatApi';
 import type { Risk } from '@/types/risk';
-import { ApiClientError, isForbiddenApiError } from '@/services/apiClient';
+import { isSingleRecordUnavailableError } from '@/services/apiClient';
 import {
     processBusinessEditBlocked,
 } from '@/pages/processes/processProtectedEdit';
@@ -67,10 +67,6 @@ interface LinkLaneProps<T> {
     testId: string;
 }
 
-function isProtectedUnavailableError(error: unknown): boolean {
-    return isForbiddenApiError(error) || error instanceof ApiClientError && error.status === 404;
-}
-
 function useRegisterLinkLane<T>(
     ownerId: number,
     queryKey: readonly unknown[],
@@ -86,7 +82,7 @@ function useRegisterLinkLane<T>(
             try {
                 return await request(signal);
             } catch (error) {
-                if (isProtectedUnavailableError(error)) {
+                if (isSingleRecordUnavailableError(error)) {
                     queryClient.setQueryData(queryKey, []);
                 }
                 throw error;
@@ -95,7 +91,7 @@ function useRegisterLinkLane<T>(
         retry: false,
     });
     const isProtectedUnavailable = denied
-        || query.isError && isProtectedUnavailableError(query.error);
+        || query.isError && isSingleRecordUnavailableError(query.error);
 
     useEffect(() => {
         setDenied(false);
@@ -115,7 +111,7 @@ function useRegisterLinkLane<T>(
     }, [needsCancelledReadReplacement, ownerId, refetch]);
 
     useEffect(() => {
-        if (query.isError && isProtectedUnavailableError(query.error)) {
+        if (query.isError && isSingleRecordUnavailableError(query.error)) {
             setDenied(true);
         } else if (query.isSuccess) {
             setDenied(false);

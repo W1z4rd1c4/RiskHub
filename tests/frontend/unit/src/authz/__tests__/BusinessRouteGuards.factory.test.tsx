@@ -2,10 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockUseAuthz = vi.fn();
+const mockUseAuthz = vi.hoisted(() => vi.fn());
 
 vi.mock('@/authz/useAuthz', () => ({
-    useAuthz: () => mockUseAuthz(),
+    useAuthz: mockUseAuthz,
 }));
 
 import {

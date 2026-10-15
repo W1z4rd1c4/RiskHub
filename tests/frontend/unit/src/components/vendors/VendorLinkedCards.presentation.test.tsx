@@ -36,7 +36,7 @@ describe('vendor linked cards', () => {
                         name: 'Access review',
                         frequency: 'monthly',
                         risk_level: 3,
-                        monitoring_status: 'on_track',
+                        monitoring_status: 'passed',
                     }}
                     onClick={onControlClick}
                 />

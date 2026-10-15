@@ -1,3 +1,4 @@
+import type * as AuthConfigModule from '@/services/authConfig';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,16 +18,16 @@ import {
 import type { TokenResponse } from '@/services/authApi';
 
 vi.mock('@/services/authConfig', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/services/authConfig')>();
+    const actual = await importOriginal<typeof AuthConfigModule>();
     return {
         ...actual,
-        getAuthConfig: vi.fn(async () => ({
+        getAuthConfig: vi.fn(() => Promise.resolve(({
             auth_mode: 'password' as const,
             demo_login_enabled: false,
             password_login_enabled: true,
             strict_capabilities: true,
             sso: { enabled: false, provider: 'entra' as const, scopes: [] },
-        })),
+        }))),
     };
 });
 
@@ -92,7 +93,7 @@ describe('preference hydration ownership', () => {
     it('does not let late User A hydration overwrite User B after implicit session loss', async () => {
         const userAHydration = deferred<UserPreferences>();
         const userBHydration = deferred<UserPreferences>();
-        vi.spyOn(preferencesApi, 'get')
+        const getSpy = vi.spyOn(preferencesApi, 'get')
             .mockReturnValueOnce(userAHydration.promise)
             .mockReturnValueOnce(userBHydration.promise);
 
@@ -103,22 +104,22 @@ describe('preference hydration ownership', () => {
         );
 
         await waitFor(() => expect(screen.getByTestId('session')).toHaveTextContent('anonymous:anonymous'));
-        act(() => applyAuthenticatedSession(session(1, 'token-a')));
+        await act(() => applyAuthenticatedSession(session(1, 'token-a')));
         await waitFor(() => expect(screen.getByTestId('session')).toHaveTextContent('1:authenticated'));
-        await waitFor(() => expect(preferencesApi.get).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(1));
 
         act(() => clearAuthenticatedSession({ clearBootstrap: true }));
         await waitFor(() => expect(screen.getByTestId('session')).toHaveTextContent('anonymous:anonymous'));
-        act(() => applyAuthenticatedSession(session(2, 'token-b')));
+        await act(() => applyAuthenticatedSession(session(2, 'token-b')));
         await waitFor(() => expect(screen.getByTestId('session')).toHaveTextContent('2:authenticated'));
-        await waitFor(() => expect(preferencesApi.get).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(2));
 
-        await act(async () => userBHydration.resolve({ theme: 'light', language: 'cs' }));
+        await act(() => Promise.resolve(userBHydration.resolve({ theme: 'light', language: 'cs' })));
         await waitFor(() => expect(screen.getByTestId('preferences')).toHaveTextContent('light:cs'));
         expect(localStorage.getItem('riskhub-theme')).toBe('light');
         expect(localStorage.getItem('riskhub-language')).toBe('cs');
 
-        await act(async () => userAHydration.resolve({ theme: 'dark', language: 'en' }));
+        await act(() => Promise.resolve(userAHydration.resolve({ theme: 'dark', language: 'en' })));
         await Promise.resolve();
 
         expect(screen.getByTestId('preferences')).toHaveTextContent('light:cs');

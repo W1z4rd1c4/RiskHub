@@ -25,9 +25,9 @@ const pendingCreation = {
     requested_by_name: 'Requester',
     reason: 'Add the payments process',
     proposed: {},
-    derived: { cif: 'No' },
+    derived: { cif: 'no' },
     capabilities: { can_view_diff: true, can_cancel: true, is_requester: true, can_resolve: false },
-} as ProcessPendingCreationRead;
+} satisfies ProcessPendingCreationRead;
 
 const page = (id: number, name: string, pending = [] as ProcessPendingCreationRead[]): ProcessListResponse => ({
     items: [process(id, name)],
@@ -123,7 +123,7 @@ describe('useProcessesPageState shared collection state', () => {
             status: 500,
             messageKey: 'errors.server',
         }));
-        act(() => result.current.setCurrentPage(2));
+        act(() => result.current.workingSet.setCurrentPage(2));
 
         await waitFor(() => expect(result.current.errorKey).not.toBeNull());
         expect(result.current.pendingCreations).toEqual([]);
@@ -156,10 +156,10 @@ describe('useProcessesPageState shared collection state', () => {
             location: useLocation(),
             state: useProcessesPageState(),
         }), { wrapper: urlWrapper });
-        await waitFor(() => expect(result.current.state.viewMode).toBe('department'));
-        expect(result.current.state.currentPage).toBe(9);
-        expect(result.current.state.search).toBe('payments');
-        expect(result.current.state.selectedGroupValue).toBe('department:7');
+        await waitFor(() => expect(result.current.state.workingSet.viewMode).toBe('department'));
+        expect(result.current.state.workingSet.currentPage).toBe(9);
+        expect(result.current.state.workingSet.search).toBe('payments');
+        expect(result.current.state.workingSet.selectedGroupValue).toBe('department:7');
 
         act(() => {
             result.current.state.updateFilter('criticality', ['critical']);
@@ -182,16 +182,16 @@ describe('useProcessesPageState shared collection state', () => {
             navigate: useNavigate(),
             state: useProcessesPageState(),
         }), { wrapper: urlWrapper });
-        await waitFor(() => expect(result.current.state.currentPage).toBe(2));
+        await waitFor(() => expect(result.current.state.workingSet.currentPage).toBe(2));
 
-        act(() => result.current.state.setCurrentPage(4));
+        act(() => result.current.state.workingSet.setCurrentPage(4));
         await waitFor(() => expect(result.current.location.search).toContain('page=4'));
         expect(result.current.location.search).toContain('source=audit');
 
-        act(() => result.current.navigate(-1));
-        await waitFor(() => expect(result.current.state.currentPage).toBe(2));
-        act(() => result.current.navigate(1));
-        await waitFor(() => expect(result.current.state.currentPage).toBe(4));
+        await act(() => result.current.navigate(-1));
+        await waitFor(() => expect(result.current.state.workingSet.currentPage).toBe(2));
+        await act(() => result.current.navigate(1));
+        await waitFor(() => expect(result.current.state.workingSet.currentPage).toBe(4));
     });
 
     it('replaces an invalid page without adding a Back entry', async () => {
@@ -209,9 +209,9 @@ describe('useProcessesPageState shared collection state', () => {
             state: useProcessesPageState(),
         }), { wrapper: urlWrapper });
         await waitFor(() => expect(result.current.location.search).toBe('?source=audit'));
-        expect(result.current.state.currentPage).toBe(1);
+        expect(result.current.state.workingSet.currentPage).toBe(1);
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.location.search).toBe('?marker=before'));
     });
 
@@ -229,13 +229,13 @@ describe('useProcessesPageState shared collection state', () => {
             navigate: useNavigate(),
             state: useProcessesPageState(),
         }), { wrapper: urlWrapper });
-        await waitFor(() => expect(result.current.state.currentPage).toBe(3));
+        await waitFor(() => expect(result.current.state.workingSet.currentPage).toBe(3));
 
         act(() => result.current.state.updateFilter('criticality', ['critical']));
         await waitFor(() => expect(result.current.location.search).toContain('filters='));
         expect(result.current.location.search).not.toContain('page=');
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.location.search).toContain('page=3'));
     });
 
@@ -253,12 +253,12 @@ describe('useProcessesPageState shared collection state', () => {
             navigate: useNavigate(),
             state: useProcessesPageState(),
         }), { wrapper: urlWrapper });
-        await waitFor(() => expect(result.current.state.currentPage).toBe(3));
+        await waitFor(() => expect(result.current.state.workingSet.currentPage).toBe(3));
 
-        act(() => result.current.state.updateSearch('payments'));
+        act(() => result.current.state.workingSet.updateSearch('payments'));
         await waitFor(() => expect(result.current.location.search).toBe('?source=audit&q=payments'));
 
-        act(() => result.current.navigate(-1));
+        await act(() => result.current.navigate(-1));
         await waitFor(() => expect(result.current.location.search).toBe('?marker=before'));
     });
 });

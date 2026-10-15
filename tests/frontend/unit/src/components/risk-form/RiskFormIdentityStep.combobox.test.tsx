@@ -27,7 +27,7 @@ function IdentityStepHarness({
 
     return (
         <RiskFormIdentityStep
-            t={i18n.t.bind(i18n)}
+            t={(key, options) => i18n.t(key, { defaultValue: key, ...(typeof options === 'string' ? { defaultValue: options } : options) })}
             formData={formData}
             fieldErrors={fieldErrors}
             riskTypes={[]}

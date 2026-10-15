@@ -21,7 +21,7 @@ const formData: UserCreate = {
     role_id: 3,
     department_id: null,
     is_active: true,
-} as UserCreate;
+};
 
 function renderLocalForm(overrides: Partial<Parameters<typeof UserNewLocalForm>[0]> = {}) {
     return render(
@@ -30,7 +30,7 @@ function renderLocalForm(overrides: Partial<Parameters<typeof UserNewLocalForm>[
             formData={formData}
             isLoading={false}
             onCancel={vi.fn()}
-            onSubmit={vi.fn((event) => event.preventDefault())}
+            onSubmit={vi.fn<Parameters<typeof UserNewLocalForm>[0]['onSubmit']>((event) => event.preventDefault())}
             roles={roles}
             setFormData={vi.fn()}
             {...overrides}

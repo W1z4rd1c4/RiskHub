@@ -34,7 +34,7 @@ function appendValues(params: URLSearchParams, key: string, values: ReadonlyArra
     values?.forEach((value) => params.append(key, String(value)));
 }
 
-export function buildVendorCollectionQuery(params: VendorListParams): URLSearchParams {
+export function buildVendorCollectionQuery(params: Omit<VendorListParams, 'offset' | 'limit'> & { offset?: number; limit?: number }): URLSearchParams {
     const query = new URLSearchParams();
     const set = (key: string, value: string | number | boolean | undefined) => {
         if (value !== undefined && value !== '') query.set(key, String(value));
@@ -112,7 +112,7 @@ export function buildVendorCollectionQuery(params: VendorListParams): URLSearchP
     return query;
 }
 
-async function downloadVendorExport(params: VendorListParams, locale: 'en' | 'cs'): Promise<void> {
+async function downloadVendorExport(params: Omit<VendorListParams, 'offset' | 'limit'>, locale: 'en' | 'cs'): Promise<void> {
     const query = buildVendorCollectionQuery(params);
     query.delete('offset');
     query.delete('limit');
@@ -154,8 +154,8 @@ export const vendorApi = {
 
     downloadExport: downloadVendorExport,
 
-    async getVendor(id: number): Promise<Vendor> {
-        return apiClient.get(`/vendors/${id}`, { schema: vendorSchema });
+    async getVendor(id: number, options?: { signal?: AbortSignal }): Promise<Vendor> {
+        return apiClient.get(`/vendors/${id}`, { ...options, schema: vendorSchema });
     },
 
     async createVendor(data: VendorCreate): Promise<Vendor | ProcessApprovalQueuedResponse> {

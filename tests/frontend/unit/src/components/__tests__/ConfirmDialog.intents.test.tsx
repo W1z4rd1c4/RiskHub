@@ -36,7 +36,7 @@ function deferred() {
 }
 
 function fixedT(lng: 'en' | 'cs'): SafeTFunction {
-    return i18n.getFixedT(lng, 'common') as unknown as SafeTFunction;
+    return i18n.getFixedT(lng, 'common');
 }
 
 afterEach(async () => {

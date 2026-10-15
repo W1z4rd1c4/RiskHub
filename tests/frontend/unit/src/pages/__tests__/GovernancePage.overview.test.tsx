@@ -1,3 +1,5 @@
+import type * as MockorphanedItemsApiModule from '@/services/orphanedItemsApi';
+import type * as Actualhooks from '@/i18n/hooks';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -5,8 +7,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 
-const getOverviewMock = vi.fn();
-const scanOrphansMock = vi.fn();
+const getOverviewMock = vi.fn<typeof MockorphanedItemsApiModule.orphanedItemsApi.getOverview>();
+const scanOrphansMock = vi.fn<typeof MockorphanedItemsApiModule.orphanedItemsApi.scanOrphans>();
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
@@ -16,7 +18,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -25,8 +27,8 @@ vi.mock('@/i18n/hooks', async (importOriginal) => ({
 
 vi.mock('@/services/orphanedItemsApi', () => ({
     orphanedItemsApi: {
-        getOverview: (...args: unknown[]) => getOverviewMock(...args),
-        scanOrphans: (...args: unknown[]) => scanOrphansMock(...args),
+        getOverview: (...args: Parameters<typeof getOverviewMock>) => getOverviewMock(...args),
+        scanOrphans: (...args: Parameters<typeof scanOrphansMock>) => scanOrphansMock(...args),
     },
 }));
 
@@ -92,6 +94,7 @@ describe('GovernancePage overview aggregation', () => {
         vi.clearAllMocks();
         getOverviewMock.mockResolvedValue({
             stats: {
+                asset_count: 0, vendor_count: 0,
                 risk_count: 1,
                 control_count: 0,
                 kri_count: 0,
@@ -112,6 +115,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'former@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
             ],
             last_scan_at: '2026-03-07T10:00:00Z',
@@ -187,6 +191,7 @@ describe('GovernancePage overview aggregation', () => {
     it('opens the Threat queue when linked from an orphaned Threat detail', async () => {
         getOverviewMock.mockResolvedValue({
             stats: {
+                asset_count: 0, vendor_count: 0,
                 risk_count: 1,
                 control_count: 0,
                 kri_count: 0,
@@ -207,6 +212,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'former@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
                 {
                     id: 2,
@@ -220,6 +226,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'former-ciso@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
             ],
             last_scan_at: '2026-03-07T10:00:00Z',
@@ -240,6 +247,7 @@ describe('GovernancePage overview aggregation', () => {
     it('opens the Process queue when linked from an orphaned Process detail', async () => {
         getOverviewMock.mockResolvedValue({
             stats: {
+                asset_count: 0, vendor_count: 0,
                 risk_count: 1,
                 control_count: 0,
                 kri_count: 0,
@@ -260,6 +268,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'former@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
                 {
                     id: 3,
@@ -273,6 +282,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'process-owner@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
             ],
             last_scan_at: '2026-03-07T10:00:00Z',
@@ -294,6 +304,7 @@ describe('GovernancePage overview aggregation', () => {
         const user = userEvent.setup();
         getOverviewMock.mockResolvedValue({
             stats: {
+                asset_count: 0, vendor_count: 0,
                 risk_count: 1,
                 control_count: 0,
                 kri_count: 0,
@@ -314,6 +325,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'former@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
                 {
                     id: 2,
@@ -327,6 +339,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'former-ciso@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
                 {
                     id: 3,
@@ -340,6 +353,7 @@ describe('GovernancePage overview aggregation', () => {
                     previous_owner_email: 'process-owner@example.com',
                     orphaned_at: '2026-03-07T10:00:00Z',
                     status: 'pending',
+                    request_reason_required: false,
                 },
             ],
             last_scan_at: '2026-03-07T10:00:00Z',

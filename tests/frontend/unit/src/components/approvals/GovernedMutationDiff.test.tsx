@@ -139,7 +139,7 @@ describe('GovernedMutationDiff', () => {
         expect(screen.queryByText('hidden relationship payload', { exact: false })).not.toBeInTheDocument();
     });
 
-    it('renders only the safe relationship snapshot for governed Process links', async () => {
+    it('renders only the safe relationship snapshot for governed Process links', () => {
         render(
             <GovernedMutationDiff
                 mutationKind="process.link.asset.update"

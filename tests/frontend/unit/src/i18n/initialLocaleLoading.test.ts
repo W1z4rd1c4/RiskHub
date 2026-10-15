@@ -15,15 +15,13 @@ describe('initial locale loading', () => {
 
         const { default: i18n } = await import('@/i18n');
         const requestedLanguages: string[] = [];
-        const backend = i18n.services.backendConnector.backend as {
-            read: (
-                language: string,
-                namespace: string,
-                callback: (error: Error | null, data?: Record<string, unknown>) => void,
-            ) => void;
+        const services = i18n.services as {
+            backendConnector: { backend: { read: (language: string, namespace: string, callback: (error: Error | null, data?: Record<string, unknown>) => void) => void } };
+            languageUtils: { toResolveHierarchy: (language: string) => string[] };
         };
+        const backend = services.backendConnector.backend;
 
-        const hierarchy = i18n.services.languageUtils.toResolveHierarchy('cs');
+        const hierarchy = services.languageUtils.toResolveHierarchy('cs');
         await Promise.all(hierarchy.map((language) => new Promise<void>((resolve, reject) => {
             requestedLanguages.push(language);
             backend.read(language, 'common', (error) => {
@@ -33,8 +31,8 @@ describe('initial locale loading', () => {
         })));
 
         expect(requestedLanguages).toEqual(['cs']);
-        expect(i18n.services.languageUtils.toResolveHierarchy('en')).toEqual(['en']);
-        expect(i18n.services.languageUtils.toResolveHierarchy('de')).toEqual(['en']);
+        expect(services.languageUtils.toResolveHierarchy('en')).toEqual(['en']);
+        expect(services.languageUtils.toResolveHierarchy('de')).toEqual(['en']);
     });
 
     it('evicts a rejected locale import so the next activation invokes a fresh loader', async () => {
@@ -43,11 +41,11 @@ describe('initial locale loading', () => {
 
         const { createRetryableLocaleLoader } = await import('@/i18n');
         const czechResources = { resources: { common: { ready: 'Ano' } } };
-        const importCzech = vi.fn()
+        const importCzech = vi.fn<() => Promise<typeof czechResources>>()
             .mockRejectedValueOnce(new Error('chunk download failed'))
             .mockResolvedValueOnce(czechResources);
         const loadLocale = createRetryableLocaleLoader({
-            en: vi.fn().mockResolvedValue({ resources: { common: { ready: 'Yes' } } }),
+            en: vi.fn<() => Promise<typeof czechResources>>().mockResolvedValue({ resources: { common: { ready: 'Yes' } } }),
             cs: importCzech,
         });
 
@@ -68,12 +66,12 @@ describe('initial locale loading', () => {
         } = await import('@/i18n');
         const localeError = new Error('chunk download failed');
         const czechResources = { resources: { common: { ready: 'Ano' } } };
-        const importCzech = vi.fn()
+        const importCzech = vi.fn<() => Promise<typeof czechResources>>()
             .mockRejectedValueOnce(localeError)
             .mockRejectedValueOnce(localeError)
             .mockResolvedValueOnce(czechResources);
         const loadLocale = createRetryableLocaleLoader({
-            en: vi.fn().mockResolvedValue({ resources: { common: { ready: 'Yes' } } }),
+            en: vi.fn<() => Promise<typeof czechResources>>().mockResolvedValue({ resources: { common: { ready: 'Yes' } } }),
             cs: importCzech,
         });
         const instance = i18n.createInstance();
@@ -102,7 +100,7 @@ describe('initial locale loading', () => {
 
         await expect(activateLanguage(instance, 'cs')).resolves.toBeUndefined();
         expect(instance.language).toBe('cs');
-        expect(instance.t('ready')).toBe('Ano');
+        expect(instance.t('ready', { defaultValue: 'ready' })).toBe('Ano');
         expect(importCzech).toHaveBeenCalledTimes(3);
     });
 });

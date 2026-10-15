@@ -1,3 +1,4 @@
+import type * as ActualuserSettingsStorage from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -27,10 +28,10 @@ import { RisksPage } from '@/pages/RisksPage';
 import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof ActualuserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
@@ -451,7 +452,7 @@ describe('RisksPage archived visibility', () => {
     });
 
     it('opens the canonical breached-parent footer in the actual Department Risks view',async()=>{
-        const requests:Record<string,unknown>[]=[];
+        const requests:unknown[]=[];
         server.use(
             http.get('*/api/v1/auth/me',()=>HttpResponse.json(makeUser())),
             http.get('*/api/v1/risks',({request})=>{requests.push(JSON.parse(new URL(request.url).searchParams.get('filters')??'{}'));return HttpResponse.json({items:[],total:0,offset:0,limit:50});}),

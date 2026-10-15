@@ -6,7 +6,7 @@ import type { ActivityLogEntry } from '@/types/activityLog';
 import { renderWithoutProviders, screen } from '@test/render';
 
 const t = ((key: string, options?: Record<string, unknown>) =>
-    i18n.t(key, { ns: 'issues', ...(options ?? {}) })) as never;
+    i18n.t(key, { ns: 'issues', defaultValue: key, ...(options ?? {}) })) as never;
 
 const entry = {
     id: 1,

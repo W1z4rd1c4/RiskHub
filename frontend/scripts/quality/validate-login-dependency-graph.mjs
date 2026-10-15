@@ -86,7 +86,17 @@ function validate() {
     ['cs', localeCs, '/src/i18n/locales/en/'],
   ]) {
     const graphFiles = staticClosure([main, login, activeLocale]);
-    assertNoMatch(modulesFor(graphFiles), [inactiveLocale], `Cold ${language} login includes the inactive locale`);
+    const publicModules = modulesFor(graphFiles);
+    assertNoMatch(publicModules, [inactiveLocale], `Cold ${language} login includes the inactive locale`);
+    // Preference hydration is part of public authentication. Other business
+    // entity schemas must stay outside both languages' cold-login closures.
+    const businessSchemas = publicModules.filter((id) => (
+      id.includes('/src/services/api/schemas/entities')
+      && !id.endsWith('/src/services/api/schemas/entities/preferences.ts')
+    ));
+    if (businessSchemas.length > 0) {
+      errors.push(`Cold ${language} login statically includes business entity schemas: ${businessSchemas.join(', ')}`);
+    }
     measurements[language] = { ...measure(graphFiles), files: [...graphFiles].sort() };
   }
 

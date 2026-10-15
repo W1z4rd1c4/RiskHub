@@ -36,7 +36,7 @@ function appendValues(params: URLSearchParams, key: string, values: ReadonlyArra
     values?.forEach((value) => params.append(key, String(value)));
 }
 
-export function buildAssetCollectionQuery(params: AssetListParams): URLSearchParams {
+export function buildAssetCollectionQuery(params: Omit<AssetListParams, 'offset' | 'limit'> & { offset?: number; limit?: number }): URLSearchParams {
     const query = new URLSearchParams();
     const set = (key: string, value: string | number | boolean | undefined) => {
         if (value !== undefined && value !== '') query.set(key, String(value));
@@ -76,7 +76,7 @@ export function buildAssetCollectionQuery(params: AssetListParams): URLSearchPar
     return query;
 }
 
-async function downloadAssetExport(params: AssetListParams, locale: 'en' | 'cs'): Promise<void> {
+async function downloadAssetExport(params: Omit<AssetListParams, 'offset' | 'limit'>, locale: 'en' | 'cs'): Promise<void> {
     const query = buildAssetCollectionQuery(params);
     query.delete('offset'); query.delete('limit'); query.set('format', 'csv'); query.set('locale', locale);
     const { blob, headers } = await apiClient.getBlob(`/assets/export?${query.toString()}`, { timeoutMs: null });
@@ -104,8 +104,8 @@ export const assetApi = {
 
     downloadExport: downloadAssetExport,
 
-    async getAsset(id: number): Promise<Asset> {
-        return apiClient.get(`/assets/${id}`, { schema: assetSchema });
+    async getAsset(id: number, options?: { signal?: AbortSignal }): Promise<Asset> {
+        return apiClient.get(`/assets/${id}`, { ...options, schema: assetSchema });
     },
 
     async createAsset(data: AssetWritePayload): Promise<Asset | ProcessApprovalQueuedResponse> {

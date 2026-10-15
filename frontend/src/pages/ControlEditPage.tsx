@@ -22,7 +22,7 @@ export function ControlEditPage() {
     const returnTo = resolveRegisterReturnTo(searchParams.get('return_to'), '/controls');
     const detailPath = appendRegisterReturnTo(`/controls/${id}`, returnTo);
     const { t } = useTranslation(['controls', 'common']);
-    const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
+    const loadControl = useCallback((controlId: number, signal?: AbortSignal) => controlApi.getControl(controlId, { signal }), []);
     const {
         isRetrying,
         loadOutcome,

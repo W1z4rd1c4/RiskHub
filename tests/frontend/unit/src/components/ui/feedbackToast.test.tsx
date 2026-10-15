@@ -1,5 +1,6 @@
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import * as axe from 'axe-core';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -18,14 +19,15 @@ const THEMES: ReadonlyArray<{ name: string; className: string }> = [
 ];
 
 /** Renders the provider and hands the stable `useFeedback()` API back to the test. */
-function renderFeedback(themeClassName = ''): { api: () => FeedbackApi } {
+function renderFeedback(themeClassName = ''): { api: () => FeedbackApi; unmount: () => void } {
     let captured: FeedbackApi | null = null;
     function Capture() {
         captured = useFeedback();
         return null;
     }
-    render(<div className={themeClassName}><FeedbackProvider><Capture /></FeedbackProvider></div>);
+    const { unmount } = render(<div className={themeClassName}><StrictMode><FeedbackProvider><Capture /></FeedbackProvider></StrictMode></div>);
     return {
+        unmount,
         api: () => {
             if (!captured) throw new Error('useFeedback() was not captured');
             return captured;
@@ -158,6 +160,59 @@ describe('FeedbackProvider / useFeedback (audit §4.16, D9)', () => {
         act(() => { vi.advanceTimersByTime(400); });
         expect(toastItems()).toHaveLength(0);
     });
+
+    it('keeps a follow-up notification created by a dismiss-all callback', () => {
+        const { api } = renderFeedback();
+        const dismissed = vi.fn(() => { api().success({ title: 'Follow-up after dismissal' }); });
+        act(() => { api().error({ id: 'owned', title: 'Original failure', onDismiss: dismissed }); });
+        act(() => { api().dismiss(); });
+        expect(dismissed).toHaveBeenCalledTimes(1);
+        expect(toastWithTitle('Follow-up after dismissal')).toHaveAttribute('data-state', 'open');
+    });
+
+    it('keeps the newest same-id callback notification and its dismissal owner', () => {
+        const { api } = renderFeedback();
+        const replacementDismissed = vi.fn();
+        const followupDismissed = vi.fn();
+        const originalDismissed = vi.fn(() => {
+            api().success({ id: 'sync', title: 'Callback follow-up', onDismiss: followupDismissed });
+        });
+        act(() => { api().error({ id: 'sync', title: 'Original failure', onDismiss: originalDismissed }); });
+        act(() => { api().success({ id: 'sync', title: 'Replacement', onDismiss: replacementDismissed }); });
+        expect(toastWithTitle('Callback follow-up')).toHaveAttribute('data-state', 'open');
+        expect(originalDismissed).toHaveBeenCalledTimes(1);
+        expect(replacementDismissed).toHaveBeenCalledTimes(1);
+        expect(followupDismissed).not.toHaveBeenCalled();
+        act(() => { api().dismiss('sync'); });
+        expect(followupDismissed).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['close button', 'dismiss one', 'dismiss all', 'replacement', 'overflow', 'action', 'unmount'] as const)(
+        'notifies an action owner exactly once for %s', (path) => {
+            const { api, unmount } = renderFeedback();
+            const dismissed = vi.fn();
+            act(() => { api().error({ id: 'owned', title: 'Owned failure', onDismiss: dismissed,
+                action: { label: 'Owned Retry', onClick: () => undefined } }); });
+            if (path === 'close button') {
+                fireEvent.click(within(toastWithTitle('Owned failure')).getByRole('button', { name: 'Dismiss notification' }));
+            } else if (path === 'dismiss one') {
+                act(() => { api().dismiss('owned'); });
+            } else if (path === 'dismiss all') {
+                act(() => { api().dismiss(); });
+            } else if (path === 'replacement') {
+                act(() => { api().success({ id: 'owned', title: 'Replacement' }); });
+            } else if (path === 'overflow') {
+                act(() => { for (let i = 0; i < FEEDBACK_MAX_VISIBLE; i += 1) api().info({ title: `Later ${i}` }); });
+            } else if (path === 'action') {
+                fireEvent.click(screen.getByRole('button', { name: 'Owned Retry' }));
+            } else {
+                unmount();
+            }
+            expect(dismissed).toHaveBeenCalledTimes(1);
+            if (path !== 'unmount') act(() => { api().dismiss('owned'); });
+            expect(dismissed).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it.each(THEMES)('has no structural axe violations with every tone open in the $name theme', async ({ className }) => {
         const { api } = renderFeedback(className);

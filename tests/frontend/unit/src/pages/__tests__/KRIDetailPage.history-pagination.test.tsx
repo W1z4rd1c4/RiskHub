@@ -1,3 +1,5 @@
+import { kriFixture } from './pageFixtures';
+import type * as MockkriApiModule from '@/services/kriApi';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,11 +7,11 @@ import { ApiClientError } from '@/services/apiClient';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { renderWithQueryClient as render } from '@test/render';
 
-const getKRI = vi.fn();
-const getHistory = vi.fn();
+const getKRI = vi.fn<typeof MockkriApiModule.kriApi.getKRI>();
+const getHistory = vi.fn<typeof MockkriApiModule.kriApi.getHistory>();
 let correctionComplete: (() => void) | undefined;
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ isLoading: false }) }));
-vi.mock('@/services/kriApi', () => ({ kriApi: { getKRI: (...args: unknown[]) => getKRI(...args), getHistory: (...args: unknown[]) => getHistory(...args) } }));
+vi.mock('@/services/kriApi', () => ({ kriApi: { getKRI: (...args: Parameters<typeof getKRI>) => getKRI(...args), getHistory: (...args: Parameters<typeof getHistory>) => getHistory(...args) } }));
 vi.mock('@/services/riskApi', () => ({ riskApi: { getRisk: vi.fn() } }));
 vi.mock('@/components/kri/KRIModal', () => ({ KRIModal: () => null }));
 vi.mock('@/components/kri/KRIValueModal', () => ({ KRIValueModal: () => null }));
@@ -36,14 +38,14 @@ function mount(path = '/kris/21?tab=history') {
     return render(<MemoryRouter initialEntries={[path]}><Navigation /><Routes><Route path="/kris/:id" element={<KRIDetailPage />} /></Routes></MemoryRouter>);
 }
 function setFixture(total: number) {
-    getHistory.mockImplementation(async (id: number, params: { offset?: number; page?: number; size?: number }) => {
+    getHistory.mockImplementation((id, params = {}) => {
         const offset = params.offset ?? ((params.page ?? 1) - 1) * 50;
-        return { items: fixture(total, id).slice(offset, offset + 50), total, capabilities: { can_request_correction: true } };
+        return Promise.resolve({ items: fixture(total, id).slice(offset, offset + 50), total, offset, limit: 50, capabilities: { can_request_correction: true } });
     });
 }
 beforeEach(() => {
     vi.clearAllMocks();
-    getKRI.mockImplementation(async (id: number) => ({ id, metric_name: `KRI ${id}`, risk_id: null, unit: 'units', lower_limit: 0, upper_limit: 100, capabilities: { can_request_history_correction: true } }));
+    getKRI.mockImplementation((id: number) => Promise.resolve(kriFixture({ id, metric_name: `KRI ${id}`, unit: 'units', lower_limit: 0, upper_limit: 100, capabilities: { can_request_history_correction: true } })));
     setFixture(75);
 });
 
@@ -61,7 +63,7 @@ describe('KRI bounded history pagination', () => {
         expect(screen.getAllByRole('button', { name: /Request correction/i })).toHaveLength(25);
         fireEvent.click(screen.getAllByRole('button', { name: /Request correction/i }).at(-1)!);
         expect(screen.getByTestId('correction')).toHaveTextContent('21:1001');
-        expect(getHistory.mock.calls.map(([, params]) => params.size)).toEqual([50, 50]);
+        expect(getHistory.mock.calls.map(([, params]) => params?.size)).toEqual([50, 50]);
     });
     it.each([0, 1, 50, 51, 75])('shows the exact bounded subset for %i entries', async (total) => {
         setFixture(total);
@@ -106,13 +108,13 @@ describe('KRI bounded history pagination', () => {
         expect(screen.queryByText('51–75 of 75')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
         await screen.findByText('51–75 of 75');
-        expect(getHistory.mock.calls.at(-1)?.[1].page).toBe(2);
+        expect(getHistory.mock.calls.at(-1)?.[1]?.page).toBe(2);
     });
 
     it('ignores an old page response after Back and after switching KRI', async () => {
         mount();
         await screen.findByText('1–50 of 75');
-        let release!: (value: unknown) => void;
+        let release!: (value: Awaited<ReturnType<typeof getHistory>>) => void;
         getHistory.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         await screen.findByText('Loading history page 2…');
@@ -122,14 +124,14 @@ describe('KRI bounded history pagination', () => {
         expect(getHistory).toHaveBeenCalledTimes(2);
         fireEvent.click(screen.getByRole('button', { name: 'Back fixture' }));
         await screen.findByText('1–50 of 75');
-        await act(async () => release({ items: fixture(75).slice(50), total: 75 }));
+        await act(() => Promise.resolve(release({ items: fixture(75).slice(50), total: 75, offset: 50, limit: 50 })));
         expect(screen.queryByText('1 units', { selector: 'h4' })).not.toBeInTheDocument();
         getHistory.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         await screen.findByText('Loading history page 2…');
         fireEvent.click(screen.getByRole('button', { name: 'Other KRI' }));
         await screen.findByText('1–50 of 75');
-        await act(async () => release({ items: fixture(75).slice(50), total: 75 }));
+        await act(() => Promise.resolve(release({ items: fixture(75).slice(50), total: 75, offset: 50, limit: 50 })));
         expect(screen.getByTestId('url')).toHaveTextContent('/kris/22?tab=history');
         expect(screen.queryByText('1 units', { selector: 'h4' })).not.toBeInTheDocument();
     });
@@ -153,7 +155,7 @@ describe('KRI bounded history pagination', () => {
         const completePreviousPage = correctionComplete!;
         fireEvent.click(screen.getByRole('button', { name: 'Older entries' }));
         await screen.findByText('51–75 of 75');
-        await act(async () => completePreviousPage());
+        await act(() => Promise.resolve(completePreviousPage()));
         expect(screen.getByText('51–75 of 75')).toBeInTheDocument();
         expect(getHistory).toHaveBeenCalledTimes(2);
     });

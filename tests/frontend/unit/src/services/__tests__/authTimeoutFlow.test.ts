@@ -53,7 +53,7 @@ describe('auth timeout and retry flow', () => {
     it('times out auth config requests and clears the shared in-flight cache for retry', async () => {
         let configCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/auth/config')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -93,7 +93,7 @@ describe('auth timeout and retry flow', () => {
     it('times out demo login requests and allows a fresh retry', async () => {
         let demoLoginCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/auth/demo-login')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -140,7 +140,7 @@ describe('auth timeout and retry flow', () => {
 
         let meCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/me')) {
                 meCalls += 1;
                 if (meCalls === 1) {
@@ -203,7 +203,7 @@ describe('auth timeout and retry flow', () => {
         __setRefreshSessionHintForTests();
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/csrf')) {
                 __setCsrfTokenForTests('bootstrap-csrf-token');
                 return Promise.resolve(new Response(null, { status: 204 }));
@@ -259,7 +259,7 @@ describe('auth timeout and retry flow', () => {
 
     it('seeds the CSRF cookie through the dedicated auth endpoint', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/auth/csrf')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -276,7 +276,7 @@ describe('auth timeout and retry flow', () => {
         let csrfCalls = 0;
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/csrf')) {
                 csrfCalls += 1;
                 __setCsrfTokenForTests(csrfCalls === 1 ? 'stale-csrf-token' : 'fresh-csrf-token');
@@ -330,7 +330,7 @@ describe('auth timeout and retry flow', () => {
 
         let refreshCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/csrf')) {
                 __setCsrfTokenForTests('refresh-csrf-token');
                 return Promise.resolve(new Response(null, { status: 204 }));
@@ -378,7 +378,7 @@ describe('auth timeout and retry flow', () => {
 
         let refreshCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (url.endsWith('/api/v1/auth/csrf')) {
                 __setCsrfTokenForTests('failed-refresh-csrf-token');
                 return Promise.resolve(new Response(null, { status: 204 }));
@@ -423,7 +423,7 @@ describe('auth timeout and retry flow', () => {
 
     it('times out raw auth API calls instead of waiting indefinitely', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/auth/me')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }

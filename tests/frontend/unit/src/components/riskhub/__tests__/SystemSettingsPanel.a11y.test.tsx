@@ -1,3 +1,4 @@
+import type * as TestModule0 from '@/i18n/hooks';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, userEvent, waitFor } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,7 +17,7 @@ import { createTestQueryClient } from '@test/queryClient';
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real: PG-38 number grouping follows the UI language (en in tests).
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof TestModule0>()),
     useTranslation: () => ({
         t: (key: string, options?: { name?: string }) => (options?.name ? `${key}:${options.name}` : key),
     }),
@@ -70,7 +71,7 @@ function renderPanel({ canUpdate = true } = {}) {
             config({ id: 4, key: 'approval_amount_limit', value: '10000000', value_type: 'int', display_name: 'Approval amount limit' }),
             config({ id: 3, key: 'approval_mailbox', value: 'risk@example.test', display_name: 'Approval mailbox' }),
         ],
-    } as never);
+    });
     const queryClient = createTestQueryClient();
     render(
         <QueryClientProvider client={queryClient}>
@@ -108,7 +109,7 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({ system_settings: { can_update: true } } as never);
         vi.mocked(riskHubApi.getAllConfig)
             .mockRejectedValueOnce(new Error('offline'))
-            .mockResolvedValueOnce({ approvals: [config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days' })] } as never);
+            .mockResolvedValueOnce({ approvals: [config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days' })] });
         render(
             <QueryClientProvider client={createTestQueryClient()}>
                 <FeedbackProvider>
@@ -176,7 +177,7 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
         vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({ system_settings: { can_update: true } } as never);
         vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({
             approvals: [config({ id: 2, key: 'approval_sla_days', value: '5', value_type: 'int', display_name: 'Approval SLA days', min_value: 1, max_value: 30 })],
-        } as never);
+        });
         render(
             <QueryClientProvider client={createTestQueryClient()}>
                 <FeedbackProvider>
@@ -219,7 +220,7 @@ describe('SystemSettingsPanel accessibility (DS-04)', () => {
 
 it.each(['medium_risk_min_net_score', 'high_risk_min_net_score', 'critical_risk_min_net_score'])('refreshes warmed public thresholds and overview after %s succeeds', async (key) => {
     vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({system_settings:{can_update:true}} as never);
-    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({risk_thresholds:[config({key,value:'12',display_name:'Configured threshold'})]} as never);
+    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({risk_thresholds:[config({key,value:'12',display_name:'Configured threshold'})]});
     vi.mocked(riskHubApi.updateConfig).mockResolvedValue({} as never);
     const queryClient = createTestQueryClient();
     queryClient.setQueryData(['riskHub','thresholds','public'], {high:12});
@@ -235,7 +236,7 @@ it.each(['medium_risk_min_net_score', 'high_risk_min_net_score', 'critical_risk_
 it.each([false,true])('does not invalidate capability populations for failed threshold/unrelated success (failure=%s)', async (failure) => {
     const key=failure?'critical_risk_min_net_score':'approval_sla_days';
     vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({system_settings:{can_update:true}} as never);
-    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({risk_thresholds:[config({key,value:'12',display_name:'Bounded setting'})]} as never);
+    vi.mocked(riskHubApi.getAllConfig).mockResolvedValue({risk_thresholds:[config({key,value:'12',display_name:'Bounded setting'})]});
     if(failure) vi.mocked(riskHubApi.updateConfig).mockRejectedValue(new Error('rejected'));
     else vi.mocked(riskHubApi.updateConfig).mockResolvedValue({} as never);
     const queryClient=createTestQueryClient();

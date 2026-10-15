@@ -6,6 +6,12 @@
 # =============================================================================
 FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS builder-base
 
+ARG TARGETPLATFORM
+RUN test "$TARGETPLATFORM" = "linux/amd64" || { \
+    echo 'RiskHub backend locks require --platform linux/amd64; ARM hosts need amd64 emulation.' >&2; \
+    exit 1; \
+    }
+
 WORKDIR /app
 
 # Build deps for cffi/bcrypt/psycopg2 and other native wheels.
@@ -18,16 +24,19 @@ RUN apk upgrade --no-cache && apk add --no-cache \
 
 FROM builder-base AS builder-runtime
 
-COPY requirements-runtime.txt ./requirements-runtime.txt
-RUN pip install --no-cache-dir --upgrade pip==26.2.1 && \
-    pip install --no-cache-dir --user -r requirements-runtime.txt
+COPY locks/cpython313-alpine324-x86_64/requirements-pip.lock ./requirements-pip.lock
+COPY locks/cpython313-alpine324-x86_64/requirements-runtime.lock ./requirements-runtime.lock
+RUN python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r requirements-pip.lock && \
+    python -m pip install --force-reinstall --no-cache-dir --user --require-hashes --only-binary=:all: -r requirements-runtime.lock && \
+    python -m pip check
 
 FROM builder-base AS builder-dbtasks
 
-COPY requirements-runtime.txt ./requirements-runtime.txt
-COPY requirements-db.txt ./requirements-db.txt
-RUN pip install --no-cache-dir --upgrade pip==26.2.1 && \
-    pip install --no-cache-dir --user -r requirements-db.txt
+COPY locks/cpython313-alpine324-x86_64/requirements-pip.lock ./requirements-pip.lock
+COPY locks/cpython313-alpine324-x86_64/requirements-dbtasks.lock ./requirements-dbtasks.lock
+RUN python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r requirements-pip.lock && \
+    python -m pip install --force-reinstall --no-cache-dir --user --require-hashes --only-binary=:all: -r requirements-dbtasks.lock && \
+    python -m pip check
 
 # =============================================================================
 # Stage 2: Production runtime

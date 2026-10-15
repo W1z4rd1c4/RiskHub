@@ -18,7 +18,7 @@ const EQUIVALENT_COLORS = [
 
 function expectColor(actual: Rgba, expected: Rgba, message?: string): void {
   for (let index = 0; index < 4; index += 1) {
-    expect(actual[index], message).toBeCloseTo(expected[index]!, 2);
+    expect(actual[index], message).toBeCloseTo(expected[index], 2);
   }
 }
 
@@ -57,10 +57,10 @@ test.describe('rendered contrast browser color normalization', () => {
     }, computed);
     const match = normalized.match(/^color\(srgb\s+([^)]+)\)$/);
     expect(match, `Browser normalization: ${computed} -> ${normalized}`).not.toBeNull();
-    const channels = match![1]!.trim().split(/[\s/]+/).map(Number);
+    const channels = match![1].trim().split(/[\s/]+/).map(Number);
     expect([3, 4]).toContain(channels.length);
     expect(channels.every(Number.isFinite)).toBe(true);
-    const expected: Rgba = [channels[0]! * 255, channels[1]! * 255, channels[2]! * 255, channels[3] ?? 1];
+    const expected: Rgba = [channels[0] * 255, channels[1] * 255, channels[2] * 255, channels[3] ?? 1];
     const sample = await page.locator('#sample').evaluate(measureRenderedContrast);
     const reference = await page.locator('#reference').evaluate(measureRenderedContrast);
     expectColor(sample.foreground, expected, `Browser normalization: ${computed} -> ${normalized}`);
@@ -112,6 +112,21 @@ test.describe('rendered contrast browser color normalization', () => {
     expect(fail.foreground[0]).toBeCloseTo(118.83, 3);
     expect(pass.ratio).toBeGreaterThanOrEqual(4.5);
     expect(fail.ratio).toBeLessThan(4.5);
+  });
+
+  test('audits a locator in its own iframe context', async ({ page }) => {
+    await page.setContent('<iframe title="contrast fixture"></iframe>');
+    const surface = page.frameLocator('iframe').locator('body');
+    await surface.evaluate((body) => {
+      body.innerHTML = `<div id="surface" style="background:white;font-size:16px;font-weight:400">
+        <span style="color:white">Invisible text</span>
+        <span style="color:black">Readable text</span>
+      </div>`;
+    });
+    const audit = await auditRenderedContrast(surface.locator('#surface'));
+    expect(audit.counts).toEqual({
+      total: 2, belowAA: 1, below3: 1, below1_5: 1, whiteOnLight: 1, skippedGradient: 0,
+    });
   });
 
   test('counts CSS Color 4 white-on-light and AA failures without exemptions', async ({ page }) => {

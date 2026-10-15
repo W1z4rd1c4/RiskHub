@@ -1,59 +1,21 @@
-import { useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-
-import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { useDetailQuery } from '@/pages/detail/useDetailQuery';
-import { useRestoreWithFeedback } from '@/pages/shared/useRestoreWithFeedback';
+import { useProtectedDetailState } from '@/pages/detail/useProtectedDetailState';
 import { processApi } from '@/services/processApi';
 import type { Process } from '@/types/process';
 
 export type ProcessDetailMode = 'view' | 'new' | 'edit';
 
-interface UseProcessDetailStateOptions {
-    mode: ProcessDetailMode;
-}
-
-export function useProcessDetailState({ mode }: UseProcessDetailStateOptions) {
-    const { id } = useParams<{ id: string }>();
-
+export function useProcessDetailState({ mode }: { mode: ProcessDetailMode }) {
     const {
-        isRetrying,
-        loadOutcome,
-        refetch: fetchProcess,
-        resource: process,
-        resourceId: processId,
-        setResource: setProcess,
-    } = useDetailQuery<Process>({
-        enabled: mode !== 'new',
-        entity: 'process',
-        rawId: id,
-        load: (processId) => processApi.getProcess(processId),
+        isRetrying, loadOutcome, refetch: fetchProcess, resource: process, resourceId: processId,
+        restoreRecord: restoreProcess, canArchive, canEdit, canRestore, setResource: setProcess,
+    } = useProtectedDetailState<Process>({
+        mode, entity: 'process',
+        load: (id, signal) => processApi.getProcess(id, { signal }),
+        restore: (id) => processApi.restoreProcess(id), name: (record) => record.l1_process,
     });
 
-    const restoreWithFeedback = useRestoreWithFeedback();
-    const restoreProcess = useCallback(async () => {
-        if (!process) {
-            return;
-        }
-        // D9: restore outcomes (success and failure) are toasts.
-        const restored = process;
-        await restoreWithFeedback({
-            restore: () => processApi.restoreProcess(restored.id),
-            name: restored.l1_process,
-            refresh: () => fetchProcess(),
-        });
-    }, [fetchProcess, restoreWithFeedback, process]);
-
     return {
-        canArchive: resolveCapabilityFlag(process?.capabilities, 'can_archive'),
-        canEdit: resolveCapabilityFlag(process?.capabilities, 'can_update'),
-        canRestore: resolveCapabilityFlag(process?.capabilities, 'can_restore'),
-        fetchProcess,
-        isRetrying,
-        loadOutcome,
-        process,
-        processId,
-        restoreProcess,
-        setProcess,
+        canArchive, canEdit, canRestore, fetchProcess, isRetrying, loadOutcome,
+        process, processId, restoreProcess, setProcess,
     };
 }

@@ -204,9 +204,9 @@ def validate() -> list[str]:
     syrupy_requirement = requested_by_name.get("syrupy")
     if (
         syrupy_requirement is None
-        or str(syrupy_requirement.specifier) != "==5.0.*"
+        or str(syrupy_requirement.specifier) != "==6.1.1"
     ):
-        errors.append("requirements-dev.in must request syrupy==5.0.* exactly")
+        errors.append("requirements-dev.in must request syrupy==6.1.1 exactly")
 
     entrypoint_names = {
         canonicalize_name(requirement.name) for requirement in entrypoint_requirements

@@ -1,3 +1,4 @@
+import { anything } from '@test/matchers';
 import type { ReactElement } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import * as axe from 'axe-core';
@@ -59,7 +60,7 @@ describe('Asset register columns', () => {
         const restore = screen.getByRole('button', { name: 'Restore Payments platform' });
         expect(restore).toBe(screen.getByTestId('asset-restore-88'));
         fireEvent.click(restore);
-        expect(onRestore).toHaveBeenCalledWith(88, expect.anything());
+        expect(onRestore).toHaveBeenCalledWith(88, anything());
         await expectNoAxeViolations(container);
     });
 });

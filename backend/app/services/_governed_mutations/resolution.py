@@ -12,7 +12,6 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import set_committed_value
 
 from app.core.audit import process as audit_process
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_manage_users, is_platform_admin
 from app.models import (
@@ -36,6 +35,7 @@ from app.services._ict_register_lifecycle.policy import (
     can_update_process_record,
     process_owner_eligibility_error,
 )
+from app.services._ict_register_lifecycle.process_apply import ProcessOrphanCompletion, apply_process_edit
 from app.services._ict_register_lifecycle.projection import (
     load_governed_process_derived_blocks,
 )
@@ -743,18 +743,15 @@ async def approve_governed_mutation(
         return await _reload(db, approval.id)
 
     changes = audit_process.process_update_changes(process, typed_updates)
-    for field, value in typed_updates.items():
-        setattr(process, field, value)
-    process.governance_version += 1
-    for asset in context.assets.values():
-        asset.governance_version += 1
-    for vendor in context.vendors.values():
-        vendor.governance_version += 1
-    if governed_orphan is not None:
-        governed_orphan.status = "resolved"
-        governed_orphan.resolved_at = utc_now()
-        governed_orphan.resolved_by_id = current_user.id
-        governed_orphan.new_owner_id = process.process_owner_user_id
+    apply_process_edit(
+        process=process,
+        updates=typed_updates,
+        downstream_assets=context.assets.values(),
+        downstream_vendors=context.vendors.values(),
+        orphan_completion=(
+            ProcessOrphanCompletion(governed_orphan, current_user.id) if governed_orphan is not None else None
+        ),
+    )
     await audit_process.process_updated(db, actor=current_user, process=process, changes=changes)
     await finalize_governed_terminal_transition(
         db,

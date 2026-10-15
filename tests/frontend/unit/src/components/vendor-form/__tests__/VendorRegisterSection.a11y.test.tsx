@@ -24,7 +24,7 @@ async function expectNoAxeViolations(node: Element): Promise<void> {
     expect(summary, summary).toBe('');
 }
 
-function renderSection(formData: VendorFormData = {} as VendorFormData) {
+function renderSection(formData: VendorFormData = {}) {
     const onChange = vi.fn();
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const utils = render(
@@ -64,7 +64,7 @@ describe('VendorRegisterSection — label association (#59)', () => {
     });
 
     it('offers only canonical identifier types', async () => {
-        renderSection({ identifier_type: 'CRN' } as VendorFormData);
+        renderSection({ identifier_type: 'CRN' });
 
         const select = await screen.findByRole('combobox', {
             name: i18n.t('vendors:form.register.fields.identifier_type'),

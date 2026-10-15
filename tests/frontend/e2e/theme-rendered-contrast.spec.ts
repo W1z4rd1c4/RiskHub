@@ -168,7 +168,7 @@ test.describe('G-RENDER rendered contrast (hard zero)', () => {
         for (const [index, site] of sites.entries()) {
           await arrangeDialogContractSite(page, site);
           await expectTheme(page, theme);
-          const opener = dialogContractOpeners[site]!(page);
+          const opener = dialogContractOpeners[site](page);
           await opener.waitFor({ state: 'visible', timeout: 15_000 });
           await page.waitForLoadState('networkidle');
           await settle(page, page.locator('body'));

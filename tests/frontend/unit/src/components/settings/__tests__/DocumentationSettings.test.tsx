@@ -1,3 +1,4 @@
+import type * as UserSettingsStorageModule from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +11,8 @@ import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBoot
 import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { DocumentationSettings } from '@/components/settings/DocumentationSettings';
+const numberMatcher: unknown = expect.any(Number);
+
 
 const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 123,
@@ -120,10 +123,10 @@ const tocDocsPayload = {
 };
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof UserSettingsStorageModule>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
@@ -143,9 +146,9 @@ async function renderDocumentationSettings() {
     await waitForAuthBootstrapReady();
 }
 
-const originalScrollTo = HTMLElement.prototype.scrollTo;
+const originalScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollTo');
 let scrollToMock = vi.fn();
-const originalScrollIntoView = Element.prototype.scrollIntoView;
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
 let scrollIntoViewMock = vi.fn();
 
 describe('DocumentationSettings', () => {
@@ -165,14 +168,16 @@ describe('DocumentationSettings', () => {
 
     afterEach(() => {
         clearAccessToken();
-        Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
-            configurable: true,
-            value: originalScrollTo,
-        });
-        Object.defineProperty(Element.prototype, 'scrollIntoView', {
-            configurable: true,
-            value: originalScrollIntoView,
-        });
+        if (originalScrollTo) {
+            Object.defineProperty(HTMLElement.prototype, 'scrollTo', originalScrollTo);
+        } else {
+            Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
+        }
+        if (originalScrollIntoView) {
+            Object.defineProperty(Element.prototype, 'scrollIntoView', originalScrollIntoView);
+        } else {
+            Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+        }
     });
 
     it('renders audience label and tags on document cards', async () => {
@@ -310,7 +315,7 @@ describe('DocumentationSettings', () => {
 
         await uiUser.click(await screen.findByRole('link', { name: 'Kde to najdete' }));
 
-        expect(scrollToMock).toHaveBeenCalledWith({ top: expect.any(Number), left: 0, behavior: 'smooth' });
+        expect(scrollToMock).toHaveBeenCalledWith({ top: numberMatcher, left: 0, behavior: 'smooth' });
         expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
     });
 });

@@ -39,6 +39,8 @@ export interface FeedbackOptions {
     durationMs?: number;
     /** Re-using an id replaces that toast instead of stacking a duplicate. */
     id?: string;
+    /** Releases an action when its notification closes, is replaced, or unmounts. */
+    onDismiss?: () => void;
 }
 
 export interface FeedbackErrorOptions extends FeedbackOptions {
@@ -96,14 +98,24 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     const [items, setItems] = useState<FeedbackItem[]>([]);
     const sequence = useRef(0);
     const removalTimers = useRef(new Map<string, number>());
+    const dismissalCallbacks = useRef(new Map<string, () => void>());
+    const notifyDismissal = useCallback((id?: string) => {
+        const ids = id === undefined ? [...dismissalCallbacks.current.keys()] : [id];
+        for (const key of ids) {
+            const callback = dismissalCallbacks.current.get(key);
+            dismissalCallbacks.current.delete(key);
+            callback?.();
+        }
+    }, []);
 
     useEffect(() => {
         const timers = removalTimers.current;
         return () => {
             timers.forEach((timer) => window.clearTimeout(timer));
             timers.clear();
+            notifyDismissal();
         };
-    }, []);
+    }, [notifyDismissal]);
 
     const scheduleRemoval = useCallback((id: string) => {
         if (removalTimers.current.has(id)) return;
@@ -116,16 +128,23 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
 
     const close = useCallback((id?: string) => {
         setItems((current) => current.map((item) => (id === undefined || item.id === id ? { ...item, open: false } : item)));
-    }, []);
+        notifyDismissal(id);
+    }, [notifyDismissal]);
 
     // Every closed toast is unmounted after its exit animation.
     useEffect(() => {
-        items.filter((item) => !item.open).forEach((item) => scheduleRemoval(item.id));
-    }, [items, scheduleRemoval]);
+        items.filter((item) => !item.open).forEach((item) => {
+            notifyDismissal(item.id);
+            scheduleRemoval(item.id);
+        });
+    }, [items, notifyDismissal, scheduleRemoval]);
 
     const show = useCallback((tone: FeedbackTone, options: FeedbackOptions, description?: string) => {
         sequence.current += 1;
         const id = options.id ?? `feedback-${sequence.current}`;
+        const previousDismissal = dismissalCallbacks.current.get(id);
+        dismissalCallbacks.current.delete(id);
+        if (options.onDismiss) dismissalCallbacks.current.set(id, options.onDismiss);
         const pendingRemoval = removalTimers.current.get(id);
         if (pendingRemoval !== undefined) {
             window.clearTimeout(pendingRemoval);
@@ -141,6 +160,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             open: true,
         };
         setItems((current) => capOpenItems([...current.filter((existing) => existing.id !== id), item]));
+        previousDismissal?.();
         return id;
     }, [t]);
 

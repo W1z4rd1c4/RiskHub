@@ -34,7 +34,10 @@ from app.services._authorization_capabilities import (
 from app.services._governed_mutations.process_mutations import (
     submit_process_relationship_mutation,
 )
-from app.services._governed_mutations.process_relationships import process_impact_resource
+from app.services._governed_mutations.process_relationships import (
+    apply_process_relationship_state,
+    process_impact_resource,
+)
 from app.services._governed_mutations.process_updates import (
     active_governed_process_mutation_ids,
     assert_no_pending_process_mutation,
@@ -42,6 +45,7 @@ from app.services._governed_mutations.process_updates import (
 from app.services._vendor_governance.policy import lock_vendor_ordinary_mutation
 from app.services.transaction_boundary import commit_service_boundary
 
+from .asset_apply import apply_asset_relationship
 from .asset_policy import (
     assert_asset_ordinary_mutation_allowed,
     assert_asset_readable,
@@ -279,9 +283,10 @@ async def add_asset_vendor_link(
     if queued is not None:
         return queued
 
-    asset.governance_version += 1
-    link = AssetVendorLink(**link_values)
-    db.add(link)
+    link = await apply_asset_relationship(
+        db, relationship_type="vendor", action="add", values=link_values, impacted_assets=(asset,),
+    )
+    assert isinstance(link, AssetVendorLink)
     await db.flush()
 
     await audit_asset.asset_link_created(
@@ -350,8 +355,9 @@ async def remove_asset_vendor_link(
     )
     if queued is not None:
         return queued
-    asset.governance_version += 1
-    await db.delete(link)
+    await apply_asset_relationship(
+        db, relationship_type="vendor", action="remove", values={}, existing=link, impacted_assets=(asset,),
+    )
     await db.flush()
 
     await audit_asset.asset_link_deleted(
@@ -522,15 +528,12 @@ async def add_process_vendor_link(
     if queued is not None:
         return queued
 
-    link = ProcessVendorLink(
-        process_id=process_id,
-        vendor_id=payload.vendor_id,
-        direct_service_description=payload.direct_service_description,
-        note=payload.note,
+    link = await apply_process_relationship_state(
+        db, process=process, relationship_type="vendor", action="add",
+        related_id=payload.vendor_id, after=after,
     )
-    db.add(link)
+    assert isinstance(link, ProcessVendorLink)
     await db.flush()
-    process.governance_version += 1
 
     await audit_process.process_link_created(
         db,
@@ -600,9 +603,10 @@ async def remove_process_vendor_link(
     )
     if queued is not None:
         return queued
-    await db.delete(link)
+    await apply_process_relationship_state(
+        db, process=process, relationship_type="vendor", action="remove", related_id=vendor_id, after={}, existing=link,
+    )
     await db.flush()
-    process.governance_version += 1
 
     await audit_process.process_link_deleted(
         db,

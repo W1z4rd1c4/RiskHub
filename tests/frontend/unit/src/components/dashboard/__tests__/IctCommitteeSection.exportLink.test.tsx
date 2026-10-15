@@ -9,18 +9,18 @@ import type { IctCommittee, IctRoiTemplateReadiness } from '@/types/ictRegisterC
 import type { VendorReportCapabilities } from '@/types/vendorReport';
 import { AuthProviderWithReady } from '@test/authBootstrap';
 
-const getCommittee = vi.fn();
-const getCapabilities = vi.fn();
+const getCommittee = vi.hoisted(() => vi.fn());
+const getCapabilities = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/ictRegisterCommitteeApi', () => ({
     ictRegisterCommitteeApi: {
-        getCommittee: (...args: unknown[]) => getCommittee(...args),
+        getCommittee: getCommittee,
     },
 }));
 
 vi.mock('@/services/vendorReportApi', () => ({
     vendorReportApi: {
-        getCapabilities: (...args: unknown[]) => getCapabilities(...args),
+        getCapabilities: getCapabilities,
     },
 }));
 

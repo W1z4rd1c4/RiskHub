@@ -248,6 +248,34 @@ remains closed until #208.
 
 ## Authentication audit classifications
 
+Credential completion records `revoke_count` as the number of previously unrevoked
+refresh rows changed by that transaction. `artifact_revoke_count` separately counts
+unconsumed, unrevoked purpose-grant rows newly marked revoked by the same authority
+update (including expired rows still awaiting revocation). It excludes the proofs
+consumed by the completing operation and previously consumed/revoked grants.
+Reset and email request events report the grants superseded for that purpose only.
+Only nonnegative integers are exposed through the artifact-count audit field.
+
+Privileged-target web recovery and recent-authentication requests record
+`local_privileged_recovery_denied` with `offline_recovery_required`, retaining the
+same generic denial, unchanged target and unconsumed proof/factor. The denied event
+contains no submitted incident, reason, verification narrative or credential.
+
+The accepted #193 wire contract still validates password lengths of 15–128 before
+proof processing and returns a redacted 422 outside those bounds. This supersedes
+the older #200 wording that all password-policy feedback follows artifact validation.
+An authenticated change to the identical password consumes its recent proof and
+returns `completed` with `reauthentication_required=false`; it does not churn
+authority or sessions. A changed password, reset or completed email change requires
+ordinary login again and clears the current refresh cookie.
+
+`test_local_credentials.py` adds rejection/retry, independent-device, response-loss,
+scanner and pending-artifact assertions. Exact audit projections, PostgreSQL email
+collisions, real Redis reset thresholds and TLS notice retries remain in the
+corresponding identity suites. These are executable acceptance cases, not claims of
+passing Linux infrastructure gates. Open prerequisite issues and #208 admission
+remain governed by their live tracker state.
+
 Completed native password-only and factor logins use the shared `login` audit
 action. Denied passwords, factors, recent-authentication proofs and exhausted
 grant attempts use `failed_login`, including known-user failures, so the existing

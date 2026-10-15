@@ -1,3 +1,4 @@
+import type * as MockissuesApiModule from '@/services/issuesApi';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,14 +7,14 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { useIssuesPageState } from '@/pages/issues/useIssuesPageState';
 
 const mocks = vi.hoisted(() => ({
-    downloadExport: vi.fn(),
-    list: vi.fn(),
+    downloadExport: vi.fn<typeof MockissuesApiModule.issuesApi.downloadExport>(),
+    list: vi.fn<typeof MockissuesApiModule.issuesApi.list>(),
 }));
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        downloadExport: (...args: unknown[]) => mocks.downloadExport(...args),
-        list: (...args: unknown[]) => mocks.list(...args),
+        downloadExport: (...args: Parameters<typeof mocks.downloadExport>) => mocks.downloadExport(...args),
+        list: (...args: Parameters<typeof mocks.list>) => mocks.list(...args),
     },
 }));
 
@@ -72,8 +73,10 @@ describe('useIssuesPageState normalized Issue filters', () => {
 
         await user.click(screen.getByRole('button', { name: 'export-current' }));
         await waitFor(() => expect(mocks.downloadExport).toHaveBeenCalledWith(expect.objectContaining({
-            offset: 0, severity_group: 'high_critical', include_closed: false,
+            severity_group: 'high_critical', include_closed: false,
         }), 'en'));
         expect(mocks.downloadExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('severity');
+        expect(mocks.downloadExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('offset');
+        expect(mocks.downloadExport.mock.calls.at(-1)?.[0]).not.toHaveProperty('limit');
     });
 });

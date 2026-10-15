@@ -14,7 +14,7 @@ runs:
       run: |
         set -euo pipefail
         mkdir -p .ci-artifacts/startup-smoke
-        ./scripts/compose.sh up | tee .ci-artifacts/startup-smoke/compose-up.log
+        ./scripts/compose.sh up 2>&1 | tee .ci-artifacts/startup-smoke/compose-up.log
 
     - name: Verify readiness, health, headers, auth config, and docs exposure
       shell: bash
@@ -71,8 +71,15 @@ runs:
         set -euo pipefail
         mkdir -p .ci-artifacts/startup-smoke
         docker compose -f docker-compose.yml ps -a > .ci-artifacts/startup-smoke/docker-ps.txt 2>&1 || true
-        for service in db redis bootstrap backend frontend; do
-          docker compose -f docker-compose.yml logs --no-color "$service" > ".ci-artifacts/startup-smoke/${service}.log" 2>&1 || true
+        for service in db redis bootstrap backend scheduler frontend; do
+          docker compose -f docker-compose.yml logs --no-color --timestamps "$service" > ".ci-artifacts/startup-smoke/${service}.log" 2>&1 || true
+        done
+        for service in backend scheduler; do
+          container_id="$(docker compose -f docker-compose.yml ps -q "$service" || true)"
+          if [ -n "$container_id" ]; then
+            docker inspect --format '{"started_at":{{json .State.StartedAt}},"status":{{json .State.Status}},"health":{{json .State.Health}}}' \
+              "$container_id" > ".ci-artifacts/startup-smoke/${service}-health.json" 2>&1 || true
+          fi
         done
 
     - name: Tear down Docker onboarding stack

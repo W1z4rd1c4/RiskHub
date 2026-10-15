@@ -96,7 +96,12 @@ def test_rendered_demo_compose_bind_requires_explicit_opt_in(bind_host):
     version = subprocess.run([docker, "compose", "version"], capture_output=True, timeout=10, check=False)
     if version.returncode:
         pytest.skip("Docker Compose plugin is not installed")
-    env = {**os.environ, "RISKHUB_DEMO_BIND_HOST": bind_host or "", "LAN_HOST": bind_host or "localhost"}
+    env = {
+        **os.environ,
+        "RISKHUB_DEMO_BIND_HOST": bind_host or "",
+        "LAN_HOST": bind_host or "localhost",
+        "DOCKER_DEFAULT_PLATFORM": "linux/arm64",
+    }
     result = subprocess.run(
         [
             docker, "compose", "-f", str(REPO_ROOT / "docker-compose.yml"),
@@ -109,6 +114,19 @@ def test_rendered_demo_compose_bind_requires_explicit_opt_in(bind_host):
     for service in ("db", "redis", "backend"):
         assert all(port["host_ip"] == "127.0.0.1" for port in services[service]["ports"])
     assert not services["scheduler"].get("ports")
+    for service in ("bootstrap", "backend", "scheduler"):
+        assert services[service]["platform"] == "linux/amd64"
+    for service in ("db", "redis", "frontend"):
+        assert "platform" not in services[service]
+    assert services["backend"]["healthcheck"] == {"start_period": "3m0s"}
+
+
+def test_demo_startup_grace_preserves_production_probe_and_four_workers():
+    dockerfile = (REPO_ROOT / "backend/Dockerfile").read_text(encoding="utf-8")
+
+    assert "HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3" in dockerfile
+    assert "urlopen('http://localhost:8000/api/v1/livez', timeout=5).status == 200" in dockerfile
+    assert 'CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]' in dockerfile
 
 
 def test_base_compose_pins_network_subnet_and_backend_trusted_proxies():

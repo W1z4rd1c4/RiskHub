@@ -1,15 +1,19 @@
+import { vendorFixture } from './pageFixtures';
+import type * as MockvendorApiModule from '@/services/vendorApi';
+import type * as MockkriApiModule from '@/services/kriApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { KRINewPage } from '@/pages/KRINewPage';
 
 const mockNavigate = vi.fn();
-const mockGetKRIs = vi.fn();
-const mockGetVendor = vi.fn();
+const mockGetKRIs = vi.fn<typeof MockkriApiModule.kriApi.getKRIs>();
+const mockGetVendor = vi.fn<typeof MockvendorApiModule.vendorApi.getVendor>();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -19,13 +23,13 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendor: (...args: unknown[]) => mockGetVendor(...args),
+        getVendor: (...args: Parameters<typeof mockGetVendor>) => mockGetVendor(...args),
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getKRIs: (...args: unknown[]) => mockGetKRIs(...args),
+        getKRIs: (...args: Parameters<typeof mockGetKRIs>) => mockGetKRIs(...args),
     },
 }));
 
@@ -70,11 +74,11 @@ describe('KRINewPage vendor context', () => {
             limit: 1,
             capabilities: { can_create: true },
         });
-        mockGetVendor.mockResolvedValue({
+        mockGetVendor.mockResolvedValue(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: { can_create_linked_kri: true },
-        });
+        }));
     });
 
     it('passes vendor context and back label through to the KRI form', async () => {
@@ -104,14 +108,14 @@ describe('KRINewPage vendor context', () => {
     });
 
     it('passes the protected-change capability through to the KRI form vendor context', async () => {
-        mockGetVendor.mockResolvedValueOnce({
+        mockGetVendor.mockResolvedValueOnce(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: {
                 can_create_linked_kri: true,
                 protected_change_requires_approval: true,
             },
-        });
+        }));
 
         render(<KRINewPage />);
 
@@ -129,11 +133,11 @@ describe('KRINewPage vendor context', () => {
     });
 
     it('hides vendor-context creation when the vendor link capability is false', async () => {
-        mockGetVendor.mockResolvedValueOnce({
+        mockGetVendor.mockResolvedValueOnce(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: { can_create_linked_kri: false },
-        });
+        }));
 
         render(<KRINewPage />);
 

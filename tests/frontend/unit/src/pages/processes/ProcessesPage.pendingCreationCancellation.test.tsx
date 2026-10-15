@@ -1,3 +1,6 @@
+import { approvalFixture } from '../__tests__/pageFixtures';
+import type * as MockapprovalsApiModule from '@/services/approvalsApi';
+import type * as Actualhooks from '@/i18n/hooks';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import * as axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,7 +10,7 @@ import i18n from '@/i18n';
 import type { ProcessPendingCreationRead } from '@/types/process';
 
 const mocks = vi.hoisted(() => ({
-    cancel: vi.fn(),
+    cancel: vi.fn<typeof MockapprovalsApiModule.approvalsApi.cancel>(),
     fetchProcesses: vi.fn(),
 }));
 
@@ -34,13 +37,13 @@ const pendingCreation: ProcessPendingCreationRead = {
 };
 
 vi.mock('@/services/approvalsApi', () => ({
-    approvalsApi: { cancel: (...args: unknown[]) => mocks.cancel(...args) },
+    approvalsApi: { cancel: (...args: Parameters<typeof mocks.cancel>) => mocks.cancel(...args) },
 }));
 
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
 
 vi.mock('@/i18n/hooks', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@/i18n/hooks')>();
+    const actual = await importOriginal<typeof Actualhooks>();
     return {
         ...actual,
         useLanguage: () => ({ language: 'en' }),
@@ -55,13 +58,10 @@ vi.mock('@/pages/processes/useProcessesPageState', () => ({
     useProcessesPageState: () => ({
         capabilities: { can_create: true, can_export: true },
         clearFilters: vi.fn(),
-        clearSelectedGroup: vi.fn(),
-        currentPage: 1,
         errorKey: null,
         exportProcesses: vi.fn(),
         facets: {},
         fetchProcesses: mocks.fetchProcesses,
-        filters: {},
         groups: [],
         hasLoadedOnce: true,
         isAccessDenied: false,
@@ -71,20 +71,25 @@ vi.mock('@/pages/processes/useProcessesPageState', () => ({
         limit: 25,
         pendingCreations: [pendingCreation],
         restoreProcess: vi.fn(),
-        search: '',
-        selectGroup: vi.fn(),
         selectedGroupLabel: null,
-        selectedGroupValue: null,
-        setCurrentPage: vi.fn(),
-        sortDirection: null,
-        sortField: null,
         totalCount: 0,
         totalPages: 1,
         updateFilter: vi.fn(),
-        updateSearch: vi.fn(),
-        updateSort: vi.fn(),
-        updateViewMode: vi.fn(),
-        viewMode: 'all',
+        workingSet: {
+            clearSelectedGroup: vi.fn(),
+            currentPage: 1,
+            filters: {},
+            search: '',
+            selectGroup: vi.fn(),
+            selectedGroupValue: null,
+            setCurrentPage: vi.fn(),
+            sortDirection: null,
+            sortField: null,
+            updateSearch: vi.fn(),
+            updateSort: vi.fn(),
+            updateViewMode: vi.fn(),
+            viewMode: 'all',
+        },
     }),
 }));
 
@@ -129,7 +134,7 @@ describe('ProcessesPage pending creation cancellation', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:pending_change_cancellation.confirm') }));
         await waitFor(() => expect(mocks.cancel).toHaveBeenCalledWith(85));
 
-        await act(async () => rejectCancellation(new Error('network unavailable')));
+        await act(() => Promise.resolve(rejectCancellation(new Error('network unavailable'))));
         const alert = await within(dialog).findByRole('alert');
         expect(alert).toHaveTextContent(i18n.t('processes:pending_creation.cancel_failed'));
         expect(mocks.fetchProcesses).not.toHaveBeenCalled();
@@ -140,7 +145,7 @@ describe('ProcessesPage pending creation cancellation', () => {
         });
         expect(axeResult.violations).toEqual([]);
 
-        mocks.cancel.mockResolvedValueOnce(undefined);
+        mocks.cancel.mockResolvedValueOnce(approvalFixture({ id: 85, status: 'cancelled' }));
         fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common:actions.retry') }));
         await waitFor(() => expect(mocks.cancel).toHaveBeenLastCalledWith(85));
         await waitFor(() => expect(mocks.fetchProcesses).toHaveBeenCalledTimes(1));

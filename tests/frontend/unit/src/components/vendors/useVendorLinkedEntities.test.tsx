@@ -14,14 +14,14 @@ interface FakeItem {
 
 const adapter: VendorLinkedEntitiesAdapter<FakeItem> = {
     errorLogPrefix: 'test:',
-    fetch: vi.fn(async () => [
+    fetch: vi.fn(() => Promise.resolve([
         { id: 1, name: 'A', is_archived: false },
         { id: 2, name: 'B', is_archived: true },
-    ]),
+    ])),
     isArchived: (item) => item.is_archived,
-    link: vi.fn(async () => undefined),
+    link: vi.fn(() => Promise.resolve(undefined)),
     toExistingLink: (item) => ({ display_name: item.name, id: item.id, effectiveness: 'linked' }),
-    unlink: vi.fn(async () => undefined),
+    unlink: vi.fn(() => Promise.resolve(undefined)),
 };
 
 beforeEach(() => {
@@ -50,7 +50,7 @@ describe('useVendorLinkedEntities', () => {
     it('skips the refresh when a governed mutation is queued (#100)', async () => {
         const queuedAdapter: VendorLinkedEntitiesAdapter<FakeItem> = {
             ...adapter,
-            link: vi.fn(async () => ({
+            link: vi.fn(() => Promise.resolve(({
                 status: 'approval_required',
                 message: 'Queued',
                 approval_id: 186,
@@ -58,7 +58,7 @@ describe('useVendorLinkedEntities', () => {
                 pending_fields: ['relationship'],
                 proposal_id: 'proposal-186',
                 proposal_version: 1,
-            })),
+            }))),
         };
         const { result } = renderHook(() => useVendorLinkedEntities(7, queuedAdapter));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -73,7 +73,7 @@ describe('useVendorLinkedEntities', () => {
     it('exposes error state when fetch throws', async () => {
         const failing: VendorLinkedEntitiesAdapter<FakeItem> = {
             ...adapter,
-            fetch: vi.fn(async () => { throw new Error('boom'); }),
+            fetch: vi.fn(() => Promise.reject(new Error('boom'))),
         };
         const { result } = renderHook(() => useVendorLinkedEntities(7, failing));
         await waitFor(() => expect(result.current.isLoading).toBe(false));

@@ -27,6 +27,7 @@ describe('Risks page presentation helpers', () => {
                 net_score: 4,
                 status: 'active',
                 is_priority: false,
+                is_archived: false,
             })
         ).toMatchObject({
             kri_count: 0,
@@ -83,7 +84,7 @@ describe('Risks page presentation helpers', () => {
             is_priority: false,
         } satisfies RiskSummary;
 
-        render(statusColumn?.render?.(archivedRisk) as ReactElement);
+        render(statusColumn?.render?.(archivedRisk, 0) as ReactElement);
 
         // PG-03: the translated status label, never the raw enum.
         expect(screen.getByText('Archived')).toBeInTheDocument();

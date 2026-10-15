@@ -4,7 +4,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(resolve(process.cwd(), '../tests/frontend/e2e/vendors.spec.ts'), 'utf8');
-const journey = source.slice(source.indexOf("test('Vendor orphan reassignment remains pending until independent approval'"));
+const journeyStart = source.indexOf("test('Vendor orphan reassignment remains pending until independent approval'");
+const journey = source.slice(journeyStart);
+const cleanupHook = source.slice(source.indexOf('test.afterEach('), journeyStart);
 const cancellation = source.slice(
     source.indexOf('async function cancelVendorOrphanFixtureApprovals'),
     source.indexOf('async function ensureDedicatedVendorOwner'),
@@ -21,8 +23,9 @@ describe('Vendor orphan E2E cleanup contract', () => {
     });
 
     it('registers cleanup before setup mutations and runs it in the separate afterEach budget', () => {
-        expect(source).toContain('test.afterEach(async ({}, testInfo) =>');
-        expect(source).toContain('await cleanupWithoutMaskingPrimaryFailure(primaryFailure, cleanup, testInfo)');
+        expect(cleanupHook).toMatch(/^test\.afterEach\(async \(\{[^}]*\}, testInfo\) => \{/);
+        expect(cleanupHook).toContain('await cleanupWithoutMaskingPrimaryFailure(primaryFailure, cleanup, testInfo)');
+        expect(journey.indexOf('vendorOrphanCleanup =')).toBeGreaterThanOrEqual(0);
         expect(journey.indexOf('vendorOrphanCleanup =')).toBeLessThan(journey.indexOf('await ensureVendorArchived'));
         expect(journey.indexOf('cancelVendorOrphanFixtureApprovals')).toBeLessThan(journey.indexOf('restoreVendorOwnerBaseline'));
     });

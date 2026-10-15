@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, Literal, TypeVar, cast
 
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -16,7 +16,6 @@ from sqlalchemy.orm.attributes import set_committed_value
 from app.core.audit import vendor as audit_vendor
 from app.core.audit import vendor_contract as audit_vendor_contract
 from app.core.audit import vendor_sub_outsourcing as audit_vendor_sub_outsourcing
-from app.core.datetime_utils import utc_now
 from app.core.exceptions import (
     AuthorizationError,
     ConflictError,
@@ -46,6 +45,15 @@ from app.schemas.vendor_sub_outsourcing import (
 )
 from app.services._ict_register_reference.parameters import (
     load_ict_workbook_parameter_set_for_update,
+)
+from app.services._vendor_governance import (
+    VendorOrphanCompletion,
+    apply_vendor_archive,
+    apply_vendor_child_archive,
+    apply_vendor_child_create,
+    apply_vendor_child_edit,
+    apply_vendor_create,
+    apply_vendor_edit,
 )
 from app.services._vendor_governance.policy import (
     assert_vendor_archive_allowed,
@@ -539,9 +547,7 @@ async def _apply_child_mutation(
             return "Governed Vendor child creation payload is stale"
         if spec.assert_create_chain is not None:
             await spec.assert_create_chain(db, vendor.id, values)
-        child = spec.model(vendor_id=vendor.id, **values)
-        db.add(child)
-        await db.flush()
+        child = await apply_vendor_child_create(db, vendor=vendor, child_model=spec.model, values=values)
         await spec.emit_created(db, resolver, child)
     elif action == "edit":
         try:
@@ -567,8 +573,7 @@ async def _apply_child_mutation(
         if spec.assert_edit_chain is not None:
             await spec.assert_edit_chain(db, vendor.id, child, values)
         changes = spec.update_changes(child, values)
-        for field, value in values.items():
-            setattr(child, field, value)
+        apply_vendor_child_edit(vendor=vendor, child=child, updates=values)
         await spec.emit_updated(db, resolver, child, changes)
     elif action == "archive":
         if (
@@ -579,7 +584,7 @@ async def _apply_child_mutation(
         ):
             return "Governed Vendor child archive became stale"
         changes = spec.archive_changes(child)
-        child.mark_archived(resolver)
+        apply_vendor_child_archive(vendor=vendor, child=child, actor=resolver)
         await spec.emit_archived(db, resolver, child, changes)
     else:
         raise ValidationError("Unsupported governed Vendor child operation")
@@ -682,9 +687,7 @@ async def approve_vendor_mutation(
                 reason="Protected Vendor creation changed after submission",
                 department_id=payload.department_id,
             )
-        vendor = Vendor(**payload.model_dump(exclude={"request_reason"}))
-        db.add(vendor)
-        await db.flush()
+        vendor = await apply_vendor_create(db, values=payload.model_dump(exclude={"request_reason"}))
         await audit_vendor.vendor_created(db, actor=resolver, vendor=vendor)
         await finalize_governed_terminal_transition(
             db,
@@ -864,14 +867,15 @@ async def approve_vendor_mutation(
                 department_id=vendor.department_id,
             )
         changes = audit_vendor.vendor_update_changes(vendor, updates)
-        for field, value in updates.items():
-            setattr(vendor, field, value.value if hasattr(value, "value") else value)
-        vendor.governance_version += 1
-        if governed_orphan is not None:
-            governed_orphan.status = "resolved"
-            governed_orphan.resolved_at = utc_now()
-            governed_orphan.resolved_by_id = resolver.id
-            governed_orphan.new_owner_id = int(updates["outsourcing_owner_user_id"])
+        apply_vendor_edit(
+            vendor=vendor,
+            updates=updates,
+            orphan_completion=(
+                VendorOrphanCompletion(governed_orphan, resolver.id)
+                if governed_orphan is not None
+                else None
+            ),
+        )
         await audit_vendor.vendor_updated(
             db,
             actor=resolver,
@@ -916,8 +920,7 @@ async def approve_vendor_mutation(
             current_user=requester,
         )
         changes = audit_vendor.vendor_archive_changes(vendor)
-        vendor.mark_archived(resolver)
-        vendor.governance_version += 1
+        apply_vendor_archive(vendor=vendor, actor=resolver)
         await audit_vendor.vendor_archived(
             db,
             actor=resolver,
@@ -979,8 +982,12 @@ async def approve_vendor_mutation(
             )
         entity_id = operation.get("entity_id")
         entity_name = operation.get("entity_name")
-        _, _, resource, action = proposal.mutation_kind.split(".")
-        if not isinstance(entity_id, int) or not isinstance(entity_name, str):
+        _, _, resource, raw_action = proposal.mutation_kind.split(".")
+        if (
+            not isinstance(entity_id, int)
+            or not isinstance(entity_name, str)
+            or raw_action not in {"add", "remove"}
+        ):
             return await _expire(
                 db,
                 approval=approval,
@@ -990,11 +997,11 @@ async def approve_vendor_mutation(
                 reason="Governed Vendor relationship payload is stale",
                 department_id=vendor.department_id,
             )
+        link_action: Literal["add", "remove"] = "add" if raw_action == "add" else "remove"
         from app.services._vendor_governance.links import get_existing_link
+        from app.services._vendor_links import apply_vendor_target_relationship_no_commit
         from app.services._vendor_links.workflow import (
             VendorLinkKind,
-            link_vendor_target_no_commit,
-            unlink_vendor_target_no_commit,
             vendor_link_target,
             visible_vendor_link_target_label,
         )
@@ -1009,7 +1016,7 @@ async def approve_vendor_mutation(
                 current_user=requester,
                 target=target,
                 entity_id=entity_id,
-                require_live=action == "add",
+                require_live=link_action == "add",
             )
         except (ConflictError, HTTPException):
             return await _expire(
@@ -1038,8 +1045,8 @@ async def approve_vendor_mutation(
             target.entity_field,
             entity_id,
         )
-        if (action == "add" and existing is not None) or (
-            action == "remove" and existing is None
+        if (link_action == "add" and existing is not None) or (
+            link_action == "remove" and existing is None
         ):
             return await _expire(
                 db,
@@ -1050,25 +1057,15 @@ async def approve_vendor_mutation(
                 reason="Governed Vendor relationship state changed after submission",
                 department_id=vendor.department_id,
             )
-        if action == "add":
-            await link_vendor_target_no_commit(
-                db,
-                vendor_id=vendor.id,
-                current_user=requester,
-                audit_actor=resolver,
-                kind=link_kind,
-                entity_id=entity_id,
-            )
-        else:
-            await unlink_vendor_target_no_commit(
-                db,
-                vendor_id=vendor.id,
-                current_user=requester,
-                audit_actor=resolver,
-                kind=link_kind,
-                entity_id=entity_id,
-            )
-        vendor.governance_version += 1
+        await apply_vendor_target_relationship_no_commit(
+            db,
+            vendor_id=vendor.id,
+            current_user=requester,
+            audit_actor=resolver,
+            kind=link_kind,
+            entity_id=entity_id,
+            action=link_action,
+        )
         await finalize_governed_terminal_transition(
             db,
             approval=approval,
@@ -1161,7 +1158,6 @@ async def approve_vendor_mutation(
                 reason=stale_child_reason,
                 department_id=vendor.department_id,
             )
-        vendor.governance_version += 1
         await finalize_governed_terminal_transition(
             db,
             approval=approval,

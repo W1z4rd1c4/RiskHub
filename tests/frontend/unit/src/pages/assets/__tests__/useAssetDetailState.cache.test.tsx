@@ -1,3 +1,4 @@
+import type * as MockassetApiModule from '@/services/assetApi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
@@ -13,10 +14,10 @@ const originalAsset = {
     capabilities: { can_read: true, can_update: true, can_archive: true, can_restore: false },
     created_at: '2026-07-15T10:00:00Z', updated_at: '2026-07-15T10:00:00Z',
 } satisfies Asset;
-const mockGetAsset = vi.fn();
+const mockGetAsset = vi.fn<typeof MockassetApiModule.assetApi.getAsset>();
 
 vi.mock('@/services/assetApi', () => ({ assetApi: {
-    getAsset: (...args: unknown[]) => mockGetAsset(...args), restoreAsset: vi.fn(),
+    getAsset: (...args: Parameters<typeof mockGetAsset>) => mockGetAsset(...args), restoreAsset: vi.fn(),
 } }));
 
 function createWrapper(client: QueryClient) {
@@ -29,7 +30,7 @@ describe('useAssetDetailState edit cache', () => {
     beforeEach(() => { vi.clearAllMocks(); mockGetAsset.mockResolvedValue(originalAsset); });
     it('replaces the pre-edit detail snapshot with the saved Asset', async () => {
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-        const { result } = renderHook(() => useAssetDetailState({ mode: 'edit', notFoundMessage: 'not found' }), { wrapper: createWrapper(client) });
+        const { result } = renderHook(() => useAssetDetailState({ mode: 'edit' }), { wrapper: createWrapper(client) });
         await waitFor(() => expect(result.current.asset?.lifecycle_state).toBeUndefined());
         act(() => result.current.setAsset({ ...originalAsset, lifecycle_state: 'operational', updated_at: '2026-07-15T10:05:00Z' }));
         await waitFor(() => expect(result.current.asset?.lifecycle_state).toBe('operational'));

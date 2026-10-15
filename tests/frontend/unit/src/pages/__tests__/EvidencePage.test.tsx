@@ -1,3 +1,5 @@
+import type * as MockexecutionApiModule from '@/services/executionApi';
+import type * as MockvendorReportApiModule from '@/services/vendorReportApi';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -9,8 +11,8 @@ const authz = {
     canReadControls: true,
     canViewActivityLog: true,
 };
-const getExecutions = vi.fn();
-const getVendorReportCapabilities = vi.fn();
+const getExecutions = vi.fn<typeof MockexecutionApiModule.executionApi.getExecutions>();
+const getVendorReportCapabilities = vi.fn<typeof MockvendorReportApiModule.vendorReportApi.getCapabilities>();
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => authz,
@@ -18,13 +20,13 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/services/executionApi', () => ({
     executionApi: {
-        getExecutions: (...args: unknown[]) => getExecutions(...args),
+        getExecutions: (...args: Parameters<typeof getExecutions>) => getExecutions(...args),
     },
 }));
 
 vi.mock('@/services/vendorReportApi', () => ({
     vendorReportApi: {
-        getCapabilities: (...args: unknown[]) => getVendorReportCapabilities(...args),
+        getCapabilities: (...args: Parameters<typeof getVendorReportCapabilities>) => getVendorReportCapabilities(...args),
     },
 }));
 

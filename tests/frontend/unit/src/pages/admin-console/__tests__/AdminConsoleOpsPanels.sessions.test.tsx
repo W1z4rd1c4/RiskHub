@@ -1,3 +1,5 @@
+import type * as ActualI18nHooks from '@/i18n/hooks';
+const { getActiveSessionsMock, getCapabilitiesMock, revokeSessionMock, checkAllDirectoryUsersMock } = vi.hoisted(() => ({ getActiveSessionsMock: vi.fn(), getCapabilitiesMock: vi.fn(), revokeSessionMock: vi.fn(), checkAllDirectoryUsersMock: vi.fn() }));
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,15 +7,11 @@ import { createTestQueryClient } from '@test/queryClient';
 
 import { ApiClientError } from '@/services/apiClient';
 
-const getActiveSessionsMock = vi.fn();
-const getCapabilitiesMock = vi.fn();
-const revokeSessionMock = vi.fn();
-const checkAllDirectoryUsersMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` / `translateUiMessage` stay real (locale en); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof ActualI18nHooks>()),
     useTranslation: () => ({
         t: (key: string) => key,
         i18n: { language: 'en' },
@@ -22,10 +20,10 @@ vi.mock('@/i18n/hooks', async (importOriginal) => ({
 
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
-        getActiveSessions: (...args: unknown[]) => getActiveSessionsMock(...args),
-        getCapabilities: (...args: unknown[]) => getCapabilitiesMock(...args),
-        revokeSession: (...args: unknown[]) => revokeSessionMock(...args),
-        checkAllDirectoryUsers: (...args: unknown[]) => checkAllDirectoryUsersMock(...args),
+        getActiveSessions: getActiveSessionsMock,
+        getCapabilities: getCapabilitiesMock,
+        revokeSession: revokeSessionMock,
+        checkAllDirectoryUsers: checkAllDirectoryUsersMock,
     },
 }));
 
@@ -37,7 +35,7 @@ function createWrapper() {
     queryClient.invalidateQueries = ((...args: Parameters<typeof queryClient.invalidateQueries>) => {
         invalidateQueriesMock(...args);
         return originalInvalidate(...args);
-    }) as typeof queryClient.invalidateQueries;
+    });
 
     return function Wrapper({ children }: { children: React.ReactNode }) {
         return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;

@@ -25,6 +25,15 @@ Docker target:
 - Docker Engine running
 - outbound access to `ghcr.io`
 
+Backend, scheduler and database-task images use the verified `linux/amd64`
+profile. Managed Docker pull/run commands select that platform explicitly.
+Use an amd64 Linux host, or provide Docker-compatible amd64 emulation on an ARM
+host. Direct source builds must use `docker build --platform linux/amd64` for
+both `runtime` and `dbtasks`; the Dockerfile rejects unsupported build targets
+before installing dependencies. Native ARM backend images require their own
+verified locks. Frontend/Redis image selection and the non-Docker Linux bundle
+remain separate from this Python lock profile.
+
 Linux target:
 
 - Linux host with `systemd`

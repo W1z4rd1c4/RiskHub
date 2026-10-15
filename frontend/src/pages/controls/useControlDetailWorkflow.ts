@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react
 import type { NavigateFunction } from 'react-router-dom';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
-import { ApiClientError, apiClient } from '@/services/apiClient';
+import { apiClient, isSingleRecordUnavailableError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import type { Control, ControlRiskLink } from '@/types/control';
 import type { ControlEffectiveness, Risk } from '@/types/risk';
@@ -119,7 +119,7 @@ export function useControlDetailWorkflow({
                 || detailOwnerRef.current !== ownerId
             ) return;
             logError('Error fetching linked risks:', err);
-            if (err instanceof ApiClientError && (err.status === 403 || err.status === 404)) {
+            if (isSingleRecordUnavailableError(err)) {
                 riskQuickViewControllerRef.current?.abort();
                 riskQuickViewControllerRef.current = null;
                 setLinkedRisks([]);

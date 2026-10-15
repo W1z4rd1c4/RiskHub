@@ -2,7 +2,8 @@
  * Risks Page Object Model
  * Handles Risk list and interaction operations
  */
-import { expect, Locator, Page, type Download, type Response } from '@playwright/test';
+import type { Locator, Page} from '@playwright/test';
+import { expect, type Download, type Response } from '@playwright/test';
 import { waitForDataLoad, waitForTableRows } from '../helpers/wait';
 import { matchesCollectionResponse } from './collectionResponse';
 

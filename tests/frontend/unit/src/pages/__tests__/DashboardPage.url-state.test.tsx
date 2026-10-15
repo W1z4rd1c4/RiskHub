@@ -1,3 +1,5 @@
+import type * as MockdashboardApiModule from '@/services/dashboardApi';
+import type * as Actualformatters from '@/i18n/formatters';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -11,7 +13,7 @@ import {
 import { DashboardPage } from '@/pages/DashboardPage';
 import { createTestQueryClient } from '@test/queryClient';
 
-const fetchOverviewMock = vi.fn();
+const fetchOverviewMock = vi.fn<typeof MockdashboardApiModule.dashboardApi.fetchOverview>();
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
@@ -21,7 +23,7 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -47,7 +49,7 @@ vi.mock('@/i18n/hooks', async () => {
 
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
-        fetchOverview: (...args: unknown[]) => fetchOverviewMock(...args),
+        fetchOverview: (...args: Parameters<typeof fetchOverviewMock>) => fetchOverviewMock(...args),
     },
 }));
 
@@ -108,6 +110,7 @@ function dashboardResponse(canUseDepartmentFilter = true) {
             risks_by_status: {},
             critical_risks_count: 0,
             average_net_risk_score: 0,
+            risk_thresholds: { critical: 15, high: 10, medium: 5 },
         },
         department_metrics: [],
         gross_distribution: { distribution: [] },
@@ -118,7 +121,8 @@ function dashboardResponse(canUseDepartmentFilter = true) {
         issue_summary: null,
         issue_aging: null,
         issue_severity: null,
-        generated_at: '2026-08-30T00:00:00Z',
+        filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-08-30T00:00:00Z',
         capabilities: {
             can_read: true,
             can_view_issue_metrics: false,

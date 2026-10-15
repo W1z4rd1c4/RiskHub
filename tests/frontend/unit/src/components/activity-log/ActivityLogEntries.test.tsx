@@ -1,3 +1,4 @@
+import type * as FormattersModule from '@/i18n/formatters';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -5,7 +6,7 @@ import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries
 import type { ActivityLogEntry } from '@/types/activityLog';
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {

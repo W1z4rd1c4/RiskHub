@@ -1,11 +1,14 @@
+import type * as MockissuesApiModule from '@/services/issuesApi';
+import type * as MockreportApiModule from '@/services/reportApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { IssuesPage } from '@/pages/IssuesPage';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 
-const mockList = vi.fn();
-const mockExportIssues = vi.fn();
+const mockList = vi.fn<typeof MockissuesApiModule.issuesApi.list>();
+const mockExportIssues = vi.fn<typeof MockreportApiModule.reportApi.exportIssues>();
 const mockNavigate = vi.fn();
 const setSearchParams = vi.fn();
 let mockQueryString = '';
@@ -13,13 +16,13 @@ let mockQueryString = '';
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        list: (...args: unknown[]) => mockList(...args),
+        list: (...args: Parameters<typeof mockList>) => mockList(...args),
     },
 }));
 
 vi.mock('@/services/reportApi', () => ({
     reportApi: {
-        exportIssues: (...args: unknown[]) => mockExportIssues(...args),
+        exportIssues: (...args: Parameters<typeof mockExportIssues>) => mockExportIssues(...args),
     },
 }));
 
@@ -39,7 +42,7 @@ vi.mock('@/components/reports/ExportDialog', () => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -130,18 +133,16 @@ describe('IssuesPage URL filter initialization', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /export/i }));
         fireEvent.click(screen.getByRole('button', { name: 'confirm-export' }));
+        const expectedFilters: unknown = expect.objectContaining({
+            status: null, severity: null, severityGroup: 'high_critical', excludeActiveExceptions: true,
+        });
 
         await waitFor(() => {
             expect(mockExportIssues).toHaveBeenCalledWith(
                 expect.objectContaining({
                     format: 'csv',
                     asOfDate: '2026-02-14',
-                    filters: expect.objectContaining({
-                        status: null,
-                        severity: null,
-                        severityGroup: 'high_critical',
-                        excludeActiveExceptions: true,
-                    }),
+                    filters: expectedFilters,
                 })
             );
         });

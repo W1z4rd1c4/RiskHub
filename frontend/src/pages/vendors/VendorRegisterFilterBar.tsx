@@ -65,6 +65,8 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
     const { t } = useTranslation('vendors');
     const [search, setSearch] = useState('');
     const debouncedSearch = useDebouncedValue(search, 250);
+    // URL parsing recreates arrays; preserve order while comparing selected IDs by value.
+    const selectedIdsKey = selectedIds.join(',');
     const [options, setOptions] = useState<VendorLookupOption[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -74,12 +76,12 @@ function RemoteMultiFilter({ definition, label, onChange, selectedIds }: RemoteP
         setIsLoading(true);
         void vendorApi.getLookupOptions(definition.lookup, {
             search: debouncedSearch.trim() || undefined,
-            selectedIds,
+            selectedIds: selectedIdsKey ? selectedIdsKey.split(',').map(Number) : [],
         }).then((result) => { if (active) setOptions(result); })
             .catch(() => { if (active) setOptions([]); })
             .finally(() => { if (active) setIsLoading(false); });
         return () => { active = false; };
-    }, [debouncedSearch, definition.lookup, selectedIds]);
+    }, [debouncedSearch, definition.lookup, selectedIdsKey]);
 
     return (
         <fieldset className="space-y-2" data-testid={`vendors-filter-control-${definition.key}`}>

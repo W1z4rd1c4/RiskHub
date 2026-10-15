@@ -6,7 +6,6 @@ import {
     Pagination,
     SortableTable,
     type Column,
-    type SortDirection,
 } from '@/components/tables';
 import { TableErrorState } from '@/components/tables/tableError';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -14,6 +13,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CollectionGroup } from '@/types/collection';
+import type { RegisterListWorkingSet } from '@/pages/shared/useRegisterUrlWorkingSet';
 
 export interface RegisterViewOption<TView extends string> {
     value: TView;
@@ -24,11 +24,8 @@ interface RegisterTableConfig<TItem extends object> {
     columns: Column<TItem>[];
     keyExtractor: (item: TItem) => string | number;
     onRowClick?: (item: TItem) => void;
-    onSort?: (key: string, direction: SortDirection) => void;
     rowHref?: (item: TItem) => string;
     rowLabel?: (item: TItem) => string;
-    sortDirection?: SortDirection;
-    sortKey?: string | null;
 }
 
 interface RegisterGroupingConfig {
@@ -36,11 +33,8 @@ interface RegisterGroupingConfig {
     groupLabel?: (group: CollectionGroup) => string;
     hideActive?: boolean;
     hideHighlighted?: boolean;
-    onBack: () => void;
-    onSelectGroup: (value: string, label: string) => void;
     renderGroupBody?: (group: CollectionGroup) => ReactNode;
     selectedGroupLabel: string | null;
-    selectedGroupValue: string | null;
 }
 
 export interface RegisterExportDialogControls {
@@ -67,9 +61,7 @@ interface RegisterListShellProps<TItem extends object, TView extends string> {
     items: TItem[];
     itemsPerPage: number;
     onCreate?: () => void;
-    onPageChange: (page: number) => void;
     onRetry: () => void;
-    onViewChange: (view: TView) => void;
     table: Omit<RegisterTableConfig<TItem>, 'columns'>;
     testIdPrefix: string;
     title: string;
@@ -77,8 +69,7 @@ interface RegisterListShellProps<TItem extends object, TView extends string> {
     toolbar: ReactNode;
     totalCount: number;
     totalPages: number;
-    currentPage: number;
-    view: TView;
+    workingSet: RegisterListWorkingSet<TView>;
     views: readonly RegisterViewOption<TView>[];
 }
 
@@ -94,7 +85,6 @@ export function RegisterListShell<TItem extends object, TView extends string>({
     canExport = false,
     columns,
     createLabel,
-    currentPage,
     emptyMessage,
     errorMessage,
     exportDialog,
@@ -107,9 +97,7 @@ export function RegisterListShell<TItem extends object, TView extends string>({
     items,
     itemsPerPage,
     onCreate,
-    onPageChange,
     onRetry,
-    onViewChange,
     subtitle,
     table,
     testIdPrefix,
@@ -117,10 +105,11 @@ export function RegisterListShell<TItem extends object, TView extends string>({
     toolbar,
     totalCount,
     totalPages,
-    view,
+    workingSet,
     views,
 }: RegisterListShellProps<TItem, TView>) {
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const { currentPage, viewMode: view, setCurrentPage: onPageChange, updateViewMode: onViewChange } = workingSet;
 
     // D7 / DS-15: the register title is the route's one `h1` (and its
     // `document.title`) in every state, including access denied. The
@@ -150,9 +139,9 @@ export function RegisterListShell<TItem extends object, TView extends string>({
             onRetry={onRetry}
             errorMessage={errorMessage}
             emptyMessage={emptyMessage}
-            sortKey={table.sortKey}
-            sortDirection={table.sortDirection}
-            onSort={table.onSort}
+            sortKey={workingSet.sortField}
+            sortDirection={workingSet.sortDirection}
+            onSort={workingSet.updateSort}
         />
     );
 
@@ -170,7 +159,7 @@ export function RegisterListShell<TItem extends object, TView extends string>({
             ) : null}
         </div>
     ) : (() => {
-        const hasSelectedGroup = Boolean(grouping.selectedGroupValue);
+        const hasSelectedGroup = Boolean(workingSet.selectedGroupValue);
         const hasLastGoodGroupedData = hasSelectedGroup ? items.length > 0 : grouping.groups.length > 0;
 
         // First-load failures/loading still use the table's full replacement state.
@@ -186,12 +175,12 @@ export function RegisterListShell<TItem extends object, TView extends string>({
             groups={grouping.groups}
             items={items}
             itemsPerPage={itemsPerPage}
-            onBack={grouping.onBack}
+            onBack={workingSet.clearSelectedGroup}
             onPageChange={onPageChange}
-            onSelectGroup={grouping.onSelectGroup}
+            onSelectGroup={workingSet.selectGroup}
             renderTable={renderTable}
             selectedGroupLabel={grouping.selectedGroupLabel}
-            selectedGroupValue={grouping.selectedGroupValue}
+            selectedGroupValue={workingSet.selectedGroupValue}
             totalCount={totalCount}
             totalPages={totalPages}
             emptyMessage={emptyMessage}

@@ -297,6 +297,9 @@ def test_host_database_docker_runs_map_host_docker_internal(
             "initialize", "verify",
         ]
     for args in docker_runs:
+        platform_index = args.index("--platform")
+        assert args[platform_index + 1] == "linux/amd64"
+        assert platform_index < args.index("--env-file")
         add_host_index = args.index("--add-host")
         assert args[add_host_index + 1] == "host.docker.internal:host-gateway"
         assert add_host_index < args.index("--env-file")

@@ -67,7 +67,10 @@ def test_every_failure_refresh_revoke_uses_the_user_first_lock_primitive() -> No
 
 def test_shared_replay_invalidation_still_bumps_and_revokes_without_commit() -> None:
     path = REPO_ROOT / "backend/app/services/_auth_session_workflow/authority.py"
-    source = _function_source(path, "invalidate_user_sessions")
+    source = _function_source(path, "invalidate_user_authority")
+    legacy = _function_source(path, "invalidate_user_sessions")
+    assert "await invalidate_user_authority(" in legacy
+    assert "return counts.revoke_count" in legacy
     revoke = _function_source(path, "revoke_user_refresh_tokens")
     # The shared primitive can advance beyond a verified restore checkpoint.
     # Keep the architectural ordering lock independent of += versus = syntax;

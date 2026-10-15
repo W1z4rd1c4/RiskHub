@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { SVGProps } from 'react';
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -9,7 +10,7 @@ import { renderWithoutProviders, screen } from '@test/render';
 
 // lucide-react is not resolvable from the external test root; stub icons with
 // the same props contract are enough for these assertions.
-const CheckCircle2 = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+const CheckCircle2 = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
 
 /**
  * Audit 2026-09-30 §4.9 / roadmap 1.6 (DS-13, D1, D6 amended): one Badge shell

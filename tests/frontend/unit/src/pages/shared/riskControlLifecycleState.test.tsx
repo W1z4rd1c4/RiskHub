@@ -1,3 +1,5 @@
+import type { riskApi as importedRiskApi } from '@/services/riskApi';
+import type { controlApi as importedControlApi } from '@/services/controlApi';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -8,10 +10,10 @@ import { useRisksPageState } from '@/pages/risks/useRisksPageState';
 import { parseRiskSemanticFilters } from '@/pages/shared/ictRegisterSemanticFilters';
 
 const mocks = vi.hoisted(() => ({
-    downloadControlExport: vi.fn(),
-    downloadRiskExport: vi.fn(),
-    getControls: vi.fn(),
-    getRisks: vi.fn(),
+    downloadControlExport: vi.fn<typeof importedControlApi.downloadExport>(),
+    downloadRiskExport: vi.fn<typeof importedRiskApi.downloadExport>(),
+    getControls: vi.fn<typeof importedControlApi.getControls>(),
+    getRisks: vi.fn<typeof importedRiskApi.getRisks>(),
 }));
 
 const emptyPage = {
@@ -150,7 +152,7 @@ describe('Risk and Control lifecycle page state', () => {
             );
 
             await waitFor(() => expect(mocks.getRisks).toHaveBeenCalled());
-            expect(result.current.filters.net_band).toBe(code);
+            expect(result.current.workingSet.filters.net_band).toBe(code);
             expect(mocks.getRisks.mock.calls.at(-1)?.[0]).toMatchObject({ net_band: storedValue });
         },
     );
@@ -173,10 +175,10 @@ describe('Risk and Control lifecycle page state', () => {
         );
 
         // PG-40: the URL value parses to the language-neutral band code.
-        await waitFor(() => expect(result.current.filters.net_band).toBe('critical'));
+        await waitFor(() => expect(result.current.workingSet.filters.net_band).toBe('critical'));
         act(() => result.current.clearFilters());
 
-        await waitFor(() => expect(result.current.filters.net_band).toBe(''));
+        await waitFor(() => expect(result.current.workingSet.filters.net_band).toBe(''));
         await waitFor(() => expect(mocks.getRisks.mock.calls.at(-1)?.[0].net_band).toBeUndefined());
     });
 

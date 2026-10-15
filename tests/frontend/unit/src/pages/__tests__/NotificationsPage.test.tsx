@@ -128,7 +128,8 @@ describe('NotificationsPage read-state controls', () => {
         fireEvent.click(retry);
         expect(listRequests).toBe(2);
 
-        await act(async () => { releaseRetry(); });
+        await act(() => { releaseRetry();     return Promise.resolve();
+});
         expect(await screen.findByText('No notifications')).toBeInTheDocument();
         expect(screen.getByText('All caught up!')).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();

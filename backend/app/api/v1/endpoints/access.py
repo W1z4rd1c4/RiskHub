@@ -17,6 +17,7 @@ from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead,
 from app.schemas.user import AccessScopeEnum, RoleRead
 from app.services._access_workflow import (
     access_user_capabilities,
+    build_access_users_query,
     build_department_access_roster_query,
     is_cro,
     is_platform_admin,
@@ -124,9 +125,7 @@ async def list_access_users(
     """List users for access management with scope filters."""
     _require_privileged(current_user)
 
-    query = select(User).options(*user_selectinload_options(include_permissions=True))
-    if not is_platform_admin(current_user):
-        query = query.join(Role).where(Role.name != RoleType.ADMIN)
+    query = build_access_users_query(current_user).options(*user_selectinload_options(include_permissions=True))
 
     if department_id is not None:
         query = query.where(User.department_id == department_id)

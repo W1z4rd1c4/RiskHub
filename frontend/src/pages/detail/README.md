@@ -2,6 +2,24 @@
 
 Shared primitives for route-level detail pages.
 
+`useProtectedDetailShell` owns Threat/Vendor/Asset/Process load presentation, stale-read retry,
+register return context, archive confirmation/outcomes and pending-change cancellation.
+It composes `PendingChangePanel`, `PendingChangeCancellationDialog`, `useApprovalQueued`
+and `governedMutationOutcome`. Dialogs capture the named target when opened; requests
+and their continuations belong to the committed record, route and principal generation.
+Reopening an archive clears its prior error. Backend `can_cancel` and `can_view_diff`
+remain authoritative. Adapters supply the existing archive API and reason policy;
+Threat continues to omit a reason entirely.
+
+`useProtectedDetailState` shares reads, cache updates, capability projection and
+restore through `useRestoreWithFeedback`. Failed restores retain visible action feedback and a Retry that captures the original record. Canonical session generation and eligibility from `useSessionMutationOwner` preserve silent refresh while rejecting fresh-login, logout and stale-route continuations. Entity state adapters keep their public
+names and Vendor's issue/link capability state. Forms, link sections and ownership
+guidance stay in their entity pages. The rendered MSW contract suite is
+`tests/frontend/unit/src/pages/detail/protectedDetailLifecycle.test.tsx`.
+DEF-15 did not reproduce: failed restores already displayed a toast at the saved
+checkpoint. The suite preserves that behavior and verifies the independently
+reproduced late-archive and duplicate-cancellation fixes across all four adapters.
+
 Use this directory for layout and interaction pieces that are reused across entity detail screens, such as page shells, section composition, and common loading/error handling.
 
 Header and state primitives (audit 2026-09-30 §4.14, D7, D14):

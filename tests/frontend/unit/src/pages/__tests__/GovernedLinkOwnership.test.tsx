@@ -41,28 +41,28 @@ vi.mock('@/services/threatApi', () => ({
     riskRegisterLinksApi: { getThreatLinks: vi.fn().mockResolvedValue([]), getProcessLinks: vi.fn().mockResolvedValue([]), getAssetLinks: vi.fn(), removeAssetLink: vi.fn() },
 }));
 const protectedCapabilities = { protected_change_requires_approval: true };
-const rows = (owner: number) => [{ id: 41, asset_id: 7, process_id: 7, vendor_id: 7, risk_id: 7,
+const rows = (owner: number) => [{ id: 41, threat_id: 7, asset_id: 7, process_id: 7, vendor_id: 7, risk_id: 7,
     asset_name: `Owner ${owner} counterpart`, process_name: `Owner ${owner} counterpart`,
     vendor_name: `Owner ${owner} counterpart`, risk_name: `Owner ${owner} counterpart`, risk_id_code: 'R-7',
     capabilities: { can_delete: true }, is_primary: false, process_business_edit_blocked: false,
     ict_service_code: 'S01', created_at: '2026-10-01T00:00:00Z' }];
 const lanes = [
-    { family: 'Asset', target: 'asset-process-link-remove-7', api: () => vi.mocked(assetApi.removeProcessLink), render: (id: number, changed: () => void) => <AssetLinkSections asset={{ id, capabilities: protectedCapabilities } as Asset} canManageLinks onLinksChanged={changed} /> },
-    { family: 'Process', target: 'process-vendor-link-remove-41', api: () => vi.mocked(processApi.removeVendorLink), render: (id: number, changed: () => void) => <ProcessVendorLinksSection process={{ id, capabilities: protectedCapabilities } as Process} canManageLinks onLinksChanged={changed} /> },
-    { family: 'Vendor', target: 'vendor-asset-link-remove-41', api: () => vi.mocked(assetApi.removeVendorLink), render: (id: number) => <VendorRegisterLinksSection vendorId={id} capabilities={{ ...protectedCapabilities, can_view_asset_links: true, can_manage_asset_links: true, can_manage_process_links: true }} /> },
-    { family: 'Threat', target: 'threat-risk-link-remove-41', api: () => vi.mocked(threatApi.removeRiskLink), render: (id: number, changed: () => void) => <ThreatRiskLinksSection threat={{ id } as Threat} canManageLinks onLinksChanged={changed} /> },
-    { family: 'Risk', target: 'risk-asset-link-remove-41', api: () => vi.mocked(riskRegisterLinksApi.removeAssetLink), render: (id: number) => <RiskRegisterLinksSection risk={{ id } as Risk} canManageLinks /> },
+    { family: 'Asset', target: 'asset-process-link-remove-7', api: () => vi.spyOn(assetApi, 'removeProcessLink'), render: (id: number, changed: () => void) => <AssetLinkSections asset={{ id, capabilities: protectedCapabilities } as Asset} canManageLinks onLinksChanged={changed} /> },
+    { family: 'Process', target: 'process-vendor-link-remove-41', api: () => vi.spyOn(processApi, 'removeVendorLink'), render: (id: number, changed: () => void) => <ProcessVendorLinksSection process={{ id, capabilities: protectedCapabilities } as Process} canManageLinks onLinksChanged={changed} /> },
+    { family: 'Vendor', target: 'vendor-asset-link-remove-41', api: () => vi.spyOn(assetApi, 'removeVendorLink'), render: (id: number) => <VendorRegisterLinksSection vendorId={id} capabilities={{ ...protectedCapabilities, can_view_asset_links: true, can_manage_asset_links: true, can_manage_process_links: true }} /> },
+    { family: 'Threat', target: 'threat-risk-link-remove-41', api: () => vi.spyOn(threatApi, 'removeRiskLink'), render: (id: number, changed: () => void) => <ThreatRiskLinksSection threat={{ id } as Threat} canManageLinks onLinksChanged={changed} /> },
+    { family: 'Risk', target: 'risk-asset-link-remove-41', api: () => vi.spyOn(riskRegisterLinksApi, 'removeAssetLink'), render: (id: number) => <RiskRegisterLinksSection risk={{ id } as Risk} canManageLinks /> },
 ];
 function LocationProbe() { const location = useLocation(); return <output data-testid="location-state">{JSON.stringify(location.state)}</output>; }
 const pending = { status: 'approval_required', approval_id: 88, proposal_id: '10000000-0000-4000-8000-000000000088', proposal_version: 1, action_type: 'edit', pending_fields: ['relationship'], message: 'Queued' };
 
 beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(assetApi.getProcessLinks).mockImplementation(async (id) => rows(id) as never);
-    vi.mocked(processApi.getVendorLinks).mockImplementation(async (id) => rows(id) as never);
-    vi.mocked(vendorApi.getAssetLinks).mockImplementation(async (id) => rows(id) as never);
-    vi.mocked(threatApi.getRiskLinks).mockImplementation(async (id) => rows(id) as never);
-    vi.mocked(riskRegisterLinksApi.getAssetLinks).mockImplementation(async (id) => rows(id) as never);
+    vi.spyOn(assetApi, 'getProcessLinks').mockImplementation((id) => Promise.resolve(rows(id)));
+    vi.spyOn(processApi, 'getVendorLinks').mockImplementation((id) => Promise.resolve(rows(id)));
+    vi.spyOn(vendorApi, 'getAssetLinks').mockImplementation((id) => Promise.resolve(rows(id)));
+    vi.spyOn(threatApi, 'getRiskLinks').mockImplementation((id) => Promise.resolve(rows(id)));
+    vi.spyOn(riskRegisterLinksApi, 'getAssetLinks').mockImplementation((id) => Promise.resolve(rows(id)));
 });
 
 describe.each(lanes)('$family link mutation owner', (lane) => {
@@ -94,7 +94,11 @@ describe.each(lanes)('$family link mutation owner', (lane) => {
         }
         feedback.success.mockClear();
         const invalidation = vi.spyOn(client, 'invalidateQueries');
-        await act(async () => { if (outcome === 'rejected') reject(new Error('Owner A rejection')); else resolve((outcome === 'pending' ? pending : undefined) as never); });
+        await act(() => {
+            if (outcome === 'rejected') reject(new Error('Owner A rejection'));
+            else resolve((outcome === 'pending' ? pending : undefined) as never);
+            return Promise.resolve();
+        });
         expect(screen.getByTestId('location-state')).not.toHaveTextContent('approvalQueued');
         expect(feedback.success).not.toHaveBeenCalled();
         expect(changed).not.toHaveBeenCalled();
@@ -125,7 +129,7 @@ describe.each(lanes)('$family link mutation owner', (lane) => {
         if (secondReason) fireEvent.change(secondReason, { target: { value: 'Distinct owner B rationale' } });
         fireEvent.submit(dialog.querySelector('form')!);
         await waitFor(() => expect(lane.api()).toHaveBeenCalledTimes(2));
-        await act(async () => finishA((lane.family === 'Threat' ? undefined : pending) as never));
+        await act(() => Promise.resolve(finishA((lane.family === 'Threat' ? undefined : pending) as never)));
         expect(screen.getByRole('alertdialog')).toBe(dialog);
         expect(dialog.querySelector('button[type="submit"]')).toBeDisabled();
         if (secondReason) expect(secondReason).toHaveValue('Distinct owner B rationale');
@@ -135,7 +139,7 @@ describe.each(lanes)('$family link mutation owner', (lane) => {
             expect(lane.api().mock.calls[0].at(-1)).toBe('Immutable owner A rationale');
             expect(lane.api().mock.calls[1].at(-1)).toBe('Distinct owner B rationale');
         }
-        await act(async () => finishB(undefined as never));
+        await act(() => Promise.resolve(finishB(undefined as never)));
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 

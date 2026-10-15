@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { SortDirection } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { SupportedLanguage } from '@/i18n';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { apiClient } from '@/services/apiClient';
@@ -22,21 +19,15 @@ import {
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
 import type { VendorSemanticFilters } from '../shared/ictRegisterSemanticFilters';
-import {
-    buildRegisterUrlParams,
-    normalizeRegisterUrlParams,
-    parseRegisterUrlState,
-    type RegisterSortState,
-} from '../shared/registerListQuery';
+import { useStableRegisterRequestParams } from '../shared/useStableRegisterRequestParams';
+import { useCommittedRegisterQuery, useRegisterUrlWorkingSet } from '../shared/useRegisterUrlWorkingSet';
 import { useRestoreWithFeedback } from '../shared/useRestoreWithFeedback';
 import {
     buildVendorRegisterListParams,
     parseVendorRegisterFilters,
     serializeVendorRegisterFilters,
     VENDOR_REGISTER_CONFIG,
-    type VendorLifecycleFilter,
     type VendorRegisterFilters,
-    type VendorRegisterView,
 } from './vendorRegisterConfig';
 
 const VENDOR_VIEWS = VENDOR_REGISTER_CONFIG.views.map(({ value }) => value);
@@ -55,30 +46,24 @@ const VENDOR_SORT_FIELDS: readonly VendorSortField[] = [
     'created_at',
 ];
 
-const validSort = (sort: RegisterSortState | null) => (
-    sort && VENDOR_SORT_FIELDS.includes(sort.field as VendorSortField) ? sort : null
-);
 const selectedGroupLabel = (groups: Array<{ value: string; label: string }>, value: string | null) => (
     value ? groups.find((group) => group.value === value)?.label ?? null : null
 );
+
+const vendorUrlOptions = {
+    allowedViews: VENDOR_VIEWS,
+    allowedSortFields: VENDOR_SORT_FIELDS,
+    parseFilters: parseVendorRegisterFilters,
+    serializeFilters: serializeVendorRegisterFilters,
+};
 
 export function useVendorsPageState(
     semanticFilters: VendorSemanticFilters = {},
     language: SupportedLanguage = 'en',
 ) {
     const departmentScope = useDepartmentRegisterScope();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const serializedParams = searchParams.toString();
-    const urlState = useMemo(() => parseRegisterUrlState(new URLSearchParams(serializedParams), {
-        defaultView: 'all',
-        allowedViews: VENDOR_VIEWS,
-    }), [serializedParams]);
-    const filters = useMemo(() => parseVendorRegisterFilters(urlState.filters), [urlState.filters]);
-    const viewMode = urlState.view as VendorRegisterView;
-    const sort = validSort(urlState.sort);
-    const groupValue = urlState.selectedGroupValue;
-    const debouncedSearch = useDebouncedValue(urlState.search, 300);
-    const currentPage = urlState.page;
+    const workingSet = useRegisterUrlWorkingSet(vendorUrlOptions);
+    const { currentPage, debouncedSearch, filters, selectedGroupValue: groupValue, sort, viewMode, writeUrl } = workingSet;
     const [facets, setFacets] = useState<VendorFacets>({});
     const [isExporting, setIsExporting] = useState(false);
     const {
@@ -92,7 +77,6 @@ export function useVendorsPageState(
         setIsLoading,
     } = useCollectionDataState<Vendor, VendorListCapabilities>();
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
-    const runRowRestore = useRestoreWithFeedback();
 
     const effectiveFilters = useMemo<VendorRegisterFilters>(() => ({
         ...filters,
@@ -112,7 +96,7 @@ export function useVendorsPageState(
         semanticFilters.tier,
     ]);
 
-    const listParams = useMemo(() => buildVendorRegisterListParams({
+    const requestParams = useMemo(() => buildVendorRegisterListParams({
         currentPage,
         filters: effectiveFilters,
         groupValue,
@@ -121,8 +105,9 @@ export function useVendorsPageState(
         sort,
         view: viewMode,
     }), [currentPage, debouncedSearch, effectiveFilters, groupValue, sort, viewMode]);
-    const queryIdentity = JSON.stringify(listParams);
-    useLayoutEffect(() => commitQueryIdentity(queryIdentity), [commitQueryIdentity, queryIdentity]);
+    const listParams = useStableRegisterRequestParams(requestParams);
+    const { queryIdentity, getExportParams } = useCommittedRegisterQuery(listParams, commitQueryIdentity);
+    const runRowRestore = useRestoreWithFeedback(queryIdentity);
     const queryState = forQuery(queryIdentity);
     const { capabilities, errorKey, groups, hasLoadedOnce, isAccessDenied, items, totalCount } = queryState;
     const isLoading = collectionIsLoading || !queryState.isCurrentQuery;
@@ -153,42 +138,7 @@ export function useVendorsPageState(
         }
     }, [applyFailure, applySuccess, beginQuery, beginRequest, isCurrentRequest, listParams, queryIdentity, setIsLoading]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(serializedParams);
-        if (!normalizeRegisterUrlParams(params, {
-            allowedSortFields: VENDOR_SORT_FIELDS,
-            allowedViews: VENDOR_VIEWS,
-            canonicalizeFilters: (rawFilters) => serializeVendorRegisterFilters(parseVendorRegisterFilters(rawFilters)),
-            defaultView: 'all',
-        })) return;
-        setSearchParams(params, { replace: true });
-    }, [serializedParams, setSearchParams]);
     useEffect(() => { void fetchVendors(); }, [fetchVendors]);
-
-    const writeUrl = useCallback((next: {
-        filters?: VendorRegisterFilters;
-        group?: string | null;
-        search?: string;
-        sort?: RegisterSortState | null;
-        view?: VendorRegisterView;
-    }, replace = false) => {
-        const params = buildRegisterUrlParams({
-            filters: serializeVendorRegisterFilters(next.filters ?? filters),
-            page: 1,
-            search: next.search ?? urlState.search,
-            selectedGroupValue: next.group === undefined ? groupValue : next.group,
-            sort: next.sort === undefined ? sort : next.sort,
-            view: next.view ?? viewMode,
-        }, new URLSearchParams(serializedParams));
-        setSearchParams(params, { replace });
-    }, [filters, groupValue, serializedParams, setSearchParams, sort, urlState.search, viewMode]);
-
-    const setCurrentPage = useCallback((page: number) => {
-        const params = new URLSearchParams(serializedParams);
-        if (page > 1) params.set('page', String(page));
-        else params.delete('page');
-        setSearchParams(params);
-    }, [serializedParams, setSearchParams]);
 
     useEffect(() => {
         if (
@@ -210,6 +160,7 @@ export function useVendorsPageState(
     const restoreVendor = useCallback(async (vendorId: number) => {
         const restoreQueryIdentity = queryIdentity;
         await runRowRestore({
+            targetId: vendorId,
             restore: () => vendorApi.restoreVendor(vendorId),
             name: items.find((item) => item.id === vendorId)?.name,
             refresh: async () => {
@@ -221,52 +172,19 @@ export function useVendorsPageState(
     const exportVendors = useCallback(async () => {
         setIsExporting(true);
         try {
-            await vendorApi.downloadExport({
-                ...listParams,
-                offset: 0,
-                limit: DEFAULT_LIST_PAGE_SIZE,
-                search: urlState.search.trim() || undefined,
-            }, language);
+            await vendorApi.downloadExport(getExportParams(), language);
         } finally {
             setIsExporting(false);
         }
-    }, [language, listParams, urlState.search]);
+    }, [getExportParams, language]);
 
     return {
-        capabilities,
-        clearFilters: () => writeUrl({ filters: parseVendorRegisterFilters({}), group: null }),
-        clearSelectedGroup: () => writeUrl({ group: null }),
-        currentPage,
-        errorKey,
-        exportVendors,
-        facets: visibleFacets,
-        fetchVendors,
-        filters,
-        groups,
-        hasLoadedOnce,
-        isAccessDenied,
-        isExporting,
-        isLoading,
-        items,
-        limit: DEFAULT_LIST_PAGE_SIZE,
-        restoreVendor,
-        search: urlState.search,
-        selectGroup: (value: string, _label?: string) => writeUrl({ group: value }),
+        workingSet,
+        capabilities, errorKey, facets: visibleFacets, groups, hasLoadedOnce, isAccessDenied,
+        isExporting, isLoading, items, limit: DEFAULT_LIST_PAGE_SIZE,
+        totalCount, totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE), updateFilter,
         selectedGroupLabel: selectedGroupLabel(groups, groupValue),
-        selectedGroupValue: groupValue,
-        setCurrentPage,
-        sortDirection: sort?.direction ?? null,
-        sortField: (sort?.field as VendorSortField | undefined) ?? null,
-        statusFilter: filters.lifecycle,
-        totalCount,
-        totalPages: getTotalPages(totalCount, DEFAULT_LIST_PAGE_SIZE),
-        updateFilter,
-        updateSearch: (value: string) => writeUrl({ search: value, group: null }, true),
-        updateSort: (field: VendorSortField | null, direction: SortDirection) => (
-            writeUrl({ sort: field && direction ? { field, direction } : null })
-        ),
-        updateStatusFilter: (value: VendorLifecycleFilter) => updateFilter('lifecycle', value),
-        updateViewMode: (view: VendorRegisterView) => writeUrl({ group: null, view }),
-        viewMode,
+        exportVendors, fetchVendors, restoreVendor,
+        clearFilters: () => writeUrl({ filters: parseVendorRegisterFilters({}), group: null }),
     };
 }

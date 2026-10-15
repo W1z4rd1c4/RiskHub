@@ -1,5 +1,5 @@
 import { readFileSync, statSync } from 'node:fs';
-import { nativeTotp as totp, nativeLogin as login } from './setup/native_browser_helpers';
+import { nativeTotp as totp, nativeLogin as login, nativeAuthConfigSchema, nativeHandoffSchema } from './setup/native_browser_helpers';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -10,18 +10,21 @@ const handoffPath = process.env.NATIVE_E2E_HANDOFF;
 test.skip(!handoffPath, 'Requires a fresh isolated native installation and NATIVE_E2E_HANDOFF');
 
 async function assertNoBrowserSecrets(page: Page, secrets: string[]) {
-    const stored = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, state: window.history.state }));
+    const stored = await page.evaluate(() => {
+        const state: unknown = window.history.state;
+        return JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, state });
+    });
     expect(secrets.some((secret) => stored.includes(secret))).toBe(false);
     expect(secrets.some((secret) => page.url().includes(secret))).toBe(false);
 }
 test('real invitation, local session, password change and desktop accessibility', async ({ page, request }, testInfo) => {
     test.setTimeout(120_000);
     const configResponse = await request.get('/api/v1/auth/config');
-    const config = await configResponse.json();
+    const config = nativeAuthConfigSchema.parse(await configResponse.json());
     expect(config.identity?.mode).toBe('native');
     expect(config.password_login_enabled).toBe(true);
     expect(statSync(handoffPath!).mode & 0o077).toBe(0);
-    const handoff = JSON.parse(readFileSync(handoffPath!, 'utf8'));
+    const handoff = nativeHandoffSchema.parse(JSON.parse(readFileSync(handoffPath!, 'utf8')));
     const email = process.env.NATIVE_E2E_EMAIL ?? 'native-admin@example.com';
     const password = 'A browser-only original passphrase 47!';
     const nextPassword = 'A browser-only replacement passphrase 98!';

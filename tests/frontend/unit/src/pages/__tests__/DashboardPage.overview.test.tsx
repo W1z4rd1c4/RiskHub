@@ -1,3 +1,6 @@
+import type * as MockdashboardApiModule from '@/services/dashboardApi';
+import type * as MockreportApiModule from '@/services/reportApi';
+import type * as Actualformatters from '@/i18n/formatters';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -5,8 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
-const fetchOverviewMock = vi.fn();
-const downloadSummaryCsvMock = vi.fn();
+const fetchOverviewMock = vi.fn<typeof MockdashboardApiModule.dashboardApi.fetchOverview>();
+const downloadSummaryCsvMock = vi.fn<typeof MockreportApiModule.reportApi.downloadSummaryCsv>();
 let canViewCommitteeMock = false;
 let readableResourcesMock = new Set(['controls', 'reports', 'risks']);
 
@@ -20,7 +23,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -46,13 +49,13 @@ vi.mock('@/i18n/hooks', async () => {
 
 vi.mock('@/services/dashboardApi', () => ({
     dashboardApi: {
-        fetchOverview: (...args: unknown[]) => fetchOverviewMock(...args),
+        fetchOverview: (...args: Parameters<typeof fetchOverviewMock>) => fetchOverviewMock(...args),
     },
 }));
 
 vi.mock('@/services/reportApi', () => ({
     reportApi: {
-        downloadSummaryCsv: (...args: unknown[]) => downloadSummaryCsvMock(...args),
+        downloadSummaryCsv: (...args: Parameters<typeof downloadSummaryCsvMock>) => downloadSummaryCsvMock(...args),
     },
 }));
 
@@ -140,7 +143,8 @@ describe('DashboardPage overview aggregation', () => {
             },
             issue_aging: { buckets: [] },
             issue_severity: { items: [] },
-            generated_at: '2026-03-07T10:00:00Z',
+            filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-03-07T10:00:00Z',
             capabilities: {
                 can_read: true,
                 can_view_issue_metrics: true,
@@ -237,7 +241,8 @@ describe('DashboardPage overview aggregation', () => {
             },
             issue_aging: { buckets: [] },
             issue_severity: { items: [] },
-            generated_at: '2026-03-07T10:00:00Z',
+            filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-03-07T10:00:00Z',
             capabilities: {
                 can_read: true,
                 can_view_issue_metrics: true,
@@ -293,7 +298,8 @@ describe('DashboardPage overview aggregation', () => {
             },
             issue_aging: { buckets: [] },
             issue_severity: { items: [] },
-            generated_at: '2026-03-07T10:00:00Z',
+            filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-03-07T10:00:00Z',
         });
 
         render(
@@ -333,7 +339,8 @@ describe('DashboardPage overview aggregation', () => {
             issue_summary: null,
             issue_aging: null,
             issue_severity: null,
-            generated_at: '2026-03-07T10:00:00Z',
+            filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-03-07T10:00:00Z',
             capabilities: {
                 can_read: true,
                 can_view_issue_metrics: false,
@@ -379,7 +386,8 @@ describe('DashboardPage overview aggregation', () => {
             issue_summary: null,
             issue_aging: null,
             issue_severity: null,
-            generated_at: '2026-03-07T10:00:00Z',
+            filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-03-07T10:00:00Z',
             capabilities: {
                 can_read: true,
                 can_view_issue_metrics: false,
@@ -424,7 +432,8 @@ describe('DashboardPage overview aggregation', () => {
             issue_summary: null,
             issue_aging: null,
             issue_severity: null,
-            generated_at: '2026-03-07T10:00:00Z',
+            filter_scope: { department_applies_to_all_scoped_panels: true, risk_level_applies_to: [], control_filters_apply_to: [], unaffected_by_risk_control: [] },
+    generated_at: '2026-03-07T10:00:00Z',
             capabilities: {
                 can_read: true,
                 can_view_issue_metrics: false,
@@ -475,8 +484,9 @@ describe('DashboardPage overview aggregation', () => {
         fireEvent.click(exportButton);
 
         expect(exportButton).toBeDisabled();
-        await act(async () => {
+        await act(() => {
             firstExport.reject(new Error('dashboard export unavailable'));
+            return Promise.resolve();
         });
 
         expect(await screen.findByRole('alert')).toHaveTextContent('errors.export_summary_failed');

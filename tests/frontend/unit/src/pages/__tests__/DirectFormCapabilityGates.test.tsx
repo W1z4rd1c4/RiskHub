@@ -1,3 +1,12 @@
+import type * as MockassetApiModule from '@/services/assetApi';
+import type * as MockprocessApiModule from '@/services/processApi';
+import type * as MockthreatApiModule from '@/services/threatApi';
+import type * as MockcontrolApiModule from '@/services/controlApi';
+import type * as MockkriApiModule from '@/services/kriApi';
+import type * as MockriskApiModule from '@/services/riskApi';
+import type * as MockvendorApiModule from '@/services/vendorApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
+import { riskFixture, controlFixture, vendorFixture } from './pageFixtures';
 import type { ReactElement } from 'react';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,30 +24,30 @@ import { RiskEditPage } from '@/pages/RiskEditPage';
 import { RiskNewPage } from '@/pages/RiskNewPage';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 
-const mockGetAssets = vi.fn();
-const mockGetProcesses = vi.fn();
-const mockGetThreats = vi.fn();
+const mockGetAssets = vi.fn<typeof MockassetApiModule.assetApi.getAssets>();
+const mockGetProcesses = vi.fn<typeof MockprocessApiModule.processApi.getProcesses>();
+const mockGetThreats = vi.fn<typeof MockthreatApiModule.threatApi.getThreats>();
 const mockNavigate = vi.fn();
-const mockGetControls = vi.fn();
-const mockGetControl = vi.fn();
-const mockGetKRIs = vi.fn();
-const mockGetRisks = vi.fn();
-const mockGetRisk = vi.fn();
-const mockGetVendors = vi.fn();
-const mockGetVendor = vi.fn();
+const mockGetControls = vi.fn<typeof MockcontrolApiModule.controlApi.getControls>();
+const mockGetControl = vi.fn<typeof MockcontrolApiModule.controlApi.getControl>();
+const mockGetKRIs = vi.fn<typeof MockkriApiModule.kriApi.getKRIs>();
+const mockGetRisks = vi.fn<typeof MockriskApiModule.riskApi.getRisks>();
+const mockGetRisk = vi.fn<typeof MockriskApiModule.riskApi.getRisk>();
+const mockGetVendors = vi.fn<typeof MockvendorApiModule.vendorApi.getVendors>();
+const mockGetVendor = vi.fn<typeof MockvendorApiModule.vendorApi.getVendor>();
 let mockParams: Record<string, string> = {};
 let mockSearchParams = new URLSearchParams();
 
 
-vi.mock('@/services/assetApi', () => ({ assetApi: { getAssets: (...args: unknown[]) => mockGetAssets(...args) } }));
-vi.mock('@/services/processApi', () => ({ processApi: { getProcesses: (...args: unknown[]) => mockGetProcesses(...args) } }));
-vi.mock('@/services/threatApi', () => ({ threatApi: { getThreats: (...args: unknown[]) => mockGetThreats(...args) } }));
+vi.mock('@/services/assetApi', () => ({ assetApi: { getAssets: (...args: Parameters<typeof mockGetAssets>) => mockGetAssets(...args) } }));
+vi.mock('@/services/processApi', () => ({ processApi: { getProcesses: (...args: Parameters<typeof mockGetProcesses>) => mockGetProcesses(...args) } }));
+vi.mock('@/services/threatApi', () => ({ threatApi: { getThreats: (...args: Parameters<typeof mockGetThreats>) => mockGetThreats(...args) } }));
 vi.mock('@/pages/assets/AssetForm', () => ({ AssetForm: () => <div data-testid="asset-form" /> }));
 vi.mock('@/pages/processes/ProcessForm', () => ({ ProcessForm: () => <div data-testid="process-form" /> }));
 vi.mock('@/pages/threats/ThreatForm', () => ({ ThreatForm: () => <div data-testid="threat-form" /> }));
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useLocation: () => ({ pathname: '/', search: '', state: null, hash: '', key: 'test' }),
@@ -54,28 +63,28 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getControls: (...args: unknown[]) => mockGetControls(...args),
-        getControl: (...args: unknown[]) => mockGetControl(...args),
+        getControls: (...args: Parameters<typeof mockGetControls>) => mockGetControls(...args),
+        getControl: (...args: Parameters<typeof mockGetControl>) => mockGetControl(...args),
     },
 }));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
-        getKRIs: (...args: unknown[]) => mockGetKRIs(...args),
+        getKRIs: (...args: Parameters<typeof mockGetKRIs>) => mockGetKRIs(...args),
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
-        getRisk: (...args: unknown[]) => mockGetRisk(...args),
+        getRisks: (...args: Parameters<typeof mockGetRisks>) => mockGetRisks(...args),
+        getRisk: (...args: Parameters<typeof mockGetRisk>) => mockGetRisk(...args),
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendors: (...args: unknown[]) => mockGetVendors(...args),
-        getVendor: (...args: unknown[]) => mockGetVendor(...args),
+        getVendors: (...args: Parameters<typeof mockGetVendors>) => mockGetVendors(...args),
+        getVendor: (...args: Parameters<typeof mockGetVendor>) => mockGetVendor(...args),
     },
 }));
 
@@ -118,33 +127,34 @@ function listResponse(canCreate: boolean | undefined) {
         total: 0,
         offset: 0,
         limit: 1,
-        capabilities: canCreate === undefined ? null : { can_create: canCreate },
+        pending_creations: [],
+        capabilities: canCreate === undefined ? null : { can_create: canCreate, can_export: false },
     };
 }
 
 function riskDetail(canUpdate: boolean | undefined) {
-    return {
+    return riskFixture({
         id: 10,
         name: 'Risk',
         capabilities: canUpdate === undefined ? null : { can_update: canUpdate },
-    };
+    });
 }
 
 function controlDetail(capabilities: Record<string, boolean> | null) {
-    return {
+    return controlFixture({
         id: 20,
         name: 'Control',
         capabilities,
-    };
+    });
 }
 
 function vendorDetail(capabilities: Record<string, boolean> | null) {
-    return {
+    return vendorFixture({
         id: 30,
         name: 'Vendor',
         linked_risks: [],
         capabilities,
-    };
+    });
 }
 
 function renderWithQueryClient(ui: ReactElement) {
@@ -213,7 +223,8 @@ describe('direct create/edit form capability gates', () => {
 
         renderWithQueryClient(<RiskEditPage />);
 
-        await waitFor(() => expect(mockGetRisk).toHaveBeenCalledWith(10));
+        const expectedSignal: unknown = expect.any(AbortSignal);
+        await waitFor(() => expect(mockGetRisk).toHaveBeenCalledWith(10, { signal: expectedSignal }));
         expect(screen.queryByTestId('risk-form')).not.toBeInTheDocument();
     });
 

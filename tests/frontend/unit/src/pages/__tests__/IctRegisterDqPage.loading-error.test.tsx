@@ -1,3 +1,4 @@
+import type * as MockictRegisterDqApiModule from '@/services/ictRegisterDqApi';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -12,11 +13,11 @@ import type { IctRegisterDq } from '@/types/ictRegisterDq';
 // explicit aria-busy loading branch and the localized error + retry branch so a
 // failed fetch is never rendered as an empty screen or a false 0/0/0 summary.
 
-const getDataQuality = vi.fn();
+const getDataQuality = vi.fn<typeof MockictRegisterDqApiModule.ictRegisterDqApi.getDataQuality>();
 
 vi.mock('@/services/ictRegisterDqApi', () => ({
     ictRegisterDqApi: {
-        getDataQuality: (...args: unknown[]) => getDataQuality(...args),
+        getDataQuality: (...args: Parameters<typeof getDataQuality>) => getDataQuality(...args),
     },
 }));
 

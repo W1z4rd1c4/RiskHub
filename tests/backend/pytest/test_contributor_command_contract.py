@@ -294,3 +294,68 @@ def test_ci_contract_governs_frontend_nginx_response_workflow():
     assert "frontend/nginx/**" in paths
     assert "frontend/Dockerfile" in paths
     assert "scripts/security/verify_frontend_nginx.py" in paths
+
+
+def test_ci_contract_governs_native_runtime_lock_candidate_workflow():
+    module = _validator_module()
+    payload = _ci_contract()
+    workflow = ".github/workflows/python-runtime-lock.yml"
+    relevant_paths = [
+        "backend/requirements*.txt",
+        "backend/locks/**",
+        "backend/Dockerfile",
+        "docker-compose.yml",
+        "scripts/deploy/lib/docker.sh",
+        "scripts/prod/**",
+        "scripts/tools/runtime_dependency_lock.py",
+        "scripts/tools/tests/test_runtime_dependency_lock.py",
+        workflow,
+    ]
+
+    assert workflow in module.GOVERNED_WORKFLOWS
+    assert payload["workflow_contracts"][workflow]["events"] == {
+        "pull_request": {"paths": relevant_paths},
+        "push": {"branches": ["main"], "paths": relevant_paths},
+        "workflow_dispatch": {"inputs": []},
+    }
+    checks = [check for check in payload["checks"] if check["workflow"] == workflow]
+    assert len(checks) == 2
+    by_job = {check["job_id"]: check for check in checks}
+    check = by_job["alpine-lock"]
+    assert check["job_id"] == "alpine-lock"
+    assert check["job_name"] == "Native Alpine runtime lock candidate"
+    assert check["owner"] == "Backend/Supply Chain"
+    assert check["runtime_budget"] == "5-30 min"
+    assert check["continue_on_error"] is False
+    assert check["required_on_protected_main"] is False
+    assert check["timeout_minutes"] == 30
+    assert "without activating production or publishing images" in check["purpose"]
+    assert "runtime-lock-candidate" in check["triage"]
+    assert "T4 remains open" in check["triage"]
+    arm = by_job["arm-host-compatibility"]
+    assert arm["job_name"] == "ARM host amd64 Docker compatibility"
+    assert arm["continue_on_error"] is False
+    assert arm["required_on_protected_main"] is False
+    assert arm["timeout_minutes"] == 30
+    workflow_data = module._load_workflow(REPO_ROOT / workflow)
+    arm_job = workflow_data["jobs"]["arm-host-compatibility"]
+    assert arm_job["runs-on"] == "ubuntu-24.04-arm"
+    assert arm_job["needs"] == ["alpine-lock"]
+    assert len(payload["required_on_protected_main"]) == 11
+    assert set(payload["required_on_protected_main"]) == module.EXPECTED_REQUIRED_CHECKS
+
+
+def test_runtime_lock_workflow_contract_rejects_omission_and_trigger_drift():
+    module = _validator_module()
+    workflow = ".github/workflows/python-runtime-lock.yml"
+    omitted = _ci_contract()
+    del omitted["workflow_contracts"][workflow]
+    errors, _ = module._validate_workflow_contracts(omitted)
+    assert f"CI contract omits workflows: {workflow}" in errors
+
+    changed = _ci_contract()
+    changed["workflow_contracts"][workflow]["events"]["push"]["branches"] = [
+        "develop"
+    ]
+    errors, _ = module._validate_workflow_contracts(changed)
+    assert any(f"{workflow} event filters differ from contract" in error for error in errors)

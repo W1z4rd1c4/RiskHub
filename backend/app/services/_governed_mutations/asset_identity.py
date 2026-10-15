@@ -85,8 +85,8 @@ def _valid_impact_block(value: object) -> bool:
     return bool(
         isinstance(value, dict)
         and set(value) == {"cif", "resulting_criticality"}
-        and value.get("cif") in {"yes", "no"}
-        and value.get("resulting_criticality") in {None, "low", "medium", "high", "critical"}
+        and value.get("cif") in ("yes", "no")
+        and value.get("resulting_criticality") in (None, "low", "medium", "high", "critical")
     )
 
 
@@ -108,8 +108,10 @@ def _valid_single_asset_impact(
             "base_governance_version",
         }
         and item.get("resource_type") == "asset"
+        and type(item.get("resource_id")) is int
         and item.get("resource_id") == resource_id
         and item.get("resource_name") == resource_name
+        and type(item.get("base_governance_version")) is int
         and item.get("base_governance_version") == base_version
     )
 
@@ -129,13 +131,14 @@ def _valid_vendor_composite_impacts(
     # JSON-sourced ids; int-ness is enforced by the strict checks below.
     vendor_ids: list[Any] = [item.get("resource_id") for item in vendor_impacts]
     return bool(
-        len(asset_impacts) == 1
-        and asset_impacts[0].get("resource_id") == proposal.primary_resource_id
-        and asset_impacts[0].get("resource_name") == proposal.primary_resource_name
-        and asset_impacts[0].get("base_governance_version") == proposal.base_versions.get("asset")
+        _valid_single_asset_impact(
+            asset_impacts,
+            resource_id=proposal.primary_resource_id,
+            resource_name=proposal.primary_resource_name,
+            base_version=proposal.base_versions.get("asset"),
+        )
         and impacts == [*asset_impacts, *vendor_impacts]
         and vendor_impacts
-        and vendor_ids == sorted(set(vendor_ids))
         and all(
             set(item)
             == {"resource_type", "resource_id", "resource_name", "base_governance_version"}
@@ -149,6 +152,7 @@ def _valid_vendor_composite_impacts(
             == item["base_governance_version"]
             for item in vendor_impacts
         )
+        and vendor_ids == sorted(set(vendor_ids))
         and proposal.base_versions
         == {
             "asset": asset_impacts[0]["base_governance_version"],
@@ -174,7 +178,7 @@ def _valid_vendor_composite_impacts(
             and all(
                 isinstance(block, dict)
                 and set(block) == {"tier"}
-                and block.get("tier") in {"critical", "significant", "standard"}
+                and block.get("tier") in ("critical", "significant", "standard")
                 for block in (row.get("before"), row.get("after"))
             )
             for row, impact in zip(vendor_rows, vendor_impacts, strict=True)
@@ -238,6 +242,12 @@ def valid_asset_governed_envelope(
     ):
         return False
     vendor_triggered = VENDOR_SCENARIO_KEY in triggered_scenarios
+    # Impact completeness is independent of which enabled policies require
+    # approval. Asset-only policy can still lock and version downstream Vendors.
+    vendor_composite = vendor_triggered or any(
+        isinstance(item, dict) and item.get("resource_type") == "vendor"
+        for item in proposal.impacted_resources_snapshot
+    )
     accountability_triggered = (
         ACCOUNTABILITY_SCENARIO_KEY in triggered_scenarios
     )
@@ -423,7 +433,7 @@ def valid_asset_governed_envelope(
                 _valid_vendor_composite_impacts(
                     proposal=proposal,
                 )
-                if vendor_triggered
+                if vendor_composite
                 else (
                     _valid_single_asset_impact(
                         proposal.impacted_resources_snapshot,
@@ -454,7 +464,7 @@ def valid_asset_governed_envelope(
             }
             and (
                 _valid_vendor_composite_impacts(proposal=proposal)
-                if vendor_triggered
+                if vendor_composite
                 else (
                     _valid_single_asset_impact(
                         proposal.impacted_resources_snapshot,
@@ -520,7 +530,7 @@ def valid_asset_governed_envelope(
                 and type(proposal.primary_resource_id) is int
                 and proposal.primary_resource_id > 0
                 and (
-                    vendor_triggered
+                    vendor_composite
                     or proposal.base_versions == {"asset": proposal.base_versions.get("asset")}
                 )
                 and type(proposal.base_versions.get("asset")) is int

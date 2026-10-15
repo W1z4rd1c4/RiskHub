@@ -1,3 +1,8 @@
+import { vendorFixture } from './pageFixtures';
+import type * as MockvendorLinkApiModule from '@/services/vendorLinkApi';
+import type * as MockcontrolApiModule from '@/services/controlApi';
+import type * as MockvendorApiModule from '@/services/vendorApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderInRouter as render } from '@test/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,13 +11,13 @@ import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import { ControlNewPage } from '@/pages/ControlNewPage';
 
 const mockNavigate = vi.fn();
-const mockGetControls = vi.fn();
-const mockGetVendor = vi.fn();
-const mockLinkControl = vi.fn();
+const mockGetControls = vi.fn<typeof MockcontrolApiModule.controlApi.getControls>();
+const mockGetVendor = vi.fn<typeof MockvendorApiModule.vendorApi.getVendor>();
+const mockLinkControl = vi.fn<typeof MockvendorLinkApiModule.vendorLinkApi.linkControl>();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useNavigate: () => mockNavigate,
@@ -22,19 +27,19 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/services/vendorLinkApi', () => ({
     vendorLinkApi: {
-        linkControl: (...args: unknown[]) => mockLinkControl(...args),
+        linkControl: (...args: Parameters<typeof mockLinkControl>) => mockLinkControl(...args),
     },
 }));
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getControls: (...args: unknown[]) => mockGetControls(...args),
+        getControls: (...args: Parameters<typeof mockGetControls>) => mockGetControls(...args),
     },
 }));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
-        getVendor: (...args: unknown[]) => mockGetVendor(...args),
+        getVendor: (...args: Parameters<typeof mockGetVendor>) => mockGetVendor(...args),
     },
 }));
 
@@ -69,12 +74,12 @@ describe('ControlNewPage vendor context', () => {
             limit: 1,
             capabilities: { can_create: true },
         });
-        mockGetVendor.mockResolvedValue({
+        mockGetVendor.mockResolvedValue(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: { can_create_linked_control: true },
-        });
-        mockLinkControl.mockResolvedValue(undefined);
+        }));
+        mockLinkControl.mockResolvedValue({ status: 'linked' });
     });
 
     it('auto-links a new control to the vendor and returns to vendor detail', async () => {
@@ -99,6 +104,7 @@ describe('ControlNewPage vendor context', () => {
     it('returns to the vendor with a warning when the link queues for approval', async () => {
         mockLinkControl.mockResolvedValueOnce({
             status: 'approval_required',
+            message: 'Queued for approval', action_type: 'edit', pending_fields: [],
             approval_id: 321,
             proposal_id: 'proposal-321',
             proposal_version: 1,
@@ -115,11 +121,11 @@ describe('ControlNewPage vendor context', () => {
     });
 
     it('hides vendor-context creation when the vendor link capability is false', async () => {
-        mockGetVendor.mockResolvedValueOnce({
+        mockGetVendor.mockResolvedValueOnce(vendorFixture({
             id: 12,
             name: 'Vendor Twelve',
             capabilities: { can_create_linked_control: false },
-        });
+        }));
 
         render(<ControlNewPage />, { wrapper: FeedbackProvider });
 

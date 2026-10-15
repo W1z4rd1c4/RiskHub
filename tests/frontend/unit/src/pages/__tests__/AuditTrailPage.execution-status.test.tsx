@@ -1,3 +1,6 @@
+import type * as MockexecutionApiModule from '@/services/executionApi';
+import type * as MockreportApiModule from '@/services/reportApi';
+import type * as Actualformatters from '@/i18n/formatters';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,8 +10,8 @@ import { Profiler } from 'react';
 import { AuditTrailPage } from '@/pages/AuditTrailPage';
 import { ApiClientError } from '@/services/apiClient';
 
-const getExecutionsMock = vi.fn();
-const downloadAuditTrailCsvMock = vi.fn();
+const getExecutionsMock = vi.fn<typeof MockexecutionApiModule.executionApi.getExecutions>();
+const downloadAuditTrailCsvMock = vi.fn<typeof MockreportApiModule.reportApi.downloadAuditTrailCsv>();
 const mockUseAuthz = vi.fn(() => ({ canViewActivityLog: true }));
 
 vi.mock('@/authz/useAuthz', () => ({
@@ -30,7 +33,7 @@ function createDeferred<T>() {
     return { promise, reject, resolve };
 }
 
-function executionResponse(name = 'Quarterly Review Control') {
+function executionResponse(name = 'Quarterly Review Control'): Awaited<ReturnType<typeof getExecutionsMock>> {
     return {
         items: [{
             id: 41,
@@ -53,7 +56,7 @@ function executionResponse(name = 'Quarterly Review Control') {
 }
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -82,13 +85,13 @@ vi.mock('@/i18n/hooks', async () => {
 
 vi.mock('@/services/executionApi', () => ({
     executionApi: {
-        getExecutions: (...args: unknown[]) => getExecutionsMock(...args),
+        getExecutions: (...args: Parameters<typeof getExecutionsMock>) => getExecutionsMock(...args),
     },
 }));
 
 vi.mock('@/services/reportApi', () => ({
     reportApi: {
-        downloadAuditTrailCsv: (...args: unknown[]) => downloadAuditTrailCsvMock(...args),
+        downloadAuditTrailCsv: (...args: Parameters<typeof downloadAuditTrailCsvMock>) => downloadAuditTrailCsvMock(...args),
     },
 }));
 

@@ -1,18 +1,24 @@
+import { vendorFixture } from './pageFixtures';
+import type * as MockvendorApiModule from '@/services/vendorApi';
+import type * as MockapprovalsApiModule from '@/services/approvalsApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 import { ApiClientError } from '@/services/apiClient';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { renderInRouter as render } from '@test/render';
 
 const mockNavigate = vi.fn();
-const mockGetVendor = vi.fn();
-const mockArchiveVendor = vi.fn();
-const mockCancelApproval = vi.fn();
+const mockGetVendor = vi.fn<typeof MockvendorApiModule.vendorApi.getVendor>();
+const mockArchiveVendor = vi.fn<typeof MockvendorApiModule.vendorApi.archiveVendor>();
+const mockCancelApproval = vi.fn<typeof MockapprovalsApiModule.approvalsApi.cancel>();
 let canIssueWrite = true;
 let mockLocation = { pathname: '/vendors/31', search: '', hash: '', state: null as null | object };
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '31' }),
@@ -38,15 +44,15 @@ vi.mock('@/contexts/AuthContext', () => ({
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
         deleteVendor: vi.fn(),
-        archiveVendor: (...args: unknown[]) => mockArchiveVendor(...args),
-        getVendor: (...args: unknown[]) => mockGetVendor(...args),
+        archiveVendor: (...args: Parameters<typeof mockArchiveVendor>) => mockArchiveVendor(...args),
+        getVendor: (...args: Parameters<typeof mockGetVendor>) => mockGetVendor(...args),
         restoreVendor: vi.fn(),
     },
 }));
 
 vi.mock('@/services/approvalsApi', () => ({
     approvalsApi: {
-        cancel: (...args: unknown[]) => mockCancelApproval(...args),
+        cancel: (...args: Parameters<typeof mockCancelApproval>) => mockCancelApproval(...args),
     },
 }));
 
@@ -74,14 +80,14 @@ vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
 
 describe('VendorDetailPage issue entry', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'vendor-detail-test', user: { ...mockAuthUser, id: 2 } });
         vi.clearAllMocks();
         canIssueWrite = true;
         mockLocation = { pathname: '/vendors/31', search: '', hash: '', state: null };
-        mockGetVendor.mockImplementation(async () => ({
+        mockGetVendor.mockImplementation(() => Promise.resolve((vendorFixture({
             id: 31,
             name: 'Atlas Cloud Services',
             vendor_type: 'ict',
-            status: 'active',
             legal_name: 'Atlas Cloud Services LLC',
             registration_id: 'REG-123',
             country: 'CZ',
@@ -102,7 +108,7 @@ describe('VendorDetailPage issue entry', () => {
                 can_restore: false,
                 can_create_issue: canIssueWrite,
             },
-        }));
+        }))));
     });
 
     it('shows create-issue action and opens contextual modal with vendor name', async () => {
@@ -142,11 +148,10 @@ describe('VendorDetailPage issue entry', () => {
     });
 
     it('shows unarchive instead of archive for inactive vendors', async () => {
-        mockGetVendor.mockResolvedValueOnce({
+        mockGetVendor.mockResolvedValueOnce(vendorFixture({
             id: 31,
             name: 'Atlas Cloud Services',
             vendor_type: 'ict',
-            status: 'inactive',
             legal_name: 'Atlas Cloud Services LLC',
             registration_id: 'REG-123',
             country: 'CZ',
@@ -167,7 +172,7 @@ describe('VendorDetailPage issue entry', () => {
                 can_restore: true,
                 can_create_issue: true,
             },
-        });
+        }));
 
         render(<VendorDetailPage />);
 
@@ -177,9 +182,9 @@ describe('VendorDetailPage issue entry', () => {
     });
 
     it('shows and cancels a pending protected Vendor proposal', async () => {
-        const baseVendor = await mockGetVendor();
+        const baseVendor = await mockGetVendor(31);
         mockGetVendor.mockClear();
-        mockGetVendor.mockResolvedValue({
+        mockGetVendor.mockResolvedValue(vendorFixture({
             ...baseVendor,
             capabilities: {
                 protected_change_requires_approval: true,
@@ -190,6 +195,7 @@ describe('VendorDetailPage issue entry', () => {
             },
             pending_change: {
                 approval_id: 87,
+                proposal_id: 'proposal-87', proposal_version: 1, status: 'pending', generic_label: 'protected_vendor_change',
                 mutation_kind: 'vendor.edit',
                 reason: 'Material service change',
                 requested_by_name: 'Alice Requester',
@@ -207,7 +213,7 @@ describe('VendorDetailPage issue entry', () => {
                     can_cancel: true,
                 },
             },
-        });
+        }));
 
         render(<VendorDetailPage />);
 
@@ -226,7 +232,8 @@ describe('VendorDetailPage issue entry', () => {
         mockArchiveVendor.mockResolvedValue({
             status: 'approval_required',
             approval_id: 87,
-            proposal_id: 55,
+            proposal_id: '55',
+            message: 'Queued for approval', action_type: 'archive', pending_fields: [],
             proposal_version: 1,
         });
 
@@ -341,8 +348,9 @@ describe('VendorDetailPage issue entry', () => {
         });
 
         await waitFor(() => expect(scheduledFrame).not.toBeNull());
-        await act(async () => {
+        await act(() => {
             scheduledFrame?.(0);
+            return Promise.resolve();
         });
         expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
 
@@ -356,8 +364,9 @@ describe('VendorDetailPage issue entry', () => {
         rerender(<VendorDetailPage />);
 
         await waitFor(() => expect(scheduledFrame).not.toBeNull());
-        await act(async () => {
+        await act(() => {
             scheduledFrame?.(0);
+            return Promise.resolve();
         });
         expect(scrollIntoViewMock).toHaveBeenCalledTimes(2);
 

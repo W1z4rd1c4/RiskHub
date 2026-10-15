@@ -14,7 +14,7 @@ describe('dashboardApi response contracts', () => {
 
     it('defaults missing critical_vendors to an empty array', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/dashboard/committee-summary')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -80,10 +80,15 @@ it('retains transport, schema validation and abort options on all live fetchers'
     await dashboardApi.fetchQuarterlyComparison('2026-Q3', '2026-Q2');
     await dashboardApi.fetchAvailablePeriods();
     await dashboardApi.fetchCommitteeSummary();
-    expect(get).toHaveBeenNthCalledWith(1, '/dashboard/overview', expect.objectContaining({ params, signal, schema: expect.objectContaining({ parse: expect.any(Function) }) }));
-    expect(get).toHaveBeenNthCalledWith(2, '/dashboard/risks-by-cell', expect.objectContaining({ params: { ...params, probability: 3, impact: 4, risk_type: 'gross' }, schema: expect.objectContaining({ parse: expect.any(Function) }) }));
-    expect(get).toHaveBeenNthCalledWith(3, '/dashboard/quarterly-comparison', expect.objectContaining({ params: { current_quarter: '2026-Q3', compare_quarter: '2026-Q2' }, schema: expect.objectContaining({ parse: expect.any(Function) }) }));
-    expect(get).toHaveBeenNthCalledWith(4, '/dashboard/available-periods', expect.objectContaining({ schema: expect.objectContaining({ parse: expect.any(Function) }) }));
-    expect(get).toHaveBeenNthCalledWith(5, '/dashboard/committee-summary', expect.objectContaining({ schema: expect.objectContaining({ parse: expect.any(Function) }) }));
+    expect(get).toHaveBeenNthCalledWith(1, '/dashboard/overview', expect.objectContaining({ params, signal, schema: schemaMatcher() }));
+    expect(get).toHaveBeenNthCalledWith(2, '/dashboard/risks-by-cell', expect.objectContaining({ params: { ...params, probability: 3, impact: 4, risk_type: 'gross' }, schema: schemaMatcher() }));
+    expect(get).toHaveBeenNthCalledWith(3, '/dashboard/quarterly-comparison', expect.objectContaining({ params: { current_quarter: '2026-Q3', compare_quarter: '2026-Q2' }, schema: schemaMatcher() }));
+    expect(get).toHaveBeenNthCalledWith(4, '/dashboard/available-periods', expect.objectContaining({ schema: schemaMatcher() }));
+    expect(get).toHaveBeenNthCalledWith(5, '/dashboard/committee-summary', expect.objectContaining({ schema: schemaMatcher() }));
     get.mockRestore();
 });
+
+function schemaMatcher(): unknown {
+    const parse: unknown = expect.any(Function);
+    return expect.objectContaining({ parse });
+}

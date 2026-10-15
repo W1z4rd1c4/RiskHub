@@ -12,6 +12,7 @@
  * (risk manager); the employee reads the section without manage affordances;
  * the platform admin has no vendor surface at all.
  */
+import { jsonObject } from './helpers/jsonObject';
 import AxeBuilder from '@axe-core/playwright';
 
 import { test, expect } from './fixtures/auth.fixture';
@@ -283,7 +284,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await riskManagerPage.getByTestId('vendor-contract-form-save').click();
         const savedResponse = await saved;
         expect(savedResponse.status()).toBe(201);
-        expect((await savedResponse.json()).arrangement_type).toBe('Samostatné');
+        expect(jsonObject(await savedResponse.json()).arrangement_type).toBe('Samostatné');
 
         // The form closes and the refreshed table carries the new row.
         await expect(riskManagerPage.getByTestId('vendor-contract-form')).toHaveCount(0);
@@ -323,7 +324,7 @@ test.describe('ICT Register — Vendor Contracts (Deterministic)', () => {
         await riskManagerPage.getByTestId('vendor-contract-form-save').click();
         const savedResponse = await saved;
         expect(savedResponse.status()).toBe(200);
-        expect((await savedResponse.json()).arrangement_type).toBe('Navazující');
+        expect(jsonObject(await savedResponse.json()).arrangement_type).toBe('Navazující');
         await expect(form).toHaveCount(0);
 
         // Hard reload: a fresh document proves persistence beyond the query cache.

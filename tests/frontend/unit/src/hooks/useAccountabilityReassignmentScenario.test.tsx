@@ -3,11 +3,11 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getApprovalScenarios = vi.fn();
+const getApprovalScenarios = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/riskHubApi', () => ({
     riskHubApi: {
-        getApprovalScenarios: (...args: unknown[]) => getApprovalScenarios(...args),
+        getApprovalScenarios: getApprovalScenarios,
     },
 }));
 

@@ -1,3 +1,4 @@
+import type * as FormattersModule from '@/i18n/formatters';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -5,7 +6,7 @@ import { OrphanedItemsTable } from '@/components/governance/OrphanedItemsTable';
 import type { OrphanedItem } from '@/types/orphanedItem';
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof FormattersModule>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -41,6 +42,7 @@ const baseItem: OrphanedItem = {
     previous_owner_email: 'former@example.com',
     orphaned_at: '2026-03-07T10:00:00Z',
     status: 'pending',
+    request_reason_required: false,
 };
 
 describe('OrphanedItemsTable capabilities', () => {

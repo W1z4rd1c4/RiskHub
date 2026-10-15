@@ -84,8 +84,9 @@ describe('useApprovalQueued + ApprovalQueuedNotice', () => {
         const notice = screen.getByTestId('approval-queued-notice');
         expect(within(notice).getByRole('link', { name: /open in approvals/i })).toHaveAttribute('href', '/approvals');
 
-        await act(async () => {
+        await act(() => {
             fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss message' }));
+            return Promise.resolve();
         });
         expect(screen.queryByTestId('approval-queued-notice')).not.toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent('/risks/7');

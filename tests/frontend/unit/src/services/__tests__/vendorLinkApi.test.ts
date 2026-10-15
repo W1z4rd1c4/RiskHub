@@ -101,7 +101,7 @@ describe('vendorLinkApi governed mutation matrix (#100)', () => {
             const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
             expect(String(url).endsWith(path)).toBe(true);
             expect(init.method).toBe(method);
-            expect(JSON.parse(String(init.body))).toEqual({
+            expect(parseRequestBody(init.body)).toEqual({
                 ...expectedPayload,
                 request_reason: 'Material register change',
             });
@@ -151,10 +151,15 @@ describe('vendorLinkApi governed mutation matrix (#100)', () => {
             expect(init.method).toBe(method);
             if (method === 'POST') {
                 // A reason-less direct call must not invent a request_reason.
-                expect(JSON.parse(String(init.body))).toEqual(expectedPayload);
+                expect(parseRequestBody(init.body)).toEqual(expectedPayload);
             } else {
                 expect(init.body ?? undefined).toBeUndefined();
             }
         },
     );
 });
+
+function parseRequestBody(body: BodyInit | null | undefined): unknown {
+    if (typeof body !== 'string') throw new Error('Expected JSON request body');
+    return JSON.parse(body);
+}

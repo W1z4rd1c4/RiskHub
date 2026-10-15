@@ -1,3 +1,4 @@
+import type * as MockprocessApiModule from '@/services/processApi';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FeedbackProvider } from '@/contexts/FeedbackContext';
 import '@/i18n';
 import type { Process } from '@/types/process';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 /**
  * FB-01 (Process divergence) / D12 / PM-2: an approval-routed Process edit or
@@ -14,7 +17,7 @@ import type { Process } from '@/types/process';
  */
 
 const mocks = vi.hoisted(() => ({
-    archiveProcess: vi.fn(),
+    archiveProcess: vi.fn<typeof MockprocessApiModule.processApi.archiveProcess>(),
     fetchProcess: vi.fn(),
     process: null as Process | null,
 }));
@@ -25,7 +28,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
-        archiveProcess: (...args: unknown[]) => mocks.archiveProcess(...args),
+        archiveProcess: (...args: Parameters<typeof mocks.archiveProcess>) => mocks.archiveProcess(...args),
         getProcesses: vi.fn().mockResolvedValue({ items: [] }),
     },
 }));
@@ -101,6 +104,7 @@ function renderAt(path: string, mode: 'view' | 'edit') {
 
 describe('ProcessDetailPage approval-queued rule', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'process-archive-test', user: mockAuthUser });
         vi.clearAllMocks();
         mocks.process = processFixture();
     });

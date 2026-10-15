@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterListShell } from '@/components/ict-register/RegisterListShell';
 import { RiskGroupMetaBody } from '@/components/risks/RiskGroupMetaBody';
 import { ExportDialog } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
 import { useLanguage, useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { ControlSummary } from '@/types/control';
@@ -34,7 +33,7 @@ export function ControlsPage() {
     return <RegisterListShell<ControlSummary, ControlRegisterView>
         accessDeniedState={<ReadAccessDeniedState />} allView="all" title={t('title')} subtitle={t('page_subtitle')}
         views={views.map((view) => ({ value: view.value, label: t(view.labelKey) }))}
-        view={state.viewMode} onViewChange={state.updateViewMode}
+        workingSet={state.workingSet}
         canCreate={resolveCapabilityFlag(state.capabilities, 'can_create')} canExport={resolveCapabilityFlag(state.capabilities, 'can_export')}
         onCreate={() => void navigate(appendRegisterReturnTo('/controls/new', returnTo))} createLabel={t('new_control')} exportLabel={t('common:actions.export')}
         exportDialog={({ isOpen, onClose }) => <ExportDialog datedUnavailableReason={state.snapshotUnavailableReason} isOpen={isOpen} onClose={onClose}
@@ -43,16 +42,16 @@ export function ControlsPage() {
             isSubmitting={state.isExporting} dataTestId="controls-export-dialog" title={t('register.export.title')} />}
         isAccessDenied={state.isAccessDenied} isError={Boolean(state.errorKey)} errorMessage={state.errorKey ? t(state.errorKey) : undefined}
         isExporting={state.isExporting} isLoading={state.isLoading} items={state.items} columns={columns}
-        table={{ keyExtractor: (control) => control.id, onRowClick: (control) => void navigate(appendRegisterReturnTo(`/controls/${control.id}`, returnTo)), rowHref: (control) => appendRegisterReturnTo(`/controls/${control.id}`, returnTo), rowLabel: (control) => control.name, sortKey: state.sortField, sortDirection: state.sortDirection, onSort: (key, direction) => state.updateSort(direction ? key : null, direction as SortDirection) }}
-        currentPage={state.currentPage} totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
-        onPageChange={state.setCurrentPage} onRetry={() => void state.fetchControls()}
+        table={{ keyExtractor: (control) => control.id, onRowClick: (control) => void navigate(appendRegisterReturnTo(`/controls/${control.id}`, returnTo)), rowHref: (control) => appendRegisterReturnTo(`/controls/${control.id}`, returnTo), rowLabel: (control) => control.name }}
+        totalPages={state.totalPages} totalCount={state.totalCount} itemsPerPage={state.limit}
+        onRetry={() => void state.fetchControls()}
         emptyMessage={t('empty_state.no_controls')}
         grouping={{
-            groups: state.groups, onBack: state.clearSelectedGroup, onSelectGroup: state.selectGroup,
-            selectedGroupLabel: state.selectedGroupLabel, selectedGroupValue: state.selectedGroupValue,
-            hideActive: state.viewMode === 'risk', hideHighlighted: state.viewMode === 'risk',
+            groups: state.groups,
+            selectedGroupLabel: state.selectedGroupLabel,
+            hideActive: state.workingSet.viewMode === 'risk', hideHighlighted: state.workingSet.viewMode === 'risk',
             // Risk-type groups show the same translated display name as the Risk register.
-            groupLabel: (group) => state.viewMode === 'risk_type' && group.value !== CONTROL_GROUP_UNKNOWN_RISK_TYPE
+            groupLabel: (group) => state.workingSet.viewMode === 'risk_type' && group.value !== CONTROL_GROUP_UNKNOWN_RISK_TYPE
                 ? riskTypeLabel(group.value, group.label)
                 : formatControlGroupLabel(group, {
                     unlinkedVendor: t('grouping.unlinked_vendor'), uncategorized: t('common:fallbacks.uncategorized'),
@@ -60,10 +59,10 @@ export function ControlsPage() {
                     unknownRiskType: t('common:fallbacks.unknown_type'), unknownRisk: t('common:fallbacks.unknown_risk'),
                     controlForm: (value) => formatControlForm(value, t),
                 }),
-            renderGroupBody: state.viewMode === 'risk' ? (group) => <RiskGroupMetaBody group={group} /> : undefined,
+            renderGroupBody: state.workingSet.viewMode === 'risk' ? (group) => <RiskGroupMetaBody group={group} /> : undefined,
         }}
         testIdPrefix="controls"
-        toolbar={<ControlRegisterFilterBar facets={state.facets} filters={state.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchControls()} onSearchChange={state.updateSearch} search={state.search} />}
+        toolbar={<ControlRegisterFilterBar facets={state.facets} filters={state.workingSet.filters} isLoading={state.isLoading} onClearAll={state.clearFilters} onFilterChange={state.updateFilter} onRefresh={() => void state.fetchControls()} onSearchChange={state.workingSet.updateSearch} search={state.workingSet.search} />}
     />;
 }
 

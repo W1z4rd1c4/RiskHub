@@ -13,7 +13,7 @@ rejected, and each pair is unique.
 from __future__ import annotations
 
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +31,7 @@ from app.services._governed_mutations.process_mutations import (
     submit_process_relationship_mutation,
 )
 from app.services._governed_mutations.process_relationships import (
+    apply_process_relationship_state,
     lock_process_relationship_targets,
     process_impact_resource,
 )
@@ -40,6 +41,7 @@ from app.services._governed_mutations.process_updates import (
 )
 from app.services.transaction_boundary import commit_service_boundary
 
+from .asset_apply import apply_asset_relationship
 from .asset_policy import (
     assert_asset_ordinary_mutation_allowed,
     assert_asset_readable,
@@ -173,15 +175,6 @@ async def _load_process_asset_link(db: AsyncSession, *, asset_id: int, process_i
         )
     )
     return result.scalar_one_or_none()
-
-
-async def _demote_current_primary(db: AsyncSession, *, asset_id: int) -> None:
-    """Clear the Asset's current primary designation (at most one exists)."""
-    await db.execute(
-        update(ProcessAssetLink)
-        .where(ProcessAssetLink.asset_id == asset_id, ProcessAssetLink.is_primary.is_(True))
-        .values(is_primary=False)
-    )
 
 
 async def list_asset_process_links(
@@ -350,22 +343,12 @@ async def add_asset_process_link(
     if queued is not None:
         return queued
 
-    if payload.is_primary:
-        await _demote_current_primary(db, asset_id=asset_id)
-
-    link = ProcessAssetLink(
-        asset_id=asset_id,
-        process_id=payload.process_id,
-        significance=payload.significance,
-        spof=payload.spof,
-        is_primary=payload.is_primary,
-        note=payload.note,
+    link = await apply_process_relationship_state(
+        db, process=process, relationship_type="asset", action="add", related_id=asset.id, after=after,
+        other_processes=(row for row in impacted.values() if row.id != process.id), downstream_assets=(asset,),
     )
-    db.add(link)
+    assert isinstance(link, ProcessAssetLink)
     await _flush_guarding_primary_designation(db)
-    for impacted_process in impacted.values():
-        impacted_process.governance_version += 1
-    asset.governance_version += 1
 
     await audit_asset.asset_link_created(
         db,
@@ -506,17 +489,12 @@ async def update_asset_process_link(
     if queued is not None:
         return queued
 
-    # Designating a new primary atomically demotes the previous one — one
-    # call, one transaction, never a client-side two-step.
-    if changes.get("is_primary", {}).get("new") is True:
-        await _demote_current_primary(db, asset_id=asset_id)
-
-    for field, change in changes.items():
-        setattr(link, field, change["new"])
+    await apply_process_relationship_state(
+        db, process=process, relationship_type="asset", action="update", related_id=asset.id,
+        after=after, existing=link, other_processes=(row for row in impacted.values() if row.id != process.id),
+        downstream_assets=(asset,),
+    )
     await _flush_guarding_primary_designation(db)
-    for impacted_process in impacted.values():
-        impacted_process.governance_version += 1
-    asset.governance_version += 1
 
     await audit_asset.asset_link_updated(
         db,
@@ -588,10 +566,11 @@ async def remove_asset_process_link(
         return queued
 
     # Removing the primary link simply leaves the Asset with no primary.
-    await db.delete(link)
+    await apply_process_relationship_state(
+        db, process=process, relationship_type="asset", action="remove", related_id=asset.id, after={}, existing=link,
+        downstream_assets=(asset,),
+    )
     await db.flush()
-    process.governance_version += 1
-    asset.governance_version += 1
 
     await audit_asset.asset_link_deleted(
         db,
@@ -702,10 +681,10 @@ async def add_asset_asset_link(
     if queued is not None:
         return queued
 
-    asset.governance_version += 1
-    other.governance_version += 1
-    link = AssetAssetLink(**link_values)
-    db.add(link)
+    link = await apply_asset_relationship(
+        db, relationship_type="asset", action="add", values=link_values, impacted_assets=(asset, other),
+    )
+    assert isinstance(link, AssetAssetLink)
     await db.flush()
 
     await audit_asset.asset_link_created(
@@ -781,9 +760,10 @@ async def remove_asset_asset_link(
         )
         if queued is not None:
             return queued
-        asset.governance_version += 1
-        other.governance_version += 1
-    await db.delete(link)
+    await apply_asset_relationship(
+        db, relationship_type="asset", action="remove", values={}, existing=link,
+        impacted_assets=(asset, other) if other is not None else (),
+    )
     await db.flush()
 
     await audit_asset.asset_link_deleted(

@@ -222,11 +222,19 @@ test.describe('Governed protected Vendor workflow (#87)', () => {
                 && new URL(response.url()).pathname === `/api/v1/vendors/${vendorId}`
             ));
             await dialog.getByRole('button', { name: /Archive|Archivovat/ }).click();
-            expect((await queued).status()).toBe(202);
+            const queuedResponse = await queued;
+            expect(queuedResponse.status()).toBe(202);
+            const queuedBody = await queuedResponse.json() as { approval_id: number };
+            expect(queuedBody.approval_id).toBeGreaterThan(0);
+            await expect(riskManagerPage).toHaveURL(`/vendors/${vendorId}`);
+            const requestHref = `/approvals?tab=mine&approvalId=${queuedBody.approval_id}`;
+            const requestLink = riskManagerPage.getByTestId('approval-queued-notice-link');
+            await expect(requestLink).toHaveAttribute('href', requestHref);
+            await requestLink.click();
+            await expect(riskManagerPage).toHaveURL(requestHref);
 
             const requesterApprovals = new ApprovalsPage(riskManagerPage);
-            await requesterApprovals.navigate();
-            await requesterApprovals.selectMyRequests();
+            await requesterApprovals.waitForApprovalsReady();
             const requesterIndex = await requesterApprovals.findCardByReason(reason);
             await expect(requesterApprovals.getCard(requesterIndex).getByRole(
                 'button',

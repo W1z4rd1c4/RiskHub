@@ -25,7 +25,7 @@ describe('authApi logout responses', () => {
         __setRefreshSessionHintForTests();
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-            const url = String(input);
+            const url = (input instanceof Request ? input.url : input.toString());
             if (!url.endsWith('/api/v1/auth/logout-all')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }

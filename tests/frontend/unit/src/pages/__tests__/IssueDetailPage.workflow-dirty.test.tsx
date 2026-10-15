@@ -1,3 +1,5 @@
+import { issueFixture } from './pageFixtures';
+import type * as MockissuesApiModule from '@/services/issuesApi';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,35 +12,36 @@ import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/sess
 import type { Issue } from '@/types/issue';
 import { createTestQueryClient } from '@test/queryClient';
 
-const mockGetIssue = vi.fn();
-const mockListAssignableOwners = vi.fn();
-const mockAssign = vi.fn();
-const mockStartRemediation = vi.fn();
-const mockUpdateProgress = vi.fn();
-const mockRequestException = vi.fn();
-const mockApproveException = vi.fn();
-const mockClose = vi.fn();
+const mockGetIssue = vi.fn<typeof MockissuesApiModule.issuesApi.get>();
+const mockListAssignableOwners = vi.fn<typeof MockissuesApiModule.issuesApi.listAssignableOwners>();
+const mockAssign = vi.fn<typeof MockissuesApiModule.issuesApi.assign>();
+const mockStartRemediation = vi.fn<typeof MockissuesApiModule.issuesApi.startRemediation>();
+const mockUpdateProgress = vi.fn<typeof MockissuesApiModule.issuesApi.updateProgress>();
+const mockRequestException = vi.fn<typeof MockissuesApiModule.issuesApi.requestException>();
+const mockApproveException = vi.fn<typeof MockissuesApiModule.issuesApi.approveException>();
+const mockClose = vi.fn<typeof MockissuesApiModule.issuesApi.close>();
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {
-        approveException: (...args: unknown[]) => mockApproveException(...args),
-        assign: (...args: unknown[]) => mockAssign(...args),
-        close: (...args: unknown[]) => mockClose(...args),
-        get: (...args: unknown[]) => mockGetIssue(...args),
-        listAssignableOwners: (...args: unknown[]) => mockListAssignableOwners(...args),
-        requestException: (...args: unknown[]) => mockRequestException(...args),
-        startRemediation: (...args: unknown[]) => mockStartRemediation(...args),
-        updateProgress: (...args: unknown[]) => mockUpdateProgress(...args),
+        approveException: (...args: Parameters<typeof mockApproveException>) => mockApproveException(...args),
+        assign: (...args: Parameters<typeof mockAssign>) => mockAssign(...args),
+        close: (...args: Parameters<typeof mockClose>) => mockClose(...args),
+        get: (...args: Parameters<typeof mockGetIssue>) => mockGetIssue(...args),
+        listAssignableOwners: (...args: Parameters<typeof mockListAssignableOwners>) => mockListAssignableOwners(...args),
+        requestException: (...args: Parameters<typeof mockRequestException>) => mockRequestException(...args),
+        startRemediation: (...args: Parameters<typeof mockStartRemediation>) => mockStartRemediation(...args),
+        updateProgress: (...args: Parameters<typeof mockUpdateProgress>) => mockUpdateProgress(...args),
     },
 }));
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
-        list: vi.fn(async () => ({ items: [], total: 0, skip: 0, limit: 100 })),
+        list: vi.fn(() => Promise.resolve(({ items: [], total: 0, skip: 0, limit: 100 }))),
     },
 }));
 
-const initialIssue: Issue = {
+const initialIssue: Issue = issueFixture({
+    vendor_contexts: [],
     id: 11,
     title: 'Workflow issue',
     severity: 'high',
@@ -105,7 +108,7 @@ const initialIssue: Issue = {
         has_active_exception: false,
         has_pending_exception_request: false,
     },
-};
+});
 
 function RouteLayout() {
     const location = useLocation();
@@ -292,7 +295,7 @@ describe('Issue Workflow dirty-task protection', () => {
 
     it('accepts exception reason and expiry only after their respective successful operations', async () => {
         const user = userEvent.setup();
-        const requestedIssue: Issue = {
+        const requestedIssue: Issue = issueFixture({
             ...initialIssue,
             exceptions: [{
                 id: 9,
@@ -309,10 +312,10 @@ describe('Issue Workflow dirty-task protection', () => {
                 created_at: '2026-02-02T10:00:00Z',
                 updated_at: '2026-02-02T10:00:00Z',
             }],
-        };
+        });
         mockGetIssue.mockResolvedValue(requestedIssue);
-        mockRequestException.mockResolvedValue(undefined);
-        mockApproveException.mockResolvedValue(undefined);
+        mockRequestException.mockResolvedValue(requestedIssue.exceptions[0]);
+        mockApproveException.mockResolvedValue({ ...requestedIssue.exceptions[0], status: 'approved' });
         const { router } = renderWorkflow();
         const exceptionCard = await screen.findByTestId('workflow-exception-card');
         const exceptionReason = within(exceptionCard).getByRole('textbox');
@@ -362,7 +365,7 @@ describe('Issue Workflow dirty-task protection', () => {
 
         await user.clear(progress);
         await user.type(progress, '75');
-        await act(async () => {
+        await act(() => {
             queryClient.setQueryData(issueDetailQueryKey(2, 11), {
                 ...initialIssue,
                 due_at: '2026-03-20T10:00:00Z',
@@ -372,6 +375,7 @@ describe('Issue Workflow dirty-task protection', () => {
                     completion_notes: 'Server completion',
                 },
             });
+            return Promise.resolve();
         });
 
         expect(progress).toHaveValue(75);
@@ -394,11 +398,12 @@ describe('Issue Workflow dirty-task protection', () => {
         await waitFor(() => expect(updateButton).toBeDisabled());
         expect(progress).toBeDisabled();
         expect(screen.getByDisplayValue('Initial validation')).toBeDisabled();
-        await act(async () => {
+        await act(() => {
             queryClient.setQueryData(issueDetailQueryKey(2, 11), {
                 ...initialIssue,
                 due_at: '2026-03-20T10:00:00Z',
             });
+            return Promise.resolve();
         });
         expect(updateButton).toBeDisabled();
 
@@ -410,13 +415,13 @@ describe('Issue Workflow dirty-task protection', () => {
         const beforeUnload = new Event('beforeunload', { cancelable: true });
         expect(window.dispatchEvent(beforeUnload)).toBe(false);
 
-        await act(async () => resolveUpdate({
+        await act(() => Promise.resolve(resolveUpdate({
             ...initialIssue,
             remediation_plan: {
                 ...initialIssue.remediation_plan!,
                 progress_percent: 75,
             },
-        }));
+        })));
         await waitFor(() => expect(updateButton).toBeEnabled());
         await user.click(screen.getByRole('tab', { name: 'Overview' }));
         await waitFor(() => expect(router.state.location.search).toBe('?return_to=%2Fissues'));

@@ -1,3 +1,4 @@
+import type * as ActualuserSettingsStorage from '@/utils/userSettingsStorage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -15,10 +16,10 @@ import { KRIsPage } from '@/pages/KRIsPage';
 const UNLINKED_VENDOR_GROUP = '__unlinked_vendor__';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
-    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    const actual = await vi.importActual<typeof ActualuserSettingsStorage>('@/utils/userSettingsStorage');
     return {
         ...actual,
-        syncPreferencesFromServer: vi.fn(async () => undefined),
+        syncPreferencesFromServer: vi.fn(() => Promise.resolve(undefined)),
         clearLocalSettings: vi.fn(),
     };
 });
@@ -152,9 +153,10 @@ function renderWithRoute(route: string) {
 }
 
 async function renderKriPage(route: string) {
-    await act(async () => {
+    await act(() => {
         renderWithRoute(route);
-    });
+        return Promise.resolve();
+});
     await waitForAuthBootstrapReady();
 }
 
@@ -208,7 +210,7 @@ function installKriHandlers(
     collectionCapabilities: Record<string, boolean> | undefined = { can_view_vendor_contexts: true },
 ) {
     const user = makeUser(userOverrides);
-    const canRestoreArchived = (user.effective_permissions as string[]).includes('risks:delete');
+    const canRestoreArchived = (user.effective_permissions).includes('risks:delete');
 
     server.use(
         http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),

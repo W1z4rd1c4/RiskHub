@@ -16,7 +16,7 @@ describe('capability resolution helpers', () => {
     it('resolves named capability flags from optional capability objects', () => {
         expect(resolveCapabilityFlag({ can_update: true }, 'can_update')).toBe(true);
         expect(resolveCapabilityFlag({ can_update: false }, 'can_update')).toBe(false);
-        expect(resolveCapabilityFlag(null, 'can_update')).toBe(false);
+        expect(resolveCapabilityFlag<{ can_update: boolean }, 'can_update'>(null, 'can_update')).toBe(false);
     });
 
     it('supports shaped capability interfaces without string index signatures', () => {

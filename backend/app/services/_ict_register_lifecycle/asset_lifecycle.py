@@ -12,6 +12,7 @@ from app.schemas.asset import AssetCreate, AssetListResponse, AssetRead, AssetUp
 from app.services._asset_owner_lock import acquire_asset_owner_identity_locks
 from app.services.transaction_boundary import commit_service_boundary
 
+from .asset_apply import apply_asset_archive, apply_asset_create, apply_asset_edit
 from .asset_policy import (
     assert_active_asset_department,
     assert_active_asset_owner,
@@ -30,8 +31,6 @@ from .asset_projection import (
     serialize_asset_list,
 )
 from .lifecycle_adapters import (
-    apply_archive_lifecycle,
-    apply_update_lifecycle,
     extract_updates,
     load_register_page,
 )
@@ -104,12 +103,10 @@ async def create_asset_detail(
     if await duplicate_asset_display_name_exists(db, asset_name=payload.name):
         raise ValidationError("An Asset with this name already exists")
 
-    asset = Asset(**payload.model_dump(exclude={"request_reason"}))
-    asset.business_owner = business_owner
-    asset.ict_owner = ict_owner
-    asset.owning_department = department
-    db.add(asset)
-    await db.flush()
+    asset = await apply_asset_create(
+        db, values=payload.model_dump(exclude={"request_reason"}),
+        business_owner=business_owner, ict_owner=ict_owner, department=department,
+    )
 
     await audit_asset.asset_created(db, actor=current_user, asset=asset)
     await commit_service_boundary(db, boundary="ict_register_asset_create")
@@ -213,33 +210,34 @@ async def update_asset_detail(
     ):
         raise ValidationError("An Asset with this name already exists")
 
+    business_owner = None
+    ict_owner = None
+    department = None
     if "business_owner_user_id" in updates:
-        asset.business_owner = await assert_active_asset_owner(
+        business_owner = await assert_active_asset_owner(
             db,
             user_id=int(updates["business_owner_user_id"]),
             acquire_identity_lock=False,
         )
     if "ict_owner_user_id" in updates:
-        asset.ict_owner = await assert_active_asset_owner(
+        ict_owner = await assert_active_asset_owner(
             db,
             user_id=int(updates["ict_owner_user_id"]),
             acquire_identity_lock=False,
         )
     if "owning_department_id" in updates:
-        asset.owning_department = await assert_active_asset_department(
+        department = await assert_active_asset_department(
             db,
             department_id=int(updates["owning_department_id"]),
         )
 
-    asset.governance_version += 1
-    await apply_update_lifecycle(
-        db=db,
-        entity=asset,
-        updates=updates,
-        changes_factory=audit_asset.asset_update_changes,
-        audit=lambda changes: audit_asset.asset_updated(db, actor=current_user, asset=asset, changes=changes),
-        boundary="ict_register_asset_update",
+    changes = audit_asset.asset_update_changes(asset, updates)
+    apply_asset_edit(
+        asset=asset, updates=updates, business_owner=business_owner, ict_owner=ict_owner, department=department,
     )
+    await audit_asset.asset_updated(db, actor=current_user, asset=asset, changes=changes)
+    await commit_service_boundary(db, boundary="ict_register_asset_update")
+    await db.refresh(asset)
     refreshed = await load_asset(db, asset.id)
     assert refreshed is not None
     return await serialize_asset_detail_with_primary(db, refreshed, current_user=current_user)
@@ -265,15 +263,10 @@ async def archive_asset_detail(
     )
     if queued is not None:
         return queued
-    asset.governance_version += 1
-    await apply_archive_lifecycle(
-        db=db,
-        entity=asset,
-        current_user=current_user,
-        changes_factory=audit_asset.asset_archive_changes,
-        audit=lambda changes: audit_asset.asset_archived(db, actor=current_user, asset=asset, changes=changes),
-        boundary="ict_register_asset_archive",
-    )
+    changes = audit_asset.asset_archive_changes(asset)
+    apply_asset_archive(asset=asset, actor=current_user)
+    await audit_asset.asset_archived(db, actor=current_user, asset=asset, changes=changes)
+    await commit_service_boundary(db, boundary="ict_register_asset_archive")
 
 
 async def restore_asset_detail(
@@ -283,17 +276,11 @@ async def restore_asset_detail(
     current_user: User,
 ) -> AssetRead:
     asset = await assert_asset_restore_allowed(db, asset_id=asset_id, current_user=current_user)
-    asset.governance_version += 1
-    await apply_archive_lifecycle(
-        db=db,
-        entity=asset,
-        current_user=current_user,
-        changes_factory=audit_asset.asset_restore_changes,
-        audit=lambda changes: audit_asset.asset_restored(db, actor=current_user, asset=asset, changes=changes),
-        boundary="ict_register_asset_restore",
-        restore=True,
-        refresh=True,
-    )
+    changes = audit_asset.asset_restore_changes(asset)
+    apply_asset_archive(asset=asset, actor=current_user, restore=True)
+    await audit_asset.asset_restored(db, actor=current_user, asset=asset, changes=changes)
+    await commit_service_boundary(db, boundary="ict_register_asset_restore")
+    await db.refresh(asset)
     restored = await load_asset(db, asset.id)
     assert restored is not None
     return await serialize_asset_detail_with_primary(db, restored, current_user=current_user)

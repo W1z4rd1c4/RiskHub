@@ -30,7 +30,7 @@ vi.mock('@/services/vendorApi', () => ({
 
 describe('ProcessVendorLinksSection recoverable error', () => {
     it('keeps a rejected link error and rationale inside its open dialog', async () => {
-        vi.mocked(processApi.removeVendorLink).mockRejectedValueOnce(new Error('rejected'));
+        vi.mocked(processApi).removeVendorLink.mockRejectedValueOnce(new Error('rejected'));
         const queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
         });

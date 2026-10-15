@@ -26,7 +26,7 @@ from .common import NativeContext, atomic_local_work, audit_local, commit_local,
 from .delivery import enqueue_mail
 from .factor_management import confirm_pending_factor, pending_factor, queue_security_notice, replace_recovery_codes
 from .factors import check_recent_proof, factor_limits
-from .recovery_policy import recovery_intent, require_recoverable, require_recovery_actor
+from .recovery_policy import recovery_intent, require_recoverable, require_recovery_actor, require_web_recoverable
 
 
 async def initiate_recovery(
@@ -130,7 +130,7 @@ async def assisted_recovery(
     async with atomic_local_work(db):
         user = await lock_identity_transition(db, user_id=target_id, actor=actor, settings=ctx.settings)
         require_recovery_actor(actor)
-        require_recoverable(user, version=data.expected_token_version, web=True)
+        await require_web_recoverable(db, user, actor=actor, version=data.expected_token_version)
         grant, _ = await check_recent_proof(
             db,
             ctx,

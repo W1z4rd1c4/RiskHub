@@ -29,6 +29,13 @@ themes, deferred duplicate activation, definite rejection, ambiguous transport l
 authorized read reconciliation, rendered text contrast, and strict-zero axe feedback.
 Run it with `--project=ci --workers=1`; it does not require changing seeded data.
 
+`notification-dropdown-layout.spec.ts` runs the real application shell and inbox against
+intercepted API responses. It checks six/ten loaded notifications and pending-to-loaded keyboard
+journeys at 1280x720 and 1280x480, keeping header/footer actions inside the viewport. Run without
+a backend using `npx playwright test -c playwright.notifications.config.ts --workers=1 --retries=0`
+from `frontend/`. These deterministic layout checks also run in the normal browser suite; the
+live governed notification-delivery workflow continues to prove backend delivery separately.
+
 ## Targeted Run Command
 
 ```bash

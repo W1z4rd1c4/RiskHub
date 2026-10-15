@@ -1,12 +1,12 @@
+const { getDepartments } = vi.hoisted(() => ({ getDepartments: vi.fn() }));
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DepartmentsPage } from '@/pages/DepartmentsPage';
 import { renderWithoutProviders, screen, within } from '@test/render';
 
-const getDepartments = vi.fn();
 vi.mock('@/services/departmentApi', () => ({
-    departmentApi: { getDepartments: (...args: unknown[]) => getDepartments(...args) },
+    departmentApi: { getDepartments: getDepartments },
 }));
 
 const department = {

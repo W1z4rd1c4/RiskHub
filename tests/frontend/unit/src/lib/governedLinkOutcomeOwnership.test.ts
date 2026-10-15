@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import type * as TS from 'typescript';
 import { describe, expect, it } from 'vitest';
 const root = path.resolve(__dirname, '../../../../..');
-const ts: typeof TS = createRequire(path.join(root, 'frontend/package.json'))('typescript');
+const ts = createRequire(path.join(root, 'frontend/package.json'))('typescript') as typeof TS;
 const registerLanes = [
     ['pages/assets/AssetLinkSections.tsx', ['addProcessLink', 'setPrimaryProcess', 'removeProcessLink', 'addAssetLink', 'removeAssetLink', 'addVendorLink', 'removeVendorLink']],
     ['pages/processes/ProcessVendorLinksSection.tsx', ['addVendorLink', 'removeVendorLink']],

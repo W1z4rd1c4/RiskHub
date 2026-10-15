@@ -1,19 +1,22 @@
+import type * as TestModule0 from '@/i18n/hooks';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
 import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
 import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
-import { accessApi } from '@/services/accessApi';
 import { riskHubApi } from '@/services/riskHubApi';
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `translateUiMessage` stays real; only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof TestModule0>()),
     useTranslation: () => ({
         t: (key: string, options?: { count?: number; name?: string }) => {
             if (options?.name) return `${key}:${options.name}`;
@@ -44,9 +47,11 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
     ),
 }));
 
+const mockListAccessUsers = vi.hoisted(() => vi.fn());
+
 vi.mock('@/services/accessApi', () => ({
     accessApi: {
-        listAccessUsers: vi.fn().mockResolvedValue([
+        listAccessUsers: mockListAccessUsers.mockResolvedValue([
             { id: 9, name: 'Dana Manager', email: 'dana@example.test', department_id: 3, is_active: true },
             { id: 10, name: 'Inactive Manager', email: 'inactive@example.test', department_id: 3, is_active: false },
             { id: 11, name: 'Other Manager', email: 'other@example.test', department_id: 4, is_active: true },
@@ -86,7 +91,8 @@ function renderWithQueryClient(ui: ReactElement, queryClient = new QueryClient({
             mutations: { retry: false },
         },
     })) {
-    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    applyBootstrappedSession({ token: 'config-session', user: mockAuthUser });
+    return render(<QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/riskhub']}>{ui}</MemoryRouter></QueryClientProvider>);
 }
 
 describe('Risk Hub config panels', () => {
@@ -140,6 +146,7 @@ describe('Risk Hub config panels', () => {
                 display_name: 'Risk update',
                 description: 'Approve risk updates',
                 requires_approval: true,
+                fixed_policy: false,
                 approver_roles: ['risk_owner'],
                 updated_at: '2026-04-01T00:00:00Z',
                 updated_by_name: null,
@@ -213,21 +220,29 @@ describe('Risk Hub config panels', () => {
         {
             name: 'risk types',
             panel: () => <RiskTypesPanel />,
-            load: () => vi.mocked(riskHubApi.getRiskTypes),
+            load: async () => {
+                const loader = vi.mocked(riskHubApi.getRiskTypes);
+                const items = await loader();
+                loader.mockReset().mockRejectedValueOnce(new Error('network down')).mockResolvedValueOnce(items);
+                return loader;
+            },
             message: 'errors.failed_to_load_risk_types',
             loaded: 'Operational',
         },
         {
             name: 'approval scenarios',
             panel: () => <ApprovalScenariosPanel />,
-            load: () => vi.mocked(riskHubApi.getApprovalScenarios),
+            load: async () => {
+                const loader = vi.mocked(riskHubApi.getApprovalScenarios);
+                const items = await loader();
+                loader.mockReset().mockRejectedValueOnce(new Error('network down')).mockResolvedValueOnce(items);
+                return loader;
+            },
             message: 'admin:errors.failed_to_load_approval_scenarios',
             loaded: 'Risk update',
         },
     ])('renders a $name load failure as an error with retry (DS-17, GAP-C-11)', async ({ panel, load, message, loaded }) => {
-        const loader = load() as unknown as ReturnType<typeof vi.fn>;
-        const items = await loader();
-        loader.mockReset().mockRejectedValueOnce(new Error('network down')).mockResolvedValueOnce(items);
+        const loader = await load();
         renderWithQueryClient(panel());
 
         const alert = await screen.findByRole('alert');
@@ -268,7 +283,7 @@ describe('Risk Hub config panels', () => {
         // PM (W8): the row edit names its row.
         fireEvent.click(screen.getByRole('button', { name: 'common:actions.edit_named:Operations' }));
         await screen.findByText('Dana Manager (dana@example.test)');
-        expect(accessApi.listAccessUsers).toHaveBeenCalledWith({ department_id: 3 });
+        expect(mockListAccessUsers).toHaveBeenCalledWith({ department_id: 3 });
         expect(screen.queryByText('Inactive Manager (inactive@example.test)')).not.toBeInTheDocument();
         expect(screen.queryByText('Other Manager (other@example.test)')).not.toBeInTheDocument();
         fireEvent.change(screen.getByLabelText('manager-select'), {

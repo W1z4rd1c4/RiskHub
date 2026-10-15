@@ -76,7 +76,7 @@ function LocalNavigateHarness() {
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
             />
-            <button type="button" onClick={() => requestLocalLeave(() => navigate('/done'))}>
+            <button type="button" onClick={() => { void requestLocalLeave(() => { void navigate('/done'); }); }}>
                 Close and navigate
             </button>
             {confirmationDialog}

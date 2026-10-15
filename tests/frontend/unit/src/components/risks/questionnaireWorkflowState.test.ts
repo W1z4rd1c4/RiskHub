@@ -9,7 +9,7 @@ import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 
 function detail(
     status: RiskQuestionnaireDetail['status'],
-    capabilities: RiskQuestionnaireDetail['capabilities'],
+    capabilities: Partial<NonNullable<RiskQuestionnaireDetail['capabilities']>> | null,
 ): RiskQuestionnaireDetail {
     return {
         id: 1,
@@ -24,7 +24,14 @@ function detail(
         due_at: '2026-01-16T00:00:00Z',
         submitted_at: null,
         submitted_by_user_id: null,
-        capabilities,
+        capabilities: capabilities === null ? null : {
+            can_open: false,
+            can_save_draft: false,
+            can_submit: false,
+            can_request_clarification: false,
+            can_respond_to_clarifications: false,
+            ...capabilities,
+        },
         previous_submission: null,
     };
 }

@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { ReactNode, SVGProps } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,7 +11,7 @@ import i18n from '@/i18n';
 
 // lucide-react is not resolvable from the external test root; stub icons with
 // the same props contract are enough for these assertions.
-const Pencil = (props: SVGProps<SVGSVGElement>) => <svg {...props} />;
+const Pencil = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>((props, ref) => <svg {...props} ref={ref} />);
 
 interface Row {
     id: number;
@@ -150,7 +151,7 @@ describe('SortableTable — keyboard access (FR-P3-1, N18)', () => {
                 key: 'restore',
                 label: 'Restore',
                 render: (row) => (
-                    <button type="button" onClick={() => onRestore(row.id)}>
+                    <button type="button" onClick={() => { onRestore(row.id); }}>
                         <span>Restore {row.name}</span>
                     </button>
                 ),
@@ -273,7 +274,7 @@ describe('SortableTable — row activation (D14, AX-02)', () => {
         const onEdit = vi.fn();
         renderTable({
             onRowActivate,
-            getRowActions: (row) => <RowActionButton icon={Pencil} label={`Edit ${row.name}`} onClick={() => onEdit(row)} />,
+            getRowActions: (row) => <RowActionButton icon={Pencil} label={`Edit ${row.name}`} onClick={() => { onEdit(row); }} />,
         });
         const user = userEvent.setup();
 

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.test-base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo"
+  },
+  "include": [
+    "../tests/frontend/e2e/**/*.ts",
+    "../tests/frontend/e2e/**/*.tsx",
+    "src/env.d.ts"
+  ],
+  "exclude": [
+    "../tests/frontend/**/node_modules/**",
+    "../tests/frontend/e2e/playwright.config.ts"
+  ]
+}

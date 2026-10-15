@@ -8,11 +8,11 @@ import { useActivityLogPageState } from '@/hooks/useActivityLogPageState';
 import type { ActivityLogListResponse } from '@/types/activityLog';
 import { DepartmentRegisterScopeProvider } from '@/pages/departments/DepartmentRegisterScope';
 
-const mockList = vi.fn();
-const mockGetActions = vi.fn();
-const mockGetActors = vi.fn();
-const mockGetDepartments = vi.fn();
-const mockGetRisks = vi.fn();
+const mockList = vi.hoisted(() => vi.fn());
+const mockGetActions = vi.hoisted(() => vi.fn());
+const mockGetActors = vi.hoisted(() => vi.fn());
+const mockGetDepartments = vi.hoisted(() => vi.fn());
+const mockGetRisks = vi.hoisted(() => vi.fn());
 const mockUseDebouncedValue = vi.fn((value: unknown) => value);
 
 vi.mock('@/hooks/useDebouncedValue', () => ({
@@ -21,21 +21,21 @@ vi.mock('@/hooks/useDebouncedValue', () => ({
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
-        list: (...args: unknown[]) => mockList(...args),
-        getActions: () => mockGetActions(),
-        getActors: (...args: unknown[]) => mockGetActors(...args),
+        list: mockList,
+        getActions: mockGetActions,
+        getActors: mockGetActors,
     },
 }));
 
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getDepartments: () => mockGetDepartments(),
+        getDepartments: mockGetDepartments,
     },
 }));
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: mockGetRisks,
     },
 }));
 
@@ -143,20 +143,23 @@ describe('useActivityLogPageState', () => {
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1));
 
-        await act(async () => {
+        await act(() => {
             screen.getByRole('button', { name: 'by risk' }).click();
+            return Promise.resolve();
         });
 
         expect(screen.getByTestId('needs-risk-selection')).toHaveTextContent('true');
 
-        await act(async () => {
+        await act(() => {
             screen.getByRole('button', { name: 'select risk' }).click();
+            return Promise.resolve();
         });
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2));
 
-        await act(async () => {
+        await act(() => {
             screen.getByRole('button', { name: 'clear risk' }).click();
+            return Promise.resolve();
         });
 
         expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
@@ -313,9 +316,10 @@ describe('useActivityLogPageState', () => {
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1));
 
-        await act(async () => {
+        await act(() => {
             screen.getByRole('button', { name: 'set date from' }).click();
             screen.getByRole('button', { name: 'set date to' }).click();
+            return Promise.resolve();
         });
 
         await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2));

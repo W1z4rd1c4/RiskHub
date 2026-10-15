@@ -526,9 +526,11 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
         deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert f"docker pull {_image('riskhub-backend')}" in deploy_output
-        assert f"docker pull {_image('riskhub-backend-db')}" in deploy_output
+        assert f"docker pull --platform linux/amd64 {_image('riskhub-backend')}" in deploy_output
+        assert f"docker pull --platform linux/amd64 {_image('riskhub-backend-db')}" in deploy_output
         assert f"docker pull {_image('riskhub-redis')}" in deploy_output
+        assert f"docker pull {_image('riskhub-frontend')}" in deploy_output
+        assert "docker run --platform linux/amd64 --rm --add-host" in deploy_output
         assert "scripts/prod/install_backend.sh" in deploy_output
         assert "scripts/prod/install_redis.sh" in deploy_output
         assert f"--backend-db-image {_image('riskhub-backend-db')}" in deploy_output
@@ -710,8 +712,8 @@ def test_docker_deploy_propagates_bootstrap_failure_before_app_install() -> None
 @pytest.mark.parametrize(
     ("stage", "failure_match", "later_match", "expected_rc"),
     [
-        ("preflight", "", "pull ghcr.io/example/riskhub-backend", 1),
-        ("pull", "pull ghcr.io/example/riskhub-backend", " python -", 73),
+        ("preflight", "", "pull --platform linux/amd64 ghcr.io/example/riskhub-backend", 1),
+        ("pull", "pull --platform linux/amd64 ghcr.io/example/riskhub-backend", " python -", 73),
         ("db_preflight", " python -", "--name riskhub-redis", 73),
         ("identity_compatibility", "scripts.identity_preflight", "--name riskhub-redis", 73),
         ("redis", "--name riskhub-redis", "alembic upgrade head", 73),

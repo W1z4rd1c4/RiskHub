@@ -45,7 +45,7 @@ export function useRiskHubConfigResource<TItem, TCreate, TUpdate>(definition: Ri
         } catch (error: unknown) { panel.setActionErrorKey(apiClient.toUiMessageKey(error)); } finally { setIsDeleting(false); }
     }
     /** Row restore: the outcome is a toast (D9); a failure is never an unhandled rejection. */
-    function handleRestore(item: TItem): void { void restoreWithFeedback({ restore: () => query.handleRestore(definition.itemId(item)), name: definition.itemName?.(item), refresh: () => undefined }); }
+    function handleRestore(item: TItem): void { void restoreWithFeedback({ targetId: definition.itemId(item), restore: () => query.handleRestore(definition.itemId(item)), name: definition.itemName?.(item), refresh: () => undefined }); }
     return {
         actionErrorKey: panel.actionErrorKey, closeDelete: panel.closeDelete, closeModal: panel.closeModal,
         deleteConfirm: panel.deleteConfirm, editingItem: panel.editingItem, error: query.error,

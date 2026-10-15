@@ -108,14 +108,21 @@ test('delayed failure and retry keep original normalized filters across filter/h
             await route.fulfill({ contentType: 'text/csv', body: 'Generated At,2026-09-27T10:01:00Z\n' });
         }
     });
+    const filteredUrl = '/?departmentId=7&riskLevel=high&controlStatus=active&controlForm=manual&viewMode=department';
     await page.goto('/?departmentId=007&riskLevel=high&controlStatus=active&controlForm=manual');
+    await expect(page).toHaveURL(filteredUrl);
     const button = page.getByRole('button', { name: exportName });
     await button.click();
     await expect.poll(() => exports.length).toBe(1);
     await expect(button).toBeDisabled();
     await page.getByRole('button', { name: 'Clear All', exact: true }).click();
+    await expect(page).toHaveURL('/');
+    await expect(button).toBeDisabled();
     await page.goBack();
+    await expect(page).toHaveURL(filteredUrl);
+    await expect(button).toBeDisabled();
     await page.goForward();
+    await expect(page).toHaveURL('/');
     await expect(button).toBeDisabled();
     await page.getByRole('tab', { name: 'Risk Committee', exact: true }).click();
     releaseFailure();

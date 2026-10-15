@@ -21,7 +21,7 @@ describe('humanizeCode', () => {
 
 describe('translateCode', () => {
     const t = (key: string, options?: Record<string, unknown>) =>
-        key === 'health.job_status.running' ? 'Běží' : String(options?.defaultValue ?? key);
+        key === 'health.job_status.running' ? 'Běží' : (typeof options?.defaultValue === 'string' ? options.defaultValue : key);
 
     it('uses the translation when the locale has one', () => {
         expect(translateCode(t, 'health.job_status', 'running')).toBe('Běží');

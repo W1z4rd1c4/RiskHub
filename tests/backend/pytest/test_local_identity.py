@@ -231,6 +231,9 @@ async def test_real_enrollment_mfa_refresh_and_reset(
         )
         assert rotated["session_exp"] == claims["session_exp"]
         assert rotated["auth_time"] == claims["auth_time"]
+        # Rotation spent the original cookie. Retain the currently usable token
+        # so the assertion below proves reset revocation, not rotation rejection.
+        old_refresh = client.cookies.get("riskhub_refresh_token")
         client.headers["X-CSRF-Token"] = client.cookies.get("riskhub_csrf_token")
         response = await client.post(
             "/api/v1/auth/local/password/reset/request",

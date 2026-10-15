@@ -1,3 +1,5 @@
+import type * as MockprocessApiModule from '@/services/processApi';
+import type * as MocklookupApiModule from '@/services/lookupApi';
 /**
  * FR-P2b-1/2/3/5 (spec N11–N13, findings C1/C4/C5, S11) — ProcessForm migrated
  * to `Field` with native `required` + `noValidate` + per-field JS validation.
@@ -11,11 +13,11 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 import * as axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockGetClosedLists = vi.fn();
-const mockGetProcessOwners = vi.fn();
-const mockGetProcessDepartments = vi.fn();
-const mockCreateProcess = vi.fn();
-const mockUpdateProcess = vi.fn();
+const mockGetClosedLists = vi.fn<typeof MockprocessApiModule.processApi.getClosedLists>();
+const mockGetProcessOwners = vi.fn<typeof MocklookupApiModule.lookupApi.getProcessOwners>();
+const mockGetProcessDepartments = vi.fn<typeof MocklookupApiModule.lookupApi.getProcessDepartments>();
+const mockCreateProcess = vi.fn<typeof MockprocessApiModule.processApi.createProcess>();
+const mockUpdateProcess = vi.fn<typeof MockprocessApiModule.processApi.updateProcess>();
 const accountabilityScenario = vi.hoisted(() => ({
     enabled: false,
     error: false,
@@ -33,15 +35,15 @@ vi.mock('@/hooks/useAccountabilityReassignmentScenario', () => ({
 
 vi.mock('@/services/processApi', () => ({
     processApi: {
-        getClosedLists: (...args: unknown[]) => mockGetClosedLists(...args),
-        createProcess: (...args: unknown[]) => mockCreateProcess(...args),
-        updateProcess: (...args: unknown[]) => mockUpdateProcess(...args),
+        getClosedLists: (...args: Parameters<typeof mockGetClosedLists>) => mockGetClosedLists(...args),
+        createProcess: (...args: Parameters<typeof mockCreateProcess>) => mockCreateProcess(...args),
+        updateProcess: (...args: Parameters<typeof mockUpdateProcess>) => mockUpdateProcess(...args),
     },
 }));
 vi.mock('@/services/lookupApi', () => ({
     lookupApi: {
-        getProcessOwners: (...args: unknown[]) => mockGetProcessOwners(...args),
-        getProcessDepartments: (...args: unknown[]) => mockGetProcessDepartments(...args),
+        getProcessOwners: (...args: Parameters<typeof mockGetProcessOwners>) => mockGetProcessOwners(...args),
+        getProcessDepartments: (...args: Parameters<typeof mockGetProcessDepartments>) => mockGetProcessDepartments(...args),
     },
 }));
 vi.mock('@/services/logger', () => ({ logError: vi.fn() }));
@@ -165,7 +167,7 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
 
     it('submits successfully when both identity fields are filled', async () => {
         const user = userEvent.setup();
-        mockCreateProcess.mockResolvedValue({ id: 3 });
+        mockCreateProcess.mockResolvedValue({ id: 3, f_code: 'P3', l0_area: 'Operations', l1_process: 'Process', owner_orphaned: false, ownership_status: 'assigned', is_archived: false, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' });
         const { onSaved } = renderForm();
 
         await user.type(screen.getByRole('textbox', { name: l0Label() }), 'Payments');
@@ -220,7 +222,7 @@ describe('ProcessForm — Field migration + per-field validation (#59)', () => {
     });
 
     it('never overwrites an independently selected Department when the owner changes', async () => {
-        mockCreateProcess.mockResolvedValue({ id: 3 });
+        mockCreateProcess.mockResolvedValue({ id: 3, f_code: 'P3', l0_area: 'Operations', l1_process: 'Process', owner_orphaned: false, ownership_status: 'assigned', is_archived: false, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' });
         renderForm();
 
         fireEvent.change(screen.getByRole('textbox', { name: l0Label() }), {

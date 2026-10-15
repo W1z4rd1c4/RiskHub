@@ -1,3 +1,7 @@
+import { approvalFixture, assetDerivedFixture } from './pageFixtures';
+import type * as MockassetApiModule from '@/services/assetApi';
+import type * as MockapprovalsApiModule from '@/services/approvalsApi';
+import type * as Actualformatters from '@/i18n/formatters';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -5,11 +9,13 @@ import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Asset } from '@/types/asset';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 const mocks = vi.hoisted(() => ({
     asset: null as Asset | null,
-    archiveAsset: vi.fn(),
-    cancelApproval: vi.fn(),
+    archiveAsset: vi.fn<typeof MockassetApiModule.assetApi.archiveAsset>(),
+    cancelApproval: vi.fn<typeof MockapprovalsApiModule.approvalsApi.cancel>(),
     canEdit: true,
     canViewGovernance: true,
     error: null as string | null,
@@ -18,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/assetApi', () => ({
     assetApi: {
-        archiveAsset: (...args: unknown[]) => mocks.archiveAsset(...args),
+        archiveAsset: (...args: Parameters<typeof mocks.archiveAsset>) => mocks.archiveAsset(...args),
         getAssets: vi.fn(),
     },
 }));
@@ -28,13 +34,13 @@ vi.mock('@/authz/useAuthz', () => ({
 }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     return {
         useTranslation: () => ({
             t: (key: string, options?: { date?: string; targetName?: string; time?: string }) => {
                 if (key === 'pending_change.requested_by_at') return `${options?.date}|${options?.time}`;
                 if (key === 'pending_change_cancellation.message') return options?.targetName ?? key;
-                return key;
+                return key.replace(/^assets:/, '');
             },
             i18n: { language: 'cs' },
         }),
@@ -65,7 +71,7 @@ vi.mock('@/pages/assets/useAssetDetailState', () => ({
 
 vi.mock('@/services/approvalsApi', () => ({
     approvalsApi: {
-        cancel: (...args: unknown[]) => mocks.cancelApproval(...args),
+        cancel: (...args: Parameters<typeof mocks.cancelApproval>) => mocks.cancelApproval(...args),
     },
 }));
 
@@ -81,7 +87,7 @@ import { AssetDetailPage } from '@/pages/AssetDetailPage';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
-function ownedAsset(): Asset {
+function ownedAsset(): Asset & { capabilities: NonNullable<Asset['capabilities']> } {
     return {
         id: 75,
         name: 'Customer account platform',
@@ -148,7 +154,7 @@ function governedPendingAsset(): Asset {
             mutation_kind: 'asset.edit',
             before: { name: 'Customer account platform' },
             after: { name: 'Customer account platform v2' },
-            derived_impact: { before: null, after: null },
+            derived_impact: { before: { cif: 'no', resulting_criticality: null }, after: { cif: 'no', resulting_criticality: null } },
             impacted_resources: [{ resource_type: 'asset', resource_name: 'Customer account platform' }],
             relationship_change: null,
             capabilities: { can_view_diff: true, can_cancel: true },
@@ -205,11 +211,12 @@ function renderPage(mode: 'view' | 'edit') {
 
 describe('AssetDetailPage ownership resolution', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'asset-detail-test', user: mockAuthUser });
         mocks.asset = pendingAsset();
         mocks.canEdit = true;
         mocks.canViewGovernance = true;
         mocks.error = null;
-        mocks.cancelApproval.mockResolvedValue({ status: 'cancelled' });
+        mocks.cancelApproval.mockResolvedValue(approvalFixture({ status: 'cancelled' }));
         mocks.fetchAsset.mockResolvedValue(undefined);
         mocks.archiveAsset.mockResolvedValue(undefined);
     });
@@ -346,7 +353,7 @@ describe('AssetDetailPage ownership resolution', () => {
 
     it('renders owner metadata without exposing emails or raw ownership IDs', () => {
         mocks.asset = ownedAsset();
-        const { container } = renderPage('view');
+        renderPage('view');
 
         expect(screen.getByText('Business Owner', { exact: true })).toBeInTheDocument();
         expect(screen.getByText('ICT Owner', { exact: true })).toBeInTheDocument();
@@ -421,7 +428,7 @@ describe('AssetDetailPage ownership resolution', () => {
     it('uses false capability despite protected-looking Asset derivation for archive', async () => {
         const user = userEvent.setup();
         const asset = ownedAsset();
-        mocks.asset = { ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false }, derived: { cif: 'yes', resulting_criticality: 'critical', inputs: { missing_for_completeness: [] }, cif_process_names: [], linked_asset_names: [], vendor_names: [], ict_service_codes: [], contract_references: [] } } as Asset;
+        mocks.asset = { ...asset, capabilities: { ...asset.capabilities, protected_change_requires_approval: false }, derived: assetDerivedFixture({ cif: 'yes', resulting_criticality: 'critical' }) };
         renderPage('view');
         await user.click(screen.getByTestId('asset-detail-archive'));
         const dialog = screen.getByRole('alertdialog');

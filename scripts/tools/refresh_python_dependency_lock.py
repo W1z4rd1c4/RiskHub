@@ -81,7 +81,41 @@ def _entrypoint_content(*, lock_content: str, input_content: str) -> str:
     )
 
 
-def generate_lock() -> str:
+def _retained_constraints(upgrade_packages: list[str]) -> str:
+    """Hold every existing pin outside an explicitly reviewed migration batch."""
+    selected = {_canonical_name(name) for name in upgrade_packages}
+    pinned: dict[str, str] = {}
+    for raw_line in DEV_LOCK.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        match = PIN_RE.fullmatch(line)
+        if match is None or "*" in match.group(2):
+            raise ValueError(f"existing lock contains a non-exact index pin: {line}")
+        name = _canonical_name(match.group(1))
+        if name in pinned:
+            raise ValueError(f"existing lock contains duplicate package: {name}")
+        pinned[name] = line
+    unknown = selected - pinned.keys()
+    if unknown:
+        raise ValueError(f"upgrade packages absent from existing lock: {', '.join(sorted(unknown))}")
+    return "".join(f"{pin}\n" for name, pin in pinned.items() if name not in selected)
+
+
+def _validate_retained_pins(retained: str, resolved: str) -> None:
+    versions = {}
+    for line in resolved.splitlines():
+        match = PIN_RE.fullmatch(line)
+        if match:
+            versions[_canonical_name(match.group(1))] = match.group(2)
+    for line in retained.splitlines():
+        match = PIN_RE.fullmatch(line)
+        assert match is not None
+        if versions.get(_canonical_name(match.group(1))) != match.group(2):
+            raise ValueError(f"bounded refresh changed or removed unselected pin: {line}")
+
+
+def generate_lock(*, upgrade_packages: list[str] | None = None) -> str:
     versions = _toolchain_versions()
     expected_python = versions.get("python")
     if expected_python != "3.13":
@@ -92,6 +126,7 @@ def generate_lock() -> str:
             f"got {sys.version_info.major}.{sys.version_info.minor}"
         )
 
+    retained_content = _retained_constraints(upgrade_packages) if upgrade_packages else None
     with tempfile.TemporaryDirectory(prefix="riskhub-python-lock-") as temp_dir:
         venv_dir = Path(temp_dir) / "venv"
         _run([sys.executable, "-m", "venv", str(venv_dir)])
@@ -106,17 +141,15 @@ def generate_lock() -> str:
                 f"pip=={PIP_VERSION}",
             ]
         )
-        _run(
-            [
-                str(venv_python),
-                "-m",
-                "pip",
-                "install",
-                "-r",
-                str(INPUT),
-            ],
-            cwd=BACKEND_ROOT,
-        )
+        install_command = [str(venv_python), "-m", "pip", "install", "-r", str(INPUT)]
+        if retained_content is not None:
+            retained = Path(temp_dir) / "retained-constraints.txt"
+            retained.write_text(retained_content, encoding="utf-8", newline="\n")
+            # Constraints alone do not install dependencies that became
+            # unreachable after an upgrade. Preserve their presence as well.
+            install_command.extend(["-c", str(retained), "-r", str(retained)])
+        _run(install_command, cwd=BACKEND_ROOT)
+        _run([str(venv_python), "-m", "pip", "check"], cwd=BACKEND_ROOT)
         freeze = subprocess.run(
             [str(venv_python), "-m", "pip", "freeze", "--all"],
             cwd=BACKEND_ROOT,
@@ -124,12 +157,15 @@ def generate_lock() -> str:
             capture_output=True,
             text=True,
         ).stdout
-    return _normalize_freeze(freeze)
+    lock_content = _normalize_freeze(freeze)
+    if retained_content is not None:
+        _validate_retained_pins(retained_content, lock_content)
+    return lock_content
 
 
-def refresh(*, check: bool) -> int:
+def refresh(*, check: bool, upgrade_packages: list[str] | None = None) -> int:
     input_content = INPUT.read_text(encoding="utf-8")
-    lock_content = generate_lock()
+    lock_content = generate_lock(upgrade_packages=upgrade_packages)
     expected_files = {
         DEV_LOCK: lock_content,
         AUDIT_LOCK: lock_content,
@@ -145,7 +181,7 @@ def refresh(*, check: bool) -> int:
         if current != expected:
             changed.append(path)
             if not check:
-                path.write_text(expected, encoding="utf-8")
+                path.write_text(expected, encoding="utf-8", newline="\n")
 
     if check and changed:
         for path in changed:
@@ -166,12 +202,22 @@ def main() -> int:
         description="Regenerate RiskHub's exact Python 3.13 development/audit lock."
     )
     parser.add_argument(
+        "--upgrade-package",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help=(
+            "allow this existing locked package to change; repeat for each reviewed "
+            "direct or transitive dependency, retaining every other exact pin"
+        ),
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="resolve in a temporary environment and fail instead of writing stale files",
     )
     args = parser.parse_args()
-    return refresh(check=args.check)
+    return refresh(check=args.check, upgrade_packages=args.upgrade_package)
 
 
 if __name__ == "__main__":

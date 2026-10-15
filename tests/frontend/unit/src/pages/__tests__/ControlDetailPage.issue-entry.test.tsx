@@ -1,3 +1,6 @@
+import { controlFixture } from './pageFixtures';
+import type * as MockcontrolApiModule from '@/services/controlApi';
+import type * as Actualreactrouterdom from 'react-router-dom';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,13 +10,13 @@ import { renderWithQueryClient as render } from '@test/render';
 import { createTestQueryClient } from '@test/queryClient';
 
 const mockNavigate = vi.fn();
-const mockGetControl = vi.fn();
-const mockGetLinkedRisks = vi.fn();
-const mockDeleteControl = vi.fn();
+const mockGetControl = vi.fn<typeof MockcontrolApiModule.controlApi.getControl>();
+const mockGetLinkedRisks = vi.fn<typeof MockcontrolApiModule.controlApi.getLinkedRisks>();
+const mockDeleteControl = vi.fn<typeof MockcontrolApiModule.controlApi.deleteControl>();
 let canIssueWrite = true;
 
 vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = await vi.importActual<typeof Actualreactrouterdom>('react-router-dom');
     return {
         ...actual,
         useParams: () => ({ id: '13' }),
@@ -31,9 +34,9 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/services/controlApi', () => ({
     controlApi: {
-        getControl: (...args: unknown[]) => mockGetControl(...args),
-        getLinkedRisks: (...args: unknown[]) => mockGetLinkedRisks(...args),
-        deleteControl: (...args: unknown[]) => mockDeleteControl(...args),
+        getControl: (...args: Parameters<typeof mockGetControl>) => mockGetControl(...args),
+        getLinkedRisks: (...args: Parameters<typeof mockGetLinkedRisks>) => mockGetLinkedRisks(...args),
+        deleteControl: (...args: Parameters<typeof mockDeleteControl>) => mockDeleteControl(...args),
     },
 }));
 
@@ -73,17 +76,17 @@ describe('ControlDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
-        mockGetControl.mockImplementation(async () => ({
+        mockGetControl.mockImplementation(() => Promise.resolve((controlFixture({
             id: 13,
             name: 'Quarterly Access Review',
             description: 'Ensure privileged access is reviewed.',
             status: 'active',
             risk_level: 3,
             frequency: 'monthly',
-            control_form: 'preventive',
+            control_form: 'manual',
             control_owner_id: 2,
-            control_owner: { name: 'Anna Kowalski', email: 'anna@example.com' },
-            department: { name: 'Risk Management' },
+            control_owner: { id: 2, name: 'Anna Kowalski', email: 'anna@example.com' },
+            department: { id: 1, name: 'Risk Management', code: 'RISK' },
             process_owner_position: 'Chief Risk Officer',
             methodology_reference: 'SOC2-AC-01',
             data_source: 'IAM export',
@@ -91,7 +94,7 @@ describe('ControlDetailPage issue entry', () => {
                 can_create_issue: canIssueWrite,
                 can_archive_immediately: true,
             },
-        }));
+        }))));
         mockGetLinkedRisks.mockResolvedValue([]);
         mockDeleteControl.mockResolvedValue(undefined);
     });
@@ -123,7 +126,7 @@ describe('ControlDetailPage issue entry', () => {
     });
 
     it('renders archived-normalized controls as archived in the detail header', async () => {
-        mockGetControl.mockResolvedValueOnce({
+        mockGetControl.mockResolvedValueOnce(controlFixture({
             id: 13,
             name: 'Legacy Access Review',
             description: 'Control normalized to active lifecycle status.',
@@ -138,7 +141,7 @@ describe('ControlDetailPage issue entry', () => {
                 can_create_issue: true,
                 can_restore: true,
             },
-        });
+        }));
 
         render(
             <MemoryRouter initialEntries={['/controls/13']}>

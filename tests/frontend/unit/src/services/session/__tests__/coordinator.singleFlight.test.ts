@@ -53,11 +53,7 @@ beforeEach(() => {
 
 describe('session coordinator single-flight', () => {
     it('two concurrent calls share one in-flight refresh', async () => {
-        const refreshSpy = vi.spyOn(authApi, 'refresh').mockResolvedValue({
-            access_token: 'tok',
-            token_type: 'bearer',
-            user: { id: 1 } as any,
-        } as any);
+        const refreshSpy = vi.spyOn(authApi, 'refresh').mockResolvedValue(session(1, 'tok'));
 
         const [a, b] = await Promise.all([
             trySilentSessionRefresh(),

@@ -1,3 +1,7 @@
+import type * as MockactivityLogApiModule from '@/services/activityLogApi';
+import type * as MocklookupApiModule from '@/services/lookupApi';
+import type * as MockriskApiModule from '@/services/riskApi';
+import type * as Actualformatters from '@/i18n/formatters';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -9,12 +13,12 @@ import {
 } from '@/components/activity-log/activityLogPresentation';
 import { ApiClientError } from '@/services/apiClient';
 
-const mockList = vi.fn();
-const mockGetActions = vi.fn();
-const mockGetActors = vi.fn();
-const mockGetUsers = vi.fn();
-const mockGetDepartments = vi.fn();
-const mockGetRisks = vi.fn();
+const mockList = vi.fn<typeof MockactivityLogApiModule.activityLogApi.list>();
+const mockGetActions = vi.fn<() => ReturnType<typeof MockactivityLogApiModule.activityLogApi.getActions>>();
+const mockGetActors = vi.fn<() => ReturnType<typeof MockactivityLogApiModule.activityLogApi.getActors>>();
+const mockGetUsers = vi.fn<() => ReturnType<typeof MocklookupApiModule.lookupApi.getUsers>>();
+const mockGetDepartments = vi.fn<() => ReturnType<typeof MocklookupApiModule.lookupApi.getDepartments>>();
+const mockGetRisks = vi.fn<typeof MockriskApiModule.riskApi.getRisks>();
 const mockUseDebouncedValue = vi.fn((value: unknown) => value);
 const mockUseAuthz = vi.fn(() => ({ canReadControls: true }));
 
@@ -27,7 +31,7 @@ vi.mock('@/hooks/useDebouncedValue', () => ({
 }));
 
 vi.mock('@/i18n/hooks', async () => {
-    const formatters = await vi.importActual<typeof import('@/i18n/formatters')>('@/i18n/formatters');
+    const formatters = await vi.importActual<typeof Actualformatters>('@/i18n/formatters');
     type FormatDate = Date | string | null | undefined;
     type FormatNumber = number | null | undefined;
     const format = {
@@ -53,7 +57,7 @@ vi.mock('@/i18n/hooks', async () => {
 
 vi.mock('@/services/activityLogApi', () => ({
     activityLogApi: {
-        list: (...args: unknown[]) => mockList(...args),
+        list: (...args: Parameters<typeof mockList>) => mockList(...args),
         getActions: () => mockGetActions(),
         getActors: () => mockGetActors(),
     },
@@ -68,7 +72,7 @@ vi.mock('@/services/lookupApi', () => ({
 
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
-        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+        getRisks: (...args: Parameters<typeof mockGetRisks>) => mockGetRisks(...args),
     },
 }));
 
@@ -330,7 +334,7 @@ describe('ActivityLogPage capability denial state', () => {
         mockUseDebouncedValue.mockImplementation((value: unknown) => (
             value === 'policy' ? settledSearch : value
         ));
-        mockList.mockImplementation((filters: { search?: string }) => Promise.resolve({
+        mockList.mockImplementation((filters = {}) => Promise.resolve({
             items: [{
                 ...activityEntry,
                 description: filters.search === 'policy' ? 'Filtered activity' : 'Prior activity',
@@ -432,7 +436,7 @@ describe('ActivityLogPage capability denial state', () => {
         expect(riskRetryButton).toHaveFocus();
         expect(riskRetryButton).toHaveAttribute('aria-busy', 'true');
 
-        await act(async () => {
+        await act(() => {
             releaseKriRetry({
                 items: [{ ...activityEntry, description: 'Late KRI activity' }],
                 total: 1,
@@ -440,6 +444,7 @@ describe('ActivityLogPage capability denial state', () => {
                 limit: 50,
                 capabilities: null,
             });
+            return Promise.resolve();
         });
 
         expect(riskRetryButton).toHaveAttribute('aria-busy', 'true');
@@ -447,8 +452,9 @@ describe('ActivityLogPage capability denial state', () => {
         expect(mockList).toHaveBeenCalledTimes(4);
         expect(screen.queryByText('Late KRI activity')).not.toBeInTheDocument();
 
-        await act(async () => {
+        await act(() => {
             releaseRiskRetry({ items: [], total: 0, skip: 0, limit: 50, capabilities: null });
+            return Promise.resolve();
         });
 
         await screen.findByText('empty.no_activity_logs');
@@ -490,8 +496,9 @@ describe('ActivityLogPage capability denial state', () => {
         fireEvent.click(retryButton);
         expect(mockList).toHaveBeenCalledTimes(2);
 
-        await act(async () => {
+        await act(() => {
             releaseRetry({ items: [], total: 0, skip: 0, limit: 50, capabilities: null });
+            return Promise.resolve();
         });
 
         await screen.findByText('empty.no_activity_logs');

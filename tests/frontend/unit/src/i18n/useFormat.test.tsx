@@ -154,7 +154,7 @@ describe('translateUiMessage()', () => {
 
     it('works with the raw i18next t and in Czech', async () => {
         await switchLanguage('cs');
-        const rawT = (key: string, options?: Record<string, unknown>) => i18n.t(key, options);
+        const rawT = (key: string, options?: Record<string, unknown>) => i18n.t(key, { defaultValue: key, ...options });
 
         expect(translateUiMessage(rawT, 'errorKeys.network')).toBe(i18n.t('network', { ns: 'errorKeys' }));
         expect(translateUiMessage(rawT, 'risks:messages.restore_failed')).toBe('Riziko se nepodařilo obnovit.');

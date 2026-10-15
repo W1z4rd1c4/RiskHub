@@ -1,3 +1,6 @@
+import type * as Actualhooks from '@/i18n/hooks';
+import { approvalFixture } from './pageFixtures';
+import type * as MockapprovalsApiModule from '@/services/approvalsApi';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -5,11 +8,13 @@ import * as axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Threat } from '@/types/threat';
+import { applyBootstrappedSession } from '@/services/session';
+import { mockAuthUser } from '@test/mocks/handlers';
 
 const mocks = vi.hoisted(() => ({
     canEdit: true,
     canViewGovernance: true,
-    cancelApproval: vi.fn(),
+    cancelApproval: vi.fn<typeof MockapprovalsApiModule.approvalsApi.cancel>(),
     fetchThreat: vi.fn(),
     threat: null as Threat | null,
 }));
@@ -20,7 +25,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 vi.mock('@/i18n/hooks', async (importOriginal) => ({
     // `useFormat` stays real (en in tests); only `useTranslation` is stubbed.
-    ...(await importOriginal<typeof import('@/i18n/hooks')>()),
+    ...(await importOriginal<typeof Actualhooks>()),
     useTranslation: () => ({
         t: (key: string, options?: { targetName?: string }) => (
             key === 'pending_change_cancellation.message' ? options?.targetName ?? key : key
@@ -46,7 +51,7 @@ vi.mock('@/pages/threats/useThreatDetailState', () => ({
 
 vi.mock('@/services/approvalsApi', () => ({
     approvalsApi: {
-        cancel: (...args: unknown[]) => mocks.cancelApproval(...args),
+        cancel: (...args: Parameters<typeof mocks.cancelApproval>) => mocks.cancelApproval(...args),
     },
 }));
 
@@ -129,7 +134,7 @@ function governedPendingThreat(): Threat {
                 can_cancel: true,
             },
         },
-    } as Threat;
+    };
 }
 
 function LocationProbe() {
@@ -149,10 +154,11 @@ function renderPage(mode: 'view' | 'edit') {
 
 describe('ThreatDetailPage orphan stewardship resolution', () => {
     beforeEach(() => {
+        applyBootstrappedSession({ token: 'threat-detail-test', user: mockAuthUser });
         vi.clearAllMocks();
         mocks.canEdit = true;
         mocks.canViewGovernance = true;
-        mocks.cancelApproval.mockResolvedValue({ status: 'cancelled' });
+        mocks.cancelApproval.mockResolvedValue(approvalFixture({ status: 'cancelled' }));
         mocks.fetchThreat.mockResolvedValue(undefined);
         mocks.threat = orphanedThreat();
     });
