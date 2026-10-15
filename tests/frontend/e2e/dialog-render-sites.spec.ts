@@ -281,6 +281,31 @@ const ADMIN = DEMO_ACCOUNTS.ADMIN;
 const list = (route: string) => (page: Page) => gotoOwnerRoute(page, route);
 const detail = (route: string, pattern: RegExp) => (page: Page) => gotoFirstDetail(page, route, pattern);
 
+const protectedDetailReady = (entity: string, targetName: string, offersReason: boolean) => async (_page: Page, surface: Locator) => {
+  await expect(surface.getByRole('heading', { name: `Archive ${entity}?`, exact: true })).toBeVisible();
+  await expect(surface).toContainText(targetName);
+  if (offersReason) {
+    await expect(surface.getByRole('textbox')).toHaveAccessibleName(/request reason/i);
+  } else {
+    await expect(surface.getByRole('textbox')).toHaveCount(0);
+  }
+};
+
+const protectedDetailDrivers = {
+  asset: liveDriver(RM, detail('/assets', /\/assets\/\d+$/),
+    (page) => page.getByTestId('asset-detail-archive'),
+    protectedDetailReady('Asset', E2E_ASSETS.CORE_CLAIMS_SYSTEM.name, true)),
+  process: liveDriver(RM, detail('/processes', /\/processes\/\d+$/),
+    (page) => page.getByTestId('process-detail-archive'),
+    protectedDetailReady('Process', E2E_PROCESSES.CLAIMS_INTAKE.l1_process, true)),
+  threat: liveDriver(RM, detail('/threats', /\/threats\/\d+$/),
+    (page) => page.getByTestId('threat-detail-archive'),
+    protectedDetailReady('Threat', E2E_THREATS.RANSOMWARE.name, false)),
+  vendor: liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/),
+    (page) => page.getByRole('button', { name: /^archive$/i }).first(),
+    protectedDetailReady('Vendor', E2E_VENDORS.ACTIVE_PRIMARY.name, true)),
+};
+
 const drivers: Record<string, RenderSiteDriver> = Object.fromEntries(
   [...DIALOG_CONTRACT_PARENT_SITE_IDS].map((siteId) => [siteId, parentDriver(siteId)]),
 );
@@ -311,11 +336,7 @@ Object.assign(drivers, {
   },
   (page) => page.getByRole('button', { name: /cancel request/i }).first(),
   ),
-  'confirm.asset-detail': liveDriver(
-    RM,
-    detail('/assets', /\/assets\/\d+$/),
-    (page) => page.getByTestId('asset-detail-archive'),
-  ),
+  'confirm.protected-detail': protectedDetailDrivers.asset,
   'execution-log.control-detail': liveDriver(RM, async (page) => {
     await detail('/controls', /\/controls\/\d+$/)(page);
     await page.getByRole('tab', { name: /execution history/i }).click();
@@ -343,18 +364,15 @@ Object.assign(drivers, {
   'kri-history.kri-detail': liveDriver(RM, arrangeKriWithHistory, (page) => page.getByRole('button', { name: /request correction/i }).first()),
   'confirm.kri-detail': liveDriver(RM, detail('/kris', /\/kris\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.kris-page': liveDriver(RM, list('/kris'), (page) => page.getByTestId('kris-export-button')),
-  'confirm.process-detail': liveDriver(RM, detail('/processes', /\/processes\/\d+$/), (page) => page.getByTestId('process-detail-archive')),
   'confirm.risk-detail': liveDriver(RM, detail('/risks', /\/risks\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.risks-page': liveDriver(RM, list('/risks'), (page) => page.getByTestId('risks-export-button')),
   'export.processes-page': liveDriver(RM, list('/processes'), (page) => page.getByTestId('processes-export-button')),
-  'confirm.threat-detail': liveDriver(RM, detail('/threats', /\/threats\/\d+$/), (page) => page.getByTestId('threat-detail-archive')),
   'export.threats-page': liveDriver(RM, list('/threats'), (page) => page.getByTestId('threats-export-button')),
   'access-edit.users-page': liveDriver(CRO, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /edit access/i }).first()),
   'confirm.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /deactivate|reactivate|activate/i }).first(), undefined, adminSectionHandoffFailures),
   'ad-picker.users-page': liveDriver(ADMIN, (page) => gotoOwnerRoute(page, '/users'), (page) => page.getByRole('button', { name: /add from ad/i }).first(), undefined, adminSectionHandoffFailures),
   'break-glass.users-page': liveDriver(ADMIN, arrangeUserLifecycle, (page) => page.getByRole('button', { name: /break.?glass/i }).first(), undefined, adminSectionHandoffFailures),
   'issue.vendor-detail': liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/), (page) => page.getByRole('button', { name: /new issue/i }).first()),
-  'confirm.vendor-detail': liveDriver(RM, detail('/vendors', /\/vendors\/\d+$/), (page) => page.getByRole('button', { name: /^archive$/i }).first()),
   'export.vendors-page': liveDriver(RM, list('/vendors'), (page) => page.getByTestId('vendors-export-button')),
   'audit-details.audit-logs': liveDriver(ADMIN, async (page) => {
     await gotoOwnerRoute(page, '/admin');
@@ -392,9 +410,13 @@ test.describe('validated application dialog render sites', () => {
     expect(Object.keys(drivers).sort()).toEqual(contract.applicationRenderSites.map((site) => site.id).sort());
   });
 
-  for (const site of contract.applicationRenderSites) {
-    test(`[render-site:${site.id}] ${site.component} via ${site.file}`, async ({ page }) => {
-      const driver = drivers[site.id];
+  const driverCases = contract.applicationRenderSites.flatMap((site) => (
+    site.id === 'confirm.protected-detail'
+      ? Object.entries(protectedDetailDrivers).map(([adapter, driver]) => ({ site, adapter, driver }))
+      : [{ site, adapter: '', driver: drivers[site.id] }]
+  ));
+  for (const { site, adapter, driver } of driverCases) {
+    test(`[render-site:${site.id}] ${site.component} via ${site.file}${adapter ? ` [${adapter} adapter]` : ''}`, async ({ page }) => {
       expect(driver, `source-linked driver registered for ${site.id}`).toBeTruthy();
       const unexpectedNetwork: string[] = [];
       const unexpectedOutput: string[] = [];
