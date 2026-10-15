@@ -10,13 +10,13 @@ pytest-postgresql==9.1.1
 syrupy==6.1.1
 aiosqlite>=0.20.0
 fakeredis>=2.31.0
-sqlalchemy-utils>=0.41,<0.42
+sqlalchemy-utils>=0.43.0,<0.44
 testcontainers[redis]>=4.8.0
 
 # Security/tooling
 # Reviewed Batch 1 tooling baseline (#224); runtime upgrades remain separate.
 filelock==4.1.1
-ruff==0.16.10
+ruff==0.17.0
 bandit>=1.7.8
 mypy==2.4.0
 pre-commit>=3.7.0
