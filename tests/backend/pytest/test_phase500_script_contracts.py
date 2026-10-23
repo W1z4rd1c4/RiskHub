@@ -317,7 +317,7 @@ def test_backend_dockerfile_keeps_builder_pip_out_of_runtime_images() -> None:
         if line and not line.startswith("#")
     ]
     assert len(pip_pins) == 1
-    assert re.fullmatch(r"pip==26\.2\.1 --hash=sha256:[0-9a-f]{64}", pip_pins[0])
+    assert re.fullmatch(r"pip==26\.2\.2 --hash=sha256:[0-9a-f]{64}", pip_pins[0])
     for builder_stage, lane in (("builder-runtime", "runtime"), ("builder-dbtasks", "dbtasks")):
         builder_body = stage_bodies[builder_stage]
         bootstrap_copy = f"COPY {lock_path}/requirements-pip.lock ./requirements-pip.lock"

@@ -74,6 +74,12 @@ implementation with a deferred real-router navigation and passes after removing
 the speculative observed-URL writes. Browser assertions and retry settings were
 retained.
 
+Final backend coverage synchronized the container contract's expected pip pin
+with 26.2.2 and exposed a date-sensitive archive-metric fixture: one live KRI
+was accidentally never reported. Both live fixture rows now report for the
+latest closed quarter, with fixed UTC dates covering the reporting-grace
+boundary. The archive and overdue policies are unchanged.
+
 Verification includes fresh pip/npm audits, production builds and type checks,
 security policy and gate mutation tests, authentication and outbound regression
 tests, and native production lock validation. Both native lock generations were
