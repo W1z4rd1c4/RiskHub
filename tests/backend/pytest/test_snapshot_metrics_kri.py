@@ -7,7 +7,7 @@ baked into every historical quarter.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,8 @@ async def _seed_kri_archive_matrix(db: AsyncSession, *, department_id: int, owne
 
     Decoys: a breaching archived KRI on the live risk, and a breaching live KRI
     on an archived risk. Also one in-range live KRI on the live risk so health
-    has a denominator > 1.
+    has a denominator > 1. Both live KRIs have reported for the latest closed
+    quarter; never-reported live rows would correctly become overdue after grace.
     """
     frequency = KRIFrequency.quarterly.value
     today = clock.today()
@@ -56,7 +57,7 @@ async def _seed_kri_archive_matrix(db: AsyncSession, *, department_id: int, owne
         db,
         risk_id=live_risk.id,
         metric_name="Live within",
-        overrides={"current_value": 50.0},
+        overrides={"current_value": 50.0, "last_period_end": latest_period_end},
     )
     await create_test_kri(
         db,
@@ -100,13 +101,22 @@ async def test_calculate_kri_health_counts_only_live_kris_of_live_risks(
     assert await calculate_kri_health(db_session, [test_department.id]) == 50
 
 
+@pytest.mark.parametrize(
+    "as_of",
+    [
+        datetime(2026, 10, 15, 12, tzinfo=UTC),  # Last day of Q3's reporting grace.
+        datetime(2026, 10, 16, tzinfo=UTC),  # First instant after grace expires.
+        datetime(2026, 10, 23, 12, tzinfo=UTC),  # Ordinary post-grace day.
+    ],
+)
 @pytest.mark.asyncio
 async def test_count_overdue_kris_excludes_archived_kris_and_archived_risks(
-    db_session: AsyncSession, test_department, test_user
+    db_session: AsyncSession, test_department, test_user, monkeypatch: pytest.MonkeyPatch, as_of: datetime
 ):
+    monkeypatch.setattr(clock, "utc_now", lambda: as_of)
     await _seed_kri_archive_matrix(db_session, department_id=test_department.id, owner_id=test_user.id)
 
-    # The live KRI reports for the latest closed quarter, while both archived
+    # Both live KRIs report for the latest closed quarter, while both archived
     # decoys use a period older than the current overdue anchor. A non-zero result
     # therefore means an archived KRI or archived parent Risk leaked into metrics.
     assert await count_overdue_kris(db_session, None) == 0

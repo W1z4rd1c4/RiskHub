@@ -315,7 +315,10 @@ def _validate_pre_scan_steps(
                 "image-ref": "riskhub-backend:scan",
                 "format": "sarif",
                 "output": "trivy-backend.sarif",
+                "scanners": "vuln",
                 "severity": "CRITICAL,HIGH",
+                "limit-severities-for-sarif": True,
+                "exit-code": "1",
             },
         },
     ]
@@ -653,8 +656,10 @@ def validate() -> list[str]:
         errors,
         "frontend Trivy scan step",
         scan,
-        {"name", "id", "continue-on-error", "uses", "with"},
+        {"name", "if", "id", "continue-on-error", "uses", "with"},
     )
+    if scan.get("if") != "always()":
+        errors.append("frontend Trivy scan must run even after backend findings")
     if scan.get("id") != "trivy_frontend":
         errors.append("frontend Trivy scan must expose id=trivy_frontend")
     if scan.get("continue-on-error") is not True:

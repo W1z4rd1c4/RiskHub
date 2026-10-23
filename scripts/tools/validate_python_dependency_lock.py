@@ -173,10 +173,10 @@ def validate() -> list[str]:
         errors.append("combined resolver lock must pin pip-audit==2.10.1")
     pip_version = locked_versions.get("pip")
     if pip_version is None:
-        errors.append("unsafe pip lock: pip must be pinned at or above 26.1.2")
-    elif Version(pip_version) < Version("26.1.2"):
+        errors.append("unsafe pip lock: pip must be pinned at or above 26.2.2")
+    elif Version(pip_version) < Version("26.2.2"):
         errors.append(
-            f"unsafe pip lock: pip=={pip_version} is below fixed version 26.1.2"
+            f"unsafe pip lock: pip=={pip_version} is below fixed version 26.2.2"
         )
     pytest_version = locked_versions.get("pytest")
     if pytest_version is not None and Version(pytest_version) < Version("9.0.3"):
@@ -240,8 +240,8 @@ def validate() -> list[str]:
 
     if not REFRESH_SCRIPT.is_file():
         errors.append("missing one-command Python dependency lock refresher")
-    elif 'PIP_VERSION = "26.2.1"' not in REFRESH_SCRIPT.read_text(encoding="utf-8"):
-        errors.append("dependency lock refresher must install pip==26.2.1")
+    elif 'PIP_VERSION = "26.2.2"' not in REFRESH_SCRIPT.read_text(encoding="utf-8"):
+        errors.append("dependency lock refresher must install pip==26.2.2")
     if not PERMISSION_HELPER.is_file():
         errors.append("missing executable GitHub automation permission preflight")
     else:

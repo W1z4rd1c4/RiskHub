@@ -8,8 +8,12 @@ cutover come from the successful hosted native run recorded below. **T4 delivery
 remains pending independent review and final activated-head CI**, including a
 fresh native comparison, startup and both production image security checks.
 The workflow continues to generate and verify candidates without publishing them.
-The platform-independent pip 26.2.1 resolver wheel remains pinned to its reviewed
+The platform-independent pip 26.2.2 resolver wheel remains pinned to its reviewed
 official-PyPI hash, and CI verifies its downloaded bytes before executing it.
+The 2026-10-23 security refresh moves this bootstrap to pip 26.2.2 because its
+vendored certifi store also needs the compromised emSign ECC Root CA - G3 removed.
+The generator checks the actual vendored CA subjects before resolution and in
+every clean install; updating application certifi alone is insufficient.
 
 This work deliberately leaves the human-owned requirements, development lock,
 audit mirror, development refresh generator, and open draft #291 unchanged.
@@ -50,7 +54,7 @@ guarded production Dockerfile with its freshly rendered candidate.
 ## Canonical target and commands
 
 Generation and install verification require native CPython **3.13.16**, **Alpine
-3.24**, **musl**, **linux/amd64**, and pip **26.2.1** in the digest-pinned Python
+3.24**, **musl**, **linux/amd64**, and pip **26.2.2** in the digest-pinned Python
 image already used by `backend/Dockerfile`. The current release workflows build
 on amd64 Ubuntu runners without a multi-platform matrix. This lock makes no
 claim about arm64, Windows, macOS, or the separate glibc Linux release bundle.

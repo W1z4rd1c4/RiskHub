@@ -19,9 +19,10 @@ INPUT = BACKEND_ROOT / "requirements-dev.in"
 DEV_LOCK = BACKEND_ROOT / "requirements-dev-constraints.txt"
 AUDIT_LOCK = BACKEND_ROOT / "requirements-prod-readiness-audit-constraints.txt"
 ENTRYPOINT = BACKEND_ROOT / "requirements-dev.txt"
+BOOTSTRAP = BACKEND_ROOT / "requirements-lock-bootstrap.txt"
 
 PYTHON_MAJOR_MINOR = (3, 13)
-PIP_VERSION = "26.2.1"
+PIP_VERSION = "26.2.2"
 PIN_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.-]*)==([^\s;]+)$")
 LOCK_HEADER = (
     "# Exact Python 3.13 resolver output for backend development/test and the\n"
@@ -137,8 +138,11 @@ def generate_lock(*, upgrade_packages: list[str] | None = None) -> str:
                 "-m",
                 "pip",
                 "install",
-                "--upgrade",
-                f"pip=={PIP_VERSION}",
+                "--force-reinstall",
+                "--require-hashes",
+                "--only-binary=:all:",
+                "-r",
+                str(BOOTSTRAP),
             ]
         )
         install_command = [str(venv_python), "-m", "pip", "install", "-r", str(INPUT)]

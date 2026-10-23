@@ -5,6 +5,7 @@ import json
 import time
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -74,6 +75,42 @@ async def test_sso_fetch_json_uses_outbound_guard_for_discovery_urls():
 
     with pytest.raises(SsoProviderUnavailableError, match="Private/local outbound destination is blocked"):
         await verifier._fetch_json("http://127.0.0.1:8080/.well-known/openid-configuration")
+
+
+@pytest.mark.parametrize("location", ["https://other.example/metadata", "https://login.example:invalid/metadata"])
+@pytest.mark.asyncio
+async def test_sso_fetch_json_translates_redirect_rejection_to_provider_error(
+    monkeypatch: pytest.MonkeyPatch, location: str
+) -> None:
+    import ipaddress
+
+    url = "https://login.example/metadata"
+    settings = Settings(
+        secret_key="test-secret-key-32-chars-minimum-value",
+        auth_mode="microsoft_sso",
+        entra_tenant_id="test-tenant",
+        entra_client_id="test-client",
+        entra_oidc_discovery_url=url,
+        outbound_block_redirects=False,
+    )
+
+    async def resolve(host: str) -> set[ipaddress.IPv4Address]:
+        return {ipaddress.IPv4Address("8.8.8.8")}
+
+    monkeypatch.setattr("app.core.outbound_guard.resolve_outbound_ips", resolve)
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(302, headers={"location": location})
+
+    monkeypatch.setattr(
+        "app.services.sso_token_service.build_outbound_client",
+        lambda **kwargs: httpx.AsyncClient(transport=httpx.MockTransport(respond)),
+    )
+    with pytest.raises(SsoProviderUnavailableError):
+        await EntraTokenVerifier(settings=settings)._fetch_json(url)
+    assert len(requests) == 1
 
 
 @pytest.mark.asyncio

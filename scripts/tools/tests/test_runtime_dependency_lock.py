@@ -26,6 +26,25 @@ def package(version="1", deps=(), extras=()):
 
 
 class RuntimeLockTests(unittest.TestCase):
+    def test_resolver_trust_guard_parses_vendored_certificates(self):
+        # Public roots from pip 26.2.1's vendored bundle exercise the real SSL
+        # parser. A patched application certifi cannot repair this separate store.
+        fixtures = Path(__file__).parent / "fixtures"
+        for root, compromised in [("pip-compromised-emsign-g3.pem", True), ("pip-unaffected-root.pem", False)]:
+            with self.subTest(root=root), tempfile.TemporaryDirectory() as tmp:
+                directory = Path(tmp)
+                vendor = directory / "pip" / "_vendor" / "certifi"
+                vendor.mkdir(parents=True)
+                for package_dir in [vendor, vendor.parent, vendor.parent.parent]:
+                    (package_dir / "__init__.py").touch()
+                (vendor / "__init__.py").write_text(f"def where(): return {str(fixtures / root)!r}\n")
+                with patch.dict(os.environ, {"PYTHONPATH": str(directory)}):
+                    if compromised:
+                        with self.assertRaises(subprocess.CalledProcessError):
+                            lock.verify_pip_trust_bundle(sys.executable)
+                    else:
+                        lock.verify_pip_trust_bundle(sys.executable)
+
     def test_real_repository_baseline_and_pinned_image(self):
         self.assertEqual(lock.baseline()["protobuf"], "6.33.6")
         self.assertEqual(lock.baseline()["bcrypt"], "4.1.3")

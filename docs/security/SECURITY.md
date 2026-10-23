@@ -26,8 +26,7 @@ pip install bandit
 bandit --ini .bandit -r app
 
 # Python Dependency Scan (pip-audit)
-pip install pip-audit
-pip-audit -r requirements.txt
+python ../scripts/security/ci_health.py run-python-audit --workdir .
 
 # Frontend Dependency Scan
 cd frontend
@@ -119,6 +118,21 @@ The security workflow (`.github/workflows/security.yml`) runs:
 | Redis Resilience Integration (non-blocking) | Nightly | Informational (`redis_integration`) |
 
 Backend CI jobs in security/lint/e2e workflows use Python `3.13` to align with the backend runtime baseline.
+
+The Python dependency gate audits both input manifests and the exact development,
+runtime, database-task and pip bootstrap locks. It attempts every audit and retains
+each JSON report even when another manifest has findings. The exact production
+locks are audited without installing their Alpine-specific wheels. Both backend
+and frontend Trivy scans block on HIGH/CRITICAL findings; frontend scanning and
+report uploads still run after backend findings.
+
+### Outbound redirects
+
+Outbound redirects are disabled by default. Enabling `OUTBOUND_BLOCK_REDIRECTS=false`
+permits same-origin redirects only: scheme, hostname and effective port must stay
+the same, and each hop is checked against the destination and DNS policy. A second
+allowlisted origin must never receive the first origin's bearer token, custom API
+key or client-default authentication.
 
 ### Viewing Results
 - GitHub Security tab shows SARIF results

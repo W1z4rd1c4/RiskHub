@@ -11,6 +11,7 @@ Historical and current security scan/pentest/remediation reports.
 
 ## Reports
 
+- [`security-review-2026-10-23.md`](./security-review-2026-10-23.md)
 - [`contract-drift-remediation-2026-02-21.md`](./contract-drift-remediation-2026-02-21.md)
 - [`deep-gap-round5-2026-02-21.md`](./deep-gap-round5-2026-02-21.md)
 - [`deep-pentest-round4-2026-02-21.md`](./deep-pentest-round4-2026-02-21.md)

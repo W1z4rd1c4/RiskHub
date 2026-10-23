@@ -94,7 +94,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements-dev.txt
-          pip install "pip-audit>=2.7.0"
 
       - name: Run Bandit (SAST, high severity gate)
         run: |
@@ -140,6 +139,10 @@ jobs:
           path: |
             backend/pip-audit-report.json
             backend/pip-audit-runtime-report.json
+            backend/pip-audit-dev-lock-report.json
+            backend/pip-audit-runtime-lock-report.json
+            backend/pip-audit-dbtasks-lock-report.json
+            backend/pip-audit-pip-lock-report.json
           retention-days: 30
 
   # Frontend Security Scans
@@ -274,9 +277,13 @@ jobs:
           image-ref: 'riskhub-backend:scan'
           format: 'sarif'
           output: 'trivy-backend.sarif'
+          scanners: 'vuln'
           severity: 'CRITICAL,HIGH'
+          limit-severities-for-sarif: true
+          exit-code: '1'
 
       - name: Run Trivy on Frontend
+        if: always()
         id: trivy_frontend
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

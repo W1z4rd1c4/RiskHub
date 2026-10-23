@@ -80,7 +80,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^5.1.1",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "autoprefixer": "^10.5.5",
     "eslint": "^9.39.4",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -95,7 +95,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.1",
     "vite": "^7.3.7",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "overrides": {
     "postcss-selector-parser": "7.1.6"

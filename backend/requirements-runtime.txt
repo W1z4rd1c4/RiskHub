@@ -2,10 +2,10 @@ fastapi==0.135.4
 starlette==1.6.0
 uvicorn[standard]==0.52.4
 prometheus-fastapi-instrumentator==6.1.0
-opentelemetry-sdk==1.44.0
+opentelemetry-sdk==1.45.1
 # Keep the existing protobuf major until its migration is reviewed (#224).
 protobuf>=6.33.6,<7
-opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.45.1
 sqlalchemy[asyncio]==2.0.52
 asyncpg==0.31.0
 pydantic==2.13.5
