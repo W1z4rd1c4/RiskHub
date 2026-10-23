@@ -22,6 +22,7 @@ claim about the number or closure state of private GitHub alerts.
 | Finding | Evidence | Remediation |
 | --- | --- | --- |
 | Compromised emSign CA roots in certifi | PYSEC-2026-4320 / GHSA-6q48-6c7w-9gw2; certifi 2026.7.22 in the exact development and production graphs | Upgrade to 2026.10.19 in regenerated exact locks; verify the affected root is absent. |
+| Compromised CA retained in pip's independent vendored bundle | Application certifi updates leave pip 26.2.1's vendored emSign G3 root intact | Upgrade the reviewed, hash-pinned resolver/bootstrap wheel to pip 26.2.2; verify its vendored roots before native generation and after every clean install. Use the same hash-enforced bootstrap in the development refresher. |
 | OpenTelemetry tracestate parser denial of service | CVE-2026-114603 / GHSA-xcq7-p3pf-p88h; opentelemetry-api 1.44.0 | Upgrade the coherent OpenTelemetry family to 1.45.1 / 0.66b1 and include its two new transport dependencies. |
 | Virtualenv shell command injection | CVE-2026-113726, CVE-2026-113725, CVE-2026-113722; virtualenv 21.14.2 | Upgrade exact development/audit locks to 21.14.13, beyond all three fixed versions. |
 | Vitest mocker advisories | GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp; mocker 4.1.11 | Upgrade Vitest, coverage-v8 and their aligned internal packages to 4.1.12. |
@@ -59,7 +60,11 @@ test so a reserved documentation IP could not make it pass before following a
 redirect; the test now exercises DNS revalidation on a same-origin hop.
 Round three retained the SSO provider-unavailable error contract for rejected
 and malformed redirects, including errors raised by HTTPX before the helper
-parses the redirect target.
+parses the redirect target. Final trust-store inspection found pip's independent
+copy of the compromised root. The final tooling update was independently
+reviewed and tested against real old/new pip bundles and public certificate
+fixtures. The production image's separate system SSL trust store was also
+checked and does not contain the compromised emSign G3 root.
 
 Verification includes fresh pip/npm audits, production builds and type checks,
 security policy and gate mutation tests, authentication and outbound regression
@@ -67,6 +72,9 @@ tests, and native production lock validation. Both native lock generations were
 byte-identical. Four clean wheel-only, hash-enforced installations passed
 dependency checks and exact inventory comparisons. No unrelated production
 dependency versions or same-version artifact hashes changed.
+
+The security workflow uses the exact pip-audit version from the canonical
+development lock instead of installing another floating scanner requirement.
 
 Local verification passed the full frontend suite (536 files, 4,241 tests),
 production build, application and test type checks, backend Ruff and mypy

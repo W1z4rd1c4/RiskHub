@@ -23,6 +23,8 @@ This refresh was generated twice on the exact pinned CPython 3.13.16 / Alpine
 production lanes passed two clean, wheel-only, hash-enforced installs, `pip check`
 and exact package inventory verification. The runtime graph contains 63 packages;
 DB tasks add only `psycopg2-binary` (64 packages). The separately hashed pip
-bootstrap remains unchanged. The generated Dockerfile matches the committed
-Dockerfile byte-for-byte. Hosted CI must repeat validation against the final
-commit before merge.
+bootstrap now uses pip 26.2.2, whose vendored certifi bundle also excludes the
+compromised emSign ECC Root CA - G3. The native generator checks this independent
+trust store before resolution and after every clean installation. The generated
+Dockerfile matches the committed Dockerfile byte-for-byte. Hosted CI must repeat
+validation against the final commit before merge.

@@ -30,7 +30,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "backend"
-PIP_VERSION = "26.2.1"
+PIP_VERSION = "26.2.2"
 LOCK_RELATIVE = "locks/cpython313-alpine324-x86_64"
 TARGET = {"python": "3.13.16", "alpine": "3.24", "machine": "x86_64", "libc": "musl"}
 INPUTS = {"runtime": "requirements-runtime.txt", "dbtasks": "requirements-db.txt"}
@@ -66,6 +66,24 @@ def assert_platform() -> None:
         raise ValueError("requires native CPython 3.13.16, Alpine 3.24, musl, linux/amd64; use CI")
     if importlib.metadata.version("pip") != PIP_VERSION:
         raise ValueError(f"requires resolver pip=={PIP_VERSION}")
+    verify_pip_trust_bundle(sys.executable)
+
+
+def verify_pip_trust_bundle(python: Path | str) -> None:
+    """Check the resolver's vendored roots, independently of application certifi."""
+    subprocess.run([str(python), "-c", """
+import ssl
+from pip._vendor import certifi
+
+certificates = ssl.create_default_context(cafile=certifi.where()).get_ca_certs()
+if not certificates:
+    raise RuntimeError("pip's vendored CA bundle contains no trusted roots")
+for certificate in certificates:
+    for relative_name in certificate["subject"]:
+        if ("commonName", "emSign ECC Root CA - G3") in relative_name:
+            raise RuntimeError("pip's vendored CA bundle contains compromised emSign ECC Root CA - G3")
+print("pip vendored CA bundle excludes the compromised emSign ECC Root CA - G3")
+"""], check=True)
 
 
 def requirements(path: Path, seen: frozenset[Path] = frozenset()) -> list[Requirement]:
@@ -283,6 +301,7 @@ def verify(directory: Path) -> None:
                 for requirements_file in ["requirements-pip.lock", f"requirements-{lane}.lock"]:
                     pip_command(python, "install", "--force-reinstall", "--no-cache-dir", "--require-hashes", "--only-binary=:all:",
                                 "--index-url", "https://pypi.org/simple", "-r", str(directory / requirements_file))
+                verify_pip_trust_bundle(python)
                 pip_command(python, "check")
                 installed = json.loads(subprocess.check_output(
                     [str(python), "-m", "pip", "list", "--format=json", "--disable-pip-version-check"], text=True))

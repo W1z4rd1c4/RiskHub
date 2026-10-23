@@ -138,6 +138,9 @@ def test_bounded_generator_applies_constraints_and_checks_installed_dependencies
 
     def run(command, *, cwd=None):
         calls.append(command)
+        if command[-2:] == ["-r", str(module.BOOTSTRAP)]:
+            assert "--require-hashes" in command and "--force-reinstall" in command
+            return
         if "-r" in command:
             assert command[command.index("-r") + 1] == str(module.INPUT)
             retained = Path(command[command.index("-c") + 1]).read_text(encoding="utf-8")
@@ -185,7 +188,7 @@ def test_bounded_generator_installs_retained_package_no_longer_reachable_from_in
     def offline_run(command, *, cwd=None):
         # Use venv's bundled pip for this offline solver fixture. The production
         # bootstrap version and command remain covered by the contract tests.
-        if command[-2:] != ["--upgrade", f"pip=={module.PIP_VERSION}"]:
+        if command[-2:] != ["-r", str(module.BOOTSTRAP)]:
             run(command, cwd=cwd)
 
     monkeypatch.setattr(module, "_run", offline_run)
@@ -238,6 +241,8 @@ def test_bounded_refresh_preserves_all_output_bytes_without_successful_write(mod
 
     def run(command, *, cwd=None):
         calls.append(command)
+        if command[-2:] == ["-r", str(module.BOOTSTRAP)]:
+            return
         if "-r" in command:
             assert Path(command[command.index("-c") + 1]).read_text() == "pydantic_core==2.46.5\n"
         if command[-3:] == ["-m", "pip", "check"] and mode == "pip-check-failure":
@@ -375,17 +380,19 @@ def test_hosted_postgres_runs_opted_in_tooling_probes_with_exact_source_evidence
     assert artifact["with"]["if-no-files-found"] == "error"
 
 
+@pytest.mark.parametrize("unsafe_version", ["26.1.1", "26.2.1"])
 def test_dependency_lock_rejects_unsafe_pip(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    unsafe_version: str,
 ):
     module = _temporary_dependency_lock(
         tmp_path,
         monkeypatch,
-        replacements={"pip==26.2.1\n": "pip==26.1.1\n"},
+        replacements={"pip==26.2.2\n": f"pip=={unsafe_version}\n"},
     )
 
-    assert "unsafe pip lock: pip==26.1.1 is below fixed version 26.1.2" in module.validate()
+    assert f"unsafe pip lock: pip=={unsafe_version} is below fixed version 26.2.2" in module.validate()
 
 
 def test_dependency_lock_requires_a_pip_pin(
@@ -395,10 +402,10 @@ def test_dependency_lock_requires_a_pip_pin(
     module = _temporary_dependency_lock(
         tmp_path,
         monkeypatch,
-        replacements={"pip==26.2.1\n": ""},
+        replacements={"pip==26.2.2\n": ""},
     )
 
-    assert "unsafe pip lock: pip must be pinned at or above 26.1.2" in module.validate()
+    assert "unsafe pip lock: pip must be pinned at or above 26.2.2" in module.validate()
 
 
 def test_dependency_lock_rejects_unsafe_pytest(
@@ -433,7 +440,7 @@ def test_dependency_lock_rejects_refresher_pip_version_regression(
     monkeypatch.setattr(module, "REFRESH_SCRIPT", mutated_refresher)
 
     assert (
-        "dependency lock refresher must install pip==26.2.1"
+        "dependency lock refresher must install pip==26.2.2"
         in module.validate()
     )
 
@@ -487,9 +494,9 @@ def test_dependency_lock_rejects_pip_regression_in_either_mirror(
     )
     mirror = getattr(module, mirror_name)
     content = mirror.read_text(encoding="utf-8")
-    assert "pip==26.2.1\n" in content
+    assert "pip==26.2.2\n" in content
     mirror.write_text(
-        content.replace("pip==26.2.1\n", "pip==26.1.1\n"),
+        content.replace("pip==26.2.2\n", "pip==26.1.1\n"),
         encoding="utf-8",
     )
 
