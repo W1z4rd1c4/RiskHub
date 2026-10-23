@@ -114,7 +114,7 @@ class EntraTokenVerifier:
                 if not isinstance(data, dict):
                     raise ValueError("Expected JSON object")
                 return data
-        except (httpx.HTTPError, ValueError, TypeError) as e:
+        except (httpx.HTTPError, OutboundRequestError, ValueError, TypeError) as e:
             raise SsoProviderUnavailableError(str(e)) from e
 
     async def _get_discovery(self, *, now: float) -> dict[str, Any]:

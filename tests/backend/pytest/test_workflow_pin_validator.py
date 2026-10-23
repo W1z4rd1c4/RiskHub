@@ -5,6 +5,8 @@ import re
 import tomllib
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py"
 CI_HEALTH_PATH = REPO_ROOT / "scripts" / "security" / "ci_health.py"
@@ -636,11 +638,53 @@ def test_ci_health_python_audit_manifest_interface_covers_runtime_requirements()
     assert [manifest.path.as_posix() for manifest in manifests] == [
         "backend/requirements.txt",
         "backend/requirements-runtime.txt",
+        "backend/requirements-dev-constraints.txt",
+        "backend/locks/cpython313-alpine324-x86_64/requirements-runtime.lock",
+        "backend/locks/cpython313-alpine324-x86_64/requirements-dbtasks.lock",
+        "backend/locks/cpython313-alpine324-x86_64/requirements-pip.lock",
     ]
     assert [manifest.report_name for manifest in manifests] == [
         "pip-audit-report.json",
         "pip-audit-runtime-report.json",
+        "pip-audit-dev-lock-report.json",
+        "pip-audit-runtime-lock-report.json",
+        "pip-audit-dbtasks-lock-report.json",
+        "pip-audit-pip-lock-report.json",
     ]
+
+
+@pytest.mark.parametrize(
+    "failed_manifest",
+    [None, "requirements.txt", "requirements-dev-constraints.txt", "requirements-runtime.lock"],
+)
+def test_python_audit_collects_every_report_and_preserves_failures(
+    tmp_path: Path, monkeypatch, failed_manifest: str | None
+) -> None:
+    import json
+    import subprocess
+
+    module = _load_ci_health_module()
+    audited = []
+
+    def run_audit(args, *, cwd, check):
+        assert not check
+        manifest = Path(args[args.index("-r") + 1]).name
+        audited.append(manifest)
+        if manifest == "requirements-dev-constraints.txt" or manifest.endswith(".lock"):
+            assert "--no-deps" in args and "--disable-pip" in args
+        result = int(manifest == failed_manifest)
+        if "--output" in args:
+            Path(args[args.index("--output") + 1]).write_text(
+                json.dumps({"dependencies": [], "returncode": result})
+            )
+        return subprocess.CompletedProcess(args, result)
+
+    monkeypatch.setattr(module.subprocess, "run", run_audit)
+    assert module.run_python_audit(tmp_path) == int(failed_manifest is not None)
+    assert len(audited) == 12
+    for manifest in module.python_audit_manifests():
+        report = json.loads((tmp_path / manifest.report_name).read_text())
+        assert report["returncode"] == int(manifest.path.name == failed_manifest)
 
 
 def test_security_workflow_gitleaks_parse_gate_invokes_shell_once() -> None:

@@ -162,7 +162,17 @@ async def guarded_get(
         location = response.headers.get("location")
         if not location:
             return response
-        current_url = urljoin(current_url, location)
+        try:
+            redirect_url = urljoin(current_url, location)
+            source = httpx.URL(current_url)
+            target = httpx.URL(redirect_url)
+        except (ValueError, httpx.InvalidURL) as exc:
+            raise OutboundRequestError("Outbound redirect URL is invalid.") from exc
+        if (source.scheme, source.host, source.port) != (target.scheme, target.host, target.port):
+            # Allowlisting does not authorize another origin to receive caller
+            # headers, client-default authentication or custom directory keys.
+            raise OutboundRequestError("Outbound redirects must retain the original origin.")
+        current_url = redirect_url
         current_params = None
         if redirect_count == max_redirects:
             raise OutboundRequestError("Outbound redirect chain exceeded the maximum allowed hops.")

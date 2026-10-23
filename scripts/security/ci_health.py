@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PIP_AUDIT_ALLOWLIST = REPO_ROOT / "backend" / "security" / "pip-audit-allowlist.txt"
 
@@ -17,11 +16,25 @@ PIP_AUDIT_ALLOWLIST = REPO_ROOT / "backend" / "security" / "pip-audit-allowlist.
 class DependencyAuditManifest(NamedTuple):
     path: Path
     report_name: str
+    options: tuple[str, ...] = ()
 
 
 _PYTHON_AUDIT_MANIFESTS = (
     DependencyAuditManifest(Path("backend/requirements.txt"), "pip-audit-report.json"),
     DependencyAuditManifest(Path("backend/requirements-runtime.txt"), "pip-audit-runtime-report.json"),
+    DependencyAuditManifest(
+        Path("backend/requirements-dev-constraints.txt"),
+        "pip-audit-dev-lock-report.json",
+        ("--no-deps", "--disable-pip"),
+    ),
+    *(
+        DependencyAuditManifest(
+            Path("backend/locks/cpython313-alpine324-x86_64") / f"requirements-{lane}.lock",
+            f"pip-audit-{lane}-lock-report.json",
+            ("--no-deps", "--disable-pip"),
+        )
+        for lane in ("runtime", "dbtasks", "pip")
+    ),
 )
 
 
@@ -55,6 +68,7 @@ def run_python_audit(workdir: Path) -> int:
     resolved_workdir = workdir.resolve()
     ignore_args = _load_pip_audit_ignore_args(PIP_AUDIT_ALLOWLIST)
 
+    failed = False
     for manifest in python_audit_manifests():
         manifest_path = _path_for_workdir(manifest.path, resolved_workdir)
         report_path = resolved_workdir / manifest.report_name
@@ -62,8 +76,13 @@ def run_python_audit(workdir: Path) -> int:
             ["pip-audit", "-r", str(manifest_path), "--format", "json", "--output", str(report_path)],
             ["pip-audit", "-r", str(manifest_path)],
         ):
-            subprocess.run([*args, *ignore_args], cwd=resolved_workdir, check=True)
-    return 0
+            result = subprocess.run(
+                [*args, *manifest.options, *ignore_args],
+                cwd=resolved_workdir,
+                check=False,
+            )
+            failed |= result.returncode != 0
+    return int(failed)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

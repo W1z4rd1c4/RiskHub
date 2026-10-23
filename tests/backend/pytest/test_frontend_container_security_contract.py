@@ -64,6 +64,11 @@ def _validate_contract_workflow_text(tmp_path: Path, workflow: str) -> list[str]
     return module.validate()
 
 
+def _replace_frontend_scan_input(workflow: str, old: str, new: str) -> str:
+    start = workflow.index("      - name: Run Trivy on Frontend\n")
+    return workflow[:start] + workflow[start:].replace(old, new, 1)
+
+
 def _write_sarif(
     path: Path,
     *,
@@ -355,10 +360,10 @@ def test_contract_validator_rejects_expression_based_advisory_mode() -> None:
 
 def test_contract_validator_rejects_ignore_unfixed(tmp_path: Path) -> None:
     workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
-    workflow = workflow.replace(
+    workflow = _replace_frontend_scan_input(
+        workflow,
         "          exit-code: '1'\n",
         "          exit-code: '1'\n          ignore-unfixed: true\n",
-        1,
     )
     errors = _validate_workflow_text(tmp_path, workflow)
     assert any("ignore-unfixed" in error for error in errors)
@@ -368,10 +373,10 @@ def test_contract_validator_requires_vulnerability_only_scanner(
     tmp_path: Path,
 ) -> None:
     workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
-    workflow = workflow.replace(
+    workflow = _replace_frontend_scan_input(
+        workflow,
         "          scanners: 'vuln'\n",
         "          scanners: 'secret'\n",
-        1,
     )
     errors = _validate_workflow_text(tmp_path, workflow)
     assert any("scanners" in error and "vuln" in error for error in errors)
@@ -398,7 +403,7 @@ def test_contract_validator_rejects_extra_frontend_scan_inputs(
     anchor = "          scanners: 'vuln'\n"
     if anchor not in workflow:
         anchor = "          exit-code: '1'\n"
-    workflow = workflow.replace(anchor, f"{anchor}          {option}: {value}\n", 1)
+    workflow = _replace_frontend_scan_input(workflow, anchor, f"{anchor}          {option}: {value}\n")
     errors = _validate_workflow_text(tmp_path, workflow)
     assert any(option in error for error in errors)
 
@@ -750,6 +755,30 @@ def test_contract_validator_keeps_policy_expiry_gate_blocking(
     assert needle in workflow
     errors = _validate_workflow_text(tmp_path, workflow.replace(needle, replacement, 1))
     assert any("pre-scan" in error for error in errors)
+
+
+@pytest.mark.parametrize("mutation", ["exit-code", "advisory", "skip-frontend"])
+def test_contract_validator_keeps_backend_trivy_blocking_and_frontend_evidence(
+    tmp_path: Path, mutation: str
+) -> None:
+    workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    if mutation == "exit-code":
+        workflow = workflow.replace("          exit-code: '1'\n", "          exit-code: '0'\n", 1)
+    elif mutation == "advisory":
+        workflow = workflow.replace(
+            "      - name: Run Trivy on Backend\n",
+            "      - name: Run Trivy on Backend\n        continue-on-error: true\n",
+            1,
+        )
+    else:
+        workflow = workflow.replace(
+            "      - name: Run Trivy on Frontend\n        if: always()\n",
+            "      - name: Run Trivy on Frontend\n",
+            1,
+        )
+    errors = _validate_workflow_text(tmp_path, workflow)
+    assert errors
+    assert any("pre-scan" in error or "backend findings" in error for error in errors)
 
 
 @pytest.mark.parametrize(
