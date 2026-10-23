@@ -1,8 +1,8 @@
 import type * as MockdashboardApiModule from '@/services/dashboardApi';
 import type * as Actualformatters from '@/i18n/formatters';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -255,6 +255,41 @@ describe('Dashboard URL state', () => {
         await waitFor(() => {
             expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|manual|department');
         });
+    });
+
+    it('keeps a reset while the data router is still committing its new URL', async () => {
+        let commitNavigation!: () => void;
+        const navigation = new Promise<void>((resolve) => { commitNavigation = resolve; });
+        const router = createMemoryRouter([{
+            path: '/',
+            loader: ({ request }) => new URL(request.url).search === '' ? navigation : null,
+            element: <><LocationProbe /><DashboardControls /><DashboardPage /></>,
+        }], {
+            initialEntries: ['/?departmentId=10&riskLevel=high&controlStatus=active&controlForm=manual&viewMode=department'],
+        });
+        render(
+            <QueryClientProvider client={createTestQueryClient()}>
+                <DashboardFilterProvider><RouterProvider router={router} /></DashboardFilterProvider>
+            </QueryClientProvider>,
+        );
+        try {
+            await waitFor(() => expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|manual|department'));
+            fireEvent.click(screen.getByRole('button', { name: 'reset dashboard' }));
+            await waitFor(() => expect(router.state.navigation.state).toBe('loading'));
+
+            // The old URL remains committed while navigation is pending. It must
+            // not rehydrate the filters over the user's newer reset action.
+            expect(screen.getByTestId('filters')).toHaveTextContent('none|all|none|none|executive');
+            await act(() => {
+                commitNavigation();
+                return navigation;
+            });
+            await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/'));
+            expect(screen.getByTestId('filters')).toHaveTextContent('none|all|none|none|executive');
+        } finally {
+            commitNavigation();
+            router.dispose();
+        }
     });
 
     it('removes only denied department focus with replace', async () => {

@@ -29,6 +29,7 @@ claim about the number or closure state of private GitHub alerts.
 | Credential forwarding across outbound redirect origins | With redirects enabled, `guarded_get` manually reused bearer/custom API headers across allowlisted hosts, subdomains, schemes and ports; client-default credentials had the same problem | Reject every cross-origin redirect before sending it. Retain same-origin redirects and recheck DNS at every hop. |
 | Incomplete dependency audit coverage and evidence | Input-only resolution missed shipped/transitive development pins; the first audit failure aborted later reports | Audit both input manifests plus exact development, production runtime, DB-task and pip bootstrap locks; retain all six reports and aggregate failures. |
 | Backend Trivy was advisory | Backend scan omitted `exit-code: '1'` although the separate Grype gate blocked findings | Make backend Trivy independently block HIGH/CRITICAL findings; continue frontend scanning and report collection after backend findings. |
+| Dashboard filter reset could be lost during navigation | The repeated browser export/history check observed Clear All retaining the previous filters; a delayed real-router commit reproduces the race deterministically | Advance observed URL state only when navigation commits, so a stale location cannot rehydrate over a newer filter choice. Preserve the original export snapshot, URL history and backend visibility checks. |
 
 No suppression was added or extended. Existing npm, pip and Grype exception
 lists are empty. Fresh exact development and frontend audits report zero
@@ -65,6 +66,13 @@ copy of the compromised root. The final tooling update was independently
 reviewed and tested against real old/new pip bundles and public certificate
 fixtures. The production image's separate system SSL trust store was also
 checked and does not contain the compromised emSign G3 root.
+
+Hosted verification also required synchronizing the two authorization-contract
+notes for the SSO service change. Its repeated dashboard export journey exposed
+the existing URL/filter race above. The regression test fails on the previous
+implementation with a deferred real-router navigation and passes after removing
+the speculative observed-URL writes. Browser assertions and retry settings were
+retained.
 
 Verification includes fresh pip/npm audits, production builds and type checks,
 security policy and gate mutation tests, authentication and outbound regression

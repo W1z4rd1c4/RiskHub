@@ -93,6 +93,8 @@ export function DashboardPage() {
         [filters, viewMode],
     );
     const snapshotsMatch = dashboardFilterSnapshotsEqual(currentSnapshot, requestedSnapshot);
+    // Track only committed locations. Router navigation can be deferred; marking
+    // its target as observed would let the old URL rehydrate over a new choice.
     const [observedUrl, setObservedUrl] = useState<string | null>(null);
     const urlChanged = observedUrl !== serializedParams;
     const needsUrlHydration = urlChanged && !snapshotsMatch;
@@ -114,7 +116,6 @@ export function DashboardPage() {
 
     useEffect(() => {
         if (serializedParams === canonicalSerialized) return;
-        setObservedUrl(canonicalSerialized);
         setSearchParams(canonicalParams, { replace: true });
     }, [canonicalParams, canonicalSerialized, serializedParams, setSearchParams]);
 
@@ -126,7 +127,6 @@ export function DashboardPage() {
             || observedUrl !== serializedParams
         ) return;
         const next = buildDashboardFilterUrlParams(filters, viewMode, searchParams);
-        setObservedUrl(next.toString());
         setSearchParams(next);
     }, [
         canonicalSerialized,
