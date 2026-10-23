@@ -1,5 +1,7 @@
 # Authorization Capability Contract
 
+2026-10-23: SSO discovery and JWKS requests reject cross-origin redirects and malformed redirect targets before issuing a session. Outbound policy rejections retain the existing provider-unavailable error contract. Issuer, audience, algorithm, claim validation, role/scope authority and capability shapes remain unchanged. Regression coverage uses the real guarded transport through `test_sso_token_service.py` and `test_outbound_egress_guards.py`.
+
 Protected-detail cancellation reads backend `can_cancel` through `resolveCapabilityFlag`, matching the pending-change panel's strict true-only predicate. Canonical authenticated session ownership remains required before submission; backend mutation authority and capability shapes are unchanged.
 
 Restore maintenance preserves the installed signing authority and cutover marker owner/group permissions, including managed root:service 0440 files. Backup evidence remains owner-only; unsafe links, writable ancestry and broader secret access fail closed.
