@@ -72,7 +72,11 @@ notes for the SSO service change. Its repeated dashboard export journey exposed
 the existing URL/filter race above. The regression test fails on the previous
 implementation with a deferred real-router navigation and passes after removing
 the speculative observed-URL writes. Browser assertions and retry settings were
-retained.
+retained. A later repetition exposed the complementary case: initial URL
+normalization could commit after a reset and restore the old filters. Hydration
+now compares parsed URL snapshots, so equivalent canonical URLs and unrelated
+parameters cannot overwrite newer local choices. A second delayed-router
+regression covers that sequence.
 
 Final backend coverage synchronized the container contract's expected pip pin
 with 26.2.2 and exposed a date-sensitive archive-metric fixture: one live KRI

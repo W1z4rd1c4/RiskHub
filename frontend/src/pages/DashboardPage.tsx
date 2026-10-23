@@ -97,12 +97,17 @@ export function DashboardPage() {
     // its target as observed would let the old URL rehydrate over a new choice.
     const [observedUrl, setObservedUrl] = useState<string | null>(null);
     const urlChanged = observedUrl !== serializedParams;
-    const needsUrlHydration = urlChanged && !snapshotsMatch;
+    // Canonical spelling and unrelated parameters do not change URL-owned
+    // filters. Their delayed commit must not overwrite a newer local choice.
+    const urlFiltersChanged = observedUrl === null || !dashboardFilterSnapshotsEqual(
+        parseDashboardFilterUrlState(new URLSearchParams(observedUrl)), requestedSnapshot,
+    );
+    const needsUrlHydration = urlChanged && urlFiltersChanged && !snapshotsMatch;
 
     useLayoutEffect(() => {
         if (observedUrl !== serializedParams) {
             setObservedUrl(serializedParams);
-            if (!snapshotsMatch) {
+            if (needsUrlHydration) {
                 replaceSnapshot(requestedSnapshot);
             }
         }
@@ -110,7 +115,7 @@ export function DashboardPage() {
         replaceSnapshot,
         requestedSnapshot,
         serializedParams,
-        snapshotsMatch,
+        needsUrlHydration,
         observedUrl,
     ]);
 

@@ -292,6 +292,38 @@ describe('Dashboard URL state', () => {
         }
     });
 
+    it('keeps a newer reset when the initial canonical URL commits afterward', async () => {
+        let commitNormalization!: () => void;
+        const normalization = new Promise<void>((resolve) => { commitNormalization = resolve; });
+        const router = createMemoryRouter([{
+            path: '/',
+            loader: ({ request }) => new URL(request.url).searchParams.get('departmentId') === '10' ? normalization : null,
+            element: <><LocationProbe /><DashboardControls /><DashboardPage /></>,
+        }], {
+            initialEntries: ['/?departmentId=010&riskLevel=high&controlStatus=active&controlForm=manual'],
+        });
+        render(
+            <QueryClientProvider client={createTestQueryClient()}>
+                <DashboardFilterProvider><RouterProvider router={router} /></DashboardFilterProvider>
+            </QueryClientProvider>,
+        );
+        try {
+            await waitFor(() => expect(screen.getByTestId('filters')).toHaveTextContent('10|high|active|manual|department'));
+            await waitFor(() => expect(router.state.navigation.state).toBe('loading'));
+            fireEvent.click(screen.getByRole('button', { name: 'reset dashboard' }));
+            expect(screen.getByTestId('filters')).toHaveTextContent('none|all|none|none|executive');
+            await act(() => {
+                commitNormalization();
+                return normalization;
+            });
+            await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/'));
+            expect(screen.getByTestId('filters')).toHaveTextContent('none|all|none|none|executive');
+        } finally {
+            commitNormalization();
+            router.dispose();
+        }
+    });
+
     it('removes only denied department focus with replace', async () => {
         fetchOverviewMock.mockResolvedValue(dashboardResponse(false));
         renderDashboard([
