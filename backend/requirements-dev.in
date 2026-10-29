@@ -15,7 +15,7 @@ testcontainers[redis]>=4.8.0
 
 # Security/tooling
 # Reviewed Batch 1 tooling baseline (#224); runtime upgrades remain separate.
-filelock==4.1.1
+filelock==4.2.1
 ruff==0.16.10
 bandit>=1.7.8
 mypy==2.4.0
