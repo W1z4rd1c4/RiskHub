@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build dependencies
 # =============================================================================
-FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS builder-base
+FROM python:3.13.17-alpine3.24@sha256:fa0bb0d0cd7c7d6cef30a69094d32ac2b71c7304c87c6107fec100e1ee4eda02 AS builder-base
 
 ARG TARGETPLATFORM
 RUN test "$TARGETPLATFORM" = "linux/amd64" || { \
@@ -41,7 +41,7 @@ RUN python -m pip install --force-reinstall --no-cache-dir --require-hashes --on
 # =============================================================================
 # Stage 2: Production runtime
 # =============================================================================
-FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS runtime
+FROM python:3.13.17-alpine3.24@sha256:fa0bb0d0cd7c7d6cef30a69094d32ac2b71c7304c87c6107fec100e1ee4eda02 AS runtime
 
 WORKDIR /app
 
@@ -91,7 +91,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 # =============================================================================
 # Stage 3: DB tasks runtime
 # =============================================================================
-FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS dbtasks
+FROM python:3.13.17-alpine3.24@sha256:fa0bb0d0cd7c7d6cef30a69094d32ac2b71c7304c87c6107fec100e1ee4eda02 AS dbtasks
 
 WORKDIR /app
 
