@@ -414,6 +414,8 @@ def test_install_production_linux_dry_run_dispatches_full_sequence() -> None:
             str(secret_dir),
             "--bundle",
             "./riskhub-linux-v1.2.3.tar.gz",
+            "--bundle-sha256",
+            DIGEST,
         )
         output = f"{result.stdout}\n{result.stderr}"
 
@@ -421,8 +423,35 @@ def test_install_production_linux_dry_run_dispatches_full_sequence() -> None:
         assert "preflight --target linux" in output
         assert "deploy --target linux" in output
         assert "--bundle ./riskhub-linux-v1.2.3.tar.gz" in output
+        assert f"--bundle-sha256 {DIGEST}" in output
         assert "status --target linux" in output
         assert "smoke --target linux" in output
+
+
+def test_install_production_linux_requires_independent_bundle_digest() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-linux-digest-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+
+        result = _run_install(
+            "production",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "linux",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--bundle",
+            "./riskhub-linux-v1.2.3.tar.gz",
+        )
+
+        assert result.returncode != 0
+        assert "requires --bundle-sha256" in result.stderr
 
 
 def test_install_production_dry_run_initializes_missing_scaffold_before_lifecycle() -> None:
@@ -663,6 +692,8 @@ def test_install_upgrade_linux_dry_run_dispatches_full_sequence() -> None:
             str(secret_dir),
             "--bundle",
             "./riskhub-linux-v1.2.4.tar.gz",
+            "--bundle-sha256",
+            DIGEST,
             env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
@@ -671,6 +702,7 @@ def test_install_upgrade_linux_dry_run_dispatches_full_sequence() -> None:
         assert "preflight --target linux" in output
         assert "upgrade --target linux" in output
         assert "--bundle ./riskhub-linux-v1.2.4.tar.gz" in output
+        assert f"--bundle-sha256 {DIGEST}" in output
         assert "status --target linux" in output
         assert "smoke --target linux" in output
 

@@ -49,7 +49,7 @@ Linux bundle contents:
 - `venv` and `db-venv` are created at install time from that shared wheelhouse
 - frontend `dist`
 - deploy templates
-- manifest with version metadata
+- manifest with version, source commit, declared root, and a SHA-256 file inventory
 
 Builder:
 
@@ -58,6 +58,9 @@ scripts/release/build_linux_bundle.sh --version v1.2.3
 ```
 
 The builder is Linux-only so the bundled wheelhouse matches the Linux deployment target.
+Production installation additionally requires the archive SHA-256 from an
+independently authenticated release channel; the archive's own manifest is not
+used as its authenticity proof.
 
 Maintainer note:
 

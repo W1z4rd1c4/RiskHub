@@ -27,6 +27,7 @@ def run_production_action(
     frontend_image: str | None,
     redis_image: str | None,
     bundle: str | None,
+    bundle_sha256: str | None,
     options: SharedOptions,
     paths: InstallPaths,
 ) -> None:
@@ -52,6 +53,8 @@ def run_production_action(
             release_args.extend(["--redis-image", redis_image])
     elif bundle:
         release_args.extend(["--bundle", bundle])
+        if bundle_sha256:
+            release_args.extend(["--bundle-sha256", bundle_sha256])
 
     for command in (
         [paths.deploy_script, "preflight", *common_args],
@@ -66,6 +69,7 @@ def run_production_action(
             target=target,
             version=version if target == "docker" else bundle_version_guess(bundle),
             bundle=bundle,
+            bundle_sha256=bundle_sha256,
             backend_image=backend_image,
             backend_db_image=backend_db_image,
             frontend_image=frontend_image,

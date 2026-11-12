@@ -257,6 +257,7 @@ Shared options:
   --verbose                    More logging
   --user-management entra|custom  Fresh production identity choice; upgrade preserves the installed profile
   --mfa-policy required|optional  Native MFA policy (required by default; confirmed factors remain enforced)
+  --bundle-sha256 DIGEST       Independently obtained SHA-256 for Linux production bundles
 
 Examples:
   ./scripts/install.sh demo
@@ -264,7 +265,7 @@ Examples:
   ./scripts/install.sh dev
   ./scripts/install.sh dev --backend
   ./scripts/install.sh production --target docker --backend-image ghcr.io/owner/riskhub-backend:v1.2.3@sha256:<digest> --backend-db-image ghcr.io/owner/riskhub-backend-db:v1.2.3@sha256:<digest> --frontend-image ghcr.io/owner/riskhub-frontend:v1.2.3@sha256:<digest> --redis-image ghcr.io/owner/riskhub-redis:v1.2.3@sha256:<digest>
-  ./scripts/install.sh production --target linux --bundle ./riskhub-linux-v1.2.3.tar.gz
+  ./scripts/install.sh production --target linux --bundle ./riskhub-linux-v1.2.3.tar.gz --bundle-sha256 <digest>
   ./scripts/install.sh upgrade --target docker --backend-image ghcr.io/owner/riskhub-backend:v1.2.4@sha256:<digest> --backend-db-image ghcr.io/owner/riskhub-backend-db:v1.2.4@sha256:<digest> --frontend-image ghcr.io/owner/riskhub-frontend:v1.2.4@sha256:<digest> --redis-image ghcr.io/owner/riskhub-redis:v1.2.4@sha256:<digest>
   ./scripts/install.sh status --mode production --target docker --json
   ./scripts/install.sh logs --mode dev --tail 200 --follow

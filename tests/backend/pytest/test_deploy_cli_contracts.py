@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -292,7 +294,18 @@ def _make_linux_bundle(root: Path, version: str) -> Path:
     bundle_root = root / f"riskhub-linux-{version}"
     bundle_root.mkdir()
     (bundle_root / "manifest.json").write_text(
-        f'{{"version": "{version}"}}\n', encoding="utf-8"
+        json.dumps(
+            {
+                "schema_version": 1,
+                "version": version,
+                "git_commit": "0" * 40,
+                "git_ref": "test",
+                "bundle_root": bundle_root.name,
+                "files": {},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
     )
     archive_path = root / f"riskhub-linux-{version}.tar.gz"
     with tarfile.open(archive_path, "w:gz") as archive:
@@ -1114,6 +1127,7 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         runtime_root = tmp / "runtime"
         nginx_site = tmp / "riskhub.conf"
         bundle_path = _make_linux_bundle(tmp, "v-test")
+        bundle_sha256 = hashlib.sha256(bundle_path.read_bytes()).hexdigest()
         _write_config(config_path, FRONTEND_BIND_PORT="18082")
         _write_secrets(secret_dir)
         fake_bin = _make_fake_bin(tmp)
@@ -1151,6 +1165,8 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
                 str(secret_dir),
                 "--bundle",
                 str(bundle_path),
+                "--bundle-sha256",
+                bundle_sha256,
                 "--dry-run",
                 "--yes",
             ],
@@ -1158,7 +1174,9 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
         deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert "riskhub-linux-v-test.tar.gz" in deploy_output
+        assert "release_bundle.py extract" in deploy_output
+        assert f"--sha256 {bundle_sha256}" in deploy_output
+        assert "--expected-version v-test" in deploy_output
         assert "riskhub-redis.service" in deploy_output
         assert "systemctl restart nginx" in deploy_output
 
@@ -1180,6 +1198,8 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
                 str(secret_dir),
                 "--bundle",
                 str(bundle_path),
+                "--bundle-sha256",
+                bundle_sha256,
                 "--dry-run",
                 "--yes",
             ],

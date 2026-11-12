@@ -13,6 +13,7 @@ from install_lib.common import (
 from install_lib.runtime_state import load_install_state
 
 IMAGE_DIGEST_RE = re.compile(r"@sha256:[0-9a-fA-F]{64}$")
+BUNDLE_DIGEST_RE = re.compile(r"^(?:sha256:)?([0-9a-fA-F]{64})$")
 METADATA_ENV_BACKUP_ALLOWLIST = {
     "AUTH_MODE",
     "DIRECTORY_PROVIDER",
@@ -54,12 +55,13 @@ def ensure_production_release_input(
     target: str,
     version: str | None,
     bundle: str | None,
+    bundle_sha256: str | None,
     backend_image: str | None,
     backend_db_image: str | None,
     frontend_image: str | None,
     redis_image: str | None,
     options: SharedOptions,
-) -> tuple[str | None, str | None]:
+) -> tuple[str | None, str | None, str | None]:
     if target == "docker":
         has_all_images = bool(backend_image and backend_db_image and frontend_image and redis_image)
         if has_all_images and not all_image_refs_are_immutable(
@@ -75,16 +77,32 @@ def ensure_production_release_input(
                 "pass all four explicit digest image refs for now."
             )
         if version:
-            return version, bundle
+            return version, bundle, bundle_sha256
         if has_all_images:
-            return version, bundle
+            return version, bundle, bundle_sha256
         raise RuntimeError("Production docker install requires all image refs as immutable digest refs.")
 
     if bundle:
-        return version, bundle
+        match = BUNDLE_DIGEST_RE.fullmatch((bundle_sha256 or "").strip())
+        if match is None:
+            raise RuntimeError(
+                "Production linux install requires --bundle-sha256 with the independently obtained archive digest."
+            )
+        return version, bundle, match.group(1).lower()
     if options.dry_run or options.yes:
-        raise RuntimeError("Production linux install requires --bundle PATH.")
-    return version, prompt_value("Linux release bundle path", "./riskhub-linux-v1.2.3.tar.gz", options=options)
+        raise RuntimeError("Production linux install requires --bundle PATH and --bundle-sha256 DIGEST.")
+    prompted_bundle = prompt_value(
+        "Linux release bundle path", "./riskhub-linux-v1.2.3.tar.gz", options=options
+    )
+    prompted_digest = prompt_value(
+        "Independently obtained Linux release bundle SHA-256",
+        "sha256:<64-hex-digest>",
+        options=options,
+    )
+    match = BUNDLE_DIGEST_RE.fullmatch(prompted_digest.strip())
+    if match is None:
+        raise RuntimeError("Linux release bundle SHA-256 is invalid.")
+    return version, prompted_bundle, match.group(1).lower()
 
 
 def backup_non_secret_production_state(config_path: Path, runtime_dir: Path, backup_id: str) -> None:

@@ -118,7 +118,8 @@ cp "${REPO_ROOT}/scripts/deploy/lib/render.py" "${DEPLOY_STAGE}/lib/render.py"
 cp -R "${REPO_ROOT}/scripts/deploy/templates/linux" "${DEPLOY_STAGE}/templates/linux"
 cp "${REPO_ROOT}/scripts/deploy/templates/riskhub.env.example" "${DEPLOY_STAGE}/templates/riskhub.env.example"
 
-python3 - <<'PY' "${STAGE_ROOT}/manifest.json" "${VERSION}" "${REPO_ROOT}"
+python3 - <<'PY' "${STAGE_ROOT}/manifest.json" "${VERSION}" "${REPO_ROOT}" "${STAGE_ROOT}"
+import hashlib
 import json
 import subprocess
 import sys
@@ -128,16 +129,32 @@ from pathlib import Path
 manifest_path = Path(sys.argv[1])
 version = sys.argv[2]
 repo_root = Path(sys.argv[3])
+stage_root = Path(sys.argv[4])
 
 def git_value(*args: str) -> str:
     return subprocess.check_output(["git", "-C", str(repo_root), *args], text=True).strip()
 
+files = {}
+for path in sorted(stage_root.rglob("*")):
+    if path.is_symlink() or not (path.is_dir() or path.is_file()):
+        raise SystemExit(f"Unsupported release bundle entry: {path}")
+    if not path.is_file():
+        continue
+    relative = path.relative_to(stage_root).as_posix()
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    files[relative] = {"sha256": digest.hexdigest(), "size": path.stat().st_size}
+
 payload = {
+    "schema_version": 1,
     "version": version,
     "created_utc": datetime.now(timezone.utc).isoformat(),
     "git_commit": git_value("rev-parse", "HEAD"),
     "git_ref": git_value("rev-parse", "--abbrev-ref", "HEAD"),
     "bundle_root": f"riskhub-linux-{version}",
+    "files": files,
 }
 manifest_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY

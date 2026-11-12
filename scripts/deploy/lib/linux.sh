@@ -35,18 +35,23 @@ linux_preflight() (
 linux_install_release() (
   set -e
   local bundle_path="$1"
-  local release_version="$2"
+  local bundle_sha256="$2"
+  local release_version="$3"
   local release_dir="${LINUX_RELEASES_DIR}/${release_version}"
   extract_root="$(mktemp -d "${TMPDIR:-/tmp}/riskhub-linux-release.XXXXXX")"
   trap 'rm -rf "$extract_root"' EXIT
 
+  run python3 "$RELEASE_BUNDLE_TOOL" extract \
+    --bundle "$bundle_path" \
+    --sha256 "$bundle_sha256" \
+    --destination "$extract_root" \
+    --expected-version "$release_version"
+
   if [[ "$DRY_RUN" == "true" ]]; then
-    run tar -xzf "$bundle_path" -C "$extract_root"
     run_privileged cp -a "${extract_root}/riskhub-linux-${release_version}/." "$release_dir"
     ensure_linux_user
     run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$release_dir"
   else
-    run tar -xzf "$bundle_path" -C "$extract_root"
     local extracted_dir="${extract_root}/riskhub-linux-${release_version}"
     require_file "${extracted_dir}/manifest.json"
     run_privileged cp -a "${extracted_dir}/." "$release_dir"
@@ -215,7 +220,28 @@ linux_deploy_or_upgrade() (
   local action="$1"
   local config_path="$2"
   local bundle_path="$3"
+  local bundle_sha256="$4"
   require_file "$bundle_path"
+  [[ "$bundle_sha256" =~ ^(sha256:)?[0-9a-fA-F]{64}$ ]] || die "--bundle-sha256 must be a SHA-256 digest"
+
+  local verified_root
+  verified_root="$(mktemp -d "${TMPDIR:-/tmp}/riskhub-linux-verified.XXXXXX")"
+  local verified_bundle="${verified_root}/bundle.tar.gz"
+  local release_dir=""
+  local candidate_owned="false"
+  cleanup_linux_candidate() {
+    local rc="$1"
+    rm -rf -- "$verified_root"
+    if [[ "$rc" -ne 0 && "$candidate_owned" == "true" && "$DRY_RUN" != "true" && "$(readlink "$LINUX_CURRENT_LINK" || true)" != "$release_dir" && "$(readlink "$LINUX_PREVIOUS_LINK" || true)" != "$release_dir" ]]; then
+      run_privileged rm -rf -- "$release_dir"
+    fi
+  }
+  trap 'rc=$?; cleanup_linux_candidate "$rc"; exit "$rc"' EXIT
+  cp -- "$bundle_path" "$verified_bundle"
+
+  local release_version
+  release_version="$(bundle_version "$verified_bundle" "$bundle_sha256")"
+  [[ "$release_version" =~ ^[a-zA-Z0-9][a-zA-Z0-9._+-]*$ ]] || die "Invalid release version"
 
   local allow_port_in_use="false"
   if [[ "$action" == "upgrade" ]]; then
@@ -226,26 +252,21 @@ linux_deploy_or_upgrade() (
   fi
 
   linux_preflight "$config_path" "$allow_port_in_use"
-  confirm_or_die "Run linux ${action} using the release bundle?"
+  confirm_or_die "Run linux ${action} using the SHA-256 verified release bundle?"
 
-  local release_version
-  release_version="$(bundle_version "$bundle_path")"
-  [[ "$release_version" =~ ^[a-zA-Z0-9][a-zA-Z0-9._+-]*$ ]] || die "Invalid release version"
   release_dir="${LINUX_RELEASES_DIR}/${release_version}"
   [[ ! -e "$release_dir" && ! -L "$release_dir" ]] || die "Release directory already exists: ${release_dir}"
   ensure_dir "$LINUX_RELEASES_DIR"
   # mkdir reserves the candidate atomically. Register cleanup only after success,
   # so an overlapping attempt cannot remove another installer's directory.
   run_privileged mkdir "$release_dir" || exit $?
-  # This invocation owns only this newly created candidate. Never remove a
-  # release selected by either symlink, including after an activation failure.
-  trap 'rc=$?; if [[ "$rc" -ne 0 && "$DRY_RUN" != "true" && "$(readlink "$LINUX_CURRENT_LINK" || true)" != "$release_dir" && "$(readlink "$LINUX_PREVIOUS_LINK" || true)" != "$release_dir" ]]; then run_privileged rm -rf -- "$release_dir"; fi; exit "$rc"' EXIT
+  candidate_owned="true"
   local previous_target=""
   if [[ -L "$LINUX_CURRENT_LINK" ]]; then
     previous_target="$(readlink "$LINUX_CURRENT_LINK")"
   fi
 
-  linux_install_release "$bundle_path" "$release_version"
+  linux_install_release "$verified_bundle" "$bundle_sha256" "$release_version"
   linux_install_venvs "$release_dir"
   linux_identity_preflight "$release_dir" "$config_path"
   # shellcheck disable=SC2153 # RUNTIME_DIR is a sourced global from deploy/lib/common.sh.

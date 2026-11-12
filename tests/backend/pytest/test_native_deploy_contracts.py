@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import subprocess
 import sys
@@ -301,7 +302,7 @@ run_privileged() {{
 }}
 linux_run_release_command() {{ echo candidate >> {shlex.quote(str(log))}; return 74; }}
 linux_render_runtime_files() {{ echo REPLACED >> {shlex.quote(str(log))}; }}
-linux_deploy_or_upgrade deploy {shlex.quote(str(config))} unused.tar.gz
+linux_deploy_or_upgrade deploy {shlex.quote(str(config))} {shlex.quote(str(config))} {'a' * 64}
 """
     result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
     assert result.returncode == (83 if failure == "ownership" else 74), result.stderr
@@ -396,6 +397,7 @@ def test_linux_failed_install_retries_same_bundle_without_losing_identity(tmp_pa
 
     config, _ = native_files(tmp_path)
     bundle = _make_linux_bundle(tmp_path, "test-retry")
+    bundle_sha256 = hashlib.sha256(bundle.read_bytes()).hexdigest()
     root = tmp_path / "installed"
     runtime = tmp_path / "runtime"
     runtime.mkdir()
@@ -427,7 +429,7 @@ linux_smoke() {{ :; }}
 ATTEMPT=first
 # Capture the child status without putting the function in a conditional list.
 set +e
-linux_deploy_or_upgrade deploy {shlex.quote(str(config))} {shlex.quote(str(bundle))}
+linux_deploy_or_upgrade deploy {shlex.quote(str(config))} {shlex.quote(str(bundle))} {bundle_sha256}
 first_rc=$?
 set -e
 [[ "$first_rc" == {74 if failure_stage == 'candidate' else 75} ]]
@@ -435,7 +437,7 @@ set -e
 ATTEMPT=second
 action=deploy
 [[ ! -f "$LINUX_BACKEND_ENV" ]] || action=upgrade
-linux_deploy_or_upgrade "$action" {shlex.quote(str(config))} {shlex.quote(str(bundle))}
+linux_deploy_or_upgrade "$action" {shlex.quote(str(config))} {shlex.quote(str(bundle))} {bundle_sha256}
 [[ "$(readlink "$LINUX_CURRENT_LINK")" == "$LINUX_RELEASES_DIR/test-retry" ]]
 [[ "$(cat {shlex.quote(str(handoff))})" == committed-handoff ]]
 """
@@ -486,7 +488,7 @@ def test_native_public_dry_run_summary_matches_policy_and_release_boundary(tmp_p
                            ("--frontend-image", "frontend"), ("--redis-image", "redis")]:
             args.extend([flag, _image(name)])
     else:
-        args.extend(["--bundle", "unused.tar.gz"])
+        args.extend(["--bundle", "unused.tar.gz", "--bundle-sha256", "a" * 64])
     result = subprocess.run(args, env={**os.environ, "RISKHUB_RUNTIME_DIR": str(tmp_path / "runtime")},
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
