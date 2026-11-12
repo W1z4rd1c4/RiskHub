@@ -16,6 +16,15 @@ class _FailingRedis:
         raise RuntimeError("redis unavailable")
 
 
+class _RecordingRedis:
+    def __init__(self) -> None:
+        self.keys: list[str] = []
+
+    async def eval(self, _script, _key_count, key, *_args):  # noqa: ANN001, ANN002
+        self.keys.append(key)
+        return 1, 0
+
+
 def _build_request(
     *,
     app,
@@ -84,6 +93,91 @@ async def test_dq_family_shares_one_bucket_per_authenticated_principal_and_ip():
     assert first.status_code == 200
     assert same_principal_detail.status_code == 429
     assert other_principal.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_distinct_route_families_share_the_per_client_aggregate_limit():
+    settings = Settings(
+        debug=True, secret_key="test-secret-key-32-chars-minimum-value"
+    )
+    app = SimpleNamespace(state=SimpleNamespace(redis=None, settings=settings))
+    middleware = RateLimitMiddleware(
+        app,
+        enabled=True,
+        limits={
+            "/api/v1/alpha": (10, 60),
+            "/api/v1/beta": (10, 60),
+            "default": (2, 60),
+        },
+    )
+
+    async def call_next(_request):
+        return JSONResponse({"ok": True})
+
+    first = await middleware.dispatch(_build_request(app=app, path="/api/v1/alpha/one"), call_next)
+    second = await middleware.dispatch(_build_request(app=app, path="/api/v1/beta/two"), call_next)
+    blocked = await middleware.dispatch(_build_request(app=app, path="/api/v1/alpha/three"), call_next)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert blocked.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_rotating_unmatched_paths_cannot_bypass_the_default_limit():
+    settings = Settings(
+        debug=True, secret_key="test-secret-key-32-chars-minimum-value"
+    )
+    app = SimpleNamespace(state=SimpleNamespace(redis=None, settings=settings))
+    middleware = RateLimitMiddleware(
+        app,
+        enabled=True,
+        limits={"default": (2, 60)},
+    )
+
+    async def call_next(_request):
+        return JSONResponse({"ok": True})
+
+    responses = [
+        await middleware.dispatch(
+            _build_request(app=app, path=f"/api/v1/nonexistent/{suffix}"),
+            call_next,
+        )
+        for suffix in ("one", "two", "three")
+    ]
+
+    assert [response.status_code for response in responses] == [200, 200, 429]
+    assert set(middleware.state) == {
+        "198.51.100.10:aggregate",
+        "198.51.100.10:default",
+    }
+
+
+@pytest.mark.asyncio
+async def test_unmatched_paths_use_bounded_digested_redis_keys():
+    settings = Settings(
+        debug=False, secret_key="test-secret-key-32-chars-minimum-value"
+    )
+    redis = _RecordingRedis()
+    app = SimpleNamespace(state=SimpleNamespace(redis=redis, settings=settings))
+    middleware = RateLimitMiddleware(app, enabled=True)
+
+    async def call_next(_request):
+        return JSONResponse({"ok": True})
+
+    paths = [
+        "/api/v1/nonexistent/attacker-controlled-one",
+        "/api/v1/nonexistent/attacker-controlled-two",
+    ]
+    responses = [
+        await middleware.dispatch(_build_request(app=app, path=path), call_next)
+        for path in paths
+    ]
+
+    assert [response.status_code for response in responses] == [200, 200]
+    assert len(set(redis.keys)) == 2
+    assert all(path not in key for path in paths for key in redis.keys)
+    assert all(len(key.rsplit(":", maxsplit=1)[-1]) == 64 for key in redis.keys)
 
 
 @pytest.mark.asyncio
