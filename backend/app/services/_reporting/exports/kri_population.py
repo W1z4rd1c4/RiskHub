@@ -13,6 +13,7 @@ from app.models import Risk, User
 from app.models.activity_log import ActivityEntityType
 from app.services.export_snapshot_service import ExportSnapshotService
 from app.services.kri_populations import KRIPopulationState, RiskPopulationState
+from app.services.report_export_limits import execute_bounded_export_query
 
 from .shared import _safe_int
 
@@ -52,7 +53,7 @@ async def apply_kri_parent_snapshot(
     visibility = await risk_visibility_clause(db, current_user)
     if visibility is not None:
         query = query.where(visibility)
-    parents = (await db.execute(query)).scalars().all()
+    parents = await execute_bounded_export_query(db, query)
     parent_rows = [
         {
             "id": risk.id,

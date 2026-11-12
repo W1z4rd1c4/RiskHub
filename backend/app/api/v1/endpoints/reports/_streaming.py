@@ -1,5 +1,4 @@
 from datetime import date
-from io import BytesIO
 from typing import Any, Literal
 
 from fastapi import HTTPException, status
@@ -62,7 +61,7 @@ def _stream_binary(
     ext = "csv"
     media_type = _CSV_MEDIA_TYPE
     return StreamingResponse(
-        BytesIO(content_bytes),
+        iter((content_bytes,)),
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{_get_filename(filename_base, ext, as_of_date)}"'},
     )

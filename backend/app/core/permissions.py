@@ -17,6 +17,7 @@ from ._permissions.entity_access import (
 from ._permissions.entity_scope_clauses import (
     control_visibility_clause,
     kri_visibility_clause,
+    risk_cross_ownership_clause,
     risk_visibility_clause,
     vendor_visibility_clause,
 )
@@ -86,6 +87,7 @@ __all__ = [
     "can_read_vendor_id",
     "can_read_kri_id",
     "risk_visibility_clause",
+    "risk_cross_ownership_clause",
     "control_visibility_clause",
     "kri_visibility_clause",
     "vendor_visibility_clause",

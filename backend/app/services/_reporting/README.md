@@ -3,10 +3,11 @@
 ## Purpose
 
 Read-shape bounded context (ADR-007): report export projection. Renders
-tabular/CSV exports (`tabular.py`), the summary export payload with
-archive-aware totals (`excel.py`), shared count helpers (`counts.py`), and the
-per-register export definitions plus fetch pipeline (`exports/`). Read-only:
-no commits happen here; endpoint adapters own transactions per ADR-002.
+resource-bounded tabular/CSV exports (`../report_export_limits.py`,
+`tabular.py`), the summary export payload with archive-aware totals (`excel.py`),
+shared count helpers (`counts.py`), and the per-register export definitions plus
+fetch pipeline (`exports/`). Read-only: no commits happen here; endpoint
+adapters own transactions per ADR-002.
 Canonical import home for `generate_tabular_csv` (the old
 `app.services.report_service` shim is deleted).
 
@@ -25,3 +26,12 @@ revalidating linked visibility for each batch. Callers explicitly supply time an
 mode: current register overdue includes active exceptions, evaluation-report
 overdue suppresses them. An evaluation date does not reconstruct Issue history.
 No projection helper grants row access or changes transaction ownership.
+
+## Synchronous export budgets
+
+Synchronous report exports reject more than 1,000 rows or more than 8 MiB of
+CSV output instead of truncating results. Unified exports preflight the same
+actor-visible query before eager relationship loading and cap each relationship
+prefetch at 10,000 records. The `/api/v1/reports` family also shares a
+five-request-per-minute principal-plus-client rate-limit bucket across unified,
+summary, and audit-trail endpoints.

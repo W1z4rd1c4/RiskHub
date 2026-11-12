@@ -2,17 +2,15 @@ from __future__ import annotations
 
 from typing import Any, overload
 
-from sqlalchemy import and_, false, or_
+from sqlalchemy import and_, exists, false, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.models import Control, KeyRiskIndicator, Risk, User, Vendor
+from app.models.risk import ControlRiskLink
 
 from .evaluation import has_permission
-from .ownership import (
-    get_risk_ids_where_control_owner,
-    get_risk_ids_where_kri_reporting_owner,
-)
 from .scoping import get_user_department_ids
 
 
@@ -28,6 +26,25 @@ def _department_strict_clause(
     if dept_ids is not None and department_id not in dept_ids:
         return false()
     return department_column == department_id
+
+
+def risk_cross_ownership_clause(user_id: int, risk_id_column: Any) -> ColumnElement[bool]:
+    """Express cross-department KRI and Control ownership without materializing ID lists."""
+    owned_kri = aliased(KeyRiskIndicator)
+    owned_control = aliased(Control)
+    owned_control_link = aliased(ControlRiskLink)
+    return or_(
+        exists().where(
+            owned_kri.risk_id == risk_id_column,
+            owned_kri.reporting_owner_id == user_id,
+            owned_kri.is_archived.is_(False),
+        ),
+        exists().where(
+            owned_control_link.risk_id == risk_id_column,
+            owned_control_link.control_id == owned_control.id,
+            owned_control.control_owner_id == user_id,
+        ),
+    )
 
 
 # With a concrete department_id the strict clause is always produced (false()
@@ -71,13 +88,7 @@ async def risk_visibility_clause(
     if dept_ids:
         clauses.append(Risk.department_id.in_(dept_ids))
 
-    reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, user.id)
-    if reporting_owner_risk_ids:
-        clauses.append(Risk.id.in_(reporting_owner_risk_ids))
-
-    control_owner_risk_ids = await get_risk_ids_where_control_owner(db, user.id)
-    if control_owner_risk_ids:
-        clauses.append(Risk.id.in_(control_owner_risk_ids))
+    clauses.append(risk_cross_ownership_clause(user.id, Risk.id))
 
     return or_(*clauses) if clauses else false()
 
@@ -153,13 +164,7 @@ async def kri_visibility_clause(
     if dept_ids:
         clauses.append(Risk.department_id.in_(dept_ids))
 
-    reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, user.id)
-    if reporting_owner_risk_ids:
-        clauses.append(KeyRiskIndicator.risk_id.in_(reporting_owner_risk_ids))
-
-    control_owner_risk_ids = await get_risk_ids_where_control_owner(db, user.id)
-    if control_owner_risk_ids:
-        clauses.append(KeyRiskIndicator.risk_id.in_(control_owner_risk_ids))
+    clauses.append(risk_cross_ownership_clause(user.id, KeyRiskIndicator.risk_id))
 
     return or_(*clauses) if clauses else false()
 

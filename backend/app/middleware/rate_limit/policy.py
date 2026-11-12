@@ -14,8 +14,14 @@ DEFAULT_RATE_LIMIT_RULES: dict[str, RateLimitRule] = {
     "/api/v1/auth/refresh": (10, 60),
     "/api/v1/users": (100, 60),
     "/api/v1/ict-register/dq": (30, 60),
+    "/api/v1/reports": (5, 60),
     "default": (200, 60),
 }
+
+PRINCIPAL_IP_RATE_LIMIT_PREFIXES = (
+    "/api/v1/ict-register/dq",
+    "/api/v1/reports",
+)
 
 
 def _coerce_rate_limit_rule(value: object) -> RateLimitRule:

@@ -16,6 +16,7 @@ from app.core.logging import get_logger
 from app.core.security import decode_access_token
 from app.middleware.rate_limit.backend import InMemoryRateLimitBackend, RateLimitState, RedisRateLimitBackend
 from app.middleware.rate_limit.policy import (
+    PRINCIPAL_IP_RATE_LIMIT_PREFIXES,
     RateLimitRule,
     get_bucket_for_path,
     get_limit_for_path,
@@ -90,7 +91,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return get_limit_for_path(self.limits, path)
 
     def _get_rate_limit_identity(self, request: Request, client_ip: str) -> str:
-        """Bind one DQ reader to its IP without retaining the raw user id."""
+        """Bind a sensitive authenticated reader to its IP without retaining the raw user id."""
         settings = getattr(request.app.state, "settings", self._default_settings)
         principal: str | None = None
         auth_header = request.headers.get("Authorization", "")
@@ -141,13 +142,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.time()
         client_ip = self._get_client_ip(request)
         path = request.url.path
-        is_dq_family = path.startswith("/api/v1/ict-register/dq")
+        is_principal_ip_family = any(path.startswith(prefix) for prefix in PRINCIPAL_IP_RATE_LIMIT_PREFIXES)
         rate_limit_identity = (
             self._get_rate_limit_identity(request, client_ip)
-            if is_dq_family
+            if is_principal_ip_family
             else client_ip
         )
-        bucket = get_bucket_for_path(self.limits, path) if is_dq_family else path
+        bucket = get_bucket_for_path(self.limits, path) if is_principal_ip_family else path
         max_requests, window = self._get_limit_for_path(path)
 
         redis = getattr(request.app.state, "redis", None)
