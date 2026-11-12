@@ -10,7 +10,6 @@ from app.schemas.directory import DirectoryUserRead
 from app.services._graph_directory.service import GraphDirectoryProviderError, GraphDirectoryService
 from app.services.directory_provider_service import DirectoryProviderError, _ADEmulatorDirectoryService
 
-
 _MISSING = object()
 
 
