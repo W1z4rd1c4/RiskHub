@@ -139,6 +139,7 @@ class _ADEmulatorDirectoryService:
             business_role=business_role_raw,
             account_enabled=payload.get("account_enabled"),
             source="ad_emulator",
+            exception_factory=DirectoryProviderError,
         )
 
 

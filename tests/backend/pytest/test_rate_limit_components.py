@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from app.core.config import Settings
 from app.middleware.rate_limit.backend import InMemoryRateLimitBackend
-from app.middleware.rate_limit.policy import get_limit_for_path, resolve_rate_limit_rules
+from app.middleware.rate_limit.policy import (
+    DEFAULT_RATE_LIMIT_BUCKET,
+    get_bucket_for_path,
+    get_limit_for_path,
+    resolve_rate_limit_rules,
+)
 
 
 def _settings(**overrides: object) -> Settings:
@@ -30,6 +35,18 @@ def test_rate_limit_policy_prefers_longest_prefix_match() -> None:
 
     assert get_limit_for_path(limits, "/api/v1/auth/config") == (9, 60)
     assert get_limit_for_path(limits, "/api/v1/auth/login") == (2, 60)
+
+
+def test_rate_limit_policy_uses_bounded_canonical_buckets() -> None:
+    limits = {
+        "/api/v1/auth": (10, 60),
+        "/api/v1/auth/login": (5, 60),
+        "default": (200, 60),
+    }
+
+    assert get_bucket_for_path(limits, "/api/v1/auth/login/attempt") == "/api/v1/auth/login"
+    assert get_bucket_for_path(limits, "/api/v1/unknown/one") == DEFAULT_RATE_LIMIT_BUCKET
+    assert get_bucket_for_path(limits, "/api/v1/unknown/two") == DEFAULT_RATE_LIMIT_BUCKET
 
 
 def test_rate_limit_policy_merges_settings_overrides() -> None:

@@ -49,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--frontend-image")
         command.add_argument("--redis-image")
         command.add_argument("--bundle")
+        command.add_argument("--bundle-sha256")
         command.add_argument("--user-management", choices=("entra", "custom"))
         command.add_argument("--mfa-policy", choices=("required", "optional"))
 
@@ -151,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                 frontend_image=args.frontend_image,
                 redis_image=args.redis_image,
                 bundle=args.bundle,
+                bundle_sha256=args.bundle_sha256,
                 user_management=args.user_management,
                 mfa_policy=args.mfa_policy,
                 options=options,
@@ -169,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
                 frontend_image=args.frontend_image,
                 redis_image=args.redis_image,
                 bundle=args.bundle,
+                bundle_sha256=args.bundle_sha256,
                 user_management=args.user_management,
                 mfa_policy=args.mfa_policy,
                 options=options,

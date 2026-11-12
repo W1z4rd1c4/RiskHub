@@ -16,9 +16,11 @@ from app.core.logging import get_logger
 from app.core.security import decode_access_token
 from app.middleware.rate_limit.backend import InMemoryRateLimitBackend, RateLimitState, RedisRateLimitBackend
 from app.middleware.rate_limit.policy import (
+    AGGREGATE_RATE_LIMIT_BUCKET,
     PRINCIPAL_IP_RATE_LIMIT_PREFIXES,
     RateLimitRule,
     get_bucket_for_path,
+    get_default_limit,
     get_limit_for_path,
     resolve_rate_limit_rules,
 )
@@ -148,29 +150,40 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if is_principal_ip_family
             else client_ip
         )
-        bucket = get_bucket_for_path(self.limits, path) if is_principal_ip_family else path
+        bucket = get_bucket_for_path(self.limits, path)
         max_requests, window = self._get_limit_for_path(path)
+        aggregate_max_requests, aggregate_window = get_default_limit(self.limits)
+        checks = (
+            (
+                client_ip,
+                AGGREGATE_RATE_LIMIT_BUCKET,
+                aggregate_max_requests,
+                aggregate_window,
+            ),
+            (rate_limit_identity, bucket, max_requests, window),
+        )
 
         redis = getattr(request.app.state, "redis", None)
         if redis is not None:
             try:
-                allowed, retry_after = await self._redis_backend.check(
-                    redis=redis,
-                    redis_key_prefix=self.redis_key_prefix,
-                    client_ip=rate_limit_identity,
-                    path=bucket,
-                    max_requests=max_requests,
-                    window_seconds=window,
-                )
-                if not allowed:
-                    logger.warning(
-                        "rate_limit_exceeded",
-                        client_ip=client_ip,
-                        path=path,
-                        limit=max_requests,
-                        window=window,
+                for identity, check_bucket, check_max_requests, check_window in checks:
+                    allowed, retry_after = await self._redis_backend.check(
+                        redis=redis,
+                        redis_key_prefix=self.redis_key_prefix,
+                        client_ip=identity,
+                        path=check_bucket,
+                        max_requests=check_max_requests,
+                        window_seconds=check_window,
                     )
-                    return build_rate_limit_response(retry_after=retry_after)
+                    if not allowed:
+                        logger.warning(
+                            "rate_limit_exceeded",
+                            client_ip=client_ip,
+                            path=path,
+                            limit=check_max_requests,
+                            window=check_window,
+                        )
+                        return build_rate_limit_response(retry_after=retry_after)
                 return await call_next(request)
             except (RedisError, TimeoutError, OSError, RuntimeError) as exc:
                 logger.warning("rate_limit_redis_error", client_ip=client_ip, path=path, error=str(exc))
@@ -178,20 +191,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 if self._should_fail_closed_on_backend_error(request=request, path=path):
                     return build_rate_limit_backend_unavailable_response()
 
-        allowed, retry_after = self._memory_backend.check(
-            client_ip=rate_limit_identity,
-            path=bucket,
-            max_requests=max_requests,
-            window=window,
-            now=now,
-        )
-        if not allowed:
-            logger.warning(
-                "rate_limit_exceeded",
-                client_ip=client_ip,
-                path=path,
-                limit=max_requests,
-                window=window,
+        for identity, check_bucket, check_max_requests, check_window in checks:
+            allowed, retry_after = self._memory_backend.check(
+                client_ip=identity,
+                path=check_bucket,
+                max_requests=check_max_requests,
+                window=check_window,
+                now=now,
             )
-            return build_rate_limit_response(retry_after=retry_after)
+            if not allowed:
+                logger.warning(
+                    "rate_limit_exceeded",
+                    client_ip=client_ip,
+                    path=path,
+                    limit=check_max_requests,
+                    window=check_window,
+                )
+                return build_rate_limit_response(retry_after=retry_after)
         return await call_next(request)

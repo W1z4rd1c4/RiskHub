@@ -51,6 +51,7 @@ def _audit_trail_query(
     from_date = coerce_utc(from_date)
     to_date = coerce_utc(to_date)
 
+    query: Select
     if ids_only:
         query = select(ControlExecution.id).join(Control, ControlExecution.control_id == Control.id)
     else:

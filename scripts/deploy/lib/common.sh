@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "${DEPLOY_LIB_DIR}/../../.." && pwd)"
 # shellcheck source=scripts/prod/lib/identity_mounts.sh
 source "${REPO_ROOT}/scripts/prod/lib/identity_mounts.sh"
 RENDERER="${DEPLOY_LIB_DIR}/render.py"
+RELEASE_BUNDLE_TOOL="${DEPLOY_LIB_DIR}/release_bundle.py"
 # shellcheck disable=SC2034 # Shared sourced library constant.
 DEFAULT_CONFIG_PATH="${RISKHUB_DEFAULT_CONFIG_PATH:-/etc/riskhub/riskhub.env}"
 DEFAULT_SECRET_DIR="${RISKHUB_DEFAULT_SECRET_DIR:-/etc/riskhub/secrets}"
@@ -631,5 +632,6 @@ render_linux_redis_unit() {
 
 bundle_version() {
   local bundle_path="$1"
-  python3 "$RENDERER" bundle-version --bundle "$bundle_path"
+  local bundle_sha256="$2"
+  python3 "$RELEASE_BUNDLE_TOOL" inspect --bundle "$bundle_path" --sha256 "$bundle_sha256"
 }

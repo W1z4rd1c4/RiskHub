@@ -192,7 +192,7 @@ Recommended public production commands:
 
 ```bash
 ./scripts/install.sh production --target docker --backend-image IMAGE@sha256:DIGEST --backend-db-image IMAGE@sha256:DIGEST --frontend-image IMAGE@sha256:DIGEST --redis-image IMAGE@sha256:DIGEST
-./scripts/install.sh production --target linux --bundle PATH
+./scripts/install.sh production --target linux --bundle PATH --bundle-sha256 DIGEST
 ./scripts/install.sh upgrade --target docker|linux ...
 ./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH
 ./scripts/install.sh status --mode production --target docker|linux [--json]
@@ -221,7 +221,7 @@ Lower-level admin interface:
 ./scripts/deploy.sh secrets-check --target docker|linux [--secret-dir PATH]
 ./scripts/deploy.sh preflight --target docker|linux --config PATH
 ./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE@sha256:DIGEST --backend-db-image IMAGE@sha256:DIGEST --frontend-image IMAGE@sha256:DIGEST --redis-image IMAGE@sha256:DIGEST
-./scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH
+./scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH --bundle-sha256 DIGEST
 ./scripts/deploy.sh upgrade --target docker|linux ...
 ./scripts/deploy.sh status --target docker|linux
 ./scripts/deploy.sh logs --target docker|linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
@@ -243,6 +243,7 @@ Operational notes:
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
 - `./scripts/install.sh production ...` is the recommended first-run operator workflow; keep `./scripts/deploy.sh` for advanced/manual administration, debugging, and partial lifecycle commands.
 - Docker deploy and upgrade require immutable `@sha256:<64-hex-digest>` image refs for all four images: runtime backend, backend DB, frontend, and redis. Tag-only refs and `--version` defaults are refused unless a digest manifest resolves them.
+- Linux deploy and upgrade require an independently obtained `--bundle-sha256`. The installer authenticates a private archive snapshot before manifest parsing, validates current-schema file inventories and all archive structures, and performs extraction without links or special files.
 - `metadata.env` is a non-secret internal shell-sourced runtime artifact. It may contain secret-file paths such as `REDIS_URL_FILE` and `REDIS_PASSWORD_FILE`, but it must not contain raw `REDIS_URL` values or Redis passwords. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
 
 ## Install State

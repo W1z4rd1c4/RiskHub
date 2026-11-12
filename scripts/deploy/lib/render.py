@@ -11,7 +11,6 @@ import secrets as secure_random
 import shlex
 import stat
 import sys
-import tarfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -797,32 +796,6 @@ def _write_runtime_files(
     )
 
 
-def _bundle_manifest(bundle_path: Path) -> dict[str, object]:
-    with tarfile.open(bundle_path, "r:*") as archive:
-        manifest_member = next(
-            (
-                member
-                for member in archive.getmembers()
-                if member.name.endswith("/manifest.json")
-            ),
-            None,
-        )
-        if manifest_member is None:
-            raise RenderError(f"Bundle {bundle_path} is missing manifest.json")
-        manifest_bytes = archive.extractfile(manifest_member)
-        if manifest_bytes is None:
-            raise RenderError(f"Unable to read manifest from {bundle_path}")
-        return json.loads(manifest_bytes.read().decode("utf-8"))
-
-
-def _bundle_version(bundle_path: Path) -> str:
-    manifest = _bundle_manifest(bundle_path)
-    version = str(manifest.get("version", "")).strip()
-    if not version:
-        raise RenderError(f"Bundle {bundle_path} manifest is missing version")
-    return version
-
-
 def _render_linux_site(config_path: Path, release_root: str) -> str:
     config = DeployConfig.from_env_file(config_path)
     return _render_template(
@@ -924,9 +897,6 @@ def _build_parser() -> argparse.ArgumentParser:
     show_json.add_argument("--target", choices=("docker", "linux"), required=True)
     show_json.add_argument("--secret-dir", default=str(DEFAULT_SECRET_DIR))
     show_json.add_argument("--runtime-dir", default=str(DEFAULT_RUNTIME_DIR))
-
-    bundle_version = sub.add_parser("bundle-version")
-    bundle_version.add_argument("--bundle", required=True)
 
     render_site = sub.add_parser("render-linux-site")
     render_site.add_argument("--config", required=True)
@@ -1143,8 +1113,6 @@ def main(argv: Iterable[str] | None = None) -> int:
                     "frontend_env": config.frontend_env(args.target),
                 }
             )
-        elif args.command == "bundle-version":
-            print(_bundle_version(Path(args.bundle)))
         elif args.command == "render-linux-site":
             print(_render_linux_site(Path(args.config), args.release_root), end="")
         elif args.command == "render-linux-nginx-full":

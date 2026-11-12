@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 import time
 import uuid
@@ -109,7 +110,8 @@ class RedisRateLimitBackend:
         window_ms = int(window_seconds * 1000)
         expire_seconds = int(window_seconds + 5)
         member = f"{now_ms}:{uuid.uuid4().hex}"
-        key = f"{redis_key_prefix}:{client_ip}:{path}"
+        bucket_digest = hashlib.sha256(path.encode("utf-8")).hexdigest()
+        key = f"{redis_key_prefix}:{client_ip}:{bucket_digest}"
 
         allowed, retry_after = await redis.eval(
             self._REDIS_LUA,

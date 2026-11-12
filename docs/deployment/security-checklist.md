@@ -133,7 +133,8 @@ RiskHub production deploys must satisfy these invariants:
 
 - Python baseline is `3.13`.
 - Docker target should pull only published release images.
-- Linux target should use only published `riskhub-linux-<version>.tar.gz` bundles.
+- Linux target should use only published `riskhub-linux-<version>.tar.gz` bundles and must supply the asset's SHA-256 from an independently authenticated GitHub API session or maintainer channel.
+- Never accept a Linux checksum delivered only beside the archive by the same mirror or artifact handoff; archive authentication must complete before manifest parsing or extraction.
 - Validate release artifacts in CI before publishing.
 - CI policy now requires immutable action SHAs, digest-pinned service images, and production contract doc parity checks before PR merge.
 

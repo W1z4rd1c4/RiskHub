@@ -29,6 +29,7 @@ BACKEND_DB_IMAGE=""
 FRONTEND_IMAGE=""
 REDIS_IMAGE=""
 BUNDLE_PATH=""
+BUNDLE_SHA256=""
 FORCE=false
 SERVICE="all"
 FOLLOW=false
@@ -65,6 +66,7 @@ Release options:
   --frontend-image IMAGE      Immutable frontend image ref for docker deploy/upgrade
   --redis-image IMAGE         Immutable redis image ref for docker deploy/upgrade
   --bundle PATH               Linux release bundle path for linux deploy/upgrade
+  --bundle-sha256 DIGEST      Independently obtained SHA-256 for the Linux bundle
 
 Command-specific options:
   init           [--force]
@@ -127,6 +129,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --bundle)
       BUNDLE_PATH="${2:-}"
+      shift 2
+      ;;
+    --bundle-sha256)
+      BUNDLE_SHA256="${2:-}"
       shift 2
       ;;
     --force)
@@ -452,7 +458,8 @@ case "$command_name" in
       docker_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$BACKEND_DB_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
     else
       [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux deploy"
-      linux_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$BUNDLE_PATH"
+      [[ -n "$BUNDLE_SHA256" ]] || die "--bundle-sha256 is required for linux deploy"
+      linux_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$BUNDLE_PATH" "$BUNDLE_SHA256"
     fi
     ;;
   upgrade)
@@ -464,7 +471,8 @@ case "$command_name" in
       docker_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$BACKEND_DB_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
     else
       [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux upgrade"
-      linux_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$BUNDLE_PATH"
+      [[ -n "$BUNDLE_SHA256" ]] || die "--bundle-sha256 is required for linux upgrade"
+      linux_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$BUNDLE_PATH" "$BUNDLE_SHA256"
     fi
     ;;
   status)

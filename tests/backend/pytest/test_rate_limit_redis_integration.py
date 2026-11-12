@@ -74,7 +74,7 @@ async def test_rate_limit_redis_lua_enforces_limit_with_real_redis_container():
         middleware = RateLimitMiddleware(
             app,
             enabled=True,
-            limits={"/api/v1/auth/config": (1, 60), "default": (1, 60)},
+            limits={"/api/v1/auth/config": (1, 60), "default": (100, 60)},
         )
 
         async def call_next(_request):
