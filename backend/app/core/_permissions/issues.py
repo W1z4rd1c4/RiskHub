@@ -1,12 +1,7 @@
 from app.models import User
 
+from .entity_scope_clauses import risk_cross_ownership_clause
 from .evaluation import has_permission
-from .ownership import (
-    get_control_ids_where_owner,
-    get_kri_ids_where_reporting_owner,
-    get_risk_ids_where_control_owner,
-    get_risk_ids_where_kri_reporting_owner,
-)
 from .scoping import get_user_department_ids
 
 
@@ -20,7 +15,7 @@ async def get_issue_scope_clause(db, user: User, *, include_direct_kri_reporting
     """
     from sqlalchemy import or_, select
 
-    from app.models import Control, ControlExecution, Issue, IssueLink
+    from app.models import Control, ControlExecution, Issue, IssueLink, KeyRiskIndicator
 
     dept_ids = get_user_department_ids(user)
     if dept_ids is None:
@@ -30,27 +25,37 @@ async def get_issue_scope_clause(db, user: User, *, include_direct_kri_reporting
     if dept_ids:
         scope_conditions.append(Issue.department_id.in_(dept_ids))
 
-    risk_owner_ids = set(await get_risk_ids_where_kri_reporting_owner(db, user.id))
-    risk_owner_ids.update(await get_risk_ids_where_control_owner(db, user.id))
-    control_owner_ids = set(await get_control_ids_where_owner(db, user.id))
-    kri_owner_ids = set(await get_kri_ids_where_reporting_owner(db, user.id))
-
-    if risk_owner_ids:
-        scope_conditions.append(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id.in_(risk_owner_ids))))
-    if control_owner_ids:
-        scope_conditions.append(
-            Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.control_id.in_(control_owner_ids)))
+    scope_conditions.append(
+        Issue.id.in_(
+            select(IssueLink.issue_id).where(
+                IssueLink.risk_id.is_not(None),
+                risk_cross_ownership_clause(user.id, IssueLink.risk_id),
+            )
         )
+    )
+    scope_conditions.append(
+        Issue.id.in_(
+            select(IssueLink.issue_id)
+            .join(Control, IssueLink.control_id == Control.id)
+            .where(Control.control_owner_id == user.id)
+        )
+    )
+    scope_conditions.append(
+        Issue.id.in_(
+            select(IssueLink.issue_id)
+            .join(ControlExecution, IssueLink.execution_id == ControlExecution.id)
+            .join(Control, ControlExecution.control_id == Control.id)
+            .where(Control.control_owner_id == user.id)
+        )
+    )
+    if include_direct_kri_reporting_owner_links:
         scope_conditions.append(
             Issue.id.in_(
                 select(IssueLink.issue_id)
-                .join(ControlExecution, IssueLink.execution_id == ControlExecution.id)
-                .join(Control, ControlExecution.control_id == Control.id)
-                .where(Control.control_owner_id == user.id)
+                .join(KeyRiskIndicator, IssueLink.kri_id == KeyRiskIndicator.id)
+                .where(KeyRiskIndicator.reporting_owner_id == user.id)
             )
         )
-    if include_direct_kri_reporting_owner_links and kri_owner_ids:
-        scope_conditions.append(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.kri_id.in_(kri_owner_ids))))
 
     return or_(*scope_conditions)
 

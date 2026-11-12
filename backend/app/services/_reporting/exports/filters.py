@@ -1,10 +1,14 @@
 from datetime import date
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.datetime_utils import utc_now
-from app.core.permissions import get_user_department_ids
-from app.models import User
+from app.core.permissions import get_user_department_ids, risk_cross_ownership_clause
+from app.models import Risk, User
 from app.services.kri_populations import is_due_soon, is_live, is_overdue
+from app.services.report_export_limits import execute_bounded_export_query
 
 from .kri_population import population_state
 from .shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitoringExportStatus, _contains, _safe_int
@@ -52,6 +56,27 @@ def _filter_rows_by_final_scope(
         if _safe_int(row.get(extra_visible_id_field)) in visible_ids:
             filtered.append(row)
     return filtered
+
+
+async def _get_cross_owned_candidate_risk_ids(
+    db: AsyncSession,
+    rows: list[dict[str, Any]],
+    *,
+    current_user: User,
+    risk_id_field: str,
+) -> set[int]:
+    candidate_ids = {
+        candidate_id
+        for row in rows
+        if (candidate_id := _safe_int(row.get(risk_id_field))) is not None
+    }
+    if not candidate_ids:
+        return set()
+    query = select(Risk.id).where(
+        Risk.id.in_(candidate_ids),
+        risk_cross_ownership_clause(current_user.id, Risk.id),
+    )
+    return set(await execute_bounded_export_query(db, query))
 
 
 def _normalize_kri_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

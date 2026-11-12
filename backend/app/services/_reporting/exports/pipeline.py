@@ -4,13 +4,13 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from inspect import isawaitable
-from io import BytesIO
 from typing import Any, Literal
 
 from fastapi.responses import StreamingResponse
 
 from app.core.datetime_utils import utc_now
 from app.services._reporting.tabular import generate_tabular_csv
+from app.services.report_export_limits import enforce_sync_export_row_limit
 
 ExportFormat = Literal["csv"]
 ExportRow = dict[str, Any]
@@ -41,7 +41,7 @@ def _stream_binary(
     as_of_date: date | None = None,
 ) -> StreamingResponse:
     return StreamingResponse(
-        BytesIO(content_bytes),
+        iter((content_bytes,)),
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": (
@@ -74,9 +74,11 @@ async def apply_export_stages(
     stages: Sequence[ExportStage],
 ) -> list[ExportRow]:
     current = rows
+    enforce_sync_export_row_limit(len(current))
     for stage in stages:
         next_rows = stage(current)
         current = await next_rows if isawaitable(next_rows) else next_rows
+        enforce_sync_export_row_limit(len(current))
     return current
 
 

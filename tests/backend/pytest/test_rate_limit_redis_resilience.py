@@ -181,6 +181,43 @@ async def test_unmatched_paths_use_bounded_digested_redis_keys():
 
 
 @pytest.mark.asyncio
+async def test_report_family_shares_one_bucket_per_authenticated_principal_and_ip():
+    settings = Settings(
+        debug=True, secret_key="test-secret-key-32-chars-minimum-value"
+    )
+    app = SimpleNamespace(state=SimpleNamespace(redis=None, settings=settings))
+    middleware = RateLimitMiddleware(
+        app,
+        enabled=True,
+        limits={"/api/v1/reports": (1, 60), "default": (100, 60)},
+    )
+
+    async def call_next(_request):
+        return JSONResponse({"ok": True})
+
+    def bearer(user_id: int) -> list[tuple[bytes, bytes]]:
+        token = create_access_token({"sub": str(user_id)}, settings=settings)
+        return [(b"authorization", f"Bearer {token}".encode("ascii"))]
+
+    first = await middleware.dispatch(
+        _build_request(app=app, path="/api/v1/reports/risks/export", headers=bearer(1)),
+        call_next,
+    )
+    same_principal_other_export = await middleware.dispatch(
+        _build_request(app=app, path="/api/v1/reports/vendors/export", headers=bearer(1)),
+        call_next,
+    )
+    other_principal = await middleware.dispatch(
+        _build_request(app=app, path="/api/v1/reports/vendors/export", headers=bearer(2)),
+        call_next,
+    )
+
+    assert first.status_code == 200
+    assert same_principal_other_export.status_code == 429
+    assert other_principal.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_rate_limit_returns_503_on_sensitive_path_when_redis_fails():
     settings = Settings(
         debug=False,

@@ -1,5 +1,7 @@
 # Authorization Capability Contract
 
+2026-11-12: Synchronous CSV reports enforce 1,000 root rows, 10,000 related or replay rows, and 8 MiB output, rejecting oversized work with HTTP 413. Correlated ownership predicates preserve department scoping, active KRI reporting-owner and Control-owner exceptions, direct Issue ownership, and linked-context redaction. Final historical scope is rechecked after replay. Report endpoints share a five-per-minute principal-plus-client allowance. Existing read permissions, capability shapes and mutation authority remain unchanged.
+
 2026-10-23: SSO discovery and JWKS requests reject cross-origin redirects and malformed redirect targets before issuing a session. Outbound policy rejections retain the existing provider-unavailable error contract. Issuer, audience, algorithm, claim validation, role/scope authority and capability shapes remain unchanged. Regression coverage uses the real guarded transport through `test_sso_token_service.py` and `test_outbound_egress_guards.py`.
 
 Protected-detail cancellation reads backend `can_cancel` through `resolveCapabilityFlag`, matching the pending-change panel's strict true-only predicate. Canonical authenticated session ownership remains required before submission; backend mutation authority and capability shapes are unchanged.

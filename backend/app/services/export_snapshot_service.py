@@ -8,6 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
+from app.services.report_export_limits import (
+    MAX_SYNC_EXPORT_RELATED_ROWS,
+    execute_bounded_export_query,
+)
 
 
 class ExportSnapshotService:
@@ -41,16 +45,17 @@ class ExportSnapshotService:
         if not row_map:
             return rows
 
-        result = await db.execute(
+        logs = await execute_bounded_export_query(
+            db,
             select(ActivityLog)
             .where(
                 ActivityLog.entity_type == entity_type.value,
                 ActivityLog.entity_id.in_(list(row_map.keys())),
                 ActivityLog.created_at > cutoff,
             )
-            .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
+            .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc()),
+            maximum=MAX_SYNC_EXPORT_RELATED_ROWS,
         )
-        logs = result.scalars().all()
 
         for log in logs:
             entity_id = int(log.entity_id)

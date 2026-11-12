@@ -18,6 +18,11 @@ from app.services._dashboard_metrics import build_dashboard_summary_metrics
 from app.services._reporting.exports.pipeline import _stream_binary
 from app.services._reporting.exports.shared import ExportFormat
 from app.services._reporting.tabular import generate_tabular_csv
+from app.services.report_export_limits import (
+    MAX_SYNC_EXPORT_RELATED_ROWS,
+    execute_bounded_export_query,
+    preflight_export_query,
+)
 
 
 class ReportExportContextLike(Protocol):
@@ -40,19 +45,21 @@ def _audit_trail_query(
     control_id: int | None,
     from_date: datetime | None,
     to_date: datetime | None,
+    *,
+    ids_only: bool = False,
 ) -> Select:
     from_date = coerce_utc(from_date)
     to_date = coerce_utc(to_date)
 
-    query = (
-        select(ControlExecution)
-        .join(Control, ControlExecution.control_id == Control.id)
-        .options(
+    query: Select
+    if ids_only:
+        query = select(ControlExecution.id).join(Control, ControlExecution.control_id == Control.id)
+    else:
+        query = select(ControlExecution).join(Control, ControlExecution.control_id == Control.id).options(
             selectinload(ControlExecution.control).selectinload(Control.department),
             selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
             selectinload(ControlExecution.executed_by),
         )
-    )
 
     visibility_clause = control_visibility_clause(context.current_user, department_id=context.department_id)
     if visibility_clause is not None:
@@ -151,8 +158,31 @@ async def build_audit_trail_export(
     executions: list[ControlExecution] = []
     if not context.empty_scope:
         query = _audit_trail_query(context, result_filter, control_id, from_date, to_date)
-        result_set = await db.execute(query)
-        executions = list(result_set.scalars().all())
+        execution_ids = await preflight_export_query(
+            db,
+            _audit_trail_query(
+                context,
+                result_filter,
+                control_id,
+                from_date,
+                to_date,
+                ids_only=True,
+            ),
+        )
+        if execution_ids:
+            control_ids = await preflight_export_query(
+                db,
+                select(ControlExecution.control_id)
+                .where(ControlExecution.id.in_(execution_ids))
+                .distinct(),
+            )
+            if control_ids:
+                await preflight_export_query(
+                    db,
+                    select(ControlRiskLink.id).where(ControlRiskLink.control_id.in_(control_ids)),
+                    maximum=MAX_SYNC_EXPORT_RELATED_ROWS,
+                )
+        executions = await execute_bounded_export_query(db, query)
 
     headers, rows = await _to_audit_trail_csv_rows(db, current_user, executions)
     return _stream_binary(

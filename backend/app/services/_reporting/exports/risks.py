@@ -3,7 +3,6 @@ from datetime import date
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services.export_snapshot_service import ExportSnapshotService
@@ -12,6 +11,7 @@ from app.services.risk_row_criteria import parse_risk_row_criteria
 from .fetch import _fetch_risks_for_export
 from .filters import (
     _filter_rows_by_final_scope,
+    _get_cross_owned_candidate_risk_ids,
     _prefilter_department_id_for_as_of,
 )
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
@@ -48,10 +48,16 @@ async def _export_risks(
     rows = [_risk_to_row(risk) for risk in models]
 
     async def apply_final_scope(current_rows: list[ExportRow]) -> list[ExportRow]:
-        extra_visible_ids: set[int] = set()
-        if department_id is None:
-            extra_visible_ids.update(await get_risk_ids_where_kri_reporting_owner(db, current_user.id))
-            extra_visible_ids.update(await get_risk_ids_where_control_owner(db, current_user.id))
+        extra_visible_ids = (
+            await _get_cross_owned_candidate_risk_ids(
+                db,
+                current_rows,
+                current_user=current_user,
+                risk_id_field="id",
+            )
+            if department_id is None
+            else set()
+        )
         return _filter_rows_by_final_scope(
             current_rows,
             current_user=current_user,
