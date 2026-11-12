@@ -1174,7 +1174,9 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
         deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert "riskhub-linux-v-test.tar.gz" in deploy_output
+        assert "release_bundle.py extract" in deploy_output
+        assert f"--sha256 {bundle_sha256}" in deploy_output
+        assert "--expected-version v-test" in deploy_output
         assert "riskhub-redis.service" in deploy_output
         assert "systemctl restart nginx" in deploy_output
 

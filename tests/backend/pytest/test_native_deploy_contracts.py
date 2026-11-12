@@ -488,7 +488,7 @@ def test_native_public_dry_run_summary_matches_policy_and_release_boundary(tmp_p
                            ("--frontend-image", "frontend"), ("--redis-image", "redis")]:
             args.extend([flag, _image(name)])
     else:
-        args.extend(["--bundle", "unused.tar.gz"])
+        args.extend(["--bundle", "unused.tar.gz", "--bundle-sha256", "a" * 64])
     result = subprocess.run(args, env={**os.environ, "RISKHUB_RUNTIME_DIR": str(tmp_path / "runtime")},
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
