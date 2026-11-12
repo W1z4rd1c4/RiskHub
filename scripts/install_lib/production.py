@@ -69,6 +69,7 @@ def run_production(
     frontend_image: str | None,
     redis_image: str | None,
     bundle: str | None,
+    bundle_sha256: str | None,
     options: SharedOptions,
     paths: InstallPaths,
     user_management: str | None = None,
@@ -90,10 +91,11 @@ def run_production(
         raise RuntimeError(
             "Installed configuration or credentials are missing; restore the known files before upgrading."
         )
-    version, bundle = ensure_production_release_input(
+    version, bundle, bundle_sha256 = ensure_production_release_input(
         target=target,
         version=version,
         bundle=bundle,
+        bundle_sha256=bundle_sha256,
         backend_image=backend_image,
         backend_db_image=backend_db_image,
         frontend_image=frontend_image,
@@ -163,6 +165,7 @@ def run_production(
         frontend_image=frontend_image,
         redis_image=redis_image,
         bundle=bundle,
+        bundle_sha256=bundle_sha256,
         options=options,
         paths=paths,
     )
@@ -181,6 +184,7 @@ def run_upgrade(
     frontend_image: str | None,
     redis_image: str | None,
     bundle: str | None,
+    bundle_sha256: str | None,
     options: SharedOptions,
     paths: InstallPaths,
     user_management: str | None = None,
@@ -203,10 +207,11 @@ def run_upgrade(
         options=options,
     )
     validate_installed_identity(config_path, runtime_dir)
-    version, bundle = ensure_production_release_input(
+    version, bundle, bundle_sha256 = ensure_production_release_input(
         target=target,
         version=version,
         bundle=bundle,
+        bundle_sha256=bundle_sha256,
         backend_image=backend_image,
         backend_db_image=backend_db_image,
         frontend_image=frontend_image,
@@ -240,6 +245,7 @@ def run_upgrade(
         frontend_image=frontend_image,
         redis_image=redis_image,
         bundle=bundle,
+        bundle_sha256=bundle_sha256,
         options=options,
         paths=paths,
     )

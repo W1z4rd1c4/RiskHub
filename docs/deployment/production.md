@@ -63,8 +63,23 @@ for a concrete nginx example and certificate-acquisition pointers.
 or
 
 ```bash
-./scripts/install.sh production --target linux --bundle ./riskhub-linux-v1.2.3.tar.gz
+bundle_sha256="$(gh api repos/W1z4rd1c4/RiskHub/releases/tags/v1.2.3 \
+  --jq '.assets[] | select(.name == "riskhub-linux-v1.2.3.tar.gz") | .digest')"
+./scripts/install.sh production \
+  --target linux \
+  --bundle ./riskhub-linux-v1.2.3.tar.gz \
+  --bundle-sha256 "${bundle_sha256}"
 ```
+
+Obtain the Linux asset digest through an authenticated, TLS-verified GitHub API
+session or another independently authenticated maintainer channel. Do not trust a
+checksum downloaded from the same mirror or handoff as the archive. The installer
+accepts GitHub's `sha256:<64-hex>` form or the bare digest, snapshots the archive,
+and verifies it before reading its manifest. It then rejects links, devices,
+duplicate or non-canonical paths, files outside the declared root, and, for
+current-schema bundles, any file that does not match the authenticated manifest
+inventory. After the digest has been obtained, verification and installation
+remain offline.
 
 The guided installer initializes config if needed, prompts for the required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, refuses unresolved placeholders, then runs `preflight`, `deploy`, `status`, and `smoke`. `./scripts/install.sh` remains the supported operator surface even though the lifecycle control plane now runs through `scripts/install_cli.py` and `scripts/install_lib/`.
 
@@ -167,10 +182,16 @@ Linux target:
   --target linux \
   --config /etc/riskhub/riskhub.env \
   --secret-dir /etc/riskhub/secrets \
-  --bundle ./riskhub-linux-v1.2.3.tar.gz
+  --bundle ./riskhub-linux-v1.2.3.tar.gz \
+  --bundle-sha256 "${bundle_sha256}"
 ```
 
-Linux deployments install releases under `/opt/riskhub/releases/<version>`, switch `/opt/riskhub/current`, render systemd/nginx files, run migrations/bootstrap, and restart services. The unpacked release keeps the long-running runtime lane under `backend/` and the DB/bootstrap lane under `backend_db/`.
+Linux deployments refuse a missing or mismatched bundle digest before parsing or
+extracting the archive. Authenticated releases install under
+`/opt/riskhub/releases/<version>`, switch `/opt/riskhub/current`, render
+systemd/nginx files, run migrations/bootstrap, and restart services. The unpacked
+release keeps the long-running runtime lane under `backend/` and the DB/bootstrap
+lane under `backend_db/`.
 
 ## 4.1 SSO Compatibility Cutover
 
@@ -246,11 +267,14 @@ Docker target:
 Linux target:
 
 ```bash
+bundle_sha256="$(gh api repos/W1z4rd1c4/RiskHub/releases/tags/v1.2.4 \
+  --jq '.assets[] | select(.name == "riskhub-linux-v1.2.4.tar.gz") | .digest')"
 ./scripts/install.sh upgrade \
   --target linux \
   --config /etc/riskhub/riskhub.env \
   --secret-dir /etc/riskhub/secrets \
-  --bundle ./riskhub-linux-v1.2.4.tar.gz
+  --bundle ./riskhub-linux-v1.2.4.tar.gz \
+  --bundle-sha256 "${bundle_sha256}"
 ```
 
 The upgrade path creates a timestamped non-secret backup under the runtime directory before it runs `preflight`, `upgrade`, `status`, and `smoke`.

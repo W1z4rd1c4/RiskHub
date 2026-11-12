@@ -352,12 +352,14 @@ jobs:
           printf '%s\n' 'entra-client-secret' > "${secret_dir}/entra_client_secret"
           chmod 750 "${secret_dir}"
           chmod 440 "${secret_dir}"/*
+          bundle_sha256="$(sha256sum "dist/releases/riskhub-linux-${RELEASE_VERSION}.tar.gz" | awk '{print $1}')"
 
           bash scripts/deploy.sh deploy \
             --target linux \
             --config "${config_path}" \
             --secret-dir "${secret_dir}" \
             --bundle "dist/releases/riskhub-linux-${RELEASE_VERSION}.tar.gz" \
+            --bundle-sha256 "${bundle_sha256}" \
             --dry-run \
             --yes
 

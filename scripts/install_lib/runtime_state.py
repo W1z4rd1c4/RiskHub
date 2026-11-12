@@ -107,6 +107,7 @@ def release_source_from_args(
     target: str,
     version: str | None,
     bundle: str | None,
+    bundle_sha256: str | None,
     backend_image: str | None,
     backend_db_image: str | None,
     frontend_image: str | None,
@@ -134,6 +135,7 @@ def release_source_from_args(
     return {
         "kind": "linux_bundle",
         "bundle_path": bundle,
+        "bundle_sha256": bundle_sha256,
         "version": version,
     }
 
