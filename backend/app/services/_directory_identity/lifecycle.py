@@ -88,7 +88,14 @@ def normalize_directory_user_read(
     business_role: object,
     account_enabled: object,
     source: Literal["graph", "ad_emulator"],
+    exception_factory: Callable[[str], Exception] | None = None,
 ) -> DirectoryUserRead:
+    if not isinstance(account_enabled, bool):
+        message = f"{source} directory payload account eligibility must be an explicit boolean"
+        if exception_factory is not None:
+            raise exception_factory(message)
+        raise ValueError(message)
+
     normalized_external_id = external_id.strip()
     normalized_display_name = _normalize_optional_directory_text(display_name) or normalized_external_id
     normalized_business_role = normalize_business_role(business_role if isinstance(business_role, str) else None)
@@ -101,7 +108,7 @@ def normalize_directory_user_read(
         department=_normalize_optional_directory_text(department),
         job_title=_normalize_optional_directory_text(job_title),
         business_role=normalized_business_role,
-        account_enabled=account_enabled if isinstance(account_enabled, bool) else True,
+        account_enabled=account_enabled,
         source=source,
     )
 

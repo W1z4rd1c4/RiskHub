@@ -124,6 +124,7 @@ class GraphDirectoryService:
             business_role=payload.get(self._settings.entra_business_role_graph_field or ""),
             account_enabled=payload.get("accountEnabled"),
             source="graph",
+            exception_factory=GraphDirectoryProviderError,
         )
 
 

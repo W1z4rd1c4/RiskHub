@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ class DirectoryUserRead(BaseModel):
     department: str | None = None
     job_title: str | None = None
     business_role: str | None = None
-    account_enabled: bool = True
+    account_enabled: Annotated[bool, Field(strict=True)]
     source: Literal["graph", "ad_emulator"]
 
 
