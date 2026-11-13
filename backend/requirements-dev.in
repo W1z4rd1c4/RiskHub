@@ -1,27 +1,27 @@
 -r requirements.txt
 
 # Backend testing
-pytest>=9.0.3,<10
-pytest-asyncio>=0.23.0
+pytest>=9.2.0,<10
+pytest-asyncio>=1.4.1.post1
 pytest-cov>=4.1.0
 pytest-timeout>=2.3.1
 freezegun==1.5.*
 pytest-postgresql==9.1.1
 syrupy==6.1.1
 aiosqlite>=0.20.0
-fakeredis>=2.31.0
-sqlalchemy-utils>=0.41,<0.42
+fakeredis>=2.40.0
+sqlalchemy-utils>=0.43.0,<0.44
 testcontainers[redis]>=4.8.0
 
 # Security/tooling
 # Reviewed Batch 1 tooling baseline (#224); runtime upgrades remain separate.
-filelock==4.2.1
+filelock==4.2.10
 # GHSA-xmj3-9gf7-h52w: reject namespace paths escaping legacy wheel installs.
-setuptools==84.1.0
-ruff==0.16.10
+setuptools==84.2.1
+ruff==0.17.4
 bandit>=1.7.8
-mypy==2.4.0
-pre-commit>=3.7.0
+mypy==2.4.1
+pre-commit>=4.7.0
 pip-audit==2.10.1
 
 # Data migration helpers
