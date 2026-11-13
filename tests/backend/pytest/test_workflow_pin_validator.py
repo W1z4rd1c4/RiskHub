@@ -590,13 +590,13 @@ def test_grype_workflow_enforces_policy_expiry_before_scanning(tmp_path: Path) -
 
 def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
     text = BACKEND_DOCKERFILE.read_text(encoding="utf-8")
-    digests = set(re.findall(r"FROM python:3\.13\.16-alpine3\.24@sha256:([0-9a-f]{64})", text))
+    digests = set(re.findall(r"FROM python:3\.13\.18-alpine3\.24@sha256:([0-9a-f]{64})", text))
 
     assert digests == {
-        "2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a"
+        "9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e"
     }
     digest = digests.pop()
-    assert text.count(f"FROM python:3.13.16-alpine3.24@sha256:{digest}") == 3
+    assert text.count(f"FROM python:3.13.18-alpine3.24@sha256:{digest}") == 3
     assert not re.search(
         r"FROM python:[^\s@]+\s", text
     ), "unpinned base image stage found"

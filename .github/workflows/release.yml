@@ -352,8 +352,6 @@ jobs:
           printf '%s\n' 'entra-client-secret' > "${secret_dir}/entra_client_secret"
           chmod 750 "${secret_dir}"
           chmod 440 "${secret_dir}"/*
-          # This digest exercises the dry-run contract for a bundle built in this job.
-          # Production operators obtain the digest through an independently trusted channel.
           bundle_sha256="$(sha256sum "dist/releases/riskhub-linux-${RELEASE_VERSION}.tar.gz" | awk '{print $1}')"
 
           bash scripts/deploy.sh deploy \

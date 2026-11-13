@@ -19,7 +19,8 @@ concurrency:
 jobs:
   native-regression:
     name: Native identity PostgreSQL and Redis regression
-    runs-on: ubuntu-latest
+    # PostgreSQL 16 client binaries are part of this runner's reviewed toolchain.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     services:
       postgres:

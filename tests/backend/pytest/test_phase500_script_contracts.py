@@ -297,12 +297,12 @@ def test_backend_dockerfile_keeps_builder_pip_out_of_runtime_images() -> None:
             stage_bodies[stage_name] += f"{line}\n"
 
     assert any(
-        line.startswith("FROM python:3.13.16-alpine3.24@sha256:")
+        line.startswith("FROM python:3.13.18-alpine3.24@sha256:")
         and line.endswith(" AS runtime")
         for line in dockerfile_lines
     )
     assert any(
-        line.startswith("FROM python:3.13.16-alpine3.24@sha256:")
+        line.startswith("FROM python:3.13.18-alpine3.24@sha256:")
         and line.endswith(" AS dbtasks")
         for line in dockerfile_lines
     )
