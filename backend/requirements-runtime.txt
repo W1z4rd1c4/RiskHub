@@ -13,7 +13,7 @@ pydantic==2.13.5
 pydantic-settings==2.15.0
 email-validator==2.3.0
 # CVE-2026-114605: bound DNS name decompression work.
-dnspython==2.9.0
+dnspython==2.9.2
 alembic==1.19.2
 PyJWT[crypto]==2.15.1
 cryptography==50.0.1
