@@ -1,4 +1,4 @@
-name: Prepare PR 323 security dependency fixes
+name: Verify PR 323 security dependency fixes
 
 on:
   push:
@@ -8,13 +8,12 @@ permissions:
   contents: read
 
 jobs:
-  prepare:
+  verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          fetch-depth: 2
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
@@ -22,89 +21,47 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '24'
-      - name: Resolve the fixed official Python image
+      - name: Install the exact reviewed dependency graph
+        run: python -m pip install -r backend/requirements-dev.txt
+      - name: Verify source, image and lock contracts
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "678f7e7578108c3215ff3b74a2095110a9a2054b"
-          docker pull --platform linux/amd64 python:3.13.18-alpine3.24
-          python - <<'PY'
-          import pathlib, re, subprocess
-          tag = "python:3.13.18-alpine3.24"
-          ref = subprocess.check_output(["docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", tag], text=True).strip()
-          digest = ref.split("@", 1)[1]
-          assert re.fullmatch(r"sha256:[0-9a-f]{64}", digest), ref
-          image = tag + "@" + digest
-          path = pathlib.Path("backend/Dockerfile")
-          source = path.read_text()
-          result, count = re.subn(r"python:3\.13\.16-alpine3\.24@sha256:[0-9a-f]{64}", image, source)
-          assert count == 3, count
-          path.write_text(result)
-          print("REVIEWED_PYTHON_IMAGE", image)
-          PY
-          git grep -n '3.13.16' -- backend scripts tests docs/development || true
-      - name: Regenerate only the reviewed Python dependency upgrade
-        run: python scripts/tools/refresh_python_dependency_lock.py --upgrade-package dnspython
-      - name: Regenerate the Zod lock entry
-        working-directory: frontend
-        run: |
-          npm install --package-lock-only --ignore-scripts --save-prefix='^' zod@4.6.6
-          npm audit --audit-level=high
-      - name: Generate and verify native Alpine runtime locks
-        run: |
-          set -euo pipefail
-          docker build --platform linux/amd64 --target builder-base -t riskhub-pr323-resolver -f backend/Dockerfile backend
-          mkdir -p "$RUNNER_TEMP/pr323-locks"
-          docker run --rm --platform linux/amd64 \
-            -v "$PWD:/repo:ro" -v "$RUNNER_TEMP/pr323-locks:/out" -w /repo riskhub-pr323-resolver sh -ec '
-              python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r backend/requirements-lock-bootstrap.txt
-              python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/first
-              python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/second
-              diff -ru /out/first /out/second
-              python scripts/tools/runtime_dependency_lock.py verify --lock-dir /out/first
-              apk info -v sqlite-libs
-            '
-          cp "$RUNNER_TEMP/pr323-locks/first/"* backend/locks/cpython313-alpine324-x86_64/
-      - name: Validate source and lock contracts
-        run: |
-          python -m pip install -r backend/requirements-dev.txt
           python -m unittest discover -s scripts/tools/tests -p test_runtime_dependency_lock.py -v
           python scripts/tools/runtime_dependency_lock.py preflight
           python scripts/tools/validate_contributor_command_contract.py
+          python -m ruff check backend/security/strip_unused_sqlite.py backend/security/verify_runtime_security.py tests/backend/pytest/test_backend_container_security_contract.py
+          PYTHONPATH=.:backend python -m pytest --noconftest -o addopts= -q \
+            tests/backend/pytest/test_backend_container_security_contract.py \
+            tests/backend/pytest/test_workflow_pin_validator.py \
+            tests/backend/pytest/test_phase500_script_contracts.py \
+            tests/backend/pytest/test_contributor_command_contract.py \
+            tests/backend/pytest/test_linux_release_bundle_security.py \
+            tests/backend/pytest/test_linux_release_lifecycle_security.py
           git diff --check
-      - name: Build and inspect both production images
+      - name: Verify the frontend dependency fix
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high
+      - name: Build and scan both production images
         run: |
           set -euo pipefail
+          docker pull --platform linux/amd64 python:3.13.18-alpine3.24@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
           for lane in runtime dbtasks; do
             docker build --platform linux/amd64 --target "$lane" -t "riskhub-pr323:$lane" -f backend/Dockerfile backend
-            docker run --rm --platform linux/amd64 --entrypoint sh "riskhub-pr323:$lane" -ec 'python --version; apk info -v sqlite-libs; command -v sqlite3 || true'
+            docker run --rm --platform linux/amd64 --entrypoint python "riskhub-pr323:$lane" -c 'import bz2, ctypes, dbm.gnu, lzma, readline, ssl, uuid, zlib; import alembic, asyncpg; from sqlalchemy.dialects.postgresql import asyncpg as dialect; print("Preserved Python libraries and PostgreSQL imports")'
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
               anchore/syft:v1.42.3@sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36 \
               "riskhub-pr323:$lane" -o json > "$RUNNER_TEMP/sbom-$lane.json"
             docker run --rm -v "$RUNNER_TEMP:/data:ro" \
               anchore/grype:v0.110.0@sha256:af65fbc0c664691067788fe95ff88760b435543e45595eb2ca6f102fc476fbe1 \
-              "sbom:/data/sbom-$lane.json" -o json > "$RUNNER_TEMP/grype-$lane.json"
+              "sbom:/data/sbom-$lane.json" --fail-on high -o json > "$RUNNER_TEMP/grype-$lane.json"
           done
           python - <<'PY'
           import json, os, pathlib
           for lane in ("runtime", "dbtasks"):
               data = json.loads((pathlib.Path(os.environ["RUNNER_TEMP"]) / f"grype-{lane}.json").read_text())
-              for match in data["matches"]:
-                  if match["vulnerability"]["severity"].lower() in {"high", "critical"}:
-                      print("PR323_VULNERABILITY " + json.dumps({"lane": lane, "match": match}))
-          PY
-      - name: Export reviewable source changes
-        if: always()
-        run: |
-          python - <<'PY'
-          import hashlib, json, pathlib, subprocess
-          changed = subprocess.check_output(["git", "diff", "--name-only", "HEAD^"], text=True).splitlines()
-          for name in changed:
-              if name == ".github/workflows/pr323-security-refresh.yml":
-                  continue
-              path = pathlib.Path(name)
-              assert path.is_file(), name
-              content = path.read_text()
-              digest = hashlib.sha256(content.encode()).hexdigest()
-              for offset in range(0, len(content), 8000):
-                  print("PR323_FILE_JSON " + json.dumps({"path": name, "offset": offset, "total": len(content), "sha256": digest, "text": content[offset:offset + 8000]}))
+              findings = [m for m in data["matches"] if m["vulnerability"]["severity"].lower() in {"high", "critical"}]
+              assert not findings, findings
+              print(f"PR323_SCAN {lane}: zero HIGH/CRITICAL findings")
           PY

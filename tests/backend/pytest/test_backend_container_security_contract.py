@@ -10,8 +10,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_DIR = REPO_ROOT / "backend" / "security"
 FIXED_IMAGE = (
-    "python:3.13.16-alpine3.24@sha256:"
-    "2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a"
+    "python:3.13.18-alpine3.24@sha256:"
+    "9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e"
 )
 
 
@@ -49,17 +49,17 @@ def test_all_backend_image_lanes_require_fixed_official_packages() -> None:
     assert not (SECURITY_DIR / "apply_cpython_backport.py").exists()
 
 
-@pytest.mark.parametrize("version", [(3, 13, 15), (3, 12, 15), (3, 14, 8)])
+@pytest.mark.parametrize("version", [(3, 13, 15), (3, 13, 16), (3, 13, 17), (3, 12, 15), (3, 14, 8)])
 def test_runtime_verifier_rejects_unreviewed_python_releases(
     monkeypatch, version
 ) -> None:
     verifier = _runtime_verifier()
     monkeypatch.setattr(verifier.sys, "version_info", version)
-    with pytest.raises(RuntimeError, match=r"fixed Python 3\.13\.16"):
+    with pytest.raises(RuntimeError, match=r"fixed Python 3\.13\.18"):
         verifier.verify_python_release()
 
 
-@pytest.mark.parametrize("version", [(3, 13, 16), (3, 13, 17)])
+@pytest.mark.parametrize("version", [(3, 13, 18), (3, 13, 19)])
 def test_runtime_verifier_accepts_fixed_python_release(monkeypatch, version) -> None:
     verifier = _runtime_verifier()
     monkeypatch.setattr(verifier.sys, "version_info", version)
@@ -81,8 +81,8 @@ def test_hostname_regression_rejects_silent_verification_bypass(monkeypatch) -> 
 
 
 @pytest.mark.skipif(
-    sys.version_info[:2] != (3, 13) or sys.version_info[:3] < (3, 13, 16),
-    reason="The runtime regressions require the fixed container's Python 3.13.16+",
+    sys.version_info[:2] != (3, 13) or sys.version_info[:3] < (3, 13, 18),
+    reason="The runtime regressions require the fixed container's Python 3.13.18+",
 )
 def test_fixed_python_passes_tls_and_tarfile_regressions() -> None:
     verifier = _runtime_verifier()
@@ -90,3 +90,13 @@ def test_fixed_python_passes_tls_and_tarfile_regressions() -> None:
     verifier.verify_ssl_hostname_validation()
     verifier.verify_ssl_sni_context_release()
     verifier.verify_tarfile_filters()
+
+
+@pytest.mark.parametrize("module", ["sqlite3", "_sqlite3"])
+def test_production_verifier_rejects_sqlite_modules(monkeypatch, module) -> None:
+    verifier = _runtime_verifier()
+    monkeypatch.setattr(
+        verifier.importlib.util, "find_spec", lambda name: object() if name == module else None
+    )
+    with pytest.raises(RuntimeError, match="SQLite Python modules"):
+        verifier.verify_sqlite_absent()

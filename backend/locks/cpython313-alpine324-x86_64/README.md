@@ -2,14 +2,26 @@
 
 The four generated inputs are `manifest.json`, `requirements-runtime.lock`,
 `requirements-dbtasks.lock` and `requirements-pip.lock`. They target CPython
-3.13.16 on Alpine 3.24, musl and linux/amd64; regenerate them through hosted CI.
+3.13.18 on Alpine 3.24, musl and linux/amd64; regenerate them through hosted CI.
 
 The [canonical lock contract](../../../scripts/tools/RUNTIME_DEPENDENCY_LOCK.md)
 records the imported artifact and verification requirements. CI compares every
 generated input byte-for-byte with fresh native output. This README is the sole
 documentation exception to that directory comparison.
 
-## Security refresh: 2026-10-23
+## Security refresh: 2026-11-13
+
+The current target is the official CPython 3.13.18 image, fixing
+CVE-2026-115557. dnspython is updated from 2.8.0 to 2.9.0 for CVE-2026-114605.
+Every other Python package pin and wheel artifact is retained. The runtime graph
+still contains 63 packages; DB tasks add only `psycopg2-binary` (64 packages).
+
+The repository generator produced byte-identical outputs twice on the pinned
+Alpine platform. Both production lanes passed two clean, wheel-only,
+hash-enforced installs, `pip check` and exact package inventory verification.
+Final CI must repeat those checks against the PR commit before merge.
+
+## Previous security refresh: 2026-10-23
 
 The current generated inputs include certifi 2026.10.19 (compromised emSign
 root removal) and the coherent OpenTelemetry 1.45.1 / 0.66b1 family

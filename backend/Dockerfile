@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build dependencies
 # =============================================================================
-FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS builder-base
+FROM python:3.13.18-alpine3.24@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e AS builder-base
 
 ARG TARGETPLATFORM
 RUN test "$TARGETPLATFORM" = "linux/amd64" || { \
@@ -41,13 +41,17 @@ RUN python -m pip install --force-reinstall --no-cache-dir --require-hashes --on
 # =============================================================================
 # Stage 2: Production runtime
 # =============================================================================
-FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS runtime
+FROM python:3.13.18-alpine3.24@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e AS runtime
 
 WORKDIR /app
 
 RUN python -m pip uninstall --yes pip && \
     rm -rf /usr/local/lib/python3.13/ensurepip
 RUN apk upgrade --no-cache && apk add --no-cache "zlib>=1.3.2-r1" su-exec
+
+# Production PostgreSQL lanes do not ship the unused SQLite interpreter or library.
+COPY security/strip_unused_sqlite.py /tmp/strip_unused_sqlite.py
+RUN python /tmp/strip_unused_sqlite.py && rm /tmp/strip_unused_sqlite.py
 
 COPY security/verify_runtime_security.py /tmp/verify_runtime_security.py
 RUN python /tmp/verify_runtime_security.py && rm /tmp/verify_runtime_security.py
@@ -91,7 +95,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 # =============================================================================
 # Stage 3: DB tasks runtime
 # =============================================================================
-FROM python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS dbtasks
+FROM python:3.13.18-alpine3.24@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e AS dbtasks
 
 WORKDIR /app
 
@@ -102,6 +106,10 @@ RUN apk upgrade --no-cache && apk add --no-cache \
     libpq \
     postgresql16-client \
     su-exec
+
+# Production PostgreSQL lanes do not ship the unused SQLite interpreter or library.
+COPY security/strip_unused_sqlite.py /tmp/strip_unused_sqlite.py
+RUN python /tmp/strip_unused_sqlite.py && rm /tmp/strip_unused_sqlite.py
 
 COPY security/verify_runtime_security.py /tmp/verify_runtime_security.py
 RUN python /tmp/verify_runtime_security.py && rm /tmp/verify_runtime_security.py

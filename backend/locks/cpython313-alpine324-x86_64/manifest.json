@@ -1,16 +1,16 @@
 {
-  "generator_sha256": "9e294fb0a08cb295729f517c3849a278e397d06b50d39236654de353d4b06f87",
-  "image": "python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a",
+  "generator_sha256": "7a4254f3e72c003644851a6511d65fa8bedb4c5c45e17ad6edde2e98c7011c05",
+  "image": "python:3.13.18-alpine3.24@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e",
   "lanes": {
     "dbtasks": {
       "environment": {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.16",
+        "implementation_version": "3.13.18",
         "os_name": "posix",
         "platform_machine": "x86_64",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.16",
+        "python_full_version": "3.13.18",
         "python_version": "3.13",
         "sys_platform": "linux"
       },
@@ -202,31 +202,30 @@
             "wmi"
           ],
           "requires_dist": [
-            "aioquic>=1.2.0; extra == 'doq'",
-            "black>=25.1.0; extra == 'dev'",
-            "coverage>=7.0; extra == 'dev'",
-            "cryptography>=45; extra == 'dnssec'",
-            "flake8>=7; extra == 'dev'",
-            "h2>=4.2.0; extra == 'doh'",
-            "httpcore>=1.0.0; extra == 'doh'",
-            "httpx>=0.28.0; extra == 'doh'",
-            "hypercorn>=0.17.0; extra == 'dev'",
-            "idna>=3.10; extra == 'idna'",
-            "mypy>=1.17; extra == 'dev'",
-            "pylint>=3; extra == 'dev'",
-            "pytest-cov>=6.2.0; extra == 'dev'",
-            "pytest>=8.4; extra == 'dev'",
-            "quart-trio>=0.12.0; extra == 'dev'",
-            "sphinx-rtd-theme>=3.0.0; extra == 'dev'",
-            "sphinx>=8.2.0; extra == 'dev'",
-            "trio>=0.30; extra == 'trio'",
-            "twine>=6.1.0; extra == 'dev'",
-            "wheel>=0.45.0; extra == 'dev'",
-            "wmi>=1.5.1; (platform_system == 'Windows') and extra == 'wmi'"
+            "aioquic>=1.3.0 ; extra == 'doq'",
+            "black>=26.5 ; extra == 'dev'",
+            "coverage>=7.15 ; extra == 'dev'",
+            "cryptography>=50 ; extra == 'dnssec'",
+            "h2>=4.4 ; extra == 'doh'",
+            "httpcore2>=2.13 ; extra == 'doh'",
+            "httpx2>=2.13 ; extra == 'doh'",
+            "hypercorn>=0.18.0 ; extra == 'dev'",
+            "idna>=3.20 ; extra == 'idna'",
+            "pyright>=1.1.411 ; extra == 'dev'",
+            "pytest-cov>=7.1 ; extra == 'dev'",
+            "pytest>=9.1 ; extra == 'dev'",
+            "quart-trio>=0.12.0 ; extra == 'dev'",
+            "ruff>=0.16.0 ; extra == 'dev'",
+            "sphinx-rtd-theme>=3.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "sphinx>=9.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "trio>=0.34 ; extra == 'trio'",
+            "trustme>=1.2.1 ; extra == 'dev'",
+            "ty>=0.0.85 ; extra == 'dev'",
+            "wmi>=1.5.1 ; sys_platform == 'win32' and extra == 'wmi'"
           ],
-          "sha256": "01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af",
-          "version": "2.8.0",
-          "wheel": "dnspython-2.8.0-py3-none-any.whl"
+          "sha256": "9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9",
+          "version": "2.9.0",
+          "wheel": "dnspython-2.9.0-py3-none-any.whl"
         },
         "email-validator": {
           "provides_extra": [],
@@ -994,12 +993,12 @@
     "pip": {
       "environment": {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.16",
+        "implementation_version": "3.13.18",
         "os_name": "posix",
         "platform_machine": "x86_64",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.16",
+        "python_full_version": "3.13.18",
         "python_version": "3.13",
         "sys_platform": "linux"
       },
@@ -1016,12 +1015,12 @@
     "runtime": {
       "environment": {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.16",
+        "implementation_version": "3.13.18",
         "os_name": "posix",
         "platform_machine": "x86_64",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.16",
+        "python_full_version": "3.13.18",
         "python_version": "3.13",
         "sys_platform": "linux"
       },
@@ -1213,31 +1212,30 @@
             "wmi"
           ],
           "requires_dist": [
-            "aioquic>=1.2.0; extra == 'doq'",
-            "black>=25.1.0; extra == 'dev'",
-            "coverage>=7.0; extra == 'dev'",
-            "cryptography>=45; extra == 'dnssec'",
-            "flake8>=7; extra == 'dev'",
-            "h2>=4.2.0; extra == 'doh'",
-            "httpcore>=1.0.0; extra == 'doh'",
-            "httpx>=0.28.0; extra == 'doh'",
-            "hypercorn>=0.17.0; extra == 'dev'",
-            "idna>=3.10; extra == 'idna'",
-            "mypy>=1.17; extra == 'dev'",
-            "pylint>=3; extra == 'dev'",
-            "pytest-cov>=6.2.0; extra == 'dev'",
-            "pytest>=8.4; extra == 'dev'",
-            "quart-trio>=0.12.0; extra == 'dev'",
-            "sphinx-rtd-theme>=3.0.0; extra == 'dev'",
-            "sphinx>=8.2.0; extra == 'dev'",
-            "trio>=0.30; extra == 'trio'",
-            "twine>=6.1.0; extra == 'dev'",
-            "wheel>=0.45.0; extra == 'dev'",
-            "wmi>=1.5.1; (platform_system == 'Windows') and extra == 'wmi'"
+            "aioquic>=1.3.0 ; extra == 'doq'",
+            "black>=26.5 ; extra == 'dev'",
+            "coverage>=7.15 ; extra == 'dev'",
+            "cryptography>=50 ; extra == 'dnssec'",
+            "h2>=4.4 ; extra == 'doh'",
+            "httpcore2>=2.13 ; extra == 'doh'",
+            "httpx2>=2.13 ; extra == 'doh'",
+            "hypercorn>=0.18.0 ; extra == 'dev'",
+            "idna>=3.20 ; extra == 'idna'",
+            "pyright>=1.1.411 ; extra == 'dev'",
+            "pytest-cov>=7.1 ; extra == 'dev'",
+            "pytest>=9.1 ; extra == 'dev'",
+            "quart-trio>=0.12.0 ; extra == 'dev'",
+            "ruff>=0.16.0 ; extra == 'dev'",
+            "sphinx-rtd-theme>=3.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "sphinx>=9.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "trio>=0.34 ; extra == 'trio'",
+            "trustme>=1.2.1 ; extra == 'dev'",
+            "ty>=0.0.85 ; extra == 'dev'",
+            "wmi>=1.5.1 ; sys_platform == 'win32' and extra == 'wmi'"
           ],
-          "sha256": "01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af",
-          "version": "2.8.0",
-          "wheel": "dnspython-2.8.0-py3-none-any.whl"
+          "sha256": "9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9",
+          "version": "2.9.0",
+          "wheel": "dnspython-2.9.0-py3-none-any.whl"
         },
         "email-validator": {
           "provides_extra": [],
@@ -2000,14 +1998,14 @@
   "schema": 1,
   "sources": {
     "requirements-db.txt": "79e52ec98d642c3b33efee0fe3076b958c656cd047a07c72dd69386dcd257cab",
-    "requirements-dev-constraints.txt": "9ba4a3c973b709b61fa0e49b570c1c6aa24cac75f6f3022b129cee9268906972",
+    "requirements-dev-constraints.txt": "5ea3dc988eac402720b8b2d45a13f3dfb9e20f28251003b370fcf5f42ca92b88",
     "requirements-lock-bootstrap.txt": "0fd96c8f6641c5af6bf5dccd945202d0844042e36a6d9f76ba6f8f1114661b37",
-    "requirements-runtime.txt": "9bd02ffabaf47cf4ac3759b476cb157853b78879d1ebbdb95cff3b98c9227fdb"
+    "requirements-runtime.txt": "ee47993adef9045dd68443f0a4d031ace6424632f32c4aafa790566061593fc6"
   },
   "target": {
     "alpine": "3.24",
     "libc": "musl",
     "machine": "x86_64",
-    "python": "3.13.16"
+    "python": "3.13.18"
   }
 }
