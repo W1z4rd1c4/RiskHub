@@ -11,9 +11,9 @@ from pathlib import Path
 
 
 def verify_python_release() -> None:
-    # 3.13.16 includes CVE-2026-82049, CVE-2026-19445 and CVE-2026-19553.
-    if sys.version_info[:2] != (3, 13) or sys.version_info[:3] < (3, 13, 16):
-        raise RuntimeError("The container requires the fixed Python 3.13.16+ release")
+    # 3.13.18 also rejects compromised intermediates (CVE-2026-115557).
+    if sys.version_info[:2] != (3, 13) or sys.version_info[:3] < (3, 13, 18):
+        raise RuntimeError("The container requires the fixed Python 3.13.18+ release")
 
 
 def verify_zlib_linkage() -> None:
