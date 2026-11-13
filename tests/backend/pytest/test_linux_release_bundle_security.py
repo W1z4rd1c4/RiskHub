@@ -129,6 +129,14 @@ def test_authenticated_legacy_manifest_remains_installable(tmp_path: Path) -> No
     assert result.returncode == 0
     assert result.stdout.strip() == "v-legacy"
 
+    destination = tmp_path / "extract"
+    extracted = _run_tool(
+        "extract", "--bundle", str(bundle), "--sha256", digest,
+        "--destination", str(destination), "--expected-version", "v-legacy",
+    )
+    assert extracted.returncode == 0, extracted.stderr
+    assert (destination / root / "legacy.txt").read_bytes() == b"legacy release\n"
+
 
 @pytest.mark.parametrize(
     "unsafe_kind",
@@ -136,7 +144,14 @@ def test_authenticated_legacy_manifest_remains_installable(tmp_path: Path) -> No
         "traversal",
         "absolute",
         "link",
+        "hardlink",
         "device",
+        "fifo",
+        "sparse",
+        "setuid",
+        "setgid",
+        "sticky",
+        "noncanonical",
         "duplicate",
         "second-root",
         "second-manifest",
@@ -175,6 +190,25 @@ def test_authenticated_archive_still_rejects_unsafe_members(
             member = tarfile.TarInfo(f"{root}/device")
             member.type = tarfile.CHRTYPE
             archive.addfile(member)
+        elif unsafe_kind == "hardlink":
+            member = tarfile.TarInfo(f"{root}/link")
+            member.type = tarfile.LNKTYPE
+            member.linkname = f"{root}/manifest.json"
+            archive.addfile(member)
+        elif unsafe_kind == "fifo":
+            member = tarfile.TarInfo(f"{root}/fifo")
+            member.type = tarfile.FIFOTYPE
+            archive.addfile(member)
+        elif unsafe_kind == "sparse":
+            member = tarfile.TarInfo(f"{root}/sparse")
+            member.pax_headers = {"GNU.sparse.map": "0,0", "GNU.sparse.size": "0"}
+            archive.addfile(member, io.BytesIO(b""))
+        elif unsafe_kind in {"setuid", "setgid", "sticky"}:
+            member = tarfile.TarInfo(f"{root}/privileged")
+            member.mode = {"setuid": 0o4755, "setgid": 0o2755, "sticky": 0o1755}[unsafe_kind]
+            archive.addfile(member, io.BytesIO(b""))
+        elif unsafe_kind == "noncanonical":
+            _add_file(archive, f"{root}//file", b"ambiguous")
         elif unsafe_kind == "duplicate":
             _add_file(archive, f"{root}/duplicate", b"first")
             _add_file(archive, f"{root}/duplicate", b"second")
@@ -184,9 +218,14 @@ def test_authenticated_archive_still_rejects_unsafe_members(
             _add_file(archive, "other-root/file", b"outside")
 
     digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
-    result = _run_tool("inspect", "--bundle", str(bundle), "--sha256", digest)
+    destination = tmp_path / "extract"
+    result = _run_tool(
+        "extract", "--bundle", str(bundle), "--sha256", digest,
+        "--destination", str(destination), "--expected-version", "v-test",
+    )
 
     assert result.returncode != 0
+    assert not destination.exists()
     assert any(
         phrase in result.stderr
         for phrase in (
@@ -195,5 +234,73 @@ def test_authenticated_archive_still_rejects_unsafe_members(
             "duplicate member path",
             "outside its declared root",
             "exactly one regular manifest.json",
+            "privileged mode bits",
+            "non-canonical member path",
         )
     )
+
+
+@pytest.mark.parametrize(
+    ("corruption", "message"),
+    [
+        ("missing", "files do not match the manifest inventory"),
+        ("extra", "files do not match the manifest inventory"),
+        ("size", "file size does not match manifest"),
+        ("same-size-content", "file digest does not match manifest"),
+    ],
+)
+def test_authenticated_inventory_mismatch_never_extracts(
+    tmp_path: Path, corruption: str, message: str
+) -> None:
+    original = tmp_path / "original.tar.gz"
+    payload = _write_bundle(original)
+    root = "riskhub-linux-v-test"
+    with tarfile.open(original, "r:gz") as archive:
+        manifest = json.load(archive.extractfile(f"{root}/manifest.json"))
+    if corruption == "size":
+        manifest["files"]["backend/app.txt"]["size"] += 1
+    elif corruption == "same-size-content":
+        payload = b"X" + payload[1:]
+
+    bundle = tmp_path / "inconsistent.tar.gz"
+    with tarfile.open(bundle, "w:gz") as archive:
+        _add_directory(archive, root)
+        _add_file(archive, f"{root}/manifest.json", json.dumps(manifest).encode())
+        if corruption != "missing":
+            _add_file(archive, f"{root}/backend/app.txt", payload)
+        if corruption == "extra":
+            _add_file(archive, f"{root}/unexpected.txt", b"unlisted payload")
+
+    # Authenticate these exact bytes so the test reaches inventory validation.
+    digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+    destination = tmp_path / "extract"
+    result = _run_tool(
+        "extract", "--bundle", str(bundle), "--sha256", digest,
+        "--destination", str(destination), "--expected-version", "v-test",
+    )
+    assert result.returncode != 0
+    assert message in result.stderr
+    assert not destination.exists()
+
+
+@pytest.mark.parametrize(
+    "manifest_bytes",
+    [
+        b'{"version":"v-test","version":"v-other"}',
+        b'{"files":{"app.txt":{"sha256":"first","sha256":"second"}}}',
+    ],
+)
+def test_duplicate_manifest_keys_never_extract(tmp_path: Path, manifest_bytes: bytes) -> None:
+    bundle = tmp_path / "duplicate-json.tar.gz"
+    with tarfile.open(bundle, "w:gz") as archive:
+        _add_directory(archive, "riskhub-linux-v-test")
+        _add_file(archive, "riskhub-linux-v-test/manifest.json", manifest_bytes)
+    digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+    destination = tmp_path / "extract"
+    result = _run_tool(
+        "extract", "--bundle", str(bundle), "--sha256", digest,
+        "--destination", str(destination), "--expected-version", "v-test",
+    )
+    assert result.returncode != 0
+    assert "duplicate JSON key" in result.stderr
+    assert not destination.exists()

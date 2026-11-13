@@ -1228,6 +1228,33 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         assert "systemctl restart nginx" in rollback_output
 
 
+@pytest.mark.parametrize("action", ["deploy", "upgrade"])
+def test_linux_cli_requires_independently_obtained_bundle_digest(tmp_path: Path, action: str) -> None:
+    config_path = tmp_path / "riskhub.env"
+    secret_dir = tmp_path / "secrets"
+    bundle_path = _make_linux_bundle(tmp_path, "v-test")
+    _write_config(config_path)
+    _write_secrets(secret_dir)
+    fake_bin = _make_fake_bin(tmp_path)
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env["RISKHUB_LINUX_ROOT"] = str(tmp_path / "linux-root")
+    env["RISKHUB_RUNTIME_DIR"] = str(tmp_path / "runtime")
+
+    result = _run_cli(
+        [
+            action, "--target", "linux", "--config", str(config_path),
+            "--secret-dir", str(secret_dir), "--bundle", str(bundle_path),
+            "--dry-run", "--yes",
+        ],
+        env,
+    )
+
+    assert result.returncode != 0
+    assert f"--bundle-sha256 is required for linux {action}" in result.stderr
+    assert not (tmp_path / "linux-root" / "releases").exists()
+
+
 def test_preflight_reports_missing_docker_prerequisite() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-docker-") as td:
         tmp = Path(td)
