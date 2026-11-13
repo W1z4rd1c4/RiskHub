@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect, useRef, useState } from 'react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useRouteFocus } from '@/components/layout/useRouteFocus';
@@ -64,6 +64,7 @@ function SwapPage() {
 }
 
 afterEach(async () => {
+    vi.useRealTimers();
     await i18n.changeLanguage('en');
     document.title = '';
 });
@@ -141,15 +142,21 @@ describe('useRouteFocus (NAV-01, D14)', () => {
     });
 
     it('does not steal focus the user already moved into the page while it loaded', async () => {
-        const user = userEvent.setup();
+        // Control loading and announcement independently of CI scheduling.
+        vi.useFakeTimers();
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(<MemoryRouter initialEntries={['/alpha']}><Shell /></MemoryRouter>);
 
         await user.click(screen.getByRole('link', { name: 'Late' }));
         const early = screen.getByRole('button', { name: 'Early action' });
         early.focus();
 
-        const heading = await screen.findByRole('heading', { level: 1, name: 'Late page' });
-        await waitFor(() => expect(screen.getByTestId('announcer')).toHaveTextContent('Late page · RiskHub'));
+        expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+        await act(async () => { await vi.advanceTimersByTimeAsync(30); });
+        const heading = screen.getByRole('heading', { level: 1, name: 'Late page' });
+        await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+        expect(screen.getByTestId('announcer')).toHaveTextContent('Late page · RiskHub');
+        expect(early).toHaveFocus();
         expect(heading).not.toHaveFocus();
     });
 });

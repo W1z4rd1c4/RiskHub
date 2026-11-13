@@ -1,12 +1,9 @@
-name: Refresh PR 323 development security pins
-
+name: Refresh PR 323 OpenTelemetry security pins
 on:
   push:
     branches: ['automation/pr323-security-refresh-20261113']
-
 permissions:
   contents: read
-
 jobs:
   refresh:
     runs-on: ubuntu-24.04
@@ -18,9 +15,18 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.13'
-      - name: Regenerate the two reviewed tooling pins
-        run: python scripts/tools/refresh_python_dependency_lock.py --upgrade-package filelock --upgrade-package setuptools
-      - name: Refresh lock provenance while retaining every production artifact
+      - name: Resolve only the matching OpenTelemetry family
+        run: |
+          python scripts/tools/refresh_python_dependency_lock.py \
+            --upgrade-package opentelemetry-api \
+            --upgrade-package opentelemetry-sdk \
+            --upgrade-package opentelemetry-exporter-http-transport \
+            --upgrade-package opentelemetry-exporter-otlp-common \
+            --upgrade-package opentelemetry-exporter-otlp-proto-common \
+            --upgrade-package opentelemetry-exporter-otlp-proto-http \
+            --upgrade-package opentelemetry-proto \
+            --upgrade-package opentelemetry-semantic-conventions
+      - name: Generate and verify deterministic Alpine locks
         run: |
           set -euo pipefail
           docker build --platform linux/amd64 --target builder-base -t riskhub-pr323-resolver -f backend/Dockerfile backend
@@ -28,12 +34,11 @@ jobs:
           docker run --rm --platform linux/amd64 -v "$PWD:/repo:ro" -v "$RUNNER_TEMP/pr323-locks:/out" -w /repo riskhub-pr323-resolver sh -ec '
             python -m pip install --force-reinstall --no-cache-dir --require-hashes --only-binary=:all: -r backend/requirements-lock-bootstrap.txt
             python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/candidate
+            python scripts/tools/runtime_dependency_lock.py generate --lock-dir /out/repeat
+            diff -r /out/candidate /out/repeat
+            python scripts/tools/runtime_dependency_lock.py verify --lock-dir /out/candidate
           '
-          lock_dir=backend/locks/cpython313-alpine324-x86_64
-          for lane in runtime dbtasks pip; do
-            cmp "$lock_dir/requirements-$lane.lock" "$RUNNER_TEMP/pr323-locks/candidate/requirements-$lane.lock"
-          done
-          cp "$RUNNER_TEMP/pr323-locks/candidate/manifest.json" "$lock_dir/manifest.json"
+          cp "$RUNNER_TEMP/pr323-locks/candidate/"* backend/locks/cpython313-alpine324-x86_64/
           python -m pip install -r backend/requirements-dev.txt
           python scripts/tools/runtime_dependency_lock.py preflight
           python -m unittest discover -s scripts/tools/tests -p '*dependency_lock*.py' -v
@@ -46,11 +51,13 @@ jobs:
           python - <<'PY'
           import hashlib, json, pathlib
           names = [
-              "backend/requirements-dev.in",
               "backend/requirements-dev-constraints.txt",
               "backend/requirements-prod-readiness-audit-constraints.txt",
               "backend/requirements-dev.txt",
               "backend/locks/cpython313-alpine324-x86_64/manifest.json",
+              "backend/locks/cpython313-alpine324-x86_64/requirements-runtime.lock",
+              "backend/locks/cpython313-alpine324-x86_64/requirements-dbtasks.lock",
+              "backend/locks/cpython313-alpine324-x86_64/requirements-pip.lock",
           ]
           for name in names:
               content = pathlib.Path(name).read_text()

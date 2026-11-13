@@ -13,7 +13,8 @@ documentation exception to that directory comparison.
 
 The current target is the official CPython 3.13.18 image, fixing
 CVE-2026-115557. dnspython is updated from 2.8.0 to 2.9.0 for CVE-2026-114605.
-Every other Python package pin and wheel artifact is retained. The runtime graph
+The development/audit graph also updates Filelock to 4.2.1 and Setuptools to
+84.1.0. Every other package pin and all unchanged production wheel artifacts are retained. The runtime graph
 still contains 63 packages; DB tasks add only `psycopg2-binary` (64 packages).
 
 The repository generator produced byte-identical outputs twice on the pinned
