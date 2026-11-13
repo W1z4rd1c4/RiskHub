@@ -13,8 +13,10 @@ documentation exception to that directory comparison.
 
 The current target is the official CPython 3.13.18 image, fixing
 CVE-2026-115557. dnspython is updated from 2.8.0 to 2.9.0 for CVE-2026-114605.
-The development/audit graph also updates Filelock to 4.2.1 and Setuptools to
-84.1.0. Every other package pin and all unchanged production wheel artifacts are retained. The runtime graph
+The OpenTelemetry SDK/exporter family is updated to 1.45.2 to consume the
+patched API for CVE-2026-126360. The development/audit graph also updates
+Filelock to 4.2.1 and Setuptools to 84.1.0. Package pins outside these reviewed
+updates and all unchanged production wheel artifacts are retained. The runtime graph
 still contains 63 packages; DB tasks add only `psycopg2-binary` (64 packages).
 
 The repository generator produced byte-identical outputs twice on the pinned
@@ -24,7 +26,7 @@ Final CI must repeat those checks against the PR commit before merge.
 
 ## Previous security refresh: 2026-10-23
 
-The current generated inputs include certifi 2026.10.19 (compromised emSign
+The October refresh introduced certifi 2026.10.19 (compromised emSign
 root removal) and the coherent OpenTelemetry 1.45.1 / 0.66b1 family
 (tracestate parser denial of service fix). Existing runtime pins outside this
 bounded security batch remain unchanged. The new OpenTelemetry exporter requires
