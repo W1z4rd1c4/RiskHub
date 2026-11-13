@@ -217,7 +217,7 @@ verify-prod-install-scripts:
 	docker run --rm riskhub-frontend:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
 	docker build -t riskhub-redis:verify-prod-install-scripts -f docker/redis/Dockerfile docker/redis
 	docker run --rm riskhub-redis:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
-	cd backend && RISKHUB_PRIVILEGE_TEST_IMAGE=python@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1 $(BACKEND_PYTHON) -m pytest ../tests/backend/pytest/test_native_deploy_contracts.py ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_repo_hygiene_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
+	cd backend && RISKHUB_PRIVILEGE_TEST_IMAGE=python@sha256:00faa2debb87529f9f0764e9491d8ba400a3678976616c3bd7cb193745ac20d1 $(BACKEND_PYTHON) -m pytest ../tests/backend/pytest/test_native_deploy_contracts.py ../tests/backend/pytest/test_linux_release_bundle_security.py ../tests/backend/pytest/test_linux_release_lifecycle_security.py ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_repo_hygiene_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
 
 verify-startup-scripts:
 	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh

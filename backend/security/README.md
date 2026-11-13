@@ -1,14 +1,17 @@
 # Container runtime security
 
 The backend builder, runtime and DB-task targets use the official
-`python:3.13.16-alpine3.24` image, pinned to multi-platform manifest digest
-`sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a`.
-The tag, manifest contents and image configuration were verified on October 10,
-2026. Its amd64 manifest is
-`sha256:ba27df8b6499cc3756cff167690f3fcb5321faa1703b3a914df5f4fdadb32f05`.
+`python:3.13.18-alpine3.24` image, pinned to multi-platform manifest digest
+`sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e`. The official image was pulled and verified
+on November 13, 2026, before regenerating the native Alpine locks.
 
 ## Fixed upstream releases
 
+- CPython 3.13.18 rejects compromised eMudhra intermediate CA keys
+  (CVE-2026-115557). See the
+  [Python release](https://www.python.org/downloads/release/python-31318/).
+- dnspython 2.9.0 bounds DNS name decompression work (CVE-2026-114605).
+  Both production lanes and the development/audit lock use that reviewed version.
 - CPython 3.13.16 fixes CVE-2026-82049 (tarfile hard-link-to-symlink extraction),
   CVE-2026-19445 (SNI callback context lifetime), and CVE-2026-19553 (missing
   hostname validation in `SSLContext.wrap_bio`). See the
@@ -38,6 +41,21 @@ Python 3.13 release and checks:
 Alpine backports the zlib fix without changing its upstream runtime version
 string (`1.3.2`); the package revision is enforced by the Dockerfile, not inferred
 from `zlibVersion()`.
+
+## PostgreSQL-only production images
+
+The runtime and DB-task images omit the unused SQLite Python modules and Alpine
+`sqlite-libs` package. Alpine 3.24 still supplied SQLite 3.53.4-r0 on November 13,
+2026, with unresolved HIGH findings CVE-2026-119373, CVE-2026-119374,
+CVE-2026-119379 and CVE-2026-119586. RiskHub's container deployment uses PostgreSQL;
+SQLite remains available to the separate development/test and lock-resolution
+environments.
+
+The removal helper preserves every other dependency from the official Python
+image's virtual runtime package, then uninstalls that package through `apk`.
+Image construction fails if SQLite modules, binaries or the package remain.
+The PostgreSQL deployment, migration and onboarding checks must pass on both
+production lanes. No scanner exception is added.
 
 ## Retired source overlays
 

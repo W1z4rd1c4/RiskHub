@@ -1,16 +1,16 @@
 {
-  "generator_sha256": "9e294fb0a08cb295729f517c3849a278e397d06b50d39236654de353d4b06f87",
-  "image": "python:3.13.16-alpine3.24@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a",
+  "generator_sha256": "7a4254f3e72c003644851a6511d65fa8bedb4c5c45e17ad6edde2e98c7011c05",
+  "image": "python:3.13.18-alpine3.24@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e",
   "lanes": {
     "dbtasks": {
       "environment": {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.16",
+        "implementation_version": "3.13.18",
         "os_name": "posix",
         "platform_machine": "x86_64",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.16",
+        "python_full_version": "3.13.18",
         "python_version": "3.13",
         "sys_platform": "linux"
       },
@@ -202,31 +202,30 @@
             "wmi"
           ],
           "requires_dist": [
-            "aioquic>=1.2.0; extra == 'doq'",
-            "black>=25.1.0; extra == 'dev'",
-            "coverage>=7.0; extra == 'dev'",
-            "cryptography>=45; extra == 'dnssec'",
-            "flake8>=7; extra == 'dev'",
-            "h2>=4.2.0; extra == 'doh'",
-            "httpcore>=1.0.0; extra == 'doh'",
-            "httpx>=0.28.0; extra == 'doh'",
-            "hypercorn>=0.17.0; extra == 'dev'",
-            "idna>=3.10; extra == 'idna'",
-            "mypy>=1.17; extra == 'dev'",
-            "pylint>=3; extra == 'dev'",
-            "pytest-cov>=6.2.0; extra == 'dev'",
-            "pytest>=8.4; extra == 'dev'",
-            "quart-trio>=0.12.0; extra == 'dev'",
-            "sphinx-rtd-theme>=3.0.0; extra == 'dev'",
-            "sphinx>=8.2.0; extra == 'dev'",
-            "trio>=0.30; extra == 'trio'",
-            "twine>=6.1.0; extra == 'dev'",
-            "wheel>=0.45.0; extra == 'dev'",
-            "wmi>=1.5.1; (platform_system == 'Windows') and extra == 'wmi'"
+            "aioquic>=1.3.0 ; extra == 'doq'",
+            "black>=26.5 ; extra == 'dev'",
+            "coverage>=7.15 ; extra == 'dev'",
+            "cryptography>=50 ; extra == 'dnssec'",
+            "h2>=4.4 ; extra == 'doh'",
+            "httpcore2>=2.13 ; extra == 'doh'",
+            "httpx2>=2.13 ; extra == 'doh'",
+            "hypercorn>=0.18.0 ; extra == 'dev'",
+            "idna>=3.20 ; extra == 'idna'",
+            "pyright>=1.1.411 ; extra == 'dev'",
+            "pytest-cov>=7.1 ; extra == 'dev'",
+            "pytest>=9.1 ; extra == 'dev'",
+            "quart-trio>=0.12.0 ; extra == 'dev'",
+            "ruff>=0.16.0 ; extra == 'dev'",
+            "sphinx-rtd-theme>=3.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "sphinx>=9.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "trio>=0.34 ; extra == 'trio'",
+            "trustme>=1.2.1 ; extra == 'dev'",
+            "ty>=0.0.85 ; extra == 'dev'",
+            "wmi>=1.5.1 ; sys_platform == 'win32' and extra == 'wmi'"
           ],
-          "sha256": "01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af",
-          "version": "2.8.0",
-          "wheel": "dnspython-2.8.0-py3-none-any.whl"
+          "sha256": "9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9",
+          "version": "2.9.0",
+          "wheel": "dnspython-2.9.0-py3-none-any.whl"
         },
         "email-validator": {
           "provides_extra": [],
@@ -428,9 +427,9 @@
           "requires_dist": [
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_api-1.45.1-py3-none-any.whl"
+          "sha256": "2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_api-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-exporter-http-transport": {
           "provides_extra": [
@@ -442,30 +441,30 @@
             "requests~=2.25; extra == 'requests'",
             "urllib3>=1.26; extra == 'urllib3'"
           ],
-          "sha256": "2f95404bdee7f9d2d529c7de56c7bd86d014d774d8fbf137810e0167f8a492bf",
-          "version": "0.66b1",
-          "wheel": "opentelemetry_exporter_http_transport-0.66b1-py3-none-any.whl"
+          "sha256": "fd5f5b490c099acda1cd7b909d5e8981436bf18cc8c6098d302d114c271720e9",
+          "version": "0.66b2",
+          "wheel": "opentelemetry_exporter_http_transport-0.66b2-py3-none-any.whl"
         },
         "opentelemetry-exporter-otlp-common": {
           "provides_extra": [
             "http"
           ],
           "requires_dist": [
-            "opentelemetry-exporter-http-transport==0.66b1; extra == 'http'",
-            "opentelemetry-sdk~=1.45.1"
+            "opentelemetry-exporter-http-transport==0.66b2; extra == 'http'",
+            "opentelemetry-sdk~=1.45.2"
           ],
-          "sha256": "00ff8592c3a7cb729ff3fdc7ffa12372c243bdf2163e80c180994d0c7bd83ee9",
-          "version": "0.66b1",
-          "wheel": "opentelemetry_exporter_otlp_common-0.66b1-py3-none-any.whl"
+          "sha256": "ace86efb75489f925f1ef809856ae5f0c7db534e4afdc624530222228b1236a5",
+          "version": "0.66b2",
+          "wheel": "opentelemetry_exporter_otlp_common-0.66b2-py3-none-any.whl"
         },
         "opentelemetry-exporter-otlp-proto-common": {
           "provides_extra": [],
           "requires_dist": [
-            "opentelemetry-proto==1.45.1"
+            "opentelemetry-proto==1.45.2"
           ],
-          "sha256": "2f446183ae7047b036226f1d846c41a834b0e8755ad13b51a51dd38952eb466c",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_exporter_otlp_proto_common-1.45.1-py3-none-any.whl"
+          "sha256": "af483b24217028892f017096731b794b196b785025d2e6808874720fd0b05a80",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_exporter_otlp_proto_common-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-exporter-otlp-proto-http": {
           "provides_extra": [
@@ -476,52 +475,52 @@
             "googleapis-common-protos~=1.52",
             "opentelemetry-api~=1.15",
             "opentelemetry-exporter-credential-provider-gcp>=0.59b0; extra == 'gcp-auth'",
-            "opentelemetry-exporter-http-transport[requests]==0.66b1",
-            "opentelemetry-exporter-http-transport[requests]==0.66b1; extra == 'requests'",
-            "opentelemetry-exporter-otlp-common==0.66b1",
-            "opentelemetry-exporter-otlp-proto-common==1.45.1",
-            "opentelemetry-proto==1.45.1",
-            "opentelemetry-sdk~=1.45.1",
+            "opentelemetry-exporter-http-transport[requests]==0.66b2",
+            "opentelemetry-exporter-http-transport[requests]==0.66b2; extra == 'requests'",
+            "opentelemetry-exporter-otlp-common==0.66b2",
+            "opentelemetry-exporter-otlp-proto-common==1.45.2",
+            "opentelemetry-proto==1.45.2",
+            "opentelemetry-sdk~=1.45.2",
             "requests~=2.7",
             "requests~=2.7; extra == 'requests'",
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "24a97cf3753c7fb52fad44a696e452ff371686339e2acf3309e2eda3d0230700",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_exporter_otlp_proto_http-1.45.1-py3-none-any.whl"
+          "sha256": "6e4d025138829d0ee57946930c2ccad6491ad4d92a958e9c7eea69278fe60cfc",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_exporter_otlp_proto_http-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-proto": {
           "provides_extra": [],
           "requires_dist": [
             "protobuf<8.0,>=5.0"
           ],
-          "sha256": "f38e2a8413053c180cd3d2637fbb279673ec2f6a6e09c995aafa2f452c52b46e",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_proto-1.45.1-py3-none-any.whl"
+          "sha256": "03a7ca1b43f89fd5b965d5975902bb2515c0c86e2428b456836e9a6149c6235a",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_proto-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-sdk": {
           "provides_extra": [
             "file-configuration"
           ],
           "requires_dist": [
-            "opentelemetry-api==1.45.1",
-            "opentelemetry-configuration==0.66b1; extra == 'file-configuration'",
-            "opentelemetry-semantic-conventions==0.66b1",
+            "opentelemetry-api==1.45.2",
+            "opentelemetry-configuration==0.66b2; extra == 'file-configuration'",
+            "opentelemetry-semantic-conventions==0.66b2",
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "c604c11dc429810812348989115fa44bd558772a3d7442afc43d024f2c250ca4",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_sdk-1.45.1-py3-none-any.whl"
+          "sha256": "ff974ea70ee4f1d51e2ec152db37c2b626c7bf82bb3f7d86114fd8704e7199c6",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_sdk-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-semantic-conventions": {
           "provides_extra": [],
           "requires_dist": [
-            "opentelemetry-api==1.45.1",
+            "opentelemetry-api==1.45.2",
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "d4cddeb4315490b35213f55e2bdc9ac54bb1e4d318927475bed62b35545e581b",
-          "version": "0.66b1",
-          "wheel": "opentelemetry_semantic_conventions-0.66b1-py3-none-any.whl"
+          "sha256": "4cbe61e5f9275d57ab31708446e7938ef4291ebbe6a7fca6f7a629c5acae87d8",
+          "version": "0.66b2",
+          "wheel": "opentelemetry_semantic_conventions-0.66b2-py3-none-any.whl"
         },
         "prometheus-client": {
           "provides_extra": [
@@ -994,12 +993,12 @@
     "pip": {
       "environment": {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.16",
+        "implementation_version": "3.13.18",
         "os_name": "posix",
         "platform_machine": "x86_64",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.16",
+        "python_full_version": "3.13.18",
         "python_version": "3.13",
         "sys_platform": "linux"
       },
@@ -1016,12 +1015,12 @@
     "runtime": {
       "environment": {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.16",
+        "implementation_version": "3.13.18",
         "os_name": "posix",
         "platform_machine": "x86_64",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.16",
+        "python_full_version": "3.13.18",
         "python_version": "3.13",
         "sys_platform": "linux"
       },
@@ -1213,31 +1212,30 @@
             "wmi"
           ],
           "requires_dist": [
-            "aioquic>=1.2.0; extra == 'doq'",
-            "black>=25.1.0; extra == 'dev'",
-            "coverage>=7.0; extra == 'dev'",
-            "cryptography>=45; extra == 'dnssec'",
-            "flake8>=7; extra == 'dev'",
-            "h2>=4.2.0; extra == 'doh'",
-            "httpcore>=1.0.0; extra == 'doh'",
-            "httpx>=0.28.0; extra == 'doh'",
-            "hypercorn>=0.17.0; extra == 'dev'",
-            "idna>=3.10; extra == 'idna'",
-            "mypy>=1.17; extra == 'dev'",
-            "pylint>=3; extra == 'dev'",
-            "pytest-cov>=6.2.0; extra == 'dev'",
-            "pytest>=8.4; extra == 'dev'",
-            "quart-trio>=0.12.0; extra == 'dev'",
-            "sphinx-rtd-theme>=3.0.0; extra == 'dev'",
-            "sphinx>=8.2.0; extra == 'dev'",
-            "trio>=0.30; extra == 'trio'",
-            "twine>=6.1.0; extra == 'dev'",
-            "wheel>=0.45.0; extra == 'dev'",
-            "wmi>=1.5.1; (platform_system == 'Windows') and extra == 'wmi'"
+            "aioquic>=1.3.0 ; extra == 'doq'",
+            "black>=26.5 ; extra == 'dev'",
+            "coverage>=7.15 ; extra == 'dev'",
+            "cryptography>=50 ; extra == 'dnssec'",
+            "h2>=4.4 ; extra == 'doh'",
+            "httpcore2>=2.13 ; extra == 'doh'",
+            "httpx2>=2.13 ; extra == 'doh'",
+            "hypercorn>=0.18.0 ; extra == 'dev'",
+            "idna>=3.20 ; extra == 'idna'",
+            "pyright>=1.1.411 ; extra == 'dev'",
+            "pytest-cov>=7.1 ; extra == 'dev'",
+            "pytest>=9.1 ; extra == 'dev'",
+            "quart-trio>=0.12.0 ; extra == 'dev'",
+            "ruff>=0.16.0 ; extra == 'dev'",
+            "sphinx-rtd-theme>=3.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "sphinx>=9.1.0 ; python_full_version >= '3.12' and extra == 'dev'",
+            "trio>=0.34 ; extra == 'trio'",
+            "trustme>=1.2.1 ; extra == 'dev'",
+            "ty>=0.0.85 ; extra == 'dev'",
+            "wmi>=1.5.1 ; sys_platform == 'win32' and extra == 'wmi'"
           ],
-          "sha256": "01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af",
-          "version": "2.8.0",
-          "wheel": "dnspython-2.8.0-py3-none-any.whl"
+          "sha256": "9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9",
+          "version": "2.9.0",
+          "wheel": "dnspython-2.9.0-py3-none-any.whl"
         },
         "email-validator": {
           "provides_extra": [],
@@ -1439,9 +1437,9 @@
           "requires_dist": [
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_api-1.45.1-py3-none-any.whl"
+          "sha256": "2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_api-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-exporter-http-transport": {
           "provides_extra": [
@@ -1453,30 +1451,30 @@
             "requests~=2.25; extra == 'requests'",
             "urllib3>=1.26; extra == 'urllib3'"
           ],
-          "sha256": "2f95404bdee7f9d2d529c7de56c7bd86d014d774d8fbf137810e0167f8a492bf",
-          "version": "0.66b1",
-          "wheel": "opentelemetry_exporter_http_transport-0.66b1-py3-none-any.whl"
+          "sha256": "fd5f5b490c099acda1cd7b909d5e8981436bf18cc8c6098d302d114c271720e9",
+          "version": "0.66b2",
+          "wheel": "opentelemetry_exporter_http_transport-0.66b2-py3-none-any.whl"
         },
         "opentelemetry-exporter-otlp-common": {
           "provides_extra": [
             "http"
           ],
           "requires_dist": [
-            "opentelemetry-exporter-http-transport==0.66b1; extra == 'http'",
-            "opentelemetry-sdk~=1.45.1"
+            "opentelemetry-exporter-http-transport==0.66b2; extra == 'http'",
+            "opentelemetry-sdk~=1.45.2"
           ],
-          "sha256": "00ff8592c3a7cb729ff3fdc7ffa12372c243bdf2163e80c180994d0c7bd83ee9",
-          "version": "0.66b1",
-          "wheel": "opentelemetry_exporter_otlp_common-0.66b1-py3-none-any.whl"
+          "sha256": "ace86efb75489f925f1ef809856ae5f0c7db534e4afdc624530222228b1236a5",
+          "version": "0.66b2",
+          "wheel": "opentelemetry_exporter_otlp_common-0.66b2-py3-none-any.whl"
         },
         "opentelemetry-exporter-otlp-proto-common": {
           "provides_extra": [],
           "requires_dist": [
-            "opentelemetry-proto==1.45.1"
+            "opentelemetry-proto==1.45.2"
           ],
-          "sha256": "2f446183ae7047b036226f1d846c41a834b0e8755ad13b51a51dd38952eb466c",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_exporter_otlp_proto_common-1.45.1-py3-none-any.whl"
+          "sha256": "af483b24217028892f017096731b794b196b785025d2e6808874720fd0b05a80",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_exporter_otlp_proto_common-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-exporter-otlp-proto-http": {
           "provides_extra": [
@@ -1487,52 +1485,52 @@
             "googleapis-common-protos~=1.52",
             "opentelemetry-api~=1.15",
             "opentelemetry-exporter-credential-provider-gcp>=0.59b0; extra == 'gcp-auth'",
-            "opentelemetry-exporter-http-transport[requests]==0.66b1",
-            "opentelemetry-exporter-http-transport[requests]==0.66b1; extra == 'requests'",
-            "opentelemetry-exporter-otlp-common==0.66b1",
-            "opentelemetry-exporter-otlp-proto-common==1.45.1",
-            "opentelemetry-proto==1.45.1",
-            "opentelemetry-sdk~=1.45.1",
+            "opentelemetry-exporter-http-transport[requests]==0.66b2",
+            "opentelemetry-exporter-http-transport[requests]==0.66b2; extra == 'requests'",
+            "opentelemetry-exporter-otlp-common==0.66b2",
+            "opentelemetry-exporter-otlp-proto-common==1.45.2",
+            "opentelemetry-proto==1.45.2",
+            "opentelemetry-sdk~=1.45.2",
             "requests~=2.7",
             "requests~=2.7; extra == 'requests'",
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "24a97cf3753c7fb52fad44a696e452ff371686339e2acf3309e2eda3d0230700",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_exporter_otlp_proto_http-1.45.1-py3-none-any.whl"
+          "sha256": "6e4d025138829d0ee57946930c2ccad6491ad4d92a958e9c7eea69278fe60cfc",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_exporter_otlp_proto_http-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-proto": {
           "provides_extra": [],
           "requires_dist": [
             "protobuf<8.0,>=5.0"
           ],
-          "sha256": "f38e2a8413053c180cd3d2637fbb279673ec2f6a6e09c995aafa2f452c52b46e",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_proto-1.45.1-py3-none-any.whl"
+          "sha256": "03a7ca1b43f89fd5b965d5975902bb2515c0c86e2428b456836e9a6149c6235a",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_proto-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-sdk": {
           "provides_extra": [
             "file-configuration"
           ],
           "requires_dist": [
-            "opentelemetry-api==1.45.1",
-            "opentelemetry-configuration==0.66b1; extra == 'file-configuration'",
-            "opentelemetry-semantic-conventions==0.66b1",
+            "opentelemetry-api==1.45.2",
+            "opentelemetry-configuration==0.66b2; extra == 'file-configuration'",
+            "opentelemetry-semantic-conventions==0.66b2",
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "c604c11dc429810812348989115fa44bd558772a3d7442afc43d024f2c250ca4",
-          "version": "1.45.1",
-          "wheel": "opentelemetry_sdk-1.45.1-py3-none-any.whl"
+          "sha256": "ff974ea70ee4f1d51e2ec152db37c2b626c7bf82bb3f7d86114fd8704e7199c6",
+          "version": "1.45.2",
+          "wheel": "opentelemetry_sdk-1.45.2-py3-none-any.whl"
         },
         "opentelemetry-semantic-conventions": {
           "provides_extra": [],
           "requires_dist": [
-            "opentelemetry-api==1.45.1",
+            "opentelemetry-api==1.45.2",
             "typing-extensions>=4.5.0"
           ],
-          "sha256": "d4cddeb4315490b35213f55e2bdc9ac54bb1e4d318927475bed62b35545e581b",
-          "version": "0.66b1",
-          "wheel": "opentelemetry_semantic_conventions-0.66b1-py3-none-any.whl"
+          "sha256": "4cbe61e5f9275d57ab31708446e7938ef4291ebbe6a7fca6f7a629c5acae87d8",
+          "version": "0.66b2",
+          "wheel": "opentelemetry_semantic_conventions-0.66b2-py3-none-any.whl"
         },
         "prometheus-client": {
           "provides_extra": [
@@ -2000,14 +1998,14 @@
   "schema": 1,
   "sources": {
     "requirements-db.txt": "79e52ec98d642c3b33efee0fe3076b958c656cd047a07c72dd69386dcd257cab",
-    "requirements-dev-constraints.txt": "9ba4a3c973b709b61fa0e49b570c1c6aa24cac75f6f3022b129cee9268906972",
+    "requirements-dev-constraints.txt": "58f616ddc6c4281c03eedbc51c7215a6e784ce3a739e8f57fdde2588c91afad2",
     "requirements-lock-bootstrap.txt": "0fd96c8f6641c5af6bf5dccd945202d0844042e36a6d9f76ba6f8f1114661b37",
-    "requirements-runtime.txt": "9bd02ffabaf47cf4ac3759b476cb157853b78879d1ebbdb95cff3b98c9227fdb"
+    "requirements-runtime.txt": "406ed11753fa8bd157b33b7448768768d754dfa33cfed7264670732a7a64300b"
   },
   "target": {
     "alpine": "3.24",
     "libc": "musl",
     "machine": "x86_64",
-    "python": "3.13.16"
+    "python": "3.13.18"
   }
 }

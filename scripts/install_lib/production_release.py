@@ -83,6 +83,8 @@ def ensure_production_release_input(
         raise RuntimeError("Production docker install requires all image refs as immutable digest refs.")
 
     if bundle:
+        # Hashing this archive here, or trusting a colocated checksum, would not
+        # authenticate it. The caller must supply independently trusted evidence.
         match = BUNDLE_DIGEST_RE.fullmatch((bundle_sha256 or "").strip())
         if match is None:
             raise RuntimeError(

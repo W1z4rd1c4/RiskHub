@@ -1,8 +1,11 @@
 """Fail-closed image-build checks for the official Python/Alpine security fixes."""
 
 import ctypes
+import importlib.util
 import io
+import shutil
 import ssl
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -11,9 +14,22 @@ from pathlib import Path
 
 
 def verify_python_release() -> None:
-    # 3.13.16 includes CVE-2026-82049, CVE-2026-19445 and CVE-2026-19553.
-    if sys.version_info[:2] != (3, 13) or sys.version_info[:3] < (3, 13, 16):
-        raise RuntimeError("The container requires the fixed Python 3.13.16+ release")
+    # 3.13.18 also rejects compromised intermediates (CVE-2026-115557).
+    if sys.version_info[:2] != (3, 13) or sys.version_info[:3] < (3, 13, 18):
+        raise RuntimeError("The container requires the fixed Python 3.13.18+ release")
+
+
+def verify_sqlite_absent() -> None:
+    # Production uses PostgreSQL; SQLite is retained only in development and
+    # resolver environments, which are not shipped as production image lanes.
+    if any(importlib.util.find_spec(name) is not None for name in ("sqlite3", "_sqlite3")):
+        raise RuntimeError("Production images must not include SQLite Python modules")
+    if shutil.which("sqlite3") or list(Path("/usr/lib").glob("libsqlite3.so*")):
+        raise RuntimeError("Production images must not include SQLite binaries")
+    if subprocess.run(
+        ["apk", "info", "--exists", "sqlite-libs"], capture_output=True
+    ).returncode == 0:
+        raise RuntimeError("Production images must not include the SQLite package")
 
 
 def verify_zlib_linkage() -> None:
@@ -118,6 +134,7 @@ def verify_tarfile_filters() -> None:
 
 if __name__ == "__main__":
     verify_python_release()
+    verify_sqlite_absent()
     verify_zlib_linkage()
     verify_ssl_hostname_validation()
     verify_ssl_sni_context_release()

@@ -254,7 +254,8 @@ Commit both generated constraint files and the development entrypoint together.
 Do not hand-edit generated locks, and do not merge a lock-only bot update over
 changed input requirements. Keep intentional major-version bounds in the inputs;
 protobuf 6 remains retained pending #224. The reviewed test/tooling baseline pins
-Ruff 0.16.10, Mypy 2.4.0, Syrupy 6.1.1, pytest-postgresql 9.1.1 and Filelock 4.1.1;
+Ruff 0.16.10, Mypy 2.4.0, Syrupy 6.1.1, pytest-postgresql 9.1.1 and Filelock 4.2.1;
+Setuptools 84.1.0 fixes the legacy wheel namespace path escape;
 these changes retain every unselected development/audit pin. The existing
 known-safe FastAPI pin and dependency-audit exceptions remain governed by the
 security contracts.

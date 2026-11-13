@@ -229,14 +229,14 @@ linux_deploy_or_upgrade() (
   local verified_bundle="${verified_root}/bundle.tar.gz"
   local release_dir=""
   local candidate_owned="false"
-  cleanup_linux_candidate() {
-    local rc="$1"
+  trap '
+    rc=$?
     rm -rf -- "$verified_root"
     if [[ "$rc" -ne 0 && "$candidate_owned" == "true" && "$DRY_RUN" != "true" && "$(readlink "$LINUX_CURRENT_LINK" || true)" != "$release_dir" && "$(readlink "$LINUX_PREVIOUS_LINK" || true)" != "$release_dir" ]]; then
       run_privileged rm -rf -- "$release_dir"
     fi
-  }
-  trap 'rc=$?; cleanup_linux_candidate "$rc"; exit "$rc"' EXIT
+    exit "$rc"
+  ' EXIT
   cp -- "$bundle_path" "$verified_bundle"
 
   local release_version

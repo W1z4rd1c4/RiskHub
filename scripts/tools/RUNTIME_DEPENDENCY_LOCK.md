@@ -53,7 +53,7 @@ guarded production Dockerfile with its freshly rendered candidate.
 
 ## Canonical target and commands
 
-Generation and install verification require native CPython **3.13.16**, **Alpine
+Generation and install verification require native CPython **3.13.18**, **Alpine
 3.24**, **musl**, **linux/amd64**, and pip **26.2.2** in the digest-pinned Python
 image already used by `backend/Dockerfile`. The current release workflows build
 on amd64 Ubuntu runners without a multi-platform matrix. This lock makes no
