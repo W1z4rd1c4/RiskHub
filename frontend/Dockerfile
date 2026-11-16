@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build React application
 # =============================================================================
-FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS builder
+FROM node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS builder
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Production nginx server
 # =============================================================================
-FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS runtime
+FROM nginx:alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS runtime
 
 # Patch base OS packages to the latest point releases on every rebuild so that
 # CVEs fixed in Alpine's stable branch (including OpenSSL fixes) get picked up
